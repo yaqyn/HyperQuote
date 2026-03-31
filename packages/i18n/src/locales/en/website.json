@@ -107,7 +107,10 @@
     "errorTitle": "Failed to load products",
     "errorBody": "Products failed to load. Check your connection and try again.",
     "errorCTA": "Retry",
-    "loginPrompt": "Sign in to add products to your quote"
+    "loginPrompt": "Sign in to add products to your quote",
+    "available": "Available",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock"
   },
   "categories": {
     "cement": "Cement",
@@ -156,13 +159,6 @@
     "regionAr": "Egypt \u00b7 \u0627\u0644\u0639\u0631\u0628\u064a\u0629"
   },
   "offline": "You're offline",
-  "market": {
-    "addToQuote": "Add to Quote",
-    "priceOnRequest": "Price on Request",
-    "available": "Available",
-    "lowStock": "Low Stock",
-    "outOfStock": "Out of Stock"
-  },
   "product": {
     "specsHeading": "Specifications",
     "documentsHeading": "Documents",

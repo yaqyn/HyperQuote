@@ -136,7 +136,7 @@ function ProductDetailPage() {
   )
 
   const categoryLabel = t(
-    `marketPreview.categories.${product.category}`,
+    `categories.${product.category}`,
     product.category.replace(/_/g, ' '),
   )
 
