@@ -38,9 +38,9 @@ Declared values (multiples of 4, from tokens.css `--spacing: 0.25rem` base):
 | xl | 32px | Card padding (p-32px on value prop cards), layout gaps |
 | 2xl | 48px | — |
 | 3xl | 64px | Header height desktop, mobile section vertical padding (py-64px) |
-| 4xl | 96px | Desktop section vertical padding (py-96px) |
 
 Exceptions:
+- 96px (24 * 4): Used exclusively for desktop section vertical padding (py-96px) to achieve cinematic spaciousness -- not a layout gap value
 - Header height: 64px desktop, 56px mobile (56 = 14 * 4, valid)
 - CTA button height: 56px on hero (14 * 4, valid), 36px on header (9 * 4, valid)
 - Logo height: 28px (brand asset, not a spacing token)
