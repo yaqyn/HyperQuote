@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **FOUND-01**: Monorepo scaffold with 5 apps + 7 shared packages builds and runs (`bun install` + `bun run dev`)
 - [ ] **FOUND-02**: Supabase project initialized with all 50 enums + auth/tenant tables + RLS helper functions
-- [ ] **FOUND-03**: Supabase SSR auth works on Cloudflare Workers (go/no-go validation with `nodejs_compat`)
+- [x] **FOUND-03**: Supabase SSR auth works on Cloudflare Workers (go/no-go validation with `nodejs_compat`)
 - [x] **FOUND-04**: TanStack Start SSR renders a page with server function data on Cloudflare Workers
 - [ ] **FOUND-05**: Shared packages build: @hyperquote/ui (GlassWindow, StatusBadge, Skeleton, Toast, EmptyState, CurrencyDisplay, DateDisplay, UnitDisplay, LionMark, CommandPalette), @hyperquote/types, @hyperquote/i18n, @hyperquote/auth, @hyperquote/forms, @hyperquote/tables
 - [ ] **FOUND-06**: Tailwind v4 with tokens.css renders correctly, colors in `:root {}` not `@theme`, RTL logical properties work
@@ -253,7 +253,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 2 | Pending |
-| FOUND-03 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 3 | Pending |
 | FOUND-06 | Phase 3 | Pending |

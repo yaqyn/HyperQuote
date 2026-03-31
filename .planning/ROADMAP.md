@@ -59,7 +59,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 Plans:
 - [x] 01-01-PLAN.md -- Monorepo root config, 5 app shells, 7 package stubs, website server function validation
-- [ ] 01-02-PLAN.md -- @hyperquote/auth package, Supabase SSR on Workers go/no-go validation
+- [x] 01-02-PLAN.md -- @hyperquote/auth package, Supabase SSR on Workers go/no-go validation
 
 ### Phase 2: Supabase + Initial Migrations
 **Goal**: Database foundation exists with all enums, auth tables, RLS helpers, and seed data so that auth and tenancy work end-to-end
