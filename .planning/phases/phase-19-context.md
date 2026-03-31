@@ -186,7 +186,7 @@ Per stop section:
 4. Capture photos: `[Rear Photo]` `[Side Photo]` `[Seal Photo]` (minimum required configurable)
 5. Sign-off: driver + loader signatures (dual signature pad) + `[Gate Clearance]`
 
-**Hard gating:** Missing items, weight variance >tolerance, required photos missing = BLOCKED departure with manager override option.
+**Hard gating:** Missing items, weight variance >tolerance, required photos missing = BLOCKED departure with manager override option. `[BLOCKED - Resolve Issues]` shown in red.
 
 **On clearance:** `[Generate BOL]` auto-generates Bill of Lading. Triggers: outbound inventory state change, delivery tracking activation, customer notification.
 
@@ -240,11 +240,11 @@ Per stop section:
 
 **Returns Receipt & Inspection:** Receive returns against RMA. Inspect per material-type checklist. Disposition per item: Restock Grade A, Restock Discounted, Return to Vendor, Scrap/Dispose, Hold for Investigation. Photo documentation mandatory. Credit note auto-generated or flagged.
 
-**Damaged Goods / Quarantine:** Central view of all quarantined items. Sources: receiving failure, cycle count discovery, approaching expiration, forklift damage, customer return. Disposition: release, sell as-is, return to supplier, scrap, rework.
+**Damaged Goods / Quarantine:** Central view of all quarantined items. Sources: receiving failure, cycle count discovery, approaching expiration (auto-triggered), forklift damage, customer return. Disposition: release, sell as-is (markdown), return to supplier, scrap (write-off), rework. Write-off value calculated. Manager approval for dispositions above threshold.
 
-**Inter-Base Transfer:** From base, to base, items, lots (FEFO), quantities, reason, priority. Manager approval required. Transfer tracked like mini-shipment.
+**Inter-Base Transfer:** From base, to base, items, lots (FEFO), quantities, reason, priority. Manager approval required for inter-base. Freight cost estimate. Transfer tracked like mini-shipment with states: Submitted -> Approved -> Pick at Source -> In Transit -> Received at Destination -> Complete.
 
-**Reports & KPIs (manager):** Inventory accuracy, order fill rate, pick accuracy, receiving cycle time, on-time shipment, inventory turnover. Export CSV, email report.
+**Reports & KPIs (manager):** Inventory accuracy, order fill rate, pick accuracy, receiving cycle time, on-time shipment, inventory turnover. Report library: inventory valuation, aging by lot, slow-moving, damage/write-off, receiving performance, count accuracy trend, utilization, transfer history, returns analysis, worker productivity. Date range + base filters. Export CSV, email report.
 
 #### 4.13 Warehouse Keyboard Shortcuts (desktop)
 
@@ -305,6 +305,14 @@ GS1-128 for pallets/cases, manufacturer barcodes for items, location barcodes fo
 - A items (cement, rebar): tight control, frequent counts, >2% variance = recount
 - B items: moderate control, >5% variance = recount
 - C items (hardware, misc): looser control, >10% variance = recount
+
+**Quality Inspection Standards (AQL Sampling):**
+AQL (Acceptable Quality Level) sampling per ANSI/ASQ Z1.4 for large shipments. Supplier tiering determines inspection level:
+- **Preferred suppliers:** Skip-lot inspection (reduced frequency, sample only every Nth delivery)
+- **Approved suppliers:** AQL sampling (standard statistical sampling tables)
+- **Conditional suppliers:** Tightened inspection (larger sample sizes, stricter acceptance criteria)
+- **New suppliers:** 100% inspection (every item checked until track record established)
+Inspection level auto-determined from `suppliers.tier` field. Override available for warehouse manager.
 
 **Reorder Point (Egyptian market):**
 (Avg daily demand x Lead time days) x 1.5 reliability factor

@@ -44,20 +44,20 @@ When unauthenticated user visits any portal route:
 
 **Base canvas:** Full viewport. `var(--color-base)`. Completely empty -- no gradients, no patterns. The emptiness IS the design.
 
-**PWA install prompt:** After 3rd visit (localStorage counter), subtle bottom banner. "Install HyperQuote" + Install button + close.
+**PWA install prompt:** After 3rd visit (localStorage counter), subtle bottom banner: `var(--color-card)` bg, rounded-xl, shadow-md, max-width 400px, centered horizontally, mb-16px from viewport bottom. Content: HyperQuote icon 24px + "Install HyperQuote for quick access" Inter 400 14px + "Install" button (blue, 32px height) + close (Lucide `X` 16px). Dismissible. Once dismissed or installed, never shows again.
 
 **Welcome greeting (canvas center, above AI chat):**
 - Spring animation on load.
-- Time-aware: "Good morning, Ahmed" / "صباح الخير، أحمد". Times: 5AM-12PM morning, 12-5PM afternoon, 5-10PM evening, 10PM-5AM night.
+- Time-aware: "Good morning, Ahmed" / "صباح الخير، أحمد". Times: 5AM-12PM morning ("Good morning" / "صباح الخير"), 12-5PM afternoon ("Good afternoon" / "مساء الخير"), 5-10PM evening ("Good evening" / "مساء الخير"), 10PM-5AM night ("Good night" / "تصبح على خير").
 - If urgent items: "3 items need your attention" with AlertCircle icon. Items: quotes awaiting response, orders with status changes, overdue actions.
 - Greeting fades after 3s to opacity 0.4 (stays visible, becomes background).
 
 **AI Chat -- centered, primary interaction:**
 - Position: centered horizontally, ~40% from top of viewport.
 - Input: h-56px, rounded-2xl, border 1px, bg card, shadow-sm. px-20px.
-- Placeholder rotates every 8s: "What do you need today?" -> "Try: I need 500 bags of cement" -> "Try: Reorder my last purchase".
-- Sparkles icon 20px at inline-start. Send button: 40px circle, blue bg, ArrowUp icon.
-- On focus: blue border, shadow with blue tint.
+- Placeholder rotates every 8s (CSS opacity crossfade): "What do you need today?" -> "Try: I need 500 bags of cement" -> "Try: Reorder my last purchase" -> "Try: What's the status of my order?" / Arabic equivalents.
+- Sparkles icon 20px at inline-start, `var(--color-primary)` at 50% opacity. Send button: 40px circle, blue bg, ArrowUp icon. Opacity 0.3 when empty, 1.0 when input has text.
+- On focus: border becomes `var(--color-primary)` 1.5px, shadow `0 0 0 3px rgba(37,99,235,0.1)`. Placeholder stops rotating, shows single placeholder.
 
 **Chat message area (grows above input):**
 - User messages: blue bg, white text, rounded-2xl.
@@ -82,15 +82,16 @@ When unauthenticated user visits any portal route:
 **Settings / Profile (top inline-end):**
 - Notification bell: Bell 20px. Blue dot if unread. Opens Notifications window.
 - Profile avatar: 32px circle. Click -> popover (React Aria Popover): name, company, menu (Settings, Documents, Support, Language, Theme, Sign Out).
-- Sign Out: inline confirmation "Are you sure?" + Cancel/Sign Out. Clears SSO cookie, redirects to website.
+- Sign Out: on click shows inline "Are you sure?" with "Cancel" and "Sign Out" buttons (red text). On confirm: POST to sign-out server function, clear SSO cookie, redirect to `hyperquote.net`.
 
 **Glass window behavior (universal for all portal windows):**
 - When window opens:
   - Canvas elements scale to 0.96, blur(2px), opacity 0.5. Tween 300ms.
   - Window: spring animation (opacity 0->1, scale 0.98->1, stiffness 200, damping 20).
   - Max-width 1200px, max-height 90vh, centered. Card bg, backdrop-blur-xl 85% opacity. Rounded-3xl. Shadow-2xl.
-  - Header: h-56px, title (Inter 600 18px) + close button (X 24px).
-  - Escape closes. Click outside closes.
+  - Header bar: h-56px, px-24px, border-bottom 1px `var(--color-border)`. Left: title (Inter 600 18px) + optional subtitle (Inter 400 13px muted). Right: close button (X 24px, 44px touch target, `var(--color-text-muted)`, hover `var(--color-text)`).
+  - Border: 1px `var(--color-border)` at 50% opacity.
+  - Escape closes. Click outside window (on dimmed canvas) closes window.
 - When window closes: tween (opacity 1->0, 150ms). Canvas restores.
 - Deep linking: `/orders` opens Orders window. `/` closes all. Browser back closes window.
 
@@ -102,7 +103,7 @@ When unauthenticated user visits any portal route:
 - Canvas: greeting + chat full width px-16px. Buttons stack vertically.
 - Glass windows: full-screen (100vw, 100vh). Slides up from bottom. No rounded corners. Swipe right/back to close.
 - Profile popover -> full-screen bottom sheet.
-- Supplier toggle moves inside profile menu.
+- Supplier toggle moves inside profile menu (not floating).
 
 **Keyboard shortcuts:**
 - `/` -- Focus AI chat input
@@ -114,11 +115,12 @@ When unauthenticated user visits any portal route:
 
 **Floating AI button (when windows open):**
 - 44px circle, blue bg, Sparkles 20px. Bottom-right. Spring entrance after window opens.
-- On click: mini AI chat as Elevated glass panel (380px width, 60vh max-height). Context-aware greeting.
+- On click: mini AI chat as Elevated glass panel (380px width, 60vh max-height, anchored bottom-right/bottom-left RTL). `backdrop-blur-2xl bg-white/90 dark:bg-black/90`, rounded-2xl, shadow-2xl. Contains: compact chat input (44px height) + scrollable message area + close button (X 16px).
+- Context-aware greeting examples: "I see you're looking at Order #847 — need help?" / "Browsing the market — want me to find something specific?"
 - `Ctrl+J` toggles from anywhere.
 - Auto-closes when parent window closes.
 
-**Offline:** Banner at top. Chat disabled. Windows show cached data. Mutations disabled.
+**Offline:** Subtle top banner appears. Chat input disabled with placeholder "Chat unavailable offline". Windows show cached data with "Showing cached data" label. Mutations disabled — add-to-quote, submit-quote buttons show tooltip "You're offline" on hover.
 
 ### Portal Route Map
 | Route | Window/View | Auth |
@@ -135,6 +137,10 @@ When unauthenticated user visits any portal route:
 | `/settings` | Settings window | Required |
 | `/supplier` | Supplier home | Required + supplier role |
 | `/supplier/stock` | Stock & pricing | Required + supplier role |
+| `/supplier/orders` | PO inbox (supplier view) | Required + supplier role |
+| `/supplier/invoices` | Invoice submission (supplier view) | Required + supplier role |
+| `/supplier/analytics` | Analytics (supplier view) | Required + supplier role |
+| `/join` | Team invitation acceptance | Token-based |
 
 ### Dual Auth Pool (Portal)
 Portal uses external auth pool + `hq-external-session` cookie. Cross-pool access impossible.
@@ -160,7 +166,7 @@ Portal uses external auth pool + `hq-external-session` cookie. Cross-pool access
 ### Glass Window System
 - Spring enter + tween exit must be consistent across all windows.
 - Canvas must recede (scale + blur + opacity) when window opens -- this is the spatial philosophy.
-- Window state (scroll position, tab selection) should persist via Zustand when swapping between windows.
+- **Window state preservation:** When user swaps modules, current window state preserved in Zustand (keyed by module name). Preserved state includes: scroll position, active tab/sub-view, form input values, step progress in multi-step flows, selected filters, and expanded/collapsed sections. On return, window restores to exact previous state with no loading delay (data from TanStack Query cache). State is session-scoped — cleared on logout or browser close. Auto-saved form drafts (persisted to server via `saveDraft()` server function) are SEPARATE from window state — drafts survive across sessions, window state does not.
 
 ### Supplier Role Toggle
 - Both roles operate in same session. No page reload.

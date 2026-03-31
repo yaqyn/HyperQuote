@@ -46,12 +46,23 @@ When user toggles to Supplier mode, canvas updates:
 **URL:** `/supplier/stock`. Glass window with tabs: "My Products", "Price Updates", "Upload History".
 
 **My Products tab:**
-- Table (React Aria Table): Product (bilingual), SKU (Geist Mono), Current Price (Geist Mono, editable), Stock Qty (Geist Mono, editable), Last Updated (Geist Mono, relative time), Status badge, Actions.
-- Editable cells: click -> inline NumberField. On blur/Enter: saves immediately via PATCH. Success: cell flashes green for 500ms. Error: revert + toast.
-- Freshness color coding: < 24h green, 1-3 days yellow, > 3 days red.
+- Table (React Aria Table): Product (bilingual), SKU (Geist Mono), Current Price (Geist Mono, editable), Stock Qty (Geist Mono, editable), Last Updated (Geist Mono, relative time), Status badge ("Active" green, "Low Stock" yellow, "Out of Stock" red, "Suppressed" gray), Actions.
+- Actions column: "Edit" (Lucide `Pencil` 16px) opens product edit drawer. "Deactivate" (Lucide `EyeOff` 16px) toggles product visibility.
+- Editable cells: click -> inline NumberField. On blur/Enter: saves immediately via PATCH. Success: cell flashes `var(--color-success-bg)` for 500ms. Error: revert + toast.
+- Freshness color coding on "Last Updated": < 24h green, 1-3 days yellow, > 3 days red.
 - Pagination: 50 per page.
+- **Empty state:** "You haven't added any products yet." + "Upload Catalog" button (blue, 44px) + "Or add products manually" link that opens product edit drawer with empty fields.
 
-**Product edit drawer:** slides from inline-end, 480px width, elevated glass. Fields: Price, MOQ, Stock qty, Lead time, Region pricing, Notes.
+**Product edit drawer:** slides from inline-end, 480px width, elevated glass. Fields: Product name (read-only — name changes require HyperQuote review), Price (NumberField, required, currency prefix/suffix per locale), Minimum Order Quantity (NumberField), Stock quantity (NumberField), Lead time (NumberField + "days" label, "if made-to-order" qualifier), Region pricing (if multiple regions, a table of region -> price), Notes (TextArea). "Save" button (blue, 44px, full width). "Cancel" closes drawer.
+
+**Price Updates tab:**
+- History of all price changes. Table: Product, Old Price (Geist Mono, strikethrough), New Price (Geist Mono), Changed By, Date (Geist Mono), Status (badge: "Applied", "Pending Review", "Rejected").
+- Filter by date range.
+- For "Pending Review" items: note explaining why review is needed ("New supplier — first 3 months require price review").
+
+**Upload History tab:**
+- List of catalog uploads. Each: filename, date (Geist Mono), items parsed count (Geist Mono), status (badge: "Processing", "Completed", "Failed", "Review Required").
+- Click to see details: opens side-by-side view of original document + extracted data.
 
 **Upload Catalog flow:**
 1. Upload modal (elevated glass): drag-and-drop, PDF/Excel/CSV, max 50MB.
@@ -62,8 +73,8 @@ When user toggles to Supplier mode, canvas updates:
 **Bulk Update flow:**
 1. Download current prices as CSV.
 2. Upload modified CSV.
-3. Diff preview: changed values highlighted (old -> new). Unchanged grayed.
-4. "Apply Changes" with confirmation.
+3. Diff preview: changed values highlighted (old -> new, red -> green). Unchanged rows grayed out.
+4. "Apply Changes" with confirmation: "Update {N} prices and {M} stock quantities?"
 
 ### FRONTEND.md Section 2.12 — Purchase Orders Inbox
 
@@ -71,17 +82,23 @@ When user toggles to Supplier mode, canvas updates:
 
 **Pending Action:** PO cards sorted by urgency (oldest first). Each: PO reference (Geist Mono), status badge, date received, response deadline (color-coded), items summary.
 
-**PO Detail:** Back button, header, line items table with per-line confirm checkbox. If cannot fulfill: reason dropdown (Out of Stock, Partial Only, Price Changed, Lead Time Needed). If partial: quantity field. If price changed: new price field. Delivery scheduling: ship date (DatePicker), method (Supplier Delivers/HyperQuote Pickup), tracking number, notes.
+**PO Detail:** Back button, header (PO reference, date, status, from "HyperQuote"), line items table: "#", "Product", "Qty Requested" (Geist Mono), "Unit Price" (Geist Mono), "Line Total" (Geist Mono), "Confirm" (per-line toggle).
+- Each line: confirm checkbox (React Aria `Checkbox`). If supplier cannot fulfill: uncheck + "Reason" dropdown appears (Select: "Out of Stock", "Partial Only", "Price Changed", "Lead Time Needed").
+- If "Partial Only": quantity field appears (NumberField, max = requested qty).
+- If "Price Changed": new price field appears (NumberField) + "Requires HyperQuote review".
+- Delivery scheduling: estimated ship date (React Aria `DatePicker`, required), delivery method (Select: "Supplier Delivers" / "HyperQuote Pickup"), tracking number (TextField, optional), notes (TextArea).
 
-Actions: "Confirm PO" (green, confirmation modal) and "Reject PO" (red, requires reason).
+Actions (sticky bottom):
+- "Confirm PO" (green, 48px, flex-1): confirmation modal "Confirm {N} of {M} items? {partial details}." + "Cancel" / "Confirm" (green). On success: status -> "Confirmed". Toast: "PO confirmed."
+- "Reject PO" (red outline, 48px, px-24px): requires reason — TextArea in confirmation modal: "Why are you rejecting this PO? This will be reviewed by HyperQuote." On submit: status -> "Rejected". Toast: "PO rejected. HyperQuote has been notified."
 
-**Confirmed tab:** PO cards with "Update Status" and "Submit Invoice" buttons.
+**Confirmed tab:** PO cards with status "Confirmed" / "In Production" / "Shipped". Each shows ship date, tracking number, delivery progress. "Update Status" button: dropdown to advance status ("Shipped" -> enter tracking number, "Delivered" -> add delivery note). "Submit Invoice" button: opens Invoice Submission flow (2.13).
 
 ### FRONTEND.md Section 2.13 — Invoice Submission
 
 **URL:** `/supplier/invoices`. Tabs: "Submit New", "Submitted Invoices".
 
-**Submit New:** Form with Related PO (ComboBox), Invoice number, Invoice date, Line items (auto-populated, editable prices), Subtotal/VAT/Total (calculated, Geist Mono), Invoice PDF upload (required). Validation: total matches within 1% tolerance.
+**Submit New:** Form (React Hook Form + Zod): Related PO (React Aria `ComboBox`, lists confirmed/shipped POs without invoices, required), Invoice number (TextField, required, supplier's own number, Geist Mono), Invoice date (DatePicker, default today, required), Line items (auto-populated from PO, editable prices), Subtotal/VAT (14%)/Total (calculated, Geist Mono 18px bold), Invoice PDF upload (required, "Upload your invoice (PDF)" drag-and-drop, max 10MB), Notes (TextArea, optional). Validation: total matches within 1% tolerance — if mismatch: warning "Your total doesn't match the calculated total. Please verify."
 
 **Submitted Invoices:** Table with status badges (Submitted, Under Review, Approved, Paid, Disputed).
 
@@ -89,9 +106,26 @@ Actions: "Confirm PO" (green, confirmation modal) and "Reject PO" (red, requires
 
 **URL:** `/supplier/analytics`. Date range picker.
 
-4 KPI cards: Revenue, Fill Rate, On-Time Rate, Quote Inclusion. Each with trend arrow.
-Product performance table: Product, Views, Quote Inclusions, POs, Revenue, Win Rate.
-Monthly revenue chart placeholder (bar chart).
+**KPI cards (top row, 4 cards across, 2x2 on mobile):**
+- Each card: bg `var(--color-surface)`, rounded-xl, p-20px. Min-width 200px.
+  - KPI label: Inter 500 12px `var(--color-text-muted)`, uppercase, letter-spacing 0.05em.
+  - KPI value: Geist Mono 600, 28px, `var(--color-text)`.
+  - Trend indicator: small arrow (Lucide `TrendingUp` or `TrendingDown` 14px) + percentage (Geist Mono 12px). Green for positive, red for negative.
+  - Cards: "Revenue" (total PO value), "Fill Rate" (% of PO lines confirmed), "On-Time Rate" (% delivered by promised date), "Quote Inclusion" (% of customer quotes that include supplier's products).
+
+**Product performance table:** Columns: Product, Views (Geist Mono), Quote Inclusions (Geist Mono), POs (Geist Mono), Revenue (Geist Mono), Win Rate (Geist Mono, percentage). Sortable. Top 20 products. "View All" expands.
+
+**Monthly revenue chart placeholder:** bar chart, monthly totals, Geist Mono axis labels, blue bars, hover tooltip with exact values. Dimensions: full width, 300px height, rounded-xl border.
+
+**Analytics empty state (new supplier, no data):** "No analytics data yet." + "Analytics will appear after your first confirmed purchase order." + icon Lucide `BarChart3` 48px muted.
+
+### Supplier Keyboard Shortcuts (when supplier mode active)
+- `S` — Stock & Pricing window
+- `P` — Purchase Orders window
+- `A` — Analytics window
+
+### Mobile Adaptation (Supplier)
+- Tables become card lists. Editable fields: tap to edit (opens inline). Edit drawer becomes full-screen. Upload flow same but upload area larger.
 
 ### Database Tables
 

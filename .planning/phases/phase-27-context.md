@@ -196,6 +196,33 @@ From GSD.md: WhatsApp Cloud API webhook handler, OTP delivery, order notificatio
 - For the onboarding sequence, use pg_cron or Cloudflare Cron Triggers to schedule time-delayed messages.
 - CEO digest: pre-compute all metrics in materialized views (ceo_attention_items etc.), then format as WhatsApp message.
 
+## Push Notification Infrastructure
+
+**Push notifications for all web apps (portal, internal, CEO) and native driver app.**
+
+- **Web Push API** for portal, internal, and CEO PWAs. $0 cost. Service Worker registration on first login. Permission requested on first notification-worthy action (not on page load).
+- **FCM (Firebase Cloud Messaging) + APNs (Apple Push Notification service)** via Capacitor Push Notifications plugin for the native driver app. $0 cost.
+- Service Worker registration happens on first login. Push subscription stored in `push_subscriptions` table (user_id, endpoint, keys, platform, created_at).
+- Permission requested on first notification-worthy action (e.g., first order status change, first delivery assignment) -- never on page load or login.
+
+## Notification Orchestration Layer
+
+**Custom routing logic: severity -> channels, user preferences, quiet hours.**
+
+Each notification event routes to 1+ channels (in-app, email, SMS, WhatsApp, push) based on configurable rules:
+
+| Severity | Default Channels | Override |
+|----------|-----------------|----------|
+| Critical (delivery failure, bounced cheque) | In-app + Push + WhatsApp + SMS + Email | Cannot disable |
+| High (order status, quote ready) | In-app + Push + WhatsApp | User can disable WhatsApp/Push |
+| Normal (invoice generated, payment confirmed) | In-app + Email | User can disable email |
+| Low (weekly digest, suggestions) | In-app only | User can enable email/push |
+
+- User preferences stored in `notification_preferences` table (per user, per event type, per channel).
+- Quiet hours respected: no push/WhatsApp/SMS during configured quiet hours (default 10PM-7AM). Critical overrides quiet hours.
+- Friday Jumu'ah blackout (11:30 AM - 1:30 PM): queue non-critical notifications, send after 1:30 PM.
+- **Upgrade path:** If orchestration complexity grows beyond configurable rules, migrate to Novu (open-source notification infrastructure). Current custom implementation is sufficient for launch.
+
 ## Related Cron Jobs (from BACKEND.md)
 
 | Cron Job | Schedule | Runtime | Purpose |

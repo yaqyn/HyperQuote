@@ -108,7 +108,7 @@ Plus: all RLS policies, state machine transition function, enforcement triggers,
 
 ## IMPORTANT: Read Full SQL from BACKEND.md at Build Time
 
-**Phase 13 covers approximately 69 core business tables (13 prerequisite + 56 business).** The full CREATE TABLE SQL is too large to embed inline in this context file. At execution time, the executor **MUST read BACKEND.md Sections 3.5-3.10 directly** for complete table definitions.
+**Phase 13 covers 61 core business tables (13 prerequisite + 48 business).** The full CREATE TABLE SQL is too large to embed inline in this context file. At execution time, the executor **MUST read BACKEND.md Sections 3.5-3.10 directly** for complete table definitions.
 
 **Complete table list by domain:**
 

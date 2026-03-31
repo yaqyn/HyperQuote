@@ -195,7 +195,7 @@ Version Timeline (horizontal), Side-by-Side Comparison, Negotiation Conversation
 **9 Tabs:** `[Overview] [Contacts] [Quotes] [Orders] [Financials] [Projects] [Communications] [Documents] [Notes]`
 
 - **Overview:** Account Health Score (composite 0-100, bar visualization, green >70 / yellow 40-70 / red <40). Key Metrics card (lifetime value, orders 12mo, revenue 12mo, avg margin, avg order size, win rate, open quotes). Credit & AR card. Key Contacts (top 3-5). Recent Activity Timeline.
-- **Contacts:** Table (name, role, email, phone, last contact date, comm preference). Expand row for relationship strength, role in deals, org chart visualization.
+- **Contacts:** Table (name, role, email, phone, last contact date, comm preference). Expand row for relationship strength (strong/developing/new), role in deals (decision maker/budget holder/influencer/end user/gatekeeper), personal notes. Org chart visualization: customer's decision-making hierarchy with our contacts mapped to theirs. `[+Add Contact]` button.
 - **Quotes:** Table with win/loss analysis, filter by status/date.
 - **Orders:** Table with order/delivery/payment status, drill-in.
 - **Financials:** Credit limit history, AR aging (current/1-30/31-60/61-90/90+), payment history, avg days to pay trend.

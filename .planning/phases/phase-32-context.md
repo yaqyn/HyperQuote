@@ -54,6 +54,33 @@ From GSD.md: Vitest browser mode tests for critical paths, Playwright E2E for au
 | Playwright | 1.58.2 | E2E tests, keyboard testing, visual regression |
 | Storybook | 10.3.3 | Component dev (needs `@tailwindcss/vite` in `viteFinal` for Tailwind v4) |
 | MSW | 2.12.14 | API mocking. Works in Vitest browser mode. Does NOT work with `bun test` -- use `bun run vitest` |
+| Lefthook | 2.1.4 | Git hooks (Go binary, parallel execution, native staged-file filtering) |
+| Biome | 2.4.8 | Format + lint (15-25x faster than Prettier + ESLint combined) |
+| ESLint | 10.1.0 | ONLY for `eslint-plugin-react-hooks` (React Compiler rules) |
+| Turborepo | 2.8.21 | Monorepo task runner (parallel builds, task caching, composable config) |
+
+### Lefthook Configuration
+
+**Lefthook 2.1.4** -- Go binary, parallel execution, native staged-file filtering.
+
+- **pre-commit:** Runs Biome format + lint on staged files only. Fast (<2s for typical commits).
+- **pre-push:** Runs typecheck (`bun run typecheck` via Turborepo). Blocks push on type errors.
+- Configuration in `lefthook.yml` at repo root.
+
+### Biome / ESLint Configuration
+
+- **Biome 2.4.8:** Primary formatter and linter. 15-25x faster than Prettier + ESLint combined. Handles JS/TS/JSON/CSS formatting and linting. Configuration in `.biome.json` at repo root.
+- **ESLint 10.1.0:** ONLY for `eslint-plugin-react-hooks` (React Compiler rules). Does NOT handle formatting or general linting -- Biome does that. Configuration in `eslint.config.js` (flat config).
+- Both configured in Phase 1 during project scaffolding.
+
+### Turborepo Configuration
+
+**turbo.json** pipeline defines: `build`, `dev`, `lint`, `typecheck`, `test` tasks.
+
+- `--filter` flag for affected-only CI (only build/test packages that changed since last commit).
+- Composable config (2.7+): each app/package can extend base turbo.json.
+- `turbo devtools` for visual package/task graph during development.
+- Remote caching via Vercel (free tier) or self-hosted for CI speed.
 
 ### Per-Phase Checklist (from GSD.md)
 
@@ -97,6 +124,11 @@ jobs:
 - Staging: Supabase persistent branch + Cloudflare `--env staging`
 - Production: Main Supabase project + Cloudflare `--env production`
 - PR Preview: Supabase ephemeral branches via `supabase branches create --experimental`, Cloudflare preview URLs via `wrangler deploy --env preview` (each PR gets isolated DB + preview Worker URL)
+
+**Supabase Branch Management:**
+- PR ephemeral branches: `supabase branches create` on PR open, `supabase branches delete` on PR close/merge (GitHub Actions step).
+- Staging: persistent branch that mirrors production schema. Reset from production on demand.
+- Production: main Supabase project. Migrations applied via `supabase db push` in deploy pipeline.
 
 ### 5 Workers Deployment (from RESEARCH.md + BACKEND.md)
 
@@ -257,6 +289,27 @@ All 5 Workers share the same Supabase project, Hyperdrive configs, KV namespace,
 8. **Playwright Arabic tests.** Set `locale: 'ar-EG'` and `direction: 'rtl'` in Playwright config. Verify visual layout with screenshots.
 9. **Worker size limits.** Cloudflare Workers have a 10MB compressed limit (paid plan). Monitor bundle sizes per app.
 10. **Secret management.** Use `wrangler secret put` for API keys. Never commit secrets to wrangler.jsonc.
+
+### Bundle Size Monitoring
+
+**Bundle analysis:** Use Vite's built-in route-aware bundle analysis (`vite-bundle-visualizer` or `rollup-plugin-visualizer`). Monitor compressed Worker size against the 10MB limit. Set up CI alert if any Worker approaches 8MB compressed. Track bundle size trends per PR to catch regressions early.
+
+### Secret Enumeration
+
+**Secrets per Worker** (set via `wrangler secret put`, never committed to code):
+
+| Secret | Used By | Purpose |
+|--------|---------|---------|
+| `SUPABASE_URL` | All Workers | Supabase project URL |
+| `SUPABASE_ANON_KEY` | All Workers | Supabase anonymous/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | All Workers | Supabase service role key (server-side only) |
+| `AI_GATEWAY_TOKEN` | All Workers | Cloudflare AI Gateway authentication |
+| `RESEND_API_KEY` | All Workers | Email sending via Resend |
+| `WHATSAPP_TOKEN` | WhatsApp Worker | WhatsApp Cloud API access token |
+| `WHATSAPP_VERIFY_TOKEN` | WhatsApp Worker | WhatsApp webhook verification token |
+| `ETA_CLIENT_ID` | ETA Worker | Egyptian Tax Authority OAuth2 client ID |
+| `ETA_CLIENT_SECRET` | ETA Worker | Egyptian Tax Authority OAuth2 client secret |
+| `HSM_KEY_ID` | ETA Worker | Hardware Security Module key identifier for digital signatures |
 
 ## Tips
 

@@ -52,9 +52,13 @@ Customers can review received quotes and respond with accept, counter-offer, par
 - Per-line counter link if enabled.
 
 **Subtotals section:**
-- Subtotal, Delivery fee (free if applicable), VAT (14%), Total (VAT inclusive) — Geist Mono 18px.
-- Payment terms in highlighted box.
-- Price disclaimer about validity.
+- Subtotal: Geist Mono 14px.
+- Delivery fee: as line item. If free: "(Free)" in `var(--color-success)`.
+- VAT (14%): Geist Mono 14px.
+- **Total (VAT inclusive):** Geist Mono 18px, Inter 700 for label. `var(--color-text)`.
+- All amounts right-aligned (end-aligned in logical terms).
+- Payment terms: highlighted box — `var(--color-surface)` bg, rounded-lg, p-12px. Inter 400 14px.
+- Price disclaimer: "Prices valid until {date}. Subject to supplier cost changes for volatile materials." Inter 400 12px `var(--color-text-muted)`, italic.
 
 **Action buttons (sticky bottom bar when quote is "Sent"):**
 
@@ -62,31 +66,47 @@ Customers can review received quotes and respond with accept, counter-offer, par
    - Confirmation modal: "Accept this quote?" with total, payment terms, "This will create an order."
    - On confirm: POST `acceptQuote()`. Brief confetti animation. View updates to Order tracking. Toast: "Order confirmed!"
 
-2. **"Counter-Offer"** (yellow/warning outline):
-   - Options: "Counter on total" (single % discount input) OR "Counter per line" (inline price editing, amber highlights).
-   - Floating "changes bar" at bottom: "{N} items modified" + Discard + Submit.
-   - Volume counter, pickup option, notes textarea.
+2. **"Counter-Offer"** (yellow/warning outline, height 48px, px-24px, rounded-lg):
+   - Options: "Counter on total" (single discount input — React Aria `NumberField`, suffix "%") OR "Counter per line" (enables inline price editing in the table — click price cell -> becomes input, changed cells highlight amber).
+   - Floating "changes bar" at bottom of table: "{N} items modified" + `[Discard]` + `[Submit Counter-Offer]`. Updates in real-time as user edits prices.
+   - Volume counter: "I'll order {X} instead of {Y}" with quantity fields that recalculate.
+   - Delivery terms: checkbox "I'll arrange my own pickup (reduce price)".
+   - Notes: TextArea for Arabic free-text negotiation notes.
+   - "Submit Counter-Offer" button (blue, 44px). Confirmation modal: "Submit counter-offer? HyperQuote will review and respond." On submit: creates new quote version. Status -> "Negotiating". Toast: "Counter-offer submitted."
 
-3. **"Partial Accept"** (blue outline):
-   - Per-line buttons: Accept / Reject / Negotiate.
-   - Accept: locks line (green check). Reject: strikethrough + reason dropdown. Negotiate: inline price edit.
-   - Summary bar: "8 accepted, 2 rejected, 4 pending". Submit when all lines decided.
+3. **"Partial Accept"** (blue outline, height 48px, px-24px, rounded-lg):
+   - Per-line item buttons appear: `[Accept]` `[Reject]` `[Negotiate]`.
+   - Accept: locks line, green checkmark, row grays out.
+   - Reject: strikethrough + reason dropdown (Too expensive / Not needed / Found alternative / Other).
+   - Negotiate: inline price edit for that line (amber highlight).
+   - Summary bar updates live: "8 accepted, 2 rejected, 4 pending".
+   - `[Submit Partial Response]` available when all lines have a decision.
 
-4. **"Decline"** (red outline):
-   - Confirmation modal with optional reason dropdown + notes.
+4. **"Decline"** (red outline, height 48px, px-24px, rounded-lg):
+   - Confirmation modal: "Decline this quote?" + optional reason dropdown (React Aria `Select`, options: "Price too high", "Found alternative", "Project cancelled", "Other") + optional notes TextArea. "Cancel" + "Decline" (red). On confirm: status -> "Declined". Card updates.
 
 **Quote version history:**
 - Collapsible sections per version with diffs (changed prices highlighted, items added/removed).
 
-**Version comparison modal (elevated glass, max-width 960px):**
-- Two-column layout with dropdown selectors for Version A and B.
-- Diff rendering: changed cells amber/yellow, added items green, removed items red strikethrough.
-- Summary bar: total change with percentage.
+**Version comparison modal (elevated glass, max-width 960px, max-height 80vh, centered):**
+- Two-column layout. Left: "Version A" with dropdown selector (React Aria `Select`). Right: "Version B" with same dropdown. Defaults: A = previous version, B = current version.
+- Columns compared: Product, Qty, Unit Price, Line Total, Lead Time, Notes.
+- Diff rendering: changed cells amber/yellow bg (old value strikethrough Geist Mono 400 muted + new value Geist Mono 500). Added items: green-tinted bg + "NEW" badge. Removed items: red-tinted bg + strikethrough + "REMOVED" badge.
+- Summary bar at top: "Total changed from EGP 245,000 to EGP 231,500 (-5.5%)" — Geist Mono for all numbers. Percentage green if decreased, red if increased.
+- Mobile: stacked layout (Version A on top, Version B below) with "Swipe to compare" gesture hint.
+- Close: Escape or X button. Modal uses `isKeyboardDismissDisabled` (Escape handled by hotkeys).
 
-**Order tracking view (after acceptance):**
-- 5-stage progress bar: "Confirmed" -> "Being Prepared" -> "Out for Delivery" -> "Delivered" -> "Invoice Generated"
-- GPS map (MapLibre GL in ClientOnly) showing driver location + route + ETA when "Out for Delivery"
-- Payment instructions with bank details (copyable)
+**Order tracking view (after acceptance — status "Order Confirmed" and beyond):**
+- Order reference replaces quote reference: "ORD-2026-00015" Geist Mono.
+- 5-stage progress bar: "Confirmed" -> "Being Prepared" -> "Out for Delivery" -> "Delivered" -> "Invoice Generated". Same visual as timeline but horizontal, prominent.
+- Current stage details:
+  - "Being Prepared": "Your order is being fulfilled by our suppliers. Expected dispatch: {date}." Lucide `Package` animation.
+  - "Out for Delivery": GPS map (MapLibre GL, wrapped in ClientOnly). Shows driver location as blue dot + route line. ETA: Geist Mono 16px. "Driver: {name}" with call/WhatsApp buttons. Map height: 300px, rounded-xl, border 1px.
+  - "Delivered": Proof of delivery: photo thumbnail (click to expand), signature image, delivery timestamp in Geist Mono. "View Full Delivery Report" link.
+  - "Invoice Generated": link to invoice in Documents window. "View Invoice" button.
+- Payment instructions (shown when order confirmed): bank details card — `var(--color-surface)` bg, rounded-xl, p-20px. Bank name, account number (Geist Mono, copyable — click to copy with Lucide `Copy` 14px), IBAN, SWIFT, reference to include. "Copy All" button (outline, 32px). WhatsApp message: "These details were also sent to your WhatsApp."
+
+**Mobile:** Line items table becomes card layout (one card per line item with stacked label:value pairs). Action buttons become fixed bottom bar full width. Map fills full width. Counter-offer in full-screen sub-view.
 
 ### Database Tables
 

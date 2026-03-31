@@ -188,6 +188,56 @@ Arabic is the legally binding version for all legal pages under Egyptian law. Th
 **SSO cookie:** Set on `.hyperquote.net` domain -- login on website = logged in on portal.
 **Work week:** Sunday-Thursday. Weekend: Friday + Saturday.
 
+### Additional Spec Details (Gap Fills)
+
+**Contact form phone validation:**
+- Phone validation regex: `/^\+?20[0-9]{10}$/` or international format.
+
+**Submit button dimensions:**
+- "Send Message" button: blue bg, white text, full width max 400px, height 48px, rounded-lg.
+
+**FAQ search non-matching behavior:**
+- Non-matching items fade to opacity 0.3 and get `aria-hidden`.
+
+**Loading state details:**
+- FAQ skeletons: 6 items (line + expanded area shimmer). Contact form skeleton: 5 field skeletons.
+
+**Contact form field heights:**
+- All contact form fields: height 44px (Name, Email, Phone, Subject, Message excluded — TextArea uses 4 rows min).
+
+**Legal title and date styling:**
+- Title: Inter 700 30px. Last updated date: Geist Mono 12px `var(--color-text-muted)`.
+
+**Legal markdown typography:**
+- h2: Inter 600 20px, mt-32px mb-16px. h3: Inter 600 16px, mt-24px mb-12px. Paragraphs: Inter 400 16px, line-height 1.75, mb-16px.
+
+**Login modal spring config:**
+- Spring enter: scale 0.95 → 1, opacity 0 → 1, stiffness 260, damping 20. Tween exit: opacity 1 → 0, 150ms.
+
+**OTP input inputmode:**
+- Each OTP box: type tel, maxlength 1, `inputmode="numeric"`.
+
+**Account creation max lengths:**
+- Company name: max 200 chars. Full name: max 100 chars.
+
+**Legal agreement text:**
+- Below create account button: "By creating an account, you agree to our [Terms of Use] and [Privacy Policy]." — Inter 400 11px `var(--color-text-subtle)`. Links are `var(--color-primary)`, open in new tab.
+
+**Careers card styling:**
+- Each card: bg `var(--color-card)`, rounded-xl, p-24px, mb-16px, border 1px `var(--color-border)`. Location: Inter 400 14px muted (e.g., "Cairo, Egypt · Full Time").
+
+**AI chat bubble corners:**
+- AI bubbles: rounded-tl-sm (rounded-tr-sm in RTL). User bubbles: rounded-tr-sm (rounded-tl-sm in RTL).
+
+**AI chat send button RTL:**
+- Send button: Lucide `Send` 16px, flipped 180deg in RTL.
+
+**Unread pulse badge:**
+- Small green dot (10px) at top-right of button, with a single pulse animation on mount (not continuous).
+
+**Mobile AI panel input:**
+- Input has 56px height for touch targets.
+
 ## Non-Negotiable Rules
 1. **Login is a Modal overlay, NOT a page redirect.**
 2. **OTP primary: WhatsApp. Fallback: SMS after 30s. Voice after 60s.**

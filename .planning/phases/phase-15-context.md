@@ -51,7 +51,7 @@ Internal users land on a spatial canvas with glass windows, hotkeys for 11 modul
 **Post-Login Layout:**
 Wide open space. Pure white (light) or pure black (dark). No decoration.
 
-**Left edge:** Soft vertical strip of minimal icons, one per module. Always visible, never hidden behind hover. Icons are permission-filtered.
+**Left edge:** Soft vertical strip of minimal icons, one per module (left side in LTR, right side in RTL). Always visible, never hidden behind hover. Icons are permission-filtered -- if the employee lacks access to a module, the icon does not render and the hotkey does not register.
 
 **Canvas (home state):**
 - Clean greeting: "Good morning, Ahmed" (time-aware, localized)
@@ -101,33 +101,67 @@ Wide open space. Pure white (light) or pure black (dark). No decoration.
 - Permission-filtered
 
 **Notifications:**
-- Badge/dot on bell icon (no glow, no pulse)
-- Click opens notifications glass window
+- Badge/dot indicator on a bell icon in the top-right area of the canvas (no glow, no pulse, no animation on the badge itself)
+- Click opens a notifications glass window (same pattern as modules)
 - Grouped by time (Today, Yesterday, Older)
-- Each: icon + title + timestamp + action link
+- Each notification: icon + title + timestamp + action link
+- Mark as read, mark all read, mute by type
+- Sources: system events, @mentions, approval requests, SLA warnings, delivery status changes
 - Real-time via Supabase Realtime `postgres_changes`
 
 ### Mobile Adaptation
 
 - Canvas shows module icons as tappable glass cards in a grid (2 columns)
-- Each card: module icon + name + badge count
+- Each card: module icon + name + badge count if applicable
 - Tapping opens full-screen module view
-- Back gesture returns to canvas
-- No icon strip on mobile — canvas grid replaces it
+- Back gesture (swipe from edge) returns to canvas
+- No icon strip on mobile -- the canvas grid replaces it
+- Ctrl+K equivalent: search icon in top bar, opens full-screen search overlay
+- Bottom safe area respected on all screens
 
 ### Glass Window Behavior
 
-**Window tier:**
-- `backdrop-blur-xl bg-white/80 dark:bg-black/80`
-- Spring animation on open, tween on close
-- **Window header:** 56px, module icon (20px) + name (Inter 600 16px) + close button (X, 44px touch target). Bottom border.
-- ~90% viewport on desktop, 100% on mobile
-- **State preservation:** Zustand store keyed by module. Preserves: scroll position, active tab, form input values, step progress, selected filters, expanded sections. Session-scoped (cleared on logout).
+**Window tier (modules):**
+- Frosted glass effect: `backdrop-blur-xl bg-white/80 dark:bg-black/80`
+- Subtle shadow for depth
+- Rounded corners (consistent radius from brand tokens)
+- Spring animation on open (Motion v12), tween on close
+- **Window header:** Every glass window has a 56px header bar at the top. Left side (inline-start): module icon (Lucide, 20px, `var(--color-text-muted)`) + module name (Inter 600 16px, `var(--color-text)`), gap 8px. Right side (inline-end): close button (Lucide `X` 20px, 44px touch target, `var(--color-text-muted)`, hover `var(--color-text)`). Subtle bottom border (1px `var(--color-border)` at 50% opacity). px-24px. The header identifies which module is active at all times -- critical when switching between modules via hotkeys.
+- Windows take up ~90% of viewport width and height on desktop, 100% on mobile
+- Scrollable content within the window
+- **State preservation:** When a user presses a different hotkey to swap modules, the current window's state is preserved in Zustand store (keyed by module name). Preserved state includes: scroll position, active tab/sub-view, form input values, step progress in multi-step flows, selected filters, and expanded/collapsed sections. On return (pressing the same hotkey again), the window restores to the exact previous state with no loading delay (data from TanStack Query cache). State is session-scoped -- cleared on logout or browser close. Auto-saved form drafts (persisted to server via `saveDraft()` server function) are separate from window state -- drafts survive across sessions, window state does not.
 
-**Elevated tier (modals, command palette):**
-- `backdrop-blur-2xl bg-white/90 dark:bg-black/90`
-- `isKeyboardDismissDisabled` on React Aria Dialog
-- Escape handled by hotkeys system only
+**Elevated tier (modals, command palette, confirmations):**
+- Stronger glass: `backdrop-blur-2xl bg-white/90 dark:bg-black/90`
+- Deeper shadow
+- Content behind dims slightly
+- `isKeyboardDismissDisabled` on React Aria Dialog -- Escape handled by hotkeys system only to avoid double-fire
+
+### Loading, Empty, and Error States
+
+**Loading:** Skeleton shimmer loaders matching the expected content shape. No spinners. No "Loading..." text.
+
+**Empty states:** Meaningful message + contextual CTA button. Example: "No RFQs yet" + "View quote pipeline" button. Lion watermark at barely-perceptible opacity behind the message when contextually appropriate.
+
+**Error states:**
+- Failed data fetch: inline error message + "Retry" button
+- Failed action: toast notification (minimal, top of viewport, stacked)
+- Network offline: subtle top banner "You're offline -- showing cached data" with auto-dismiss on reconnect
+- Permission denied: redirect to canvas
+
+### Offline Behavior
+
+IndexedDB for structured data, Service Worker for app shell. Cached data shown with "Last synced" timestamp. Mutations disabled when offline.
+
+### PWA Configuration
+
+- PWA manifest present
+- Install prompt: in Settings only. Never auto-prompt.
+- Offline: subtle top banner "You're offline -- showing cached data." Mutations disabled. Reconnect: banner auto-dismisses, data refreshes.
+
+### Realtime Pattern
+
+Realtime data invalidates TanStack Query cache -- never writes directly to the store. Real-time updates via Supabase Realtime `postgres_changes`.
 
 ### Cross-Cutting: Activity Feed / @Mentions / Handoff
 

@@ -227,3 +227,17 @@ CREATE TABLE withholding_tax_certificates (
 - Build a monitoring dashboard showing: submissions today, acceptance rate, pending submissions, rejected submissions needing attention.
 - Credit note flow: ensure the UI prevents creating credit notes that exceed original invoice amounts.
 - Withholding tax: auto-calculate on supplier payment recording. Generate certificates quarterly via pg_cron.
+
+## Related Cron Jobs
+
+| Cron Job | Schedule | Runtime | Purpose |
+|---|---|---|---|
+| `form_41_quarterly` | 1st Jan/Apr/Jul/Oct 9 AM | Cloudflare Cron | Generates quarterly withholding tax report (Form 41) for ETA submission |
+
+## ETA Sandbox Environment
+
+ETA provides a sandbox/preprod environment for testing. Obtain access credentials during Phase 1 HSM procurement process. All development and integration testing must use the sandbox -- never test against production. The sandbox mirrors production behavior including digital signature validation and document submission flows.
+
+## Invoice Dispute Tracking (ETA Portal Rejections)
+
+When a customer rejects an invoice on the ETA portal, the `invoice_disputes` table tracks the dispute. The `trg_set_dispute_sla_deadline` trigger automatically sets a 48-hour deadline for resolution. The `dispute_sla_check` cron (daily 9 AM, pg_cron) escalates breaches -- unresolved disputes past their 48h deadline are escalated to the Finance Manager with notification to the CFO. Dispute resolution types: credit note, price adjustment, reissue corrected invoice, or reject dispute with evidence.

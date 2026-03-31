@@ -57,8 +57,9 @@ The complete 94-table + 2 materialized view database is operational with all tri
 - `carrier_routing_config`
 - `otp_delivery_log`
 - `ceo_digests`
+- `unit_translations`
 
-**Note on `unit_translations`:** This is **seed data inserted into the i18n namespace**, not a standalone table. The 29 units with en_name, en_abbr, ar_name, ar_abbr are inserted as seed data (see Seed Data section below).
+**Note on `unit_translations`:** This IS a standalone table (CREATE TABLE in BACKEND.md Section 12.5) plus seed data INSERT. Include both the CREATE TABLE and INSERT in this migration.
 
 **Note on `holiday_calendar`:** Holiday data is stored in the **`system_settings` table** (as a JSON value), not as a standalone table.
 

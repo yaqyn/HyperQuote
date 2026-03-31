@@ -68,11 +68,11 @@ All routed through Cloudflare AI Gateway (caching, rate limiting, analytics, fal
 
 | Surface | AI Feature | Pattern |
 |---------|-----------|---------|
-| Website | Chatbot (guided discovery + FAQ RAG) | Free tier (GLM) + Fast tier (Groq) |
+| Website | Chatbot (guided discovery + FAQ RAG) | Free tier (GLM) + Fast tier (Groq). Floating button bottom-right. Guided discovery: product search + lead capture. FAQ RAG from `document_embeddings` (source_type: 'faq'). Escalation to WhatsApp support if AI cannot resolve. |
 | Internal | Database assistant (order lookup, inventory) | Fast tier (Groq) + Premium tier (Claude) for complex |
 | Customer Portal | NL material list building + quote request drafting | Fast tier (Groq) + tool use (draft-review-confirm) |
 | Supplier Portal | Catalog parsing, 3-way matching, reorder suggestions | OCR tier (Mistral) + Fast tier (Groq structuring) |
-| Driver App | AI site briefings, voice commands | Free tier (GLM context injection) |
+| Driver App | AI site briefings, voice commands | Free tier (GLM context injection). Briefings: context injection from delivery/customer data (access notes, special instructions, contact). Voice: Capacitor Speech Recognition transcription -> GLM intent classification. |
 | CEO App | Analytics AI + RAG AI | Premium tier (Claude) + pre-computed metrics + pgvector |
 
 ### AI Tables (from BACKEND.md)
@@ -208,10 +208,11 @@ Each AI surface needs a structured prompt template with these components:
 ### AI in Quoting (Internal) (from RESEARCH.md)
 
 - Auto-parse customer RFQs (including PDF/email) -> extract line items
-- Recommend which suppliers to contact per line item
-- Predict expected prices from historical data
-- Auto-calculate optimal margins per deal
-- Help customers build material lists from project descriptions
+- Recommend which suppliers to contact per line item (based on historical pricing, lead times, quality scores)
+- Predict expected prices from historical data (trend analysis, seasonal adjustments)
+- Auto-calculate optimal margins per deal (customer tier, product category, order size, competitive pressure)
+- Help customers build material lists from project descriptions (e.g., "I'm building a 3-story residential building in 6th of October City" -> generate bill of quantities)
+- RFQ parsing uses OCR tier (Mistral) for PDF/scanned documents + Fast tier (Groq) for structured extraction
 
 ### CEO Dual AI (from RESEARCH.md)
 
@@ -319,3 +320,7 @@ Each AI surface needs a structured prompt template with these components:
 | **Total** | | | **~$61/mo** (vs $100-240 all-Claude) |
 
 Assumes mixed routing: ~60% free tier, ~25% fast tier, ~10% premium tier, ~5% OCR tier.
+
+## Supplier Contract RAG
+
+**Supplier contract searchability:** `supplier_agreements.document_url` PDFs are chunked and embedded in `document_embeddings` (source_type: 'supplier_contract', source_id: agreement UUID) for CEO RAG queries. Contract terms, exclusivity clauses, volume commitments, pricing tiers, and expiry dates are searchable via natural language. Embedding pipeline: PDF uploaded -> Mistral OCR extracts text -> chunked at ~500 tokens with 50-token overlap -> Workers AI bge-m3 generates embeddings -> stored in `document_embeddings` with metadata (supplier_id, agreement_type, effective_date, expiry_date). Re-embedded when contract is updated or renewed.

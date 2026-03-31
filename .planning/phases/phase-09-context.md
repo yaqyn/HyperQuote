@@ -56,25 +56,39 @@ Customers can build a material list using any of 4 input methods and submit it f
 
 **Method 1 — Search & Add (default):**
 - Search field: full width, height 44px, React Aria `ComboBox` with `Autocomplete`. Placeholder: "Search for materials...". Lucide `Search` 16px inline-start.
-- As user types (debounced 150ms): dropdown of matching products. Each item: product name + category badge + availability dot. Max 8 results visible, scrollable.
-- On select: product added to the list below with default quantity 1. Focus moves to quantity field.
+- As user types (debounced 150ms): dropdown of matching products. Each item in dropdown: product name (Inter 400 14px) + category badge + availability dot. Max 8 results visible, scrollable.
+- On select: product added to the list below with default quantity 1. Focus moves to quantity field of the newly added item.
 - Product list table:
-  - Columns: "#" (row number, Geist Mono 12px), "Product" (name + SKU), "Qty" (editable NumberField), "UOM" (read-only), "Notes" (optional TextField), "Actions" (delete).
-  - Quantity field: React Aria `NumberField`, 80px width, height 36px, Geist Mono.
-  - Row drag handle (Lucide `GripVertical`) for reordering via React Aria `useDrag`/`useDrop`.
+  - Columns: "#" (row number, Geist Mono 12px), "Product" (name + SKU), "Qty" (editable NumberField), "UOM" (read-only label), "Notes" (optional TextField, compact), "Actions" (delete button).
+  - Each row: height 52px. Border-bottom 1px `var(--color-border)`.
+  - Quantity field: React Aria `NumberField`, 80px width, height 36px, Geist Mono. Min 1. Step varies by product UOM.
+  - Notes field: React Aria `TextField`, 160px width, height 36px. Placeholder: "Optional notes". For specs like "Grade 43" or "OPC Type I".
+  - Delete: Lucide `Trash2` 16px, `var(--color-text-muted)`, hover `var(--color-error)`. On click: row removed immediately (no confirmation). Tween fade-out.
+  - Row drag handle (Lucide `GripVertical` 16px, `var(--color-text-subtle)`) at inline-start for reordering via React Aria `useDrag`/`useDrop`.
 
 **Method 2 — Upload:**
-- Drag-and-drop zone: 200px height, border 2px dashed, rounded-xl.
-- Supports: CSV, Excel (.xlsx), PDF.
+- Drag-and-drop zone: 200px height, border 2px dashed `var(--color-border)`, rounded-xl, centered content.
+  - Lucide `Upload` 32px `var(--color-text-subtle)`.
+  - "Drop your file here or click to browse" — Inter 400 14px `var(--color-text-muted)`.
+  - "Supports: CSV, Excel (.xlsx), PDF" — Inter 400 12px `var(--color-text-subtle)`.
+- Processing state: file icon + filename + progress bar (NOT a spinner), Geist Mono percentage. "Parsing your file..."
 - Validation tiers (all errors shown at once, never fail on first error):
   - Format validation, cross-field validation, database validation.
 - Error table shows ALL errors: row number, field name, value found, what expected. Inline correction without re-upload.
-- Support messy real-world files: UTF-8 with/without BOM, auto-detect delimiters, handle .xlsx renamed to .csv.
-- "Download Template" link for CSV template.
+- Progress text: "247 of 250 items validated successfully. 3 need attention."
+- `[Fix & Continue]` (edit in place) and `[Re-upload]` (start over) options.
+- On success: parsed items populate the product list table. Items the system couldn't match show a yellow warning badge "Unmatched — please verify" with a dropdown to manually select the correct product.
+- On failure: error message with retry. "Could not parse this file. Try CSV or Excel format."
+- Support messy real-world files: UTF-8 with/without BOM, auto-detect delimiters (comma/semicolon/tab), handle .xlsx renamed to .csv gracefully.
+- "Download Template" link: below the drop zone. Downloads a CSV template with column headers (Product Name, SKU, Quantity, UOM, Notes).
 
 **Method 3 — Quick Pad:**
-- Spreadsheet-style grid: SKU/name input (ComboBox, 60% width) + Quantity input (NumberField, 20% width) + UOM (20%).
-- 10 empty rows by default. Tab key advances: SKU -> auto-populate -> Qty -> next row. Multi-SKU paste mode.
+- Spreadsheet-style grid optimized for power users who have a written list. 2 columns: SKU/name input (React Aria `ComboBox`, 60% width) + Quantity input (React Aria `NumberField`, 20% width) + UOM display (20% width, auto-populated).
+- 10 empty rows shown by default. As user fills rows, more empty rows appear at bottom.
+- Tab key advances: SKU -> auto-populate product name/unit/stock -> Qty -> next row's SKU (skip auto-populated fields). Shift+Tab moves backward.
+- Enter adds one item. Ctrl+Enter adds all valid items at once.
+- Multi-SKU paste mode: paste one per line or tab/comma-separated from spreadsheet.
+- Real-time SKU validation (300ms debounce). Invalid SKU: red border + inline error.
 
 **Method 4 — AI Assist:**
 - Large textarea (6 rows). "Parse with AI" button. AI parses into structured items.
@@ -89,10 +103,26 @@ Customers can build a material list using any of 4 input methods and submit it f
 - Notes: TextArea. File attachments: max 5 files, 10MB each.
 
 **Step 3 — Review & Submit:**
-- Full summary: item list, delivery details, attachments, project.
-- "Edit" links per section. "Prices are not shown here" info banner.
-- "Submit Quote Request" button -> confirmation modal -> POST `submitQuoteRequest()`.
-- On success: confirmation view with reference number, "Track Quote" button.
+- Full summary displayed:
+  - Item list (read-only table): Product, Qty, UOM, Notes. Geist Mono for all numeric columns.
+  - Delivery details: address, date, notes.
+  - Attached files listed.
+  - Project name if assigned.
+- "Edit" links next to each section (Lucide `Pencil` 14px + "Edit" text, `var(--color-primary)`). Clicking navigates back to the relevant step.
+- "Prices are not shown here. We'll prepare a quote for you." — blue info banner (`var(--color-info-bg)`, `var(--color-info)` text, rounded-lg, p-12px).
+- "Submit Quote Request" button: full width max 400px, centered, blue bg, white text, Inter 600 16px, height 52px, rounded-xl. Shadow-sm.
+  - On click: Confirmation modal (elevated glass): "Submit quote request for {N} items?" + "We'll prepare your quote within 4 hours." + "Cancel" (outline, 40px) + "Submit" (blue, 40px).
+  - On submit: POST `submitQuoteRequest()`. Submit button shows "Submitting..." Skeleton loader replaces form.
+  - On success: full confirmation view:
+    - Lucide `CheckCircle` 48px `var(--color-success)`. Spring animation.
+    - "Quote Request Submitted!" — Inter 700 24px.
+    - "Reference: QR-2026-{XXXXX}" — Geist Mono 16px `var(--color-primary)`.
+    - "We'll have your quote ready within 4 hours. You'll receive a notification on WhatsApp." — Inter 400 14px muted.
+    - "Track Quote" button (blue, 44px) — opens the quote in the Active tab.
+    - "Back to Orders" link.
+  - On error: error toast "Failed to submit. Please try again." Button re-enables.
+
+**Mobile:** Full-screen flow. Product list table becomes card layout (one card per item with stacked fields). Quick Pad shows one row at a time. Upload area larger (easier to tap). Step indicator is compact (numbers only, no labels).
 
 ### Database Tables (from BACKEND.md)
 

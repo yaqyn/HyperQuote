@@ -50,8 +50,8 @@ Route planning (drag-and-drop stops, auto-optimize), live GPS map (vehicle pins,
    - Left: list of drivers + routes (each with capacity bar: green <70%, yellow 70-90%, red >90%). Each route shows numbered stops with drag handles (Lucide `GripVertical`).
    - Unassigned deliveries pooled at top (order, customer, location, weight, equipment needed).
    - Drag stops within route to reorder. Drag between drivers to reassign. Map updates route lines in real-time.
-   - Time windows shown as colored bars: Red if ETA outside window, Yellow if tight.
-   - `[Auto-Optimize]` button -> shows before/after comparison (total distance, total time, time window violations).
+   - Time windows shown as colored bars: Red if ETA outside window, Yellow if tight (within 10 min of edge).
+   - `[Auto-Optimize]` button → shows before/after comparison (total distance, total time, time window violations). Dispatcher can still manually override or lock individual stops.
    - Drag delivery to driver, or click `[Auto-Assign]` for system optimization
 3. **Route optimization:** system suggests optimal stop sequence using OR-Tools/GraphHopper VRP
    - Considers: distance, time windows, truck weight limits, equipment requirements, Cairo truck ban
@@ -107,9 +107,10 @@ Route planning (drag-and-drop stops, auto-optimize), live GPS map (vehicle pins,
 - Arabic labels on map via MapTiler
 
 **Sidebar panel (collapsible, left):**
-- Hierarchical: Teams > Drivers > Assigned tasks
-- Unassigned tasks at top. Drag task to driver to assign.
+- Hierarchical: Teams > Drivers (stop count in parentheses) > Assigned tasks
+- Unassigned tasks pooled at top. Drag task to driver to assign.
 - Quick filters: `[All]` `[Problems]` `[Arriving Soon]` `[Completed]`
+- Each row: driver name, customer, ETA, status dot
 - Search bar to find specific driver or order
 
 #### 6.4 Delivery Confirmation with POD Validation
@@ -138,7 +139,7 @@ Route planning (drag-and-drop stops, auto-optimize), live GPS map (vehicle pins,
 
 **Actions:**
 - `[Confirm Delivery]` (green) -- marks DELIVERED, triggers invoice generation
-- `[Flag Issue]` (yellow) -- exception form (partial, damage, wrong items, signature issue)
+- `[Flag Issue]` (yellow) -- exception form (partial delivery, damage, wrong items, signature issue). If quantity discrepancy: create partial delivery + schedule redelivery for remainder.
 - `[Request Re-delivery]` (red) -- for failed/partial
 - `[Reject]` -- sends back to driver for re-capture
 

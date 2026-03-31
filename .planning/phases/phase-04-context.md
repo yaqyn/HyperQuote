@@ -89,6 +89,53 @@ Phase 3 (Shared Packages must be complete).
 **Section 4 -- Team:** Grid of cards with headshot photos (80px circle), name (Inter 600 16px), title. Fallback: initials circle.
 **Section 5 -- Careers CTA:** Link to `/careers` or "Send us your CV" email link.
 
+### Additional Spec Details (Gap Fills)
+
+**Footer bottom right format:**
+- Right side of bottom section: Language + region indicator: "Egypt · العربية" or "Egypt · English".
+
+**Hero dark mode overlay:**
+- Dark mode: overlay opacity increases to 0.7/0.85 (from 0.5/0.7 in light mode).
+
+**Subheadline animation timing:**
+- Subheadline appears 100ms after headline with same spring animation (opacity 0 → 1, translateY 20px → 0, stiffness 120, damping 14).
+
+**Trust bar animation:**
+- Spring animation staggered 200ms after CTAs.
+
+**Scroll indicator on click:**
+- On click: smooth scroll to Section 2.
+
+**Section 2 connecting lines:**
+- Connecting line between steps (desktop only): 1px dashed `var(--color-border)` horizontal line at icon center height.
+
+**Section 2 IntersectionObserver threshold:**
+- Triggered via IntersectionObserver at 20% visibility. Staggered 100ms per card.
+
+**Section 3 heading text:**
+- Section heading: "Why HyperQuote" — same style as Section 2 heading (Inter 700, 30px, `var(--color-text)`, text-center).
+
+**Section 4 card dimensions:**
+- Card dimensions: 280px min-width, aspect ratio 4:3. Grid: auto-fill with minmax.
+
+**Section 4 "View All Products" link:**
+- Below grid: "View All Products" link — Inter 500 14px, `var(--color-primary)`, with Lucide `ArrowRight` 16px inline-end. Links to `/market`.
+
+**Section 5 subtext below CTA:**
+- Below CTA: "No credit card required. Quote requests are always free." — Inter 400 14px, white at 60% opacity.
+
+**Loading state:**
+- Hero image placeholder: `var(--color-base-alt)` solid color while loading. Below-the-fold sections render server-side so no skeleton needed.
+
+**Error state:**
+- If SSG/SSR fails, show a centered error: Lucide `AlertTriangle` 48px `var(--color-error)`, "Something went wrong" Inter 600 18px, "Please try refreshing the page" Inter 400 14px `var(--color-text-muted)`, and a "Refresh" button (blue, 40px height).
+
+**Mobile adaptation:**
+- Hero CTA buttons stack vertically (full width). Grid sections become single column. Padding reduces: py-64px instead of py-96px.
+
+**About page Section 2 details:**
+- Max-width 800px centered (reading width). Body: Inter 400 16px, line-height 1.75. Team fallback: initials in a blue circle (Inter 600 24px white on `var(--color-primary)` bg).
+
 ### Route Map (Website)
 | Route | Page | Rendering |
 |-------|------|-----------|
@@ -101,6 +148,22 @@ Phase 3 (Shared Packages must be complete).
 | `/careers` | Careers | SSG |
 | `/legal/privacy` | Privacy Policy | SSG |
 | `/legal/terms` | Terms of Use | SSG |
+
+## SEO Infrastructure
+
+**Schema.org Product markup** on market pages (Phase 5-6, but structured data setup begins in Phase 4 with global shell):
+- JSON-LD `Organization` schema on all pages (company name, logo, contact, social profiles).
+- JSON-LD `WebSite` schema with `SearchAction` for sitelinks search box.
+- XML sitemaps: auto-generated per SSG/SSR page. Submitted to Google Search Console.
+- Local SEO per service area: Cairo, Giza, 6th of October, New Cairo, Alexandria (when expanded).
+- `robots.txt` with appropriate crawl directives.
+- Canonical URLs on all pages.
+- Open Graph + Twitter Card meta tags on all pages (via TanStack Start `<Meta>` component).
+
+**Three-tier content strategy (Phase 2+, but URL structure established in Phase 4):**
+1. **Guides:** "/guides/{topic}" -- e.g., "How to Choose the Right Cement for Your Project"
+2. **Comparisons:** "/compare/{product-a}-vs-{product-b}" -- product comparison pages
+3. **Case studies:** "/case-studies/{slug}" -- customer success stories
 
 ## Non-Negotiable Rules
 1. **Three colors only.** White, Black, Blue (#2563EB). Semantic colors for data only.

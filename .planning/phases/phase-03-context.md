@@ -147,12 +147,22 @@ All fonts self-hosted as WOFF2 from `essential/brand/fonts/`. Never from externa
 | Tween | Exiting | Motion v12 |
 | CSS transition | Popovers, menus, hover states | Native CSS |
 
-Three speeds: Fast (100-150ms), Medium (200-300ms), Slow (400-600ms). Colors change instantly -- never animate color transitions.
+Three speeds: Fast (100-150ms), Medium (200-300ms), Slow (400-600ms). Colors change instantly -- never animate color transitions. 60fps minimum. Spring physics for all entering elements. CSS type includes scroll-triggered blur.
 
 ### DS.6 Glass Window System
 **Window tier:** backdrop-blur-xl, rgba(255,255,255,0.80) / dark: rgba(0,0,0,0.80), subtle shadow, spring on open, tween on close. Desktop: ~90% viewport. Mobile: 100%.
 
 **Elevated tier:** backdrop-blur-2xl, rgba(255,255,255,0.90) / dark: rgba(0,0,0,0.90), deeper shadow, floats above window tier.
+
+**Glass panel container (for charts/data in glass):**
+- `backdrop-filter: blur(12px)`
+- `background: rgba(255,255,255,0.08)`
+- `border: 1px solid rgba(255,255,255,0.12)`
+- `border-radius: 16px`
+- `padding: 24px`
+- Hover: background brightens to `0.12`. Focus: `box-shadow` with accent color at 20% opacity.
+
+**Charts in glass:** Use sparklines, area charts with gradient, single-color bar charts, donut charts, thin line charts (2-3 lines max), progress bars. Avoid pie charts, stacked bars, scatter plots, 3D. Gridlines at `rgba(255,255,255,0.06)`. Axis labels at `rgba(255,255,255,0.5)`.
 
 ### DS.7 Loading, Empty, Error States
 - Loading: Skeleton shimmer loaders. No spinners. No "Loading..." text.
@@ -246,14 +256,22 @@ In data tables (Geist Mono for numbers): quantity and unit displayed as two elem
 ### DS.10 Data Grids & Tables
 TanStack Table + React Aria. Click to edit inline. Tab advances. Arrow keys navigate. Sort by column headers. Row selection via checkbox. Bulk actions toolbar. Numeric columns right-aligned in Geist Mono.
 
+**Row states:** Hover: `var(--color-surface)` bg. Selected: `var(--color-primary)` at 8% opacity. Error: red left border 3px.
+
+**Alternating rows:** Even rows: transparent. Odd rows: `var(--color-surface)` at 50% opacity.
+
+**Sort indicator:** Lucide `ChevronUp`/`ChevronDown` 12px.
+
+**Selection:** Shift+click for range select. Ctrl+click for multi-select.
+
 ### DS.11 Status Color System
-| Status | Color |
-|--------|-------|
-| Moving/Active | Green |
-| Idle/Pending/Aging | Yellow/Amber |
-| Stopped/Overdue/Error | Red |
-| Assigned/In Progress | Blue |
-| Unassigned/Offline | Gray |
+| Status | Color | Used In |
+|--------|-------|---------|
+| Moving/Active | Green | Dispatch, Orders, Deliveries |
+| Idle/Pending/Aging | Yellow/Amber | Dispatch, AR, Quotes |
+| Stopped/Overdue/Error | Red | Dispatch, AR, Deliveries, Payments |
+| Assigned/In Progress | Blue | Dispatch, Sales, Orders |
+| Unassigned/Offline | Gray | Dispatch, Drivers, Tasks |
 
 ### DS.12 Keyboard-First Design
 
@@ -417,6 +435,9 @@ CSS animations for Popover/Menu, Motion for Modal only.
 
 ### MEDIUM: tailwindcss-react-aria-components Group Modifiers (#15401)
 `group-selected:` may break with Tailwind v4. Fallback: `group-data-[selected]:`.
+
+### LOW: i18next Version Discrepancy
+NOTE: CLAUDE.md indicates i18next should be ^26.0.1. The ^25.10.10 in STACK-DECISION.md may need updating. Breaking change in v26: `interpolation.format` API removed (use `i18n.services.formatter.add()` instead).
 
 ### LOW: Zustand SSR Hydration Mismatch
 `skipHydration: true` + `rehydrate()` in `useEffect`.

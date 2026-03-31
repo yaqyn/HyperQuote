@@ -74,7 +74,7 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 **Multi-channel send (modal):**
 - Checkboxes: `[x] Customer Portal` | `[x] Email` | `[ ] WhatsApp` | `[ ] Print & Mail`
 - Pre-filled message template (editable). `[Send Now]` or `[Schedule for DATE]`.
-- Post-send tracking per channel
+- Post-send tracking per channel: "Sent [timestamp]", "Viewed [timestamp]", "Downloaded [timestamp]"
 
 **Credit note generation:**
 - Linked to original invoice. Reason: Goods returned / Price adjustment / Damaged goods / Other
@@ -84,14 +84,14 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 #### 5.3 Accounts Receivable (AR)
 
 **KPI Strip (top of AR view):**
-- Horizontal row of 4-6 KPI cards: Total Outstanding, DSO, CEI%, Overdue Amount, Current Period Collections
+- Horizontal row of 4-6 KPI cards: Total Outstanding (big number, EGP, Geist Mono 24px), DSO (Days Sales Outstanding, trend arrow vs prior period), CEI% (Collection Effectiveness Index), Overdue Amount (red-highlighted if above threshold), Current Period Collections (vs target)
 - Each card: glass panel container, click to filter table below.
 
 **AR Aging Table:**
 - Columns: Customer Name | Current | 1-30 | 31-60 | 61-90 | 90+ | Total | Trend Sparkline
 - All amounts in Geist Mono, right-aligned
 - Color coding: current=green, 1-30=yellow, 31-60=orange, 61-90=red, 90+=dark red bold
-- Row background shifts based on worst aging bucket
+- Row background shifts white → pale yellow → pale red based on worst aging bucket
 - Each cell clickable -- drills into invoices for that customer+bucket
 - Sparkline in last column: 6-month aging trend per customer
 - Column headers show aggregate totals per bucket
@@ -123,7 +123,7 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 2. **Wire Transfer flow:**
    - Bank reference number, amount received (Geist Mono), date received, receiving bank account
    - `[Match to Invoice]` -- system auto-suggests matching invoices based on customer + amount + memo
-   - Running balance shown live
+   - Running balance shown live: "Payment Amount: EGP 247,500 — Applied: EGP 247,500 = Remaining: EGP 0" (updates as invoices checked/unchecked)
    - If exact match: auto-match, one click confirm
    - If partial: allocate across invoices. "Auto-allocate FIFO" button.
    - If overpayment: `[Apply to Next Invoice]` `[Hold as Credit]` `[Initiate Refund]`
@@ -141,7 +141,8 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
    **PDC Grid View:**
    - Columns: # | Cheque No | Customer | Bank | Amount | Maturity Date | Status | Actions
    - Status state machine: Received (blue) -> Deposited (orange) -> Cleared (green). Bounced (red) -> Re-presented -> Cleared/Written Off/Replaced.
-   - Summary footer row: totals per status
+   - Summary footer row: totals per status ("Received: EGP X | Deposited: EGP Y | Cleared: EGP Z | Bounced: EGP W")
+   - Context-dependent action buttons per row: `[Deposit]` `[Clear]` `[Bounce]` `[Re-present]` based on current status
 
    **PDC Calendar / Maturity View:**
    - Monthly calendar with color-coded dots per due date
@@ -162,10 +163,12 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 - Match status: green (all match), yellow (within tolerance), red (exceeds tolerance)
 
 **Three-way match review (side-by-side):**
-- Three columns: PO | Goods Receipt | Supplier Invoice
-- Discrepancy highlighting per cell
-- Tolerance rules (configurable): Price 0-5%, Quantity 0-2%, Tax 0%, Delivery per PO terms
-- Actions: Approve All / Approve Matched / Dispute / Hold / Reject
+- Three columns: PO | Goods Receipt | Supplier Invoice. Each line item shown side-by-side.
+- Discrepancy highlighting: green cell (match) | yellow cell (within tolerance) | red cell (exceeds) | grey dash (not applicable)
+- Example: Invoice price EGP 125 vs PO price EGP 120 = yellow cell + "⚠ +4.2% (+EGP 2,500)"
+- Tolerance rules (configurable in Admin): Price 0-5%, Quantity 0-2%, Tax 0% (exact match), Delivery per PO terms
+- Variance exceeds tolerance → auto-routes to responsible function (procurement, warehouse, finance, logistics)
+- Action bar: "Match Status: 1 of 2 lines matched | Variance: EGP 2,500". Buttons: `[Approve All ✓]` `[Approve Matched Lines]` `[Dispute]` `[Hold]` `[Reject]`
 - Withholding tax tracking: gross amount, 1% withholding, net payment
 - Withholding tax certificate generation
 - Quarterly withholding remittance to ETA via Form 41
@@ -180,14 +183,18 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 - Utilization bar: color-coded gradient (0-60% green, 60-80% yellow, 80-95% orange, 95-100% red, >100% pulsing red + "OVER LIMIT")
 - Available credit, overdue amount, Payment Score (0-100), Avg Days to Pay, Bounced Cheques (12mo), Last Payment date
 - Quick actions: `[Hold Orders]` `[Adjust Limit]` `[Review]`
-- Auto-hold triggers: (1) Credit limit exceeded, (2) Days overdue >30, (3) Overdue >X% of limit, (4) Bounced cheque count exceeds threshold, (5) Credit limit expired
+- Credit application workflow: customer applies → D&B/Experian scoring → finance sets limit → auto-check on every order
+- Auto-hold triggers: (1) Credit limit exceeded, (2) Days overdue >30, (3) Overdue >X% of limit, (4) Bounced cheque count exceeds threshold, (5) Credit limit expired. Hold → blocks new orders → `[Release with Approval]` `[Release One-Time]` `[Escalate]`
+- Credit limit change history with approval trail
 - New customer defaults: 50% advance + 50% COD by certified bank cheque
 - Net terms only after 2-3 successful cash transactions + credit application
 
 **Credit review & limit increase:**
-- Current limit + requested limit + supporting data
-- AI recommendation
-- Actions: Approve / Approve Different Amount / Deny / Defer
+- Current limit + requested limit + request date/rep
+- Supporting data: 12-month payment history chart (% on-time bar), order volume trend (line chart QoQ growth), current exposure, overdue history
+- AI recommendation: "Suggest EGP 650K (+30%)" based on payment pattern + growth trajectory
+- Actions: `[Approve Requested]` `[Approve Different Amount]` `[Deny]` `[Defer]` + Notes field
+- Auto-updates customer record + releases held orders on approval
 
 **Credit limit approval chain:**
 - Increase <20%: Finance Manager
@@ -316,6 +323,13 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 
 **Cash Flow Benchmarks (RESEARCH.md Section 8):**
 Cash Conversion Cycle 45-90 days. Working capital requirement 10-18% of annual revenue. Primary tool: bank credit lines secured by PDCs (cheque discounting at 85-90% face value).
+
+**Multi-Currency Management (RESEARCH.md Section 8):**
+- Exchange rate dashboard: current rates for USD/EGP, EUR/EGP, CNY/EGP (major import currencies for building materials).
+- FX gain/loss tracking on supplier POs with `source_currency` / `exchange_rate` fields: captures rate at PO creation, compares to rate at payment for realized gain/loss.
+- Revaluation logic for open foreign-currency POs: periodic (month-end) unrealized FX gain/loss calculation.
+- Dual-currency display on international transactions: show both original currency amount and EGP equivalent.
+- Exchange rates sourced from Central Bank of Egypt (CBE) published rates. Manual override available for negotiated rates.
 
 **Retainage Tracking (RESEARCH.md Section 8):**
 Retainage 5-10% held until project completion. Common in large Egyptian construction projects. Terms negotiated per contract.

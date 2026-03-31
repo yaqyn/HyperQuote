@@ -186,6 +186,9 @@ Export `getRouter()` which internally calls `createRouter()`. `StartClient` take
 ### LOW: `ssr.tsx` Obsolete
 Delete `ssr.tsx`. TanStack Start uses default server entry.
 
+### LOW: i18next Version Discrepancy
+CLAUDE.md notes i18next should be updated from ^25.10.10 to ^26.0.1. Breaking change: `interpolation.format` API removed. Verify no usage of this API in Phase 3.
+
 ### LOW: 100+ Routes Slow Vite Dev
 Use TanStack Router lazy imports, code-split route tree.
 

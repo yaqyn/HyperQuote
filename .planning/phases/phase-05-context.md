@@ -158,6 +158,53 @@ These are internal-only reference margins. They inform how price ranges are comp
 
 Both are correct -- the website uses traditional pagination for SEO and shareability (URL state), while the portal uses infinite scroll for fluid AI-driven interaction.
 
+### Additional Spec Details (Gap Fills)
+
+**Search field styling:**
+- Background `var(--color-card)`. Lucide `Search` icon 20px at inline-start, `var(--color-text-muted)`.
+
+**Sort dropdown dimensions:**
+- Width auto (content-fitted). Lucide `ChevronsUpDown` 16px as trigger icon.
+
+**Product card category badge spacing:**
+- Category badge: mb-8px.
+
+**"Add to Quote" popover details:**
+- Quantity input: React Aria `NumberField`, min 1, step 1, value 1, width 120px. + "Add" button (blue, 36px).
+
+**List view column widths:**
+- Thumbnail: 48px square. Category: 120px width. Price range: 140px width. Availability: 120px width.
+
+**Pagination active page styling:**
+- Active page: blue bg, white text, rounded-lg 32px square.
+
+**Mobile filter bottom sheet:**
+- "Apply" button (blue, full width, 48px) at bottom of sheet. "Reset" link next to it.
+
+**Product detail image zoom:**
+- On hover (desktop), image scales to 1.5x within a clipped container. On mobile: tap opens full-screen image viewer.
+
+**Specs table heading:**
+- Heading: "Specifications" — Inter 600 16px. Lucide `Info` 16px inline.
+
+**Sticky card behavior:**
+- Becomes sticky (top 80px) when scrolling past it.
+
+**WhatsApp link format:**
+- Opens `https://wa.me/{number}?text={pre-filled message with product name}`.
+
+**Documents section file size:**
+- File size in Geist Mono 11px `var(--color-text-muted)`. Download from R2 presigned URL.
+
+**Related products dimensions:**
+- 200px width per card. Horizontal scroll with snap points. Mobile: swipeable.
+
+**Mobile bottom bar:**
+- Quantity input compact (100px) + "Add to Quote" button (flex-1) in a row, height 64px, bg `var(--color-card)`, border-top 1px, px-16px, py-8px.
+
+**RTL spec table:**
+- Spec table property/value columns don't swap (property always inline-start). All labels translated.
+
 ## Non-Negotiable Rules
 1. **No exact prices shown -- only price ranges.** "From EGP 45/bag" or "Price on Request".
 2. **Geist Mono for ALL numbers.** Price ranges, product counts, SKUs.

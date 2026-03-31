@@ -87,6 +87,7 @@ Customers have a complete portal experience: order tracking with GPS, real-time 
 ### FRONTEND.md Section 2.5 — Market Window
 
 Functionally identical to website Market page (1.4) but inside glass window. Key differences:
+- Window header: "Market" title + search field (inline, 240px width on desktop, full width on mobile).
 - No login modal for "Add to Quote" (already authenticated). Adds directly to active draft. Toast: "{Product} added to your quote."
 - **"Quick Add" mode toggle** in toolbar. When active, clicking any product shows a compact quantity popover immediately (no navigation to detail). For power users.
 - **Infinite scroll** via TanStack Query `useInfiniteQuery` with **`maxPages: 5`**. Scroll sentinel at bottom triggers next page. Loading: 2 skeleton cards appended.
@@ -101,7 +102,14 @@ Functionally identical to website Market page (1.4) but inside glass window. Key
 
 ### FRONTEND.md Section 2.8 — Notifications Window
 
-Glass window, max-width 480px. Notification list (React Aria ListBox), newest first. Each: icon by type, title, body, relative time (Geist Mono). Unread: blue dot + surface bg. Click: marks read + navigates. Real-time via Supabase Realtime on `notifications` table.
+Glass window, max-width 480px, max-height 70vh. Notification list (React Aria ListBox), newest first.
+- Each notification: min height 64px, px-16px py-12px, border-bottom 1px `var(--color-border)`.
+- Unread: 8px blue dot at inline-start + `var(--color-surface)` bg. Read: transparent bg.
+- Icon by type: Quote ready = Lucide `FileCheck` (blue), Order update = `Truck` (blue), Delivery = `MapPin` (green), Payment = `CreditCard` (blue), Support = `MessageCircle` (blue). Size: 20px.
+- Title: Inter 500 14px. Body: Inter 400 13px muted. Time: Geist Mono 11px `var(--color-text-subtle)` (relative: "2 min ago", "1 hour ago", absolute after 7 days).
+- Click: marks read + navigates to relevant content. Window closes.
+- "Show older" link at bottom (if > 20 notifications): Inter 400 12px `var(--color-primary)`. Loads next 20.
+- Real-time via Supabase Realtime on `notifications` table filtered by user. New notifications spring in at top.
 
 ### FRONTEND.md Section 2.9 — Documents, Support, Settings
 
@@ -249,6 +257,16 @@ These are the core read functions for the portal customer experience:
 | `confirmDropShipDelivery` | POST | `{ deliveryId }` | `{ success, invoiceId? }` | customer (owner) | Update drop_ship_pod, transition delivery to delivered, trigger invoice |
 | `disputeDropShipDelivery` | POST | `{ deliveryId, reason, photoUrls? }` | `{ success, ticketId }` | customer (owner) | Update drop_ship_pod, create support ticket, notify ops |
 | `markAllNotificationsRead` | PATCH | `{}` | `{ success }` | authenticated | Bulk update |
+
+## Referral Program
+
+**Location:** Portal Settings > Referrals tab.
+
+- Referral program: $250-1,000 account credit for referring new accounts (credit amount based on referred customer's first order value).
+- Referred customers have 15-25% higher LTV (industry benchmark).
+- Referral flow: existing customer generates referral link/code in Settings > Referrals -> shares via WhatsApp/email -> new customer signs up with referral code -> upon first completed order, referrer receives account credit.
+- Referral tracking: `referrals` table (referrer_id, referred_customer_id, referral_code, status: pending/qualified/credited, credit_amount, credited_at).
+- Dashboard in Settings > Referrals: total referrals, pending credits, earned credits, referral link with copy button.
 
 ## Non-Negotiable Rules
 

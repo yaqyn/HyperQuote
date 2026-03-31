@@ -30,6 +30,16 @@ Phase 1 (Monorepo Scaffold must be complete).
 
 ## Spec References
 
+### Migration 001: Extensions
+
+| Extension | Purpose |
+|-----------|---------|
+| `pgcrypto` | `gen_random_uuid()` for UUID primary keys |
+| `pg_trgm` | Trigram similarity for fuzzy text search |
+| `pgvector` | Vector embeddings for AI search (1536-dim) |
+| `pg_cron` | Scheduled database jobs (quote expiry, AR aging, etc.) |
+| `supa_audit` | Automatic audit logging for all table changes |
+
 ### All 50 Enums
 
 #### Auth & System
