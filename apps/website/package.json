@@ -11,6 +11,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@hyperquote/auth": "workspace:*",
 		"@tanstack/react-start": "^1.167.12",
 		"@tanstack/react-router": "^1.168.0",
 		"react": "^19.2.4",

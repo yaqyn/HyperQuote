@@ -4,3 +4,4 @@ dist
 *.gen.ts
 .turbo
 .wrangler
+.dev.vars
