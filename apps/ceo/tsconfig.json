@@ -1,0 +1,9 @@
+{
+	"extends": "@hyperquote/tsconfig/base.json",
+	"include": ["src"],
+	"compilerOptions": {
+		"paths": {
+			"~/*": ["./src/*"]
+		}
+	}
+}
