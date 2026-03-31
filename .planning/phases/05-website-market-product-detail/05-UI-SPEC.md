@@ -47,20 +47,16 @@ Exceptions: 44px minimum touch target for mobile filter buttons and "Add to Quot
 
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
-| Body | 16px (--text-lg) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Label / Muted | 14px (--text-base) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Small / Meta | 12px (--text-sm) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Heading | 24px (--text-3xl) | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Product Name (detail) | 24px (--text-3xl) | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Specs Heading | 16px (--text-lg) | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
-| Price Range | 20px (--text-2xl) | 400 | 1.3 | Geist Mono |
-| SKU | 12px (--text-sm) | 400 | 1.5 | Geist Mono |
-| Result Count | 14px (--text-base) | 400 | 1.5 | Geist Mono (number only) |
-| Category Count | 14px (--text-base) | 400 | 1.5 | Geist Mono (number only) |
-| File Size | 11px (--text-xs) | 400 | 1.5 | Geist Mono |
-| Pagination Active | 14px (--text-base) | 600 | 1 | Geist Mono |
+| Body | 16px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Label / Muted | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Small / Meta / SKU / File Size | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic (text), Geist Mono (numbers) |
+| Heading / Product Name / Price Range | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic (headings), Geist Mono (price) |
+| Result Count | 14px | 400 | 1.5 | Geist Mono (number only) |
+| Category Count | 14px | 400 | 1.5 | Geist Mono (number only) |
+| Pagination Active | 14px | 600 | 1 | Geist Mono |
 
-Weights used: 400 (regular), 600 (semibold), 700 (bold — product name heading only).
+Sizes used: 12px, 14px, 16px, 24px (4 sizes).
+Weights used: 400 (regular), 600 (semibold) (2 weights).
 
 ---
 
@@ -86,9 +82,15 @@ Availability indicator dots:
 - Yellow (var(--color-warning) #CA8A04): "Low Stock"
 - Muted (var(--color-text-muted) #64748B): "Out of Stock" / "Price on Request"
 
+> **Three-color rule exception:** Semantic status tokens (success/warning) are system-level indicators, not brand palette colors. Exception documented per CLAUDE.md three-color rule.
+
 ---
 
 ## Component Inventory
+
+### Focal Point
+
+Primary visual anchor: **SearchField** — it is the primary user action entry point.
 
 ### Market Page (`/market`)
 
@@ -101,7 +103,7 @@ Availability indicator dots:
 | SortSelect | `Select` | Options: Relevance, Name, Category, Availability. Lucide ChevronsUpDown 16px trigger icon. Width auto. |
 | ViewToggle | `ToggleButtonGroup` | Grid/List. State persisted in localStorage. |
 | ProductCard (grid) | — | Image 4:3, name line-clamp-2, category badge (mb-8px), price range (Geist Mono), availability dot + label. Hover: translateY(-2px) + shadow-md. |
-| ProductCard (list) | — | 80px row. Thumbnail 48px square. Category 120px. Price range 140px. Availability 120px. Plus icon button. |
+| ProductCard (list) | — | 80px row. Thumbnail 48px square. Category 120px. Price range 140px. Availability 120px. Plus icon button with `aria-label="Add to Quote"` (EN) / `aria-label="أضف للعرض"` (AR). |
 | AddToQuotePopover | `Popover` | NumberField (min 1, step 1, default 1, width 120px) + "Add" button (blue, 36px). Triggered by card hover (desktop) / always visible (mobile). |
 | Pagination | `ListBox` | 24/page. Active: blue bg, white text, rounded-lg 32px. URL param ?page=N. Mobile: simplified prev/next. |
 | MobileFilterSheet | `Modal` (bottom sheet) | "Apply" button (blue, full width, 48px) + "Reset" link at bottom. Triggered by "Filters" button < 1024px. |
@@ -115,10 +117,10 @@ Availability indicator dots:
 | ImageGallery | — | Primary 1:1 image. Thumbnail gallery below (64px squares). Hover zoom 1.5x within clipped container. Mobile: tap opens full-screen viewer. |
 | CategoryBadge | `Link` | Clickable, navigates to /market?category={slug}. |
 | AvailabilityIndicator | — | Colored dot (8px) + text label. Colors per availability status. |
-| SpecsTable | — | Alternating row bg (var(--color-surface)). Property: Inter 500 14px var(--color-text-muted). Value: Inter 400 / Geist Mono for numeric. Only populated fields shown. |
+| SpecsTable | — | Alternating row bg (var(--color-surface)). Property: Inter 600 14px var(--color-text-muted). Value: Inter 400 / Geist Mono for numeric. Only populated fields shown. |
 | QuoteCard (sticky) | — | Sticky top 80px. NumberField (min: MOQ, Geist Mono). UOM display. "Add to Quote" full-width blue h-48px. WhatsApp link below. |
 | MobileBottomBar | — | Fixed bottom. h-64px, bg var(--color-card), border-top 1px var(--color-border), px-16px, py-8px. Quantity input 100px + "Add to Quote" flex-1. |
-| DocumentList | — | File name + Lucide Download icon. File size in Geist Mono 11px var(--color-text-muted). R2 presigned URL. |
+| DocumentList | — | File name + Lucide Download icon. File size in Geist Mono 12px var(--color-text-muted). R2 presigned URL. |
 | RelatedProducts | — | Horizontal scroll, 200px card width, snap points. Mobile: swipeable. 4-6 cards. |
 
 ---
@@ -134,7 +136,7 @@ Availability indicator dots:
 | Empty state body | "Try adjusting your filters or search terms" | "حاول تعديل الفلاتر او كلمات البحث" |
 | Empty state CTA | "Clear Filters" | "مسح الفلاتر" |
 | Error state heading | "Failed to load products" | "فشل تحميل المنتجات" |
-| Error state body | "Something went wrong. Please try again." | "حدث خطأ. يرجى المحاولة مرة اخرى." |
+| Error state body | "Products failed to load. Check your connection and try again." | "فشل تحميل المنتجات. تحقق من اتصالك وحاول مرة أخرى." |
 | Error state CTA | "Retry" | "اعادة المحاولة" |
 | 404 heading | "Product not found" | "المنتج غير موجود" |
 | 404 body | "This product may have been removed or the link is incorrect." | "ربما تم ازالة هذا المنتج او الرابط غير صحيح." |
