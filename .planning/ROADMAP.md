@@ -102,7 +102,11 @@ Plans:
   2. Home page hero fills 100vh with photography, gradient overlay, and animated value props
   3. Language toggle switches the entire site to RTL Arabic with correct layout mirroring
   4. Both pages render as SSG (static HTML, no server function calls at request time)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 04-01-PLAN.md -- Global shell (header, footer, mobile nav, toggles, i18n website namespace, shared components)
+- [ ] 04-02-PLAN.md -- Home page (hero, how-it-works, value props, market preview, CTA)
+- [ ] 04-03-PLAN.md -- About page (hero, story, mission, team, careers CTA) + SSG prerendering + offline banner
 **UI hint**: yes
 
 ### Phase 5: Website Market + Product Detail
@@ -454,7 +458,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 1. Monorepo Scaffold | 2/2 | Complete | - |
 | 2. Supabase + Initial Migrations | 2/2 | Complete   | 2026-03-31 |
 | 3. Shared Packages | 4/4 | Complete   | 2026-03-31 |
-| 4. Website Layout + Home + About | 0/? | Not started | - |
+| 4. Website Layout + Home + About | 0/3 | Not started | - |
 | 5. Website Market + Product Detail | 0/? | Not started | - |
 | 6. Website Remaining Pages | 0/? | Not started | - |
 | 7. Portal Auth + Shell | 0/? | Not started | - |
