@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Each of the 5 apps has a working dev server (4 TanStack Start + 1 plain Vite for driver)
 **Plans:** 2 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Monorepo root config, 5 app shells, 7 package stubs, website server function validation
+- [x] 01-01-PLAN.md -- Monorepo root config, 5 app shells, 7 package stubs, website server function validation
 - [ ] 01-02-PLAN.md -- @hyperquote/auth package, Supabase SSR on Workers go/no-go validation
 
 ### Phase 2: Supabase + Initial Migrations
