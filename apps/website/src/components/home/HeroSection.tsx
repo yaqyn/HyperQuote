@@ -14,8 +14,12 @@ export function HeroSection() {
 
 	return (
 		<section className="relative h-screen flex items-center justify-center overflow-hidden">
-			{/* Background placeholder for photography */}
-			<div className="absolute inset-0 bg-[var(--color-canvas)]" />
+			{/* Background photography */}
+			<img
+				src="https://websiteassets.hyperquote.net/Images/cairo.webp"
+				alt=""
+				className="absolute inset-0 h-full w-full object-cover"
+			/>
 
 			{/* Gradient overlay */}
 			<div
