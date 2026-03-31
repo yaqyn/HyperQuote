@@ -118,7 +118,11 @@ Plans:
   2. Filter sidebar narrows results by category, and search (fuse.js) finds products by name
   3. Product detail page shows specs table, availability indicator, price range badge, and "Add to Quote" button
   4. "Add to Quote" on product detail opens login modal for unauthenticated users
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 05-01-PLAN.md -- Products table migration + seed data + server functions + search/price utilities
+- [ ] 05-02-PLAN.md -- Market page with filters, search, grid/list toggle, pagination
+- [ ] 05-03-PLAN.md -- Product detail page with specs, gallery, quote CTA, related products
 **UI hint**: yes
 
 ### Phase 6: Website Remaining Pages
@@ -459,7 +463,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 2. Supabase + Initial Migrations | 2/2 | Complete   | 2026-03-31 |
 | 3. Shared Packages | 4/4 | Complete   | 2026-03-31 |
 | 4. Website Layout + Home + About | 3/3 | Complete   | 2026-03-31 |
-| 5. Website Market + Product Detail | 0/? | Not started | - |
+| 5. Website Market + Product Detail | 0/3 | Planning complete | - |
 | 6. Website Remaining Pages | 0/? | Not started | - |
 | 7. Portal Auth + Shell | 0/? | Not started | - |
 | 8. Portal AI Chat | 0/? | Not started | - |
