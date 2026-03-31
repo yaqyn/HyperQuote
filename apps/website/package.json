@@ -12,10 +12,18 @@
 	},
 	"dependencies": {
 		"@hyperquote/auth": "workspace:*",
+		"@hyperquote/types": "workspace:*",
+		"@hyperquote/i18n": "workspace:*",
+		"@hyperquote/ui": "workspace:*",
+		"@hyperquote/forms": "workspace:*",
+		"@hyperquote/tables": "workspace:*",
 		"@tanstack/react-start": "^1.167.12",
 		"@tanstack/react-router": "^1.168.0",
+		"i18next": "^25.10.10",
 		"react": "^19.2.4",
-		"react-dom": "^19.2.4"
+		"react-dom": "^19.2.4",
+		"react-aria-components": "^1.16.0",
+		"react-i18next": "^17.0.0"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.30.2",
