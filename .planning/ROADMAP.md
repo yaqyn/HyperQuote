@@ -104,7 +104,7 @@ Plans:
   4. Both pages render as SSG (static HTML, no server function calls at request time)
 **Plans:** 3 plans
 Plans:
-- [ ] 04-01-PLAN.md -- Global shell (header, footer, mobile nav, toggles, i18n website namespace, shared components)
+- [x] 04-01-PLAN.md -- Global shell (header, footer, mobile nav, toggles, i18n website namespace, shared components)
 - [ ] 04-02-PLAN.md -- Home page (hero, how-it-works, value props, market preview, CTA)
 - [ ] 04-03-PLAN.md -- About page (hero, story, mission, team, careers CTA) + SSG prerendering + offline banner
 **UI hint**: yes

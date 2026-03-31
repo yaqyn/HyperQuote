@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Website
 
-- [ ] **WEB-01**: Global shell: header (64px, blur on scroll, logo, nav, language/theme toggles, CTA), footer (4-column)
+- [x] **WEB-01**: Global shell: header (64px, blur on scroll, logo, nav, language/theme toggles, CTA), footer (4-column)
 - [ ] **WEB-02**: Home page: cinematic hero (100vh, real photography), how-it-works, value props, market preview, CTA section
 - [ ] **WEB-03**: About page: company story, mission, team grid
 - [ ] **WEB-04**: Market page: SSR product catalog with search (fuse.js), filter sidebar, grid/list toggle, price ranges (never exact prices), pagination
@@ -259,7 +259,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-06 | Phase 3 | Complete |
 | FOUND-07 | Phase 3 | Complete |
 | FOUND-08 | Phase 3 | Complete |
-| WEB-01 | Phase 4 | Pending |
+| WEB-01 | Phase 4 | Complete |
 | WEB-02 | Phase 4 | Pending |
 | WEB-03 | Phase 4 | Pending |
 | WEB-04 | Phase 5 | Pending |
