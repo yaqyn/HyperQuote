@@ -23,8 +23,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **WEB-01**: Global shell: header (64px, blur on scroll, logo, nav, language/theme toggles, CTA), footer (4-column)
 - [x] **WEB-02**: Home page: cinematic hero (100vh, real photography), how-it-works, value props, market preview, CTA section
 - [x] **WEB-03**: About page: company story, mission, team grid
-- [ ] **WEB-04**: Market page: SSR product catalog with search (fuse.js), filter sidebar, grid/list toggle, price ranges (never exact prices), pagination
-- [ ] **WEB-05**: Product detail: specs table, availability indicator, price range badge, "Add to Quote" (requires login), related products
+- [x] **WEB-04**: Market page: SSR product catalog with search (fuse.js), filter sidebar, grid/list toggle, price ranges (never exact prices), pagination
+- [x] **WEB-05**: Product detail: specs table, availability indicator, price range badge, "Add to Quote" (requires login), related products
 - [ ] **WEB-06**: Support page: contact form (anonymous) + FAQ accordion, two-tier (anonymous vs logged-in)
 - [ ] **WEB-07**: Docs page: skeleton layout with sidebar TOC, 2-3 example sections
 - [ ] **WEB-08**: Legal pages: privacy policy + terms of use (Arabic legally binding, English translation notice)
@@ -262,8 +262,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-01 | Phase 4 | Complete |
 | WEB-02 | Phase 4 | Complete |
 | WEB-03 | Phase 4 | Complete |
-| WEB-04 | Phase 5 | Pending |
-| WEB-05 | Phase 5 | Pending |
+| WEB-04 | Phase 5 | Complete |
+| WEB-05 | Phase 5 | Complete |
 | WEB-06 | Phase 6 | Pending |
 | WEB-07 | Phase 6 | Pending |
 | WEB-08 | Phase 6 | Pending |
