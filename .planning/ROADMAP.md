@@ -336,7 +336,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: DRV-01, DRV-02, DRV-12
 **Success Criteria** (what must be TRUE):
   1. Vite + Capacitor app builds and runs on both iOS and Android (NOT TanStack Start)
-  2. Login completes phone OTP -> 4-digit PIN -> biometric enrollment flow
+  2. Login completes phone OTP -> 6-digit PIN -> biometric enrollment flow
   3. Shift start captures vehicle selection, 10-point DVIR checklist with photos, odometer, GPS consent
   4. PowerSync + SQLite is initialized and syncs driver-relevant tables from Supabase
 **Plans**: TBD

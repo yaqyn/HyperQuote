@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 Phase: 1 of 32 (Monorepo Scaffold)
 Plan: 0 of ? in current phase
 Status: Ready to plan
-Last activity: 2026-03-31 -- Roadmap created (32 phases, 113 requirements mapped)
+Last activity: 2026-03-31 -- Roadmap created (32 phases, 135 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0%
 

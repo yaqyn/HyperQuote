@@ -311,6 +311,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-05 | Phase 15 | Pending |
 | INT-06 | Phase 15 | Pending |
 | INT-07 | Phase 15 | Pending |
+| INT-08 | Phase 15 | Pending |
 | SALE-01 | Phase 16 | Pending |
 | SALE-02 | Phase 16 | Pending |
 | SALE-03 | Phase 16 | Pending |
@@ -344,6 +345,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIN-06 | Phase 20 | Pending |
 | FIN-07 | Phase 20 | Pending |
 | FIN-08 | Phase 20 | Pending |
+| FIN-09 | Phase 20 | Pending |
 | DISP-01 | Phase 21 | Pending |
 | DISP-02 | Phase 21 | Pending |
 | DISP-03 | Phase 21 | Pending |
@@ -386,8 +388,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-04 | Phase 32 | Pending |
 
 **Coverage:**
-- v1 requirements: 116 total
-- Mapped to phases: 116
+- v1 requirements: 135 total
+- Mapped to phases: 135
 - Unmapped: 0
 
 ---
