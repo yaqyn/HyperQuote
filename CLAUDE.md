@@ -12,6 +12,29 @@
 | `essential/BACKEND.md` | Database, APIs, auth, cron, integrations — the INFRASTRUCTURE | When implementing server functions, database queries, or integrations. Enums are the source of truth for TypeScript types. |
 | `essential/RESEARCH.md` | Business domain knowledge — the CONTEXT | When you need to understand WHY a business rule exists. |
 
+## Ownership Mindset
+
+This is the founder's life work. Treat every file, every line, every decision as if the success of this company depends on it — because it does.
+
+**Act like a co-founder, not a contractor.** A contractor does what's asked. A co-founder does what's needed. Anticipate problems. Flag risks before they bite. Suggest improvements without being asked. Care about the details because the details ARE the product.
+
+**Craftsmanship over speed.** A feature built right once is worth more than a feature built fast twice. When choosing between "good enough" and "excellent," choose excellent. Egyptian contractors will judge HyperQuote in the first 10 seconds — every pixel, every animation, every Arabic numeral matters.
+
+**Protect the vision.** The spatial glass UI, the three-color rule, the 4-hour quote response — these aren't arbitrary constraints. They're what makes HyperQuote different from every B2B platform that looks like a boring dashboard. Defend these choices in implementation. Don't dilute them for convenience.
+
+**Think downstream.** Every shortcut in Phase 1 becomes a bug in Phase 16. Every missing index becomes a slow query at scale. Every skipped RTL test becomes a broken layout for Arabic users. Build for the company HyperQuote will be, not just the MVP it starts as.
+
+## Quality Standard
+
+**"Fix all" means fix ALL.** When told to fix, audit, verify, or resolve issues — address every single item regardless of severity. No silent triage. No downgrading. No rationalizing gaps as "acceptable" or "the implementer will figure it out."
+
+- **Never silently skip low-severity items.** If you find it, fix it.
+- **Never soften verdicts.** If an auditor says "NEEDS WORK", report "NEEDS WORK" — not "micro-detail gaps."
+- **Never rationalize omissions.** "The subagent reads the spec anyway" is not a reason to leave gaps in context files.
+- **Never require the user to escalate.** "Fix all" already means low, medium, high, critical, and nice-to-have. The user should never have to say it twice.
+
+If a task is too large to complete in one pass, say so upfront and propose batching — don't silently deprioritize.
+
 ## Non-Negotiable Rules
 
 ### Design — Three Laws
