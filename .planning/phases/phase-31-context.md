@@ -187,6 +187,10 @@ From GSD.md: Supabase Realtime subscriptions (all 11 channels), Cloudflare KV fo
 6. **Bun, NOT npm/yarn/pnpm.**
 7. **Colors in `:root {}`, NEVER in `@theme`.** Tailwind v4 critical rule.
 
+## Discrepancies
+
+**NOTE: `ceo_attention_items` refresh frequency discrepancy.** BACKEND.md Section 7 says 'Every 5 Min' in the view header comment, but BACKEND.md Section 9 cron job `ceo_materialized_view_refresh` says 'Every 30 min'. Recommend using 5-minute refresh as the view is small (typically <100 rows) and the CEO app depends on timely attention items. Update the cron schedule from `'*/30 * * * *'` to `'*/5 * * * *'` in Phase 14.
+
 ## Known Risks & Gotchas
 
 1. **Supabase Realtime connection limits.** Free plan: 200 concurrent connections. Pro plan: 500. Monitor usage as users scale.

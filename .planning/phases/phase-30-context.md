@@ -274,6 +274,8 @@ Each AI surface needs a structured prompt template with these components:
 **Embeddings:** Workers AI bge-m3 for multilingual Arabic+English embeddings.
 
 > **CRITICAL: Vector Dimension Mismatch.** Workers AI bge-m3 produces **1024-dim** vectors by default, but all embedding tables (`document_embeddings`, `product_embeddings`, `business_data_embeddings`) define columns as `vector(1536)`. **Either change table definitions to `vector(1024)` for bge-m3, or use OpenAI text-embedding-3-small for 1536-dim vectors. Decision required before implementation.** This also affects the HNSW indexes which must match the chosen dimension. STACK-DECISION.md lists "Workers AI bge-m3" as the chosen provider, so `vector(1024)` is likely correct, but the BACKEND.md table DDL must be updated to match.
+>
+> **Recommended resolution:** Change all `vector(1536)` to `vector(1024)` in the 3 embedding tables (document_embeddings, product_embeddings, business_data_embeddings) to match Workers AI bge-m3 output. If OpenAI text-embedding-3-small (1536-dim) is preferred for quality, note the $0.02/1M tokens cost and add it to the AI tier as a separate embedding provider. Decision must be made in Phase 2 (when tables are created) — the embedding dimension is baked into the table DDL.
 
 ## Non-Negotiable Rules
 

@@ -217,7 +217,27 @@ CREATE TABLE drop_ship_pod (
 );
 ```
 
-### Missing Server Functions (from BACKEND.md Section 6 — Portal Customer)
+### Portal Customer GET Functions (from BACKEND.md Section 6 — Portal Customer)
+
+These are the core read functions for the portal customer experience:
+
+| Function | Method | Input | Output | Auth | Side Effects |
+|---|---|---|---|---|---|
+| `getCustomerDashboard` | GET | `{}` | `{ activeOrders, pendingQuotes, openInvoices, recentActivity }` | customer | none |
+| `getCustomerOrders` | GET | `{ status?, page, limit, dateRange? }` | `{ orders[], total }` | customer | none |
+| `getCustomerOrderDetail` | GET | `{ orderId }` | `{ order, timeline, documents }` | customer (owner) | none |
+| `getCustomerQuotes` | GET | `{ status?, page, limit }` | `{ quotes[], total }` | customer | none |
+| `getCustomerInvoices` | GET | `{ status?, page, limit }` | `{ invoices[], totalOutstanding }` | customer | none |
+| `downloadInvoicePDF` | GET | `{ invoiceId }` | `{ url }` (signed R2 URL) | customer (owner) | Log download |
+| `getCustomerProfile` | GET | `{}` | `{ company, contacts, addresses }` | customer | none |
+| `updateCustomerProfile` | POST | `{ companyName?, phone?, addresses? }` | `{ success }` | customer | Update customer, audit log |
+| `getCustomerStatements` | GET | `{ period }` | `{ statement, downloadUrl }` | customer | none |
+| `submitSupportTicket` | POST | `{ subject, category, message, orderId?, attachments? }` | `{ ticketId }` | customer | Creates ticket, notifies support |
+| `replySupportTicket` | POST | `{ ticketId, message, attachments? }` | `{ responseId }` | customer | Adds reply |
+| `getNotifications` | GET | `{ page, limit }` | `{ notifications[], unread }` | authenticated | none |
+| `markNotificationRead` | PATCH | `{ notificationId }` | `{ success }` | authenticated | Updates read status |
+
+### Portal Customer Mutation Functions (from BACKEND.md Section 6 — Portal Customer)
 
 | Function | Method | Input | Output | Auth | Side Effects |
 |---|---|---|---|---|---|

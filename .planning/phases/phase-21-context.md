@@ -218,6 +218,9 @@ Route planning (drag-and-drop stops, auto-optimize), live GPS map (vehicle pins,
 - Block sheet material deliveries above 30 km/h wind
 - Auto-pause outdoor operations during severe Khamsin
 
+**Summer Heat & Driver Safety (RESEARCH.md Section 1):**
+40-50 degrees C in Upper Egypt June-September. Driver safety: mandatory breaks, water supply, no loading during peak heat 12-3 PM. Also: cement shelf life shortened to 2-3 months, adhesives/sealants reduced shelf life.
+
 **Three Driver Types:**
 - INTERNAL: Employee, company vehicle, full equipment access, dispatched directly
 - CONTRACTED: Recurring external, verified CDL/insurance/equipment, offered priority overflow

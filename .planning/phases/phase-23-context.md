@@ -192,6 +192,220 @@ Base: 14px. Arabic-Indic numerals in Arabic context. Currency via `Intl.NumberFo
 - **"Last synced" indicator:** Geist Mono 400, text-xs, muted gray. Shown on home screen and on each data section when offline. Yellow at 15 min stale, red at 30 min stale.
 - **Driver app sync indicator (DS.14):** green (online) / amber (weak) / red (offline). No banner -- offline is normal for drivers.
 
+#### Screen 4: Entity Detail — Full Specs for All 7 Entity Types
+
+**Shared layout pattern:**
+- Back arrow (swipe-right gesture on mobile) returns to search results (state preserved)
+- Entity name: Inter 600, text-xl (18px)
+- Subtitle: Inter 400, text-base, muted gray (entity-specific)
+- Data sections: 24px vertical spacing. Section label in Inter 500, text-sm, uppercase, tracking-wide, muted gray. Values in Geist Mono where numeric.
+- Action buttons: text-only, Inter 500, no background, 24px minimum spacing
+- Deep link: "View full details in [Module] -->" Inter 400, muted gray
+
+**Employee Detail:**
+```
+Ahmed Fawzi                                          [Back]
+Sales Rep -- Sales Department
+Joined: Sep 12, 2024
+
+Contact
+  Phone: +20 100 XXX XXXX                            [Call]
+  Email: ahmed.fawzi@hyperquote.net                   [Email]
+
+Quick stats
+  Active quotes: 8
+  Pipeline value: EGP 12,400,000
+  Win rate (90d): 34%
+  Avg margin: 14.8%
+
+Recent activity
+  Mar 28 -- Sent quote QT-1210 to Nile Developers (EGP 2.1M)
+  Mar 27 -- Closed order ORD-1201 from Arab Contractors (EGP 890K)
+  Mar 26 -- Updated quote QT-1204 margin to 7.2%
+
+[View full profile in HR -->]
+```
+- [Call] triggers native dialer via `tel:`. [Email] triggers `mailto:`.
+- All monetary values in Geist Mono 500. Dates in Geist Mono 400.
+- Recent activity: last 5 entries from `entity_timeline` audit log, filtered by employee.
+
+**Customer Detail:**
+```
+Al-Masriya Construction Co.                          [Back]
+Customer since Jun 2023
+
+Contact
+  Primary: Eng. Omar Hassan                           [Call]
+  Phone: +20 112 XXX XXXX
+  Email: omar@almasriya.com.eg                        [Email]
+  Account manager: Ahmed Fawzi
+
+Financial snapshot
+  Credit limit: EGP 1,200,000
+  Credit used: EGP 980,000 (82%)                     [Warning]
+  Total AR: EGP 1,230,000
+  Overdue: EGP 250,000 (14 days)                     [Error]
+
+Order history (last 6 months)
+  Orders: 12
+  Total revenue: EGP 8,400,000
+  Avg order value: EGP 700,000
+  Avg margin: 14.2%
+
+Recent orders
+  ORD-1198 -- EGP 890,000 -- Delivered
+  ORD-1187 -- EGP 1,200,000 -- Delivered
+  ORD-1174 -- EGP 650,000 -- Invoiced
+
+Alerts
+  Bounced cheque: EGP 250,000 (Mar 28)               [Error]
+
+[Route to Finance]    [Route to Sales]    [Call Account Manager]
+
+[View full profile in CRM -->]
+```
+- Credit utilization: progress bar (gray, no color unless >80% = warning, >95% = error)
+- Bounced cheque alert uses semantic error color for badge and amount
+
+**Order Detail:**
+```
+Order ORD-1204                                       [Back]
+Al-Masriya Construction Co.
+Created: Mar 15, 2026 | Status: Delivered
+
+Items
+  50x Cement bags (50kg) -- Portland Type I
+  20x Rebar bundles (12mm, 12m)
+  40x Plywood sheets (18mm)
+
+Financial
+  Order value: EGP 3,200,000
+  Margin: 14.8%
+  Invoice: INV-3892 -- EGP 3,200,000
+  Payment status: Partial -- EGP 1,800,000 received   [Warning]
+  Outstanding: EGP 1,400,000 (due Apr 14)
+
+Delivery
+  Delivered: Mar 22, 2026
+  Driver: Mohammed Ali
+  POD: Signed by Eng. Hassan (Foreman)
+  Delivery note: DN-3892                              [View PDF]
+
+Timeline
+  Mar 15 -- Order created by Ahmed Fawzi
+  Mar 16 -- Supplier POs generated (3 suppliers)
+  Mar 18 -- All materials confirmed by suppliers
+  Mar 20 -- Loaded at warehouse
+  Mar 22 -- Delivered, POD captured
+
+[Route to Finance]    [Route to Operations]
+
+[View full details in Orders -->]
+```
+- Status badges: Delivered=green, In Transit=blue-gray, Pending=gray, Failed=red, Partial=yellow
+- [View PDF] opens delivery note in browser's native PDF viewer
+
+**Invoice Detail:**
+```
+Invoice INV-3892                                     [Back]
+Al-Masriya Construction Co.
+Issued: Mar 22, 2026 | Due: Apr 21, 2026
+
+Amount: EGP 3,200,000
+VAT (14%): EGP 448,000
+Total: EGP 3,648,000
+
+Payment status
+  Received: EGP 1,800,000 (Mar 25, wire transfer)
+  Outstanding: EGP 1,848,000
+  Days until due: 23
+
+ETA submission: Submitted Mar 22, reference: ETA-892741
+
+[View invoice PDF]    [Route to Finance]
+
+[View full details in Finance -->]
+```
+
+**Supplier Detail:**
+```
+El-Nasr Steel                                        [Back]
+Supplier since: Aug 2024
+
+Contact
+  Primary: Eng. Tarek Mahmoud                         [Call]
+  Category: Steel & Rebar
+
+Performance (last 12 months)
+  Total PO value: EGP 22,000,000
+  On-time delivery: 91%
+  Quality issues: 2 (resolved)
+  Active POs: 3
+
+Terms
+  Payment: Net 60
+  Early payment discount: 2% / 15 days
+  Minimum order: EGP 500,000
+
+[Route to Procurement]
+
+[View full details in Procurement -->]
+```
+
+**Delivery Detail:**
+```
+Delivery DEL-4521                                    [Back]
+Order: ORD-1204 | Customer: Al-Masriya Construction
+
+Status: Delivered                                    [Success]
+Driver: Mohammed Ali
+Vehicle: Truck #HQ-017 (Flatbed + Moffett)
+
+Timeline
+  Departed warehouse: 6:30 AM
+  Arrived at site: 7:38 AM
+  Unloading complete: 8:05 AM
+  POD captured: 8:10 AM
+
+Items delivered
+  48/50 Cement bags (SHORT 2 -- damaged at warehouse)
+  20/20 Rebar bundles
+
+POD
+  Signed by: Eng. Hassan Mohamed Ali (Foreman)
+  Photos: 3                                           [View]
+  Condition: Good (2 bags short noted)
+
+[View delivery note PDF]    [Route to Operations]
+
+[View full details in Logistics -->]
+```
+
+**Product Detail:**
+```
+Portland Cement Type I (50kg bag)                    [Back]
+Category: Cement & Concrete
+SKU: CEM-PORT-50
+
+Pricing (internal -- not shown to customers)
+  Last supplier cost: EGP 85/bag
+  Avg selling price: EGP 102/bag
+  Avg margin: 20%
+
+Movement (last 30 days)
+  Units sold: 2,400
+  Revenue: EGP 244,800
+  Top customers: Al-Masriya (800), Nile Developers (600)
+
+Availability
+  Suppliers: El-Nasr (in stock), Alexandria Cement (in stock)
+  Lead time: 2-3 days
+
+[View full details in Products -->]
+```
+
+**Offline behavior for all detail views:** If entity data is in TanStack Query cache, display with "Last synced" timestamp. If not cached: "Detail unavailable offline. Return to search." No skeleton loaders for uncached views.
+
 ### BACKEND.md — Server Functions (CEO)
 
 | Function | Method | Input | Output | Auth | Side Effects |

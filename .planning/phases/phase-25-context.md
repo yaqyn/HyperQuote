@@ -205,6 +205,20 @@ The driver app does NOT include built-in turn-by-turn navigation. It launches an
 - Customer: WhatsApp/SMS with portal link.
 - Finance: triggers invoice generation workflow.
 
+### Server Functions (from BACKEND.md Section 6 — Driver)
+
+> **Note:** Driver app calls Supabase directly (RLS-protected) for reads, but uses these server functions for mutations that need server-side validation.
+
+| Function | Method | Input | Output | Auth | Side Effects |
+|---|---|---|---|---|---|
+| `getDriverRoute` | GET | `{ shipmentId }` | `{ stops, optimizedOrder, totalDistance, totalDuration, mapUrl }` | driver (assigned) | none |
+| `confirmPickup` | POST | `{ shipmentId, stopId, photos[], signature?, notes? }` | `{ success }` | driver (assigned) | Upload to R2, notify dispatch |
+| `confirmDelivery` | POST | `{ shipmentId, stopId, photos[], signature, recipientName, notes? }` | `{ success, nextStop? }` | driver (assigned) | Upload POD, notify dispatch + customer |
+| `submitLoadVerification` | POST | `{ routeId, scanResults[], truckPhoto?, cargoPhoto? }` | `{ success }` | driver | Records driver-side verification |
+| `recordArrival` | POST | `{ stopId, lat, lng }` | `{ success, geofenceValid }` | driver | Geofence check |
+| `acknowledgeRouteChange` | POST | `{ routeId, changeId }` | `{ success }` | driver | Marks acknowledged |
+| `requestRouteReorder` | POST | `{ routeId, newStopOrder[] }` | `{ success, approved }` | driver | May auto-approve |
+
 ## Business Rules
 
 **Loading to Delivery Flow (from RESEARCH.md):**

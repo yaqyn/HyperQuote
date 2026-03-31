@@ -8,12 +8,12 @@ Phase 1 (Monorepo Scaffold must be complete).
 
 ## Requirements
 
-- **FOUND-02**: Supabase project initialized with all 50 enums + auth/tenant tables + RLS helper functions
-- **DB-02**: All 50 enums created
+- **FOUND-02**: Supabase project initialized with all 52 enums + auth/tenant tables + RLS helper functions
+- **DB-02**: All 52 enums created
 - **DB-04**: Auth helper functions (12): pool extractors, role/permission checkers, tenant_id trigger, updated_at trigger, custom access token hook
 
 ## Success Criteria
-1. All 50 enums are queryable in the database
+1. All 52 enums are queryable in the database
 2. Auth tables (tenants, user_profiles, user_roles, role_permissions, employees, approvals, audit_log) exist with correct constraints
 3. All 12 auth helper functions execute correctly (pool extractors, role checkers, tenant trigger, updated_at trigger, access token hook)
 4. Role_permissions seed data is loaded and `(SELECT auth.uid())` pattern is enforced in all RLS policies
@@ -21,7 +21,7 @@ Phase 1 (Monorepo Scaffold must be complete).
 ## What to Build
 - `supabase init` in project root
 - Migration 001: extensions (`pgcrypto`, `pg_trgm`, `pgvector`, `pg_cron`, `supa_audit`)
-- Migration 002: all 50 enums from BACKEND.md Section 2
+- Migration 002: all 52 enums from BACKEND.md Section 2
 - Migration 003: `tenants`, `user_profiles`, `user_roles`, `role_permissions`, `employees`, `approvals`, `audit_log` tables
 - Migration 004: auth helper functions (12 functions from Section 4)
 - Migration 005: custom_access_token_hook
@@ -519,7 +519,12 @@ BEGIN
     p.driver_id
   INTO user_profile
   FROM public.user_profiles p
-  WHERE p.id = user_id;
+  WHERE p.user_id = custom_access_token_hook.user_id;
+
+  -- BUG FIX: The original BACKEND.md has `WHERE p.id = user_id` which queries the
+  -- profile's PK, not the auth user FK. The correct query is
+  -- `WHERE p.user_id = custom_access_token_hook.user_id` (using the function parameter
+  -- name to avoid ambiguity with the column name).
 
   IF NOT FOUND THEN
     RETURN event;
@@ -653,8 +658,17 @@ The `custom_access_token_hook` function references `p.pool` from `user_profiles`
 
 ## Known Risks & Gotchas
 
+### CRITICAL: `app_role` enum vs seed data mismatch
+The seed data references roles not in the enum: `ceo`, `sales_director`, `bdr`, `quoting_specialist`, `procurement_officer`, `warehouse_worker`, `quality_inspector`, `dispatcher`, `accountant`, `ar_clerk`, `ap_clerk`, `credit_manager`, `cs_agent`, `cs_manager`. Resolution: expand `app_role` enum to include all referenced roles BEFORE running seed migration.
+
+### CRITICAL: `app_permission` enum naming mismatch
+Seed data uses different permission names than the enum (e.g., `'quote_requests.read'` vs enum's `'quotes.read'`, `'payments.create'` vs enum's `'finance.record_payment'`). Resolution: audit ALL seed permission strings against the enum and align — either expand the enum or rewrite the seed. Do this BEFORE the seed migration.
+
 ### CRITICAL: RLS Policy Performance Death at 94 Tables
 Every query on every RLS-enabled table executes policy checks per row. ALWAYS use `(SELECT auth.uid())` not `auth.uid()` directly. Index every column referenced in RLS policies: `user_id`, `tenant_id`, `created_by`, `assigned_to`. Run `EXPLAIN ANALYZE` on critical queries with RLS enabled.
+
+### WARNING: Vector dimension decision needed before Phase 14
+The 3 embedding tables use `vector(1536)` but Workers AI bge-m3 produces 1024-dim vectors. See Phase 30 context for resolution options. This affects tables: document_embeddings, product_embeddings, business_data_embeddings.
 
 ### WARNING: Deferred Foreign Keys
 `user_profiles` references `customers`, `suppliers`, `drivers`, `employees` -- these tables may not exist yet in Phase 2. Use deferred FK constraints or create the references later in Phases 13-14.

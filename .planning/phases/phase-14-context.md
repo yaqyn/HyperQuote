@@ -120,6 +120,8 @@ AP aging buckets by supplier (current, 1-30, 31-60, 61-90, 90+).
 
 6. **generate_sequence_number(tenant_id, entity_type, prefix)** — Thread-safe sequence number generation. Uses `sequence_counters` table with `UPDATE ... SET current_value = current_value + 1` and `RETURNING` for atomic increment. Generates format: `{PREFIX}-{YEAR}-{ZERO_PADDED_NUMBER}` (e.g., `SO-2026-00042`). The function is called by triggers like `on_quote_accepted()` to auto-generate order numbers, invoice numbers, etc. **Implementation must use row-level locking (`FOR UPDATE`) to prevent race conditions under concurrent inserts.**
 
+7. **createNotificationGroup(tenantId, groupKey, rootEventType, rootEntityId, summaryText, summaryTextAr?, notifications[])** — Batch-create grouped notifications with summary. Returns `{ groupId, notificationCount }`. Auth: internal. This is a computed/utility function used by triggers and cron jobs to group related notifications (e.g., "3 new quotes for your review" instead of 3 separate notifications).
+
 ### Cron Jobs (ALL 33 — from BACKEND.md Section 9)
 
 **pg_cron jobs (run inside the database):**
@@ -129,7 +131,7 @@ AP aging buckets by supplier (current, 1-30, 31-60, 61-90, 90+).
 | `quote_expiry_check` | Every 15 min | Expire quotes past `valid_until`, notify sales rep |
 | `invoice_overdue_check` | Daily 6:00 AM | Mark invoices past due as `overdue`, trigger notification |
 | `credit_hold_check` | Daily 8:00 AM | Evaluate credit limit breaches, set `credit_hold` flag |
-| `ceo_materialized_view_refresh` | Every 30 min | Refresh all CEO dashboard materialized views |
+| `ceo_materialized_view_refresh` | Every 30 min | Refresh all CEO dashboard materialized views | **CORRECTED: Every 5 min (not 30 min).** View is small (<100 rows), CEO needs timely data. |
 | `cheque_maturity_check` | Daily 6:00 AM | Check cheques reaching maturity, notify finance |
 | `account_deletion_purge` | Daily 2:00 AM | Hard-delete after 30-day grace, anonymize records |
 | `driver_compliance_check` | Daily 6:00 AM | Check license/registration/insurance expiry |
@@ -154,7 +156,7 @@ AP aging buckets by supplier (current, 1-30, 31-60, 61-90, 90+).
 | `ar_reminder_60_day` | Daily 7:00 AM | Escalated reminder for 60-day overdue, CC finance manager |
 | `ar_reminder_90_day` | Daily 7:00 AM | Final notice for 90+ day overdue, trigger credit hold eval |
 | `ceo_daily_digest` | Daily 7:00 AM | AI-summarized daily digest via WhatsApp + email |
-| `ceo_weekly_insight` | Sunday 8:00 PM | AI weekly strategic insight via email with charts |
+| `ceo_weekly_insight` | Sunday 8:00 PM | AI weekly strategic insight via email with charts | **CORRECTED: Friday 6PM (not Sunday 8PM).** See Phase 27 context for rationale. |
 | `ops_meeting_agenda` | Sunday 7:00 AM | Auto-generate ops meeting agenda from open issues |
 | `form_41_quarterly` | 1st Jan/Apr/Jul/Oct 9 AM | Generate quarterly Form 41 tax report |
 | `exchange_rate_update` | Daily 8:00 AM | Fetch USD/EGP, EUR/EGP, SAR/EGP rates |

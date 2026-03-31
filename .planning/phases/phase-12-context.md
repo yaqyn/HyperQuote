@@ -175,6 +175,19 @@ CREATE POLICY spo_supplier_update ON public.supplier_pos
   );
 ```
 
+## Business Rules
+
+**Supplier Account Roles (RESEARCH.md Section 5.10c):**
+Supplier accounts support 3 roles: Owner (full access), Operations (stock/POs), Finance (invoices/payments).
+
+**Rejected Supplier Application 3-Status Model (RESEARCH.md Section 5.10c):**
+Approved / Pending (fixable) / Declined (6-month wait). Always provide specific reason. Phone call for declined (Egyptian business culture).
+
+**Non-Technical Supplier Onboarding 3 Tiers (RESEARCH.md Section 3.3):**
+- Tier 1: WhatsApp-only (AI parses free text)
+- Tier 2: Simplified portal (magic link, reduced UI)
+- Tier 3: Full portal + API
+
 ## Non-Negotiable Rules
 
 1. **React Aria Components** for all UI. Inline edit uses React Aria NumberField.

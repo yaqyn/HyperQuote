@@ -50,6 +50,13 @@ Phase 5 (Website Market + Product Detail must be complete).
 |---|---|---|---|---|---|
 | `submitContactForm` | POST | `{ name, email, phone?, subject, message }` | `{ ticketId }` | none | Insert ticket, notify support |
 
+**Additional Auth functions (account claiming + sign out):**
+
+| Function | Method | Input | Output | Auth | Side Effects |
+|---|---|---|---|---|---|
+| `claimAccount` | POST | `{ phone, otp }` | `{ customerId, claimed }` | authenticated | Links `auth.users` to existing customer |
+| `signOut` | POST | `{}` | `{ success }` | authenticated | Clears SSO cookie, revokes session |
+
 **Rate Limiting Implementation (OTP & Contact Form):**
 
 OTP rate limiting is critical to prevent brute force. Implement at the server function level using Cloudflare KV as a counter:

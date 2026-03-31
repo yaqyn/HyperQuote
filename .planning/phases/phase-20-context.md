@@ -303,6 +303,29 @@ Invoicing + ETA submission, AR aging (KPI strip + drill-down), payment recording
 - 48h SLA for resolution
 - 5-year record retention
 
+**Payment Methods by Order Size (RESEARCH.md Section 8):**
+| Order Size (EGP) | Accepted Payment Methods |
+|---|---|
+| 500K-5M | Company cheque / wire transfer |
+| 5M-50M | Wire transfer / certified cheque |
+| 50M-500M | Wire transfer / Letter of Credit |
+| 500M-5B+ | Letter of Credit / wire series / bank guarantee |
+
+**Tier 5 Rehabilitation (RESEARCH.md Section 8):**
+12-18 months recovery path: full debt settlement -> 6 months Cash Before Delivery probation -> limited credit at 50% prior limit -> gradual restoration. Repeat offenders (2+ bounced cheques) = permanent blacklist.
+
+**Cash Flow Benchmarks (RESEARCH.md Section 8):**
+Cash Conversion Cycle 45-90 days. Working capital requirement 10-18% of annual revenue. Primary tool: bank credit lines secured by PDCs (cheque discounting at 85-90% face value).
+
+**Retainage Tracking (RESEARCH.md Section 8):**
+Retainage 5-10% held until project completion. Common in large Egyptian construction projects. Terms negotiated per contract.
+
+**Chronically Late-But-Reliable Payers (RESEARCH.md Section 8):**
+Don't penalize -- adjust terms instead. Move from Net 30 to Net 45 to match actual behavior. Penalizing reliable-but-slow payers loses good customers.
+
+**Credit Insurance (RESEARCH.md Section 8):**
+Credit insurance available via Coface Cairo office and Atradius from Dubai at 0.3-0.8% of insured turnover. Consider selectively when individual credit limits exceed EGP 5M. Skip at launch.
+
 ## Non-Negotiable Rules
 
 1. **Three colors only.** White, Black, Blue. Semantic status colors for DATA only (AR aging colors are data).

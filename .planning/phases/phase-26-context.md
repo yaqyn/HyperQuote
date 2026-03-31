@@ -189,6 +189,22 @@ From GSD.md: Exception reporting (7 types), communication, end of day (returns, 
 
 **Rating impact:** Higher ratings = more job offers. Rating based on: on-time arrival, POD quality, customer feedback, damage rate. Star rating at top of earnings screen.
 
+### Server Functions (from BACKEND.md Section 6 — Driver)
+
+> **Note:** Driver app calls Supabase directly (RLS-protected) for reads, but uses these server functions for mutations that need server-side validation.
+
+| Function | Method | Input | Output | Auth | Side Effects |
+|---|---|---|---|---|---|
+| `reportIssue` | POST | `{ shipmentId, type, description, photos? }` | `{ issueId }` | driver | Notify dispatch, escalate if critical |
+| `getDriverHistory` | GET | `{ page, limit, dateRange? }` | `{ deliveries[], stats }` | driver | none |
+| `endShift` | POST | `{ odometerEnd, fuelLevel?, postTripInspectionId? }` | `{ shiftSummary }` | driver | Closes shift |
+| `submitEndOfDayReport` | POST | `{ shiftId, returns?, fuelLevel?, notes? }` | `{ success }` | driver | Submits EOD report |
+| `getJobOffers` | GET | `{}` | `{ jobs[] }` | driver (external) | none |
+| `acceptJob` | POST | `{ jobId }` | `{ success }` | driver (external) | Assigns job |
+| `declineJob` | POST | `{ jobId, reason? }` | `{ success }` | driver (external) | Releases to pool |
+| `getDriverEarnings` | GET | `{ period }` | `{ earnings, pending, available }` | driver (external) | none |
+| `requestWithdrawal` | POST | `{ amount, bankAccountId }` | `{ withdrawalId }` | driver (external) | Creates withdrawal request |
+
 ## Business Rules
 
 **Three Driver Types (from RESEARCH.md):**

@@ -40,22 +40,105 @@ Three colors. Period.
 | `--color-text` | `#0F172A` (light) / `#FFFFFF` (dark) | Primary text, headings |
 | `--color-primary` | `#2563EB` | Brand accent, interactive elements, links, CTAs |
 
-Derived tokens: `--color-text-muted` (70% opacity), `--color-text-subtle` (50% opacity), `--color-border` (15% opacity), `--color-surface`, `--color-base-alt`, `--color-card`.
+**Derived tokens (generated from three colors):**
 
-Semantic status colors (data only): green (success), yellow/amber (warning), red (error), blue-gray (info).
+| Token | Purpose | Exact Value |
+|-------|---------|-------------|
+| `--color-text-muted` | Secondary text | 70% opacity |
+| `--color-text-subtle` | Tertiary text | 50% opacity |
+| `--color-border` | Dividers, table borders | 15% opacity |
+| `--color-surface` | Slightly elevated bg | light: `#F8FAFC`, dark: `#18181B` |
+| `--color-base-alt` | Footer, alternate sections | light: `#EFF6FF`, dark: `#18181B` |
+| `--color-card` | Card/panel bg | light: `#FFFFFF`, dark: `#1C1C1E` |
 
-Dark mode: `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))` -- not Tailwind `dark:` prefix.
+**Semantic status colors (data only, not design):**
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-success` | Green | Confirmed, delivered, cleared, healthy, on-time |
+| `--color-warning` | Yellow/Amber | Expiring, aging (1-30 days), idle, low stock |
+| `--color-error` | Red | Failed, overdue, bounced, stopped, problem |
+| `--color-info` | Blue-gray | Informational, in-transit, quoting |
+
+**CEO app exception:** Zero accent colors. No blue for interactive elements. Emphasis through typography weight and contrast only. Semantic status colors remain for data.
+
+**AR aging severity colors (Finance module + CEO):**
+
+| Bucket | Color | Token |
+|--------|-------|-------|
+| Current | Green/Neutral | `--color-success` |
+| 1-30 days | Yellow | `--color-yellow-400` |
+| 31-60 days | Orange | `--color-orange-500` |
+| 61-90 days | Red | `--color-red-400` |
+| 90+ days | Dark Red (bold/badge) | `--color-red-600` |
+
+Same colors apply across all AR views (portal, internal, CEO) for consistency.
+
+Dark mode is literal inversion of White and Black. User-controlled toggle. System preference respected on first load.
+
+Dark mode variant: `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))` -- not Tailwind `dark:` prefix.
 
 **CRITICAL:** Colors in `:root {}`, NEVER in `@theme`. `--color-base` in `@theme` makes `text-base` set color instead of font-size.
 
 ### DS.2 Typography
+
+All fonts self-hosted as WOFF2 from `essential/brand/fonts/`. Never from external URLs.
+
 | Font | Usage |
 |------|-------|
-| Inter | All Latin text |
-| IBM Plex Sans Arabic | All Arabic text. Weights 100-700 only. |
-| Geist Mono | ALL numeric data -- prices, quantities, IDs, dates, timestamps |
+| **Inter** | All Latin text — headings, body, labels, buttons |
+| **IBM Plex Sans Arabic** | All Arabic text. Weights 100-700 only. Never use Inter 800/900 in bilingual contexts. |
+| **Geist Mono** | ALL numeric data — prices, quantities, IDs, dates, timestamps, KPIs. Brand rule: if it displays a number, it uses monospace. |
 
-14px base for all apps. 16px for website body text.
+**Base font size:** 14px for all apps. **Website exception:** 16px for body text.
+
+**Weight scale:**
+
+| Weight | Usage |
+|--------|-------|
+| Inter 700 | Page/section titles, celebration text |
+| Inter 600 | Section headers, entity names, greeting, emphasis |
+| Inter 500 | Sub-headers, action buttons, row primary text, tab labels |
+| Inter 400 | Body text, descriptions, secondary info, AI response text |
+| Geist Mono 500 | Primary monetary values, KPI numbers, counts, percentages |
+| Geist Mono 400 | Timestamps, dates, IDs, secondary numeric data |
+
+**Driver app override:** Primary text (item names, quantities): 18-20sp minimum. Quantity input: 24sp bold. Confirmed data: 32sp bold. All text at 7:1 contrast ratio (WCAG AAA — dirty screens/sunlight/gloves).
+
+**Warehouse mobile override:** Same large sizes as driver app. Numbers: 600+ font-weight minimum on glass backgrounds.
+
+### DS.3 Spacing & Layout
+
+**Grid:** 4px base unit. All spacing is a multiple of 4.
+
+**Tailwind logical properties only:** `ps-*`, `pe-*`, `ms-*`, `me-*` — never `margin-left`/`padding-right`. Enables automatic RTL support.
+
+**Max widths:**
+
+| Context | Max Width |
+|---------|-----------|
+| Website content | 1280px, centered |
+| Glass windows (desktop) | ~90% viewport width/height |
+| Glass windows (mobile) | 100% viewport |
+| AI chat (centered, home) | 720px |
+| AI chat (sidebar) | 380-420px |
+| Command palette | ~600px |
+| Login panels | 360-400px |
+
+### DS.4 Icons
+
+**Library:** Lucide only. No other icon libraries.
+
+| Property | Value |
+|----------|-------|
+| Style | Outlined, 1.5px stroke |
+| Color | `currentColor` (inherits text color) |
+| Size — inline | 16px |
+| Size — buttons | 20px |
+| Size — navigation | 24px |
+| Size — empty states | 32-48px |
+
+**Driver/Warehouse override:** Visual icon 24px but tappable area 48px+ with padding (WCAG touch target compliance).
 
 ### DS.5 Motion
 | Type | When | Engine |
@@ -76,24 +159,89 @@ Three speeds: Fast (100-150ms), Medium (200-300ms), Slow (400-600ms). Colors cha
 - Empty: Meaningful message + contextual CTA button.
 - Error: inline error + retry button. Toast for async feedback. Offline banner at top.
 
+### DS.8 Confirmation & Undo Patterns
+
+**Undo pattern (reversible actions):** Execute immediately. Show toast with `[Undo]` link (8-10 second timeout). No confirmation dialog. Examples: removing an item from cart, archiving a conversation, marking a notification read.
+
+**Confirmation dialog (irreversible actions):** Elevated glass modal. Action name in Inter 600 18px. Description in Inter 400 14px. "Cancel" (outline) + "[Action]" (colored per severity). Required for: sending to customer, applying payment, deleting records, accepting/declining quotes, advancing critical pipeline stages.
+
 ### DS.9 i18n & RTL
-**Arabic-Indic numerals:** When locale is Arabic, ALL displayed numbers convert. Use `Intl.NumberFormat('ar-EG')`.
 
-**Currency:** EN: `"EGP 56,400"` (prefix). AR: `"٥٦٬٤٠٠ ج.م"` (suffix, Arabic-Indic).
+**Engine:** react-i18next with type-safe keys. All user-facing strings through i18n. Zero hardcoded English.
 
-**Unit translations:**
-| Enum | EN | AR |
-|------|----|----|
-| kg | kg | كجم |
-| ton | ton | طن |
-| meter | m | م |
-| sqm | m² | م² |
-| piece | pc | قطعة |
-| bag | bag | كيس |
-| bundle | bundle | حزمة |
-(Full table of 28 units in FRONTEND.md DS.9)
+**Languages:** Arabic primary, English secondary.
 
-Implementation: `<UnitDisplay value={quantity} unit={unitEnum} />` renders both number and unit in correct locale.
+**Direction:** `dir="rtl"` / `dir="ltr"` on `<html>`. Logical CSS properties handle layout flip automatically.
+
+**Number translation (Arabic-Indic numerals):**
+
+When locale is Arabic, ALL displayed numbers convert to Arabic-Indic numerals. No exceptions.
+
+| Context | English | Arabic |
+|---------|---------|--------|
+| Quantities | 500 | ٥٠٠ |
+| Prices | 56,400 | ٥٦٬٤٠٠ |
+| Percentages | 14% | ١٤٪ |
+| IDs / References | QR-2026-00042 | QR-٢٠٢٦-٠٠٠٤٢ |
+| Dates | 2026-03-29 | ٢٠٢٦-٠٣-٢٩ |
+| Phone numbers | +20 101 234 5678 | +٢٠ ١٠١ ٢٣٤ ٥٦٧٨ |
+| Counts | "3 items" | "٣ عناصر" |
+| Weights | "2,500 kg" | "٢٬٥٠٠ كجم" |
+| Distances | "45 km" | "٤٥ كم" |
+| Time | "4 hours" | "٤ ساعات" |
+| Page numbers | "Page 2 of 5" | "صفحة ٢ من ٥" |
+
+**Implementation:** Use `Intl.NumberFormat('ar-EG')` for all numeric formatting. For inline numbers in strings, use i18next interpolation with `formatParams: { val: { locale: 'ar-EG' } }`. Geist Mono font supports Arabic-Indic numerals — no font swap needed.
+
+**Currency formatting:**
+- English: `"EGP 56,400"` (prefix, comma separator)
+- Arabic: `"٥٦٬٤٠٠ ج.م"` (suffix, Arabic-Indic numerals, momayyez separator)
+- All via `Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' })`
+
+**Unit of Measure translation (full 28-unit table):**
+
+When locale is Arabic, all unit abbreviations translate to Arabic. Stored as enum in database, displayed via i18n.
+
+| Enum Value | English Display | Arabic Display | Arabic Abbreviation |
+|------------|----------------|---------------|-------------------|
+| `kg` | kg | كيلو جرام | كجم |
+| `ton` | ton | طن | طن |
+| `metric_ton` | metric ton | طن متري | ط.م |
+| `meter` | m | متر | م |
+| `sqm` | m² | متر مربع | م² |
+| `cubic_meter` | m³ | متر مكعب | م³ |
+| `liter` | L | لتر | ل |
+| `piece` | pc | قطعة | قطعة |
+| `bag` | bag | كيس | كيس |
+| `bundle` | bundle | حزمة | حزمة |
+| `pallet` | pallet | لوح تحميل | لوح |
+| `roll` | roll | لفة | لفة |
+| `sheet` | sheet | لوح | لوح |
+| `box` | box | صندوق | صندوق |
+| `carton` | carton | كرتونة | كرتونة |
+| `set` | set | طقم | طقم |
+| `pair` | pair | زوج | زوج |
+| `foot` | ft | قدم | قدم |
+| `inch` | in | بوصة | بوصة |
+| `yard` | yd | ياردة | ياردة |
+| `sqft` | ft² | قدم مربع | قدم² |
+| `cubic_yard` | yd³ | ياردة مكعبة | يارده³ |
+| `gallon` | gal | جالون | جالون |
+| `lb` | lb | رطل | رطل |
+| `linear_foot` | LF | قدم طولي | ق.ط |
+| `linear_meter` | LM | متر طولي | م.ط |
+| `board_foot` | BF | قدم خشبي | ق.خ |
+| `truck_load` | TL | حمولة شاحنة | حمولة |
+
+**Implementation:** Unit translations live in `@hyperquote/i18n` namespace `units`. Display component: `<UnitDisplay value={quantity} unit={unitEnum} />` renders both number and unit in the correct locale. Example: `<UnitDisplay value={500} unit="kg" />` → EN: "500 kg" → AR: "٥٠٠ كجم".
+
+In data tables (Geist Mono for numbers): quantity and unit displayed as two elements — quantity in Geist Mono, unit in Inter/IBM Plex. Example: `<span className="font-mono">٥٠٠</span> <span>كجم</span>`.
+
+**Date formatting:** Locale-aware via `Intl.DateTimeFormat`. Gregorian default. Islamic calendar option in settings. Arabic day/month names in Arabic context. All date numbers in Arabic-Indic when locale is Arabic.
+
+**Relative time:** "2 hrs ago" (EN) / "منذ ساعتين" (AR) via `Intl.RelativeTimeFormat`.
+
+**Table behavior:** Column order doesn't change in RTL. "#" always first, "Actions" always last. Numeric inputs stay LTR even in RTL context (user types Western digits, display converts to Arabic-Indic on blur/save).
 
 ### DS.10 Data Grids & Tables
 TanStack Table + React Aria. Click to edit inline. Tab advances. Arrow keys navigate. Sort by column headers. Row selection via checkbox. Bulk actions toolbar. Numeric columns right-aligned in Geist Mono.
@@ -106,6 +254,71 @@ TanStack Table + React Aria. Click to edit inline. Tab advances. Arrow keys navi
 | Stopped/Overdue/Error | Red |
 | Assigned/In Progress | Blue |
 | Unassigned/Offline | Gray |
+
+### DS.12 Keyboard-First Design
+
+**Universal shortcut:** `Ctrl+K` / `Cmd+K` — command palette from anywhere.
+
+**Hotkey scoping:** Single-key hotkeys fire only when no text input is focused. Keyboard scope managed via state machine: Canvas → Panel → Input.
+
+**Every major action has a keyboard shortcut.** Shown in tooltips: "New Quote (Cmd+N)". Help overlay (`?` key) shows cheat sheet.
+
+**Tab order:** Logical, following visual/workflow sequence. Skip-to-content links for accessibility. Focus management after actions: focus moves to logical next element, not back to top.
+
+**Module hotkeys (Internal Platform):** S=Sales, P=Procurement, O=Orders, W=Warehouse, F=Finance, D=Dispatch, C=Customer Service, H=HR, A=Admin, R=Reports, I=AI. Pressing same hotkey toggles window. Escape closes current window.
+
+**CEO app:** `/` focuses search. `Esc` clears/goes back. `Enter` triggers AI. No domain hotkeys.
+
+### DS.13 Form Patterns
+
+**Library:** React Hook Form + Zod for validation + React Aria Components for accessible inputs.
+
+**Validation:** Inline field-level errors. Errors appear below field on blur or submit. Red border + error text in `var(--color-error)` Inter 400 12px. Never use toasts for validation.
+
+**Auto-save:** Drafts auto-saved every 30 seconds for any form/editor. "Resume where you left off" for interrupted workflows.
+
+**Required fields:** No asterisk convention. Instead, mark optional fields with "(optional)" suffix in label.
+
+**Date pickers:** React Aria `DatePicker`. Geist Mono for date display. Min/max constraints enforced. Business day validation: Friday/Saturday (Egyptian weekend) flagged.
+
+### DS.14 Offline Behavior
+
+| App | Offline Strategy |
+|-----|-----------------|
+| Website | Service Worker for static assets. Offline fallback page. |
+| Portal | IndexedDB for structured data. Cached pages served. Mutations disabled. |
+| Internal | IndexedDB for structured data. "Last synced" timestamp. Mutations disabled. |
+| CEO | Service Worker for app shell + IndexedDB cache. Read-only mode. |
+| Driver | PowerSync + local SQLite. Full offline capability. GPS buffered. Photos queued. Mutations ENABLED (syncs on reconnect). |
+
+**Offline banner (all apps except Driver):** Subtle top banner "You're offline — showing cached data." Auto-dismisses on reconnect.
+
+**Driver offline:** No banner — offline is normal. Sync indicator: green (online) / amber (weak) / red (offline). All scans and POD captures work offline. Queue syncs automatically on reconnection.
+
+### DS.15 PWA Configuration
+
+| App | PWA | Install Prompt |
+|-----|-----|---------------|
+| Website | No | N/A |
+| Portal | Yes | Subtle banner after 3rd visit (localStorage counter) |
+| Internal | Yes | In Settings only. Never auto-prompt. |
+| CEO | Yes | In Settings only. Never auto-prompt. |
+| Driver | No (Capacitor native) | App store distribution |
+
+Push notification permission: never requested immediately. Triggered after a notification-worthy action. Prompt: "Get notified when [context]?" + "Enable" / "Not now".
+
+### DS.16 Touch Targets (Mobile & Warehouse)
+
+| Context | Minimum Size | Gap |
+|---------|-------------|-----|
+| Standard mobile | 44dp (WCAG) | 8dp |
+| Warehouse/Driver (gloves, dirty screens) | 56-64dp | 8-16dp |
+| Primary action buttons | 64dp | — |
+| Numeric keypad keys | 56dp | 4dp |
+
+**One-handed layout (warehouse/driver):** Status bar (top, read-only) → Main content (middle) → Action buttons (bottom, thumb-reachable). Primary action always at bottom, full-width, 56-64dp.
+
+**Audio feedback (warehouse):** Four sounds: beep (scan detected), OK tone (success), error tone (failure), success melody (task complete). Enabled by default. Workers react by sound without looking at screen.
 
 ### DS.17 Shared UI Component Library
 | Component | Description |
@@ -121,6 +334,53 @@ TanStack Table + React Aria. Click to edit inline. Tab advances. Arrow keys navi
 | `OfflineBanner` | Top-of-viewport offline indicator |
 | `Toast` | Minimal notification with optional Undo |
 | `CommandPalette` | Ctrl+K search overlay (elevated glass) |
+
+### DS.18 Shadow Scale
+
+| Token | CSS Value | Usage |
+|-------|-----------|-------|
+| `shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle cards, hover states |
+| `shadow-md` | `0 4px 6px -1px rgba(0,0,0,0.1)` | Glass window tier |
+| `shadow-lg` | `0 10px 15px -3px rgba(0,0,0,0.1)` | Elevated tier (modals) |
+| `shadow-xl` | `0 20px 25px -5px rgba(0,0,0,0.1)` | Floating elements, command palette |
+| `shadow-2xl` | `0 25px 50px -12px rgba(0,0,0,0.25)` | Full-screen overlays |
+
+Dark mode: shadow opacity increases by 1.5x for visibility against dark backgrounds.
+
+### DS.19 Responsive Breakpoints
+
+Mobile-first approach. Use Tailwind v4 breakpoints:
+
+| Breakpoint | Min Width | Target |
+|------------|-----------|--------|
+| (default) | 0px | Mobile phones |
+| `sm` | 640px | Large phones, small tablets |
+| `md` | 768px | Tablets, desktop-threshold |
+| `lg` | 1024px | Laptops, desktop |
+| `xl` | 1280px | Large desktop (max-width for content) |
+| `2xl` | 1536px | Wide screens |
+
+**Key thresholds:**
+- < 768px: mobile layout (single column, stacked cards, bottom action bars, full-screen glass windows)
+- ≥ 768px: desktop layout (multi-column, side panels, inline action bars, sized glass windows)
+- ≥ 1440px: wide layout (TOC sidebar on docs, expanded data tables)
+
+### DS.20 State Management Decision Tree
+
+| Data Type | Tool | Persist | Example |
+|-----------|------|---------|---------|
+| Server data (lists, entities) | TanStack Query | Memory + 5min stale | Orders list, quote detail, product catalog |
+| URL state (shareable) | TanStack Router search params + Zod | URL | `?category=cement&page=2`, `?status=sent` |
+| UI state (fast, local) | Zustand | Memory (sessionStorage for chat) | Modal open/closed, active window, sidebar collapsed |
+| Form state (temporary) | React Hook Form | Auto-save to localStorage every 30s | Quote builder draft, payment form |
+| Auth/session | Supabase `@supabase/ssr` | Cookie on `.hyperquote.net` | Current user, JWT, permissions |
+| Offline queue | IndexedDB (Portal/Internal) or PowerSync SQLite (Driver) | Device | Pending submissions, cached data |
+
+**Cache invalidation:** On mutation success, `queryClient.invalidateQueries({ queryKey: [entity] })`. Real-time updates via Supabase Realtime override stale times.
+
+### State Machines and Route Maps
+
+State Machines (SM.1-SM.8) and Route Maps: see phase context files for each app (Phases 7-12 for Portal, 15-22 for Internal, 23 for CEO, 24-26 for Driver).
 
 ### Tailwind v4 Configuration Rules
 - `@tailwindcss/vite` REQUIRED in vite.config.ts

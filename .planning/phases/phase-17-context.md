@@ -166,6 +166,12 @@ Supplier inquiry builder, response tracking, price comparison matrix, PO managem
 - Tax: 0% (exact match)
 - Variance exceeds tolerance -> auto-routes to responsible function
 
+**Supplier Stock Discrepancy Handling (RESEARCH.md Section 5.10c):**
+Split-source large orders across 2+ suppliers by default. Track confirmed-vs-delivered ratio per supplier.
+
+**Supplier PO Rejection After Order Confirmation (RESEARCH.md Section 5.10c):**
+If supplier rejects PO after order confirmed: immediate flag to procurement, 4h SLA to find alternative. If found -> new PO + customer notified. If not -> sales contacts customer with options.
+
 **Withholding Tax on Supplier Payments:**
 - 1% withheld on payments for goods (building materials)
 - Remitted quarterly to ETA via Form 41

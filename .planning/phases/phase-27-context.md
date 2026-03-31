@@ -118,6 +118,8 @@ From GSD.md: WhatsApp Cloud API webhook handler, OTP delivery, order notificatio
 ### CEO Weekly Insight (from RESEARCH.md)
 
 > **Timing Discrepancy:** RESEARCH.md says "Friday at 6PM" (start of Egyptian weekend). BACKEND.md cron `ceo_weekly_insight` says "Sunday 8:00 PM". **Recommend following RESEARCH.md (Friday 6PM)** -- Friday is the start of the Egyptian weekend, making it the natural time for a weekly wrap-up. Sunday 8PM (the night before the work week) makes less sense for a retrospective insight. The cron definition in BACKEND.md should be updated.
+>
+> **Resolution:** Use RESEARCH.md timing (Friday 6PM Cairo time). Friday is the start of the Egyptian weekend — the CEO reviews the week's performance at the transition. Update the `ceo_weekly_insight` cron job in BACKEND.md from `'0 20 * * 0'` (Sunday 8PM) to `'0 18 * * 5'` (Friday 6PM). This change should be applied in Phase 14 when cron jobs are created.
 
 **Delivered every Friday at 6PM via WhatsApp + email with PDF attachment.**
 

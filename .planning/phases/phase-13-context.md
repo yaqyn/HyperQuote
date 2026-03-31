@@ -20,6 +20,28 @@ All core business tables exist with RLS policies, state machine enforcement, and
 
 ## What to Build
 
+### Customer + Supplier + Product Domain (Sections 3.2-3.4)
+
+These tables MUST be created BEFORE the quote/order/procurement/delivery/finance tables, as they are FK prerequisites.
+
+- `customers` (Section 3.2)
+- `customer_contacts` (Section 3.2)
+- `addresses` (Section 3.2)
+- `projects` (Section 3.2)
+- `credit_applications` (Section 3.2)
+- `suppliers` (Section 3.3)
+- `supplier_contacts` (Section 3.3)
+- `supplier_price_lists` (Section 3.3)
+- `supplier_agreements` (Section 3.3)
+- `products` (Section 3.4)
+- `product_suppliers` (Section 3.4)
+- `pricing_rules` (Section 3.4)
+- `contract_prices` (Section 3.4)
+
+Read full CREATE TABLE SQL from BACKEND.md Sections 3.2-3.4 at build time.
+
+### Business Tables (Sections 3.5-3.12)
+
 Migrations for all core business tables across these domains:
 
 ### Order Domain
@@ -86,10 +108,13 @@ Plus: all RLS policies, state machine transition function, enforcement triggers,
 
 ## IMPORTANT: Read Full SQL from BACKEND.md at Build Time
 
-**Phase 13 covers approximately 40+ core business tables.** The full CREATE TABLE SQL is too large to embed inline in this context file. At execution time, the executor **MUST read BACKEND.md Sections 3.5-3.10 directly** for complete table definitions.
+**Phase 13 covers approximately 69 core business tables (13 prerequisite + 56 business).** The full CREATE TABLE SQL is too large to embed inline in this context file. At execution time, the executor **MUST read BACKEND.md Sections 3.5-3.10 directly** for complete table definitions.
 
 **Complete table list by domain:**
 
+- **Customer (3.2):** `customers`, `customer_contacts`, `addresses`, `projects`, `credit_applications`, `customer_feedback`
+- **Supplier (3.3):** `suppliers`, `supplier_contacts`, `supplier_price_lists`, `supplier_agreements`
+- **Product (3.4):** `products`, `product_suppliers`, `pricing_rules`, `contract_prices`
 - **Quote (3.5):** `quote_requests`, `quote_request_items`, `quotes`, `quote_items`
 - **Order (3.6):** `orders`, `order_items`
 - **Procurement (3.7):** `supplier_pos`, `supplier_po_items`, `supplier_inquiries`
@@ -98,11 +123,7 @@ Plus: all RLS policies, state machine transition function, enforcement triggers,
 - **Finance (3.10):** `invoices`, `invoice_items`, `invoice_disputes`, `payments`, `payment_applications`, `cheque_tracking`, `letters_of_credit`, `credit_notes`, `credit_note_applications`, `withholding_tax_certificates`, `company_bank_accounts`, `supplier_invoices`, `supplier_invoice_items`, `ar_aging_snapshots`, `revenue_recognition_events`, `returns`
 - **Driver Marketplace (3.11):** `driver_jobs`, `driver_earnings`
 - **Delivery Zones (3.12):** `delivery_zones`
-- **Customer domain (3.2):** `customer_feedback` (see note below)
-
 **Note:** `change_orders` table referenced in GSD.md does **NOT exist** in BACKEND.md. Changes are tracked via quote versioning instead (quotes have version numbers, `quote_request_id` links versions).
-
-**Note:** `customer_feedback` table (BACKEND.md Section 3.2 Customer domain) is included in Phase 13 scope — it was not previously assigned to any phase.
 
 ## Spec References — Complete CREATE TABLE Statements (Key Tables Embedded)
 

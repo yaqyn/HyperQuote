@@ -156,6 +156,9 @@ CONFIRMED -> PROCESSING -> PARTIALLY_FULFILLED -> FULFILLED -> COMPLETED / ON_HO
 3. Supplier drop-ship
 4. Supplier cross-dock + own truck
 
+**Egyptian Deposit vs Advance Payment (RESEARCH.md Section 8):**
+عربون (deposit) = non-refundable by default. دفعة مقدمة (advance payment) = refundable minus actual damages. Recommended: 10-15% non-refundable deposit + remaining as refundable advance. Post-dated cheques must be physically returned if order cancelled.
+
 ## Non-Negotiable Rules
 
 1. **Three colors only.** White, Black, Blue. Semantic status colors for DATA only.

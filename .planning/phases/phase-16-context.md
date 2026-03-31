@@ -276,6 +276,161 @@ Activity feed (chronological, filterable, real-time). Calendar (week/day/month, 
 | `getActivityFeed` | GET | `{ filters?, page, limit }` | `{ activities[] }` | internal | none |
 | `getSalesAnalytics` | GET | `{ period, groupBy }` | `{ revenue, orderCount, avgOrderValue, topProducts, topCustomers }` | sales_manager | none |
 
+### Fine Detail Supplements (from FRONTEND.md MODULE 1 Sections 1.1-1.10)
+
+These details are present in FRONTEND.md but were not captured in the original phase context. They are critical for pixel-accurate implementation.
+
+#### RFQ Preview Pane Content (Section 1.2-1.3)
+
+When an RFQ is selected in the inbox list (desktop: right pane), the preview shows:
+- **Customer info:** Customer name, tier badge, primary contact name, phone, email
+- **Project:** Project name (if provided), delivery address
+- **Delivery date:** Requested date with urgency indicator
+- **Material breakdown:** Summarized line items with quantities (Geist Mono)
+- **Customer history sidebar:** Order count, lifetime value (Geist Mono), avg margin, payment history rating
+- **Similar past quotes:** AI surfaces 2-3 similar quotes with win/loss and margin
+- **AI insight:** Behavioral prediction, recommended starting margin, win probability
+
+**RFQ Preview Pane Actions:**
+- `[Open Full Detail]` -- navigates to full RFQ Detail View (Section 1.3)
+- `[Assign to Me]` -- claims the RFQ for the current rep
+- `[Assign to...]` -- reassign to another rep
+- `[Request Clarification]` -- opens structured clarification form
+- `[Start Quote]` -- converts RFQ to draft quote directly from preview
+
+#### Quote Builder Header (Section 1.4)
+
+```
+[Quote Number: QT-2026-XXXXX] [v1] [Draft]    Customer Name (Tier A)    RFQ: QR-2026-XXXXX
+                                                [Save Draft] [Preview PDF] [Request Approval] [Send to Customer]
+Auto-saved 12s ago
+```
+
+- Quote number: auto-generated, Geist Mono
+- Version badge: v1, v2, etc.
+- Status pill: Draft / Pending Approval / Sent / Negotiating
+- Customer name + tier badge
+- Linked RFQ reference
+- Action buttons right-aligned
+
+#### Step 1 Credit Banner (Section 1.4, Step 1)
+
+When credit status check runs in background, a yellow banner appears if near/over limit:
+"Customer credit: EGP 1.4M available of EGP 2M limit" -- all amounts in Geist Mono.
+
+#### Step 2 Keyboard Behavior (Section 1.4, Step 2)
+
+- Tab between cells in the line items table
+- Enter to confirm current cell and move to next row
+- Inline editing: click any cell to edit directly. No modals for simple changes.
+
+#### Step 3 Internal Cost Note (Section 1.4, Step 3)
+
+Cost column shows "Internal Cost" = actual supplier cost + 2-3% procurement buffer. The sales rep does NOT see actual supplier invoice cost. This is a critical business rule -- the buffer protects procurement's negotiated rates.
+
+**Live Quote Builder ASCII layout (what rep sees during a call):**
+```
+LIVE QUOTE -- QR-2026-00XXX
+| Item           | Supplier | Cost      | Margin | Price    | Status  |
+| Cement 500bag  | Supp A   | EGP 47    | 20%    | 56.40    | Fresh   |
+| Rebar 200bndl  | Supp A   | EGP 3,250 | 15%    | 3,738    | Fresh   |
+| Plywood 100    | Supp D   | --        | --     | --       | Awaiting|
+| PVC 50 pcs     | Supp A   | EGP 82    | 18%    | 96.76    | Fresh   |
+| Subtotal (3/4): EGP 780,380                                         |
+| [Send Partial Quote] [Wait for All Items]                            |
+```
+
+#### Step 5 Delivery Details (Section 1.4, Step 5)
+
+- Warning if requested date is infeasible: "Earliest feasible: [date]" with explanation
+- Special instructions text area (crane offload, restricted hours, multiple drops)
+- Free delivery threshold check: "Order qualifies for free delivery" or "Add EGP X for delivery"
+
+#### Step 7 Validity Details (Section 1.4, Step 7)
+
+- Rep can adjust within 5-30 day range
+- System warns if validity exceeds 14 days with volatile materials present: "Steel and cement prices fluctuate -- consider shorter validity"
+- On expiry: quote auto-moves to "Expired" status. Customer must request re-quote.
+
+#### Step 8 Approver Notification Content (Section 1.4, Step 8)
+
+Approver receives push notification with:
+- Quote summary: total value, margin %, profit EGP
+- Customer context: tier, history, strategic importance
+- Rep's justification note (e.g., "Strategic account, competitor priced at EGP X")
+- One-click actions: `[Approve]` `[Reject]` `[Request Changes]`
+- Approval logged with timestamp for audit
+
+**Rep urgency note:** Rep can add urgency note visible to approver: "Customer deciding today"
+
+#### Step 9 Additional Detail (Section 1.4, Step 9)
+
+- Standard terms and conditions in Arabic
+- Contact information and signature block
+- Toggle: "Show spec details" vs "Summary view"
+- Personalized cover note field
+
+#### Negotiation Event Types (Section 1.5)
+
+The negotiation conversation thread contains these event types:
+- Quote sent events (with timestamp)
+- Customer counter-offers (with quoted text showing their proposed prices)
+- Internal notes (flagged as internal-only, not visible to customer)
+- System events (e.g., "Quote viewed 3 times")
+
+#### Quote-to-Order Conversion Dialog (Section 1.5)
+
+Elevated glass confirmation dialog showing:
+- Creates Sales Order (SO-XXXX)
+- Auto-generates Purchase Orders to suppliers (one PO per supplier)
+- Creates delivery schedule based on lead times
+- Notifies operations team
+- Generates proforma invoice
+- Optional: request advance payment
+- Customer PO number field (required if customer provided one)
+- `[Convert Now]` button triggers cascade. All downstream objects created automatically.
+- For phone-confirmed orders: sales rep clicks `[Confirm Order]` directly (no customer portal accept needed).
+
+#### Pipeline Kanban Card Advance Validation (Section 1.8)
+
+Click card -> side panel with full deal details + `[Advance to Next Stage]` button with required validation fields. Example: "Quote Sent" stage must confirm send method before advancing. Click-to-advance is primary (safer for B2B -- accidental drags costly).
+
+#### Calendar 5 Event Types (Section 1.9)
+
+Color-coded events:
+- Blue = customer meetings
+- Green = site visits
+- Orange = quote deadlines
+- Red = overdue follow-ups
+- Purple = internal meetings
+
+Events linked to customers/quotes/orders. Auto-populate pre-meeting brief.
+
+#### Reports Detail (Section 1.9)
+
+- Revenue by period, margin by customer, margin by category, revenue vs target
+- Pipeline by stage, conversion rates, deal cycle time, win/loss analysis
+- Activity metrics: quotes sent per rep, response time, follow-up rate
+- Forecast: weighted pipeline, forecast vs actual trend
+- Date range, rep, customer tier filters
+- Export: `[Export CSV]` `[Email Report]`
+
+#### "Add Customer" Claim Flow -- 8 Steps (Section 1.7)
+
+When a customer later claims their account (created by sales rep via phone):
+1. Customer visits portal, taps "Sign Up"
+2. Enters phone number
+3. System finds unclaimed record, shows masked hint: "A**** C****" ("Is this your company?")
+4. Customer confirms, OTP sent to phone
+5. OTP verified, Supabase Auth creates auth user
+6. System links: `customers.auth_user_id = auth.uid()`, `status = 'claimed'`
+7. Customer sees ALL previous order history (phone orders + future portal orders) because `customer_id` never changed
+8. Sales rep notified: "Ahmed at Al-Nour Construction claimed their account"
+
+#### Missing "Call Customer" Action (Section 1.3)
+
+`[Call Customer]` action is present on the RFQ Detail actions bar -- opens phone dialer / logs call activity. Must be included alongside Start Quote, Request Clarification, Decline RFQ, Assign to, Add Note, and View Full Customer Profile.
+
 ### TanStack Query staleTime
 
 | Data Type | staleTime | Rationale |
@@ -296,6 +451,15 @@ Activity feed (chronological, filterable, real-time). Calendar (week/day/month, 
 7. **Arabic-Indic numerals** in Arabic context.
 8. **State machine enforcement.** Every status change goes through `validate_state_transition()`.
 9. **`isKeyboardDismissDisabled` on Dialogs.** Confirmation modals and the PDF preview modal.
+
+## Business Rules
+
+**Single-Touchpoint Customer Communication Model (RESEARCH.md Section 5.10):**
+Two touchpoints maximum with the customer:
+1. Instant acknowledgment (automated, WhatsApp + email): "Got your request, working on it, expect a call by [time]."
+2. One comprehensive call with EVERYTHING: stock availability, issues + alternatives, pricing timeline, delivery expectations.
+
+Rule: Sales rep does NOT call the customer until they have the complete picture. No partial calls. If escalation takes time, the automated acknowledgment keeps the customer informed. Target: 1.0-1.5 contacts to resolution.
 
 ## Known Risks & Gotchas
 

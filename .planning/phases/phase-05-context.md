@@ -181,6 +181,12 @@ Both are correct -- the website uses traditional pagination for SEO and shareabi
 - "Add to Quote" -> "أضف للعرض".
 - Breadcrumb separator flips in RTL.
 
+## Cross-References
+
+**"Add to Quote" on website:** The website's "Add to Quote" button triggers login (Phase 6 Login Modal). Once logged in, the user is redirected to the portal where `submitQuoteRequest` (Phase 9, portal-side) handles actual RFQ submission. There is no website-specific `submitRFQ` server function -- the website funnels users through authentication into the portal's quote request flow.
+
+**"Track Order" on website:** Order tracking is portal-side (Phase 11 `getCustomerOrderDetail`). The website does not have a standalone order tracking page -- authenticated users access tracking through the portal Orders window.
+
 ## Tips
 - No exact prices shown -- only ranges ("EGP 400-600 per bag")
 - "Add to Quote" requires login -> opens login modal
