@@ -9,7 +9,13 @@ export default defineConfig({
 	plugins: [
 		cloudflare({ viteEnvironment: { name: 'ssr' } }),
 		tailwindcss(),
-		tanstackStart(),
+		tanstackStart({
+			prerender: {
+				enabled: true,
+				crawlLinks: false,
+				routes: ['/', '/about'],
+			},
+		}),
 		viteReact(),
 	],
 })

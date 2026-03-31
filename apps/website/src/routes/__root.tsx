@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { I18nProvider } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { OfflineBanner } from '../components/layout/OfflineBanner'
 import styles from '../styles.css?url'
 import { setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
@@ -65,6 +66,7 @@ function RootComponent() {
 				/>
 			</head>
 			<body>
+				<OfflineBanner />
 				<a
 					href="#main"
 					className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--color-primary)] focus:text-white"
