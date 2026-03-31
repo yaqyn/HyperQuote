@@ -49,21 +49,22 @@ Exceptions:
 
 ## Typography
 
+4 sizes, 2 weights. All other visual hierarchy achieved through color, opacity, spacing, and uppercase transforms.
+
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
-| Body | 16px | 400 | 1.75 (about page prose) / 1.5 (general) | Inter |
-| Label / Nav | 14px | 500 | 1.4 | Inter |
-| Column heading | 12px | 600 | 1.4 | Inter (uppercase) |
-| Heading (section) | 30px | 700 | 1.2 | Inter |
-| Subheading | 20px | 400 | 1.5 | Inter |
-| Subheading (card) | 18px | 600 | 1.3 | Inter |
-| Display (hero) | 48px desktop / 32px mobile | 800 | 1.1 | Inter |
-| Numeric (trust bar) | 14px | 400 | 1.4 | Geist Mono |
-| Step number | 48px | 600 | 1.0 | Geist Mono |
-| Product count badge | 12px | 400 | 1.4 | Geist Mono |
-| Language toggle | 12px | 600 | 1.0 | Inter |
+| Display (hero headline) | 48px desktop / 20px mobile | 600 | 1.1 | Inter |
+| Heading (section titles, error heading, how-it-works step title, card subheading) | 20px | 600 | 1.2 | Inter |
+| Body (paragraphs, subheadlines, descriptions, CTA subtext, error body) | 16px | 400 | 1.5 (general) / 1.75 (about page prose) | Inter |
+| Label (nav links, CTAs, footer links, column headings, language toggle, badges, trust bar) | 14px | 400 | 1.4 | Inter |
 
-**Arabic constraint:** IBM Plex Sans Arabic caps at weight 700. Never use Inter 800 in bilingual contexts. Hero headline (800) is acceptable because it renders separately per locale.
+**Weight usage:**
+- 400 (regular): Body text, labels, descriptions, subheadlines, trust bar, footer links
+- 600 (semibold): All headings, display, CTAs, nav emphasis, column headings (uppercase), language toggle, team member names
+
+**Numeric text:** Geist Mono at the same size/weight as the role it appears in (e.g. trust bar = 14px/400, step number = 48px/600, product count badge = 14px/400).
+
+**Arabic constraint:** IBM Plex Sans Arabic caps at weight 700. Since the scale only uses 400 and 600, both are safe in bilingual contexts.
 
 ---
 
@@ -82,7 +83,7 @@ Exceptions:
 3. Active nav link text color
 4. Team member initials fallback circle background
 5. "View All Products" link text + arrow icon
-6. Error state "Refresh" button background
+6. Error state "Refresh Page" button background
 7. Link hover states
 
 **Semantic colors used in this phase:**
@@ -124,7 +125,7 @@ All copy delivered via i18n keys (AR + EN). Zero hardcoded strings.
 | **Offline banner** | "You're offline" | `common.offline` |
 | **Error state heading** | "Something went wrong" | `common.error.heading` |
 | **Error state body** | "Please try refreshing the page" | `common.error.body` |
-| **Error state action** | "Refresh" | `common.error.refresh` |
+| **Error state action** | "Refresh Page" | `common.error.refresh` |
 | **Footer copyright** | "(c) 2026 HyperQuote. All rights reserved." | `website.footer.copyright` |
 | **Footer language indicator** | "Egypt . English" / "Egypt . العربية" | `website.footer.region` |
 
@@ -211,7 +212,7 @@ Components to build or use in this phase:
 | Trust bar numbers | `direction: ltr; unicode-bidi: embed` (always LTR numerals) | Same -- numbers stay LTR inside RTL flow |
 | Text alignment | `text-start` | `text-start` (auto-flips) |
 | All padding/margin | Logical: `ps-*`, `pe-*`, `ms-*`, `me-*` | Auto-flips |
-| Hero headline | English: Inter 800 | Arabic: IBM Plex Sans Arabic 700 (max weight) |
+| Hero headline | English: Inter 600 | Arabic: IBM Plex Sans Arabic 600 |
 
 ---
 
@@ -220,8 +221,8 @@ Components to build or use in this phase:
 | Breakpoint | Changes |
 |------------|---------|
 | >= 1024px (desktop) | Header 64px. Center nav visible. Hero 48px headline. 3x2 value grid. 4-col footer. Horizontal how-it-works. |
-| 768-1023px (tablet) | Header 56px. Center nav visible. Hero 40px headline. 2x3 value grid. 3-col footer. |
-| < 768px (mobile) | Header 56px. Center nav hidden, hamburger shown. Hero 32px headline. 1-col value stack. 1-col footer. CTA buttons stack full-width. Section padding py-64px (not 96px). |
+| 768-1023px (tablet) | Header 56px. Center nav visible. Hero 20px headline. 2x3 value grid. 3-col footer. |
+| < 768px (mobile) | Header 56px. Center nav hidden, hamburger shown. Hero 20px headline. 1-col value stack. 1-col footer. CTA buttons stack full-width. Section padding py-64px (not 96px). |
 
 ---
 
@@ -268,6 +269,7 @@ Both pages (Home + About) render as SSG:
 | Nav links | React Aria `Link` component |
 | Theme toggle | React Aria `ToggleButton`, `aria-label="Toggle dark mode"` |
 | Language toggle | `aria-label="Switch to Arabic"` / `aria-label="Switch to English"` |
+| Mobile nav trigger | `aria-label="Open navigation menu"` (when closed), `aria-label="Close navigation menu"` (when open) |
 | Mobile nav | React Aria `Modal` with focus trap, Escape to close |
 | Scroll indicator | `aria-hidden="true"` (decorative) |
 | Hero image | Decorative (CSS background), no alt text needed |
