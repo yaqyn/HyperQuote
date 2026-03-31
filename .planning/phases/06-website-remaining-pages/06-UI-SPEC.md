@@ -52,28 +52,28 @@ Exceptions: 44px minimum touch target for all form fields (Name, Email, Phone, S
 | Small / Meta / Legal Date | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
 | Heading / Page Title | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
 
-Additional type rules from CONTEXT.md spec (within the 4-size / 2-weight budget):
+Additional type rules (within the 4-size / 2-weight budget):
 
 | Element | Size | Weight | Line Height | Font |
 |---------|------|--------|-------------|------|
-| Support page title "How can we help?" | 30px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Login modal heading "Sign In" | 24px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Legal page title | 30px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Legal h2 | 20px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Support page title "How can we help?" | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Login modal heading "Sign In" | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Legal page title | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Legal h2 | 24px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
 | Legal h3 | 16px | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
 | Legal paragraph | 16px | 400 | 1.75 | Inter / IBM Plex Sans Arabic |
 | Docs sidebar section heading | 12px | 600 | 1.5 | Inter / IBM Plex Sans Arabic (uppercase) |
-| Docs sidebar link | 14px | 400 (500 active) | 1.5 | Inter / IBM Plex Sans Arabic |
+| Docs sidebar link | 14px | 400 (600 active) | 1.5 | Inter / IBM Plex Sans Arabic |
 | Docs on-page TOC | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Legal agreement fine print | 11px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| OTP digits | 20px | 400 | 1 | Geist Mono |
+| Legal agreement fine print | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| OTP digits | 24px | 400 | 1 | Geist Mono |
 | Countdown timer | 14px | 400 | 1 | Geist Mono |
 | Character count | 14px | 400 | 1 | Geist Mono |
 | Phone input | 16px | 400 | 1.5 | Geist Mono |
 | Legal last-updated date | 12px | 400 | 1.5 | Geist Mono |
 
-Sizes used: 11px, 12px, 14px, 16px, 20px, 24px, 30px (spec-driven, not token-level -- tokens remain 12/14/16/24).
-Weights used: 400 (regular), 600 (semibold), plus 700 for page titles per FRONTEND.md spec (3 weights total; 700 restricted to page-level headings only).
+Sizes used: 12px, 14px, 16px, 24px (4 sizes).
+Weights used: 400 (regular), 600 (semibold) (2 weights).
 
 ---
 
@@ -118,11 +118,11 @@ Semantic status tokens (three-color rule exceptions, system-level):
 | PhoneInput | `TextField` | type="tel", Geist Mono, fixed "+20" prefix with Egyptian flag emoji. Validation: 10 digits, starts with 10/11/12/15. inputmode="tel". |
 | WhatsAppCTA | `Button` | "Continue with WhatsApp" -- green bg (#25D366), white text, Lucide MessageCircle icon. Calls sendOTP. |
 | SMSFallback | `Link` | "Send via SMS instead" -- var(--color-text-muted), underline on hover. |
-| OTPInput | 6x `TextField` | Each: 48px square, Geist Mono 20px, type="tel", maxLength=1, inputmode="numeric". Auto-advance on input, paste support for 6-digit paste. Auto-submit on 6th digit. |
+| OTPInput | 6x `TextField` | Each: 48px square, Geist Mono 24px, type="tel", maxLength=1, inputmode="numeric". Auto-advance on input, paste support for 6-digit paste. Auto-submit on 6th digit. |
 | OTPResend | `Button` | "Resend" -- disabled during 30s countdown (Geist Mono countdown). Enabled after expiry. |
 | AccountForm | React Hook Form + Zod | Company name (max 200), Full name (max 100). useWatch() for validation. |
 | AccountClaim | -- | "We found an existing account" with masked hint "A**** C****". Two buttons: "Yes, that's me" (blue) / "No, create new" (outline). |
-| LegalAgreement | -- | Below create button: "By creating an account, you agree to our Terms of Use and Privacy Policy." Inter 400 11px var(--color-text-subtle). Links open new tab. |
+| LegalAgreement | -- | Below create button: "By creating an account, you agree to our Terms of Use and Privacy Policy." Inter 400 12px var(--color-text-subtle). Links open new tab. |
 
 ### Support Page (WEB-06)
 
@@ -140,16 +140,16 @@ Semantic status tokens (three-color rule exceptions, system-level):
 
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
-| LegalLayout | -- | Max-width 800px, centered. Title 30px 700. Last updated date Geist Mono 12px muted. |
+| LegalLayout | -- | Max-width 800px, centered. Title 24px 600. Last updated date Geist Mono 12px muted. |
 | TranslationBanner | -- | Blue info banner (var(--color-info-bg)) at top of English version: "This is a translation. The Arabic version is the legally binding document." / "هذه ترجمة. النسخة العربية هي الوثيقة الملزمة قانونياً." |
 | LanguageToggle | `Button` | Top of legal page, switches between AR/EN for legal content. |
-| MarkdownProse | -- | Rendered markdown. h2: 20px 600 mt-32px mb-16px. h3: 16px 600 mt-24px mb-12px. p: 16px 400 line-height 1.75 mb-16px. |
+| MarkdownProse | -- | Rendered markdown. h2: 24px 600 mt-32px mb-16px. h3: 16px 600 mt-24px mb-12px. p: 16px 400 line-height 1.75 mb-16px. |
 
 ### Docs Page (WEB-07)
 
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
-| DocsSidebar | `ListBox` | 256px width, sticky top 80px. Background var(--color-surface), rounded-xl. Section headings: 12px 600 uppercase var(--color-text-subtle) mb-8px. Links: 14px 400 var(--color-text-muted). Active: var(--color-primary), 500 weight, 2px inline-start blue border. |
+| DocsSidebar | `ListBox` | 256px width, sticky top 80px. Background var(--color-surface), rounded-xl. Section headings: 12px 600 uppercase var(--color-text-subtle) mb-8px. Links: 14px 400 var(--color-text-muted). Active: var(--color-primary), 600 weight, 2px inline-start blue border. |
 | DocsContent | -- | Prose styling identical to legal pages. Placeholder content with 3 sections. |
 | OnPageTOC | -- | Right sidebar (200px) on screens > 1440px. Lists h2/h3 anchors. Active highlighted via IntersectionObserver. Inter 400 12px. |
 | MobileSidebar | `Modal` (bottom sheet) | Sidebar becomes bottom sheet on mobile. |
@@ -166,7 +166,7 @@ Semantic status tokens (three-color rule exceptions, system-level):
 
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
-| ChatFAB | `Button` | 56px circle, blue bg, white Lucide MessageSquare 24px. shadow-lg. Hover: scale(1.05) 150ms. Positioned bottom-right (bottom-left in RTL). z-index above all content. |
+| ChatFAB | `Button` | 56px circle, blue bg, white Lucide MessageSquare 24px. shadow-lg. Hover: scale(1.05) 150ms. Positioned bottom-right (bottom-left in RTL). z-index above all content. aria-label="Open chat" (EN) / aria-label="افتح المحادثة" (AR). |
 | PulseBadge | -- | 10px green dot at top-right of FAB. Single pulse animation on mount for first-time visitors. Not continuous. |
 | ChatPanel | -- | 380px width, 520px max-height. var(--color-card) bg, rounded-2xl, shadow-2xl. Spring enter from bottom-right, tween exit. |
 | ChatHeader | -- | 48px height. Logo + "HyperQuote" text + Lucide X close button. |
@@ -265,6 +265,7 @@ Semantic status tokens (three-color rule exceptions, system-level):
 | Element | EN | AR |
 |---------|----|----|
 | Chat header | "HyperQuote" | "هايبركوت" |
+| Chat FAB aria-label | "Open chat" | "افتح المحادثة" |
 | Input placeholder | "Ask anything..." | "اسأل اي شيء..." |
 | Welcome message | "Hi! I'm here to help you find building materials and get quotes. What are you looking for?" | "مرحباً! انا هنا لمساعدتك في ايجاد مواد البناء والحصول على عروض اسعار. عن ماذا تبحث؟" |
 | Sign in prompt | "Sign in to add products to your quote" | "سجل دخولك لاضافة منتجات للعرض" |
@@ -319,7 +320,7 @@ Destructive actions: None in this phase. Login modal dismissal is non-destructiv
 | State | Visual Treatment |
 |-------|-----------------|
 | Loading | Sidebar: 3 section skeletons with 3 links each. Content: paragraph skeletons. |
-| Active section | Sidebar: link text var(--color-primary), weight 500, 2px blue border inline-start. |
+| Active section | Sidebar: link text var(--color-primary), weight 600, 2px blue border inline-start. |
 | Mobile | Sidebar hidden. Hamburger icon triggers bottom sheet with navigation. |
 
 ### Careers Page
@@ -356,7 +357,7 @@ Desktop (>= 1024px):
 | Header (64px, sticky)                            |
 +--------------------------------------------------+
 | px-48, py-48, max-width 1200px, centered         |
-| "How can we help?" heading (30px 700)             |
+| "How can we help?" heading (24px 600)             |
 | SearchField (FAQ search, max-width 600px)         |
 |                                                   |
 | +-------- 3 contact cards (equal width) --------+ |
@@ -405,7 +406,7 @@ All breakpoints:
 |       | Company name                         |     |
 |       | Full name                            |     |
 |       | [Create Account] (blue)              |     |
-|       | legal agreement text (11px)          |     |
+|       | legal agreement text (12px)          |     |
 |       +--------------------------------------+     |
 |                                                   |
 +---------------------------------------------------+
@@ -426,11 +427,11 @@ All breakpoints:
 | [AR/EN toggle]                                    |
 | [Translation notice banner] (EN only)             |
 |                                                   |
-| Title (30px 700)                                  |
+| Title (24px 600)                                  |
 | Last updated (Geist Mono 12px muted)              |
 |                                                   |
 | Rendered markdown content                         |
-| (h2 20px 600, h3 16px 600, p 16px 400 lh 1.75)   |
+| (h2 24px 600, h3 16px 600, p 16px 400 lh 1.75)   |
 +--------------------------------------------------+
 | Footer                                            |
 +--------------------------------------------------+
