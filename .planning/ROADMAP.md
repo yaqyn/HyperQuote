@@ -122,7 +122,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md -- Products table migration + seed data + server functions + search/price utilities
 - [ ] 05-02-PLAN.md -- Market page with filters, search, grid/list toggle, pagination
-- [ ] 05-03-PLAN.md -- Product detail page with specs, gallery, quote CTA, related products
+- [x] 05-03-PLAN.md -- Product detail page with specs, gallery, quote CTA, related products
 **UI hint**: yes
 
 ### Phase 6: Website Remaining Pages
