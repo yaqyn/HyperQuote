@@ -25,7 +25,11 @@ const resources = {
  * Initialize i18next with AR+EN resources.
  * Call once at app startup.
  */
-export function initI18n(locale: 'ar' | 'en' = 'ar') {
+export function initI18n(locale: 'ar' | 'en' = 'en') {
+  if (i18n.isInitialized) {
+    if (i18n.language !== locale) i18n.changeLanguage(locale)
+    return Promise.resolve(i18n.t)
+  }
   return i18n.use(initReactI18next).init({
     resources,
     lng: locale,
@@ -35,5 +39,6 @@ export function initI18n(locale: 'ar' | 'en' = 'ar') {
     interpolation: {
       escapeValue: false, // React already escapes
     },
+    initImmediate: false, // Sync init — resources are bundled, no backend needed
   })
 }

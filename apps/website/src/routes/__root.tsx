@@ -24,8 +24,8 @@ function detectLocaleFromRequest(request?: Request): 'ar' | 'en' {
 	const acceptLanguage = request.headers.get('accept-language') ?? ''
 	if (acceptLanguage.includes('ar')) return 'ar'
 
-	// 3. Default to Arabic (Arabic-first brand)
-	return 'ar'
+	// 3. Default to English
+	return 'en'
 }
 
 export const Route = createRootRoute({

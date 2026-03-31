@@ -46,35 +46,39 @@ export function HowItWorksSection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="py-24 max-md:py-16 px-6 max-w-7xl mx-auto">
-			<h2 className="text-2xl font-semibold text-[var(--color-text)] text-center mb-16">
-				{t('howItWorks.heading')}
-			</h2>
+		<section className="py-28 max-md:py-20 px-6 lg:px-12 max-w-7xl mx-auto">
+			<SectionReveal>
+				<p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">
+					{t('howItWorks.label')}
+				</p>
+				<h2 className="text-[36px] lg:text-[44px] font-bold text-[var(--color-text)] leading-tight max-w-[500px]">
+					{t('howItWorks.heading')}
+				</h2>
+			</SectionReveal>
 
-			<div className="relative flex gap-8 items-start max-md:flex-col">
-				{/* Connecting line (desktop only) */}
-				<div className="hidden md:block absolute top-12 inset-x-0 mx-16 border-t border-dashed border-[var(--color-border)]" />
-
+			<div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0">
 				{steps.map((step, i) => (
-					<SectionReveal
-						key={step.number}
-						delay={i * 0.1}
-						className="flex-1 text-center relative"
-					>
-						<span className="font-mono text-[48px] font-semibold text-[var(--color-primary)] mb-2 block">
-							{step.number}
-						</span>
-						<step.icon
-							size={32}
-							className="text-[var(--color-text-muted)] mx-auto"
-							aria-hidden="true"
-						/>
-						<h3 className="text-[20px] font-semibold text-[var(--color-text)] mt-3">
-							{t(step.titleKey)}
-						</h3>
-						<p className="text-base text-[var(--color-text-muted)] mt-2">
-							{t(step.descKey)}
-						</p>
+					<SectionReveal key={step.number} delay={i * 0.08}>
+						<div className="relative p-8 group">
+							{/* Top accent line */}
+							<div className="absolute top-0 inset-x-8 h-px bg-[var(--color-border)]" />
+							<div className="absolute top-0 start-8 w-12 h-px bg-[var(--color-primary)] group-hover:w-full group-hover:inset-x-8 transition-all duration-500" />
+
+							<span className="font-mono text-[13px] font-semibold text-[var(--color-text-muted)] block mb-6">
+								{step.number}
+							</span>
+							<step.icon
+								size={24}
+								className="text-[var(--color-primary)] mb-4"
+								aria-hidden="true"
+							/>
+							<h3 className="text-[18px] font-semibold text-[var(--color-text)]">
+								{t(step.titleKey)}
+							</h3>
+							<p className="text-[15px] text-[var(--color-text-muted)] mt-2 leading-relaxed">
+								{t(step.descKey)}
+							</p>
+						</div>
 					</SectionReveal>
 				))}
 			</div>

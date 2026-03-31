@@ -14,12 +14,17 @@
   },
   "hero": {
     "headline": "Build the Future, Faster.",
-    "subheadline": "Egypt's first digital platform for building materials sourcing.",
+    "headlinePart1": "Build the Future,",
+    "headlinePart2": "Faster.",
+    "subheadline": "Egypt's first digital platform for building materials sourcing. Get competitive quotes in 4 hours, not 4 days.",
     "trustProducts": "500+ Products",
     "trustSuppliers": "50+ Suppliers",
-    "trustResponse": "4hr Quote Response"
+    "trustResponse": "4hr Response",
+    "quoteSpeed": "Quote Response",
+    "imageAlt": "Cairo construction skyline"
   },
   "howItWorks": {
+    "label": "Process",
     "heading": "How It Works",
     "step1": { "title": "Build Your List", "description": "Add materials from our catalog or upload your own list." },
     "step2": { "title": "Get a Quote", "description": "Receive competitive pricing from verified suppliers within 4 hours." },
@@ -27,7 +32,9 @@
     "step4": { "title": "Track Everything", "description": "Monitor orders, deliveries, and payments in one place." }
   },
   "valueProps": {
+    "label": "Advantages",
     "heading": "Why HyperQuote",
+    "subtitle": "Everything you need to source building materials efficiently, from quote to delivery.",
     "aiOrdering": { "title": "AI-Powered Ordering", "description": "Smart suggestions and automated list building save hours of manual work." },
     "fastQuotes": { "title": "4-Hour Quotes", "description": "Get competitive pricing faster than any traditional supplier." },
     "tracking": { "title": "Real-Time Tracking", "description": "Know exactly where your materials are, from warehouse to site." },
@@ -36,6 +43,7 @@
     "whatsapp": { "title": "WhatsApp Support", "description": "Get help instantly through the app you already use every day." }
   },
   "marketPreview": {
+    "label": "Catalog",
     "heading": "Browse by Category",
     "viewAll": "View All Products",
     "categories": {

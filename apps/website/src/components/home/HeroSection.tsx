@@ -1,102 +1,146 @@
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
-import { ScrollIndicator } from './ScrollIndicator'
+import { ArrowRight } from 'lucide-react'
 
-const springTransition = {
-	type: 'spring' as const,
-	stiffness: 120,
-	damping: 14,
-}
+const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="relative h-screen flex items-center justify-center overflow-hidden">
-			{/* Background photography */}
-			<img
-				src="https://websiteassets.hyperquote.net/Images/cairo.webp"
-				alt=""
-				className="absolute inset-0 h-full w-full object-cover"
-			/>
-
-			{/* Gradient overlay */}
+		<section className="relative min-h-screen flex items-center overflow-hidden bg-[var(--color-base)]">
+			{/* Subtle grid pattern background */}
 			<div
-				className="absolute inset-0"
+				className="absolute inset-0 opacity-[0.03]"
 				style={{
-					background:
-						'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.7))',
+					backgroundImage:
+						'linear-gradient(var(--color-text) 1px, transparent 1px), linear-gradient(90deg, var(--color-text) 1px, transparent 1px)',
+					backgroundSize: '60px 60px',
 				}}
 			/>
 
-			{/* Content */}
-			<div className="relative z-10 flex flex-col items-center justify-center text-center text-white px-4 max-w-4xl">
-				<motion.h1
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={springTransition}
-					className="font-semibold text-[48px] leading-[1.1] max-md:text-[20px]"
-				>
-					{t('hero.headline')}
-				</motion.h1>
+			<div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12">
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+					{/* Left — Copy */}
+					<div className="pt-24 lg:pt-0">
+						<motion.h1
+							initial={{ opacity: 0, y: 30 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={spring}
+							className="text-[56px] lg:text-[72px] leading-[1.05] font-bold tracking-tight"
+						>
+							<span className="text-[var(--color-text)]">
+								{t('hero.headlinePart1')}
+							</span>
+							<br />
+							<span
+								className="bg-clip-text text-transparent"
+								style={{
+									backgroundImage:
+										'linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #1D4ED8 100%)',
+								}}
+							>
+								{t('hero.headlinePart2')}
+							</span>
+						</motion.h1>
 
-				<motion.p
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ ...springTransition, delay: 0.1 }}
-					className="mt-4 text-[20px] max-md:text-base opacity-85 max-w-[600px]"
-				>
-					{t('hero.subheadline')}
-				</motion.p>
+						<motion.p
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ ...spring, delay: 0.08 }}
+							className="mt-6 text-[18px] lg:text-[20px] text-[var(--color-text-muted)] leading-relaxed max-w-[480px]"
+						>
+							{t('hero.subheadline')}
+						</motion.p>
 
-				{/* CTA cluster */}
-				<motion.div
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ ...springTransition, delay: 0.15 }}
-					className="mt-8 flex gap-4 max-md:flex-col max-md:w-full"
-				>
-					<Link
-						to="/portal"
-						className="inline-flex items-center justify-center bg-[var(--color-primary)] text-white font-semibold text-[18px] h-14 px-8 rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors"
+						{/* CTA cluster */}
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ ...spring, delay: 0.14 }}
+							className="mt-10 flex gap-4 max-sm:flex-col"
+						>
+							<Link
+								to="/portal"
+								className="inline-flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white font-semibold text-[16px] h-13 px-7 rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors"
+							>
+								{t('cta.getQuote')}
+								<ArrowRight size={18} className="icon-end" />
+							</Link>
+							<Link
+								to="/market"
+								className="inline-flex items-center justify-center border border-[var(--color-border)] text-[var(--color-text)] font-semibold text-[16px] h-13 px-7 rounded-xl hover:bg-[var(--color-surface)] transition-colors"
+							>
+								{t('cta.browseMarket')}
+							</Link>
+						</motion.div>
+
+						{/* Trust stats */}
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ duration: 0.6, delay: 0.3 }}
+							className="mt-12 flex gap-8 max-sm:gap-6"
+						>
+							{(['trustProducts', 'trustSuppliers', 'trustResponse'] as const).map(
+								(key) => {
+									const [num, ...rest] = t(`hero.${key}`).split(' ')
+									return (
+										<div key={key}>
+											<span className="font-mono text-[28px] font-bold text-[var(--color-primary)] block leading-none">
+												{num}
+											</span>
+											<span className="text-[13px] text-[var(--color-text-muted)] mt-1 block">
+												{rest.join(' ')}
+											</span>
+										</div>
+									)
+								},
+							)}
+						</motion.div>
+					</div>
+
+					{/* Right — Hero image */}
+					<motion.div
+						initial={{ opacity: 0, scale: 0.95 }}
+						animate={{ opacity: 1, scale: 1 }}
+						transition={{ ...spring, delay: 0.1 }}
+						className="relative max-lg:order-first max-lg:pt-24"
 					>
-						{t('cta.getQuote')}
-					</Link>
-					<Link
-						to="/market"
-						className="inline-flex items-center justify-center border border-white text-white font-semibold text-[18px] h-14 px-8 rounded-xl hover:bg-white/10 transition-colors"
-					>
-						{t('cta.browseMarket')}
-					</Link>
-				</motion.div>
+						<div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-lg">
+							<img
+								src="https://websiteassets.hyperquote.net/Images/cairo.webp"
+								alt={t('hero.imageAlt')}
+								className="h-full w-full object-cover"
+							/>
+							{/* Blue accent overlay at bottom */}
+							<div
+								className="absolute inset-x-0 bottom-0 h-1/3"
+								style={{
+									background:
+										'linear-gradient(to top, rgba(37,99,235,0.15), transparent)',
+								}}
+							/>
+						</div>
 
-				{/* Trust bar */}
-				<motion.div
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ ...springTransition, delay: 0.35 }}
-					className="mt-8 flex gap-6 max-md:flex-col max-md:gap-2 font-mono text-sm opacity-70"
-				>
-					<span className="[direction:ltr] [unicode-bidi:embed]">
-						{t('hero.trustProducts')}
-					</span>
-					<span className="max-md:hidden" aria-hidden="true">
-						&middot;
-					</span>
-					<span className="[direction:ltr] [unicode-bidi:embed]">
-						{t('hero.trustSuppliers')}
-					</span>
-					<span className="max-md:hidden" aria-hidden="true">
-						&middot;
-					</span>
-					<span className="[direction:ltr] [unicode-bidi:embed]">
-						{t('hero.trustResponse')}
-					</span>
-				</motion.div>
+						{/* Floating stat card */}
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ ...spring, delay: 0.4 }}
+							className="absolute -bottom-6 -start-6 bg-[var(--color-card)] rounded-xl p-4 shadow-lg border border-[var(--color-border)]"
+						>
+							<span className="font-mono text-[32px] font-bold text-[var(--color-primary)] leading-none block">
+								4hr
+							</span>
+							<span className="text-[13px] text-[var(--color-text-muted)] mt-1 block">
+								{t('hero.quoteSpeed')}
+							</span>
+						</motion.div>
+					</motion.div>
+				</div>
 			</div>
-
-			<ScrollIndicator />
 		</section>
 	)
 }
