@@ -91,8 +91,10 @@
         "@hyperquote/tables": "workspace:*",
         "@hyperquote/types": "workspace:*",
         "@hyperquote/ui": "workspace:*",
+        "@supabase/supabase-js": "^2.100.1",
         "@tanstack/react-router": "^1.168.0",
         "@tanstack/react-start": "^1.167.12",
+        "fuse.js": "^7.1.0",
         "i18next": "^25.10.10",
         "lucide-react": "^1.7.0",
         "motion": "^12.38.0",
@@ -100,6 +102,7 @@
         "react-aria-components": "^1.16.0",
         "react-dom": "^19.2.4",
         "react-i18next": "^17.0.0",
+        "zod": "^3.24.0",
         "zustand": "^5.0.12",
       },
       "devDependencies": {
@@ -915,6 +918,8 @@
     "framer-motion": ["framer-motion@12.38.0", "", { "dependencies": { "motion-dom": "^12.38.0", "motion-utils": "^12.36.0", "tslib": "^2.4.0" }, "peerDependencies": { "@emotion/is-prop-valid": "*", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/is-prop-valid", "react", "react-dom"] }, "sha512-rFYkY/pigbcswl1XQSb7q424kSTQ8q6eAC+YUsSKooHQYuLdzdHjrt6uxUC+PRAO++q5IS7+TamgIw1AphxR+g=="],
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
+
+    "fuse.js": ["fuse.js@7.1.0", "", {}, "sha512-trLf4SzuuUxfusZADLINj+dE8clK1frKdmqiJNb1Es75fmI5oY6X2mxLVUciLLjxqw/xr72Dhy+lER6dGd02FQ=="],
 
     "gensync": ["gensync@1.0.0-beta.2", "", {}, "sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg=="],
 
