@@ -50,16 +50,32 @@
   "about": {
     "heroHeadline": "Building Egypt's Future Together",
     "story": {
-      "heading": "Our Story"
+      "heading": "Our Story",
+      "p1": "HyperQuote was born from a simple observation: sourcing building materials in Egypt shouldn't be this hard. Contractors spend days calling suppliers, comparing prices, and coordinating deliveries \u2014 time that should be spent building.",
+      "p2": "Founded in Cairo, we set out to digitize the entire building materials supply chain. Our platform connects contractors with verified suppliers, automates the quoting process, and provides real-time delivery tracking.",
+      "p3": "Today, we serve hundreds of contractors across Egypt, processing thousands of quotes and deliveries. But we're just getting started."
     },
     "mission": {
-      "heading": "Mission & Values"
+      "heading": "Mission & Values",
+      "value1": {
+        "title": "Speed",
+        "description": "We believe 4-hour quotes should be the standard, not the exception."
+      },
+      "value2": {
+        "title": "Transparency",
+        "description": "No hidden fees, no surprises. You see what you pay."
+      },
+      "value3": {
+        "title": "Reliability",
+        "description": "Every delivery tracked, every promise kept."
+      }
     },
     "team": {
       "heading": "Our Team"
     },
     "careers": {
       "heading": "Join Us",
+      "description": "We're building the future of construction in Egypt. Join our team and help transform an entire industry.",
       "cta": "See Open Positions"
     }
   },
