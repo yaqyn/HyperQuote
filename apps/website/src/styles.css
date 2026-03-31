@@ -4,3 +4,6 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin 'tailwindcss-react-aria-components';
+
+/* RTL: flip directional icons */
+[dir="rtl"] .icon-end { transform: scaleX(-1); }
