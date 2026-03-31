@@ -70,7 +70,10 @@ Plans:
   2. Auth tables (tenants, user_profiles, user_roles, role_permissions, employees) exist with correct constraints
   3. All 12 auth helper functions execute correctly (pool extractors, role checkers, tenant trigger, updated_at trigger, access token hook)
   4. Role_permissions seed data is loaded and `(SELECT auth.uid())` pattern is enforced in all RLS policies
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md -- Supabase init, extensions, enums (expanded), 7 auth tables with RLS
+- [ ] 02-02-PLAN.md -- 12 auth functions, custom access token hook, role_permissions seed data
 
 ### Phase 3: Shared Packages
 **Goal**: All 7 shared packages build and export correct APIs, with a vertical slice proving the full stack end-to-end (auth -> RLS -> server fn -> component -> i18n -> dark mode)
@@ -443,8 +446,8 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Monorepo Scaffold | 0/2 | Planning complete | - |
-| 2. Supabase + Initial Migrations | 0/? | Not started | - |
+| 1. Monorepo Scaffold | 2/2 | Complete | - |
+| 2. Supabase + Initial Migrations | 0/2 | Planning complete | - |
 | 3. Shared Packages | 0/? | Not started | - |
 | 4. Website Layout + Home + About | 0/? | Not started | - |
 | 5. Website Market + Product Detail | 0/? | Not started | - |
