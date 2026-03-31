@@ -72,7 +72,7 @@ Plans:
   4. Role_permissions seed data is loaded and `(SELECT auth.uid())` pattern is enforced in all RLS policies
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md -- Supabase init, extensions, enums (expanded), 7 auth tables with RLS
+- [x] 02-01-PLAN.md -- Supabase init, extensions, enums (expanded), 7 auth tables with RLS
 - [ ] 02-02-PLAN.md -- 12 auth functions, custom access token hook, role_permissions seed data
 
 ### Phase 3: Shared Packages
