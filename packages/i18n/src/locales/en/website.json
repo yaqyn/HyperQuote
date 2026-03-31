@@ -1,0 +1,93 @@
+{
+  "nav": {
+    "market": "Market",
+    "about": "About",
+    "support": "Support",
+    "docs": "Docs"
+  },
+  "cta": {
+    "getQuote": "Get a Quote",
+    "browseMarket": "Browse Market",
+    "readyToBuild": "Ready to Build?",
+    "getStartedFree": "Get Started \u2014 Free",
+    "noCreditCard": "No credit card required. Quote requests are always free."
+  },
+  "hero": {
+    "headline": "Build the Future, Faster.",
+    "subheadline": "Egypt's first digital platform for building materials sourcing.",
+    "trustProducts": "500+ Products",
+    "trustSuppliers": "50+ Suppliers",
+    "trustResponse": "4hr Quote Response"
+  },
+  "howItWorks": {
+    "heading": "How It Works",
+    "step1": { "title": "Build Your List", "description": "Add materials from our catalog or upload your own list." },
+    "step2": { "title": "Get a Quote", "description": "Receive competitive pricing from verified suppliers within 4 hours." },
+    "step3": { "title": "We Deliver", "description": "Coordinated delivery to your site with real-time tracking." },
+    "step4": { "title": "Track Everything", "description": "Monitor orders, deliveries, and payments in one place." }
+  },
+  "valueProps": {
+    "heading": "Why HyperQuote",
+    "aiOrdering": { "title": "AI-Powered Ordering", "description": "Smart suggestions and automated list building save hours of manual work." },
+    "fastQuotes": { "title": "4-Hour Quotes", "description": "Get competitive pricing faster than any traditional supplier." },
+    "tracking": { "title": "Real-Time Tracking", "description": "Know exactly where your materials are, from warehouse to site." },
+    "projects": { "title": "Project Organization", "description": "Organize orders by project, track budgets, and manage your team." },
+    "pricing": { "title": "Transparent Pricing", "description": "See price ranges upfront. No surprises, no hidden fees." },
+    "whatsapp": { "title": "WhatsApp Support", "description": "Get help instantly through the app you already use every day." }
+  },
+  "marketPreview": {
+    "heading": "Browse by Category",
+    "viewAll": "View All Products",
+    "categories": {
+      "cement": "Cement",
+      "steel": "Steel",
+      "aggregates": "Aggregates",
+      "bricks": "Bricks",
+      "timber": "Timber",
+      "finishing": "Finishing"
+    }
+  },
+  "about": {
+    "heroHeadline": "Building Egypt's Future Together",
+    "story": {
+      "heading": "Our Story"
+    },
+    "mission": {
+      "heading": "Mission & Values"
+    },
+    "team": {
+      "heading": "Our Team"
+    },
+    "careers": {
+      "heading": "Join Us",
+      "cta": "See Open Positions"
+    }
+  },
+  "footer": {
+    "platform": "Platform",
+    "company": "Company",
+    "legal": "Legal",
+    "getQuote": "Get a Quote",
+    "browseMarket": "Browse Market",
+    "trackOrder": "Track Order",
+    "aboutUs": "About Us",
+    "support": "Support",
+    "careers": "Careers",
+    "docs": "Documentation",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfUse": "Terms of Use",
+    "copyright": "\u00a9 2026 HyperQuote. All rights reserved.",
+    "regionEn": "Egypt \u00b7 English",
+    "regionAr": "Egypt \u00b7 \u0627\u0644\u0639\u0631\u0628\u064a\u0629"
+  },
+  "a11y": {
+    "home": "HyperQuote \u2014 Home",
+    "openNav": "Open navigation menu",
+    "closeNav": "Close navigation menu",
+    "switchToArabic": "\u0627\u0644\u062a\u0628\u062f\u064a\u0644 \u0625\u0644\u0649 \u0627\u0644\u0639\u0631\u0628\u064a\u0629",
+    "switchToEnglish": "Switch to English",
+    "toggleDarkMode": "Switch to dark mode",
+    "toggleLightMode": "Switch to light mode",
+    "skipToContent": "Skip to main content"
+  }
+}

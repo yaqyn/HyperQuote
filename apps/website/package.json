@@ -12,18 +12,21 @@
 	},
 	"dependencies": {
 		"@hyperquote/auth": "workspace:*",
-		"@hyperquote/types": "workspace:*",
-		"@hyperquote/i18n": "workspace:*",
-		"@hyperquote/ui": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
+		"@hyperquote/i18n": "workspace:*",
 		"@hyperquote/tables": "workspace:*",
-		"@tanstack/react-start": "^1.167.12",
+		"@hyperquote/types": "workspace:*",
+		"@hyperquote/ui": "workspace:*",
 		"@tanstack/react-router": "^1.168.0",
+		"@tanstack/react-start": "^1.167.12",
 		"i18next": "^25.10.10",
+		"lucide-react": "^1.7.0",
+		"motion": "^12.38.0",
 		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
 		"react-aria-components": "^1.16.0",
-		"react-i18next": "^17.0.0"
+		"react-dom": "^19.2.4",
+		"react-i18next": "^17.0.0",
+		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.30.2",
