@@ -1,4 +1,4 @@
 {
-	"extends": "@hyperquote/tsconfig/base.json",
+	"extends": "../../packages/tsconfig/base.json",
 	"include": ["src"]
 }
