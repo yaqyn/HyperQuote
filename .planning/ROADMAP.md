@@ -56,7 +56,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `bun run dev --filter=website` starts TanStack Start and renders a page with server function data
   3. Supabase SSR auth creates and reads a session cookie on Cloudflare Workers (with `nodejs_compat`)
   4. Each of the 5 apps has a working dev server (4 TanStack Start + 1 plain Vite for driver)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md -- Monorepo root config, 5 app shells, 7 package stubs, website server function validation
+- [ ] 01-02-PLAN.md -- @hyperquote/auth package, Supabase SSR on Workers go/no-go validation
 
 ### Phase 2: Supabase + Initial Migrations
 **Goal**: Database foundation exists with all enums, auth tables, RLS helpers, and seed data so that auth and tenancy work end-to-end
@@ -440,7 +443,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Monorepo Scaffold | 0/? | Not started | - |
+| 1. Monorepo Scaffold | 0/2 | Planning complete | - |
 | 2. Supabase + Initial Migrations | 0/? | Not started | - |
 | 3. Shared Packages | 0/? | Not started | - |
 | 4. Website Layout + Home + About | 0/? | Not started | - |
