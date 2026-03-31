@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Monorepo Scaffold** - Create monorepo with 5 apps + 7 packages, validate Supabase SSR on Workers (go/no-go)
 - [x] **Phase 2: Supabase + Initial Migrations** - Extensions, 50 enums, auth/tenant tables, RLS helpers, seed data (completed 2026-03-31)
 - [x] **Phase 3: Shared Packages** - Build 7 shared packages (ui, types, i18n, auth, forms, tables) + vertical slice validation (completed 2026-03-31)
-- [ ] **Phase 4: Website Layout + Home + About** - Global shell, hero home page, about page (SSG)
+- [x] **Phase 4: Website Layout + Home + About** - Global shell, hero home page, about page (SSG) (completed 2026-03-31)
 - [ ] **Phase 5: Website Market + Product Detail** - SSR product catalog with filters, product detail pages
 - [ ] **Phase 6: Website Remaining Pages** - Support, docs, careers, legal, login modal, AI chat widget
 - [ ] **Phase 7: Portal Auth + Shell** - Auth gate, spatial canvas, AI chat input, glass window buttons
@@ -102,11 +102,11 @@ Plans:
   2. Home page hero fills 100vh with photography, gradient overlay, and animated value props
   3. Language toggle switches the entire site to RTL Arabic with correct layout mirroring
   4. Both pages render as SSG (static HTML, no server function calls at request time)
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 04-01-PLAN.md -- Global shell (header, footer, mobile nav, toggles, i18n website namespace, shared components)
 - [x] 04-02-PLAN.md -- Home page (hero, how-it-works, value props, market preview, CTA)
-- [ ] 04-03-PLAN.md -- About page (hero, story, mission, team, careers CTA) + SSG prerendering + offline banner
+- [x] 04-03-PLAN.md -- About page (hero, story, mission, team, careers CTA) + SSG prerendering + offline banner
 **UI hint**: yes
 
 ### Phase 5: Website Market + Product Detail
@@ -458,7 +458,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 1. Monorepo Scaffold | 2/2 | Complete | - |
 | 2. Supabase + Initial Migrations | 2/2 | Complete   | 2026-03-31 |
 | 3. Shared Packages | 4/4 | Complete   | 2026-03-31 |
-| 4. Website Layout + Home + About | 0/3 | Not started | - |
+| 4. Website Layout + Home + About | 3/3 | Complete   | 2026-03-31 |
 | 5. Website Market + Product Detail | 0/? | Not started | - |
 | 6. Website Remaining Pages | 0/? | Not started | - |
 | 7. Portal Auth + Shell | 0/? | Not started | - |
