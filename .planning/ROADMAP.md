@@ -88,8 +88,8 @@ Plans:
 **Plans:** 1/4 plans executed
 Plans:
 - [x] 03-01-PLAN.md -- @hyperquote/types + @hyperquote/i18n (enums, entities, locale config, formatters)
-- [ ] 03-02-PLAN.md -- @hyperquote/ui (GlassWindow, display, feedback, brand components) + Tailwind v4 CSS
-- [ ] 03-03-PLAN.md -- @hyperquote/auth guard + @hyperquote/forms + @hyperquote/tables
+- [x] 03-02-PLAN.md -- @hyperquote/ui (GlassWindow, display, feedback, brand components) + Tailwind v4 CSS
+- [x] 03-03-PLAN.md -- @hyperquote/auth guard + @hyperquote/forms + @hyperquote/tables
 - [ ] 03-04-PLAN.md -- Vertical slice page proving full stack integration
 **UI hint:** yes
 

@@ -14,8 +14,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **FOUND-03**: Supabase SSR auth works on Cloudflare Workers (go/no-go validation with `nodejs_compat`)
 - [x] **FOUND-04**: TanStack Start SSR renders a page with server function data on Cloudflare Workers
 - [x] **FOUND-05**: Shared packages build: @hyperquote/ui (GlassWindow, StatusBadge, Skeleton, Toast, EmptyState, CurrencyDisplay, DateDisplay, UnitDisplay, LionMark, CommandPalette), @hyperquote/types, @hyperquote/i18n, @hyperquote/auth, @hyperquote/forms, @hyperquote/tables
-- [ ] **FOUND-06**: Tailwind v4 with tokens.css renders correctly, colors in `:root {}` not `@theme`, RTL logical properties work
-- [ ] **FOUND-07**: React Aria Components render with correct RTL support and Arabic-Indic numerals
+- [x] **FOUND-06**: Tailwind v4 with tokens.css renders correctly, colors in `:root {}` not `@theme`, RTL logical properties work
+- [x] **FOUND-07**: React Aria Components render with correct RTL support and Arabic-Indic numerals
 - [x] **FOUND-08**: i18next (^25.10.10) configured with AR+EN namespaces, type-safe keys, Arabic-Indic number formatting
 
 ### Website
@@ -256,8 +256,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 3 | Complete |
-| FOUND-06 | Phase 3 | Pending |
-| FOUND-07 | Phase 3 | Pending |
+| FOUND-06 | Phase 3 | Complete |
+| FOUND-07 | Phase 3 | Complete |
 | FOUND-08 | Phase 3 | Complete |
 | WEB-01 | Phase 4 | Pending |
 | WEB-02 | Phase 4 | Pending |
