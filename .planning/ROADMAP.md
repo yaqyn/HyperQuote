@@ -105,7 +105,7 @@ Plans:
 **Plans:** 3 plans
 Plans:
 - [x] 04-01-PLAN.md -- Global shell (header, footer, mobile nav, toggles, i18n website namespace, shared components)
-- [ ] 04-02-PLAN.md -- Home page (hero, how-it-works, value props, market preview, CTA)
+- [x] 04-02-PLAN.md -- Home page (hero, how-it-works, value props, market preview, CTA)
 - [ ] 04-03-PLAN.md -- About page (hero, story, mission, team, careers CTA) + SSG prerendering + offline banner
 **UI hint**: yes
 
