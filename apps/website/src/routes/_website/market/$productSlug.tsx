@@ -6,16 +6,30 @@ import {
   Breadcrumb,
   type BreadcrumbProps,
 } from 'react-aria-components'
-import { getProductBySlug } from '../../../lib/catalog'
+import { getProductBySlug, getPublicCatalog } from '../../../lib/catalog'
 import { formatPriceRange } from '../../../lib/price-range'
 import { ImageGallery } from '../../../components/product/ImageGallery'
 import { SpecsTable } from '../../../components/product/SpecsTable'
 import { QuoteCard } from '../../../components/product/QuoteCard'
+import { MobileBottomBar } from '../../../components/product/MobileBottomBar'
+import { RelatedProducts } from '../../../components/product/RelatedProducts'
 
 export const Route = createFileRoute('/_website/market/$productSlug')({
   loader: async ({ params }) => {
     const product = await getProductBySlug({ data: { slug: params.productSlug } })
-    return { product }
+
+    // Fetch related products in same category (parallel if product exists)
+    let relatedProducts: Record<string, unknown>[] = []
+    if (product) {
+      const related = await getPublicCatalog({
+        data: { category: [product.category], limit: 6, page: 1, sort: 'relevance' },
+      })
+      relatedProducts = related.items.filter(
+        (item: Record<string, unknown>) => item.id !== product.id,
+      )
+    }
+
+    return { product, relatedProducts }
   },
   head: ({ loaderData }) => {
     const product = loaderData?.product
@@ -81,7 +95,7 @@ function BreadcrumbItem(props: BreadcrumbProps & { children: React.ReactNode }) 
 // --------------------------------------------------------------------------
 
 function ProductDetailPage() {
-  const { product } = Route.useLoaderData()
+  const { product, relatedProducts } = Route.useLoaderData()
   const { t, i18n } = useTranslation('website')
   const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
 
@@ -127,7 +141,7 @@ function ProductDetailPage() {
   )
 
   return (
-    <div className="px-6 py-12 lg:px-12">
+    <div className="px-6 pb-20 pt-12 lg:px-12 lg:pb-12">
       {/* Breadcrumbs */}
       <Breadcrumbs className="mb-6 flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
         <BreadcrumbItem id="market">
@@ -232,6 +246,12 @@ function ProductDetailPage() {
           {t('product.noDocuments', 'No documents available for this product.')}
         </p>
       </section>
+
+      {/* Related Products */}
+      <RelatedProducts products={relatedProducts as any} />
+
+      {/* Mobile Bottom Bar (hidden on desktop) */}
+      <MobileBottomBar unitOfMeasure={product.unit_of_measure} />
     </div>
   )
 }

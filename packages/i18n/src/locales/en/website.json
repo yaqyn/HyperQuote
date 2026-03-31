@@ -97,6 +97,45 @@
     "regionAr": "Egypt \u00b7 \u0627\u0644\u0639\u0631\u0628\u064a\u0629"
   },
   "offline": "You're offline",
+  "market": {
+    "addToQuote": "Add to Quote",
+    "priceOnRequest": "Price on Request",
+    "available": "Available",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock"
+  },
+  "product": {
+    "specsHeading": "Specifications",
+    "documentsHeading": "Documents",
+    "noDocuments": "No documents available for this product.",
+    "relatedHeading": "Related Products",
+    "quantityLabel": "Quantity",
+    "whatsappFallback": "Or contact us on WhatsApp",
+    "notFoundTitle": "Product not found",
+    "notFoundBody": "This product may have been removed or the link is incorrect.",
+    "notFoundCTA": "Browse Market",
+    "breadcrumbMarket": "Market",
+    "specWeight": "Weight",
+    "specUOM": "Unit of Measure",
+    "specBrand": "Brand",
+    "specManufacturer": "Manufacturer"
+  },
+  "units": {
+    "bag": "bag",
+    "bag_50kg": "50kg bag",
+    "ton": "ton",
+    "kg": "kg",
+    "cubic_meter": "m\u00b3",
+    "square_meter": "m\u00b2",
+    "meter": "m",
+    "piece": "piece",
+    "roll": "roll",
+    "sheet": "sheet",
+    "can": "can",
+    "bundle": "bundle",
+    "box": "box",
+    "coil": "coil"
+  },
   "a11y": {
     "home": "HyperQuote \u2014 Home",
     "openNav": "Open navigation menu",
