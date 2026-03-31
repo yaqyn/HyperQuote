@@ -6,10 +6,17 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./server": "./src/server.ts",
-		"./client": "./src/client.ts"
+		"./client": "./src/client.ts",
+		"./guard": "./src/guard.ts",
+		"./session": "./src/session.ts",
+		"./types": "./src/types.ts"
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.9.0",
 		"@supabase/supabase-js": "^2.100.1"
+	},
+	"peerDependencies": {
+		"@tanstack/react-router": "^1.168.0",
+		"@tanstack/react-start": "^1.167.12"
 	}
 }
