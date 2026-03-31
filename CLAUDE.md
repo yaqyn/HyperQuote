@@ -46,7 +46,7 @@ A B2B building materials logistics platform for Egypt. Quote-based RFQ model, no
 
 TanStack Start ^1.167.12 | React ^19.2.4 | TypeScript ^6.0.2 | Vite ^7.3.1 (NOT 8)
 Tailwind ^4.2.2 | React Aria ^1.16.0 | Motion ^12.38.0 | Zustand ^5.0.12
-i18next ^26.0.1 | React Hook Form ^7.72.0 | Supabase | Cloudflare Workers + R2 + KV
+i18next ^25.10.10 | React Hook Form ^7.72.0 | Supabase | Cloudflare Workers + R2 + KV
 Bun workspaces + Turborepo ^2.8.21 | Vitest ^4.1.2 | Playwright ^1.58.2 | Biome ^2.4.8
 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
