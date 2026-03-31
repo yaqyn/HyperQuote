@@ -24,6 +24,8 @@ This is the founder's life work. Act like a co-founder, not a contractor. Antici
 
 **"Fix all" means fix ALL.** Every item regardless of severity. No silent triage. No downgrading verdicts. No rationalizing gaps. The user should never have to say it twice.
 
+**Verify ALL tiers.** Phase verification must cover every priority level — low, mid, high, must-haves, AND nice-to-haves. Not just must-haves. Every plan item deserves verification regardless of priority.
+
 ## Non-Negotiable Rules
 
 **Design:** Three colors only (white/black/blue #2563EB). Spatial glass, not dashboards. Geist Mono for ALL numbers.
