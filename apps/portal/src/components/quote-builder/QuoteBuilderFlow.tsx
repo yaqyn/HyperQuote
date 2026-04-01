@@ -3,7 +3,7 @@
  * Reads step from Zustand store, renders step content with transitions.
  * Back button, step indicator, step-specific content, and action bar.
  */
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
@@ -12,9 +12,7 @@ import { Button } from 'react-aria-components'
 import { useQuoteBuilderStore } from '../../stores/quote-builder'
 import { StepIndicator } from './StepIndicator'
 import { BuildListStep } from './step1/BuildListStep'
-import { DetailsStep } from './step2/DetailsStep'
 import { ReviewStep } from './step3/ReviewStep'
-import { SubmitConfirmation } from './step3/SubmitConfirmation'
 import { saveDraft } from '../../lib/server/quote-requests'
 
 export function QuoteBuilderFlow() {
@@ -24,10 +22,6 @@ export function QuoteBuilderFlow() {
   const items = useQuoteBuilderStore((s) => s.items)
   const setStep = useQuoteBuilderStore((s) => s.setStep)
   const isRTL = i18n.dir() === 'rtl'
-  const [confirmation, setConfirmation] = useState<{
-    requestId: string
-    reference: string
-  } | null>(null)
 
   const BackArrow = isRTL ? ArrowRight : ArrowLeft
 
@@ -66,20 +60,6 @@ export function QuoteBuilderFlow() {
       setStep(3)
     }
   }, [step, items.length, setStep])
-
-  // Show confirmation view after successful submit
-  if (confirmation) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-auto">
-          <SubmitConfirmation
-            requestId={confirmation.requestId}
-            reference={confirmation.reference}
-          />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -120,7 +100,10 @@ export function QuoteBuilderFlow() {
               transition={{ duration: 0.2 }}
               className="px-6 py-4"
             >
-              <DetailsStep />
+              {/* Step 2: Details -- placeholder for Plan 04 */}
+              <div className="text-sm text-[var(--color-text-muted)]">
+                {t('quoteBuilder.step2')}
+              </div>
             </motion.div>
           )}
           {step === 3 && (
@@ -130,9 +113,8 @@ export function QuoteBuilderFlow() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.2 }}
-              className="px-6 py-4"
             >
-              <ReviewStep onSubmitSuccess={setConfirmation} />
+              <ReviewStep />
             </motion.div>
           )}
         </AnimatePresence>

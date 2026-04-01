@@ -47,7 +47,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PORT-10**: Documents window: invoices, delivery notes, quote PDFs, certificates with view/download
 - [ ] **PORT-11**: Support window: WhatsApp (primary), in-app chat, ticket submission with thread
 - [ ] **PORT-12**: Settings: profile, addresses, projects, team (multi-user with roles: buyer/approver/site manager), notifications, language/theme, security
-- [ ] **PORT-13**: Buyer-side approval workflows: submit for approval action, approver notification, pending approvals tab (research gap identified)
+- [x] **PORT-13**: Buyer-side approval workflows: submit for approval action, approver notification, pending approvals tab (research gap identified)
 - [ ] **PORT-14**: Repeat purchase: saved lists, one-tap reorder, favorites, AI reorder suggestions
 - [ ] **PORT-15**: Guest order claiming: unclaimed customer matches phone -> masked hint -> link auth user to existing customer record
 - [ ] **PORT-16**: PWA: service worker, install prompt after 3rd visit, push notifications (permission on first notification-worthy action)
@@ -283,7 +283,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-10 | Phase 11 | Pending |
 | PORT-11 | Phase 11 | Pending |
 | PORT-12 | Phase 11 | Pending |
-| PORT-13 | Phase 9 | Pending |
+| PORT-13 | Phase 9 | Complete |
 | PORT-14 | Phase 11 | Pending |
 | PORT-15 | Phase 11 | Pending |
 | PORT-16 | Phase 11 | Pending |

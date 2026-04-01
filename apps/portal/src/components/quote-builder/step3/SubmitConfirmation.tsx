@@ -1,113 +1,82 @@
 /**
- * Submit confirmation view.
- * Replaces the form after successful quote submission.
- * Shows CheckCircle with spring animation, reference number, and navigation.
+ * Post-submit confirmation view.
+ * Shows success message after quote submission or approval submission.
+ * isApproval: shows approval-specific text without "Track Quote" button.
  */
-import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
-import { motion } from 'motion/react'
-import { CheckCircle } from 'lucide-react'
 import { Button } from 'react-aria-components'
-import { clearLocalDraft } from '../../../lib/quote-draft'
-import { useQuoteBuilderStore } from '../../../stores/quote-builder'
-
-// ============================================================================
-// Component
-// ============================================================================
+import { CheckCircle } from 'lucide-react'
 
 interface SubmitConfirmationProps {
-  requestId: string
   reference: string
+  requestId: string
+  isApproval?: boolean
 }
 
 export function SubmitConfirmation({
-  requestId,
   reference,
+  isApproval,
 }: SubmitConfirmationProps) {
   const { t } = useTranslation('portal')
   const navigate = useNavigate()
 
-  // Clear draft on mount
-  useEffect(() => {
-    clearLocalDraft()
-    useQuoteBuilderStore.getState().reset()
-  }, [])
+  // Extract the sequence number from reference (e.g., "QR-2026-00123" -> "00123")
+  const refSeq = reference.split('-').pop() ?? reference
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-      {/* Animated CheckCircle */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{
-          type: 'spring',
-          stiffness: 260,
-          damping: 20,
-        }}
-        className="mb-6"
-      >
-        <CheckCircle
-          size={48}
-          className="text-[var(--color-success,#16a34a)]"
-          strokeWidth={1.5}
-        />
-      </motion.div>
+    <div className="flex flex-col items-center justify-center gap-6 py-16 px-6">
+      {/* Success icon */}
+      <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[var(--color-primary)]/10">
+        <CheckCircle size={32} className="text-[var(--color-primary)]" />
+      </div>
 
-      {/* Title */}
-      <motion.h2
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.3 }}
-        className="text-lg font-semibold text-[var(--color-text)] mb-2"
-      >
-        {t('quoteBuilder.submitSuccess', 'Quote Request Submitted!')}
-      </motion.h2>
+      {/* Heading */}
+      <h2 className="text-xl font-semibold text-[var(--color-text)] text-center">
+        {isApproval
+          ? t('quoteBuilder.approvalSuccessHeading')
+          : t('quoteBuilder.successHeading')}
+      </h2>
 
-      {/* Reference number */}
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.3 }}
-        className="font-mono text-base text-[var(--color-primary)] mb-4"
-      >
-        {t('quoteBuilder.referenceLabel', 'Reference:')} {reference}
-      </motion.p>
+      {/* Reference */}
+      {!isApproval && (
+        <p className="text-sm font-mono text-[var(--color-text-muted)]">
+          {t('quoteBuilder.successReference', { ref: refSeq })}
+        </p>
+      )}
 
-      {/* Subtitle */}
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.3 }}
-        className="text-sm text-[var(--color-text-muted)] mb-8 max-w-sm"
-      >
-        {t(
-          'quoteBuilder.submitSubtitle',
-          "We'll have your quote ready within 4 hours. You'll receive a notification on WhatsApp.",
-        )}
-      </motion.p>
+      {/* Body */}
+      <p className="text-sm text-[var(--color-text-muted)] text-center max-w-md">
+        {isApproval
+          ? t('quoteBuilder.approvalSuccessBody')
+          : t('quoteBuilder.successBody')}
+      </p>
 
       {/* Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45, duration: 0.3 }}
-        className="flex flex-col items-center gap-3"
-      >
+      <div className="flex items-center gap-3">
+        {/* Back to Orders -- always shown */}
         <Button
           onPress={() => navigate({ to: '/orders' })}
-          className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+          className={[
+            'h-11 px-6 rounded-xl text-sm font-semibold transition-opacity cursor-pointer',
+            isApproval
+              ? 'bg-[var(--color-primary)] text-white'
+              : 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface)]',
+          ].join(' ')}
         >
-          {t('quoteBuilder.trackQuote', 'Track Quote')}
+          {t('quoteBuilder.backToOrders')}
         </Button>
 
-        <Button
-          onPress={() => navigate({ to: '/orders' })}
-          className="text-sm text-[var(--color-primary)] hover:underline cursor-pointer outline-none"
-        >
-          {t('quoteBuilder.backToOrders', 'Back to Orders')}
-        </Button>
-      </motion.div>
+        {/* Track Quote -- only for direct submissions */}
+        {!isApproval && (
+          <Button
+            onPress={() => navigate({ to: '/orders' })}
+            className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer"
+          >
+            {t('quoteBuilder.trackQuote')}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
