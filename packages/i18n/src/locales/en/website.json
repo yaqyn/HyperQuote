@@ -227,6 +227,76 @@
     "box": "box",
     "coil": "coil"
   },
+  "legal": {
+    "lastUpdated": "Last updated",
+    "translationBanner": "This is a translation. The Arabic version is the legally binding document.",
+    "privacy": {
+      "title": "Privacy Policy",
+      "dataCollection": {
+        "title": "Data Collection",
+        "content": "We collect information you provide directly, including your name, email address, phone number, company name, and any messages you send through our platform. We also collect usage data such as pages visited, features used, and device information to improve our services."
+      },
+      "usage": {
+        "title": "Data Usage",
+        "content": "Your data is used to process quote requests, coordinate deliveries, communicate with you about your orders, and improve our platform. We may use your contact information to send service-related updates. We never sell your personal data to third parties."
+      },
+      "storage": {
+        "title": "Data Storage",
+        "content": "Your data is stored securely on servers within the Middle East and North Africa region. We use industry-standard encryption for data in transit and at rest. Data is retained for the duration of your account and for a reasonable period thereafter as required by Egyptian commercial law."
+      },
+      "sharing": {
+        "title": "Data Sharing",
+        "content": "We share your information with suppliers only to the extent necessary to fulfill your quote requests and orders. Supplier identity is disclosed but pricing details between HyperQuote and suppliers are never shared with customers. We may share data with law enforcement when required by Egyptian law."
+      },
+      "rights": {
+        "title": "Your Rights",
+        "content": "You have the right to access, correct, or delete your personal data. You may request a copy of all data we hold about you. To exercise these rights, contact us at privacy@hyperquote.net. We will respond within 30 days as required by Egyptian data protection regulations."
+      },
+      "contact": {
+        "title": "Contact Us",
+        "content": "For privacy-related inquiries, contact our Data Protection Officer at privacy@hyperquote.net or write to: HyperQuote, Cairo, Egypt."
+      }
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "acceptance": {
+        "title": "Acceptance of Terms",
+        "content": "By accessing or using the HyperQuote platform, you agree to be bound by these Terms of Use. If you do not agree, you must not use the platform. These terms apply to all users, including contractors, suppliers, and visitors."
+      },
+      "services": {
+        "title": "Services",
+        "content": "HyperQuote provides a digital platform for sourcing building materials in Egypt. We connect contractors with verified suppliers, facilitate the quoting process, and coordinate deliveries. HyperQuote acts as the seller of record for all transactions. Prices are provided through quotes and are not published publicly."
+      },
+      "obligations": {
+        "title": "User Obligations",
+        "content": "You agree to provide accurate information when creating an account and submitting quote requests. You must not use the platform for any unlawful purpose. You are responsible for maintaining the confidentiality of your account credentials. Commercial use of pricing data obtained through the platform is prohibited."
+      },
+      "liability": {
+        "title": "Limitation of Liability",
+        "content": "HyperQuote provides the platform on an as-is basis. While we strive to ensure accurate pricing and timely delivery, we are not liable for supplier delays, price fluctuations, or force majeure events. Our total liability is limited to the value of the specific transaction in question."
+      },
+      "governingLaw": {
+        "title": "Governing Law",
+        "content": "These terms are governed by the laws of the Arab Republic of Egypt. Any disputes arising from the use of the platform shall be subject to the exclusive jurisdiction of the courts of Cairo, Egypt. The Arabic version of these terms is the legally binding document."
+      },
+      "amendments": {
+        "title": "Amendments",
+        "content": "HyperQuote reserves the right to modify these terms at any time. Changes will be posted on this page with an updated date. Continued use of the platform after changes constitutes acceptance of the modified terms. Material changes will be communicated via email or platform notification."
+      }
+    }
+  },
+  "careers": {
+    "heading": "Join Our Team",
+    "noJobs": "No open positions right now. Send us your CV and we'll keep you in mind.",
+    "sendCV": "Send us your CV",
+    "jobs": {
+      "fullStack": "Full Stack Engineer",
+      "operations": "Operations Manager",
+      "logistics": "Logistics Coordinator",
+      "location": "Cairo, Egypt",
+      "fullTime": "Full Time"
+    }
+  },
   "a11y": {
     "home": "HyperQuote \u2014 Home",
     "openNav": "Open navigation menu",
