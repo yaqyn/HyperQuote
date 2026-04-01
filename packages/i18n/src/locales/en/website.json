@@ -264,5 +264,35 @@
         "other": "Other"
       }
     }
+  },
+  "login": {
+    "step1": { "heading": "Sign In" },
+    "step2": { "heading": "Verify Your Number" },
+    "step3": { "heading": "Create Your Account" },
+    "phoneLabel": "Phone Number",
+    "phoneRequired": "Phone number is required",
+    "phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
+    "whatsappCTA": "Continue with WhatsApp",
+    "smsFallback": "Send via SMS instead",
+    "codeSent": "Code sent to",
+    "wrongCode": "Incorrect code. Please try again.",
+    "resend": "Resend",
+    "resendIn": "Resend in",
+    "sendFailed": "Failed to send code. Please try again.",
+    "companyName": "Company Name",
+    "fullName": "Full Name",
+    "createButton": "Create Account",
+    "createFailed": "Failed to create account. Please try again.",
+    "legalPrefix": "By creating an account, you agree to our",
+    "termsLink": "Terms of Use",
+    "and": "and",
+    "privacyLink": "Privacy Policy",
+    "claiming": {
+      "heading": "We found an existing account",
+      "confirm": "Yes, that's me",
+      "deny": "No, create a new account"
+    },
+    "claimFailed": "Failed to claim account. Please try again.",
+    "rateLimit": "Too many attempts. Please wait and try again."
   }
 }
