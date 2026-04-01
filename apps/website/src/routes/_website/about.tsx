@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AboutHero } from '../../components/about/AboutHero'
 import { CompanyStory } from '../../components/about/CompanyStory'
-import { MissionValues } from '../../components/about/MissionValues'
+
 import { TeamGrid } from '../../components/about/TeamGrid'
 import { CareersCTA } from '../../components/about/CareersCTA'
 
@@ -30,7 +30,6 @@ function AboutPage() {
 		<>
 			<AboutHero />
 			<CompanyStory />
-			<MissionValues />
 			<TeamGrid />
 			<CareersCTA />
 		</>

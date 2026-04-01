@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react'
 import { SearchField, Input, Button } from 'react-aria-components'
-import { Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface SearchBarProps {
@@ -14,12 +14,8 @@ export function SearchBar({ defaultValue, onSearch }: SearchBarProps) {
 
 	const handleChange = useCallback(
 		(value: string) => {
-			if (timerRef.current) {
-				clearTimeout(timerRef.current)
-			}
-			timerRef.current = setTimeout(() => {
-				onSearch(value)
-			}, 300)
+			if (timerRef.current) clearTimeout(timerRef.current)
+			timerRef.current = setTimeout(() => onSearch(value), 300)
 		},
 		[onSearch],
 	)
@@ -29,19 +25,14 @@ export function SearchBar({ defaultValue, onSearch }: SearchBarProps) {
 			defaultValue={defaultValue}
 			onChange={handleChange}
 			aria-label={t('market.searchPlaceholder')}
-			className="relative w-full"
+			className="relative w-full max-w-sm"
 		>
-			<Search
-				size={20}
-				className="absolute top-1/2 -translate-y-1/2 inset-is-3 text-[var(--color-text-muted)] pointer-events-none z-10"
-				aria-hidden="true"
-			/>
 			<Input
 				placeholder={t('market.searchPlaceholder')}
-				className="w-full h-12 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] ps-10 pe-10 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-shadow"
+				className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-transparent px-3 pe-8 text-[14px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:border-[var(--color-primary)] transition-colors"
 			/>
-			<Button className="absolute top-1/2 -translate-y-1/2 inset-ie-3 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1 rounded-md transition-colors data-[empty]:hidden">
-				<X size={16} aria-hidden="true" />
+			<Button className="absolute top-1/2 -translate-y-1/2 inset-ie-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-0.5 rounded transition-colors data-[empty]:hidden">
+				<X size={14} aria-hidden="true" />
 			</Button>
 		</SearchField>
 	)

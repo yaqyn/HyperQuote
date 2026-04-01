@@ -1,3 +1,4 @@
+import { useRef, useState, useCallback } from 'react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
@@ -7,9 +8,29 @@ const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
+	const imageRef = useRef<HTMLDivElement>(null)
+	const [parallax, setParallax] = useState({ x: 0, y: 0 })
+
+	const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
+		if (!imageRef.current) return
+		const rect = imageRef.current.getBoundingClientRect()
+		const cx = rect.left + rect.width / 2
+		const cy = rect.top + rect.height / 2
+		const x = ((e.clientX - cx) / rect.width) * -3
+		const y = ((e.clientY - cy) / rect.height) * -3
+		setParallax({ x, y })
+	}, [])
+
+	const handleMouseLeave = useCallback(() => {
+		setParallax({ x: 0, y: 0 })
+	}, [])
 
 	return (
-		<section className="relative min-h-screen flex items-center overflow-hidden bg-[var(--color-base)]">
+		<section
+			className="relative min-h-screen flex items-center overflow-hidden bg-[var(--color-base)]"
+			onMouseMove={handleMouseMove}
+			onMouseLeave={handleMouseLeave}
+		>
 			{/* Subtle grid pattern background */}
 			<div
 				className="absolute inset-0 opacity-[0.03]"
@@ -101,18 +122,22 @@ export function HeroSection() {
 						</motion.div>
 					</div>
 
-					{/* Right — Hero image */}
+					{/* Right — Hero image with parallax */}
 					<motion.div
 						initial={{ opacity: 0, scale: 0.95 }}
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ ...spring, delay: 0.1 }}
 						className="relative max-lg:order-first max-lg:pt-24"
+						ref={imageRef}
 					>
 						<div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-lg">
 							<img
 								src="https://websiteassets.hyperquote.net/Images/cairo.webp"
 								alt={t('hero.imageAlt')}
-								className="h-full w-full object-cover"
+								className="h-full w-full object-cover transition-transform duration-300 ease-out will-change-transform"
+								style={{
+									transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.02)`,
+								}}
 							/>
 							{/* Blue accent overlay at bottom */}
 							<div
@@ -132,10 +157,10 @@ export function HeroSection() {
 							className="absolute -bottom-6 -start-6 bg-[var(--color-card)] rounded-xl p-4 shadow-lg border border-[var(--color-border)]"
 						>
 							<span className="font-mono text-[32px] font-bold text-[var(--color-primary)] leading-none block">
-								4hr
+								{t('hero.floatStat')}
 							</span>
 							<span className="text-[13px] text-[var(--color-text-muted)] mt-1 block">
-								{t('hero.quoteSpeed')}
+								{t('hero.floatLabel')}
 							</span>
 						</motion.div>
 					</motion.div>

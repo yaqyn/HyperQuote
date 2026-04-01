@@ -144,7 +144,7 @@ export function ProductGrid({
 			{/* Product grid/list */}
 			{items.length > 0 ? (
 				currentView === 'grid' ? (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-7">
 						{items.map((item) => (
 							<ProductCard
 								key={item.id}

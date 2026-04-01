@@ -21,6 +21,8 @@
     "trustSuppliers": "50+ Suppliers",
     "trustResponse": "4hr Response",
     "quoteSpeed": "Quote Response",
+    "floatStat": "500+",
+    "floatLabel": "Verified Suppliers",
     "imageAlt": "Cairo construction skyline"
   },
   "howItWorks": {
@@ -56,14 +58,18 @@
     }
   },
   "about": {
+    "label": "About Us",
     "heroHeadline": "Building Egypt's Future Together",
+    "heroSubheadline": "We're on a mission to digitize the building materials supply chain across Egypt — making sourcing faster, transparent, and reliable.",
     "story": {
+      "label": "Our Story",
       "heading": "Our Story",
       "p1": "HyperQuote was born from a simple observation: sourcing building materials in Egypt shouldn't be this hard. Contractors spend days calling suppliers, comparing prices, and coordinating deliveries \u2014 time that should be spent building.",
       "p2": "Founded in Cairo, we set out to digitize the entire building materials supply chain. Our platform connects contractors with verified suppliers, automates the quoting process, and provides real-time delivery tracking.",
       "p3": "Today, we serve hundreds of contractors across Egypt, processing thousands of quotes and deliveries. But we're just getting started."
     },
     "mission": {
+      "label": "Values",
       "heading": "Mission & Values",
       "value1": {
         "title": "Speed",
@@ -79,6 +85,7 @@
       }
     },
     "team": {
+      "label": "Team",
       "heading": "Our Team"
     },
     "careers": {
@@ -87,8 +94,26 @@
       "cta": "See Open Positions"
     }
   },
+  "cart": {
+    "label": "Quote Cart",
+    "title": "Your Quote",
+    "emptyTitle": "No items yet",
+    "empty": "Browse materials and click + to add them to your quote.",
+    "browseCta": "Browse Materials",
+    "clearAll": "Clear",
+    "remove": "Remove item",
+    "addNote": "Add note to quote",
+    "submit": "Request Quote",
+    "submitHint": "Free quote — no commitment. We'll respond within 4 hours."
+  },
   "market": {
-    "searchPlaceholder": "Search products...",
+    "pageTitle": "Building Materials",
+    "filtersTitle": "Filters",
+    "groupStructural": "Structural",
+    "groupFinishing": "Finishing",
+    "groupMEP": "MEP",
+    "groupOther": "Other",
+    "searchPlaceholder": "Search cement, steel, bricks...",
     "filterClear": "Clear All",
     "resultCount": "{{count}} products",
     "sortLabel": "Sort by",
@@ -101,6 +126,7 @@
     "availabilityAll": "All",
     "availabilityAvailable": "Available",
     "availabilityLowStock": "Low Stock",
+    "filterPriceLabel": "Price Tier",
     "filterBudget": "Budget",
     "filterMidRange": "Mid-Range",
     "filterPremium": "Premium",
@@ -168,9 +194,11 @@
   },
   "offline": "You're offline",
   "product": {
+    "specsLabel": "Details",
     "specsHeading": "Specifications",
     "documentsHeading": "Documents",
     "noDocuments": "No documents available for this product.",
+    "relatedLabel": "More Like This",
     "relatedHeading": "Related Products",
     "quantityLabel": "Quantity",
     "whatsappFallback": "Or contact us on WhatsApp",

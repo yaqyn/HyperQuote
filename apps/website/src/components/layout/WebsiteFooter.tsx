@@ -1,18 +1,40 @@
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 export function WebsiteFooter() {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
+	const [isDark, setIsDark] = useState(false)
+
+	useEffect(() => {
+		function checkTheme() {
+			setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+		}
+		checkTheme()
+		const observer = new MutationObserver(checkTheme)
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		})
+		return () => observer.disconnect()
+	}, [])
 
 	return (
 		<footer className="bg-[var(--color-base-alt)]">
 			<div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 py-16 px-6 max-w-7xl mx-auto">
 				{/* Brand Column */}
 				<div>
-					<span className="font-semibold text-xl text-[var(--color-text)]">
-						HyperQuote
-					</span>
+					<div className="flex items-center gap-3 mb-4">
+						<img
+							src={isDark ? '/LyonWhite.svg' : '/LyonBlack.svg'}
+							alt=""
+							className="h-14"
+						/>
+						<span className="text-[22px] font-extrabold tracking-[-0.02em] text-[var(--color-text)]">
+							HyperQuote
+						</span>
+					</div>
 				</div>
 
 				{/* Platform Column */}

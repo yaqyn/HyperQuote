@@ -1,12 +1,6 @@
-import {
-	CheckboxGroup,
-	Checkbox,
-	RadioGroup,
-	Radio,
-	Label,
-} from 'react-aria-components'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PRODUCT_CATEGORIES } from '@hyperquote/types'
+import { ChevronDown } from 'lucide-react'
 
 interface FilterSidebarProps {
 	category?: string[]
@@ -16,6 +10,26 @@ interface FilterSidebarProps {
 	onClearAll: () => void
 	hasActiveFilters: boolean
 }
+
+// Grouped by construction phase — how contractors actually think
+const CATEGORY_GROUPS = [
+	{
+		labelKey: 'market.groupStructural',
+		items: ['cement', 'reinforcing_steel', 'structural_steel', 'aggregates', 'sand', 'ready_mix_concrete', 'bricks', 'blocks'],
+	},
+	{
+		labelKey: 'market.groupFinishing',
+		items: ['tiles_ceramic', 'tiles_porcelain', 'marble', 'granite', 'paint', 'glass', 'gypsum_board'],
+	},
+	{
+		labelKey: 'market.groupMEP',
+		items: ['pipes_pvc', 'pipes_metal', 'electrical_cable', 'electrical_conduit'],
+	},
+	{
+		labelKey: 'market.groupOther',
+		items: ['lumber', 'plywood', 'insulation', 'waterproofing', 'roofing', 'aluminum_profiles', 'adhesives', 'hardware_fasteners'],
+	},
+] as const
 
 const PRICE_TIERS = ['budget', 'mid_range', 'premium'] as const
 
@@ -28,134 +42,179 @@ export function FilterSidebar({
 	hasActiveFilters,
 }: FilterSidebarProps) {
 	const { t } = useTranslation('website')
+	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['market.groupStructural']))
+
+	const activeCount =
+		(category?.length ?? 0) + (availability ? 1 : 0) + (priceTier?.length ?? 0)
+
+	const toggleCategory = (cat: string) => {
+		const current = category || []
+		const next = current.includes(cat)
+			? current.filter((c) => c !== cat)
+			: [...current, cat]
+		onFilterChange({ category: next.length ? next.join(',') : undefined })
+	}
+
+	const togglePriceTier = (tier: string) => {
+		const current = priceTier || []
+		const next = current.includes(tier)
+			? current.filter((t) => t !== tier)
+			: [...current, tier]
+		onFilterChange({ price_tier: next.length ? next.join(',') : undefined })
+	}
+
+	const setAvailability = (value: string) => {
+		onFilterChange({ availability: value === 'all' ? undefined : value })
+	}
+
+	const toggleGroup = (key: string) => {
+		setExpandedGroups((prev) => {
+			const next = new Set(prev)
+			if (next.has(key)) next.delete(key)
+			else next.add(key)
+			return next
+		})
+	}
 
 	return (
-		<div className="sticky top-20 space-y-6">
-			{hasActiveFilters && (
-				<button
-					type="button"
-					onClick={onClearAll}
-					className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-				>
-					{t('market.filterClear')}
-				</button>
-			)}
+		<div className="sticky top-20 space-y-5">
+			{/* Header */}
+			<div className="flex items-center justify-between">
+				<span className="text-[14px] font-semibold text-[var(--color-text)]">
+					{t('market.filtersTitle')}
+					{activeCount > 0 && (
+						<span className="ms-1.5 text-[12px] font-medium text-[var(--color-primary)]">
+							({activeCount})
+						</span>
+					)}
+				</span>
+				{hasActiveFilters && (
+					<button
+						type="button"
+						onClick={onClearAll}
+						className="text-[12px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+					>
+						{t('market.filterClear')}
+					</button>
+				)}
+			</div>
 
-			{/* Category filter */}
-			<CheckboxGroup
-				value={category || []}
-				onChange={(value) =>
-					onFilterChange({
-						category: value.length ? value.join(',') : undefined,
-					})
-				}
-			>
-				<Label className="text-sm font-semibold text-[var(--color-text)] mb-2 block">
+			{/* Category groups */}
+			<div>
+				<h3 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
 					{t('market.sortCategory')}
-				</Label>
-				<div className="space-y-1 max-h-64 overflow-y-auto">
-					{PRODUCT_CATEGORIES.map((cat) => (
-						<Checkbox
-							key={cat}
-							value={cat}
-							className="flex items-center gap-2 py-1 text-sm text-[var(--color-text)] cursor-pointer group"
-						>
-							<div className="w-4 h-4 rounded border border-[var(--color-border)] flex items-center justify-center group-data-[selected]:bg-[var(--color-primary)] group-data-[selected]:border-[var(--color-primary)] transition-colors">
-								<svg
-									viewBox="0 0 12 10"
-									className="w-3 h-2.5 text-white opacity-0 group-data-[selected]:opacity-100"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<polyline points="1 5 4.5 8.5 11 1.5" />
-								</svg>
-							</div>
-							<span>{t(`categories.${cat}`)}</span>
-						</Checkbox>
-					))}
-				</div>
-			</CheckboxGroup>
-
-			{/* Availability filter */}
-			<RadioGroup
-				value={availability || 'all'}
-				onChange={(value) =>
-					onFilterChange({
-						availability: value === 'all' ? undefined : value,
-					})
-				}
-			>
-				<Label className="text-sm font-semibold text-[var(--color-text)] mb-2 block">
-					{t('market.sortAvailability')}
-				</Label>
+				</h3>
 				<div className="space-y-1">
-					{(['all', 'available', 'low_stock'] as const).map((opt) => (
-						<Radio
-							key={opt}
-							value={opt}
-							className="flex items-center gap-2 py-1 text-sm text-[var(--color-text)] cursor-pointer group"
-						>
-							<div className="w-4 h-4 rounded-full border border-[var(--color-border)] flex items-center justify-center group-data-[selected]:border-[var(--color-primary)] transition-colors">
-								<div className="w-2 h-2 rounded-full bg-[var(--color-primary)] opacity-0 group-data-[selected]:opacity-100 transition-opacity" />
+					{CATEGORY_GROUPS.map((group) => {
+						const isOpen = expandedGroups.has(group.labelKey)
+						const activeInGroup = group.items.filter((c) => category?.includes(c)).length
+
+						return (
+							<div key={group.labelKey}>
+								<button
+									type="button"
+									onClick={() => toggleGroup(group.labelKey)}
+									className="w-full flex items-center justify-between py-1.5 px-2 rounded-md text-[13px] font-medium text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors"
+								>
+									<span className="flex items-center gap-1.5">
+										{t(group.labelKey)}
+										{activeInGroup > 0 && (
+											<span className="text-[11px] text-[var(--color-primary)] font-semibold">
+												{activeInGroup}
+											</span>
+										)}
+									</span>
+									<ChevronDown
+										size={14}
+										className={`text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+									/>
+								</button>
+								{isOpen && (
+									<div className="ps-2 space-y-0.5 mt-0.5">
+										{group.items.map((cat) => {
+											const active = category?.includes(cat)
+											return (
+												<button
+													key={cat}
+													type="button"
+													onClick={() => toggleCategory(cat)}
+													className={`w-full text-start px-2 py-1 rounded text-[13px] transition-colors ${
+														active
+															? 'bg-[var(--color-subtle)] text-[var(--color-primary)] font-medium'
+															: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]'
+													}`}
+												>
+													{t(`categories.${cat}`)}
+												</button>
+											)
+										})}
+									</div>
+								)}
 							</div>
-							<span>
+						)
+					})}
+				</div>
+			</div>
+
+			{/* Availability */}
+			<div>
+				<h3 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+					{t('market.sortAvailability')}
+				</h3>
+				<div className="space-y-0.5">
+					{(['all', 'available', 'low_stock'] as const).map((opt) => {
+						const active = opt === 'all' ? !availability : availability === opt
+						return (
+							<button
+								key={opt}
+								type="button"
+								onClick={() => setAvailability(opt)}
+								className={`w-full text-start px-2 py-1.5 rounded text-[13px] transition-colors ${
+									active
+										? 'bg-[var(--color-subtle)] text-[var(--color-primary)] font-medium'
+										: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]'
+								}`}
+							>
 								{opt === 'all'
 									? t('market.availabilityAll')
 									: opt === 'available'
 										? t('market.availabilityAvailable')
 										: t('market.availabilityLowStock')}
-							</span>
-						</Radio>
-					))}
+							</button>
+						)
+					})}
 				</div>
-			</RadioGroup>
+			</div>
 
-			{/* Price tier filter */}
-			<CheckboxGroup
-				value={priceTier || []}
-				onChange={(value) =>
-					onFilterChange({
-						price_tier: value.length ? value.join(',') : undefined,
-					})
-				}
-			>
-				<Label className="text-sm font-semibold text-[var(--color-text)] mb-2 block">
-					{t('market.sortLabel')}
-				</Label>
-				<div className="space-y-1">
-					{PRICE_TIERS.map((tier) => (
-						<Checkbox
-							key={tier}
-							value={tier}
-							className="flex items-center gap-2 py-1 text-sm text-[var(--color-text)] cursor-pointer group"
-						>
-							<div className="w-4 h-4 rounded border border-[var(--color-border)] flex items-center justify-center group-data-[selected]:bg-[var(--color-primary)] group-data-[selected]:border-[var(--color-primary)] transition-colors">
-								<svg
-									viewBox="0 0 12 10"
-									className="w-3 h-2.5 text-white opacity-0 group-data-[selected]:opacity-100"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<polyline points="1 5 4.5 8.5 11 1.5" />
-								</svg>
-							</div>
-							<span>
+			{/* Price tier */}
+			<div>
+				<h3 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+					{t('market.filterPriceLabel')}
+				</h3>
+				<div className="space-y-0.5">
+					{PRICE_TIERS.map((tier) => {
+						const active = priceTier?.includes(tier)
+						return (
+							<button
+								key={tier}
+								type="button"
+								onClick={() => togglePriceTier(tier)}
+								className={`w-full text-start px-2 py-1.5 rounded text-[13px] transition-colors ${
+									active
+										? 'bg-[var(--color-subtle)] text-[var(--color-primary)] font-medium'
+										: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]'
+								}`}
+							>
 								{tier === 'budget'
 									? t('market.filterBudget')
 									: tier === 'mid_range'
 										? t('market.filterMidRange')
 										: t('market.filterPremium')}
-							</span>
-						</Checkbox>
-					))}
+							</button>
+						)
+					})}
 				</div>
-			</CheckboxGroup>
+			</div>
 		</div>
 	)
 }

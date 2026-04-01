@@ -12,26 +12,28 @@ import styles from '../styles.css?url'
 import { setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
 
-function detectLocaleFromRequest(request?: Request): 'ar' | 'en' {
-	if (!request) return 'ar'
+function detectLocale(request?: Request): 'ar' | 'en' {
+	// Client-side: read from localStorage or current i18n state
+	if (!request) {
+		if (typeof localStorage !== 'undefined') {
+			const stored = localStorage.getItem('hq-locale')
+			if (stored === 'ar' || stored === 'en') return stored
+		}
+		return 'en'
+	}
 
-	// 1. Check hq-locale cookie
+	// Server-side: check cookie → Accept-Language → default
 	const cookieHeader = request.headers.get('cookie') ?? ''
 	const match = cookieHeader.match(/hq-locale=(ar|en)/)
 	if (match) return match[1] as 'ar' | 'en'
 
-	// 2. Fall back to Accept-Language header
-	const acceptLanguage = request.headers.get('accept-language') ?? ''
-	if (acceptLanguage.includes('ar')) return 'ar'
-
-	// 3. Default to English
 	return 'en'
 }
 
 export const Route = createRootRoute({
 	beforeLoad: async ({ context }) => {
 		const request = (context as Record<string, unknown>).request as Request | undefined
-		const locale = detectLocaleFromRequest(request)
+		const locale = detectLocale(request)
 		await setupI18n(locale)
 		return { locale }
 	},
@@ -65,7 +67,7 @@ function RootComponent() {
 					}}
 				/>
 			</head>
-			<body>
+			<body className="bg-[var(--color-base)] text-[var(--color-text)] transition-colors">
 				<OfflineBanner />
 				<a
 					href="#main"

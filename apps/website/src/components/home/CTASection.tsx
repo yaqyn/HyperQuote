@@ -7,24 +7,24 @@ export function CTASection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="relative py-28 max-md:py-20 px-6 lg:px-12 overflow-hidden bg-[var(--color-text)]">
+		<section className="relative py-28 max-md:py-20 px-6 lg:px-12 overflow-hidden bg-[#111113]">
 			{/* Subtle grid */}
 			<div
 				className="absolute inset-0 opacity-[0.04]"
 				style={{
 					backgroundImage:
-						'linear-gradient(var(--color-base) 1px, transparent 1px), linear-gradient(90deg, var(--color-base) 1px, transparent 1px)',
+						'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
 					backgroundSize: '60px 60px',
 				}}
 			/>
 
 			<SectionReveal>
 				<div className="relative z-10 max-w-3xl mx-auto text-center">
-					<h2 className="text-[40px] lg:text-[56px] font-bold text-[var(--color-base)] leading-[1.1]">
+					<h2 className="text-[40px] lg:text-[56px] font-bold text-white leading-[1.1]">
 						{t('cta.readyToBuild')}
 					</h2>
 
-					<p className="text-[16px] text-[var(--color-base)]/60 mt-4 max-w-[400px] mx-auto">
+					<p className="text-[16px] text-white/60 mt-4 max-w-[400px] mx-auto">
 						{t('cta.noCreditCard')}
 					</p>
 

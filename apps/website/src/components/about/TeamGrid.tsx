@@ -12,26 +12,30 @@ export function TeamGrid() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="py-24 max-md:py-16 px-6 max-w-7xl mx-auto">
-			<h2 className="text-2xl font-semibold text-[var(--color-text)] text-center mb-16">
-				{t('about.team.heading')}
-			</h2>
-			<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+		<section className="py-28 max-md:py-20 px-6 lg:px-12 max-w-7xl mx-auto">
+			<SectionReveal>
+				<p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">
+					{t('about.team.label')}
+				</p>
+				<h2 className="text-[36px] lg:text-[44px] font-bold text-[var(--color-text)] leading-tight mb-16">
+					{t('about.team.heading')}
+				</h2>
+			</SectionReveal>
+
+			<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 				{team.map((member, i) => (
-					<SectionReveal key={member.name} delay={i * 0.1}>
-						<div className="flex flex-col items-center">
-							<div
-								className="w-20 h-20 rounded-full bg-[var(--color-primary)] flex items-center justify-center mx-auto mb-4"
-								aria-hidden="true"
-							>
-								<span className="text-2xl font-semibold text-white">
+					<SectionReveal key={member.name} delay={i * 0.08}>
+						<div className="group">
+							{/* Avatar */}
+							<div className="w-full aspect-square rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center mb-5 group-hover:border-[var(--color-primary)] transition-colors">
+								<span className="text-[32px] font-bold text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
 									{member.initials}
 								</span>
 							</div>
-							<p className="font-semibold text-base text-[var(--color-text)] text-center">
+							<p className="font-semibold text-[16px] text-[var(--color-text)]">
 								{member.name}
 							</p>
-							<p className="text-sm text-[var(--color-text-muted)] text-center mt-1">
+							<p className="text-[14px] text-[var(--color-text-muted)] mt-1">
 								{member.title}
 							</p>
 						</div>
