@@ -223,13 +223,13 @@ Plans:
   5. PWA installs after 3rd visit with push notification permission requested on first notification-worthy action
 **Plans**: 7 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
+- [x] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
+- [x] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
+- [x] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
+- [x] 11-04-PLAN.md — Documents + Support windows
 - [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [x] 11-06-PLAN.md — Settings window with all 8 sections
+- [x] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
 
 ### Phase 12: Supplier Portal
@@ -669,7 +669,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
-| 11. Portal Orders + Delivery + Remaining | 0/7 | Planned    |  |
+| 11. Portal Orders + Delivery + Remaining | 6/7 | In Progress|  |
 | 12. Supplier Portal | 0/? | Not started | - |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |
