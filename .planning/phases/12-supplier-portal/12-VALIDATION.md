@@ -2,7 +2,7 @@
 phase: 12
 slug: supplier-portal
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-04-01
 ---
@@ -36,25 +36,31 @@ created: 2026-04-01
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 12-01-01 | 01 | 1 | SUPP-01 | unit | `bun run vitest run src/__tests__/role-toggle.test.tsx -t "supplier"` | ❌ W0 | ⬜ pending |
-| 12-02-01 | 02 | 1 | SUPP-02 | unit | `bun run vitest run src/__tests__/stock-table.test.tsx` | ❌ W0 | ⬜ pending |
-| 12-03-01 | 03 | 2 | SUPP-03 | unit | `bun run vitest run src/__tests__/catalog-upload.test.tsx` | ❌ W0 | ⬜ pending |
-| 12-04-01 | 04 | 2 | SUPP-04 | unit | `bun run vitest run src/__tests__/po-inbox.test.tsx` | ❌ W0 | ⬜ pending |
-| 12-05-01 | 05 | 3 | SUPP-05 | unit | `bun run vitest run src/__tests__/invoice-form.test.tsx` | ❌ W0 | ⬜ pending |
-| 12-06-01 | 06 | 3 | SUPP-06 | unit | `bun run vitest run src/__tests__/analytics.test.tsx` | ❌ W0 | ⬜ pending |
+| Task ID | Plan | Wave | Requirement | Test File | Automated Command | Status |
+|---------|------|------|-------------|-----------|-------------------|--------|
+| 12-00-01 | 00 | 0 | ALL | all 6 stubs | `bun run vitest run src/__tests__/ --reporter=verbose` | pending |
+| 12-01-01 | 01 | 1 | SUPP-01 | supplier-stock.test.tsx, supplier-po.test.tsx | `bun run vitest run src/__tests__/supplier-stock.test.tsx src/__tests__/supplier-po.test.tsx --reporter=verbose` | pending |
+| 12-01-02 | 01 | 1 | SUPP-01 | role-toggle.test.tsx | `bun run vitest run src/__tests__/role-toggle.test.tsx --reporter=verbose` | pending |
+| 12-02-01 | 02 | 2 | SUPP-02 | supplier-stock.test.tsx | `bun run vitest run src/__tests__/supplier-stock.test.tsx --reporter=verbose` | pending |
+| 12-02-02 | 02 | 2 | SUPP-02 | supplier-stock.test.tsx | `bun run vitest run src/__tests__/supplier-stock.test.tsx --reporter=verbose` | pending |
+| 12-03-01 | 03 | 2 | SUPP-04 | supplier-po.test.tsx | `bun run vitest run src/__tests__/supplier-po.test.tsx --reporter=verbose` | pending |
+| 12-03-02 | 03 | 2 | SUPP-05 | supplier-invoice.test.tsx | `bun run vitest run src/__tests__/supplier-invoice.test.tsx --reporter=verbose` | pending |
+| 12-04-01 | 04 | 2 | SUPP-03 | supplier-catalog.test.tsx | `bun run vitest run src/__tests__/supplier-catalog.test.tsx --reporter=verbose` | pending |
+| 12-04-02 | 04 | 2 | SUPP-06 | supplier-analytics.test.tsx | `bun run vitest run src/__tests__/supplier-analytics.test.tsx --reporter=verbose` | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
-## Wave 0 Requirements
+## Wave 0 Plan (12-00-PLAN.md)
 
-- [ ] `apps/portal/src/__tests__/supplier-stock.test.tsx` — stubs for SUPP-02 (inline edit, diff calc)
-- [ ] `apps/portal/src/__tests__/supplier-po.test.tsx` — stubs for SUPP-04 (confirm/reject logic)
-- [ ] `apps/portal/src/__tests__/supplier-invoice.test.tsx` — stubs for SUPP-05 (VAT calc, total match)
-- [ ] Framework already installed — vitest.config.ts exists
+- [ ] `apps/portal/src/__tests__/role-toggle.test.tsx` -- stubs for SUPP-01 (role toggle, shortcuts, AI context, profile popover)
+- [ ] `apps/portal/src/__tests__/supplier-stock.test.tsx` -- stubs for SUPP-02 (inline edit, diff calc, freshness)
+- [ ] `apps/portal/src/__tests__/supplier-po.test.tsx` -- stubs for SUPP-04 (confirm/reject logic, uploadDeliveryNote)
+- [ ] `apps/portal/src/__tests__/supplier-invoice.test.tsx` -- stubs for SUPP-05 (VAT calc, total match)
+- [ ] `apps/portal/src/__tests__/supplier-catalog.test.tsx` -- stubs for SUPP-03 (upload flow, confidence scoring)
+- [ ] `apps/portal/src/__tests__/supplier-analytics.test.tsx` -- stubs for SUPP-06 (KPI formatting, chart data)
+- [ ] Framework already installed -- vitest.config.ts exists
 
 ---
 
@@ -70,9 +76,9 @@ created: 2026-04-01
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
+- [x] All tasks have `<automated>` verify with Vitest commands
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 plan (12-00-PLAN.md) covers all test stub creation
 - [ ] No watch-mode flags
 - [ ] Feedback latency < 15s
 - [ ] `nyquist_compliant: true` set in frontmatter
