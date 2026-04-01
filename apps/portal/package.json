@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@hyperquote/auth": "workspace:*",
@@ -45,6 +46,7 @@
 		"tailwindcss-react-aria-components": "^2.0.1",
 		"typescript": "^6.0.2",
 		"vite": "~7.3.1",
+		"vitest": "^4.1.2",
 		"wrangler": "^4.77.0"
 	}
 }
