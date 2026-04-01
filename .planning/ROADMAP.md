@@ -140,7 +140,7 @@ Plans:
 - [x] 06-01-PLAN.md -- Support page (contact form + FAQ accordion + server function)
 - [ ] 06-02-PLAN.md -- Legal pages + Careers (SSG content pages)
 - [x] 06-03-PLAN.md -- Login modal (phone OTP auth flow + rate limiting + CTA wiring)
-- [ ] 06-04-PLAN.md -- AI chat widget (floating button + chat panel + real SSE transport)
+- [x] 06-04-PLAN.md -- AI chat widget (floating button + chat panel + real SSE transport)
 - [x] 06-05-PLAN.md -- Docs skeleton (sidebar navigation + TOC)
 **UI hint**: yes
 
