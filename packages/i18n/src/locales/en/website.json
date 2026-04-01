@@ -236,5 +236,33 @@
     "toggleDarkMode": "Switch to dark mode",
     "toggleLightMode": "Switch to light mode",
     "skipToContent": "Skip to main content"
+  },
+  "support": {
+    "heading": "How can we help?",
+    "whatsappLabel": "Chat on WhatsApp",
+    "emailLabel": "Email Us",
+    "phoneLabel": "Call Us",
+    "faq": {
+      "heading": "Frequently Asked Questions",
+      "searchPlaceholder": "Search questions...",
+      "noResults": "No matching questions found"
+    },
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "subject": "Subject",
+      "message": "Message",
+      "submit": "Send Message",
+      "success": "Thank you! We'll get back to you soon.",
+      "error": "Your message couldn't be sent. Please try again.",
+      "subjects": {
+        "general": "General Inquiry",
+        "quote": "Quote Question",
+        "delivery": "Delivery Issue",
+        "billing": "Billing",
+        "other": "Other"
+      }
+    }
   }
 }
