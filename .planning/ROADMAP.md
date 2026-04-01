@@ -263,7 +263,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 13-01-PLAN.md — Prerequisite tables (customers, suppliers, product extensions, deferred FKs)
-- [ ] 13-02-PLAN.md — Quotes, orders, procurement, inventory tables
+- [x] 13-02-PLAN.md — Quotes, orders, procurement, inventory tables
 - [ ] 13-03-PLAN.md — Delivery tables with partitioned driver_locations
 - [ ] 13-04-PLAN.md — Finance tables with generated columns + marketplace/zones
 - [ ] 13-05-PLAN.md — State machine + indexes + RLS policies
@@ -667,7 +667,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
 | 11. Portal Orders + Delivery + Remaining | 8/8 | Complete    | 2026-04-01 |
 | 12. Supplier Portal | 6/6 | Complete    | 2026-04-01 |
-| 13. DB -- Order + Delivery + Finance | 1/5 | In Progress|  |
+| 13. DB -- Order + Delivery + Finance | 2/5 | In Progress|  |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |
 | 15. Internal Platform Shell | 0/? | Not started | - |
 | 16. Sales Module | 0/? | Not started | - |
