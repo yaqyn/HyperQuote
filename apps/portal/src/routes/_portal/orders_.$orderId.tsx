@@ -6,6 +6,7 @@ import { ArrowLeft, FileText, AlertTriangle } from 'lucide-react'
 import { Button } from 'react-aria-components'
 import { WindowShell } from '../../components/windows/WindowShell'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
+import { FavoriteButton } from '../../components/orders/FavoriteButton'
 import { ProgressBar5Stage } from '../../components/orders/ProgressBar'
 import { ETADisplay } from '../../components/orders/ETADisplay'
 import { PODConfirmFlow } from '../../components/orders/PODConfirmFlow'
@@ -81,7 +82,9 @@ function OrderDetailRoute() {
         data: { deliveryId: orderData!.delivery!.id },
       }),
     enabled: !!orderData?.delivery && orderData.delivery.currentStage === 'out_for_delivery',
-    refetchInterval: 10_000, // poll every 10s for GPS updates
+    // Polling every 10s for GPS updates. Supabase Realtime upgrade deferred to
+    // Phase 12 DB integration — polling is sufficient for dev-mode mock data.
+    refetchInterval: 10_000,
     staleTime: 5_000,
   })
 
@@ -162,9 +165,12 @@ function OrderDetailRoute() {
               <span className="font-mono text-sm text-[var(--color-primary)]">
                 {order.reference}
               </span>
-              <span className="font-mono text-sm font-semibold text-[var(--color-text)]">
-                {order.amount != null ? `${order.currency} ${new Intl.NumberFormat('en-EG').format(order.amount)}` : '--'}
-              </span>
+              <div className="flex items-center gap-2">
+                <FavoriteButton productId={orderId} />
+                <span className="font-mono text-sm font-semibold text-[var(--color-text)]">
+                  {order.amount != null ? `${order.currency} ${new Intl.NumberFormat('en-EG').format(order.amount)}` : '--'}
+                </span>
+              </div>
             </div>
             <p className="text-sm text-[var(--color-text-muted)]">
               {order.description}
