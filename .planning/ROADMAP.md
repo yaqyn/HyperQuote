@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Portal Auth + Shell** - Auth gate, spatial canvas, AI chat input, glass window buttons (completed 2026-04-01)
 - [x] **Phase 8: Portal AI Chat** - Streaming AI chat with rich messages, slash commands, history (completed 2026-04-01)
 - [x] **Phase 9: Portal Material List Builder + Quote Submission** - 4 input methods, 3-step flow, buyer approval workflows (completed 2026-04-01)
-- [ ] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history
+- [x] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history (completed 2026-04-01)
 - [ ] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA
 - [ ] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics
 - [ ] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes
@@ -492,7 +492,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 7. Portal Auth + Shell | 3/3 | Complete   | 2026-04-01 |
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
-| 10. Quote Detail + Acceptance | 2/3 | In Progress|  |
+| 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
 | 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
 | 12. Supplier Portal | 0/? | Not started | - |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
