@@ -5,7 +5,6 @@
  */
 import {
   Dialog,
-  DialogTrigger,
   Heading,
   Modal,
   ModalOverlay,
@@ -15,7 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
 import { submitReorder } from '../../lib/server/orders'
-import { useToastStore } from '../../stores/toastStore'
+import { toast } from '../../lib/toast'
 
 interface ReorderDialogProps {
   orderId: string
@@ -34,11 +33,9 @@ export function ReorderDialog({
 }: ReorderDialogProps) {
   const { t } = useTranslation('portal')
   const navigate = useNavigate()
-  const toast = useToastStore.getState()
-
   const reorderMutation = useMutation({
     mutationFn: () => submitReorder({ data: { previousOrderId: orderId } }),
-    onSuccess: (result) => {
+    onSuccess: () => {
       toast.success(t('orders.reorderSuccess', { ref: orderRef }))
       onOpenChange(false)
       navigate({ to: '/orders/new', search: { step: '2' } })
