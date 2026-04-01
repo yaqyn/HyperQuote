@@ -243,15 +243,12 @@ Plans:
   3. Catalog upload accepts drag-and-drop (PDF/Excel/CSV), AI parses with confidence scores, and side-by-side review works
   4. PO inbox shows pending/confirmed/history tabs with per-PO confirm/reject and per-line actions
   5. Analytics dashboard shows KPIs (revenue, fill rate, on-time rate) and monthly revenue chart
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [x] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [x] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [x] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [x] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [x] 11-06-PLAN.md — Settings window with all 8 sections
-- [x] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 12-01-PLAN.md — Supplier types, server functions, keyboard shortcuts, i18n keys, install recharts
+- [ ] 12-02-PLAN.md — Stock & Pricing window with inline edit, bulk CSV update, product drawer
+- [ ] 12-03-PLAN.md — PO inbox with per-line confirm/reject + Invoice submission
+- [ ] 12-04-PLAN.md — Catalog upload with AI parse review + Analytics dashboard
 **UI hint**: yes
 
 ### Phase 13: Database -- Order + Delivery + Finance Tables
