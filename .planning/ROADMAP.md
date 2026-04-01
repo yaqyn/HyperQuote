@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA (completed 2026-04-01)
 - [x] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics (completed 2026-04-01)
 - [x] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes (completed 2026-04-01)
-- [ ] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data
+- [x] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data (completed 2026-04-01)
 - [ ] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout
 - [ ] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation
 - [ ] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards
@@ -283,7 +283,7 @@ Plans:
 - [x] 14-01-PLAN.md — 25 remaining tables (Support, HR, AI, System) with RLS + unit_translations
 - [x] 14-02-PLAN.md — 7 computed functions (sequence generator, scoring, aging, WAC)
 - [x] 14-03-PLAN.md — 17 business logic triggers + 2 materialized views
-- [ ] 14-04-PLAN.md — 19 pg_cron jobs + seed data (governorates, settings, counters)
+- [x] 14-04-PLAN.md — 19 pg_cron jobs + seed data (governorates, settings, counters)
 
 ### Phase 15: Internal Platform Shell
 **Goal**: Internal users land on a spatial canvas with glass windows, hotkeys for 11 modules, and a command palette -- the operational hub that replaces traditional dashboards
@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 11. Portal Orders + Delivery + Remaining | 8/8 | Complete    | 2026-04-01 |
 | 12. Supplier Portal | 6/6 | Complete    | 2026-04-01 |
 | 13. DB -- Order + Delivery + Finance | 5/5 | Complete    | 2026-04-01 |
-| 14. DB -- Support + HR + AI + System | 3/4 | In Progress|  |
+| 14. DB -- Support + HR + AI + System | 4/4 | Complete   | 2026-04-01 |
 | 15. Internal Platform Shell | 0/? | Not started | - |
 | 16. Sales Module | 0/? | Not started | - |
 | 17. Procurement Module | 0/? | Not started | - |
