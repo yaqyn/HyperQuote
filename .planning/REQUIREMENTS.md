@@ -37,7 +37,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **PORT-01**: Auth gate: `beforeLoad` route guard, redirect to website login if no session, SSO cookie on `.hyperquote.net`
 - [x] **PORT-02**: Spatial canvas: wide empty space, centered AI chat (max-width 640px), two glass buttons (Orders + Market), greeting with urgent items
-- [ ] **PORT-03**: AI chat: streaming via `useChat()`, rich messages (product cards, status cards, action buttons), slash commands, conversation history overlay, quick action chips
+- [x] **PORT-03**: AI chat: streaming via `useChat()`, rich messages (product cards, status cards, action buttons), slash commands, conversation history overlay, quick action chips
 - [ ] **PORT-04**: Material list builder: 3-step flow (Build -> Details -> Review), 4 input methods (Search & Add, CSV/Excel upload, Quick Pad, AI Assist), auto-save drafts
 - [ ] **PORT-05**: Quote detail: timeline, line items with prices (Geist Mono), accept/counter-offer/partial accept/decline actions, version history and comparison
 - [ ] **PORT-06**: Orders window: 4 tabs (Active, Quotes, History, Drafts), order cards with status badges, one-tap reorder from history
@@ -273,7 +273,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-12 | Phase 6 | Complete |
 | PORT-01 | Phase 7 | Complete |
 | PORT-02 | Phase 7 | Complete |
-| PORT-03 | Phase 8 | Pending |
+| PORT-03 | Phase 8 | Complete |
 | PORT-04 | Phase 9 | Pending |
 | PORT-05 | Phase 10 | Pending |
 | PORT-06 | Phase 11 | Pending |

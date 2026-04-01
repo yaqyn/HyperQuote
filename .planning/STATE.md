@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-04-01T07:52:50.432Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-04-01T08:33:49.139Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 32
   completed_phases: 7
-  total_plans: 22
-  completed_plans: 22
+  total_plans: 25
+  completed_plans: 23
   percent: 3
 ---
 
@@ -71,6 +71,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 07 P01 | 6min | 2 tasks | 16 files |
 | Phase 07 P02 | 3min | 2 tasks | 10 files |
 | Phase 07 P03 | 3min | 2 tasks | 11 files |
+| Phase 08 P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Canvas recede uses useMatches() for route detection, not Zustand activeWindow
 - [Phase 07]: WindowShell is portal-specific, NOT shared GlassWindow -- centered panel over visible receded canvas
 - [Phase 07]: Exit animation via canvas restore tween, not AnimatePresence on window unmount
+- [Phase 08]: CUSTOM events emitted after TEXT_MESSAGE_END to prevent layout jumps during streaming
+- [Phase 08]: Rich content extracted via useRef not Zustand to avoid re-render storms
+- [Phase 08]: Chat store uses sessionStorage (not localStorage) -- conversations are session-scoped
 
 ### Pending Todos
 
@@ -137,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T07:52:50.428Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-04-01T08:33:49.136Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
