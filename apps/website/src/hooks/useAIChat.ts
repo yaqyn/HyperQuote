@@ -60,15 +60,31 @@ export function useAIChat(options?: ChatOptions) {
   })
 
   // Map UIMessage to simplified ChatMessage for consumers
-  const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
-    id: msg.id,
-    role: msg.role as 'user' | 'assistant',
-    content:
-      msg.parts
-        ?.filter((p) => p.type === 'text')
-        .map((p) => (p as { type: 'text'; text: string }).text)
-        .join('') ?? '',
-  }))
+  // TanStack AI 0.x stores text in parts[].text, but fallback to every
+  // known property so content is never silently empty.
+  const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => {
+    const m = msg as any
+
+    // 1. Try parts with type 'text'
+    let content = ''
+    if (Array.isArray(m.parts) && m.parts.length > 0) {
+      content = m.parts
+        .map((p: any) => {
+          if (typeof p === 'string') return p
+          return p.text ?? p.content ?? p.delta ?? ''
+        })
+        .join('')
+    }
+
+    // 2. Fallback: direct content / text property
+    if (!content) content = m.content ?? m.text ?? ''
+
+    return {
+      id: msg.id,
+      role: msg.role as 'user' | 'assistant',
+      content,
+    }
+  })
 
   return {
     messages,

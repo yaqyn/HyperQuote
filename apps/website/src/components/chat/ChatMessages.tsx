@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { motion } from 'motion/react'
 import type { ChatMessage } from '../../hooks/useAIChat'
 import { TypingIndicator } from './TypingIndicator'
 
@@ -7,35 +8,42 @@ interface ChatMessagesProps {
   isLoading: boolean
 }
 
+const enter = {
+  initial: { opacity: 0, y: 4 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.2 },
+}
+
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, isLoading])
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-      {messages.map((msg) => (
-        <div
-          key={msg.id}
-          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-        >
-          <div
-            className={
-              msg.role === 'user'
-                ? 'max-w-[80%] rounded-xl rounded-tr-sm rtl:rounded-tr-xl rtl:rounded-tl-sm bg-[#2563EB] px-4 py-3 text-white'
-                : 'max-w-[80%] rounded-xl rounded-tl-sm rtl:rounded-tl-xl rtl:rounded-tr-sm bg-[var(--color-surface)] px-4 py-3 text-[var(--color-text)]'
-            }
-          >
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-              {msg.content}
-            </p>
-          </div>
-        </div>
-      ))}
-      {isLoading && <TypingIndicator />}
-      <div ref={bottomRef} />
+    <div ref={scrollRef} className="h-full overflow-y-auto px-5 py-5">
+      <div className="flex flex-col gap-5">
+        {messages.map((msg) =>
+          msg.role === 'user' ? (
+            <motion.div key={msg.id} {...enter} className="flex justify-end">
+              <div className="max-w-[80%]">
+                <p className="text-[14px] leading-[1.6] text-end font-medium">
+                  {msg.content}
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key={msg.id} {...enter} className="max-w-[90%]">
+              <p className="text-[14px] leading-[1.7] opacity-60">
+                {msg.content}
+              </p>
+            </motion.div>
+          ),
+        )}
+        {isLoading && <TypingIndicator />}
+      </div>
     </div>
   )
 }

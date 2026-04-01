@@ -347,9 +347,27 @@
   },
   "support": {
     "heading": "كيف يمكننا مساعدتك؟",
+    "responseTime": "متوسط الرد: ساعتين",
+    "formHeading": "لا تزال بحاجة للمساعدة؟",
+    "formSubheading": "أرسل لنا رسالة وسنتواصل معك.",
+    "searchPlaceholder": "ابحث عن إجابات...",
+    "askAI": "اسأل مساعدنا الذكي بدلاً من ذلك",
+    "sectionContact": "تواصل",
+    "sectionFaq": "أسئلة",
+    "sectionMessage": "رسالة",
     "whatsappLabel": "تحدث عبر واتساب",
+    "whatsappDetail": "أسرع رد",
     "emailLabel": "راسلنا",
     "phoneLabel": "اتصل بنا",
+    "info": {
+      "hours": "ساعات العمل",
+      "weekdays": "الأحد \u2013 الخميس",
+      "weekends": "الجمعة \u2013 السبت",
+      "closed": "مغلق",
+      "channels": "قنوات التواصل",
+      "office": "المكتب",
+      "address": "أركان بلازا\nالشيخ زايد\nمصر"
+    },
     "faq": {
       "heading": "الاسئلة الشائعة",
       "searchPlaceholder": "ابحث في الاسئلة...",

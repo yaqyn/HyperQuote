@@ -5,8 +5,68 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin 'tailwindcss-react-aria-components';
 
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* Force GPU compositing for scroll performance */
+main {
+  will-change: scroll-position;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Promote animated/blurred elements to own layer */
+[class*="backdrop-blur"],
+[class*="animate-"] {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Page transition — CSS-only, no double mount */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+main > * {
+  animation: page-enter 0.3s ease-out;
+}
+
 /* RTL: flip directional icons */
 [dir="rtl"] .icon-end { transform: scaleX(-1); }
+
+/* Hide native search clear button (we render our own) */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Minimal scrollbar — no track, faded black thumb */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
 
 /* Chat widget animations */
 @keyframes chat-pulse {

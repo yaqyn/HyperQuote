@@ -347,9 +347,27 @@
   },
   "support": {
     "heading": "How can we help?",
+    "responseTime": "Average response: 2 hours",
+    "formHeading": "Still need help?",
+    "formSubheading": "Send us a message and we'll get back to you.",
+    "searchPlaceholder": "Search for answers...",
+    "askAI": "Ask our AI assistant instead",
+    "sectionContact": "Contact",
+    "sectionFaq": "Questions",
+    "sectionMessage": "Message",
     "whatsappLabel": "Chat on WhatsApp",
+    "whatsappDetail": "Fastest response",
     "emailLabel": "Email Us",
     "phoneLabel": "Call Us",
+    "info": {
+      "hours": "Business Hours",
+      "weekdays": "Sunday \u2013 Thursday",
+      "weekends": "Friday \u2013 Saturday",
+      "closed": "Closed",
+      "channels": "Channels",
+      "office": "Office",
+      "address": "Arkan Plaza\nSheikh Zayed\nEgypt"
+    },
     "faq": {
       "heading": "Frequently Asked Questions",
       "searchPlaceholder": "Search questions...",

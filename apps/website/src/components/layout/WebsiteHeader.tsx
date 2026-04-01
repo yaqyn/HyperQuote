@@ -50,11 +50,6 @@ export function WebsiteHeader() {
 			>
 				{/* Logo + Brand */}
 				<Link to="/" aria-label={t('a11y.home')} className="flex items-center gap-3">
-					<img
-						src={isDark ? '/LyonWhite.svg' : '/LyonBlack.svg'}
-						alt=""
-						className="h-10 max-md:h-8"
-					/>
 					<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)]">
 						HyperQuote
 					</span>

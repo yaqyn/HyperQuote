@@ -6,18 +6,14 @@ import type { ChatMessage } from '../../hooks/useAIChat'
 import { ChatFAB } from './ChatFAB'
 import { ChatPanel } from './ChatPanel'
 
-/**
- * ChatWidget — Orchestrator for FAB + Panel
- *
- * Renders the floating action button on all pages.
- * When opened, renders the ChatPanel with useAIChat hook.
- * Injects welcome message on first open for new visitors.
- */
 export function ChatWidget() {
   const { t } = useTranslation('website')
   const isOpen = useChatWidget((s) => s.isOpen)
-  const { messages, sendMessage, isLoading, error, clear } = useAIChat()
+  const pendingMessage = useChatWidget((s) => s.pendingMessage)
+  const consumePendingMessage = useChatWidget((s) => s.consumePendingMessage)
+  const { messages, sendMessage, isLoading } = useAIChat()
   const hasInjectedWelcome = useRef(false)
+  const hasSentPending = useRef(false)
   const [welcomeMessage, setWelcomeMessage] = useState<ChatMessage | null>(null)
 
   // Inject welcome message on first open
@@ -32,7 +28,18 @@ export function ChatWidget() {
     }
   }, [isOpen, messages.length, t])
 
-  // Combine welcome + real messages
+  // Handle pending message from support search — fire once
+  useEffect(() => {
+    if (isOpen && pendingMessage && !hasSentPending.current) {
+      hasSentPending.current = true
+      const msg = consumePendingMessage()
+      if (msg) sendMessage(msg)
+    }
+    if (!pendingMessage) {
+      hasSentPending.current = false
+    }
+  }, [isOpen, pendingMessage, consumePendingMessage, sendMessage])
+
   const allMessages: ChatMessage[] = welcomeMessage
     ? [welcomeMessage, ...messages]
     : messages
