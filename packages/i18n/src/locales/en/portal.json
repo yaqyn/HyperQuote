@@ -274,5 +274,25 @@
       "acceptedNegotiating": "Accepted / Negotiating",
       "orderConfirmed": "Order Confirmed"
     }
+  },
+  "market": {
+    "windowTitle": "Market",
+    "quickAdd": "Quick Add",
+    "addToQuote": "Add to Quote",
+    "addedToast": "{{product}} added to your quote.",
+    "favorites": "Favorites",
+    "searchPlaceholder": "Search products...",
+    "quantity": "Quantity",
+    "adding": "Adding...",
+    "available": "Available",
+    "limited": "Limited",
+    "outOfStock": "Out of Stock",
+    "categories": "Categories",
+    "filters": "Filters",
+    "inStockOnly": "In stock only",
+    "availability": "Availability",
+    "backToMarket": "Back to Market",
+    "specifications": "Specifications",
+    "relatedProducts": "Related Products"
   }
 }
