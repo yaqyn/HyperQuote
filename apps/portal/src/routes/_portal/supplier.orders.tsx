@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button,
+  DropZone,
+  FileTrigger,
   Tab,
   TabList,
   TabPanel,
@@ -19,7 +21,7 @@ import {
   Modal,
   ModalOverlay,
 } from 'react-aria-components'
-import { Package } from 'lucide-react'
+import { Package, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { WindowShell } from '../../components/windows/WindowShell'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
@@ -199,13 +201,14 @@ function ConfirmedPOCard({
   const [showDeliveryModal, setShowDeliveryModal] = useState(false)
   const [trackingNumber, setTrackingNumber] = useState('')
   const [deliveryFileUrl, setDeliveryFileUrl] = useState('')
+  const [deliveryFileName, setDeliveryFileName] = useState('')
 
   const deliveryNoteMutation = useMutation({
     mutationFn: () =>
       uploadDeliveryNote({
         data: {
           poId: po.id,
-          fileUrl: deliveryFileUrl || '/delivery-notes/placeholder.pdf',
+          fileUrl: deliveryFileUrl,
           deliveryDate: new Date().toISOString(),
           quantity: po.items.reduce((sum, item) => sum + item.quantityRequested, 0),
         },
@@ -213,6 +216,9 @@ function ConfirmedPOCard({
     onSuccess: () => {
       toast.success(t('supplier.delivered'))
       setShowDeliveryModal(false)
+      setDeliveryFileName('')
+      setDeliveryFileUrl('')
+      setTrackingNumber('')
       onStatusUpdated()
     },
   })
@@ -283,6 +289,58 @@ function ConfirmedPOCard({
                   </Label>
                   <Input className="h-9 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] font-mono text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
                 </TextField>
+
+                {/* Delivery note PDF upload */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {t('supplier.uploadDeliveryNote')}
+                  </span>
+                  <DropZone
+                    onDrop={async (e) => {
+                      const files = e.items.filter(
+                        (item) => item.kind === 'file',
+                      )
+                      if (files.length > 0) {
+                        const file = files[0]
+                        if (file.kind === 'file') {
+                          const f = await file.getFile()
+                          if (f.size <= 10 * 1024 * 1024 && f.type === 'application/pdf') {
+                            setDeliveryFileName(f.name)
+                            setDeliveryFileUrl(`/delivery-notes/${f.name}`)
+                          }
+                        }
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer hover:border-[var(--color-primary)]/50 transition-colors min-h-[100px]"
+                  >
+                    <Upload size={20} className="text-[var(--color-text-muted)]" />
+                    {deliveryFileName ? (
+                      <p className="text-sm font-mono text-[var(--color-text)]">
+                        {deliveryFileName}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {t('supplier.deliveryNote')} (PDF, max 10MB)
+                      </p>
+                    )}
+                    <FileTrigger
+                      acceptedFileTypes={['application/pdf']}
+                      onSelect={(files) => {
+                        if (files && files.length > 0) {
+                          const f = files[0]
+                          if (f.size <= 10 * 1024 * 1024) {
+                            setDeliveryFileName(f.name)
+                            setDeliveryFileUrl(`/delivery-notes/${f.name}`)
+                          }
+                        }
+                      }}
+                    >
+                      <Button className="h-8 px-4 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] font-medium cursor-pointer hover:bg-[var(--color-surface)] transition-colors">
+                        {t('supplier.browseFiles')}
+                      </Button>
+                    </FileTrigger>
+                  </DropZone>
+                </div>
 
                 <div className="flex gap-3 justify-end">
                   <Button
