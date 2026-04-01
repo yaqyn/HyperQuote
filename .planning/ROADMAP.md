@@ -135,13 +135,13 @@ Plans:
   3. AI chat widget opens from floating button, streams responses via SSE, and shows inline product cards
   4. Support page accepts anonymous contact form submissions, FAQ accordion expands/collapses
   5. All pages are responsive on mobile, work in RTL Arabic, and support dark mode
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 Plans:
-- [ ] 06-01-PLAN.md -- Support page (contact form + FAQ accordion + server function)
+- [x] 06-01-PLAN.md -- Support page (contact form + FAQ accordion + server function)
 - [ ] 06-02-PLAN.md -- Legal pages + Careers (SSG content pages)
 - [ ] 06-03-PLAN.md -- Login modal (phone OTP auth flow + rate limiting + CTA wiring)
 - [ ] 06-04-PLAN.md -- AI chat widget (floating button + chat panel + real SSE transport)
-- [ ] 06-05-PLAN.md -- Docs skeleton (sidebar navigation + TOC)
+- [x] 06-05-PLAN.md -- Docs skeleton (sidebar navigation + TOC)
 **UI hint**: yes
 
 ### Phase 7: Portal Auth + Shell
@@ -470,7 +470,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 3. Shared Packages | 4/4 | Complete   | 2026-03-31 |
 | 4. Website Layout + Home + About | 3/3 | Complete   | 2026-03-31 |
 | 5. Website Market + Product Detail | 1/3 | In Progress|  |
-| 6. Website Remaining Pages | 0/5 | Not started | - |
+| 6. Website Remaining Pages | 2/5 | In Progress|  |
 | 7. Portal Auth + Shell | 0/? | Not started | - |
 | 8. Portal AI Chat | 0/? | Not started | - |
 | 9. Material List Builder + Quote Submission | 0/? | Not started | - |
