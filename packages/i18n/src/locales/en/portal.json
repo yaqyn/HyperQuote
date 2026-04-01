@@ -26,8 +26,6 @@
   "offline.chat": "Chat unavailable offline",
   "offline.data": "Showing cached data",
   "offline.tooltip": "You're offline",
-  "pwa.install": "Install HyperQuote for quick access",
-  "pwa.button": "Install",
   "auth.noPortalAccess": "This account doesn't have portal access",
   "auth.goInternal": "Go to Internal App",
   "floatingAI.orders": "I see you're looking at Orders -- need help?",
@@ -294,5 +292,19 @@
     "backToMarket": "Back to Market",
     "specifications": "Specifications",
     "relatedProducts": "Related Products"
+  },
+  "pwa": {
+    "installBanner": "Install HyperQuote for faster access",
+    "installButton": "Install",
+    "pushHeading": "Get notified about order updates?",
+    "pushBody": "We'll send you updates when your quotes and orders change status.",
+    "allow": "Allow",
+    "notNow": "Not now"
+  },
+  "guestClaim": {
+    "banner": "We found an existing account: {{maskedHint}}. Is this you?",
+    "yesClaim": "Yes, that's me",
+    "noNewAccount": "No, new account",
+    "successToast": "Account linked! Your order history is now visible."
   }
 }
