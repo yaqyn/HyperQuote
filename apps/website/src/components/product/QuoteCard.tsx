@@ -8,6 +8,7 @@ import {
 } from 'react-aria-components'
 import { MessageCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useLoginModal } from '../../hooks/useLoginModal'
 
 interface QuoteCardProps {
   productName: string
@@ -16,6 +17,7 @@ interface QuoteCardProps {
 
 export function QuoteCard({ productName, unitOfMeasure }: QuoteCardProps) {
   const { t } = useTranslation('website')
+  const { open: openLoginModal } = useLoginModal()
   const [quantity, setQuantity] = useState(1)
 
   const whatsappMessage = encodeURIComponent(
@@ -60,9 +62,7 @@ export function QuoteCard({ productName, unitOfMeasure }: QuoteCardProps) {
       {/* Add to Quote button */}
       <button
         type="button"
-        onClick={() => {
-          console.log('Add to Quote clicked - Login Modal coming in Phase 6')
-        }}
+        onClick={() => openLoginModal('/portal/quote')}
         className="h-12 w-full rounded-lg bg-[var(--color-primary)] font-semibold text-white transition-opacity hover:opacity-90"
       >
         {t('market.addToQuote', 'Add to Quote')}

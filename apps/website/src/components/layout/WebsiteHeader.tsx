@@ -7,6 +7,7 @@ import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
+import { useLoginModal } from '../../hooks/useLoginModal'
 
 export function WebsiteHeader() {
 	const { t } = useTranslation('website')
@@ -15,6 +16,7 @@ export function WebsiteHeader() {
 	const [cartOpen, setCartOpen] = useState(false)
 	const [isDark, setIsDark] = useState(false)
 	const { items, updateQuantity, updateNote, remove, clear, duplicate, globalNote, setGlobalNote } = useQuoteCart()
+	const { open: openLoginModal } = useLoginModal()
 	const [showGlobalNote, setShowGlobalNote] = useState(false)
 	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 
@@ -94,12 +96,13 @@ export function WebsiteHeader() {
 						)}
 					</button>
 
-					<Link
-						to="/market"
+					<button
+						type="button"
+						onClick={() => openLoginModal('/portal/quote')}
 						className="hidden md:inline-flex items-center bg-[var(--color-primary)] text-white font-semibold text-sm h-9 px-4 rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
 					>
 						{t('cta.getQuote')}
-					</Link>
+					</button>
 					<button
 						type="button"
 						onClick={() => setMobileNavOpen(true)}
@@ -276,7 +279,7 @@ export function WebsiteHeader() {
 								<div className="px-4 py-3 border-t border-[var(--color-border)]">
 									<button
 										type="button"
-										onClick={() => console.log('Submit quote — Phase 6')}
+										onClick={() => { setCartOpen(false); openLoginModal('/portal/quote') }}
 										className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
 									>
 										{t('cart.submit')} — {items.length} {items.length === 1 ? 'item' : 'items'}

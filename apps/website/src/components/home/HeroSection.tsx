@@ -3,11 +3,13 @@ import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
+import { useLoginModal } from '../../hooks/useLoginModal'
 
 const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
+	const { open: openLoginModal } = useLoginModal()
 	const imageRef = useRef<HTMLDivElement>(null)
 	const [parallax, setParallax] = useState({ x: 0, y: 0 })
 
@@ -82,13 +84,14 @@ export function HeroSection() {
 							transition={{ ...spring, delay: 0.14 }}
 							className="mt-10 flex gap-4 max-sm:flex-col"
 						>
-							<Link
-								to="/portal"
+							<button
+								type="button"
+								onClick={() => openLoginModal('/portal/quote')}
 								className="inline-flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white font-semibold text-[16px] h-13 px-7 rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors"
 							>
 								{t('cta.getQuote')}
 								<ArrowRight size={18} className="icon-end" />
-							</Link>
+							</button>
 							<Link
 								to="/market"
 								className="inline-flex items-center justify-center border border-[var(--color-border)] text-[var(--color-text)] font-semibold text-[16px] h-13 px-7 rounded-xl hover:bg-[var(--color-surface)] transition-colors"

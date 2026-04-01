@@ -6,6 +6,7 @@ import {
   Button,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { useLoginModal } from '../../hooks/useLoginModal'
 
 interface MobileBottomBarProps {
   unitOfMeasure: string
@@ -13,6 +14,7 @@ interface MobileBottomBarProps {
 
 export function MobileBottomBar({ unitOfMeasure }: MobileBottomBarProps) {
   const { t } = useTranslation('website')
+  const { open: openLoginModal } = useLoginModal()
   const [quantity, setQuantity] = useState(1)
 
   return (
@@ -49,9 +51,7 @@ export function MobileBottomBar({ unitOfMeasure }: MobileBottomBarProps) {
       {/* Add to Quote button */}
       <button
         type="button"
-        onClick={() => {
-          console.log('Add to Quote - Phase 6')
-        }}
+        onClick={() => openLoginModal('/portal/quote')}
         className="h-10 flex-1 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white"
       >
         {t('market.addToQuote', 'Add to Quote')}
