@@ -186,7 +186,13 @@ Plans:
   3. Auto-save preserves draft every 30 seconds; returning user sees their in-progress list
   4. Buyer with "approver" role receives notification when team member submits; pending approvals tab shows actionable items
   5. Delivery address ComboBox loads saved addresses and auto-expands new address form for first-time users
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 09-01-PLAN.md -- Database migration (quote_requests, addresses, projects) + server functions + Zustand store + utility libs
+- [ ] 09-02-PLAN.md -- Route, 3-step flow, step indicator, Search & Add, product list table with drag reorder
+- [ ] 09-03-PLAN.md -- Upload (CSV/Excel) with validation, Quick Pad, AI Assist input methods
+- [ ] 09-04-PLAN.md -- Step 2 details (address, date, attachments) + Step 3 review & submit + confirmation
+- [ ] 09-05-PLAN.md -- Buyer-side approval workflows (PORT-13): conditional submit, approver review UI
 **UI hint**: yes
 
 ### Phase 10: Portal Quote Detail + Acceptance
@@ -481,7 +487,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 6. Website Remaining Pages | 2/5 | In Progress|  |
 | 7. Portal Auth + Shell | 3/3 | Complete   | 2026-04-01 |
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
-| 9. Material List Builder + Quote Submission | 0/? | Not started | - |
+| 9. Material List Builder + Quote Submission | 0/5 | Not started | - |
 | 10. Quote Detail + Acceptance | 0/? | Not started | - |
 | 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
 | 12. Supplier Portal | 0/? | Not started | - |
