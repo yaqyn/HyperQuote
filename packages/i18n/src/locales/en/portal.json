@@ -4,6 +4,7 @@
   "greeting.evening": "Good evening, {{name}}",
   "greeting.night": "Good night, {{name}}",
   "urgentItems": "{{count}} items need your attention",
+  "urgentItemsLabel": "items need your attention",
   "chat.placeholder1": "What do you need today?",
   "chat.placeholder2": "Try: I need 500 bags of cement",
   "chat.placeholder3": "Try: Reorder my last purchase",

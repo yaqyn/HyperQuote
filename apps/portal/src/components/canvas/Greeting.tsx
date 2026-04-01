@@ -46,9 +46,8 @@ export function Greeting({ name, urgentCount = 0, locale = 'en' }: GreetingProps
         <div className="flex items-center justify-center gap-2 mt-2">
           <AlertCircle size={20} className="text-[var(--color-warning)]" />
           <span className="text-[var(--text-base)] text-[var(--color-text-muted)]">
-            {t('urgentItems', {
-              count: formatNumber(urgentCount, locale),
-            })}
+            <span className="font-mono">{formatNumber(urgentCount, locale)}</span>{' '}
+            {t('urgentItemsLabel')}
           </span>
         </div>
       )}

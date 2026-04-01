@@ -54,7 +54,7 @@ export function WindowShell({ title, subtitle, children }: WindowShellProps) {
         ].join(' ')}
       >
         {/* Header bar: h-56px, px-24px */}
-        <div className="flex items-center justify-between h-14 px-6 border-b border-[var(--color-border)] shrink-0">
+        <div className="flex items-center justify-between h-14 ps-6 pe-6 border-b border-[var(--color-border)] shrink-0">
           <div className="flex flex-col">
             <h2 className="font-semibold text-lg text-[var(--color-text)]">
               {title}

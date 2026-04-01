@@ -4,6 +4,7 @@
   "greeting.evening": "مساء الخير، {{name}}",
   "greeting.night": "ليلة سعيدة، {{name}}",
   "urgentItems": "{{count}} عناصر تحتاج انتباهك",
+  "urgentItemsLabel": "عناصر تحتاج انتباهك",
   "chat.placeholder1": "ماذا تحتاج اليوم؟",
   "chat.placeholder2": "جرّب: أحتاج ٥٠٠ كيس أسمنت",
   "chat.placeholder3": "جرّب: أعد طلبي الأخير",
