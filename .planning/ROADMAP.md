@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Portal AI Chat** - Streaming AI chat with rich messages, slash commands, history (completed 2026-04-01)
 - [x] **Phase 9: Portal Material List Builder + Quote Submission** - 4 input methods, 3-step flow, buyer approval workflows (completed 2026-04-01)
 - [x] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history (completed 2026-04-01)
-- [ ] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA
+- [x] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA (completed 2026-04-01)
 - [ ] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics
 - [ ] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes
 - [ ] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data
@@ -230,7 +230,7 @@ Plans:
 - [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [x] 11-06-PLAN.md — Settings window with all 8 sections
 - [x] 11-07-PLAN.md — PWA + Guest order claiming
-- [ ] 11-08-PLAN.md — Gap closure: wire AIReorderSuggestion props, render FavoriteButton, fix driver location truth
+- [x] 11-08-PLAN.md — Gap closure: wire AIReorderSuggestion props, render FavoriteButton, fix driver location truth
 **UI hint**: yes
 
 ### Phase 12: Supplier Portal
@@ -245,13 +245,13 @@ Plans:
   5. Analytics dashboard shows KPIs (revenue, fill rate, on-time rate) and monthly revenue chart
 **Plans**: 8 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
+- [x] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
+- [x] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
+- [x] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
+- [x] 11-04-PLAN.md — Documents + Support windows
 - [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [x] 11-06-PLAN.md — Settings window with all 8 sections
+- [x] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
 
 ### Phase 13: Database -- Order + Delivery + Finance Tables
@@ -670,7 +670,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
-| 11. Portal Orders + Delivery + Remaining | 6/7 | In Progress|  |
+| 11. Portal Orders + Delivery + Remaining | 8/8 | Complete   | 2026-04-01 |
 | 12. Supplier Portal | 0/? | Not started | - |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |

@@ -41,14 +41,14 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PORT-04**: Material list builder: 3-step flow (Build -> Details -> Review), 4 input methods (Search & Add, CSV/Excel upload, Quick Pad, AI Assist), auto-save drafts
 - [x] **PORT-05**: Quote detail: timeline, line items with prices (Geist Mono), accept/counter-offer/partial accept/decline actions, version history and comparison
 - [ ] **PORT-06**: Orders window: 4 tabs (Active, Quotes, History, Drafts), order cards with status badges, one-tap reorder from history
-- [ ] **PORT-07**: Order tracking: 5-stage progress bar, GPS delivery map (MapLibre GL in ClientOnly), driver location, ETA, drop-ship POD confirmation/dispute flow (customer confirm/dispute within 72h)
+- [x] **PORT-07**: Order tracking: 5-stage progress bar, GPS delivery map (MapLibre GL in ClientOnly), driver location, ETA, drop-ship POD confirmation/dispute flow (customer confirm/dispute within 72h)
 - [x] **PORT-08**: Market window: catalog browse inside glass window, infinite scroll, quick-add mode, "Add to Quote" without login modal
 - [ ] **PORT-09**: Notifications window: real-time via Supabase Realtime, grouped by time, mark read, click-through navigation
 - [x] **PORT-10**: Documents window: invoices, delivery notes, quote PDFs, certificates with view/download
 - [x] **PORT-11**: Support window: WhatsApp (primary), in-app chat, ticket submission with thread
 - [ ] **PORT-12**: Settings: profile, addresses, projects, team (multi-user with roles: buyer/approver/site manager), notifications, language/theme, security
 - [x] **PORT-13**: Buyer-side approval workflows: submit for approval action, approver notification, pending approvals tab (research gap identified)
-- [ ] **PORT-14**: Repeat purchase: saved lists, one-tap reorder, favorites, AI reorder suggestions
+- [x] **PORT-14**: Repeat purchase: saved lists, one-tap reorder, favorites, AI reorder suggestions
 - [x] **PORT-15**: Guest order claiming: unclaimed customer matches phone -> masked hint -> link auth user to existing customer record
 - [x] **PORT-16**: PWA: service worker, install prompt after 3rd visit, push notifications (permission on first notification-worthy action)
 - [x] **PORT-17**: Glass window behavior: spring open/tween close, canvas recedes, escape closes, deep-linking via URL routes
@@ -277,14 +277,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-04 | Phase 9 | Complete |
 | PORT-05 | Phase 10 | Complete |
 | PORT-06 | Phase 11 | Pending |
-| PORT-07 | Phase 11 | Pending |
+| PORT-07 | Phase 11 | Complete |
 | PORT-08 | Phase 11 | Complete |
 | PORT-09 | Phase 11 | Pending |
 | PORT-10 | Phase 11 | Complete |
 | PORT-11 | Phase 11 | Complete |
 | PORT-12 | Phase 11 | Pending |
 | PORT-13 | Phase 9 | Complete |
-| PORT-14 | Phase 11 | Pending |
+| PORT-14 | Phase 11 | Complete |
 | PORT-15 | Phase 11 | Complete |
 | PORT-16 | Phase 11 | Complete |
 | PORT-17 | Phase 7 | Complete |
