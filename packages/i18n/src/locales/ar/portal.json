@@ -274,5 +274,65 @@
       "acceptedNegotiating": "مقبول / قيد التفاوض",
       "orderConfirmed": "تم تأكيد الطلب"
     }
+  },
+  "documents": {
+    "windowTitle": "المستندات",
+    "tableLabel": "جدول المستندات",
+    "searchLabel": "البحث في المستندات",
+    "searchPlaceholder": "البحث بالمرجع أو العنوان...",
+    "tabInvoices": "الفواتير",
+    "tabDeliveryNotes": "إيصالات التسليم",
+    "tabQuotes": "عروض الأسعار",
+    "tabCertificates": "الشهادات",
+    "tabAll": "الكل",
+    "colReference": "المرجع",
+    "colTitle": "العنوان",
+    "colDate": "التاريخ",
+    "colSize": "الحجم",
+    "colActions": "الإجراءات",
+    "view": "عرض",
+    "download": "تنزيل",
+    "emptyHeading": "لا توجد مستندات",
+    "emptyBody": "ستظهر المستندات هنا مع تقدم طلباتك."
+  },
+  "support": {
+    "windowTitle": "الدعم",
+    "whatsappOption": "واتساب (الأسرع)",
+    "chatOption": "تحدث معنا",
+    "submitTicketOption": "إرسال تذكرة",
+    "ticketListLabel": "تذاكر الدعم",
+    "activeTickets": "تذاكرك",
+    "emptyHeading": "لا توجد تذاكر دعم",
+    "emptyBody": "تحتاج مساعدة؟ تواصل مع فريق الدعم.",
+    "backToTickets": "العودة للتذاكر",
+    "newTicketHeading": "إرسال تذكرة",
+    "formSubject": "الموضوع",
+    "formSubjectPlaceholder": "اوصف مشكلتك باختصار",
+    "formCategory": "الفئة",
+    "formDescription": "اوصف مشكلتك",
+    "formDescriptionPlaceholder": "قدم تفاصيل عن مشكلتك...",
+    "formRelatedOrder": "طلب مرتبط (اختياري)",
+    "formAttachments": "مرفقات (اختياري)",
+    "submitTicket": "إرسال التذكرة",
+    "submitting": "جاري الإرسال...",
+    "ticketSuccess": "تم إرسال التذكرة. سنرد خلال 24 ساعة.",
+    "replyPlaceholder": "اكتب ردك...",
+    "replyLabel": "رسالة الرد",
+    "sendReply": "إرسال الرد",
+    "attachment": "مرفق",
+    "category": {
+      "order_issue": "مشكلة في الطلب",
+      "delivery_problem": "مشكلة في التوصيل",
+      "billing": "الفواتير",
+      "account": "الحساب",
+      "other": "أخرى"
+    },
+    "status": {
+      "open": "مفتوحة",
+      "pending": "معلقة",
+      "in_progress": "قيد المعالجة",
+      "resolved": "تم الحل",
+      "closed": "مغلقة"
+    }
   }
 }
