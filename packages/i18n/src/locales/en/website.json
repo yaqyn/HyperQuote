@@ -237,6 +237,14 @@
     "toggleLightMode": "Switch to light mode",
     "skipToContent": "Skip to main content"
   },
+  "chat": {
+    "header": "HyperQuote",
+    "inputPlaceholder": "Ask anything...",
+    "signInPrompt": "Sign in to use this feature",
+    "welcome": "Hi! I'm HyperQuote's assistant. How can I help you today?",
+    "fabLabel": "Open chat",
+    "closeLabel": "Close chat"
+  },
   "support": {
     "heading": "How can we help?",
     "whatsappLabel": "Chat on WhatsApp",

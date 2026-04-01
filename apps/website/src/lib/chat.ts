@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { toServerSentEventsResponse } from '@tanstack/ai'
+import type { StreamChunk } from '@tanstack/ai'
 
 // ============================================================================
 // Input Schema
@@ -50,9 +50,7 @@ function getMockResponse(userMessage: string): string {
 // Emits proper AG-UI protocol events that TanStack AI client expects
 // ============================================================================
 
-async function* mockAGUIStream(
-  userMessage: string,
-): AsyncIterable<import('@tanstack/ai').StreamChunk> {
+async function* mockAGUIStream(userMessage: string): AsyncGenerator<StreamChunk> {
   const response = getMockResponse(userMessage)
   const words = response.split(' ')
   const runId = crypto.randomUUID()
@@ -102,16 +100,20 @@ async function* mockAGUIStream(
 }
 
 // ============================================================================
-// chatStream — SSE streaming server function returning ReadableStream
-// Uses real AG-UI protocol via toServerSentEventsResponse from @tanstack/ai
-// Phase 30 swaps mockAGUIStream with real AI model call — transport stays same
+// chatStreamFn — Server function that returns AG-UI stream chunks as array
+// The stream() adapter in useAIChat wraps this for the useChat hook
+// Phase 30 swaps mockAGUIStream with real AI model call
 // ============================================================================
 
-export const chatStream = createServerFn()
+export const chatStreamFn = createServerFn()
   .inputValidator(chatInput)
-  .handler(async ({ data: input }) => {
+  .handler(async ({ data: input }): Promise<StreamChunk[]> => {
     const lastMessage = input.messages[input.messages.length - 1]
-    const stream = mockAGUIStream(lastMessage?.content ?? '')
+    const chunks: StreamChunk[] = []
 
-    return toServerSentEventsResponse(stream)
+    for await (const chunk of mockAGUIStream(lastMessage?.content ?? '')) {
+      chunks.push(chunk)
+    }
+
+    return chunks
   })

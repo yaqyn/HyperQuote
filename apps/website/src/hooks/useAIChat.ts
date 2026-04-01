@@ -3,10 +3,15 @@
  *
  * This is the ONLY file that imports from @tanstack/ai-react.
  * All chat components consume this hook instead of the underlying library.
- * Phase 30 swaps the connection URL and options — consumers stay unchanged.
+ * Phase 30 swaps the connection adapter — consumers stay unchanged.
+ *
+ * Uses stream() adapter which wraps a function returning AsyncIterable<StreamChunk>.
+ * The server function returns AG-UI chunks as an array; client converts to iterable.
  */
-import { useChat, fetchServerSentEvents } from '@tanstack/ai-react'
+import { useChat, stream } from '@tanstack/ai-react'
 import type { UseChatReturn, UIMessage } from '@tanstack/ai-react'
+import type { StreamChunk } from '@tanstack/ai'
+import { chatStreamFn } from '../lib/chat'
 
 interface ChatOptions {
   onError?: (error: Error) => void
@@ -18,10 +23,39 @@ export interface ChatMessage {
   content: string
 }
 
+/**
+ * Convert array of StreamChunks to AsyncIterable
+ * Server function returns array (serialized over RPC); stream() needs iterable
+ */
+async function* arrayToAsyncIterable(
+  chunks: StreamChunk[],
+): AsyncIterable<StreamChunk> {
+  for (const chunk of chunks) {
+    yield chunk
+  }
+}
+
 export function useAIChat(options?: ChatOptions) {
   const chat: UseChatReturn = useChat({
-    // fetchServerSentEvents handles SSE parsing, reconnection, [DONE] marker
-    connection: fetchServerSentEvents('/api/chat'),
+    connection: stream(async function* (messages) {
+      // Convert UIMessage[] to simple format for server function
+      const simpleMessages = (messages as UIMessage[]).map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content:
+          m.parts
+            ?.filter((p) => p.type === 'text')
+            .map((p) => (p as { type: 'text'; text: string }).text)
+            .join('') ?? '',
+      }))
+
+      // Call server function — returns StreamChunk[] (serialized)
+      const chunks = await chatStreamFn({
+        data: { messages: simpleMessages },
+      })
+
+      // Yield chunks as async iterable for the stream() adapter
+      yield* arrayToAsyncIterable(chunks)
+    }),
     onError: options?.onError,
   })
 
