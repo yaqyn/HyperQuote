@@ -48,21 +48,26 @@ Exceptions: 44px minimum touch target for all form fields (Name, Email, Phone, S
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body | 16px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Sub-heading (legal h2, section titles) | 16px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Legal h3 | 16px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
 | Label / Muted / Sidebar link | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
 | Small / Meta / Character count / Legal date | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic (text), Geist Mono (numbers) |
-| Legal agreement text | 11px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Heading (page titles) | 30px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Sub-heading (legal h2, section titles) | 20px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Modal heading ("Sign In") | 24px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Legal h3 | 16px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Sidebar section heading | 12px | 600 | 1.5 | Inter / IBM Plex Sans Arabic |
-| OTP digits | 20px | 400 | 1 | Geist Mono |
+| Sidebar section heading | 12px | 700 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Legal agreement text | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Heading (page titles, modal headings) | 30px | 700 | 1.2 | Inter / IBM Plex Sans Arabic |
+| OTP digits | 16px | 400 | 1 | Geist Mono |
 | Countdown timer | 14px | 400 | 1.5 | Geist Mono |
 | Phone input | 16px | 400 | 1.5 | Geist Mono |
 | Character count | 12px | 400 | 1.5 | Geist Mono |
 
-Sizes used: 11px, 12px, 14px, 16px, 20px, 24px, 30px (from tokens.css --text-xs through --text-4xl).
-Weights used: 400 (regular), 600 (semibold), 700 (bold) (3 weights -- 700 only for page headings and modal headings per FRONTEND.md spec).
+Sizes used: 12px, 14px, 16px, 30px (4 sizes).
+Weights used: 400 (regular), 700 (bold) (2 weights).
+
+Consolidation notes:
+- 11px (legal agreement) promoted to 12px for legibility and scale compliance.
+- 20px (sub-headings, OTP digits) collapsed: sub-headings promoted to 16px bold, OTP digits demoted to 16px.
+- 24px (modal headings) promoted to 30px to unify with page headings.
+- 600 weight eliminated: all semibold usages promoted to 700 (sub-headings, section headings, legal h3).
 
 ---
 
@@ -80,7 +85,7 @@ Accent reserved for:
 - "Create Account" button (blue bg, white text)
 - Chat FAB (blue bg, white MessageSquare icon)
 - Chat send button (36px blue circle, white Send icon)
-- Active docs sidebar link (blue text, font-weight 500, 2px inline-start blue border)
+- Active docs sidebar link (blue text, font-weight 700, 2px inline-start blue border)
 - Focus rings on all React Aria components
 - Legal page info banner (blue bg for translation notice)
 - Links in legal agreement text
@@ -120,13 +125,13 @@ Special color overrides:
 | LegalTitle | -- | Inter 700 30px. Last updated: Geist Mono 12px var(--color-text-muted). |
 | TranslationBanner | -- | Blue info banner on English version: "This is a translation. The Arabic version is the legally binding document." / "هذه ترجمة. النسخة العربية هي الوثيقة الملزمة قانونيا." |
 | LanguageToggle | -- | Top of page, switches between AR and EN for legal content. |
-| LegalProse | -- | Max-width 800px. h2: Inter 600 20px mt-32px mb-16px. h3: Inter 600 16px mt-24px mb-12px. p: Inter 400 16px line-height 1.75 mb-16px. |
+| LegalProse | -- | Max-width 800px. h2: Inter 700 16px mt-32px mb-16px. h3: Inter 700 16px mt-24px mb-12px. p: Inter 400 16px line-height 1.75 mb-16px. |
 
 #### Docs Page (`/docs`, `/docs/{section-slug}`)
 
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
-| DocsSidebar | `ListBox` with sections | 256px width, sticky top 80px, bg var(--color-surface), rounded-xl. Section heading: Inter 600 12px var(--color-text-subtle) uppercase mb-8px. Link: Inter 400 14px var(--color-text-muted). Active: var(--color-primary) font-weight 500 + 2px inline-start blue border. |
+| DocsSidebar | `ListBox` with sections | 256px width, sticky top 80px, bg var(--color-surface), rounded-xl. Section heading: Inter 700 12px var(--color-text-subtle) uppercase mb-8px. Link: Inter 400 14px var(--color-text-muted). Active: var(--color-primary) font-weight 700 + 2px inline-start blue border. |
 | DocsContent | -- | Prose styling identical to legal pages. |
 | TableOfContents | -- | Right sidebar 200px on screens > 1440px. Lists h2/h3 anchors. Active section via IntersectionObserver. Inter 400 12px. |
 | MobileSidebarSheet | `Modal` (bottom sheet) | Sidebar content in bottom sheet on mobile. |
@@ -136,7 +141,7 @@ Special color overrides:
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
 | CareersHeading | -- | Inter 700 30px. Max-width 800px centered. |
-| JobCard | -- | bg var(--color-card), rounded-xl, p-24px, mb-16px, border 1px var(--color-border). Title: Inter 600 16px. Location: Inter 400 14px var(--color-text-muted) (e.g., "Cairo, Egypt . Full Time"). |
+| JobCard | -- | bg var(--color-card), rounded-xl, p-24px, mb-16px, border 1px var(--color-border). Title: Inter 700 16px. Location: Inter 400 14px var(--color-text-muted) (e.g., "Cairo, Egypt . Full Time"). |
 | SendCVLink | -- | Mailto link fallback if no job listings. |
 
 ### Login Modal (overlay, triggered from any page)
@@ -147,21 +152,21 @@ Special color overrides:
 | PhoneStep | `TextField` | Fixed "+20" prefix with Egyptian flag. type tel, Geist Mono. Validation: 10 digits, starts with 10/11/12/15. |
 | WhatsAppButton | `Button` | Green bg (#25D366), white text, MessageCircle icon. Full width. "Continue with WhatsApp". |
 | SMSFallback | `Link` | "Send via SMS instead" text link below button. |
-| OTPStep | -- | 6 individual digit boxes: 48px square, Geist Mono 20px, type tel, maxlength 1, inputmode="numeric". Auto-advance on input. Paste support (split 6-char string). Auto-submit on 6th digit. |
+| OTPStep | -- | 6 individual digit boxes: 48px square, Geist Mono 16px, type tel, maxlength 1, inputmode="numeric". Auto-advance on input. Paste support (split 6-char string). Auto-submit on 6th digit. |
 | OTPError | -- | Shake animation (translateX -4px, 4px, 0 at 150ms), clear all boxes, red error text below. |
 | ResendCountdown | -- | 30s countdown in Geist Mono. "Resend" link appears after countdown. |
 | AccountCreation | `Form` (RHF + Zod) | Company name (required, max 200), Full name (required, max 100). "Create Account" blue bg button. |
 | AccountClaiming | -- | "We found an existing account" heading. Masked company hint: "A**** C****". Two buttons: "Yes, that's me" (claims) / "No, create a new account" (Step 3). |
-| LegalAgreement | -- | Below create button: "By creating an account, you agree to our [Terms of Use] and [Privacy Policy]." Inter 400 11px var(--color-text-subtle). Links var(--color-primary), target _blank. |
+| LegalAgreement | -- | Below create button: "By creating an account, you agree to our [Terms of Use] and [Privacy Policy]." Inter 400 12px var(--color-text-subtle). Links var(--color-primary), target _blank. |
 
 ### AI Chat Widget (present on ALL website pages)
 
 | Component | React Aria | Props/Behavior |
 |-----------|------------|----------------|
-| ChatFAB | `Button` | 56px circle, blue bg, white MessageSquare 24px, shadow-lg. Hover: scale(1.05). Positioned bottom-right (bottom-left in RTL). Fixed. |
+| ChatFAB | `Button` | 56px circle, blue bg, white MessageSquare 24px, shadow-lg. Hover: scale(1.05). Positioned bottom-right (bottom-left in RTL). Fixed. aria-label="Open chat" (EN) / aria-label="فتح المحادثة" (AR). |
 | UnreadBadge | -- | Green dot 10px at top-right of FAB. Single pulse animation on mount (not continuous). First-time visitors only. |
 | ChatPanel | -- | 380px width, 520px max-height. var(--color-card) bg, rounded-2xl, shadow-2xl. Spring enter, tween exit. |
-| ChatHeader | -- | 48px height. Logo + "HyperQuote" text + close button (Lucide X). |
+| ChatHeader | -- | 48px height. Logo + "HyperQuote" text + close button (Lucide X, aria-label="Close chat" (EN) / aria-label="إغلاق المحادثة" (AR)). |
 | ChatMessages | -- | Scrollable area. AI bubbles: var(--color-surface) bg, rounded-xl, rounded-tl-sm (rounded-tr-sm in RTL). User bubbles: blue bg, white text, rounded-xl, rounded-tr-sm (rounded-tl-sm in RTL). |
 | TypingIndicator | -- | 3 dots animation inside AI bubble shape. |
 | ChatInput | `TextField` | Auto-grow. Placeholder text. Send button: 36px blue circle, Lucide Send 16px (flipped 180deg in RTL). |
@@ -232,6 +237,8 @@ Special color overrides:
 | Input placeholder | "Ask anything..." | "اسال اي شيء..." |
 | Sign-in prompt | "Sign in to use this feature" | "سجل دخولك لاستخدام هذه الميزة" |
 | Welcome message (first open) | "Hi! I'm HyperQuote's assistant. How can I help you today?" | "مرحبا! انا مساعد هايبركوت. كيف اقدر اساعدك؟" |
+| FAB accessible label | "Open chat" | "فتح المحادثة" |
+| Close button accessible label | "Close chat" | "إغلاق المحادثة" |
 | **Error States** | | |
 | Form error heading | "Something went wrong" | "حدث خطا ما" |
 | Form error body | "Your message couldn't be sent. Please try again." | "لم يتم ارسال رسالتك. حاول مرة اخرى." |
@@ -274,7 +281,7 @@ Destructive actions: None in this phase. Login modal has isDismissable={true} fo
 
 | State | Visual Treatment |
 |-------|-----------------|
-| Sidebar active link | var(--color-primary) text, font-weight 500, 2px inline-start blue border. |
+| Sidebar active link | var(--color-primary) text, font-weight 700, 2px inline-start blue border. |
 | IntersectionObserver | TOC highlights current section as user scrolls. |
 | Mobile sidebar | Bottom sheet triggered by menu button. |
 
