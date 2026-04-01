@@ -276,9 +276,9 @@ SET search_path = public
 AS $$
 BEGIN
   IF OLD.status != 'cleared' AND NEW.status = 'cleared' THEN
-    -- Mark payment as completed
+    -- Mark payment as fully_applied (cleared cheque completes the payment)
     UPDATE public.payments
-    SET status = 'completed', cleared_date = (NOW() AT TIME ZONE 'Africa/Cairo')::DATE
+    SET status = 'fully_applied', cleared_date = (NOW() AT TIME ZONE 'Africa/Cairo')::DATE
     WHERE id = NEW.payment_id AND tenant_id = NEW.tenant_id;
 
     -- Mark invoices as paid if fully covered via payment_applications
@@ -290,7 +290,7 @@ BEGIN
     AND inv.total <= (
       SELECT COALESCE(SUM(pa2.amount), 0) FROM public.payment_applications pa2
       JOIN public.payments p ON p.id = pa2.payment_id
-      WHERE pa2.invoice_id = inv.id AND p.status = 'completed'
+      WHERE pa2.invoice_id = inv.id AND p.status = 'fully_applied'
     );
   END IF;
   RETURN NEW;
@@ -748,10 +748,10 @@ BEGIN
   v_variance_pct := ABS((NEW.exchange_rate - v_quote_rate) / v_quote_rate * 100);
 
   IF v_variance_pct > v_threshold THEN
-    NEW.status := 'pending_review';
+    NEW.status := 'draft';
     NEW.internal_notes := COALESCE(NEW.internal_notes, '') ||
       E'\n[AUTO] Exchange rate variance ' || ROUND(v_variance_pct, 2) || '% exceeds threshold ' || v_threshold || '%. '
-      || 'Quote rate: ' || v_quote_rate || ', PO rate: ' || NEW.exchange_rate || '. Requires procurement review.';
+      || 'Quote rate: ' || v_quote_rate || ', PO rate: ' || NEW.exchange_rate || '. PO held in draft for procurement review.';
 
     INSERT INTO notifications (tenant_id, user_id, channel, priority, title, body, entity_type, entity_id, action_url)
     SELECT NEW.tenant_id, e.user_id, 'in_app', 'high',
