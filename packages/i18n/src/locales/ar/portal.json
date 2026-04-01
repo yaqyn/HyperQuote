@@ -38,5 +38,15 @@
   "profile.theme": "المظهر",
   "profile.signOut": "تسجيل الخروج",
   "bell.label": "الإشعارات",
-  "a11y.skipToContent": "انتقل الى المحتوى"
+  "a11y.skipToContent": "انتقل الى المحتوى",
+  "empty.market.title": "لا توجد منتجات بعد",
+  "empty.market.body": "تصفح مواد البناء قريبا",
+  "empty.notifications.title": "لا توجد اشعارات",
+  "empty.notifications.body": "لا جديد لديك",
+  "empty.documents.title": "لا توجد مستندات",
+  "empty.documents.body": "ستظهر مستنداتك هنا",
+  "empty.support.title": "تحتاج مساعدة؟",
+  "empty.support.body": "محادثات الدعم ستظهر هنا",
+  "empty.settings.title": "الإعدادات",
+  "empty.settings.body": "إعدادات الحساب والتفضيلات قريبا"
 }

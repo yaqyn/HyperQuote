@@ -38,5 +38,15 @@
   "profile.theme": "Theme",
   "profile.signOut": "Sign Out",
   "bell.label": "Notifications",
-  "a11y.skipToContent": "Skip to content"
+  "a11y.skipToContent": "Skip to content",
+  "empty.market.title": "No products yet",
+  "empty.market.body": "Browse building materials coming soon",
+  "empty.notifications.title": "No notifications",
+  "empty.notifications.body": "You're all caught up",
+  "empty.documents.title": "No documents",
+  "empty.documents.body": "Your documents will appear here",
+  "empty.support.title": "Need help?",
+  "empty.support.body": "Support conversations will appear here",
+  "empty.settings.title": "Settings",
+  "empty.settings.body": "Account and preference settings coming soon"
 }

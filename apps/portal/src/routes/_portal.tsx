@@ -1,8 +1,9 @@
-import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { checkPortalAuth } from '../lib/auth'
 import { WEBSITE_URL } from '../lib/env'
 import { PortalHeader } from '../components/shell/PortalHeader'
+import { useShortcut } from '../hooks/useShortcut'
 
 export const Route = createFileRoute('/_portal')({
   beforeLoad: async ({ location }) => {
@@ -54,7 +55,23 @@ function PortalLayout() {
         companyName={companyName}
         hasSupplierRole={hasSupplierRole}
       />
+      <PortalShortcuts />
       <Outlet />
     </div>
   )
+}
+
+/** Layout-level keyboard shortcuts: O/M/N open windows, / focuses chat */
+function PortalShortcuts() {
+  const navigate = useNavigate()
+
+  useShortcut('o', () => navigate({ to: '/orders' }))
+  useShortcut('m', () => navigate({ to: '/market' }))
+  useShortcut('n', () => navigate({ to: '/notifications' }))
+  useShortcut('/', () => {
+    const el = document.querySelector<HTMLInputElement>('[data-chat-input]')
+    el?.focus()
+  })
+
+  return null
 }
