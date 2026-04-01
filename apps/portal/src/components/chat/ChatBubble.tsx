@@ -10,6 +10,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
 import type { ChatMessage } from '../../lib/chat-types'
+import { RichMessageList } from './RichMessage'
 
 // ============================================================================
 // Helpers
@@ -117,6 +118,11 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
           )}
         </p>
       </div>
+      {/* Rich content cards (product cards, status cards, action buttons) */}
+      {!isUser && message.richContent && message.richContent.length > 0 && (
+        <RichMessageList items={message.richContent} />
+      )}
+
       <span className="text-xs text-[var(--color-text-muted)] opacity-60 mt-1 font-[family-name:var(--font-geist-mono)]">
         {formattedTime}
       </span>
