@@ -227,9 +227,9 @@ Plans:
 - [x] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [x] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [x] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [x] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [x] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
 
 ### Phase 12: Supplier Portal
