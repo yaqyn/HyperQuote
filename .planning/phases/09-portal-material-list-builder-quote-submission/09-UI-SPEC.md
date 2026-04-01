@@ -48,11 +48,11 @@ Exceptions: 44px minimum touch target for all buttons (Continue, Submit, Parse w
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body / Form labels / Table cells | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Small / Meta / Tab labels / Helpers | 12px | 400-500 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Heading (window title, confirmation) | 18px | 600-700 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Small / Meta / Tab labels / Helpers | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Heading (window title, confirmation) | 18px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
 | Numbers (quantities, item counts, dates, reference IDs) | 12-16px | 400 | 1.5 | Geist Mono |
 
-Distinct sizes: 12px, 14px, 16px, 18px (4 sizes, 2 weights: 400 + 600). Exception: 700 on confirmation heading "Quote Request Submitted!" per FRONTEND.md, and 13px on tab labels and card descriptions per FRONTEND.md.
+Distinct sizes: 12px, 14px, 16px, 18px (4 sizes, 2 weights: 400 + 600).
 
 Notes:
 - Portal base is 14px (not 16px -- apps per UI-VISION.md).
@@ -114,17 +114,17 @@ Primary focal point: **product list table** -- the material list is the entire p
 - Completed: `var(--color-success)` bg, white Lucide `Check` 14px.
 - Upcoming: `var(--color-border)` bg, `var(--color-text-muted)` text.
 - Connecting line between steps: 2px height, `var(--color-primary)` for completed segments, `var(--color-border)` for upcoming.
-- Step label below circle: Inter 500 12px.
+- Step label below circle: Inter 400 12px.
 - Mobile: numbers only, no labels.
 
 ### 2. Back Button Row
-- "< Back to Orders": Lucide `ArrowLeft` 16px + text, Inter 500 14px `var(--color-text-muted)`.
+- "< Back to Orders": Lucide `ArrowLeft` 16px + text, Inter 400 14px `var(--color-text-muted)`.
 - Flips to `ArrowRight` in RTL.
 - Height 56px total row. Click returns to Orders tab view.
 
 ### 3. Input Method Tabs
 - React Aria `Tabs`, compact. 4 tabs: "Search & Add" (default), "Upload", "Quick Pad", "AI Assist".
-- Each tab: h-36px, Inter 500 13px.
+- Each tab: h-36px, Inter 400 12px.
 - Inactive: `var(--color-text-muted)`. Active: `var(--color-text)` + 2px bottom border `var(--color-primary)`.
 - Tab content area switches below; product list table persists below all methods.
 
@@ -161,7 +161,7 @@ Primary focal point: **product list table** -- the material list is the entire p
 - Error table: row number (Geist Mono) | field name | value found | expected value. Border 1px `var(--color-border)`, rounded-xl.
 - Error rows: `var(--color-error-bg)` background tint.
 - Actions: "[Fix & Continue]" (blue outline, h-36px) and "[Re-upload]" (outline, h-36px).
-- Unmatched items in product list: yellow warning badge "Unmatched -- please verify" / "غير مطابق -- يرجى التحقق" (12px 500, `var(--color-warning)` text, `var(--color-warning-bg)` bg, rounded-full, px-8px py-2px) + dropdown ComboBox to manually select product.
+- Unmatched items in product list: yellow warning badge "Unmatched -- please verify" / "غير مطابق -- يرجى التحقق" (12px 400, `var(--color-warning)` text, `var(--color-warning-bg)` bg, rounded-full, px-8px py-2px) + dropdown ComboBox to manually select product.
 
 ### 8. Quick Pad (Method 3)
 - Spreadsheet-style grid: 3 columns -- SKU/name input (ComboBox, 60% width) + Quantity (NumberField, 20% width) + UOM display (20% width, auto-populated, read-only).
@@ -222,12 +222,12 @@ Primary focal point: **product list table** -- the material list is the entire p
 ### 17. Confirmation Modal (Elevated Glass)
 - "Submit quote request for {N} items?" / "إرسال طلب عرض سعر لعدد {N} عناصر?" -- Inter 600 18px. Geist Mono for N.
 - "We'll prepare your quote within 4 hours." / "سنقوم بتجهيز عرض السعر خلال ٤ ساعات." -- Inter 400 14px muted.
-- "Cancel" (outline, h-40px) + "Submit" (blue, h-40px).
+- "Keep Editing" (outline, h-40px) + "Confirm & Submit" (blue, h-40px).
 - On Submit: button shows "Submitting..." / "جاري الإرسال...". Skeleton replaces form.
 
 ### 18. Success Confirmation View
 - Lucide `CheckCircle` 48px `var(--color-success)`. Spring animation.
-- "Quote Request Submitted!" / "تم إرسال طلب عرض السعر!" -- Inter 700 24px.
+- "Quote Request Submitted!" / "تم إرسال طلب عرض السعر!" -- Inter 600 18px.
 - "Reference: QR-2026-{XXXXX}" / "المرجع: QR-2026-{XXXXX}" -- Geist Mono 16px `var(--color-primary)`.
 - "We'll have your quote ready within 4 hours. You'll receive a notification on WhatsApp." / "سيكون عرض السعر جاهز خلال ٤ ساعات. ستتلقى إشعار على واتساب." -- Inter 400 14px muted.
 - "Track Quote" button (blue, h-44px, rounded-xl) -- opens quote in Active tab.
@@ -349,6 +349,8 @@ Note: Popovers and menus use CSS transitions, not Motion v12 (per UI-VISION.md g
 | Edit link | "Edit" | "تعديل" |
 | Confirm modal heading | "Submit quote request for {N} items?" | "إرسال طلب عرض سعر لعدد {N} عناصر؟" |
 | Confirm modal body | "We'll prepare your quote within 4 hours." | "سنقوم بتجهيز عرض السعر خلال ٤ ساعات." |
+| Confirm modal dismiss | "Keep Editing" | "متابعة التعديل" |
+| Confirm modal confirm | "Confirm & Submit" | "تأكيد الإرسال" |
 | Submitting state | "Submitting..." | "جاري الإرسال..." |
 | Success heading | "Quote Request Submitted!" | "تم إرسال طلب عرض السعر!" |
 | Success reference | "Reference: QR-2026-{XXXXX}" | "المرجع: QR-2026-{XXXXX}" |
