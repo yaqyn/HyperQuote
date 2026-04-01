@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { checkPortalAuth } from '../lib/auth'
 import { WEBSITE_URL } from '../lib/env'
+import { PortalHeader } from '../components/shell/PortalHeader'
 
 export const Route = createFileRoute('/_portal')({
   beforeLoad: async ({ location }) => {
@@ -41,8 +42,18 @@ function PortalLayout() {
     )
   }
 
+  const userName = auth?.user?.user_metadata?.name ?? ''
+  const companyName = auth?.user?.user_metadata?.company_name ?? undefined
+  const roles: string[] = auth?.user?.user_metadata?.roles ?? []
+  const hasSupplierRole = roles.includes('supplier')
+
   return (
     <div id="main" className="relative h-dvh w-full overflow-hidden">
+      <PortalHeader
+        userName={userName}
+        companyName={companyName}
+        hasSupplierRole={hasSupplierRole}
+      />
       <Outlet />
     </div>
   )
