@@ -669,7 +669,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
-| 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
+| 11. Portal Orders + Delivery + Remaining | 0/7 | Planned    |  |
 | 12. Supplier Portal | 0/? | Not started | - |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |
