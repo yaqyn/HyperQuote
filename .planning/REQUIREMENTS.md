@@ -66,9 +66,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **DB-01**: All 94 tables + 2 materialized views created with correct types, constraints, and indexes
 - [x] **DB-02**: All 50 enums created
-- [ ] **DB-03**: RLS policies for all tables: internal users by tenant, external customers by customer_id, suppliers by supplier_id, drivers by driver_id
+- [x] **DB-03**: RLS policies for all tables: internal users by tenant, external customers by customer_id, suppliers by supplier_id, drivers by driver_id
 - [x] **DB-04**: Auth helper functions (12): pool extractors, role/permission checkers, tenant_id trigger, updated_at trigger, custom access token hook
-- [ ] **DB-05**: State machine transition function + enforcement triggers for all state machines (quote request, quote, order, PO, delivery, invoice, payment)
+- [x] **DB-05**: State machine transition function + enforcement triggers for all state machines (quote request, quote, order, PO, delivery, invoice, payment)
 - [ ] **DB-06**: Business logic triggers: quote_accepted -> create order + POs, delivery_confirmed -> generate invoice, payment_bounced -> credit hold, etc.
 - [ ] **DB-07**: Materialized views: ceo_attention_items (5-min refresh), ap_aging_snapshot (daily)
 - [ ] **DB-08**: Computed functions: payment_behavior_score, customer_tier_score, available_quantity, ar_aging
@@ -296,9 +296,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUPP-06 | Phase 12 | Complete |
 | DB-01 | Phase 13 | Complete |
 | DB-02 | Phase 2 | Complete |
-| DB-03 | Phase 13 | Pending |
+| DB-03 | Phase 13 | Complete |
 | DB-04 | Phase 2 | Complete |
-| DB-05 | Phase 13 | Pending |
+| DB-05 | Phase 13 | Complete |
 | DB-06 | Phase 14 | Pending |
 | DB-07 | Phase 14 | Pending |
 | DB-08 | Phase 14 | Pending |

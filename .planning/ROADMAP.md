@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history (completed 2026-04-01)
 - [x] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA (completed 2026-04-01)
 - [x] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics (completed 2026-04-01)
-- [ ] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes
+- [x] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes (completed 2026-04-01)
 - [ ] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data
 - [ ] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout
 - [ ] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation
@@ -266,7 +266,7 @@ Plans:
 - [x] 13-02-PLAN.md — Quotes, orders, procurement, inventory tables
 - [x] 13-03-PLAN.md — Delivery tables with partitioned driver_locations
 - [x] 13-04-PLAN.md — Finance tables with generated columns + marketplace/zones
-- [ ] 13-05-PLAN.md — State machine + indexes + RLS policies
+- [x] 13-05-PLAN.md — State machine + indexes + RLS policies
 
 ### Phase 14: Database -- Support + HR + AI + System Tables
 **Goal**: The complete 94-table + 2 materialized view database is operational with all triggers, computed functions, cron jobs, and seed data
@@ -667,7 +667,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
 | 11. Portal Orders + Delivery + Remaining | 8/8 | Complete    | 2026-04-01 |
 | 12. Supplier Portal | 6/6 | Complete    | 2026-04-01 |
-| 13. DB -- Order + Delivery + Finance | 4/5 | In Progress|  |
+| 13. DB -- Order + Delivery + Finance | 5/5 | Complete   | 2026-04-01 |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |
 | 15. Internal Platform Shell | 0/? | Not started | - |
 | 16. Sales Module | 0/? | Not started | - |
