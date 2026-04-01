@@ -236,5 +236,75 @@
     "toggleDarkMode": "Switch to dark mode",
     "toggleLightMode": "Switch to light mode",
     "skipToContent": "Skip to main content"
+  },
+  "docs": {
+    "sidebar": {
+      "gettingStarted": "Getting Started",
+      "whatIsHyperquote": "What is HyperQuote?",
+      "creatingAccount": "Creating an Account",
+      "yourFirstQuote": "Your First Quote",
+      "usingPortal": "Using the Portal",
+      "buildingMaterialLists": "Building Material Lists",
+      "trackingOrders": "Tracking Orders",
+      "managingProjects": "Managing Projects",
+      "forSuppliers": "For Suppliers",
+      "publishingCatalog": "Publishing Your Catalog",
+      "managingPrices": "Managing Prices",
+      "handlingPOs": "Handling POs"
+    },
+    "content": {
+      "notFound": "Section Not Found",
+      "notFoundBody": "The requested documentation section could not be found.",
+      "whatIsHyperquote": {
+        "title": "What is HyperQuote?",
+        "overview": "Overview",
+        "howItWorks": "How It Works",
+        "keyFeatures": "Key Features"
+      },
+      "creatingAccount": {
+        "title": "Creating an Account",
+        "signUp": "Signing Up",
+        "verification": "Phone Verification"
+      },
+      "yourFirstQuote": {
+        "title": "Your First Quote",
+        "addingMaterials": "Adding Materials",
+        "submitting": "Submitting Your Quote",
+        "receivingResponse": "Receiving a Response"
+      },
+      "buildingMaterialLists": {
+        "title": "Building Material Lists",
+        "catalogSearch": "Searching the Catalog",
+        "customItems": "Adding Custom Items"
+      },
+      "trackingOrders": {
+        "title": "Tracking Orders",
+        "orderStatus": "Order Status",
+        "deliveryTracking": "Delivery Tracking"
+      },
+      "managingProjects": {
+        "title": "Managing Projects",
+        "createProject": "Creating a Project",
+        "budgets": "Budgets & Tracking"
+      },
+      "publishingCatalog": {
+        "title": "Publishing Your Catalog",
+        "uploadProducts": "Uploading Products",
+        "aiParsing": "AI-Powered Parsing"
+      },
+      "managingPrices": {
+        "title": "Managing Prices",
+        "priceLists": "Price Lists",
+        "bulkUpdates": "Bulk Updates"
+      },
+      "handlingPOs": {
+        "title": "Handling POs",
+        "poInbox": "PO Inbox",
+        "fulfillment": "Fulfillment"
+      }
+    },
+    "toc": {
+      "label": "Table of Contents"
+    }
   }
 }
