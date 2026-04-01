@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-04-01T07:47:31.557Z"
+status: verifying
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-04-01T07:52:50.432Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 32
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 3
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 Phase: 07 (portal-auth-shell) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-01
 
 Progress: [▓░░░░░░░░░] 3%
@@ -70,6 +70,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 06 P04 | 10min | 2 tasks | 15 files |
 | Phase 07 P01 | 6min | 2 tasks | 16 files |
 | Phase 07 P02 | 3min | 2 tasks | 10 files |
+| Phase 07 P03 | 3min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Recent decisions affecting current work:
 - [Phase 07]: process.env for Supabase creds in server functions, import.meta.env for client-side env
 - [Phase 07]: React Aria Popover with CSS transitions for ProfileMenu -- no Motion per UI-VISION gotcha
 - [Phase 07]: Canvas recede uses useMatches() for route detection, not Zustand activeWindow
+- [Phase 07]: WindowShell is portal-specific, NOT shared GlassWindow -- centered panel over visible receded canvas
+- [Phase 07]: Exit animation via canvas restore tween, not AnimatePresence on window unmount
 
 ### Pending Todos
 
@@ -134,6 +137,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T07:47:31.553Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-04-01T07:52:50.428Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None

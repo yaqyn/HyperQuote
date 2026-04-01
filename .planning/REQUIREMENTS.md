@@ -51,7 +51,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PORT-14**: Repeat purchase: saved lists, one-tap reorder, favorites, AI reorder suggestions
 - [ ] **PORT-15**: Guest order claiming: unclaimed customer matches phone -> masked hint -> link auth user to existing customer record
 - [ ] **PORT-16**: PWA: service worker, install prompt after 3rd visit, push notifications (permission on first notification-worthy action)
-- [ ] **PORT-17**: Glass window behavior: spring open/tween close, canvas recedes, escape closes, deep-linking via URL routes
+- [x] **PORT-17**: Glass window behavior: spring open/tween close, canvas recedes, escape closes, deep-linking via URL routes
 
 ### Portal -- Supplier
 
@@ -287,7 +287,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-14 | Phase 11 | Pending |
 | PORT-15 | Phase 11 | Pending |
 | PORT-16 | Phase 11 | Pending |
-| PORT-17 | Phase 7 | Pending |
+| PORT-17 | Phase 7 | Complete |
 | SUPP-01 | Phase 12 | Pending |
 | SUPP-02 | Phase 12 | Pending |
 | SUPP-03 | Phase 12 | Pending |
