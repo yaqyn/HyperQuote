@@ -33,17 +33,13 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding |
 | sm | 8px | Compact element spacing, table cell padding |
-| md | 16px | Default element spacing, card padding |
+| md | 16px | Default element spacing, card padding, payment terms box padding |
 | lg | 24px | Section padding, modal internal padding |
 | xl | 32px | Layout gaps between major sections |
-| 2xl | 48px | Sticky bottom bar height (action buttons) |
+| 2xl | 48px | Sticky bottom bar height, action button height, touch targets minimum |
 | 3xl | 64px | Not used this phase |
 
-Exceptions:
-- Action buttons height: 48px (per FRONTEND.md spec)
-- Accept button height: 48px (flex-1, green bg)
-- Touch targets minimum: 44px on mobile
-- Payment terms box padding: 12px (per spec)
+Exceptions: none. All values are from the standard scale.
 
 ---
 
@@ -52,23 +48,23 @@ Exceptions:
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body | 14px (--text-base) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Label | 12px (--text-sm) | 500 | 1.4 | Inter / IBM Plex Sans Arabic |
+| Label | 12px (--text-sm) | 600 | 1.4 | Inter / IBM Plex Sans Arabic |
 | Heading | 20px (--text-2xl) | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Display | 18px (--text-xl) | 700 | 1.3 | Inter / IBM Plex Sans Arabic |
+| Display | 18px (--text-xl) | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
 
 Numeric-specific typography (Geist Mono -- non-negotiable):
 
 | Element | Size | Weight |
 |---------|------|--------|
-| Quote reference (header) | 20px | 500 |
+| Quote reference (header) | 20px | 600 |
 | Unit price, line total, qty | 14px | 400 |
 | Subtotal, VAT, delivery fee | 14px | 400 |
-| Grand total | 18px | 500 |
+| Grand total | 18px | 600 |
 | Date submitted | 14px | 400 |
-| Validity countdown | 14px | 500 |
-| Order reference (post-accept) | 20px | 500 |
-| ETA display | 16px | 400 |
-| Version comparison numbers | 14px | 400 (old, strikethrough) / 500 (new) |
+| Validity countdown | 14px | 600 |
+| Order reference (post-accept) | 20px | 600 |
+| ETA display | 14px | 400 |
+| Version comparison numbers | 14px | 400 (old, strikethrough) / 600 (new) |
 
 ---
 
@@ -150,7 +146,7 @@ Semantic status colors (data, not design):
 1. User taps "Accept Quote" (green bg, flex-1, 48px height)
 2. AcceptConfirmModal opens (GlassElevated, isKeyboardDismissDisabled)
 3. Modal shows: total in Geist Mono, payment terms, "This will create an order."
-4. "Cancel" (outline) + "Accept" (green bg)
+4. "Keep Reviewing" (outline) + "Accept" (green bg)
 5. On confirm: POST acceptQuote() > brief confetti animation (300ms) > view updates to order tracking > Toast "Order confirmed!"
 6. Confetti: 20-30 particles, blue + white only, gravity fall, 300ms duration via Motion v12
 
@@ -160,7 +156,7 @@ Semantic status colors (data, not design):
 2. Two options presented: "Counter on total" / "Counter per line"
 3. **Total mode:** Single NumberField (React Aria) with "%" suffix. Live recalculation of new total in Geist Mono.
 4. **Per-line mode:** Click price cell > becomes NumberField input. Changed cells get amber bg (var(--color-warning-bg)). Old value shown as strikethrough muted text.
-5. FloatingChangesBar appears at table bottom: "{N} items modified" + [Discard] (outline) + [Submit Counter-Offer] (blue bg, 44px)
+5. FloatingChangesBar appears at table bottom: "{N} items modified" + [Discard] (outline) + [Submit Counter-Offer] (blue bg, 48px)
 6. Volume counter: NumberField for "I'll order {X} instead of {Y}" with live recalculation
 7. Pickup checkbox: "I'll arrange my own pickup (reduce price)"
 8. Notes: React Aria TextArea for Arabic free-text
@@ -182,7 +178,7 @@ Semantic status colors (data, not design):
 2. DeclineModal opens (GlassElevated, isKeyboardDismissDisabled)
 3. Optional reason: React Aria Select (Price too high, Found alternative, Project cancelled, Other)
 4. Optional notes: TextArea
-5. "Cancel" (outline) + "Decline" (red bg)
+5. "Keep Quote" (outline) + "Decline" (red bg)
 6. On confirm: status "Declined" > Toast "Quote declined."
 
 ### Version Comparison Modal
@@ -192,7 +188,7 @@ Semantic status colors (data, not design):
 - Each column has React Aria Select for version picker
 - Defaults: A = previous version, B = current version
 - Diff rendering:
-  - Changed cells: amber/yellow bg. Old value strikethrough Geist Mono 400 muted + new value Geist Mono 500
+  - Changed cells: amber/yellow bg. Old value strikethrough Geist Mono 400 muted + new value Geist Mono 600
   - Added items: green-tinted bg (var(--color-success-bg)) + "NEW" badge
   - Removed items: red-tinted bg (var(--color-error-bg)) + strikethrough + "REMOVED" badge
 - Summary bar at top: "Total changed from EGP 245,000 to EGP 231,500 (-5.5%)" -- Geist Mono for all numbers. Percentage green if decreased, red if increased.
@@ -202,8 +198,8 @@ Semantic status colors (data, not design):
 ### Validity Countdown
 
 - > 3 days remaining: var(--color-text-muted), normal weight
-- <= 3 days remaining: var(--color-warning), weight 500
-- Expired: var(--color-error), weight 500, "Expired" label
+- <= 3 days remaining: var(--color-warning), weight 600
+- Expired: var(--color-error), weight 600, "Expired" label
 - Format: "X days remaining" / "Expires today" / "Expired"
 - All numbers in Geist Mono
 
@@ -250,11 +246,15 @@ Semantic status colors (data, not design):
 | Submit Partial CTA | "Submit Partial Response" | "إرسال الرد الجزئي" |
 | Accept confirm heading | "Accept this quote?" | "قبول هذا العرض؟" |
 | Accept confirm body | "Total: {amount}. Payment terms: {terms}. This will create an order." | "الإجمالي: {amount}. شروط الدفع: {terms}. سيتم إنشاء طلب." |
+| Accept modal dismiss | "Keep Reviewing" | "متابعة المراجعة" |
+| Accept modal confirm | "Accept" | "قبول" |
 | Accept success toast | "Order confirmed!" | "تم تأكيد الطلب!" |
 | Counter confirm heading | "Submit counter-offer?" | "إرسال العرض المضاد؟" |
 | Counter confirm body | "HyperQuote will review and respond." | "سيقوم HyperQuote بالمراجعة والرد." |
 | Counter success toast | "Counter-offer submitted." | "تم إرسال العرض المضاد." |
 | Decline confirm heading | "Decline this quote?" | "رفض هذا العرض؟" |
+| Decline modal dismiss | "Keep Quote" | "الاحتفاظ بالعرض" |
+| Decline modal confirm | "Decline" | "رفض" |
 | Decline success toast | "Quote declined." | "تم رفض العرض." |
 | Empty state heading | "No quote found" | "لم يتم العثور على عرض" |
 | Empty state body | "This quote may have been removed or you don't have access. Go back to Orders." | "قد يكون هذا العرض قد أُزيل أو ليس لديك صلاحية. عد إلى الطلبات." |
