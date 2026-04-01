@@ -16,10 +16,15 @@ function PortalHome() {
     locale === 'ar' || locale === 'en' ? locale : 'en'
 
   return (
-    <SpatialCanvas>
-      <Greeting name={userName} urgentCount={0} locale={currentLocale} />
+    <SpatialCanvas
+      greeting={
+        <>
+          <Greeting name={userName} urgentCount={0} locale={currentLocale} />
+          <NavButtons locale={currentLocale} />
+        </>
+      }
+    >
       <AIChatInput />
-      <NavButtons locale={currentLocale} />
     </SpatialCanvas>
   )
 }
