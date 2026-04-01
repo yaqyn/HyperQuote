@@ -207,7 +207,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 10-01-PLAN.md -- Types, server functions, Zustand store, i18n keys
-- [ ] 10-02-PLAN.md -- Route + display components (header, timeline, line items, subtotals, action bar)
+- [x] 10-02-PLAN.md -- Route + display components (header, timeline, line items, subtotals, action bar)
 - [ ] 10-03-PLAN.md -- Action modals, counter-offer, partial accept, version history/comparison
 **UI hint**: yes
 
@@ -492,7 +492,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 7. Portal Auth + Shell | 3/3 | Complete   | 2026-04-01 |
 | 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
-| 10. Quote Detail + Acceptance | 1/3 | In Progress|  |
+| 10. Quote Detail + Acceptance | 2/3 | In Progress|  |
 | 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
 | 12. Supplier Portal | 0/? | Not started | - |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
