@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"/home/qv/Documents/New Vision/.claude/settings\"*)",
+      "WebSearch"
+    ]
+  }
+}

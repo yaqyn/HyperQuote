@@ -1,0 +1,116 @@
+/* ================================================================
+   HyperQuote — Unified Design Tokens
+   All apps import this single file: @import "./tokens.css";
+
+   Three colors: Blue (#2563EB), White, Black. Plus semantic status.
+   One blue across all apps. No navy variants. No per-app palettes.
+
+   CEO app imports this same file but NEVER references --color-primary.
+   CEO emphasis through typography weight and contrast, not color.
+
+   Website uses --gradient-hero, --gradient-cta, --color-base-alt
+   for hero sections and alternating backgrounds.
+   ================================================================ */
+
+/* Tailwind v4 design tokens — generates utilities (font-sans, rounded-lg, etc.) */
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Spacing (4px base grid) */
+  --spacing: 0.25rem;
+
+  /* Border Radius */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+/*
+ * Color and type scale tokens — NOT in @theme to avoid collision with Tailwind utilities.
+ * e.g. --color-base in @theme would make text-base set color instead of font-size.
+ * e.g. --text-sm in @theme would override Tailwind's built-in text-sm font-size utility.
+ * Used via var(--color-*) in arbitrary values: text-[var(--color-text)].
+ */
+:root {
+  /* Type Scale (14px base, 16px for website body) */
+  --text-xs: 0.6875rem;    /* 11px */
+  --text-sm: 0.75rem;      /* 12px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-lg: 1rem;         /* 16px */
+  --text-xl: 1.125rem;     /* 18px */
+  --text-2xl: 1.25rem;     /* 20px */
+  --text-3xl: 1.5rem;      /* 24px */
+  --text-4xl: 1.875rem;    /* 30px */
+
+  /* Three Colors — Light Mode */
+  --color-base: #FFFFFF;
+  --color-surface: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-elevated: #F4F4F5;       /* popovers, elevated panels */
+  --color-primary: #2563EB;        /* THE blue — all apps except CEO */
+  --color-primary-hover: #1D4ED8;
+  --color-subtle: #EFF6FF;         /* subtle blue backgrounds, highlights */
+  --color-text: #0F172A;
+  --color-text-muted: #64748B;
+  --color-text-subtle: #94A3B8;    /* tertiary text, disabled states */
+  --color-border: #E2E8F0;
+  --color-divider: #F1F5F9;
+
+  /* Website — alternating section backgrounds and hero gradients */
+  --color-base-alt: #EFF6FF;
+  --color-canvas: #0B1221;         /* hero gradient overlays, always dark */
+  --gradient-hero: linear-gradient(135deg, #2563EB, #1D4ED8);
+  --gradient-cta: linear-gradient(135deg, #3B82F6, #2563EB);
+
+  /* Semantic Status — Light Mode */
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #CA8A04;
+  --color-warning-bg: #FEFCE8;
+  --color-error: #DC2626;
+  --color-error-bg: #FEF2F2;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+}
+
+/* Dark Mode — invert White and Black, keep Blue */
+[data-theme="dark"] {
+  --color-base: #09090B;
+  --color-surface: #18181B;
+  --color-card: #27272A;
+  --color-elevated: #3F3F46;
+  --color-primary: #3B82F6;
+  --color-primary-hover: #60A5FA;
+  --color-subtle: #1E293B;
+  --color-text: #FAFAFA;
+  --color-text-muted: #A1A1AA;
+  --color-text-subtle: #71717A;
+  --color-border: #27272A;
+  --color-divider: #1C1C1E;
+
+  --color-base-alt: #18181B;
+  --color-canvas: #0B1221;
+  --gradient-hero: linear-gradient(135deg, #1D4ED8, #1E3A8A);
+  --gradient-cta: linear-gradient(135deg, #2563EB, #1D4ED8);
+
+  /* Semantic Status — Dark Mode */
+  --color-success: #4ADE80;
+  --color-success-bg: rgba(74, 222, 128, 0.1);
+  --color-warning: #FACC15;
+  --color-warning-bg: rgba(250, 204, 21, 0.1);
+  --color-error: #F87171;
+  --color-error-bg: rgba(248, 113, 113, 0.1);
+  --color-info: #60A5FA;
+  --color-info-bg: rgba(96, 165, 250, 0.1);
+}
