@@ -169,7 +169,11 @@ Plans:
   2. Rich messages render inline: product cards (with "Add to Quote"), status cards, and action buttons
   3. Slash commands (`/quote`, `/track`, `/price`, `/help`) trigger specialized flows
   4. Conversation history overlay opens from History icon, showing past conversations
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 08-01-PLAN.md -- Foundation: AI deps, types, server function, usePortalChat hook, Zustand chat store, i18n keys
+- [ ] 08-02-PLAN.md -- Chat UI: multi-line input, message bubbles, typing indicator, stop/cancel, quick action chips, scroll-to-bottom
+- [ ] 08-03-PLAN.md -- Rich messages, slash command palette, conversation history overlay, floating AI wiring
 **UI hint**: yes
 
 ### Phase 9: Portal Material List Builder + Quote Submission
