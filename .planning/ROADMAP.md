@@ -12,15 +12,15 @@ HyperQuote ships as 5 apps (website, portal, internal platform, CEO app, driver 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Monorepo Scaffold** - Create monorepo with 5 apps + 7 packages, validate Supabase SSR on Workers (go/no-go)
+- [x] **Phase 1: Monorepo Scaffold** - Create monorepo with 5 apps + 7 packages, validate Supabase SSR on Workers (go/no-go) (completed 2026-03-31)
 - [x] **Phase 2: Supabase + Initial Migrations** - Extensions, 50 enums, auth/tenant tables, RLS helpers, seed data (completed 2026-03-31)
 - [x] **Phase 3: Shared Packages** - Build 7 shared packages (ui, types, i18n, auth, forms, tables) + vertical slice validation (completed 2026-03-31)
 - [x] **Phase 4: Website Layout + Home + About** - Global shell, hero home page, about page (SSG) (completed 2026-03-31)
-- [ ] **Phase 5: Website Market + Product Detail** - SSR product catalog with filters, product detail pages
-- [ ] **Phase 6: Website Remaining Pages** - Support, docs, careers, legal, login modal, AI chat widget
+- [x] **Phase 5: Website Market + Product Detail** - SSR product catalog with filters, product detail pages (completed 2026-03-31)
+- [x] **Phase 6: Website Remaining Pages** - Support, docs, careers, legal, login modal, AI chat widget (completed 2026-04-01)
 - [x] **Phase 7: Portal Auth + Shell** - Auth gate, spatial canvas, AI chat input, glass window buttons (completed 2026-04-01)
 - [x] **Phase 8: Portal AI Chat** - Streaming AI chat with rich messages, slash commands, history (completed 2026-04-01)
-- [ ] **Phase 9: Portal Material List Builder + Quote Submission** - 4 input methods, 3-step flow, buyer approval workflows
+- [x] **Phase 9: Portal Material List Builder + Quote Submission** - 4 input methods, 3-step flow, buyer approval workflows (completed 2026-04-01)
 - [ ] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history
 - [ ] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA
 - [ ] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics
@@ -56,7 +56,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `bun run dev --filter=website` starts TanStack Start and renders a page with server function data
   3. Supabase SSR auth creates and reads a session cookie on Cloudflare Workers (with `nodejs_compat`)
   4. Each of the 5 apps has a working dev server (4 TanStack Start + 1 plain Vite for driver)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 01-01-PLAN.md -- Monorepo root config, 5 app shells, 7 package stubs, website server function validation
 - [x] 01-02-PLAN.md -- @hyperquote/auth package, Supabase SSR on Workers go/no-go validation
@@ -118,10 +118,10 @@ Plans:
   2. Filter sidebar narrows results by category, and search (fuse.js) finds products by name
   3. Product detail page shows specs table, availability indicator, price range badge, and "Add to Quote" button
   4. "Add to Quote" on product detail opens login modal for unauthenticated users
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 05-01-PLAN.md -- Products table migration + seed data + server functions + search/price utilities
-- [ ] 05-02-PLAN.md -- Market page with filters, search, grid/list toggle, pagination
+- [x] 05-02-PLAN.md -- Market page with filters, search, grid/list toggle, pagination
 - [x] 05-03-PLAN.md -- Product detail page with specs, gallery, quote CTA, related products
 **UI hint**: yes
 
@@ -135,10 +135,10 @@ Plans:
   3. AI chat widget opens from floating button, streams responses via SSE, and shows inline product cards
   4. Support page accepts anonymous contact form submissions, FAQ accordion expands/collapses
   5. All pages are responsive on mobile, work in RTL Arabic, and support dark mode
-**Plans:** 2/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 06-01-PLAN.md -- Support page (contact form + FAQ accordion + server function)
-- [ ] 06-02-PLAN.md -- Legal pages + Careers (SSG content pages)
+- [x] 06-02-PLAN.md -- Legal pages + Careers (SSG content pages)
 - [x] 06-03-PLAN.md -- Login modal (phone OTP auth flow + rate limiting + CTA wiring)
 - [x] 06-04-PLAN.md -- AI chat widget (floating button + chat panel + real SSE transport)
 - [x] 06-05-PLAN.md -- Docs skeleton (sidebar navigation + TOC)
@@ -186,12 +186,12 @@ Plans:
   3. Auto-save preserves draft every 30 seconds; returning user sees their in-progress list
   4. Buyer with "approver" role receives notification when team member submits; pending approvals tab shows actionable items
   5. Delivery address ComboBox loads saved addresses and auto-expands new address form for first-time users
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 09-01-PLAN.md -- Database migration (quote_requests, addresses, projects) + server functions + Zustand store + utility libs
 - [x] 09-02-PLAN.md -- Route, 3-step flow, step indicator, Search & Add, product list table with drag reorder
 - [x] 09-03-PLAN.md -- Upload (CSV/Excel) with validation, Quick Pad, AI Assist input methods
-- [ ] 09-04-PLAN.md -- Step 2 details (address, date, attachments) + Step 3 review & submit + confirmation
+- [x] 09-04-PLAN.md -- Step 2 details (address, date, attachments) + Step 3 review & submit + confirmation
 - [x] 09-05-PLAN.md -- Buyer-side approval workflows (PORT-13): conditional submit, approver review UI
 **UI hint**: yes
 

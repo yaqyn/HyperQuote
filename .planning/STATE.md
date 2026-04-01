@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Egyptian contractors can request quotes for building materials and receive responses within 4 hours through an AI-powered platform.
-**Current focus:** Phase 09 — portal-material-list-builder-quote-submission
+**Current focus:** Phase 10 — portal-quote-detail-acceptance
 
 ## Current Position
 
