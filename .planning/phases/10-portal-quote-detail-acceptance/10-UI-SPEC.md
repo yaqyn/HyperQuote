@@ -176,11 +176,11 @@ Semantic status colors (data, not design):
 
 ### Decline Flow
 
-1. User taps "Decline" (red outline, 48px)
+1. User taps "Decline Quote" (red outline, 48px)
 2. DeclineModal opens (GlassElevated, isKeyboardDismissDisabled)
 3. Optional reason: React Aria Select (Price too high, Found alternative, Project cancelled, Other)
 4. Optional notes: TextArea
-5. "Keep Quote" (outline) + "Decline" (red bg)
+5. "Keep Quote" (outline) + "Decline Quote" (red bg)
 6. On confirm: status "Declined" > Toast "Quote declined."
 
 ### Payment Terms Box
@@ -250,7 +250,7 @@ Semantic status colors (data, not design):
 | Primary CTA | "Accept Quote" | "قبول العرض" |
 | Counter-Offer CTA | "Counter-Offer" | "عرض مضاد" |
 | Partial Accept CTA | "Partial Accept" | "قبول جزئي" |
-| Decline CTA | "Decline" | "رفض" |
+| Decline CTA | "Decline Quote" | "رفض العرض" |
 | Submit Counter CTA | "Submit Counter-Offer" | "إرسال العرض المضاد" |
 | Submit Partial CTA | "Submit Partial Response" | "إرسال الرد الجزئي" |
 | Accept confirm heading | "Accept this quote?" | "قبول هذا العرض؟" |
@@ -263,9 +263,9 @@ Semantic status colors (data, not design):
 | Counter success toast | "Counter-offer submitted." | "تم إرسال العرض المضاد." |
 | Decline confirm heading | "Decline this quote?" | "رفض هذا العرض؟" |
 | Decline modal dismiss | "Keep Quote" | "الاحتفاظ بالعرض" |
-| Decline modal confirm | "Decline" | "رفض" |
+| Decline modal confirm | "Decline Quote" | "رفض العرض" |
 | Decline success toast | "Quote declined." | "تم رفض العرض." |
-| Empty state heading | "No quote found" | "لم يتم العثور على عرض" |
+| Empty state heading | "This quote isn't available" | "هذا العرض غير متاح" |
 | Empty state body | "This quote may have been removed or you don't have access. Go back to Orders." | "قد يكون هذا العرض قد أُزيل أو ليس لديك صلاحية. عد إلى الطلبات." |
 | Error state | "Failed to load quote. Check your connection and try again." | "فشل تحميل العرض. تحقق من اتصالك وحاول مرة أخرى." |
 | Floating changes bar | "{N} items modified" | "تم تعديل {N} عناصر" |
@@ -320,11 +320,11 @@ Reject line reason options:
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS (revised: "Cancel" → contextual labels, "Decline" → "Decline Quote", empty state heading → specific)
+- [x] Dimension 2 Visuals: PASS (focal point declared)
+- [x] Dimension 3 Color: PASS (60/30/10 explicit, accent list specific)
+- [x] Dimension 4 Typography: PASS (revised: 4 sizes, 2 weights, "Display" → "Subheading")
+- [x] Dimension 5 Spacing: PASS (revised: p-12px → p-16px, 44px → 48px)
+- [x] Dimension 6 Registry Safety: PASS (no third-party registry)
 
-**Approval:** pending
+**Approval:** approved (after 2 revision cycles + direct copywriting fixes)
