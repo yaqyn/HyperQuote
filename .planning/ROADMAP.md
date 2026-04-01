@@ -221,15 +221,16 @@ Plans:
   3. Notifications arrive in real-time via Supabase Realtime, grouped by time, with click-through navigation
   4. Guest order claiming matches phone number to existing customer record via masked hint flow
   5. PWA installs after 3rd visit with push notification permission requested on first notification-worthy action
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [x] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [x] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [x] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [x] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [x] 11-06-PLAN.md — Settings window with all 8 sections
 - [x] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 11-08-PLAN.md — Gap closure: wire AIReorderSuggestion props, render FavoriteButton, fix driver location truth
 **UI hint**: yes
 
 ### Phase 12: Supplier Portal
@@ -242,13 +243,13 @@ Plans:
   3. Catalog upload accepts drag-and-drop (PDF/Excel/CSV), AI parses with confidence scores, and side-by-side review works
   4. PO inbox shows pending/confirmed/history tabs with per-PO confirm/reject and per-line actions
   5. Analytics dashboard shows KPIs (revenue, fill rate, on-time rate) and monthly revenue chart
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -262,13 +263,13 @@ Plans:
   2. RLS policies block cross-tenant and cross-customer access for every table
   3. State machine transition function enforces valid-only transitions for quote_request, quote, order, PO, delivery, invoice, and payment
   4. `EXPLAIN ANALYZE` on key queries shows index usage (no sequential scans on RLS-filtered columns)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -282,13 +283,13 @@ Plans:
   3. Computed functions (payment_behavior_score, customer_tier_score, available_quantity, ar_aging) return expected values for test data
   4. All pg_cron jobs are scheduled (quote expiry, AR aging snapshots, metrics pre-computation, SLA breach detection)
   5. Seed data loaded: governorates (27), system_settings defaults, delivery_zones
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -303,13 +304,13 @@ Plans:
   4. Ctrl+K opens command palette with fuse.js cross-entity search and keyboard navigation
   5. Swapping between windows preserves each window's state (Zustand keyed by module)
   6. Shared activity feed component renders on any entity with @mentions, internal/external comments, and system events
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -324,13 +325,13 @@ Plans:
   3. Approval flow pushes notification to approver when margin or value thresholds are exceeded, with 2h escalation
   4. Customer 360 shows 9 tabs of customer history with health score
   5. Pipeline kanban shows 9 stages with click-to-advance and drag-and-drop
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -344,13 +345,13 @@ Plans:
   2. Price comparison matrix ranks suppliers per-line (price 40% + availability 25% + lead time 20% + reliability 15%) and supports split sourcing
   3. POs auto-generate from quote acceptance with 10-status flow and three-way match status
   4. Supplier scorecard shows on-time delivery %, fill rate, quality rejection %, and tiering (Preferred/Approved/Conditional/New)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -363,13 +364,13 @@ Plans:
   1. Fulfillment kanban shows 6 columns (PO Placed through Delivered) with drag-and-drop
   2. Order detail shows per-line-item status, overall progress bar, and activity log
   3. Operations dashboard shows 4 metric cards, bottleneck pipeline, 5 SLA types, and cross-module "Nudge" button
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -384,13 +385,13 @@ Plans:
   3. Staging + load verification completes 5-step gated flow (scan truck -> scan items -> verify weight -> photos -> dual sign-off)
   4. Blind cycle count hides system quantities, triggers threshold recount by ABC class, and requires supervisor approval for variances
   5. Yard management shows interactive zone map with capacity utilization color coding and Khamsin weather alerts
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -405,13 +406,13 @@ Plans:
   3. Payment recording handles all 4 instruments: wire (auto-match), cheque (PDC tracking with status machine), LC (draw-down tracking), cash
   4. Credit management shows profile card with utilization bar, auto-hold triggers (5 types), and new customer defaults (50% advance + 50% COD)
   5. Bank reconciliation imports CSV, auto-matches by amount+reference, and surfaces unmatched items
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -425,13 +426,13 @@ Plans:
   2. Live GPS map shows color-coded vehicle pins (yellow=loading, green=transit, blue=at site, red=problem) with route lines
   3. POD validation split-view shows photo + delivery note with item-by-item confirmation and damage flagging
   4. Driver management tracks license expiry, certifications, and performance metrics
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -445,13 +446,13 @@ Plans:
   2. HR tracks driver compliance (CDL/medical/drug test) and blocks dispatch if certifications are expired
   3. Admin manages users/roles/permissions, margin rules, approval thresholds, holiday calendar, and audit log
   4. AI assistant operates within glass window with role-aware capabilities and safety guardrails (read-only DB, draft-review-confirm)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -466,13 +467,13 @@ Plans:
   3. AI chat routes between Analytics AI (pre-computed metrics + text-to-SQL) and RAG AI (pgvector embeddings) based on query type
   4. Attention items surface bounced cheques, overdue 60+ days, delivery failures, and PO rejections from materialized view
   5. PWA installs and works offline in read-only mode
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -486,13 +487,13 @@ Plans:
   2. Login completes phone OTP -> 6-digit PIN -> biometric enrollment flow
   3. Shift start captures vehicle selection, 10-point DVIR checklist with photos, odometer, GPS consent
   4. PowerSync + SQLite is initialized and syncs driver-relevant tables from Supabase
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -507,13 +508,13 @@ Plans:
   3. Loading verification scans barcodes per item, checks weight, and captures photo of loaded truck
   4. Delivery execution auto-detects arrival via geofence, confirms per-line items, and runs unloading timer
   5. POD captures photos + digital signature + GPS location + quantity confirmation per item
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -527,13 +528,13 @@ Plans:
   2. End of day completes shift summary, returns processing, post-trip DVIR, odometer, and sign-off
   3. External drivers see job offers (accept/decline with payout visibility) and earnings dashboard
   4. Full delivery flow completes without internet; mutations queue in PowerSync and sync on reconnect
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 **UI hint**: yes
@@ -547,13 +548,13 @@ Plans:
   2. Order status notifications (confirmed, shipped, delivered) arrive on customer's WhatsApp
   3. AR reminders send automatically based on aging thresholds
   4. CEO daily digest (7AM) and weekly insight (Sunday) deliver via WhatsApp
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -565,13 +566,13 @@ Plans:
   1. Transactional emails (quote ready, order confirmed, invoice attached) send via Resend with React Email templates
   2. Invoice PDF generates Arabic-primary with ETA-required fields, digital stamp, and Geist Mono for all numbers
   3. All 8 document types generate correctly: invoice, quote, proforma, delivery note, BOL, credit note, receipt, board report
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -584,13 +585,13 @@ Plans:
   2. Digital signature via HSM/ITIDA signs each submission correctly
   3. Credit note submissions reference the original invoice per ETA requirements
   4. Submission status (accepted/rejected/pending) tracks per invoice with retry on failure
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -603,13 +604,13 @@ Plans:
   2. Supplier catalog PDFs parse via Mistral OCR with confidence scores per extracted field
   3. CEO RAG queries return relevant results from pgvector embeddings with hybrid search
   4. Prompt templates load per-surface (portal, CEO, internal, supplier) with appropriate context and safety guardrails
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -622,13 +623,13 @@ Plans:
   2. Cloudflare KV caches JWKS, config, and exchange rates with appropriate TTLs
   3. Hyperdrive connection pooling is active for all read queries across 5 Workers
   4. TanStack Query staleTime is configured per data type (30s for GPS, 5min for orders, 1h for catalog)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
@@ -641,13 +642,13 @@ Plans:
   2. Playwright E2E completes: auth -> quote request -> accept quote -> track order
   3. Arabic locale tests verify RTL layout, Arabic-Indic numbers, unit translations, and currency formatting
   4. All 5 Workers deploy via wrangler with correct domain routing (website, portal, internal, ceo, driver API)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
 - [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
 - [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
 - [ ] 11-04-PLAN.md — Documents + Support windows
-- [ ] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
+- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
 - [ ] 11-06-PLAN.md — Settings window with all 8 sections
 - [ ] 11-07-PLAN.md — PWA + Guest order claiming
 
