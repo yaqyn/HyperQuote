@@ -204,7 +204,11 @@ Plans:
   2. "Accept" creates an order + supplier POs + proforma invoice in one transaction
   3. Counter-offer allows total discount OR per-line price editing with amber highlights and floating changes bar
   4. Version history shows collapsible diffs and side-by-side comparison between quote versions
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 10-01-PLAN.md -- Types, server functions, Zustand store, i18n keys
+- [ ] 10-02-PLAN.md -- Route + display components (header, timeline, line items, subtotals, action bar)
+- [ ] 10-03-PLAN.md -- Action modals, counter-offer, partial accept, version history/comparison
 **UI hint**: yes
 
 ### Phase 11: Portal Orders + Delivery + Remaining Windows
