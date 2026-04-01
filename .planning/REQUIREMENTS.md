@@ -73,7 +73,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DB-07**: Materialized views: ceo_attention_items (5-min refresh), ap_aging_snapshot (daily)
 - [ ] **DB-08**: Computed functions: payment_behavior_score, customer_tier_score, available_quantity, ar_aging
 - [ ] **DB-09**: pg_cron jobs: quote expiry, AR aging snapshots, metrics pre-computation, SLA breach detection
-- [ ] **DB-10**: Seed data: role_permissions, governorates (27), system_settings defaults, delivery_zones
+- [x] **DB-10**: Seed data: role_permissions, governorates (27), system_settings defaults, delivery_zones
 
 ### Internal Platform -- Shell
 
@@ -303,7 +303,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DB-07 | Phase 14 | Pending |
 | DB-08 | Phase 14 | Pending |
 | DB-09 | Phase 14 | Pending |
-| DB-10 | Phase 14 | Pending |
+| DB-10 | Phase 14 | Complete |
 | INT-01 | Phase 15 | Pending |
 | INT-02 | Phase 15 | Pending |
 | INT-03 | Phase 15 | Pending |
