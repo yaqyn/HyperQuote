@@ -55,7 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Portal -- Supplier
 
-- [ ] **SUPP-01**: Supplier role toggle: switches canvas, navigation buttons, AI context
+- [x] **SUPP-01**: Supplier role toggle: switches canvas, navigation buttons, AI context
 - [ ] **SUPP-02**: Stock & Pricing: product table with inline edit (price + qty), freshness color coding, bulk CSV update with diff preview
 - [ ] **SUPP-03**: Catalog upload: drag-and-drop (PDF/Excel/CSV), AI parsing with confidence scores, side-by-side review, submit for approval
 - [ ] **SUPP-04**: PO inbox: pending/confirmed/history tabs, per-PO confirm/reject with per-line actions, delivery scheduling
@@ -288,7 +288,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-15 | Phase 11 | Complete |
 | PORT-16 | Phase 11 | Complete |
 | PORT-17 | Phase 7 | Complete |
-| SUPP-01 | Phase 12 | Pending |
+| SUPP-01 | Phase 12 | Complete |
 | SUPP-02 | Phase 12 | Pending |
 | SUPP-03 | Phase 12 | Pending |
 | SUPP-04 | Phase 12 | Pending |

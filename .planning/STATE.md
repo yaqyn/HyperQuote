@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 11-08-PLAN.md
-last_updated: "2026-04-01T19:38:38.062Z"
-last_activity: 2026-04-01
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-04-01T20:57:23.927Z"
+last_activity: 2026-04-01 -- Completed 12-01-PLAN.md
 progress:
   total_phases: 32
   completed_phases: 11
-  total_plans: 41
-  completed_plans: 41
+  total_plans: 46
+  completed_plans: 42
   percent: 3
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Egyptian contractors can request quotes for building materials and receive responses within 4 hours through an AI-powered platform.
-**Current focus:** Phase 10 — portal-quote-detail-acceptance
+**Current focus:** Phase 12 — supplier-portal
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-01
+Phase: 12 (supplier-portal) — EXECUTING
+Plan: 2 of 5
+Status: Executing Phase 12
+Last activity: 2026-04-01 -- Completed 12-01-PLAN.md
 
 Progress: [▓░░░░░░░░░] 3%
 
@@ -82,6 +82,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 11 P02 | 5min | 2 tasks | 9 files |
 | Phase 11 P07 | 3min | 2 tasks | 12 files |
 | Phase 11 P08 | 2min | 2 tasks | 3 files |
+| Phase 12 P01 | 7min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,8 @@ Recent decisions affecting current work:
 - [Phase 11]: AIReorderSuggestion wired via dynamic require() slot for parallel plan compatibility
 - [Phase 11]: Static import for AIReorderSuggestion replaces dynamic require pattern now that component exists
 - [Phase 11]: GPS polling at 10s is intentional for dev-mode; Supabase Realtime deferred to Phase 12
+- [Phase 12]: bulkUpdatePrices uses array-based { updates[] } input, not { fileUrl } -- CSV parsed client-side
+- [Phase 12]: Customer shortcuts O/M conditioned on activeRole === 'customer' to prevent conflict with supplier S/P/A
 
 ### Pending Todos
 
@@ -166,6 +169,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T19:34:43.446Z
-Stopped at: Completed 11-08-PLAN.md
+Last session: 2026-04-01T20:57:23.922Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
