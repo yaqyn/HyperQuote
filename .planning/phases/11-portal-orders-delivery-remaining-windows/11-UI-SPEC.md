@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Empty state icon size, action button heights, touch targets |
 | 3xl | 64px | Notification item min-height, profile photo diameter |
 
-Exceptions: 44px tab bar height (React Aria Tabs touch target), 12px vertical gap between order cards (mb-12px per FRONTEND.md spec).
+Exceptions: 44px tab bar height (React Aria Tabs touch target -- per WAI-ARIA Tabs Pattern, interactive tab elements require minimum 44x44px touch target per WCAG 2.5.5 Target Size), 12px vertical gap between order cards (mb-12px per FRONTEND.md spec).
 
 ---
 
@@ -48,7 +48,7 @@ Exceptions: 44px tab bar height (React Aria Tabs touch target), 12px vertical ga
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body | 14px (--text-base) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Label | 12px (--text-sm) | 500 | 1.4 | Inter / IBM Plex Sans Arabic |
+| Label | 12px (--text-sm) | 400 | 1.4 | Inter / IBM Plex Sans Arabic |
 | Heading | 18px (--text-xl) | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
 | Subheading | 16px (--text-lg) | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
 
@@ -60,7 +60,7 @@ Numeric-specific typography (Geist Mono -- non-negotiable):
 | Amount (EGP 245,000) | 14px | 400 |
 | Tab count badges | 12px | 400 |
 | Date display (order cards, settings sessions) | 12px | 400 |
-| Notification timestamp | 11px | 400 |
+| Notification timestamp | 12px | 400 |
 | Tracking ETA | 14px | 400 |
 | Progress bar stage label numbers | 12px | 600 |
 | Phone number (settings, read-only) | 14px | 400 |
@@ -129,7 +129,7 @@ Semantic status colors (data, not design):
 | ReorderButton | Button | orderId, itemCount, onReorder |
 | ReorderConfirmModal | Dialog | orderRef, itemCount, onQuickSubmit, onEditFirst |
 | DraftCard | -- (composition) | reference, lastEdited, onContinue, onDelete |
-| DeleteDraftModal | Dialog | draftRef, onConfirm, onCancel |
+| DeleteDraftModal | Dialog | draftRef, onConfirm, onKeepDraft |
 
 **Order Tracking (PORT-07)**
 
@@ -140,7 +140,7 @@ Semantic status colors (data, not design):
 | GPSDeliveryMap | -- (ClientOnly wrap) | driverLocation, routePolyline, destination, eta |
 | PaymentInstructionsCard | -- (composition) | iban, bankName, reference, amount |
 | PODConfirmation | -- (composition) | photos[], deliveryId, onConfirm, onDispute |
-| DisputeModal | Dialog | deliveryId, onSubmit, onCancel |
+| DisputeModal | Dialog | deliveryId, onSubmit, onGoBack |
 | ETADisplay | -- (display) | eta, lastUpdated |
 
 **Market Window (PORT-08)**
@@ -246,8 +246,8 @@ Semantic status colors (data, not design):
 
 - React Aria Tabs with 4 tabs: Active, Quotes, History, Drafts
 - Tab count badges in Geist Mono 12px (e.g., "Active (3)")
-- Active tab: var(--color-text) + 2px bottom border var(--color-primary)
-- Inactive tab: var(--color-text-muted)
+- Active tab: Inter 400 14px var(--color-text) + 2px bottom border var(--color-primary)
+- Inactive tab: Inter 400 14px var(--color-text-muted)
 - Tab content crossfade: tween 150ms ease-out on switch
 - Each tab loads independently via TanStack Query
 - Default tab: Active
@@ -258,6 +258,17 @@ Semantic status colors (data, not design):
 - Hover: border-color transitions to var(--color-primary) at 30% opacity + translateY(-1px), 150ms ease
 - Press: navigates to order detail / quote detail / tracking view
 - RTL: ChevronRight flips to ChevronLeft via `icon-end` class
+
+### Filter Chips (Quotes Tab)
+
+- React Aria ToggleButton group
+- Chips: height 32px, rounded-full, px-12px
+- Active chip: var(--color-primary) bg, white text, Inter 400 14px
+- Inactive chip: var(--color-surface) bg, var(--color-text-muted) text, Inter 400 14px
+
+### Status Badge Text
+
+- Status badges: semantic color bg + text, rounded-sm, px-6px py-2px, Inter 400 12px
 
 ### Reorder Flow
 
@@ -273,7 +284,7 @@ Semantic status colors (data, not design):
 
 1. Hover on draft card: Trash2 icon turns var(--color-error)
 2. Press delete: DeleteDraftModal opens (GlassElevated, isKeyboardDismissDisabled)
-3. "Cancel" (outline) + "Delete Draft" (red bg)
+3. "Keep Draft" (outline) + "Delete Draft" (red bg)
 4. Toast: "Draft deleted."
 
 ### 5-Stage Progress Bar (Order Tracking)
@@ -284,7 +295,7 @@ Semantic status colors (data, not design):
 - Future stage: gray circle (var(--color-text-subtle)) + connecting line gray dashed
 - Desktop: horizontal layout
 - Mobile: horizontal, scrollable if needed
-- Stage labels: Inter 500 12px below each circle
+- Stage labels: Inter 400 12px below each circle
 
 ### GPS Delivery Map
 
@@ -303,7 +314,7 @@ Semantic status colors (data, not design):
 2. Banner: "Please confirm delivery within 72 hours" + countdown in Geist Mono
 3. Two buttons: "Confirm Delivery" (green bg, 48px) + "Dispute" (red outline, 48px)
 4. **Confirm:** POST confirmDropShipDelivery() > delivery transitions to "Delivered" > Toast "Delivery confirmed!"
-5. **Dispute:** DisputeModal opens. Reason textarea (required) + photo upload (optional, max 5). "Cancel" (outline) + "Submit Dispute" (red bg). Creates support ticket.
+5. **Dispute:** DisputeModal opens. Reason textarea (required) + photo upload (optional, max 5). "Go Back" (outline) + "Submit Dispute" (red bg). Creates support ticket.
 6. After 72h without action: auto-confirmed by pg_cron (UI shows "Auto-confirmed" badge)
 
 ### Notifications Real-Time
@@ -312,6 +323,7 @@ Semantic status colors (data, not design):
 - New notification: spring animation at top of list (translateY from -20px, opacity 0 > 1, ~200ms)
 - New notification triggers TanStack Query cache invalidation for unread count badge
 - Click notification: marks read via PATCH markNotificationRead() + navigates to target entity + window closes
+- Notification timestamp: Geist Mono 12px var(--color-text-subtle) (relative: "2 min ago", "1 hour ago", absolute after 7 days)
 - "Show older" loads next 20 via cursor-based pagination
 
 ### Market Window Quick Add
@@ -331,7 +343,7 @@ Semantic status colors (data, not design):
 ### Settings Save Behavior
 
 - Toggles and selects: save immediately on change (auto-save)
-- Text fields: show "Save" button when content differs from saved value
+- Text fields: show "Save Changes" button (Inter 400 14px) when content differs from saved value
 - Unsaved changes: warn on navigation away (beforeLoad prompt)
 - Language change: applies immediately, page re-renders
 - Theme change: applies immediately via data-theme attribute
@@ -446,6 +458,7 @@ Semantic status colors (data, not design):
 | Reorder success toast | "Quote request created from order {REF}" | "تم إنشاء طلب عرض سعر من الطلب {REF}" |
 | Delete draft confirm | "Delete this draft?" | "حذف هذه المسودة؟" |
 | Delete draft body | "This cannot be undone." | "لا يمكن التراجع عن هذا." |
+| Keep Draft button (dismiss) | "Keep Draft" | "الاحتفاظ بالمسودة" |
 | Delete button | "Delete Draft" | "حذف المسودة" |
 | Delete success toast | "Draft deleted." | "تم حذف المسودة." |
 | Error state | "Failed to load orders. Check your connection and try again." | "فشل تحميل الطلبات. تحقق من اتصالك وحاول مرة أخرى." |
@@ -468,6 +481,7 @@ Semantic status colors (data, not design):
 | Dispute modal heading | "Dispute this delivery?" | "الاعتراض على هذا التسليم؟" |
 | Dispute reason label | "What went wrong?" | "ما المشكلة؟" |
 | Dispute photo label | "Add photos (optional)" | "إضافة صور (اختياري)" |
+| Go Back button (dismiss) | "Go Back" | "الرجوع" |
 | Submit Dispute button | "Submit Dispute" | "إرسال الاعتراض" |
 | Dispute success toast | "Dispute submitted. Our team will review it." | "تم إرسال الاعتراض. سيقوم فريقنا بمراجعته." |
 | Auto-confirmed badge | "Auto-confirmed" | "تأكيد تلقائي" |
@@ -534,7 +548,7 @@ Semantic status colors (data, not design):
 | Language section | "Language & Appearance" | "اللغة والمظهر" |
 | Security section | "Security" | "الأمان" |
 | Referrals section | "Referrals" | "الإحالات" |
-| Save button | "Save" | "حفظ" |
+| Save Changes button | "Save Changes" | "حفظ التغييرات" |
 | Trade license: Not uploaded | "Not uploaded" | "لم يتم الرفع" |
 | Trade license: Under Review | "Under Review" | "قيد المراجعة" |
 | Trade license: Verified | "Verified" | "تم التحقق" |
@@ -546,7 +560,7 @@ Semantic status colors (data, not design):
 | Transfer Ownership link | "Transfer Ownership" | "نقل الملكية" |
 | Transfer confirm | "Transfer account ownership to {name}? This requires OTP verification." | "نقل ملكية الحساب إلى {name}؟ يتطلب ذلك التحقق برمز OTP." |
 | Quiet hours label | "Quiet Hours" | "ساعات الهدوء" |
-| Arabic-Indic toggle | "Arabic-Indic (\\u0661\\u0662\\u0663)" | "أرقام عربية (\\u0661\\u0662\\u0663)" |
+| Arabic-Indic toggle | "Arabic-Indic (\u0661\u0662\u0663)" | "أرقام عربية (\u0661\u0662\u0663)" |
 | Western toggle | "Western (123)" | "أرقام غربية (123)" |
 | Active sessions heading | "Active Sessions" | "الجلسات النشطة" |
 | Sign out session | "Sign Out" | "تسجيل خروج" |
@@ -614,6 +628,7 @@ Semantic status colors (data, not design):
 - Date pickers use React Aria DatePicker with proper locale formatting
 - File uploads provide progress indication and error feedback
 - Team role select uses React Aria Select with proper label
+- Draft card delete icon (Trash2): `aria-label="Delete draft {reference}"` where {reference} is the draft reference number (e.g., "Delete draft QR-2026-00042")
 
 ---
 
