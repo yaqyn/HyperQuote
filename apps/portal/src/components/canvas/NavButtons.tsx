@@ -6,6 +6,7 @@ import {
   Store,
   Package,
   ClipboardList,
+  BarChart3,
 } from 'lucide-react'
 import { usePortalStore } from '../../stores/portal'
 import { formatNumber } from '@hyperquote/i18n'
@@ -49,6 +50,11 @@ export function NavButtons({ locale }: NavButtonsProps) {
       to: '/supplier/orders',
       icon: ClipboardList,
       labelKey: 'nav.purchaseOrders',
+    },
+    {
+      to: '/supplier/analytics',
+      icon: BarChart3,
+      labelKey: 'nav.analytics',
     },
   ]
 

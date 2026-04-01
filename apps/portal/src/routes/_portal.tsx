@@ -4,6 +4,7 @@ import { checkPortalAuth } from '../lib/auth'
 import { WEBSITE_URL } from '../lib/env'
 import { PortalHeader } from '../components/shell/PortalHeader'
 import { useShortcut } from '../hooks/useShortcut'
+import { usePortalStore } from '../stores/portal'
 
 export const Route = createFileRoute('/_portal')({
   beforeLoad: async ({ location }) => {
@@ -61,12 +62,21 @@ function PortalLayout() {
   )
 }
 
-/** Layout-level keyboard shortcuts: O/M/N open windows, / focuses chat */
+/** Layout-level keyboard shortcuts: O/M/N open windows, / focuses chat, S/P/A for supplier */
 function PortalShortcuts() {
   const navigate = useNavigate()
+  const activeRole = usePortalStore((s) => s.activeRole)
 
-  useShortcut('o', () => navigate({ to: '/orders' }))
-  useShortcut('m', () => navigate({ to: '/market' }))
+  // Customer shortcuts (only active when customer mode)
+  useShortcut('o', () => navigate({ to: '/orders' }), { enabled: activeRole === 'customer' })
+  useShortcut('m', () => navigate({ to: '/market' }), { enabled: activeRole === 'customer' })
+
+  // Supplier shortcuts (only active when supplier mode)
+  useShortcut('s', () => navigate({ to: '/supplier/stock' }), { enabled: activeRole === 'supplier' })
+  useShortcut('p', () => navigate({ to: '/supplier/orders' }), { enabled: activeRole === 'supplier' })
+  useShortcut('a', () => navigate({ to: '/supplier/analytics' }), { enabled: activeRole === 'supplier' })
+
+  // Universal shortcuts
   useShortcut('n', () => navigate({ to: '/notifications' }))
   useShortcut('/', () => {
     const el = document.querySelector<HTMLInputElement>('[data-chat-input]')
