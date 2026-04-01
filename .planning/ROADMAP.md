@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 11. Portal Orders + Delivery + Remaining | 8/8 | Complete    | 2026-04-01 |
 | 12. Supplier Portal | 6/6 | Complete    | 2026-04-01 |
 | 13. DB -- Order + Delivery + Finance | 5/5 | Complete    | 2026-04-01 |
-| 14. DB -- Support + HR + AI + System | 4/4 | Complete   | 2026-04-01 |
+| 14. DB -- Support + HR + AI + System | 4/4 | Complete    | 2026-04-01 |
 | 15. Internal Platform Shell | 0/? | Not started | - |
 | 16. Sales Module | 0/? | Not started | - |
 | 17. Procurement Module | 0/? | Not started | - |
