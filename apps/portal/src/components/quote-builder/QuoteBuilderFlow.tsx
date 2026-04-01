@@ -12,6 +12,7 @@ import { Button } from 'react-aria-components'
 import { useQuoteBuilderStore } from '../../stores/quote-builder'
 import { StepIndicator } from './StepIndicator'
 import { BuildListStep } from './step1/BuildListStep'
+import { ReviewStep } from './step3/ReviewStep'
 import { saveDraft } from '../../lib/server/quote-requests'
 
 export function QuoteBuilderFlow() {
@@ -112,12 +113,8 @@ export function QuoteBuilderFlow() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.2 }}
-              className="px-6 py-4"
             >
-              {/* Step 3: Review -- placeholder for Plan 05 */}
-              <div className="text-sm text-[var(--color-text-muted)]">
-                {t('quoteBuilder.step3')}
-              </div>
+              <ReviewStep />
             </motion.div>
           )}
         </AnimatePresence>
