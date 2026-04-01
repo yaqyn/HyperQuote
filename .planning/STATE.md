@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-04-01T21:10:01.691Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-04-01T21:11:15.988Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 32
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 46
-  completed_plans: 45
+  completed_plans: 46
   percent: 3
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 ## Current Position
 
 Phase: 12 (supplier-portal) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -84,6 +84,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 11 P08 | 2min | 2 tasks | 3 files |
 | Phase 12 P04 | 3min | 2 tasks | 8 files |
 | Phase 12 P02 | 4min | 2 tasks | 8 files |
+| Phase 12 P03 | 10min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,8 @@ Recent decisions affecting current work:
 - [Phase 12]: CatalogUploadModal renders inline in route, not modal overlay -- it IS the page content
 - [Phase 12]: ProductPerformanceTable uses native table with role=grid for simpler sort state management
 - [Phase 12]: InlineEditCell uses standalone React Aria NumberField; ProductEditDrawer uses RHF-wrapped version
+- [Phase 12]: POCard deadline urgency computed client-side from responseDeadline vs Date.now()
+- [Phase 12]: InvoiceForm VAT: Math.round(subtotal * 14) / 100 per RESEARCH.md Pitfall 4
 
 ### Pending Todos
 
@@ -171,6 +174,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:10:01.687Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-04-01T21:11:15.985Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
