@@ -169,10 +169,10 @@ Plans:
   2. Rich messages render inline: product cards (with "Add to Quote"), status cards, and action buttons
   3. Slash commands (`/quote`, `/track`, `/price`, `/help`) trigger specialized flows
   4. Conversation history overlay opens from History icon, showing past conversations
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 08-01-PLAN.md -- Foundation: AI deps, types, server function, usePortalChat hook, Zustand chat store, i18n keys
-- [ ] 08-02-PLAN.md -- Chat UI: multi-line input, message bubbles, typing indicator, stop/cancel, quick action chips, scroll-to-bottom
+- [x] 08-02-PLAN.md -- Chat UI: multi-line input, message bubbles, typing indicator, stop/cancel, quick action chips, scroll-to-bottom
 - [ ] 08-03-PLAN.md -- Rich messages, slash command palette, conversation history overlay, floating AI wiring
 **UI hint**: yes
 
@@ -480,7 +480,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 5. Website Market + Product Detail | 1/3 | In Progress|  |
 | 6. Website Remaining Pages | 2/5 | In Progress|  |
 | 7. Portal Auth + Shell | 3/3 | Complete   | 2026-04-01 |
-| 8. Portal AI Chat | 0/? | Not started | - |
+| 8. Portal AI Chat | 2/3 | In Progress|  |
 | 9. Material List Builder + Quote Submission | 0/? | Not started | - |
 | 10. Quote Detail + Acceptance | 0/? | Not started | - |
 | 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
