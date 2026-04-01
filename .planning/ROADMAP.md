@@ -245,7 +245,7 @@ Plans:
   5. Analytics dashboard shows KPIs (revenue, fill rate, on-time rate) and monthly revenue chart
 **Plans**: 4 plans
 Plans:
-- [ ] 12-01-PLAN.md — Supplier types, server functions, keyboard shortcuts, i18n keys, install recharts
+- [x] 12-01-PLAN.md — Supplier types, server functions, keyboard shortcuts, i18n keys, install recharts
 - [ ] 12-02-PLAN.md — Stock & Pricing window with inline edit, bulk CSV update, product drawer
 - [ ] 12-03-PLAN.md — PO inbox with per-line confirm/reject + Invoice submission
 - [ ] 12-04-PLAN.md — Catalog upload with AI parse review + Analytics dashboard

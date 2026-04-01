@@ -25,10 +25,23 @@ const WINDOW_ROUTES = [
   '/settings',
   '/supplier/stock',
   '/supplier/orders',
+  '/supplier/analytics',
+  '/supplier/invoices',
+  '/supplier/catalog-upload',
 ]
 
-/** Context-aware greeting key based on current route */
-function getContextGreeting(pathname: string): string {
+/** Supplier-mode system prompt context for AI chat */
+const SUPPLIER_CONTEXT =
+  'You are helping a supplier manage their catalog and orders on HyperQuote. The user can ask about: updating prices, checking pending purchase orders, uploading catalogs, viewing analytics. Example prompts: "Update my cement prices", "Show my pending POs", "What is my fill rate this month?"'
+
+/** Context-aware greeting key based on current route and role */
+function getContextGreeting(pathname: string, activeRole: 'customer' | 'supplier'): string {
+  if (activeRole === 'supplier') {
+    if (pathname.startsWith('/supplier/stock')) return 'floatingAI.supplierStock'
+    if (pathname.startsWith('/supplier/orders')) return 'floatingAI.supplierOrders'
+    if (pathname.startsWith('/supplier/analytics')) return 'floatingAI.supplierAnalytics'
+    return 'floatingAI.supplierStock'
+  }
   if (pathname.startsWith('/orders')) return 'floatingAI.orders'
   if (pathname.startsWith('/market')) return 'floatingAI.market'
   return 'floatingAI.orders'
@@ -58,6 +71,7 @@ export function FloatingAIButton() {
   const { t } = useTranslation('portal')
   const matches = useMatches()
   const location = useLocation()
+  const activeRole = usePortalStore((s) => s.activeRole)
   const isFloatingAIOpen = usePortalStore((s) => s.isFloatingAIOpen)
   const toggleFloatingAI = usePortalStore((s) => s.toggleFloatingAI)
   const setFloatingAIOpen = usePortalStore((s) => s.setFloatingAIOpen)
@@ -113,7 +127,7 @@ export function FloatingAIButton() {
 
   if (!isWindowOpen) return null
 
-  const greetingKey = getContextGreeting(location.pathname)
+  const greetingKey = getContextGreeting(location.pathname, activeRole)
   const hasMessages = chat.messages.length > 0
 
   return (
@@ -185,9 +199,16 @@ export function FloatingAIButton() {
                 className="flex-1 overflow-y-auto px-4 py-2 min-h-[120px] max-h-[calc(60vh-120px)]"
               >
                 {!hasMessages ? (
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    {t(greetingKey)}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      {t(greetingKey)}
+                    </p>
+                    {activeRole === 'supplier' && (
+                      <p className="text-xs text-[var(--color-text-muted)] opacity-60">
+                        {SUPPLIER_CONTEXT}
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {chat.messages.map((msg) => (

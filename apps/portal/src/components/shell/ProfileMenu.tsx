@@ -13,6 +13,9 @@ import {
   Languages,
   Palette,
   LogOut,
+  Receipt,
+  Upload,
+  ShieldCheck,
 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { toggleTheme, getTheme, persistTheme } from '../../lib/theme'
@@ -171,6 +174,49 @@ export function ProfileMenu({
                   {t(item.labelKey)}
                 </button>
               ))}
+
+              {/* Supplier-specific links */}
+              {activeRole === 'supplier' && (
+                <>
+                  <div className="border-t border-[var(--color-border)] my-1" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => navigate({ to: '/supplier/invoices' })}
+                    className="flex items-center gap-3 w-full h-11 px-3 rounded-lg text-[var(--text-base)] text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors outline-none focus-visible:bg-[var(--color-surface)]"
+                  >
+                    <Receipt
+                      size={18}
+                      className="text-[var(--color-text-muted)] shrink-0"
+                    />
+                    {t('supplier.invoicesTitle')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => navigate({ to: '/supplier/catalog-upload' })}
+                    className="flex items-center gap-3 w-full h-11 px-3 rounded-lg text-[var(--text-base)] text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors outline-none focus-visible:bg-[var(--color-surface)]"
+                  >
+                    <Upload
+                      size={18}
+                      className="text-[var(--color-text-muted)] shrink-0"
+                    />
+                    {t('supplier.catalogUploadTitle')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled
+                    className="flex items-center gap-3 w-full h-11 px-3 rounded-lg text-[var(--text-base)] text-[var(--color-text-muted)] opacity-50 cursor-not-allowed outline-none"
+                  >
+                    <ShieldCheck
+                      size={18}
+                      className="text-[var(--color-text-muted)] shrink-0"
+                    />
+                    {t('nav.qualityRequirements')}
+                  </button>
+                </>
+              )}
 
               {/* Sign Out */}
               <button
