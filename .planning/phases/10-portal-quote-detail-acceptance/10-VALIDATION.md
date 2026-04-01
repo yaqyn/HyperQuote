@@ -2,8 +2,8 @@
 phase: 10
 slug: portal-quote-detail-acceptance
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-01
 ---
 
@@ -38,7 +38,13 @@ created: 2026-04-01
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 10-01-01 | 01 | 1 | PORT-05 | unit | `bun test --filter portal` | ❌ W0 | ⬜ pending |
+| 10-01-00 | 01 | 1 | PORT-05 | scaffold | `bun test --filter portal` | W0 creates them | ⬜ pending |
+| 10-01-01 | 01 | 1 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
+| 10-01-02 | 01 | 1 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
+| 10-02-01 | 02 | 2 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
+| 10-02-02 | 02 | 2 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
+| 10-03-01 | 03 | 3 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
+| 10-03-02 | 03 | 3 | PORT-05 | unit | `bun test --filter portal` | ✅ (from W0) | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -46,10 +52,10 @@ created: 2026-04-01
 
 ## Wave 0 Requirements
 
-- [ ] `apps/portal/src/__tests__/quote-detail.test.tsx` — stubs for PORT-05 quote detail rendering
-- [ ] `apps/portal/src/__tests__/quote-actions.test.tsx` — stubs for accept/counter/partial/decline flows
+- [x] `apps/portal/src/__tests__/quote-detail.test.tsx` — stubs for PORT-05 quote detail rendering (created by Task 10-01-00)
+- [x] `apps/portal/src/__tests__/quote-actions.test.tsx` — stubs for accept/counter/partial/decline flows (created by Task 10-01-00)
 
-*Existing infrastructure covers framework setup — only test stubs needed.*
+*Wave 0 is Task 0 in Plan 01. Runs first before any production code.*
 
 ---
 
@@ -65,11 +71,11 @@ created: 2026-04-01
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify (`bun test --filter portal`)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (Task 10-01-00 creates both test files)
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** ready
