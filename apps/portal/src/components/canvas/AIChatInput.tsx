@@ -14,8 +14,11 @@ import {
   History,
   AlertTriangle,
 } from 'lucide-react'
+import { AnimatePresence } from 'motion/react'
 import { usePortalChat } from '../../hooks/usePortalChat'
 import { useChatStore } from '../../stores/chat'
+import { useSlashCommands } from '../../hooks/useSlashCommands'
+import { SlashCommandPalette } from '../chat/SlashCommandPalette'
 
 // ============================================================================
 // Constants
@@ -50,6 +53,9 @@ export function AIChatInput() {
   const [isFocused, setIsFocused] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Slash command integration
+  const slash = useSlashCommands(value)
 
   // Rate limiting state
   const timestampsRef = useRef<number[]>([])
@@ -156,14 +162,52 @@ export function AIChatInput() {
     }
   }, [value, chat, rateLimited, checkRateLimit])
 
+  const handleSlashSelect = useCallback(
+    (cmd: { command: string }) => {
+      setValue(slash.selectCommand(cmd as import('../../lib/chat-types').SlashCommand))
+      textareaRef.current?.focus()
+    },
+    [slash],
+  )
+
+  const handleSlashClose = useCallback(() => {
+    setValue('')
+    textareaRef.current?.focus()
+  }, [])
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Slash palette keyboard navigation
+      if (slash.isActive && slash.filteredCommands.length > 0) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          slash.moveUp()
+          return
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          slash.moveDown()
+          return
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          const cmd = slash.filteredCommands[slash.selectedIndex]
+          if (cmd) handleSlashSelect(cmd)
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          handleSlashClose()
+          return
+        }
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         handleSubmit()
       }
     },
-    [handleSubmit],
+    [handleSubmit, slash, handleSlashSelect, handleSlashClose],
   )
 
   const handleStop = useCallback(() => {
@@ -227,6 +271,18 @@ export function AIChatInput() {
         }`}
         style={isFocused ? { borderWidth: '1.5px' } : undefined}
       >
+        {/* Slash command palette */}
+        <AnimatePresence>
+          {slash.isActive && slash.filteredCommands.length > 0 && (
+            <SlashCommandPalette
+              commands={slash.filteredCommands}
+              selectedIndex={slash.selectedIndex}
+              onSelect={handleSlashSelect}
+              onClose={handleSlashClose}
+              onHover={slash.setSelectedIndex}
+            />
+          )}
+        </AnimatePresence>
         {/* Sparkles icon */}
         <div className="flex items-center justify-center ps-5 pb-4 shrink-0">
           <Sparkles
