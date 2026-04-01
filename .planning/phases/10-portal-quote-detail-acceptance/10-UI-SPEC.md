@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Sticky bottom bar height, action button height, touch targets minimum |
 | 3xl | 64px | Not used this phase |
 
-Exceptions: none. All values are from the standard scale.
+Exceptions: The FRONTEND.md spec references `p-12px` for the payment terms box. This contract overrides that to `p-16px` (md token) to maintain the 8-point spacing scale. All values are from the standard scale.
 
 ---
 
@@ -50,7 +50,7 @@ Exceptions: none. All values are from the standard scale.
 | Body | 14px (--text-base) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
 | Label | 12px (--text-sm) | 600 | 1.4 | Inter / IBM Plex Sans Arabic |
 | Heading | 20px (--text-2xl) | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Display | 18px (--text-xl) | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
+| Subheading | 18px (--text-xl) | 600 | 1.3 | Inter / IBM Plex Sans Arabic |
 
 Numeric-specific typography (Geist Mono -- non-negotiable):
 
@@ -91,6 +91,8 @@ Semantic status colors (data, not design):
 | Green | var(--color-success) #16A34A | Accept button bg, completed timeline steps (green check), accepted line checkmark, free delivery label, price decrease percentage |
 | Amber/Yellow | var(--color-warning) #CA8A04 | Counter-offer button outline, changed cells highlight bg (amber), negotiating line highlight |
 | Red | var(--color-error) #DC2626 | Decline button outline, expired countdown, rejected line strikethrough, price increase percentage, removed items in version diff |
+
+**Focal point:** The grand total (Geist Mono 18px weight 600) and the sticky action bar are the visual anchors of this page. The user's eye should travel: quote reference header > line items table > grand total > action buttons.
 
 ---
 
@@ -146,7 +148,7 @@ Semantic status colors (data, not design):
 1. User taps "Accept Quote" (green bg, flex-1, 48px height)
 2. AcceptConfirmModal opens (GlassElevated, isKeyboardDismissDisabled)
 3. Modal shows: total in Geist Mono, payment terms, "This will create an order."
-4. "Keep Reviewing" (outline) + "Accept" (green bg)
+4. "Keep Reviewing" (outline) + "Accept Quote" (green bg)
 5. On confirm: POST acceptQuote() > brief confetti animation (300ms) > view updates to order tracking > Toast "Order confirmed!"
 6. Confetti: 20-30 particles, blue + white only, gravity fall, 300ms duration via Motion v12
 
@@ -180,6 +182,13 @@ Semantic status colors (data, not design):
 4. Optional notes: TextArea
 5. "Keep Quote" (outline) + "Decline" (red bg)
 6. On confirm: status "Declined" > Toast "Quote declined."
+
+### Payment Terms Box
+
+- Background: var(--color-surface)
+- Border radius: rounded-lg
+- Padding: 16px (md token) -- overrides FRONTEND.md spec `p-12px` to maintain 8-point scale
+- Typography: Inter 400 14px
 
 ### Version Comparison Modal
 
@@ -247,7 +256,7 @@ Semantic status colors (data, not design):
 | Accept confirm heading | "Accept this quote?" | "قبول هذا العرض؟" |
 | Accept confirm body | "Total: {amount}. Payment terms: {terms}. This will create an order." | "الإجمالي: {amount}. شروط الدفع: {terms}. سيتم إنشاء طلب." |
 | Accept modal dismiss | "Keep Reviewing" | "متابعة المراجعة" |
-| Accept modal confirm | "Accept" | "قبول" |
+| Accept modal confirm | "Accept Quote" | "قبول العرض" |
 | Accept success toast | "Order confirmed!" | "تم تأكيد الطلب!" |
 | Counter confirm heading | "Submit counter-offer?" | "إرسال العرض المضاد؟" |
 | Counter confirm body | "HyperQuote will review and respond." | "سيقوم HyperQuote بالمراجعة والرد." |
