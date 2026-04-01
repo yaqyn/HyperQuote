@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useForm, useWatch, Controller } from 'react-hook-form'
 import { standardSchemaResolver } from '@hyperquote/forms'
 import { z } from 'zod'
@@ -65,13 +65,16 @@ export function ContactForm() {
     { id: 'other', label: t('support.form.subjects.other') },
   ]
 
+  const [error, setError] = useState<string | null>(null)
+
   async function onSubmit(data: ContactFormData) {
     setSubmitting(true)
+    setError(null)
     try {
       await submitContactForm({ data })
       setSubmitted(true)
     } catch {
-      // TODO: show error toast
+      setError(t('support.form.error'))
     } finally {
       setSubmitting(false)
     }
@@ -234,6 +237,13 @@ export function ContactForm() {
           </AriaTextField>
         )}
       />
+
+      {/* Error */}
+      {error && (
+        <p className="text-center text-[14px] text-[#DC2626]" role="alert">
+          {error}
+        </p>
+      )}
 
       {/* Submit */}
       <Button
