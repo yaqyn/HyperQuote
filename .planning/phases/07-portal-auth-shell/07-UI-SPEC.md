@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Page-level vertical padding |
 | 3xl | 64px | Major section breaks |
 
-Exceptions: 44px minimum touch target for close buttons, floating AI button, notification bell, profile avatar tap area. 56px AI chat input height. 56px glass window header bar height. 36px role toggle height. 40px send button circle. 64px navigation button height. 380px floating AI panel width. 640px AI chat input max-width (desktop). 720px AI chat + greeting max-width (per CONTEXT.md "What to Build"). 1200px glass window max-width. 90vh glass window max-height. 400px PWA install banner max-width.
+Exceptions: 44px minimum touch target for close buttons, floating AI button, notification bell, profile avatar tap area. 56px AI chat input height. 56px glass window header bar height. 36px role toggle height. 40px send button circle. 64px navigation button height. 380px floating AI panel width. 640px AI chat input max-width (desktop). 720px AI chat + greeting max-width (per CONTEXT.md "What to Build"). 1200px glass window max-width. 90vh glass window max-height. 400px PWA install banner max-width. 20px -- chat input horizontal padding, midpoint between md (16px) and lg (24px) for optical balance at 56px input height where 16px feels cramped and 24px wastes space.
 
 ---
 
@@ -47,17 +47,17 @@ Exceptions: 44px minimum touch target for close buttons, floating AI button, not
 
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
-| Body | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Label / Muted | 13px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Small / Meta | 12px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Heading (window title, greeting) | 18px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+| Body / Label / Muted | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
+| Small / Meta / Badge | 12px | 400 (meta) / 600 (badge) | 1.5 (meta) / 1 (badge) | Inter / IBM Plex Sans Arabic / Geist Mono (badge) |
 | Navigation button label | 16px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
-| Chat placeholder | 14px | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Badge counts | 12px | 600 | 1 | Geist Mono |
-| Timestamps | 12px | 400 | 1.5 | Geist Mono |
+| Heading (window title, greeting) | 18px | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
+
+Distinct sizes: 12px, 14px, 16px, 18px (4 sizes, 2 weights: 400 + 600).
 
 Notes:
 - Portal uses 14px base (not 16px -- that is website-only per UI-VISION.md Section 4).
+- Muted text uses 14px at reduced opacity or `var(--color-text-muted)` color -- NOT a separate font size.
+- Window subtitle uses 14px at `var(--color-text-muted)` color, not a smaller size.
 - Geist Mono for ALL numeric data: badge counts, timestamps, urgent item counts.
 - IBM Plex Sans Arabic max weight 700. Never use Inter 800/900 in bilingual contexts.
 
@@ -157,13 +157,13 @@ Canvas recede state (when window open):
 - Mobile: moves inside profile menu (not floating)
 
 ### 7. Header Controls (top inline-end)
-- Notification bell: Bell icon 20px. Blue dot (8px circle) if unread. Opens `/notifications` window.
+- Notification bell: Bell icon 20px, `aria-label="Notifications"` (EN) / `aria-label="الإشعارات"` (AR). Blue dot (8px circle) if unread. Opens `/notifications` window.
 - Profile avatar: 32px circle. Click opens React Aria Popover:
-  - Name (Inter 600 14px), Company (Inter 400 13px muted)
+  - Name (Inter 600 14px), Company (Inter 400 14px `var(--color-text-muted)`)
   - Menu items: Settings, Documents, Support, Language, Theme, Sign Out
   - Menu item height: 44px touch target
   - Popovers use CSS transitions (NOT Motion -- per React Aria gotcha)
-- Sign Out: inline confirmation "Are you sure?" with "Cancel" (default text) + "Sign Out" (red text `var(--color-error)`)
+- Sign Out: inline confirmation "Are you sure?" with "Keep me signed in" (default text) + "Sign Out" (red text `var(--color-error)`)
 
 ### 8. Glass Window System (PORT-17)
 - Opens via URL route navigation (e.g., `/orders`)
@@ -173,8 +173,8 @@ Canvas recede state (when window open):
 - Surface: `var(--color-card)` bg, backdrop-blur-xl, 80% opacity, rounded-3xl, shadow-2xl
 - Border: 1px `var(--color-border)` at 50% opacity
 - Header bar: h-56px, px-24px, border-bottom 1px `var(--color-border)`
-  - Left: title (Inter 600 18px) + optional subtitle (Inter 400 13px muted)
-  - Right: close button (X 24px, 44px touch target, `var(--color-text-muted)`, hover `var(--color-text)`)
+  - Left: title (Inter 600 18px) + optional subtitle (Inter 400 14px `var(--color-text-muted)`)
+  - Right: close button (X 24px, 44px touch target, `var(--color-text-muted)`, hover `var(--color-text)`), `aria-label="Close"` (EN) / `aria-label="إغلاق"` (AR)
 - Escape closes. Click outside (on dimmed canvas) closes.
 - Deep-linking: `/orders` opens Orders window directly. Browser back closes window.
 - Canvas recede: scale 0.96, blur(2px), opacity 0.5, tween 300ms
@@ -265,7 +265,7 @@ Implementation: `@tanstack/react-hotkeys` (0.8.3) wrapped behind `useShortcut()`
 | Empty state body | "Start by chatting with AI or browsing the market" | "ابدأ بالدردشة مع الذكاء الاصطناعي أو تصفح السوق" |
 | Error state | "Something went wrong. Please try again." | "حدث خطأ. يرجى المحاولة مرة أخرى." |
 | Sign out confirmation | "Are you sure?" | "هل أنت متأكد؟" |
-| Sign out cancel | "Cancel" | "إلغاء" |
+| Sign out cancel | "Keep me signed in" | "ابق متصلاً" |
 | Sign out confirm | "Sign Out" | "تسجيل الخروج" |
 | Offline chat | "Chat unavailable offline" | "الدردشة غير متاحة بدون اتصال" |
 | Offline data | "Showing cached data" | "عرض بيانات مخزنة" |
@@ -286,6 +286,8 @@ Implementation: `@tanstack/react-hotkeys` (0.8.3) wrapped behind `useShortcut()`
 | Profile menu: Language | "Language" | "اللغة" |
 | Profile menu: Theme | "Theme" | "المظهر" |
 | Profile menu: Sign Out | "Sign Out" | "تسجيل الخروج" |
+| Bell aria-label | "Notifications" | "الإشعارات" |
+| Close window aria-label | "Close" | "إغلاق" |
 
 ---
 
@@ -336,6 +338,8 @@ Note: Window content for Orders, Market, etc. is placeholder in this phase. Full
 - Profile popover: React Aria Popover (auto-dismiss, arrow key navigation)
 - Role toggle: React Aria ToggleButtonGroup (aria-pressed, keyboard navigation)
 - Chat input: `role="textbox"`, `aria-label` for screen readers
+- Notification bell: `aria-label="Notifications"` (EN) / `aria-label="الإشعارات"` (AR)
+- Close window button: `aria-label="Close"` (EN) / `aria-label="إغلاق"` (AR)
 - Keyboard navigation: all shortcuts documented, all focusable elements reachable via Tab
 - Screen reader announcements: window open/close, role switch, offline status
 - RTL: all logical properties (ps-/pe-/ms-/me-), `dir="rtl"` on `<html>`
