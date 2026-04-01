@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-04-01T15:40:45.502Z"
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-04-01T15:42:19.651Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 32
   completed_phases: 10
   total_plans: 40
-  completed_plans: 34
+  completed_plans: 35
   percent: 3
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 ## Current Position
 
 Phase: 11 (portal-orders-delivery-remaining-windows) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -80,6 +80,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 10 P02 | 2min | 2 tasks | 8 files |
 | Phase 10 P03 | 6min | 2 tasks | 11 files |
 | Phase 11 P03 | 3min | 2 tasks | 8 files |
+| Phase 11 P01 | 5min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,7 @@ Recent decisions affecting current work:
 - [Phase 10]: Imperative toast store via Zustand for toast.success() API since existing Toast is declarative
 - [Phase 10]: Zustand getState() inside mutationFn to read latest store state at mutation time
 - [Phase 11]: POST method for markNotificationRead/markAllNotificationsRead (TanStack Start server fns only support GET/POST)
+- [Phase 11]: ReorderDialog uses toast from lib/toast (imperative Zustand store), consistent with QuoteDetail
 
 ### Pending Todos
 
@@ -160,6 +162,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T15:40:45.498Z
-Stopped at: Completed 11-03-PLAN.md
+Last session: 2026-04-01T15:42:19.647Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
