@@ -34,12 +34,12 @@ Declared values (must be multiples of 4):
 | xs | 4px | Icon gaps, inline padding, cell inline padding |
 | sm | 8px | Compact element spacing, table cell padding |
 | md | 16px | Default element spacing, card padding |
-| lg | 20px | KPI card padding (per FRONTEND.md 2.14) |
-| xl | 24px | Section padding, drawer padding |
-| 2xl | 32px | Layout gaps between sections |
-| 3xl | 48px | Sticky bottom bar height (PO actions), CTA button height |
+| lg | 24px | Section padding, drawer padding |
+| xl | 32px | Layout gaps between sections |
+| 2xl | 48px | Sticky bottom bar height (PO actions), CTA button height |
 
 Exceptions:
+- 20px: KPI card padding — spec-locked per FRONTEND.md 2.14, exception approved
 - 44px: minimum touch target for primary action buttons (Upload Catalog, Add Product)
 - 48px: PO action buttons (Confirm PO, Reject PO) per FRONTEND.md 2.12
 - 480px: product edit drawer width (inline-end slide)
@@ -54,11 +54,14 @@ Exceptions:
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body | 14px (`--text-base`) | 400 | 1.5 | Inter / IBM Plex Sans Arabic |
-| Label / KPI label | 12px (`--text-sm`) | 500 | 1.4 | Inter, uppercase, letter-spacing 0.05em |
+| Label / KPI label | 12px (`--text-sm`) | 400 | 1.4 | Inter, uppercase, letter-spacing 0.05em |
 | Heading (window title) | 16px (`--text-lg`) | 600 | 1.2 | Inter / IBM Plex Sans Arabic |
 | KPI value | 28px | 600 | 1.2 | Geist Mono |
 | Table numbers | 14px (`--text-base`) | 400 | 1.5 | Geist Mono |
-| Invoice total | 18px (`--text-xl`) | 700 | 1.2 | Geist Mono |
+| Invoice total | 16px (`--text-lg`) | 600 | 1.2 | Geist Mono |
+
+Distinct sizes: 12px, 14px, 16px, 28px (4 sizes).
+Distinct weights: 400 (body, label, table numbers), 600 (heading, KPI value, invoice total, emphasis) (2 weights).
 
 Geist Mono mandatory for: prices, quantities, PO references, SKUs, dates, timestamps, percentages, revenue figures, trend indicators, invoice numbers, line totals, VAT amounts.
 
@@ -75,7 +78,7 @@ Geist Mono mandatory for: prices, quantities, PO references, SKUs, dates, timest
 
 Accent reserved for:
 - "Upload Catalog" primary CTA button
-- "Save" button in product edit drawer
+- "Update Product" button in product edit drawer
 - "Submit for Review" button in catalog upload flow
 - "Apply Changes" button in bulk update flow
 - "Submit Invoice" button
@@ -149,8 +152,8 @@ Components to build for this phase, referencing existing shared components:
 3. "Partial Only" -> NumberField appears (max = requested qty)
 4. "Price Changed" -> NumberField + "Requires HyperQuote review" note
 5. Sticky bottom bar: "Confirm PO" (green, 48px, flex-1) + "Reject PO" (red outline, 48px)
-6. Confirm -> GlassElevated modal: "Confirm {N} of {M} items?" + Cancel/Confirm
-7. Reject -> GlassElevated modal: TextArea "Why are you rejecting this PO?" + Cancel/Reject
+6. Confirm -> GlassElevated modal: "Confirm {N} of {M} items?" + "Go Back" / "Confirm" (green)
+7. Reject -> GlassElevated modal: TextArea "Why are you rejecting this PO?" + "Keep PO" / "Reject" (red)
 
 ### Catalog Upload Flow (4 steps)
 1. Upload: GlassElevated modal, drag-and-drop zone, PDF/Excel/CSV, max 50MB
@@ -168,13 +171,17 @@ Components to build for this phase, referencing existing shared components:
 1. Trigger: "Edit" action in stock table row
 2. Drawer slides from inline-end (RTL: left), 480px width, GlassElevated
 3. Fields: Product name (read-only), Price (NumberField, required), MOQ (NumberField), Stock qty (NumberField), Lead time (NumberField + "days"), Region pricing (table if multi-region), Notes (TextArea)
-4. "Save" (blue, 44px, full-width) at bottom, "Cancel" closes drawer
+4. "Update Product" (blue, 44px, full-width) at bottom, "Discard Changes" (text button, no fill) closes drawer
 5. Close on Escape key
+
+### Icon-Only Action Accessibility (Stock Table)
+- Edit icon button: `aria-label="Edit {product name}"` (AR: `aria-label="تعديل {product name}"`)
+- Deactivate icon button: `aria-label="Deactivate {product name}"` (AR: `aria-label="إلغاء تفعيل {product name}"`)
 
 ### Invoice Submission
 1. ComboBox selects from confirmed/shipped POs without existing invoices
 2. Line items auto-populate from selected PO (editable prices)
-3. Subtotal/VAT(14%)/Total auto-calculated, displayed in Geist Mono 18px bold
+3. Subtotal/VAT(14%)/Total auto-calculated, displayed in Geist Mono 16px weight 600
 4. If user total mismatches calculated total by > 1%: yellow warning banner
 5. PDF upload required (drag-drop, max 10MB)
 
@@ -200,6 +207,10 @@ Components to build for this phase, referencing existing shared components:
 | Primary CTA (Stock) | "Upload Catalog" | "رفع الكتالوج" |
 | Primary CTA (PO) | "Confirm PO" | "تأكيد أمر الشراء" |
 | Primary CTA (Invoice) | "Submit Invoice" | "إرسال الفاتورة" |
+| Drawer CTA (Product Edit) | "Update Product" | "تحديث المنتج" |
+| Drawer dismiss (Product Edit) | "Discard Changes" | "تجاهل التغييرات" |
+| Confirm PO modal dismiss | "Go Back" | "رجوع" |
+| Reject PO modal dismiss | "Keep PO" | "الإبقاء على أمر الشراء" |
 | Empty state heading (Stock) | "You haven't added any products yet." | "لم تضف أي منتجات بعد." |
 | Empty state body (Stock) | "Upload Catalog" button + "Or add products manually" link | زر "رفع الكتالوج" + رابط "أو أضف المنتجات يدويًا" |
 | Empty state heading (Analytics) | "No analytics data yet." | "لا توجد بيانات تحليلية بعد." |
@@ -212,7 +223,7 @@ Components to build for this phase, referencing existing shared components:
 | Error state (upload) | "Upload failed. Check file format and try again." | "فشل الرفع. تحقق من صيغة الملف وحاول مرة أخرى." |
 | Error state (invoice mismatch) | "Your total doesn't match the calculated total. Please verify." | "المبلغ الإجمالي لا يتطابق مع الإجمالي المحسوب. يرجى التحقق." |
 | Destructive: Reject PO | "Why are you rejecting this PO? This will be reviewed by HyperQuote." | "لماذا ترفض أمر الشراء هذا؟ سيتم مراجعته من قبل HyperQuote." |
-| Destructive: Deactivate product | "Deactivate {product}? It will be hidden from HyperQuote." / Cancel + Deactivate | "إلغاء تفعيل {product}؟ سيتم إخفاؤه من HyperQuote." / إلغاء + إلغاء التفعيل |
+| Destructive: Deactivate product | "Deactivate {product}? It will be hidden from HyperQuote." / Discard Changes + Deactivate | "إلغاء تفعيل {product}؟ سيتم إخفاؤه من HyperQuote." / تجاهل التغييرات + إلغاء التفعيل |
 | Confirm PO modal | "Confirm {N} of {M} items? {partial details}" | "تأكيد {N} من {M} صنف؟ {تفاصيل جزئية}" |
 | Bulk update confirm | "Update {N} prices and {M} stock quantities?" | "تحديث {N} سعر و{M} كمية مخزون؟" |
 | PO confirmed toast | "PO confirmed." | "تم تأكيد أمر الشراء." |
@@ -229,7 +240,7 @@ Components to build for this phase, referencing existing shared components:
 | Stock & Pricing | `/supplier/stock` | My Products, Price Updates, Upload History |
 | Purchase Orders | `/supplier/orders` | Pending Action, Confirmed, History |
 | Invoice Submission | `/supplier/invoices` | Submit New, Submitted Invoices |
-| Analytics | `/supplier/analytics` | (none — single view with date range picker) |
+| Analytics | `/supplier/analytics` | (none -- single view with date range picker) |
 
 All windows use GlassWindow with spring enter / tween exit per existing portal pattern.
 
@@ -239,7 +250,7 @@ All windows use GlassWindow with spring enter / tween exit per existing portal p
 
 | Registry | Blocks Used | Safety Gate |
 |----------|-------------|-------------|
-| shadcn official | none | not applicable — project uses React Aria |
+| shadcn official | none | not applicable -- project uses React Aria |
 | Third-party | none | not applicable |
 
 ---
