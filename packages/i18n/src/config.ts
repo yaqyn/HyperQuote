@@ -2,20 +2,24 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import arCommon from './locales/ar/common.json'
+import arPortal from './locales/ar/portal.json'
 import arUnits from './locales/ar/units.json'
 import arWebsite from './locales/ar/website.json'
 import enCommon from './locales/en/common.json'
+import enPortal from './locales/en/portal.json'
 import enUnits from './locales/en/units.json'
 import enWebsite from './locales/en/website.json'
 
 const resources = {
   en: {
     common: enCommon,
+    portal: enPortal,
     units: enUnits,
     website: enWebsite,
   },
   ar: {
     common: arCommon,
+    portal: arPortal,
     units: arUnits,
     website: arWebsite,
   },
@@ -35,7 +39,7 @@ export function initI18n(locale: 'ar' | 'en' = 'en') {
     lng: locale,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'units', 'website'],
+    ns: ['common', 'portal', 'units', 'website'],
     interpolation: {
       escapeValue: false, // React already escapes
     },
