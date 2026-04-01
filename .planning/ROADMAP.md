@@ -155,7 +155,7 @@ Plans:
   4. Glass windows deep-link via URL routes (e.g., `/orders` opens Orders window directly)
 **Plans:** 3 plans
 Plans:
-- [ ] 07-01-PLAN.md -- Portal foundation: deps, root route, auth layout, i18n portal namespace, Zustand store, useShortcut
+- [x] 07-01-PLAN.md -- Portal foundation: deps, root route, auth layout, i18n portal namespace, Zustand store, useShortcut
 - [ ] 07-02-PLAN.md -- Spatial canvas: greeting, AI chat input, nav buttons, header controls (bell, profile, role toggle)
 - [ ] 07-03-PLAN.md -- Glass window system: WindowShell, 6 window routes, keyboard shortcuts, floating AI button
 **UI hint**: yes

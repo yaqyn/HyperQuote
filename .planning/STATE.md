@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-04-01T06:52:03.917Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-04-01T07:40:59.047Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 32
-  completed_phases: 5
-  total_plans: 19
-  completed_plans: 18
+  completed_phases: 6
+  total_plans: 22
+  completed_plans: 20
   percent: 3
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Egyptian contractors can request quotes for building materials and receive responses within 4 hours through an AI-powered platform.
-**Current focus:** Phase 06 — website-remaining-pages
+**Current focus:** Phase 07 — portal-auth-shell
 
 ## Current Position
 
-Phase: 06 (website-remaining-pages) — EXECUTING
-Plan: 5 of 5
+Phase: 07 (portal-auth-shell) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -68,6 +68,7 @@ Progress: [▓░░░░░░░░░] 3%
 | Phase 06 P01 | 4min | 2 tasks | 8 files |
 | Phase 06 P03 | 7min | 2 tasks | 15 files |
 | Phase 06 P04 | 10min | 2 tasks | 15 files |
+| Phase 07 P01 | 6min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase 06]: OTP inputs use raw HTML inputs (not React Aria TextField) for precise per-digit control
 - [Phase 06]: stream() adapter over fetchServerSentEvents — TanStack Start v1.167 lacks API file routes
 - [Phase 06]: AG-UI protocol events for mock SSE streaming — native TanStack AI format for seamless Phase 30 swap
+- [Phase 07]: Server function wrapper for auth check -- avoids node:stream bundled into client on Workers
+- [Phase 07]: useHotkey (singular) from @tanstack/react-hotkeys v0.9.1 -- API differs from plan assumption
+- [Phase 07]: process.env for Supabase creds in server functions, import.meta.env for client-side env
 
 ### Pending Todos
 
@@ -127,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T06:52:03.914Z
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-04-01T07:40:59.043Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
