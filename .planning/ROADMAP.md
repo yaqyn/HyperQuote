@@ -153,10 +153,10 @@ Plans:
   2. Spatial canvas renders wide empty space with centered AI chat input (max-width 640px) and greeting with urgent items
   3. Two glass buttons (Orders + Market) open glass windows with spring animation; Escape closes them
   4. Glass windows deep-link via URL routes (e.g., `/orders` opens Orders window directly)
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 07-01-PLAN.md -- Portal foundation: deps, root route, auth layout, i18n portal namespace, Zustand store, useShortcut
-- [ ] 07-02-PLAN.md -- Spatial canvas: greeting, AI chat input, nav buttons, header controls (bell, profile, role toggle)
+- [x] 07-02-PLAN.md -- Spatial canvas: greeting, AI chat input, nav buttons, header controls (bell, profile, role toggle)
 - [ ] 07-03-PLAN.md -- Glass window system: WindowShell, 6 window routes, keyboard shortcuts, floating AI button
 **UI hint**: yes
 
@@ -475,7 +475,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 4. Website Layout + Home + About | 3/3 | Complete   | 2026-03-31 |
 | 5. Website Market + Product Detail | 1/3 | In Progress|  |
 | 6. Website Remaining Pages | 2/5 | In Progress|  |
-| 7. Portal Auth + Shell | 0/3 | Not started | - |
+| 7. Portal Auth + Shell | 2/3 | In Progress|  |
 | 8. Portal AI Chat | 0/? | Not started | - |
 | 9. Material List Builder + Quote Submission | 0/? | Not started | - |
 | 10. Quote Detail + Acceptance | 0/? | Not started | - |
