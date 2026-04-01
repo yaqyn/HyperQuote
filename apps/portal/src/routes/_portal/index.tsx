@@ -1,7 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { SpatialCanvas } from '../../components/canvas/SpatialCanvas'
+import { AIReorderSuggestion } from '../../components/orders/AIReorderSuggestion'
+import { getReorderSuggestion } from '../../lib/server/orders'
 import { Greeting } from '../../components/canvas/Greeting'
 import { AIChatInput } from '../../components/canvas/AIChatInput'
 import { NavButtons } from '../../components/canvas/NavButtons'
@@ -80,8 +82,7 @@ function PortalHome() {
         </>
       }
     >
-      {/* AIReorderSuggestion: rendered above chat input when Plan 05 component is available */}
-      {/* Import will be wired when AIReorderSuggestion.tsx exists in this worktree */}
+      {/* AI reorder suggestion: fetches data and renders with props, null when no suggestion */}
       <AIReorderSuggestionSlot />
       <AIChatInput />
 
@@ -95,16 +96,27 @@ function PortalHome() {
 }
 
 /**
- * Lazy slot for AIReorderSuggestion from Plan 05.
- * Uses dynamic import to avoid hard dependency on parallel plan output.
+ * Fetches AI reorder suggestion and renders with all required props.
+ * Returns null when no suggestion is available (graceful no-data case).
  */
 function AIReorderSuggestionSlot() {
-  try {
-    // Dynamic require -- will resolve when Plan 05 creates the component
-    const { AIReorderSuggestion } = require('../../components/orders/AIReorderSuggestion')
-    return <AIReorderSuggestion />
-  } catch {
-    // Component not yet created by Plan 05 -- render nothing
-    return null
-  }
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['reorder-suggestion'],
+    queryFn: () => getReorderSuggestion(),
+    staleTime: 5 * 60_000,
+  })
+
+  if (!data?.suggestion) return null
+
+  const { productId, productName, daysSinceOrder } = data.suggestion
+
+  return (
+    <AIReorderSuggestion
+      productId={productId}
+      productName={productName}
+      daysSinceOrder={daysSinceOrder}
+      onReorder={(id) => navigate({ to: '/orders', search: { reorder: id } })}
+    />
+  )
 }

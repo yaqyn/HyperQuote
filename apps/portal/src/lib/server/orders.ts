@@ -413,3 +413,37 @@ export const deleteSavedList = createServerFn()
       return { success: true }
     },
   )
+
+// ============================================================================
+// getReorderSuggestion
+// ============================================================================
+
+export interface ReorderSuggestion {
+  productId: string
+  productName: string
+  daysSinceOrder: number
+}
+
+export const getReorderSuggestion = createServerFn().handler(
+  async (): Promise<{ suggestion: ReorderSuggestion | null }> => {
+    if (!isSupabaseConfigured()) {
+      // Dev mode mock: "You ordered cement 30 days ago"
+      return {
+        suggestion: {
+          productId: 'cement-portland-50kg',
+          productName: 'Portland Cement 50kg',
+          daysSinceOrder: 30,
+        },
+      }
+    }
+
+    // TODO: Real Supabase query — find most recent order item eligible for reorder
+    return {
+      suggestion: {
+        productId: 'cement-portland-50kg',
+        productName: 'Portland Cement 50kg',
+        daysSinceOrder: 30,
+      },
+    }
+  },
+)
