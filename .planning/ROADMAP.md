@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Website Market + Product Detail** - SSR product catalog with filters, product detail pages
 - [ ] **Phase 6: Website Remaining Pages** - Support, docs, careers, legal, login modal, AI chat widget
 - [x] **Phase 7: Portal Auth + Shell** - Auth gate, spatial canvas, AI chat input, glass window buttons (completed 2026-04-01)
-- [ ] **Phase 8: Portal AI Chat** - Streaming AI chat with rich messages, slash commands, history
+- [x] **Phase 8: Portal AI Chat** - Streaming AI chat with rich messages, slash commands, history (completed 2026-04-01)
 - [ ] **Phase 9: Portal Material List Builder + Quote Submission** - 4 input methods, 3-step flow, buyer approval workflows
 - [ ] **Phase 10: Portal Quote Detail + Acceptance** - Quote view, accept/counter-offer/partial/decline, version history
 - [ ] **Phase 11: Portal Orders + Delivery + Remaining Windows** - Orders, GPS tracking, notifications, documents, support, settings, PWA
@@ -169,11 +169,11 @@ Plans:
   2. Rich messages render inline: product cards (with "Add to Quote"), status cards, and action buttons
   3. Slash commands (`/quote`, `/track`, `/price`, `/help`) trigger specialized flows
   4. Conversation history overlay opens from History icon, showing past conversations
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 08-01-PLAN.md -- Foundation: AI deps, types, server function, usePortalChat hook, Zustand chat store, i18n keys
 - [x] 08-02-PLAN.md -- Chat UI: multi-line input, message bubbles, typing indicator, stop/cancel, quick action chips, scroll-to-bottom
-- [ ] 08-03-PLAN.md -- Rich messages, slash command palette, conversation history overlay, floating AI wiring
+- [x] 08-03-PLAN.md -- Rich messages, slash command palette, conversation history overlay, floating AI wiring
 **UI hint**: yes
 
 ### Phase 9: Portal Material List Builder + Quote Submission
@@ -480,7 +480,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 5. Website Market + Product Detail | 1/3 | In Progress|  |
 | 6. Website Remaining Pages | 2/5 | In Progress|  |
 | 7. Portal Auth + Shell | 3/3 | Complete   | 2026-04-01 |
-| 8. Portal AI Chat | 2/3 | In Progress|  |
+| 8. Portal AI Chat | 3/3 | Complete   | 2026-04-01 |
 | 9. Material List Builder + Quote Submission | 0/? | Not started | - |
 | 10. Quote Detail + Acceptance | 0/? | Not started | - |
 | 11. Portal Orders + Delivery + Remaining | 0/? | Not started | - |
