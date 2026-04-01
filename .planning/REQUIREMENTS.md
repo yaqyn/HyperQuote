@@ -64,7 +64,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Database
 
-- [ ] **DB-01**: All 94 tables + 2 materialized views created with correct types, constraints, and indexes
+- [x] **DB-01**: All 94 tables + 2 materialized views created with correct types, constraints, and indexes
 - [x] **DB-02**: All 50 enums created
 - [ ] **DB-03**: RLS policies for all tables: internal users by tenant, external customers by customer_id, suppliers by supplier_id, drivers by driver_id
 - [x] **DB-04**: Auth helper functions (12): pool extractors, role/permission checkers, tenant_id trigger, updated_at trigger, custom access token hook
@@ -294,7 +294,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUPP-04 | Phase 12 | Complete |
 | SUPP-05 | Phase 12 | Complete |
 | SUPP-06 | Phase 12 | Complete |
-| DB-01 | Phase 13 | Pending |
+| DB-01 | Phase 13 | Complete |
 | DB-02 | Phase 2 | Complete |
 | DB-03 | Phase 13 | Pending |
 | DB-04 | Phase 2 | Complete |
