@@ -188,7 +188,7 @@ Plans:
   5. Delivery address ComboBox loads saved addresses and auto-expands new address form for first-time users
 **Plans:** 5 plans
 Plans:
-- [ ] 09-01-PLAN.md -- Database migration (quote_requests, addresses, projects) + server functions + Zustand store + utility libs
+- [x] 09-01-PLAN.md -- Database migration (quote_requests, addresses, projects) + server functions + Zustand store + utility libs
 - [ ] 09-02-PLAN.md -- Route, 3-step flow, step indicator, Search & Add, product list table with drag reorder
 - [ ] 09-03-PLAN.md -- Upload (CSV/Excel) with validation, Quick Pad, AI Assist input methods
 - [ ] 09-04-PLAN.md -- Step 2 details (address, date, attachments) + Step 3 review & submit + confirmation
