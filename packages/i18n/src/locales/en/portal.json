@@ -141,6 +141,7 @@
   "quoteBuilder.fridayError": "Friday is not a delivery day. Please choose Sunday-Thursday.",
   "quoteBuilder.notesLabel": "Notes to HyperQuote",
   "quoteBuilder.notesStep2Placeholder": "Any special requirements, access instructions, or delivery preferences.",
+  "quoteBuilder.edit": "Edit",
   "quoteBuilder.infoBanner": "Prices are not shown here. We'll prepare a quote for you.",
   "quoteBuilder.editLink": "Edit",
   "quoteBuilder.confirmHeading": "Submit quote request for {{count}} items?",

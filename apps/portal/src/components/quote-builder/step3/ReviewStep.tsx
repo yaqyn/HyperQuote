@@ -7,6 +7,7 @@
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components'
+import { Pencil } from 'lucide-react'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
 import { useNeedsApproval } from '../../../hooks/useApproval'
@@ -113,15 +114,24 @@ export function ReviewStep() {
 
       {/* Item summary */}
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">
-          {t('quoteBuilder.step1')} ({' '}
-          <span className="font-mono">{items.length}</span>{' '}
-          {t('quoteBuilder.itemCount', { count: items.length }).replace(
-            String(items.length),
-            '',
-          )}
-          )
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[var(--color-text)]">
+            {t('quoteBuilder.step1')} ({' '}
+            <span className="font-mono">{items.length}</span>{' '}
+            {t('quoteBuilder.itemCount', { count: items.length }).replace(
+              String(items.length),
+              '',
+            )}
+            )
+          </h3>
+          <Button
+            onPress={() => useQuoteBuilderStore.getState().setStep(1)}
+            className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline outline-none"
+          >
+            <Pencil size={12} />
+            {t('quoteBuilder.edit')}
+          </Button>
+        </div>
         <div className="flex flex-col gap-2">
           {items.map((item) => (
             <div
@@ -142,9 +152,18 @@ export function ReviewStep() {
       {/* Delivery details */}
       {deliveryDate && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {t('quoteBuilder.deliveryDateLabel')}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {t('quoteBuilder.deliveryDateLabel')}
+            </span>
+            <Button
+              onPress={() => useQuoteBuilderStore.getState().setStep(2)}
+              className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline outline-none"
+            >
+              <Pencil size={12} />
+              {t('quoteBuilder.edit')}
+            </Button>
+          </div>
           <span className="text-sm font-mono text-[var(--color-text)]">
             {deliveryDate}
           </span>
@@ -189,7 +208,7 @@ export function ReviewStep() {
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
             >
               <Modal className="w-full max-w-md mx-4">
-                <Dialog className="rounded-2xl bg-white dark:bg-[var(--color-surface)] p-6 shadow-xl outline-none">
+                <Dialog isKeyboardDismissDisabled={false} className="rounded-2xl bg-white dark:bg-[var(--color-surface)] p-6 shadow-xl outline-none">
                   <Heading
                     slot="title"
                     className="text-lg font-semibold text-[var(--color-text)] mb-2"

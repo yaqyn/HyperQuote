@@ -141,6 +141,7 @@
   "quoteBuilder.fridayError": "الجمعة ليست يوم تسليم. يرجى اختيار من الأحد إلى الخميس.",
   "quoteBuilder.notesLabel": "ملاحظات لهايبر كوت",
   "quoteBuilder.notesStep2Placeholder": "أي متطلبات خاصة، تعليمات الوصول، أو تفضيلات التسليم.",
+  "quoteBuilder.edit": "تعديل",
   "quoteBuilder.infoBanner": "الأسعار غير معروضة هنا. سنقوم بتجهيز عرض سعر لك.",
   "quoteBuilder.editLink": "تعديل",
   "quoteBuilder.confirmHeading": "إرسال طلب عرض سعر لعدد {{count}} عناصر؟",
