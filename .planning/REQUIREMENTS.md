@@ -29,7 +29,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **WEB-07**: Docs page: skeleton layout with sidebar TOC, 2-3 example sections
 - [ ] **WEB-08**: Legal pages: privacy policy + terms of use (Arabic legally binding, English translation notice)
 - [ ] **WEB-09**: Careers page: job listings or "Send us your CV"
-- [ ] **WEB-10**: Login modal: phone OTP (WhatsApp primary, SMS fallback) -> verify -> account creation (4 fields) or account claiming (masked hint)
+- [x] **WEB-10**: Login modal: phone OTP (WhatsApp primary, SMS fallback) -> verify -> account creation (4 fields) or account claiming (masked hint)
 - [ ] **WEB-11**: AI chat widget: floating button -> mini chat panel, streaming responses via SSE, inline product cards and action buttons
 - [x] **WEB-12**: All pages SSG or SSR as specified, responsive mobile, RTL Arabic, dark mode
 
@@ -268,7 +268,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-07 | Phase 6 | Complete |
 | WEB-08 | Phase 6 | Pending |
 | WEB-09 | Phase 6 | Pending |
-| WEB-10 | Phase 6 | Pending |
+| WEB-10 | Phase 6 | Complete |
 | WEB-11 | Phase 6 | Pending |
 | WEB-12 | Phase 6 | Complete |
 | PORT-01 | Phase 7 | Pending |
