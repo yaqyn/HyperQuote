@@ -43,7 +43,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PORT-06**: Orders window: 4 tabs (Active, Quotes, History, Drafts), order cards with status badges, one-tap reorder from history
 - [ ] **PORT-07**: Order tracking: 5-stage progress bar, GPS delivery map (MapLibre GL in ClientOnly), driver location, ETA, drop-ship POD confirmation/dispute flow (customer confirm/dispute within 72h)
 - [ ] **PORT-08**: Market window: catalog browse inside glass window, infinite scroll, quick-add mode, "Add to Quote" without login modal
-- [ ] **PORT-09**: Notifications window: real-time via Supabase Realtime, grouped by time, mark read, click-through navigation
+- [x] **PORT-09**: Notifications window: real-time via Supabase Realtime, grouped by time, mark read, click-through navigation
 - [ ] **PORT-10**: Documents window: invoices, delivery notes, quote PDFs, certificates with view/download
 - [ ] **PORT-11**: Support window: WhatsApp (primary), in-app chat, ticket submission with thread
 - [ ] **PORT-12**: Settings: profile, addresses, projects, team (multi-user with roles: buyer/approver/site manager), notifications, language/theme, security
@@ -279,7 +279,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-06 | Phase 11 | Pending |
 | PORT-07 | Phase 11 | Pending |
 | PORT-08 | Phase 11 | Pending |
-| PORT-09 | Phase 11 | Pending |
+| PORT-09 | Phase 11 | Complete |
 | PORT-10 | Phase 11 | Pending |
 | PORT-11 | Phase 11 | Pending |
 | PORT-12 | Phase 11 | Pending |
