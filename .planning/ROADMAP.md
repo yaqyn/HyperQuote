@@ -278,15 +278,12 @@ Plans:
   3. Computed functions (payment_behavior_score, customer_tier_score, available_quantity, ar_aging) return expected values for test data
   4. All pg_cron jobs are scheduled (quote expiry, AR aging snapshots, metrics pre-computation, SLA breach detection)
   5. Seed data loaded: governorates (27), system_settings defaults, delivery_zones
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 14-01-PLAN.md — 25 remaining tables (Support, HR, AI, System) with RLS + unit_translations
+- [ ] 14-02-PLAN.md — 7 computed functions (sequence generator, scoring, aging, WAC)
+- [ ] 14-03-PLAN.md — 17 business logic triggers + 2 materialized views
+- [ ] 14-04-PLAN.md — 19 pg_cron jobs + seed data (governorates, settings, counters)
 
 ### Phase 15: Internal Platform Shell
 **Goal**: Internal users land on a spatial canvas with glass windows, hotkeys for 11 modules, and a command palette -- the operational hub that replaces traditional dashboards
