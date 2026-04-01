@@ -9,7 +9,7 @@
     "getQuote": "Get a Quote",
     "browseMarket": "Browse Market",
     "readyToBuild": "Ready to Build?",
-    "getStartedFree": "Get Started \u2014 Free",
+    "getStartedFree": "Get Started — Free",
     "noCreditCard": "No credit card required. Quote requests are always free."
   },
   "hero": {
@@ -28,21 +28,51 @@
   "howItWorks": {
     "label": "Process",
     "heading": "How It Works",
-    "step1": { "title": "Build Your List", "description": "Add materials from our catalog or upload your own list." },
-    "step2": { "title": "Get a Quote", "description": "Receive competitive pricing from verified suppliers within 4 hours." },
-    "step3": { "title": "We Deliver", "description": "Coordinated delivery to your site with real-time tracking." },
-    "step4": { "title": "Track Everything", "description": "Monitor orders, deliveries, and payments in one place." }
+    "step1": {
+      "title": "Build Your List",
+      "description": "Add materials from our catalog or upload your own list."
+    },
+    "step2": {
+      "title": "Get a Quote",
+      "description": "Receive competitive pricing from verified suppliers within 4 hours."
+    },
+    "step3": {
+      "title": "We Deliver",
+      "description": "Coordinated delivery to your site with real-time tracking."
+    },
+    "step4": {
+      "title": "Track Everything",
+      "description": "Monitor orders, deliveries, and payments in one place."
+    }
   },
   "valueProps": {
     "label": "Advantages",
     "heading": "Why HyperQuote",
     "subtitle": "Everything you need to source building materials efficiently, from quote to delivery.",
-    "aiOrdering": { "title": "AI-Powered Ordering", "description": "Smart suggestions and automated list building save hours of manual work." },
-    "fastQuotes": { "title": "4-Hour Quotes", "description": "Get competitive pricing faster than any traditional supplier." },
-    "tracking": { "title": "Real-Time Tracking", "description": "Know exactly where your materials are, from warehouse to site." },
-    "projects": { "title": "Project Organization", "description": "Organize orders by project, track budgets, and manage your team." },
-    "pricing": { "title": "Transparent Pricing", "description": "See price ranges upfront. No surprises, no hidden fees." },
-    "whatsapp": { "title": "WhatsApp Support", "description": "Get help instantly through the app you already use every day." }
+    "aiOrdering": {
+      "title": "AI-Powered Ordering",
+      "description": "Smart suggestions and automated list building save hours of manual work."
+    },
+    "fastQuotes": {
+      "title": "4-Hour Quotes",
+      "description": "Get competitive pricing faster than any traditional supplier."
+    },
+    "tracking": {
+      "title": "Real-Time Tracking",
+      "description": "Know exactly where your materials are, from warehouse to site."
+    },
+    "projects": {
+      "title": "Project Organization",
+      "description": "Organize orders by project, track budgets, and manage your team."
+    },
+    "pricing": {
+      "title": "Transparent Pricing",
+      "description": "See price ranges upfront. No surprises, no hidden fees."
+    },
+    "whatsapp": {
+      "title": "WhatsApp Support",
+      "description": "Get help instantly through the app you already use every day."
+    }
   },
   "marketPreview": {
     "label": "Catalog",
@@ -64,7 +94,7 @@
     "story": {
       "label": "Our Story",
       "heading": "Our Story",
-      "p1": "HyperQuote was born from a simple observation: sourcing building materials in Egypt shouldn't be this hard. Contractors spend days calling suppliers, comparing prices, and coordinating deliveries \u2014 time that should be spent building.",
+      "p1": "HyperQuote was born from a simple observation: sourcing building materials in Egypt shouldn't be this hard. Contractors spend days calling suppliers, comparing prices, and coordinating deliveries — time that should be spent building.",
       "p2": "Founded in Cairo, we set out to digitize the entire building materials supply chain. Our platform connects contractors with verified suppliers, automates the quoting process, and provides real-time delivery tracking.",
       "p3": "Today, we serve hundreds of contractors across Egypt, processing thousands of quotes and deliveries. But we're just getting started."
     },
@@ -188,9 +218,9 @@
     "docs": "Documentation",
     "privacyPolicy": "Privacy Policy",
     "termsOfUse": "Terms of Use",
-    "copyright": "\u00a9 2026 HyperQuote. All rights reserved.",
-    "regionEn": "Egypt \u00b7 English",
-    "regionAr": "Egypt \u00b7 \u0627\u0644\u0639\u0631\u0628\u064a\u0629"
+    "copyright": "© 2026 HyperQuote. All rights reserved.",
+    "regionEn": "Egypt · English",
+    "regionAr": "Egypt · العربية"
   },
   "offline": "You're offline",
   "product": {
@@ -216,8 +246,8 @@
     "bag_50kg": "50kg bag",
     "ton": "ton",
     "kg": "kg",
-    "cubic_meter": "m\u00b3",
-    "square_meter": "m\u00b2",
+    "cubic_meter": "m³",
+    "square_meter": "m²",
     "meter": "m",
     "piece": "piece",
     "roll": "roll",
@@ -298,10 +328,10 @@
     }
   },
   "a11y": {
-    "home": "HyperQuote \u2014 Home",
+    "home": "HyperQuote — Home",
     "openNav": "Open navigation menu",
     "closeNav": "Close navigation menu",
-    "switchToArabic": "\u0627\u0644\u062a\u0628\u062f\u064a\u0644 \u0625\u0644\u0649 \u0627\u0644\u0639\u0631\u0628\u064a\u0629",
+    "switchToArabic": "التبديل إلى العربية",
     "switchToEnglish": "Switch to English",
     "toggleDarkMode": "Switch to dark mode",
     "toggleLightMode": "Switch to light mode",
@@ -344,9 +374,15 @@
     }
   },
   "login": {
-    "step1": { "heading": "Sign In" },
-    "step2": { "heading": "Verify Your Number" },
-    "step3": { "heading": "Create Your Account" },
+    "step1": {
+      "heading": "Sign In"
+    },
+    "step2": {
+      "heading": "Verify Your Number"
+    },
+    "step3": {
+      "heading": "Create Your Account"
+    },
     "phoneLabel": "Phone Number",
     "phoneRequired": "Phone number is required",
     "phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
@@ -372,5 +408,75 @@
     },
     "claimFailed": "Failed to claim account. Please try again.",
     "rateLimit": "Too many attempts. Please wait and try again."
+  },
+  "docs": {
+    "sidebar": {
+      "gettingStarted": "Getting Started",
+      "whatIsHyperquote": "What is HyperQuote?",
+      "creatingAccount": "Creating an Account",
+      "yourFirstQuote": "Your First Quote",
+      "usingPortal": "Using the Portal",
+      "buildingMaterialLists": "Building Material Lists",
+      "trackingOrders": "Tracking Orders",
+      "managingProjects": "Managing Projects",
+      "forSuppliers": "For Suppliers",
+      "publishingCatalog": "Publishing Your Catalog",
+      "managingPrices": "Managing Prices",
+      "handlingPOs": "Handling POs"
+    },
+    "content": {
+      "notFound": "Section Not Found",
+      "notFoundBody": "The requested documentation section could not be found.",
+      "whatIsHyperquote": {
+        "title": "What is HyperQuote?",
+        "overview": "Overview",
+        "howItWorks": "How It Works",
+        "keyFeatures": "Key Features"
+      },
+      "creatingAccount": {
+        "title": "Creating an Account",
+        "signUp": "Signing Up",
+        "verification": "Phone Verification"
+      },
+      "yourFirstQuote": {
+        "title": "Your First Quote",
+        "addingMaterials": "Adding Materials",
+        "submitting": "Submitting Your Quote",
+        "receivingResponse": "Receiving a Response"
+      },
+      "buildingMaterialLists": {
+        "title": "Building Material Lists",
+        "catalogSearch": "Searching the Catalog",
+        "customItems": "Adding Custom Items"
+      },
+      "trackingOrders": {
+        "title": "Tracking Orders",
+        "orderStatus": "Order Status",
+        "deliveryTracking": "Delivery Tracking"
+      },
+      "managingProjects": {
+        "title": "Managing Projects",
+        "createProject": "Creating a Project",
+        "budgets": "Budgets & Tracking"
+      },
+      "publishingCatalog": {
+        "title": "Publishing Your Catalog",
+        "uploadProducts": "Uploading Products",
+        "aiParsing": "AI-Powered Parsing"
+      },
+      "managingPrices": {
+        "title": "Managing Prices",
+        "priceLists": "Price Lists",
+        "bulkUpdates": "Bulk Updates"
+      },
+      "handlingPOs": {
+        "title": "Handling POs",
+        "poInbox": "PO Inbox",
+        "fulfillment": "Fulfillment"
+      }
+    },
+    "toc": {
+      "label": "Table of Contents"
+    }
   }
 }
