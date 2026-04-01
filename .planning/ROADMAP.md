@@ -248,7 +248,7 @@ Plans:
 - [x] 12-01-PLAN.md — Supplier types, server functions, keyboard shortcuts, i18n keys, install recharts
 - [ ] 12-02-PLAN.md — Stock & Pricing window with inline edit, bulk CSV update, product drawer
 - [ ] 12-03-PLAN.md — PO inbox with per-line confirm/reject + Invoice submission
-- [ ] 12-04-PLAN.md — Catalog upload with AI parse review + Analytics dashboard
+- [x] 12-04-PLAN.md — Catalog upload with AI parse review + Analytics dashboard
 **UI hint**: yes
 
 ### Phase 13: Database -- Order + Delivery + Finance Tables
@@ -668,7 +668,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 9. Material List Builder + Quote Submission | 4/5 | In Progress|  |
 | 10. Quote Detail + Acceptance | 2/3 | Complete    | 2026-04-01 |
 | 11. Portal Orders + Delivery + Remaining | 8/8 | Complete    | 2026-04-01 |
-| 12. Supplier Portal | 1/5 | In Progress|  |
+| 12. Supplier Portal | 3/5 | In Progress|  |
 | 13. DB -- Order + Delivery + Finance | 0/? | Not started | - |
 | 14. DB -- Support + HR + AI + System | 0/? | Not started | - |
 | 15. Internal Platform Shell | 0/? | Not started | - |
