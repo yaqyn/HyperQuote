@@ -96,6 +96,12 @@ Semantic status colors (data only, not design):
 
 ---
 
+## Focal Point
+
+Primary focal point: **chat input bar** -- the spatial anchor of the entire canvas. All content flows upward from the input; all actions originate from it. The input bar is persistent, always visible at the bottom of the viewport, and visually distinct via its elevated glass surface, focus ring, and flanking icon buttons.
+
+---
+
 ## Component Inventory
 
 ### 1. Chat Message Area (upgrades Phase 7 plain text)
@@ -239,7 +245,7 @@ Semantic status colors (data only, not design):
 - Qty in Geist Mono
 - Inline edit: click cell to edit, focus ring on active cell
 - Add row button: "+ Add item" / "+ أضف عنصر", 12px 400 `var(--color-primary)`, h-36px, full-width, dashed border top
-- Delete row: X icon at inline-end of each row, 16px, `var(--color-text-muted)`, hover `var(--color-error)`
+- Delete row: X icon at inline-end of each row, 16px, `var(--color-text-muted)`, hover `var(--color-error)`. On click, row is removed immediately and a 5-second undo toast appears at the bottom of the table: "Item removed. Undo" / "تم حذف العنصر. تراجع" (12px 400, `var(--color-text-muted)`, "Undo"/"تراجع" link in `var(--color-primary)`). Undo restores the row to its original position. Toast auto-dismisses after 5 seconds; deletion is finalized once toast expires.
 - Below table: "Submit as Quote Request" button, blue solid, h-40px, rounded-xl, 14px 600 white text, full-width
 
 ### 16. Chat Input Upgrade (extends Phase 7 AIChatInput)
@@ -263,6 +269,22 @@ Semantic status colors (data only, not design):
 - Content: ChevronDown icon 16px + "New messages" / "رسائل جديدة" 12px 400
 - Click: smooth scroll to bottom
 - Tween entrance: opacity 0->1, y 8->0, 200ms
+
+---
+
+## Icon-Only Button Declaration
+
+The following buttons are intentionally icon-only at all breakpoints. They do not render a visible text label at any viewport size. Each button relies on its `aria-label` (declared in the Accessibility Contract) for screen reader access and on its universally-recognized icon for sighted users. Tooltip on hover/long-press provides the label text for discovery.
+
+| Button | Icon | Rationale |
+|--------|------|-----------|
+| Send | ArrowUp | Universal chat send affordance; adjacent to input provides sufficient context |
+| Stop | Square | Universal media stop affordance; replaces Send in-place during streaming |
+| Voice | Mic | Universal microphone affordance; progressive enhancement, hidden when unsupported |
+| Attach | Paperclip | Universal attachment affordance; positioned within input bar |
+| History | History (clock) | Positioned above input area; tooltip "Chat history" / "سجل المحادثات" on hover |
+
+Tooltip spec: appears after 500ms hover delay (desktop) or on long-press (mobile). Tween entrance: opacity 0->1, 150ms. Background `var(--color-card)`, border 1px `var(--color-border)`, rounded-lg, px-8px py-4px, 12px 400, shadow-sm. Positioned above the button, centered.
 
 ---
 
@@ -294,6 +316,7 @@ Semantic status colors (data only, not design):
 | Stop button morph | CSS transition: color + bg, 150ms | CSS transition: reverse, 150ms |
 | Voice recording pulse | CSS keyframes: scale 1->1.2, opacity 1->0.5, 1000ms infinite | Instant stop |
 | File upload progress | CSS: stroke-dashoffset animation on SVG circle | Fade out on complete |
+| Row delete undo toast | Tween: opacity 0->1, y 4->0, 200ms | Tween: opacity 1->0, 150ms (on auto-dismiss or undo) |
 
 ---
 
@@ -304,7 +327,7 @@ Semantic status colors (data only, not design):
 | Primary CTA (submit list) | "Submit as Quote Request" | "أرسل كطلب عرض سعر" |
 | Empty state heading | "Ask me anything about building materials" | "اسألني أي شيء عن مواد البناء" |
 | Empty state body | "I can help you find products, get quotes, track orders, and more." | "يمكنني مساعدتك في إيجاد المنتجات، الحصول على عروض أسعار، تتبع الطلبات، والمزيد." |
-| Error state | "Something went wrong. Please try again." | "حدث خطأ. يرجى المحاولة مرة أخرى." |
+| Error state | "Message failed to send. Check your connection and try again, or refresh the page." | "فشل إرسال الرسالة. تحقق من اتصالك وأعد المحاولة، أو أعد تحميل الصفحة." |
 | AI connection error | "I'm having trouble connecting. Please try again in a moment." | "أواجه مشكلة في الاتصال. يرجى المحاولة بعد لحظات." |
 | Typing indicator | "HyperQuote is thinking..." | "هايبر كوت يفكر..." |
 | Streaming stopped | "(Stopped)" | "(تم الإيقاف)" |
@@ -341,10 +364,11 @@ Semantic status colors (data only, not design):
 | Material list table: Item | "Item Name" | "اسم الصنف" |
 | Material list table: Qty | "Qty" | "الكمية" |
 | Material list table: Unit | "Unit" | "الوحدة" |
+| Row delete undo | "Item removed. Undo" | "تم حذف العنصر. تراجع" |
 | Scroll to bottom | "New messages" | "رسائل جديدة" |
 | Supplier AI: Stock query | (contextual AI response) | (contextual AI response) |
-| Supplier AI: PO confirm | "Confirm" | "تأكيد" |
-| Supplier AI: PO reject | "Reject" | "رفض" |
+| Supplier AI: PO confirm | "Confirm PO" | "تأكيد أمر الشراء" |
+| Supplier AI: PO reject | "Reject PO" | "رفض أمر الشراء" |
 
 ---
 
