@@ -260,15 +260,13 @@ Plans:
   2. RLS policies block cross-tenant and cross-customer access for every table
   3. State machine transition function enforces valid-only transitions for quote_request, quote, order, PO, delivery, invoice, and payment
   4. `EXPLAIN ANALYZE` on key queries shows index usage (no sequential scans on RLS-filtered columns)
-**Plans**: 8 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 13-01-PLAN.md — Prerequisite tables (customers, suppliers, product extensions, deferred FKs)
+- [ ] 13-02-PLAN.md — Quotes, orders, procurement, inventory tables
+- [ ] 13-03-PLAN.md — Delivery tables with partitioned driver_locations
+- [ ] 13-04-PLAN.md — Finance tables with generated columns + marketplace/zones
+- [ ] 13-05-PLAN.md — State machine + indexes + RLS policies
 
 ### Phase 14: Database -- Support + HR + AI + System Tables
 **Goal**: The complete 94-table + 2 materialized view database is operational with all triggers, computed functions, cron jobs, and seed data
