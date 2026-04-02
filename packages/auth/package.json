@@ -9,7 +9,8 @@
 		"./client": "./src/client.ts",
 		"./guard": "./src/guard.ts",
 		"./session": "./src/session.ts",
-		"./types": "./src/types.ts"
+		"./types": "./src/types.ts",
+		"./rate-limit": "./src/rate-limit.ts"
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.9.0",
