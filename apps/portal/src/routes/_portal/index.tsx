@@ -1,15 +1,11 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { SpatialCanvas } from '../../components/canvas/SpatialCanvas'
-import { AIReorderSuggestion } from '../../components/orders/AIReorderSuggestion'
-import { getReorderSuggestion } from '../../lib/server/orders'
 import { Greeting } from '../../components/canvas/Greeting'
-import { AIChatInput } from '../../components/canvas/AIChatInput'
 import { NavButtons } from '../../components/canvas/NavButtons'
 import { GuestClaimBanner } from '../../components/canvas/GuestClaimBanner'
 import { checkUnclaimedCustomer } from '../../lib/server/guest-claiming'
-import { useNotificationStore } from '../../stores/notifications'
 
 export const Route = createFileRoute('/_portal/')({
   component: PortalHome,
@@ -67,36 +63,6 @@ function PortalHome() {
           <NavButtons locale={currentLocale} />
         </>
       }
-    >
-      {/* AI reorder suggestion */}
-      <AIReorderSuggestionSlot />
-      <AIChatInput />
-    </SpatialCanvas>
-  )
-}
-
-/**
- * Fetches AI reorder suggestion and renders with all required props.
- * Returns null when no suggestion is available.
- */
-function AIReorderSuggestionSlot() {
-  const navigate = useNavigate()
-  const { data } = useQuery({
-    queryKey: ['reorder-suggestion'],
-    queryFn: () => getReorderSuggestion(),
-    staleTime: 5 * 60_000,
-  })
-
-  if (!data?.suggestion) return null
-
-  const { productId, productName, daysSinceOrder } = data.suggestion
-
-  return (
-    <AIReorderSuggestion
-      productId={productId}
-      productName={productName}
-      daysSinceOrder={daysSinceOrder}
-      onReorder={(id) => navigate({ to: '/orders', search: { reorder: id } })}
     />
   )
 }

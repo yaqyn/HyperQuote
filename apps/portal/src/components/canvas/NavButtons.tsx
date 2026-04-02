@@ -46,14 +46,9 @@ export function NavButtons({ locale }: NavButtonsProps) {
         >
           <Link
             to={item.to}
-            className="group flex items-center gap-2.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors duration-150"
+            className="text-base font-normal text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors duration-150"
           >
-            <span className="text-base font-normal">
-              {t(item.labelKey)}
-            </span>
-            <kbd className="font-[family-name:var(--font-geist-mono)] text-[11px] tracking-wide text-[var(--color-text-muted)]/50 group-hover:text-[var(--color-text-muted)] transition-colors duration-150">
-              {item.shortcut}
-            </kbd>
+            {t(item.labelKey)}
           </Link>
         </motion.div>
       ))}

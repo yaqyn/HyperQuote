@@ -1,10 +1,8 @@
 /**
- * QuickActionChips -- contextual action chips below chat input.
- * Horizontal scrollable row, tween entrance with stagger.
- * Active set determined by quickActionContext from Zustand.
+ * QuickActionChips -- minimal text prompts below chat input.
+ * No pills, no borders. Just quiet text suggestions separated by middots.
  */
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { QUICK_ACTION_CHIPS } from '../../lib/chat-types'
 import { useChatStore } from '../../stores/chat'
@@ -23,22 +21,28 @@ export function QuickActionChips({ sendMessage }: QuickActionChipsProps) {
       : QUICK_ACTION_CHIPS.home
 
   return (
-    <div className="flex gap-2 overflow-x-auto mt-2 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, delay: 0.2 }}
+      className="flex items-center justify-center gap-1 mt-4 flex-wrap"
+    >
       {chipKeys.map((key, i) => (
-        <motion.div
-          key={key}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2, delay: i * 0.05 }}
-        >
-          <Button
-            onPress={() => sendMessage(t(key))}
-            className="shrink-0 h-8 px-3 rounded-full border border-[var(--color-border)] text-xs font-normal text-[var(--color-text)] cursor-pointer transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] pressed:opacity-80"
+        <span key={key} className="flex items-center">
+          {i > 0 && (
+            <span className="text-[var(--color-border)] mx-1.5" aria-hidden="true">
+              ·
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => sendMessage(t(key))}
+            className="text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors duration-150"
           >
             {t(key)}
-          </Button>
-        </motion.div>
+          </button>
+        </span>
       ))}
-    </div>
+    </motion.div>
   )
 }

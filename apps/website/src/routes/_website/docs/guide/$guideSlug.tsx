@@ -8,9 +8,15 @@ import { WizardRenderer } from '../../../../components/docs/WizardRenderer'
 // Eagerly import all wizard step data.
 // When adding a new wizard, add its import here and to the map.
 import { steps as gettingStartedSteps } from '../../../../content/wizards/getting-started'
+import { steps as forCustomersSteps } from '../../../../content/wizards/for-customers'
+import { steps as forSuppliersSteps } from '../../../../content/wizards/for-suppliers'
+import { steps as forDriversSteps } from '../../../../content/wizards/for-drivers'
 
 const WIZARD_STEPS: Record<string, typeof gettingStartedSteps> = {
   'getting-started': gettingStartedSteps,
+  'for-customers': forCustomersSteps,
+  'for-suppliers': forSuppliersSteps,
+  'for-drivers': forDriversSteps,
 }
 
 export const Route = createFileRoute('/_website/docs/guide/$guideSlug')({

@@ -71,31 +71,64 @@ export function usePortalChat() {
 
   const chat = useChat({
     connection: stream(async function* (messages) {
-      // Convert UIMessage[] to simple format for server function
-      const simpleMessages = (messages as UIMessage[]).map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content:
-          m.parts
-            ?.filter((p) => p.type === 'text')
-            .map((p) => (p as { type: 'text'; text: string }).text)
-            .join('') ?? '',
-      }))
+      try {
+        // Convert UIMessage[] to simple format for server function
+        const simpleMessages = (messages as UIMessage[]).map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content:
+            m.parts
+              ?.filter((p) => p.type === 'text')
+              .map((p) => (p as { type: 'text'; text: string }).text)
+              .join('') ?? '',
+        }))
 
-      // Call server function — returns StreamChunk[] (serialized)
-      const chunks = await portalChatFn({
-        data: {
-          messages: simpleMessages,
-          role: activeRole,
-          conversationId: null,
-        },
-      })
+        // Call server function — returns StreamChunk[] (serialized)
+        const chunks = await portalChatFn({
+          data: {
+            messages: simpleMessages,
+            role: activeRole,
+            conversationId: null,
+          },
+        })
 
-      // Extract rich content from CUSTOM events
-      lastChunksRef.current = chunks
-      richContentRef.current = extractRichContent(chunks)
+        // Extract rich content from CUSTOM events
+        lastChunksRef.current = chunks
+        richContentRef.current = extractRichContent(chunks)
 
-      // Yield chunks as async iterable for the stream() adapter
-      yield* arrayToAsyncIterable(chunks)
+        // Yield chunks as async iterable for the stream() adapter
+        yield* arrayToAsyncIterable(chunks)
+      } catch (err) {
+        console.error('[portal-chat] stream error:', err)
+        // Yield a minimal error response so the UI doesn't hang
+        yield {
+          type: 'RUN_STARTED' as const,
+          timestamp: Date.now(),
+          runId: crypto.randomUUID(),
+        }
+        yield {
+          type: 'TEXT_MESSAGE_START' as const,
+          timestamp: Date.now(),
+          messageId: crypto.randomUUID(),
+          role: 'assistant' as const,
+        }
+        yield {
+          type: 'TEXT_MESSAGE_CONTENT' as const,
+          timestamp: Date.now(),
+          messageId: crypto.randomUUID(),
+          delta: 'Something went wrong. Please try again.',
+        }
+        yield {
+          type: 'TEXT_MESSAGE_END' as const,
+          timestamp: Date.now(),
+          messageId: crypto.randomUUID(),
+        }
+        yield {
+          type: 'RUN_FINISHED' as const,
+          timestamp: Date.now(),
+          runId: crypto.randomUUID(),
+          finishReason: 'stop' as const,
+        }
+      }
     }),
     onError: (err) => {
       console.error('[portal-chat]', err)

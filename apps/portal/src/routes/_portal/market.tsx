@@ -89,7 +89,7 @@ function MarketWindow() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
-    <WindowShell title={t('market.windowTitle', 'Market')}>
+    <WindowShell title={t('market.windowTitle', 'Market')} maxWidth="1080px">
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Search bar + quick add */}
         <div className="flex items-center gap-4 px-6 pt-4 pb-3 shrink-0">

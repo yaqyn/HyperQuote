@@ -82,6 +82,9 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
   const isUser = message.role === 'user'
   const isArabic = i18n.language === 'ar'
 
+  // Don't render empty bubbles
+  if (!message.content.trim() && !isStreaming) return null
+
   const formattedTime = useMemo(() => {
     const d = new Date(message.timestamp)
     const formatted = d.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', {

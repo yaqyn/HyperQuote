@@ -1,0 +1,35 @@
+Purchase orders from HyperQuote arrive in your supplier portal as structured digital documents with everything you need to fulfill the order — quantities, delivery details, and expected timelines. The portal lets you confirm, manage, and track POs through completion.
+
+## Receiving purchase orders
+
+When a customer order requires your products, the system generates a purchase order and sends it to your portal with a push notification. The PO includes line items with quantities, unit pricing (your agreed price), delivery address with site foreman contact, delivery window, access instructions, and any special unloading requirements.
+
+Delivery addresses use coded references (not customer company names) to maintain commercial confidentiality. You see a site reference like "HQ-2026-0847" with the foreman's first name and phone number — enough to coordinate delivery, without revealing the end customer's identity.
+
+## Confirming and processing
+
+When a PO arrives, you have three options:
+
+- **Confirm** — Accept the order as-is, with the quantities and delivery timeline specified
+- **Confirm with changes** — Accept but propose modifications to quantities or delivery dates (for example, if you can ship 450 of the 500 requested bags immediately, with the balance in 3 days)
+- **Reject** — Decline the PO with a reason (out of stock, pricing change, capacity constraints)
+
+Rejecting a PO after a customer order has been confirmed triggers a high-priority alert on the HyperQuote side. The procurement team has 4 hours to find an alternative supplier, so timely responses to POs — whether confirming or rejecting — are critical.
+
+## Delivery scheduling
+
+Confirmed POs include a delivery window based on the customer's requirements and operational constraints. For Greater Cairo deliveries of heavy materials (5+ tons), the window is midnight to 6AM due to the Cairo Ring Road truck ban. Light deliveries may have daytime windows.
+
+You coordinate delivery timing through the portal, confirming your dispatch date and expected arrival. The system tracks whether deliveries meet the agreed window and factors this into your supplier performance scorecard.
+
+## Branded delivery notes
+
+For every delivery, HyperQuote generates a branded delivery note — a pre-filled PDF with the HyperQuote logo, order reference, customer name, line items, and quantities. **No prices appear on this document.** You print this delivery note and attach it to the shipment. The customer's site foreman signs this HyperQuote-branded document at delivery.
+
+Compliance with branded delivery notes is tracked. Payment holdback applies for deliveries without proper documentation. Suppliers maintaining 80%+ compliance receive standard terms; below 70% triggers a contract review.
+
+## Invoice submission
+
+After delivery, you submit your invoice through the portal for three-way matching against the PO and delivery confirmation. Tolerances are tight: 1-3% price variance is auto-approved, while larger variances require procurement review. Quantity tolerances allow 5-10% for bulk materials only.
+
+Payment is processed net of 1% withholding tax on goods, as required by Egyptian tax law. HyperQuote remits the withheld amount quarterly to the Egyptian Tax Authority and provides you with a withholding tax certificate for your records.
