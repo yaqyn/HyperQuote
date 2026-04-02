@@ -226,56 +226,94 @@ function MarketPage() {
   return (
     <div className="min-h-screen">
       {/* ── Hero ── */}
-      <motion.section
-        initial="hidden"
-        animate="visible"
-        variants={reveal}
-        className="px-6 pb-12 pt-24 lg:px-12 lg:pb-16 lg:pt-36"
-      >
+      <section className="px-6 pb-12 pt-24 lg:px-12 lg:pb-16 lg:pt-36">
         <div className="mx-auto max-w-[1400px]">
-          <h1
-            className="font-bold leading-[0.95] tracking-[-0.03em]"
-            style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
-          >
-            {t('market.pageTitle', { defaultValue: 'Market' })}
-          </h1>
-          <p className="mt-4 text-[15px] opacity-35 max-w-[440px] leading-relaxed">
-            {t('market.subtitle', {
-              defaultValue:
-                'Browse building materials from verified Egyptian suppliers. No published prices — request a quote for current rates.',
-            })}
-          </p>
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 lg:gap-16">
+            {/* Left — heading + subtitle */}
+            <div className="flex-1 min-w-0">
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                className="font-bold leading-[0.95] tracking-[-0.03em]"
+                style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
+              >
+                {t('market.pageTitle', { defaultValue: 'Market' })}
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.06 }}
+                className="mt-4 text-[15px] opacity-35 max-w-[440px] leading-relaxed"
+              >
+                {t('market.subtitle', {
+                  defaultValue:
+                    'Browse building materials from verified Egyptian suppliers. No published prices — request a quote for current rates.',
+                })}
+              </motion.p>
 
-          {/* Search */}
-          <div className="mt-10 max-w-[480px]">
-            <SearchField
-              aria-label={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-              defaultValue={search.q ?? ''}
-              onSubmit={(val) => {
-                navigate({
-                  search: (prev: Record<string, unknown>) => ({
-                    ...prev,
-                    q: val || undefined,
-                    page: 1,
-                  }),
-                })
-              }}
-              className="w-full"
+              {/* Search */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.12 }}
+                className="mt-10 max-w-[480px]"
+              >
+                <SearchField
+                  aria-label={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
+                  defaultValue={search.q ?? ''}
+                  onSubmit={(val) => {
+                    navigate({
+                      search: (prev: Record<string, unknown>) => ({
+                        ...prev,
+                        q: val || undefined,
+                        page: 1,
+                      }),
+                    })
+                  }}
+                  className="w-full"
+                >
+                  <Label className="sr-only">
+                    {t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
+                  </Label>
+                  <div className="flex items-center border-b border-[var(--color-text)]/[0.1] pb-3 transition-colors duration-200 focus-within:border-[var(--color-primary)]/40">
+                    <Search size={16} className="shrink-0 opacity-25" />
+                    <Input
+                      placeholder={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
+                      className="ms-3 w-full border-0 bg-transparent text-[15px] outline-none placeholder:opacity-30"
+                    />
+                  </div>
+                </SearchField>
+              </motion.div>
+            </div>
+
+            {/* Right — staggered catalog counter */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.08 }}
+              className="shrink-0 flex flex-col items-start lg:items-end"
             >
-              <Label className="sr-only">
-                {t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-              </Label>
-              <div className="flex items-center border-b border-[var(--color-text)]/[0.1] pb-3 transition-colors duration-200 focus-within:border-[var(--color-primary)]/40">
-                <Search size={16} className="shrink-0 opacity-25" />
-                <Input
-                  placeholder={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-                  className="ms-3 w-full border-0 bg-transparent text-[15px] outline-none placeholder:opacity-30"
-                />
-              </div>
-            </SearchField>
+              <span
+                className="font-[family-name:var(--font-mono)] font-bold text-[var(--color-primary)] leading-none"
+                style={{ fontSize: 'clamp(3.5rem, 8vw, 6rem)' }}
+              >
+                {t('market.heroCount', { defaultValue: '2,400+' })}
+              </span>
+              <span className="mt-2 text-[14px] tracking-[0.08em] uppercase opacity-30 font-medium">
+                {t('market.heroCountLabel', { defaultValue: 'Materials' })}
+              </span>
+              {/* Horizontal rule extending from counter */}
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                className="mt-4 h-px w-32 lg:w-48 bg-[var(--color-primary)] origin-start lg:origin-end opacity-20"
+              />
+            </motion.div>
           </div>
         </div>
-      </motion.section>
+      </section>
 
       {/* ── Divider ── */}
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12">

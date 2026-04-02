@@ -77,17 +77,25 @@ function SupportPage() {
       >
         <div className="mx-auto max-w-[1200px]">
           <h1
-            className="font-bold leading-[0.95] tracking-[-0.03em]"
-            style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
+            className="font-semibold leading-[1] tracking-[-0.02em]"
+            style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)' }}
           >
-            {t('support.heading')}
+            {t('support.heroHeading', {
+              defaultValue: 'How can we help?',
+            })}
           </h1>
-          <p className="mt-4 text-[15px] opacity-35">
+          <p className="mt-4 text-[15px] opacity-35 max-w-[400px] leading-[1.7]">
             {t('support.responseTime')}
           </p>
 
           {/* Search with results dropdown */}
-          <div ref={searchRef} className="relative mt-12 max-w-[480px]">
+          <div ref={searchRef} className="relative mt-14 max-w-[480px] ps-6 lg:ps-10">
+            {/* Help desk availability hint */}
+            <p className="mb-5 font-[family-name:var(--font-mono)] text-[12px] tracking-[0.04em] opacity-30">
+              {isArabic
+                ? '\u0627\u0644\u0623\u062D\u062F \u2013 \u0627\u0644\u062E\u0645\u064A\u0633 \u060C \u0668:\u0660\u0660 \u0635 \u2013 \u0666:\u0660\u0660 \u0645 \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
+                : 'Sun\u2013Thu, 8:00 AM \u2013 6:00 PM Cairo time'}
+            </p>
             <SearchField
               aria-label={t('support.searchPlaceholder')}
               value={searchQuery}
@@ -204,12 +212,12 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-12 flex items-baseline gap-4">
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+          <div className="mb-14">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-primary)] opacity-25">
               01
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('support.sectionContact')}
@@ -218,6 +226,8 @@ function SupportPage() {
 
           <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-[1fr_1fr] lg:gap-24">
             <ContactForm />
+            {/* Mobile divider between stacked form and info */}
+            <div className="h-px bg-[var(--color-text)] opacity-[0.07] lg:hidden" />
             <ContactInfo />
           </div>
         </div>
@@ -237,18 +247,39 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-12 flex items-baseline gap-4">
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+          <div className="mb-14">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-primary)] opacity-25">
               02
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('support.faq.heading')}
             </h2>
           </div>
           <FAQAccordion expandId={expandFaqId} />
+
+          {/* Still need help? prompt */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={reveal}
+            className="mt-16 border-t border-[var(--color-text)]/[0.07] pt-10 text-center"
+          >
+            <p className="text-[15px] opacity-40">
+              {isArabic ? '\u0644\u0633\u0647 \u0645\u062D\u062A\u0627\u062C \u0645\u0633\u0627\u0639\u062F\u0629\u061F' : 'Still need help?'}
+            </p>
+            <button
+              type="button"
+              onClick={() => openWithMessage('')}
+              className="mt-3 inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-primary)] transition-opacity hover:opacity-70"
+            >
+              <Wand2 size={14} />
+              {t('support.askAI')}
+            </button>
+          </motion.div>
         </div>
       </motion.section>
     </div>

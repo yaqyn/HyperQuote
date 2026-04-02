@@ -62,11 +62,17 @@ function DocsIndexPage() {
           >
             {t('docs.heading', { defaultValue: 'Documentation' })}
           </h1>
-          <p className="mt-4 text-[15px] opacity-35 max-w-[440px] leading-relaxed">
+
+          <div className="mt-6 h-px w-16 bg-[var(--color-text)] opacity-10" />
+
+          <p className="mt-6 text-[15px] opacity-35 max-w-[440px] leading-relaxed">
             {t('docs.subheading', {
               defaultValue:
                 'Everything you need to source materials, manage quotes, and track deliveries on HyperQuote.',
             })}
+          </p>
+          <p className="mt-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text)] opacity-25 tracking-wide">
+            {t('docs.articleCount', { defaultValue: '34 articles \u00b7 4 guides' })}
           </p>
 
           {/* Search */}

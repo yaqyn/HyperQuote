@@ -133,8 +133,11 @@ function TermsPage() {
           >
             Terms of Service
           </h1>
-          <p className="mt-6 text-[15px] opacity-35 max-w-[480px] leading-[1.7]">
-            Last updated April 1, 2026
+          <p className="mt-4 font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text)] opacity-25 tracking-wide">
+            Version 1.0 — Last updated April 1, 2026
+          </p>
+          <p className="mt-4 text-[15px] opacity-35 max-w-[480px] leading-[1.7]">
+            The binding agreement between you and HyperQuote Technologies Ltd. governing use of the platform.
           </p>
         </div>
       </motion.section>

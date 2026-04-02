@@ -72,24 +72,103 @@ function CareersPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero */}
+      {/* Hero — Manifesto statement, not a label */}
       <motion.section
         initial="hidden"
         animate="visible"
         variants={reveal}
-        className="px-6 pb-16 pt-24 lg:px-12 lg:pb-24 lg:pt-36"
+        className="px-6 pb-20 pt-24 lg:px-12 lg:pb-32 lg:pt-36"
       >
         <div className="mx-auto max-w-[1200px]">
-          <h1
-            className="font-bold leading-[0.95] tracking-[-0.03em]"
-            style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
-          >
-            {t('careers.heroHeadline', { defaultValue: 'Careers' })}
+          <p className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text)] opacity-25 tracking-widest uppercase mb-6">
+            {t('careers.location', { defaultValue: 'Cairo, Egypt' })}
+          </p>
+          <h1 className="max-w-[900px]">
+            <span
+              className="block font-light leading-[1.05] tracking-[-0.03em] text-[var(--color-text-muted)]"
+              style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)' }}
+            >
+              {t('careers.heroLine1', {
+                defaultValue: "We\u2019re not hiring for roles.",
+              })}
+            </span>
+            <span
+              className="block font-bold leading-[1.05] tracking-[-0.03em] mt-2"
+              style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)' }}
+            >
+              {t('careers.heroLine2', {
+                defaultValue: "We\u2019re hiring for Egypt\u2019s construction future.",
+              })}
+            </span>
           </h1>
-          <p className="mt-6 text-[15px] opacity-35 max-w-[480px] leading-[1.7]">
-            {t('careers.heroSubheadline', {
+          <p className="mt-6 font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-primary)] opacity-70 tracking-wide">
+            {t('careers.openCount', { defaultValue: '6 open positions' })}
+          </p>
+        </div>
+      </motion.section>
+
+      {/* Why — Single column with pull-quotes */}
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+        variants={reveal}
+        className="px-6 py-20 lg:px-12 lg:py-28"
+      >
+        <div className="mx-auto max-w-[720px]">
+          <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
+            {t('careers.why.p1', {
               defaultValue:
-                'We\u2019re building the infrastructure behind Egypt\u2019s construction industry. Join a small team solving hard logistics problems with real impact.',
+                'Egypt\u2019s construction supply chain is a $40B market still running on phone calls, paper quotes, and personal relationships. We\u2019re not building another SaaS dashboard.',
+            })}
+          </p>
+
+          <motion.blockquote
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={stagger(0.1)}
+            className="my-12 lg:my-16"
+          >
+            <p
+              className="font-bold leading-[1.2] tracking-[-0.02em]"
+              style={{ fontSize: 'clamp(1.4rem, 2.8vw, 2rem)' }}
+            >
+              {t('careers.why.pullquote1', {
+                defaultValue:
+                  'We\u2019re building the operating system for how materials move from supplier to site.',
+              })}
+            </p>
+          </motion.blockquote>
+
+          <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
+            {t('careers.why.p2', {
+              defaultValue:
+                'You\u2019ll work directly with the founders on problems that matter: real-time logistics coordination, supplier matching algorithms, and a product designed for how Egyptian business actually works.',
+            })}
+          </p>
+
+          <motion.blockquote
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={stagger(0.1)}
+            className="my-12 lg:my-16"
+          >
+            <p
+              className="font-bold leading-[1.2] tracking-[-0.02em]"
+              style={{ fontSize: 'clamp(1.4rem, 2.8vw, 2rem)' }}
+            >
+              {t('careers.why.pullquote2', {
+                defaultValue: 'Small team. High ownership. Shipping weekly.',
+              })}
+            </p>
+          </motion.blockquote>
+
+          <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
+            {t('careers.why.p3', {
+              defaultValue:
+                'This isn\u2019t a place where you\u2019ll disappear into a feature factory. Every engineer touches the full stack, every designer talks to users, every ops person shapes the logistics network. The problems are hard and the impact is immediate.',
             })}
           </p>
         </div>
@@ -100,71 +179,21 @@ function CareersPage() {
         <div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
       </div>
 
-      {/* 01: Why HyperQuote */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={viewportOnce}
-        variants={reveal}
-        className="px-6 py-20 lg:px-12 lg:py-28"
-      >
-        <div className="mx-auto max-w-[1200px]">
-          <div className="mb-12 flex items-baseline gap-4">
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
-              01
-            </span>
-            <h2
-              className="font-bold tracking-[-0.02em]"
-              style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
-            >
-              {t('careers.why.heading', { defaultValue: 'Why HyperQuote' })}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
-            <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-              {t('careers.why.p1', {
-                defaultValue:
-                  'Egypt\u2019s construction supply chain is a $40B market still running on phone calls, paper quotes, and personal relationships. We\u2019re not building another SaaS dashboard \u2014 we\u2019re building the operating system for how materials move from supplier to site.',
-              })}
-            </p>
-            <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-              {t('careers.why.p2', {
-                defaultValue:
-                  'You\u2019ll work directly with the founders on problems that matter: real-time logistics coordination, supplier matching algorithms, and a product designed for how Egyptian business actually works. Small team, high ownership, shipping weekly.',
-              })}
-            </p>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* Divider */}
-      <div className="mx-auto max-w-[1200px] px-6 lg:px-12">
-        <div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-      </div>
-
-      {/* 02: Open Positions */}
+      {/* Open Positions — spacious vertical blocks */}
       <section className="px-6 py-20 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-[1200px]">
-          <motion.div
+          <motion.h2
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="font-bold tracking-[-0.02em] mb-16"
+            style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
-              02
-            </span>
-            <h2
-              className="font-bold tracking-[-0.02em]"
-              style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
-            >
-              {t('careers.positions.heading', { defaultValue: 'Open positions' })}
-            </h2>
-          </motion.div>
+            {t('careers.positions.heading', { defaultValue: 'Open positions' })}
+          </motion.h2>
 
-          <div>
+          <div className="flex flex-col gap-12 lg:gap-14">
             {JOBS.map((job, i) => (
               <motion.div
                 key={job.title}
@@ -172,28 +201,21 @@ function CareersPage() {
                 whileInView="visible"
                 viewport={viewportOnce}
                 variants={stagger(i * 0.06)}
-                className="group cursor-pointer border-b border-[var(--color-text)]/[0.07] py-5 first:border-t"
+                className="group cursor-pointer"
               >
-                <div className="flex items-baseline gap-5">
-                  <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)] shrink-0 w-6">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between flex-1 gap-1 sm:gap-8">
-                    <h3 className="text-[15px] font-semibold tracking-[-0.01em] group-hover:text-[var(--color-primary)] transition-colors">
-                      {job.title}
-                    </h3>
-                    <div className="flex items-baseline gap-4 text-[13px] text-[var(--color-text-muted)] shrink-0">
-                      <span>{job.department}</span>
-                      <span className="opacity-30">/</span>
-                      <span>{job.location}</span>
-                      <span className="opacity-30">/</span>
-                      <span>{job.type}</span>
-                    </div>
-                  </div>
-                  <ArrowRight
-                    size={14}
-                    className="icon-end shrink-0 text-[var(--color-text-subtle)] opacity-0 group-hover:opacity-100 transition-opacity"
-                  />
+                <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.08em] text-[var(--color-primary)] uppercase block mb-2">
+                  {job.department}
+                </span>
+                <h3
+                  className="font-semibold tracking-[-0.01em] group-hover:text-[var(--color-primary)] transition-colors"
+                  style={{ fontSize: '18px' }}
+                >
+                  {job.title}
+                </h3>
+                <div className="flex items-baseline gap-3 mt-2 text-[13px] text-[var(--color-text-muted)]">
+                  <span>{job.location}</span>
+                  <span className="opacity-30">\u00b7</span>
+                  <span>{job.type}</span>
                 </div>
               </motion.div>
             ))}
@@ -206,46 +228,43 @@ function CareersPage() {
         <div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
       </div>
 
-      {/* 03: How We Hire */}
+      {/* How We Hire — horizontal timeline */}
       <section className="px-6 py-20 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-[1200px]">
-          <motion.div
+          <motion.h2
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="font-bold tracking-[-0.02em] mb-16"
+            style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
-              03
-            </span>
-            <h2
-              className="font-bold tracking-[-0.02em]"
-              style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
-            >
-              {t('careers.process.heading', { defaultValue: 'How we hire' })}
-            </h2>
-          </motion.div>
+            {t('careers.process.heading', { defaultValue: 'How we hire' })}
+          </motion.h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+          {/* Timeline: horizontal on md+, vertical on mobile */}
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-0">
+            {/* Connecting line — horizontal on md+, vertical on mobile */}
+            <div className="hidden md:block absolute top-[14px] inset-x-0 h-px bg-[var(--color-text)] opacity-[0.12]" />
+            <div className="md:hidden absolute start-[14px] top-0 bottom-0 w-px bg-[var(--color-text)] opacity-[0.12]" />
+
             {STEPS.map((step, i) => (
               <motion.div
                 key={step.title}
                 initial="hidden"
                 whileInView="visible"
                 viewport={viewportOnce}
-                variants={stagger(i * 0.08)}
-                className="relative py-8 md:px-8 first:md:ps-0 last:md:pe-0"
+                variants={stagger(i * 0.1)}
+                className="relative md:pe-8 last:md:pe-0 ps-10 md:ps-0"
               >
-                {i > 0 && (
-                  <div className="hidden md:block absolute start-0 top-8 bottom-8 w-px bg-[var(--color-text)] opacity-[0.07]" />
-                )}
-                {i > 0 && (
-                  <div className="md:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
-                )}
-                <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)] block mb-3">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
+                {/* Dot on the line — mobile: left side, desktop: top */}
+                <div className="absolute md:static start-0 top-0 md:mb-6">
+                  <div className="w-[28px] h-[28px] flex items-center justify-center">
+                    <span className="font-[family-name:var(--font-mono)] text-[13px] font-bold text-[var(--color-primary)]">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
                 <h3 className="text-[16px] font-semibold tracking-[-0.01em] mb-3">
                   {step.title}
                 </h3>
@@ -258,29 +277,24 @@ function CareersPage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="mx-auto max-w-[1200px] px-6 lg:px-12">
-        <div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-      </div>
-
-      {/* Email CTA */}
+      {/* Bottom CTA — bold and centered */}
       <motion.section
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}
         variants={reveal}
-        className="px-6 py-20 lg:px-12 lg:py-28"
+        className="px-6 py-24 lg:px-12 lg:py-36"
       >
-        <div className="mx-auto max-w-[1200px]">
-          <p className="text-[15px] leading-[1.7] text-[var(--color-text-muted)] max-w-[480px] mb-6">
-            {t('careers.cta.body', {
-              defaultValue:
-                'Don\u2019t see a role that fits? We\u2019re always looking for exceptional people. Send us your CV and tell us what you\u2019d build.',
-            })}
+        <div className="mx-auto max-w-[1200px] text-center">
+          <p
+            className="font-bold tracking-[-0.03em] mb-6"
+            style={{ fontSize: 'clamp(2.4rem, 5vw, 4rem)' }}
+          >
+            {t('careers.cta.headline', { defaultValue: 'Ready?' })}
           </p>
           <a
             href="mailto:careers@hyperquote.com"
-            className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
+            className="inline-flex items-center gap-2 text-[15px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
           >
             careers@hyperquote.com
             <ArrowRight size={15} className="icon-end" />

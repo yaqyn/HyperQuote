@@ -75,23 +75,43 @@ function AboutPage() {
         initial="hidden"
         animate="visible"
         variants={reveal}
-        className="px-6 pb-16 pt-24 lg:px-12 lg:pb-24 lg:pt-36"
+        className="px-6 pb-20 pt-24 lg:px-12 lg:pb-28 lg:pt-36"
       >
         <div className="mx-auto max-w-[1200px]">
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.3 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="block font-[family-name:var(--font-mono)] text-[12px] tracking-[0.08em] uppercase mb-6"
+          >
+            Cairo, Egypt — Est. 2026
+          </motion.span>
           <h1
-            className="font-bold leading-[0.95] tracking-[-0.03em]"
+            className="leading-[0.95] tracking-[-0.03em]"
             style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
           >
-            {t('about.heroHeadline', {
-              defaultValue: "Egypt\u2019s building\nmaterials, reimagined",
-            })}
+            <span className="block font-light">
+              {t('about.heroLine1', {
+                defaultValue: "Egypt\u2019s building materials,",
+              })}
+            </span>
+            <span className="block font-bold mt-1">
+              {t('about.heroLine2', {
+                defaultValue: 'reimagined',
+              })}
+            </span>
           </h1>
-          <p className="mt-6 text-[15px] opacity-35 max-w-[480px] leading-[1.7]">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.35 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="mt-12 text-[15px] max-w-[480px] leading-[1.7]"
+          >
             {t('about.heroSubheadline', {
               defaultValue:
                 'HyperQuote connects contractors with verified suppliers through a single platform. One quote request, multiple supplier bids, delivered to your site.',
             })}
-          </p>
+          </motion.p>
         </div>
       </motion.section>
 
