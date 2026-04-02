@@ -79,3 +79,15 @@ input[type="search"]::-webkit-search-decoration {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-4px); }
 }
+
+/* Drop cap for article first paragraph */
+.drop-cap::first-letter {
+  font-family: var(--font-mono);
+  font-size: 3.5em;
+  float: inline-start;
+  line-height: 0.8;
+  padding-inline-end: 0.15em;
+  padding-block-start: 0.05em;
+  color: var(--color-primary);
+  font-weight: 700;
+}
