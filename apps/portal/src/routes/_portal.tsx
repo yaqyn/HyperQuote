@@ -1,7 +1,6 @@
 import { Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { checkPortalAuth } from '../lib/auth'
-import { WEBSITE_URL } from '../lib/env'
 import { PortalHeader } from '../components/shell/PortalHeader'
 import { useShortcut } from '../hooks/useShortcut'
 import { usePortalStore } from '../stores/portal'
@@ -11,9 +10,10 @@ export const Route = createFileRoute('/_portal')({
     const { auth, isInternalUser } = await checkPortalAuth()
 
     if (!auth && !isInternalUser) {
-      // Cross-app redirect to website login
-      const redirectUrl = `${WEBSITE_URL}?login=portal&redirect=${encodeURIComponent(location.href)}`
-      throw redirect({ href: redirectUrl })
+      throw redirect({
+        to: '/login',
+        search: { redirect: location.href },
+      })
     }
 
     return { auth, isInternalUser }
