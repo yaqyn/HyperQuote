@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
@@ -123,8 +124,21 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
             </div>
           )}
 
+          {/* Step link */}
+          {step.link && (
+            <div className="ps-8 mt-4">
+              <Link
+                to={step.link.to}
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
+              >
+                {t(step.link.labelKey, { defaultValue: 'Try it' })}
+                <ArrowRight size={13} className="icon-end" />
+              </Link>
+            </div>
+          )}
+
           {/* Ask Lyon for this step */}
-          <div className="ps-8 mt-6">
+          <div className="ps-8 mt-4">
             <AskLyonPill
               context={t('docs.wizard.askContext', {
                 defaultValue: 'Help me with: {{step}} in {{guide}}',

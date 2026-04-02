@@ -80,14 +80,14 @@ input[type="search"]::-webkit-search-decoration {
   30% { transform: translateY(-4px); }
 }
 
-/* Drop cap for article first paragraph */
+/* Drop cap for article first paragraph — exactly 2 lines */
 .drop-cap::first-letter {
   font-family: var(--font-mono);
-  font-size: 3.5em;
+  font-size: 2.6em;
   float: inline-start;
-  line-height: 0.8;
-  padding-inline-end: 0.15em;
-  padding-block-start: 0.05em;
+  line-height: 1;
+  padding-inline-end: 0.12em;
+  padding-block-start: 0.08em;
   color: var(--color-primary);
   font-weight: 700;
 }

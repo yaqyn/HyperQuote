@@ -6,6 +6,7 @@ export interface WizardStep {
   bodyKey: string
   illustration: string // key for WizardIllustration
   tip?: string         // optional i18n key for a callout
+  link?: { to: string; labelKey: string } // optional CTA linking to a page
 }
 
 export interface WizardDef {

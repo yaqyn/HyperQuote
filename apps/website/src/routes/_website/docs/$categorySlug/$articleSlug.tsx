@@ -64,7 +64,7 @@ function ArticlePage() {
   const headings = useMemo(() => extractHeadings(markdown), [markdown])
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 lg:px-12 pt-24 pb-20 lg:pt-32 lg:pb-28">
+    <div className="max-w-[1400px] mx-auto px-6 lg:px-12 pt-24 pb-20 lg:pt-32 lg:pb-28">
       {/* Mobile sidebar trigger */}
       <div className="md:hidden mb-8">
         <button

@@ -19,18 +19,21 @@ export const steps: WizardStep[] = [
     titleKey: 'docs.wizard.gettingStarted.steps.browseMarket.title',
     bodyKey: 'docs.wizard.gettingStarted.steps.browseMarket.body',
     illustration: 'browse',
+    link: { to: '/market', labelKey: 'docs.wizard.gettingStarted.steps.browseMarket.link' },
   },
   {
     id: 'search-products',
     titleKey: 'docs.wizard.gettingStarted.steps.searchProducts.title',
     bodyKey: 'docs.wizard.gettingStarted.steps.searchProducts.body',
     illustration: 'search',
+    link: { to: '/market', labelKey: 'docs.wizard.gettingStarted.steps.searchProducts.link' },
   },
   {
     id: 'add-to-quote',
     titleKey: 'docs.wizard.gettingStarted.steps.addToQuote.title',
     bodyKey: 'docs.wizard.gettingStarted.steps.addToQuote.body',
     illustration: 'quote',
+    link: { to: '/market', labelKey: 'docs.wizard.gettingStarted.steps.addToQuote.link' },
   },
   {
     id: 'submit-quote',
@@ -49,5 +52,6 @@ export const steps: WizardStep[] = [
     titleKey: 'docs.wizard.gettingStarted.steps.getSupport.title',
     bodyKey: 'docs.wizard.gettingStarted.steps.getSupport.body',
     illustration: 'support',
+    link: { to: '/support', labelKey: 'docs.wizard.gettingStarted.steps.getSupport.link' },
   },
 ]

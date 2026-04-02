@@ -68,7 +68,7 @@ function CategoryIndexPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 max-w-[680px]">
+        <div className="flex-1 min-w-0 max-w-[800px]">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-subtle)] mb-6">
             <Link to="/docs" className="hover:text-[var(--color-text)] transition-colors">
