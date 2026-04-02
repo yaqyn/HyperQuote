@@ -38,8 +38,8 @@ decisions:
 metrics:
   duration: 7min
   completed: 2026-04-02
-  tasks: 3/3 auto tasks complete (1 checkpoint pending)
-  files: 17
+  tasks: 4/4 complete (3 auto + 1 checkpoint approved)
+  files: 19
 ---
 
 # Quick Task 260402-jf8: Two-Tier Documentation System Summary
@@ -91,6 +91,10 @@ None -- plan executed exactly as written with the two documented bug fixes appli
 
 None -- all components are fully wired to real data from the content registry.
 
-## Awaiting Verification
+## Verification
 
-Task 4 is a human-verify checkpoint. The dev server starts clean on localhost:3002.
+Task 4 checkpoint approved. All routes render correctly, wizard navigation works, markdown articles display with drop cap and Ask Lyon pills, search returns results, Arabic content loads RTL.
+
+## Self-Check: PASSED
+
+All 17 created/modified files verified on disk. All 3 task commits verified in git log.
