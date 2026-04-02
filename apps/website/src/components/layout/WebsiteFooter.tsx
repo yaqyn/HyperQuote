@@ -113,10 +113,10 @@ export function WebsiteFooter() {
 						{t('footer.copyright')}
 					</span>
 					<div className="flex gap-4">
-						<Link to="/privacy" onClick={(e) => handleClick(e, '/privacy')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
+						<Link to="/legal/privacy" onClick={(e) => handleClick(e, '/legal/privacy')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
 							{t('footer.privacyPolicy')}
 						</Link>
-						<Link to="/terms" onClick={(e) => handleClick(e, '/terms')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
+						<Link to="/legal/terms" onClick={(e) => handleClick(e, '/legal/terms')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
 							{t('footer.termsOfUse')}
 						</Link>
 						<span className="text-[12px] opacity-25">
