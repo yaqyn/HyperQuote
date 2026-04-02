@@ -9,6 +9,7 @@ import { FAQAccordion, FAQ_DATA } from '../../components/support/FAQAccordion'
 import { useChatWidget } from '../../hooks/useChatWidget'
 import { Search, ArrowRight, Wand2 } from 'lucide-react'
 import { SearchField, Label, Input } from 'react-aria-components'
+import { SectionNumber } from '../../components/shared/SectionNumber'
 
 export const Route = createFileRoute('/_website/support')({
   head: () => ({
@@ -212,10 +213,8 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-14 group">
-            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
-              01
-            </span>
+          <div className="mb-14">
+            <SectionNumber n={1} />
             <h2
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
@@ -247,10 +246,8 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-14 group">
-            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
-              02
-            </span>
+          <div className="mb-14">
+            <SectionNumber n={2} />
             <h2
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}

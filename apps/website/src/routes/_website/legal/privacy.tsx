@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { SectionNumber } from '../../../components/shared/SectionNumber'
 
 export const Route = createFileRoute('/_website/legal/privacy')({
   head: () => ({
@@ -124,10 +125,8 @@ function PrivacyPage() {
               id={`privacy-${section.number}`}
               className={i > 0 ? 'mt-14' : ''}
             >
-              <div className="mb-14 group">
-                <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
-                  {section.number}
-                </span>
+              <div className="mb-14">
+                <SectionNumber n={section.number} />
                 <h2 className="mt-3 text-[16px] font-normal tracking-[-0.01em] text-[var(--color-text)]">
                   {section.title}
                 </h2>
