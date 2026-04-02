@@ -42,7 +42,7 @@ export function ChatFAB() {
         type="button"
         onClick={toggle}
         aria-label={t('chat.fabLabel')}
-        className="flex h-12 w-12 cursor-pointer items-center justify-center text-[var(--color-text)] opacity-60 transition-all duration-150 hover:opacity-90 hover:scale-105 active:scale-95"
+        className="flex p-3.5 cursor-pointer items-center justify-center rounded-full bg-[var(--color-base)]/40 backdrop-blur-2xl text-[var(--color-text)]/60 transition-all duration-150 hover:bg-[var(--color-base)]/50 hover:text-[var(--color-text)]/80 hover:scale-105 active:scale-95"
       >
         <AnimatePresence mode="wait" initial={false}>
           {isOpen ? (
