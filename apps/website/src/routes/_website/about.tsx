@@ -129,12 +129,12 @@ function AboutPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-12 flex items-baseline gap-4">
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+          <div className="mb-14 group">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               01
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('about.story.heading', { defaultValue: 'The problem' })}
@@ -183,13 +183,13 @@ function AboutPage() {
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="mb-14 group"
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               02
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('about.mission.heading', { defaultValue: 'What we deliver' })}
@@ -240,13 +240,13 @@ function AboutPage() {
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="mb-14 group"
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               03
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('about.team.heading', { defaultValue: 'Team' })}
@@ -286,12 +286,12 @@ function AboutPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="flex items-baseline gap-4 mb-6">
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+          <div className="mb-14 group">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               04
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('about.careers.heading', { defaultValue: 'Join us' })}

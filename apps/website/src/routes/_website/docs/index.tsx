@@ -108,13 +108,13 @@ function DocsIndexPage() {
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="mb-14 group"
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               01
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('docs.guidesHeading', { defaultValue: 'Guides' })}
@@ -168,13 +168,13 @@ function DocsIndexPage() {
             whileInView="visible"
             viewport={viewportOnce}
             variants={reveal}
-            className="mb-12 flex items-baseline gap-4"
+            className="mb-14 group"
           >
-            <span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-primary)]">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               02
             </span>
             <h2
-              className="font-bold tracking-[-0.02em]"
+              className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
               {t('docs.docsHeading', { defaultValue: 'Documentation' })}

@@ -212,8 +212,8 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-14">
-            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-primary)] opacity-25">
+          <div className="mb-14 group">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               01
             </span>
             <h2
@@ -247,8 +247,8 @@ function SupportPage() {
         className="px-6 py-20 lg:px-12 lg:py-28"
       >
         <div className="mx-auto max-w-[1200px]">
-          <div className="mb-14">
-            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-primary)] opacity-25">
+          <div className="mb-14 group">
+            <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
               02
             </span>
             <h2

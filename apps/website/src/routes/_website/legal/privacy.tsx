@@ -124,16 +124,16 @@ function PrivacyPage() {
               id={`privacy-${section.number}`}
               className={i > 0 ? 'mt-14' : ''}
             >
-              <div className="mb-5 flex items-baseline gap-3">
-                <sup className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-primary)] opacity-50 -top-1 relative">
+              <div className="mb-14 group">
+                <span className="block font-[family-name:var(--font-mono)] text-[clamp(2rem,4vw,3rem)] leading-none text-[var(--color-text)] opacity-10 transition-colors duration-200 group-hover:text-[var(--color-primary)] group-hover:opacity-25">
                   {section.number}
-                </sup>
-                <h2 className="text-[16px] font-normal tracking-[-0.01em] text-[var(--color-text)]">
+                </span>
+                <h2 className="mt-3 text-[16px] font-normal tracking-[-0.01em] text-[var(--color-text)]">
                   {section.title}
                 </h2>
               </div>
 
-              <div className="ps-7 space-y-4">
+              <div className="space-y-4">
                 {section.content.map((paragraph, j) => (
                   <p
                     key={j}
