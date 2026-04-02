@@ -23,6 +23,34 @@ import type { RichContent, ChatMessage } from '../lib/chat-types'
 // ============================================================================
 
 /**
+ * Extract text content from a UIMessage.
+ * Handles multiple @tanstack/ai-react part structures:
+ * - parts with type 'text' and .text property
+ * - parts with type 'text' and .value property
+ * - direct content string on message
+ */
+function extractContent(msg: UIMessage): string {
+  // Try parts first
+  if (msg.parts && msg.parts.length > 0) {
+    const textParts = msg.parts.filter((p) => p.type === 'text')
+    if (textParts.length > 0) {
+      const text = textParts
+        .map((p) => {
+          const part = p as Record<string, unknown>
+          return (part.text as string) ?? (part.value as string) ?? ''
+        })
+        .join('')
+      if (text) return text
+    }
+  }
+  // Fallback: direct content property
+  if ((msg as Record<string, unknown>).content) {
+    return String((msg as Record<string, unknown>).content)
+  }
+  return ''
+}
+
+/**
  * Convert array of StreamChunks to AsyncIterable.
  * Server function returns array (serialized over RPC); stream() needs iterable.
  */
@@ -144,15 +172,18 @@ export function usePortalChat() {
         id: msg.id,
         role: msg.role as 'user' | 'assistant',
         content:
-          msg.parts
-            ?.filter((p) => p.type === 'text')
-            .map((p) => (p as { type: 'text'; text: string }).text)
-            .join('') ?? '',
+          extractContent(msg),
         timestamp: Date.now(),
       }))
       setMessages(activeRole, mapped)
     }
   }, [chat.messages, activeRole, setMessages])
+
+  // Debug: log raw UIMessage structure
+  if (chat.messages.length > 0) {
+    const raw = chat.messages[0] as Record<string, unknown>
+    console.log('[usePortalChat] raw UIMessage keys:', Object.keys(raw), 'parts:', raw.parts, 'content:', raw.content, 'role:', raw.role)
+  }
 
   // Map UIMessage to simplified ChatMessage for consumers
   const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({

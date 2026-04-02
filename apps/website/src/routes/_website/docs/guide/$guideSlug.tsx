@@ -2,7 +2,7 @@ import { createFileRoute, useParams, useNavigate, Link } from '@tanstack/react-r
 import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { WIZARDS } from '../../../../content/registry'
+import { WIZARDS, displayName } from '../../../../content/registry'
 import { WizardRenderer } from '../../../../components/docs/WizardRenderer'
 
 // Eagerly import all wizard step data.
@@ -69,11 +69,11 @@ function WizardGuidePage() {
           className="font-bold tracking-[-0.03em] leading-[1.1] mb-3"
           style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)' }}
         >
-          {t(wizard.titleKey, { defaultValue: guideSlug })}
+          {t(wizard.titleKey, { defaultValue: displayName(wizard.titleKey) })}
         </h1>
         <p className="text-[15px] opacity-35 mb-12 max-w-[500px]">
           {t(wizard.descriptionKey, {
-            defaultValue: 'Follow along step by step.',
+            defaultValue: displayName(wizard.descriptionKey),
           })}
         </p>
       </motion.div>

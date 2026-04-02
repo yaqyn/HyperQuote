@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { ArrowRight, Menu } from 'lucide-react'
-import { WIZARDS, DOC_CATEGORIES } from '../../../content/registry'
+import { WIZARDS, DOC_CATEGORIES, displayName } from '../../../content/registry'
 import { DocsSearch } from '../../../components/docs/DocsSearch'
 import { DocsSidebar } from '../../../components/docs/DocsSidebar'
 
@@ -133,10 +133,10 @@ function DocsIndexPage() {
                     {t('docs.wizard.guide', { defaultValue: 'Guide' })}
                   </span>
                   <h3 className="mt-2 text-[16px] font-semibold tracking-[-0.01em]">
-                    {t(w.titleKey, { defaultValue: w.slug })}
+                    {t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
                   </h3>
                   <p className="mt-2 text-[13px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
-                    {t(w.descriptionKey, { defaultValue: 'Interactive step-by-step walkthrough.' })}
+                    {t(w.descriptionKey, { defaultValue: displayName(w.descriptionKey) })}
                   </p>
                   <div className="mt-4 flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
                     {t('docs.startGuide', { defaultValue: 'Start guide' })}
@@ -203,7 +203,7 @@ function DocsIndexPage() {
                     params={{ categorySlug: cat.slug }}
                     className="text-[16px] font-semibold tracking-[-0.01em] hover:text-[var(--color-primary)] transition-colors"
                   >
-                    {t(cat.titleKey, { defaultValue: cat.slug })}
+                    {t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
                   </Link>
                 </div>
 
@@ -215,7 +215,7 @@ function DocsIndexPage() {
                         params={{ categorySlug: cat.slug, articleSlug: article.slug }}
                         className="group flex items-center justify-between py-1.5 text-[14px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
                       >
-                        <span>{t(article.titleKey, { defaultValue: article.slug })}</span>
+                        <span>{t(article.titleKey, { defaultValue: displayName(article.titleKey) })}</span>
                         <ArrowRight
                           size={13}
                           className="icon-end shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"

@@ -14,6 +14,11 @@ export function SpatialCanvas({ greeting }: SpatialCanvasProps) {
   const realMessages = chat.messages.filter((m) => m.content.trim().length > 0)
   const hasMessages = realMessages.length > 0 || chat.isLoading
 
+  // Debug: log raw message structure
+  if (chat.messages.length > 0) {
+    console.log('[SpatialCanvas] messages:', chat.messages.length, 'real:', realMessages.length, 'isLoading:', chat.isLoading, JSON.stringify(chat.messages[0], null, 2))
+  }
+
   return (
     <div className="h-dvh w-full flex flex-col items-center bg-[var(--color-base)]">
       {hasMessages ? (

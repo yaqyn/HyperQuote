@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import Fuse from 'fuse.js'
 import { Search, ArrowRight } from 'lucide-react'
 import { SearchField, Label, Input } from 'react-aria-components'
-import { WIZARDS, DOC_CATEGORIES } from '../../content/registry'
+import { WIZARDS, DOC_CATEGORIES, displayName } from '../../content/registry'
 import { AskLyonPill } from './AskLyonPill'
 
 interface SearchItem {
@@ -23,7 +23,7 @@ function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] 
   for (const w of WIZARDS) {
     items.push({
       type: 'guide',
-      title: t(w.titleKey, { defaultValue: w.slug }),
+      title: t(w.titleKey, { defaultValue: displayName(w.titleKey) }),
       category: t('docs.guides', { defaultValue: 'Guides' }),
       slug: w.slug,
       href: `/docs/guide/${w.slug}`,
@@ -34,8 +34,8 @@ function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] 
     for (const article of cat.articles) {
       items.push({
         type: 'article',
-        title: t(article.titleKey, { defaultValue: article.slug }),
-        category: t(cat.titleKey, { defaultValue: cat.slug }),
+        title: t(article.titleKey, { defaultValue: displayName(article.titleKey) }),
+        category: t(cat.titleKey, { defaultValue: displayName(cat.titleKey) }),
         slug: article.slug,
         href: `/docs/${cat.slug}/${article.slug}`,
       })

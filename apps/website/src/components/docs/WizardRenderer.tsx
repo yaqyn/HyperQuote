@@ -104,21 +104,19 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
               {String(currentStep + 1).padStart(2, '0')}
             </span>
             <h2 className="text-[22px] font-semibold tracking-[-0.02em]">
-              {t(step.titleKey, { defaultValue: step.id.replace(/-/g, ' ') })}
+              {t(step.titleKey, { defaultValue: step.title })}
             </h2>
           </div>
 
           <p className="text-[15px] leading-[1.8] text-[var(--color-text-muted)] ps-8 mb-4">
-            {t(step.bodyKey, {
-              defaultValue: 'Step instructions will appear here with detailed guidance.',
-            })}
+            {t(step.bodyKey, { defaultValue: step.body })}
           </p>
 
-          {step.tip && (
+          {step.tipText && (
             <div className="ps-8 mb-4">
               <div className="border-s-2 border-[var(--color-primary)]/30 ps-4 py-2">
                 <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">
-                  {t(step.tip, { defaultValue: '' })}
+                  {t(step.tip ?? '', { defaultValue: step.tipText })}
                 </p>
               </div>
             </div>
@@ -133,7 +131,7 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
               >
-                {t(step.link.labelKey, { defaultValue: 'Try it' })}
+                {t(step.link.labelKey, { defaultValue: step.link.label })}
                 <ArrowRight size={13} className="icon-end" />
               </a>
             </div>
@@ -142,11 +140,7 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
           {/* Ask Lyon for this step */}
           <div className="ps-8 mt-4">
             <AskLyonPill
-              context={t('docs.wizard.askContext', {
-                defaultValue: 'Help me with: {{step}} in {{guide}}',
-                step: t(step.titleKey, { defaultValue: step.id }),
-                guide: t(guideTitleKey, { defaultValue: guideSlug }),
-              })}
+              context={`Help me with: ${step.title} in ${t(guideTitleKey, { defaultValue: guideSlug })}`}
             />
           </div>
         </motion.div>

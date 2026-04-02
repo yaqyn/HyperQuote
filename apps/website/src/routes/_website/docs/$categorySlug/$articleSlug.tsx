@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { Menu } from 'lucide-react'
-import { findArticle, getAdjacentArticles } from '../../../../content/registry'
+import { findArticle, getAdjacentArticles, displayName } from '../../../../content/registry'
 import { ArticleRenderer, extractHeadings, type ExtractedHeading } from '../../../../components/docs/ArticleRenderer'
 import { DocsSidebar } from '../../../../components/docs/DocsSidebar'
 
@@ -223,7 +223,7 @@ function ArticlePage() {
         {/* Article */}
         <ArticleRenderer
           markdown={markdown}
-          articleTitle={t(article.titleKey, { defaultValue: articleSlug })}
+          articleTitle={t(article.titleKey, { defaultValue: displayName(article.titleKey) })}
           categorySlug={categorySlug}
           articleSlug={articleSlug}
           prev={adjacent.prev}

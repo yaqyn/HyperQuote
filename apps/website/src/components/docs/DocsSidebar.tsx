@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { WIZARDS, DOC_CATEGORIES } from '../../content/registry'
+import { WIZARDS, DOC_CATEGORIES, displayName } from '../../content/registry'
 
 interface DocsSidebarProps {
   activeCategorySlug?: string
@@ -49,7 +49,7 @@ export function DocsSidebar({
                           : 'bg-[var(--color-border)] opacity-0'
                       }`}
                     />
-                    {t(w.titleKey, { defaultValue: w.slug })}
+                    {t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
                   </Link>
                 </li>
               )
@@ -65,7 +65,7 @@ export function DocsSidebar({
                 {String(catIdx + 1).padStart(2, '0')}
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
-                {t(cat.titleKey, { defaultValue: cat.slug })}
+                {t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
               </span>
             </div>
             <ul className="space-y-0.5">
@@ -90,7 +90,7 @@ export function DocsSidebar({
                             : 'bg-[var(--color-border)] opacity-0'
                         }`}
                       />
-                      {t(article.titleKey, { defaultValue: article.slug })}
+                      {t(article.titleKey, { defaultValue: displayName(article.titleKey) })}
                     </Link>
                   </li>
                 )

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { ArrowRight, Menu } from 'lucide-react'
-import { DOC_CATEGORIES } from '../../../../content/registry'
+import { DOC_CATEGORIES, displayName } from '../../../../content/registry'
 import { DocsSidebar } from '../../../../components/docs/DocsSidebar'
 
 export const Route = createFileRoute('/_website/docs/$categorySlug/')({
@@ -80,7 +80,7 @@ function CategoryIndexPage() {
             className="font-bold tracking-[-0.03em] leading-[1.1] mb-4"
             style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)' }}
           >
-            {t(category.titleKey, { defaultValue: categorySlug })}
+            {t(category.titleKey, { defaultValue: displayName(category.titleKey) })}
           </h1>
 
           <div className="mb-10 h-px bg-[var(--color-text)] opacity-[0.07]" />
@@ -113,12 +113,12 @@ function CategoryIndexPage() {
                         {String(i + 1).padStart(2, '0')}
                       </span>
                       <span className="text-[16px] font-medium">
-                        {t(article.titleKey, { defaultValue: article.slug })}
+                        {t(article.titleKey, { defaultValue: displayName(article.titleKey) })}
                       </span>
                     </div>
                     {article.descriptionKey && (
                       <p className="mt-1 ps-8 text-[13px] text-[var(--color-text-muted)] leading-relaxed">
-                        {t(article.descriptionKey, { defaultValue: '' })}
+                        {t(article.descriptionKey, { defaultValue: displayName(article.descriptionKey) })}
                       </p>
                     )}
                   </div>

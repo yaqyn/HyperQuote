@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowRight } from 'lucide-react'
 import { Lexer } from 'marked'
 import type { Token, Tokens } from 'marked'
+import { displayName } from '../../content/registry'
 import { AskLyonPill } from './AskLyonPill'
 
 interface ArticleRendererProps {
@@ -137,7 +138,17 @@ export function ArticleRenderer({
               } text-[15px] leading-[1.85] text-[var(--color-text-muted)]`}
             >
               {list.items.map((item: Tokens.ListItem, i: number) => (
-                <li key={i}>{renderInline(item.tokens)}</li>
+                <li key={i}>
+                  {item.tokens.map((t, j) => {
+                    if (t.type === 'text' && 'tokens' in t && (t as Tokens.Text).tokens) {
+                      return <span key={j}>{renderInline((t as Tokens.Text).tokens)}</span>
+                    }
+                    if (t.type === 'paragraph') {
+                      return <span key={j}>{renderInline((t as Tokens.Paragraph).tokens)}</span>
+                    }
+                    return <span key={j}>{renderInline([t])}</span>
+                  })}
+                </li>
               ))}
             </Tag>
           )
@@ -238,7 +249,7 @@ export function ArticleRenderer({
           params={{ categorySlug }}
           className="hover:text-[var(--color-text)] transition-colors"
         >
-          {t(`docs.category.${categorySlug}.title`, { defaultValue: categorySlug })}
+          {t(`docs.category.${categorySlug}.title`, { defaultValue: displayName(`docs.category.${categorySlug}.title`) })}
         </Link>
       </div>
 
@@ -269,7 +280,7 @@ export function ArticleRenderer({
                 {t('docs.nav.previous', { defaultValue: 'Previous' })}
               </span>
               <span className="text-[14px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">
-                {t(prev.titleKey, { defaultValue: prev.slug })}
+                {t(prev.titleKey, { defaultValue: displayName(prev.titleKey) })}
               </span>
             </Link>
           ) : (
@@ -286,7 +297,7 @@ export function ArticleRenderer({
                 {t('docs.nav.next', { defaultValue: 'Next' })}
               </span>
               <span className="flex items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">
-                {t(next.titleKey, { defaultValue: next.slug })}
+                {t(next.titleKey, { defaultValue: displayName(next.titleKey) })}
                 <ArrowRight size={14} className="icon-end" />
               </span>
             </Link>
