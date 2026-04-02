@@ -184,11 +184,11 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 			params={{ productSlug: product.slug }}
 			className="group block"
 		>
-			<div className="relative aspect-square rounded-xl overflow-hidden bg-[var(--color-surface)]">
+			<div className="relative aspect-[3/2] overflow-hidden bg-[var(--color-surface)]">
 				<img
 					src={image}
 					alt={name}
-					className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+					className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
 					loading="lazy"
 				/>
 				<button

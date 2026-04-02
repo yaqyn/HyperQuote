@@ -165,12 +165,14 @@ export function usePortalChat() {
   }, [chat.messages, activeRole, setMessages])
 
   // Map UIMessage to simplified ChatMessage for consumers
-  const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
+  // Rich content only attaches to the last assistant message
+  const lastAssistantIdx = chat.messages.findLastIndex((m) => m.role === 'assistant')
+  const messages: ChatMessage[] = chat.messages.map((msg: UIMessage, idx: number) => ({
     id: msg.id,
     role: msg.role as 'user' | 'assistant',
     content: extractContent(msg),
     richContent:
-      msg.role === 'assistant' ? richContentRef.current : undefined,
+      idx === lastAssistantIdx ? richContentRef.current : undefined,
     timestamp: msg.createdAt?.getTime() ?? Date.now(),
   }))
 

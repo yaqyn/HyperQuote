@@ -80,6 +80,10 @@ input[type="search"]::-webkit-search-decoration {
   30% { transform: translateY(-4px); }
 }
 
+/* Hide scrollbar for horizontal scroll areas */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Drop cap — novel-style initial letter, top-aligned with first line */
 .drop-cap::first-letter {
   font-family: var(--font-mono);
