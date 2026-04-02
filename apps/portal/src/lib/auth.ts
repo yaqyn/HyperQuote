@@ -66,6 +66,23 @@ export const checkPortalAuth = createServerFn().handler(
     auth: AuthSession | null
     isInternalUser: boolean
   }> => {
+    // Dev mode: bypass auth check so the portal is usable without Supabase
+    if (isDevMode()) {
+      return {
+        auth: {
+          session: {} as AuthSession['session'],
+          user: {
+            id: 'dev-user',
+            user_metadata: { name: 'Dev User', company_name: 'Dev Co', roles: ['customer'] },
+          } as AuthSession['user'],
+          pool: 'external',
+          roles: ['customer'],
+          tenantId: null,
+        },
+        isInternalUser: false,
+      }
+    }
+
     const session = await getServerSession({
       supabaseUrl:
         process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',

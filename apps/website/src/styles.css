@@ -80,14 +80,15 @@ input[type="search"]::-webkit-search-decoration {
   30% { transform: translateY(-4px); }
 }
 
-/* Drop cap for article first paragraph — exactly 2 lines */
+/* Drop cap — novel-style initial letter, top-aligned with first line */
 .drop-cap::first-letter {
   font-family: var(--font-mono);
-  font-size: 2.6em;
+  font-size: 4.2em;
   float: inline-start;
-  line-height: 1;
-  padding-inline-end: 0.12em;
-  padding-block-start: 0.08em;
+  line-height: 0.68;
+  padding-inline-end: 0.35em;
+  padding-block-end: 0.08em;
+  margin-block-start: 0.12em;
   color: var(--color-primary);
   font-weight: 700;
 }

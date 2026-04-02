@@ -19,7 +19,6 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 	useEffect(() => {
 		if (headings.length === 0) return
 
-		// Clean up previous observer
 		observerRef.current?.disconnect()
 
 		const observer = new IntersectionObserver(
@@ -38,12 +37,9 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 
 		observerRef.current = observer
 
-		// Observe all heading elements
 		for (const heading of headings) {
 			const el = document.getElementById(heading.id)
-			if (el) {
-				observer.observe(el)
-			}
+			if (el) observer.observe(el)
 		}
 
 		return () => observer.disconnect()
@@ -52,27 +48,31 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 	if (headings.length === 0) return null
 
 	return (
-		<aside className="hidden 2xl:block w-[200px] shrink-0 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
-			<nav aria-label={t('docs.toc.label', { defaultValue: 'Table of Contents' })}>
-				<ul className="space-y-1">
-					{headings.map((heading) => (
+		<aside className="hidden xl:block w-44 shrink-0 sticky top-24 self-start max-h-[calc(100vh-8rem)] overflow-y-auto">
+			<p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-3">
+				{t('docs.toc.label', { defaultValue: 'On this page' })}
+			</p>
+			<ul className="space-y-0.5">
+				{headings.map((heading) => {
+					const isActive = activeId === heading.id
+					return (
 						<li key={heading.id}>
 							<a
 								href={`#${heading.id}`}
-								className={`block text-xs leading-relaxed transition-colors ${
-									heading.level === 3 ? 'ps-3' : ''
+								className={`relative block text-[13px] leading-snug py-1 transition-colors duration-150 ${
+									heading.level === 3 ? 'ps-4' : 'ps-0'
 								} ${
-									activeId === heading.id
-										? 'text-[var(--color-primary)] font-bold'
+									isActive
+										? 'text-[var(--color-text)] font-medium'
 										: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
 								}`}
 							>
 								{t(heading.textKey)}
 							</a>
 						</li>
-					))}
-				</ul>
-			</nav>
+					)
+				})}
+			</ul>
 		</aside>
 	)
 }

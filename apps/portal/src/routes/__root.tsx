@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   HeadContent,
   Outlet,
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { OfflineBanner } from '@hyperquote/ui'
@@ -55,6 +56,7 @@ function RootComponent() {
   const routeContext = Route.useRouteContext() as { locale?: 'ar' | 'en' }
   const locale = routeContext.locale ?? 'en'
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
+  const [queryClient] = useState(() => new QueryClient())
 
   useEffect(() => {
     initTheme()
@@ -67,21 +69,23 @@ function RootComponent() {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              '(function(){var t=localStorage.getItem("hq-theme");if(t)document.documentElement.setAttribute("data-theme",t);})()',
+              '(function(){var t=localStorage.getItem("hq-theme")||"light";document.documentElement.setAttribute("data-theme",t);})()',
           }}
         />
       </head>
       <body className="bg-[var(--color-base)] text-[var(--color-text)] transition-colors">
-        <OfflineBanner />
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--color-primary)] focus:text-white"
-        >
-          {t('a11y.skipToContent')}
-        </a>
-        <I18nProvider locale={locale}>
-          <Outlet />
-        </I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <OfflineBanner />
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--color-primary)] focus:text-white"
+          >
+            {t('a11y.skipToContent')}
+          </a>
+          <I18nProvider locale={locale}>
+            <Outlet />
+          </I18nProvider>
+        </QueryClientProvider>
         <Scripts />
       </body>
     </html>

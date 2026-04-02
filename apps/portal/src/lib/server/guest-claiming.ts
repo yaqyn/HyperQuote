@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 const isSupabaseConfigured = () =>
@@ -9,7 +9,7 @@ const isSupabaseConfigured = () =>
  * Returns masked name hint for the banner.
  */
 export const checkUnclaimedCustomer = createServerFn({ method: 'GET' })
-  .validator(z.object({ phone: z.string() }))
+  .inputValidator(z.object({ phone: z.string() }))
   .handler(async ({ data: input }) => {
     if (!isSupabaseConfigured()) {
       // Dev mock: always return an unclaimed customer
@@ -56,7 +56,7 @@ export const checkUnclaimedCustomer = createServerFn({ method: 'GET' })
  * Uses WHERE auth_user_id IS NULL to prevent race conditions (Pitfall 8).
  */
 export const claimCustomerAccount = createServerFn({ method: 'POST' })
-  .validator(z.object({ customerId: z.string() }))
+  .inputValidator(z.object({ customerId: z.string() }))
   .handler(async ({ data: input }) => {
     if (!isSupabaseConfigured()) {
       // Dev mock

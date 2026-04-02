@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
 import type { WizardStep } from '../../content/registry'
 import { AskLyonPill } from './AskLyonPill'
 import { WizardIllustration } from './WizardIllustration'
@@ -124,16 +124,18 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
             </div>
           )}
 
-          {/* Step link */}
+          {/* Step link — opens in new tab to preserve wizard state */}
           {step.link && (
             <div className="ps-8 mt-4">
-              <Link
-                to={step.link.to}
+              <a
+                href={step.link.to}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
               >
                 {t(step.link.labelKey, { defaultValue: 'Try it' })}
                 <ArrowRight size={13} className="icon-end" />
-              </Link>
+              </a>
             </div>
           )}
 
@@ -155,32 +157,36 @@ export function WizardRenderer({ steps, guideSlug, guideTitleKey }: WizardRender
         <button
           type="button"
           onClick={prev}
-          disabled={isFirst}
+          disabled={isFirst && !isLast}
           className={`inline-flex items-center gap-2 text-[14px] font-medium transition-colors ${
-            isFirst
+            isFirst && !isLast
               ? 'opacity-25 cursor-not-allowed'
               : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
           }`}
         >
-          <ArrowLeft size={16} className="icon-end" />
-          {t('docs.wizard.back', { defaultValue: 'Back' })}
+          <ArrowLeft size={15} className="icon-end" />
+          {t('docs.wizard.previous', { defaultValue: 'Previous' })}
         </button>
 
-        <button
-          type="button"
-          onClick={isLast ? undefined : next}
-          disabled={isLast}
-          className={`inline-flex items-center gap-2 text-[14px] font-medium transition-colors ${
-            isLast
-              ? 'opacity-25 cursor-not-allowed'
-              : 'bg-[var(--color-primary)] text-white px-5 py-2.5 rounded-lg hover:bg-[var(--color-primary-hover)]'
-          }`}
-        >
-          {isLast
-            ? t('docs.wizard.done', { defaultValue: 'Done' })
-            : t('docs.wizard.next', { defaultValue: 'Next' })}
-          {!isLast && <ArrowRight size={16} className="icon-end" />}
-        </button>
+        {isLast ? (
+          <button
+            type="button"
+            onClick={() => goTo(0)}
+            className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+          >
+            <RotateCcw size={14} />
+            {t('docs.wizard.startOver', { defaultValue: 'Start over' })}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={next}
+            className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+          >
+            {t('docs.wizard.next', { defaultValue: 'Next' })}
+            <ArrowRight size={15} className="icon-end" />
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useEffect, useState, useCallback } from 'react'
+import { Link, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 export function WebsiteFooter() {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
 	const [isDark, setIsDark] = useState(false)
+	const router = useRouter()
+
+	const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, to: string) => {
+		if (router.state.location.pathname === to) {
+			e.preventDefault()
+			window.scrollTo({ top: 0, behavior: 'smooth' })
+		}
+	}, [router])
 
 	useEffect(() => {
 		function checkTheme() {
@@ -57,9 +65,9 @@ export function WebsiteFooter() {
 								{t('footer.platform')}
 							</h3>
 							<ul className="flex flex-col gap-2.5">
-								<li><Link to="/portal" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.getQuote')}</Link></li>
-								<li><Link to="/market" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.browseMarket')}</Link></li>
-								<li><Link to="/portal" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.trackOrder')}</Link></li>
+								<li><Link to="/portal" onClick={(e) => handleClick(e, '/portal')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.getQuote')}</Link></li>
+								<li><Link to="/market" onClick={(e) => handleClick(e, '/market')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.browseMarket')}</Link></li>
+								<li><Link to="/portal" onClick={(e) => handleClick(e, '/portal')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.trackOrder')}</Link></li>
 							</ul>
 						</div>
 						<div>
@@ -67,9 +75,9 @@ export function WebsiteFooter() {
 								{t('footer.company')}
 							</h3>
 							<ul className="flex flex-col gap-2.5">
-								<li><Link to="/about" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.aboutUs')}</Link></li>
-<li><Link to="/careers" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.careers')}</Link></li>
-								<li><Link to="/docs" className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.docs')}</Link></li>
+								<li><Link to="/about" onClick={(e) => handleClick(e, '/about')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.aboutUs')}</Link></li>
+								<li><Link to="/careers" onClick={(e) => handleClick(e, '/careers')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.careers')}</Link></li>
+								<li><Link to="/docs" onClick={(e) => handleClick(e, '/docs')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.docs')}</Link></li>
 							</ul>
 						</div>
 					</div>
@@ -90,6 +98,7 @@ export function WebsiteFooter() {
 							</a>
 							<Link
 								to="/support"
+								onClick={(e) => handleClick(e, '/support')}
 								className="inline-flex bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-45 transition-opacity hover:opacity-70"
 							>
 								Support
@@ -104,10 +113,10 @@ export function WebsiteFooter() {
 						{t('footer.copyright')}
 					</span>
 					<div className="flex gap-4">
-						<Link to="/privacy" className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
+						<Link to="/privacy" onClick={(e) => handleClick(e, '/privacy')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
 							{t('footer.privacyPolicy')}
 						</Link>
-						<Link to="/terms" className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
+						<Link to="/terms" onClick={(e) => handleClick(e, '/terms')} className="text-[12px] opacity-25 transition-opacity hover:opacity-50">
 							{t('footer.termsOfUse')}
 						</Link>
 						<span className="text-[12px] opacity-25">

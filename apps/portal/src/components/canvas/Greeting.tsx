@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
-import { AlertCircle } from 'lucide-react'
 import { formatNumber } from '@hyperquote/i18n'
 
 function getGreetingKey(): string {
@@ -30,26 +29,25 @@ export function Greeting({ name, urgentCount = 0, locale = 'en' }: GreetingProps
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: hasFaded ? 0.4 : 1, y: 0 }}
+      animate={{ opacity: hasFaded ? 0.35 : 1, y: 0 }}
       transition={
         hasFaded
-          ? { opacity: { duration: 1, ease: 'easeInOut' } }
+          ? { opacity: { duration: 1.2, ease: 'easeInOut' } }
           : { type: 'spring', stiffness: 200, damping: 20 }
       }
       className="w-full max-w-[720px] text-center px-4"
     >
-      <h1 className="text-[var(--text-xl)] font-semibold text-[var(--color-text)] leading-[1.2]">
+      <h1 className="text-lg font-normal text-[var(--color-text)] leading-relaxed">
         {t(getGreetingKey(), { name })}
       </h1>
 
       {urgentCount > 0 && (
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <AlertCircle size={20} className="text-[var(--color-warning)]" />
-          <span className="text-[var(--text-base)] text-[var(--color-text-muted)]">
-            <span className="font-mono">{formatNumber(urgentCount, locale)}</span>{' '}
-            {t('urgentItemsLabel')}
-          </span>
-        </div>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1.5">
+          <span className="font-[family-name:var(--font-geist-mono)]">
+            {formatNumber(urgentCount, locale)}
+          </span>{' '}
+          {t('urgentItemsLabel')}
+        </p>
       )}
     </motion.div>
   )

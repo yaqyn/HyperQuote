@@ -1,4 +1,3 @@
-import { RoleToggle } from './RoleToggle'
 import { NotificationBell } from './NotificationBell'
 import { ProfileMenu } from './ProfileMenu'
 
@@ -23,8 +22,7 @@ export function PortalHeader({
   hasSupplierRole = false,
 }: PortalHeaderProps) {
   return (
-    <header className="absolute top-0 inset-x-0 z-10 flex items-center justify-end gap-3 pe-4 pt-3">
-      <RoleToggle hasSupplierRole={hasSupplierRole} />
+    <header className="absolute top-0 end-0 z-10 flex items-center gap-2 pe-4 pt-3">
       <NotificationBell hasUnread={false} />
       <ProfileMenu
         userName={userName}

@@ -5,7 +5,7 @@
  * Dismissed suggestions don't reappear for 7 days (localStorage cooldown).
  * Maximum 1 visible at a time.
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import { X } from 'lucide-react'
@@ -53,8 +53,11 @@ export function AIReorderSuggestion({
 }: AIReorderSuggestionProps) {
   const { t } = useTranslation('portal')
 
-  const initiallyDismissed = useMemo(() => isDismissed(productId), [productId])
-  const [hidden, setHidden] = useState(initiallyDismissed)
+  const [hidden, setHidden] = useState(false)
+
+  useEffect(() => {
+    if (isDismissed(productId)) setHidden(true)
+  }, [productId])
 
   const handleDismiss = useCallback(() => {
     dismiss(productId)

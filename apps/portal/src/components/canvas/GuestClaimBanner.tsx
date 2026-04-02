@@ -72,22 +72,22 @@ export function GuestClaimBanner({ maskedHint, unclaimedCustomerId }: GuestClaim
   return (
     <div
       ref={bannerRef}
-      className="w-full rounded-xl p-4 backdrop-blur-xl bg-white/80 dark:bg-black/80 border border-black/10 dark:border-white/10 mb-4"
+      className="w-full py-4 border-b border-[var(--color-text)]/8"
     >
-      <p className="text-sm text-black/80 dark:text-white/80 mb-3">
+      <p className="text-sm text-[var(--color-text-muted)] mb-3">
         {t('guestClaim.banner', { maskedHint })}
       </p>
       <div className="flex gap-3">
         <Button
           onPress={() => claimMutation.mutate()}
           isDisabled={claimMutation.isPending}
-          className="h-9 px-4 rounded-lg bg-[var(--color-blue)] text-white text-sm font-medium pressed:opacity-80 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-blue)]"
+          className="h-8 px-4 rounded-full bg-[#0F172A] dark:bg-[#FAFAFA] text-white dark:text-[#09090B] text-sm font-medium pressed:opacity-80 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
         >
           {t('guestClaim.yesClaim')}
         </Button>
         <Button
           onPress={dismissBanner}
-          className="h-9 px-4 rounded-lg border border-black/20 dark:border-white/20 text-sm font-medium text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/5 pressed:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-blue)]"
+          className="h-8 px-4 rounded-full text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] pressed:opacity-80 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
         >
           {t('guestClaim.noNewAccount')}
         </Button>
