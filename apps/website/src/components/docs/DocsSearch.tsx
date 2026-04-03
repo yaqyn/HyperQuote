@@ -154,9 +154,28 @@ export function DocsSearch() {
   )
 
   const results = useMemo(() => {
-    if (!query.trim()) return []
-    return fuse.search(query).slice(0, 8)
-  }, [query, fuse])
+    const q = query.trim()
+    if (!q) return []
+
+    // Try Fuse fuzzy search first
+    const fuseResults = fuse.search(q)
+    if (fuseResults.length > 0) return fuseResults.slice(0, 8)
+
+    // Fallback: exact substring match across all fields
+    // Catches cases where Fuse's fuzzy scoring fails on common words in long text
+    const qLower = q.toLowerCase()
+    const exactMatches = items
+      .filter(
+        (item) =>
+          item.title.toLowerCase().includes(qLower) ||
+          item.category.toLowerCase().includes(qLower) ||
+          item.body.toLowerCase().includes(qLower),
+      )
+      .slice(0, 8)
+      .map((item, i) => ({ item, refIndex: i, score: 0 }))
+
+    return exactMatches
+  }, [query, fuse, items])
 
   const showResults = focused && query.trim().length > 0
 
