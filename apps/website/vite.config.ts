@@ -6,6 +6,7 @@ import viteReact from '@vitejs/plugin-react'
 
 export default defineConfig({
 	server: { port: 3000 },
+	assetsInclude: ['**/*.md'],
 	plugins: [
 		cloudflare({ viteEnvironment: { name: 'ssr' } }),
 		tailwindcss(),
