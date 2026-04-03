@@ -35,9 +35,9 @@ export function Greeting({ name, urgentCount = 0, locale = 'en' }: GreetingProps
           ? { opacity: { duration: 1.2, ease: 'easeInOut' } }
           : { type: 'spring', stiffness: 200, damping: 20 }
       }
-      className="w-full max-w-[720px] text-center px-4"
+      className="w-full max-w-[720px] text-center px-4 lg:px-8"
     >
-      <h1 className="text-lg font-normal text-[var(--color-text)] leading-relaxed">
+      <h1 className="text-lg lg:text-xl font-normal text-[var(--color-text)] leading-relaxed">
         {t(getGreetingKey(), { name })}
       </h1>
 

@@ -1,8 +1,8 @@
 /**
  * Team management settings section.
+ * "Data is the design" — rows with bottom borders, role as tiny uppercase.
+ * Owner badge tiny uppercase. Invite button dark bg.
  * Hidden-not-disabled: owner sees full management, non-owner sees read-only.
- * Invite: email + magic link per CONTEXT.md Section 2.17.
- * Remove: confirmation modal. Transfer ownership: OTP required.
  */
 import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
@@ -22,7 +22,6 @@ import {
   ListBoxItem,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { UserPlus, Trash2, Users, ArrowRightLeft } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   inviteTeamMember,
@@ -44,13 +43,18 @@ interface TeamSectionProps {
   isOwner: boolean
 }
 
+const labelClass =
+  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+
+const underlineInputClass =
+  'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
+
 export function TeamSection({ members, isOwner }: TeamSectionProps) {
   const { t } = useTranslation('portal')
   const queryClient = useQueryClient()
   const [showInvite, setShowInvite] = useState(false)
   const [removingMember, setRemovingMember] = useState<TeamMember | null>(null)
   const [showTransfer, setShowTransfer] = useState(false)
-  const [transferTarget, setTransferTarget] = useState<TeamMember | null>(null)
 
   const roleMutation = useMutation({
     mutationFn: (data: { memberId: string; newRole: 'buyer' | 'approver' | 'site_manager' }) =>
@@ -69,86 +73,74 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
     },
   })
 
-  // Non-owner: read-only view of own entry only
+  // Non-owner: read-only view
   if (!isOwner) {
     const ownEntry = members.find((m) => !m.isOwner)
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-          {t('settings.team.title')}
-        </h2>
         {ownEntry && (
-          <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)]">
-            <div className="flex items-center gap-3">
-              <Users size={18} className="text-[var(--color-text-muted)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--color-text)]">
-                  {ownEntry.name}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {t(ROLE_LABELS[ownEntry.role])}
-                </p>
-              </div>
-            </div>
+          <div className="py-4 border-b border-[var(--color-border)]">
+            <span className="text-sm text-[var(--color-text)]">
+              {ownEntry.name}
+            </span>
+            <span className="ms-3 text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+              {t(ROLE_LABELS[ownEntry.role])}
+            </span>
           </div>
         )}
       </div>
     )
   }
 
-  // Owner: full team management
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-          {t('settings.team.title')}
-        </h2>
+    <div className="space-y-6">
+      {/* Invite button */}
+      <div className="flex justify-end">
         <Button
           onPress={() => setShowInvite(true)}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
+          className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
         >
-          <UserPlus size={16} />
           {t('settings.team.inviteMember')}
         </Button>
       </div>
 
-      {/* Team table */}
-      <div className="space-y-3">
+      {/* Member rows */}
+      <div>
         {members.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)]"
+            className="flex items-center justify-between py-4 border-b border-[var(--color-border)]"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--color-surface)] flex items-center justify-center text-xs font-medium text-[var(--color-text-muted)]">
-                {member.name.charAt(0)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[var(--color-text)]">
-                    {member.name}
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-[var(--color-text)]">
+                  {member.name}
+                </span>
+                {member.isOwner && (
+                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                    {t('settings.team.owner')}
                   </span>
-                  {member.isOwner && (
-                    <span className="px-1.5 py-0.5 rounded-sm text-xs bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                      {t('settings.team.owner')}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {member.email}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {t('settings.team.joined')}:{' '}
-                  <span className="font-mono">
-                    {new Date(member.joinedAt).toLocaleDateString()}
+                )}
+                {!member.isOwner && (
+                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                    {t(ROLE_LABELS[member.role])}
                   </span>
-                </p>
+                )}
               </div>
+              <p className="text-xs text-[var(--color-text-subtle)]">
+                {member.email}
+              </p>
+              <p className="text-xs text-[var(--color-text-subtle)]">
+                {t('settings.team.joined')}{' '}
+                <span className="font-mono">
+                  {new Date(member.joinedAt).toLocaleDateString()}
+                </span>
+              </p>
             </div>
 
-            {/* Role change + Remove (hidden for owner's own row) */}
+            {/* Role change + Remove (hidden for owner) */}
             {!member.isOwner && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 <Select
                   selectedKey={member.role}
                   onSelectionChange={(key) =>
@@ -159,17 +151,17 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
                   }
                   aria-label={t('settings.team.role')}
                 >
-                  <Button className="px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] cursor-pointer outline-none focus:border-[var(--color-primary)]">
+                  <Button className="bg-transparent border-0 border-b border-[var(--color-border)] py-1 text-xs text-[var(--color-text)] cursor-pointer outline-none focus:border-[#2563EB] transition-colors">
                     <SelectValue />
                   </Button>
-                  <Popover className="w-40 rounded-xl border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
+                  <Popover className="w-40 border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
                     <ListBox className="p-1">
                       {ROLES.map((role) => (
                         <ListBoxItem
                           key={role}
                           id={role}
                           textValue={t(ROLE_LABELS[role])}
-                          className="px-3 py-2 text-xs text-[var(--color-text)] rounded-lg cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:text-[var(--color-primary)] data-[selected]:font-medium"
+                          className="px-3 py-2 text-xs text-[var(--color-text)] cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:font-medium"
                         >
                           {t(ROLE_LABELS[role])}
                         </ListBoxItem>
@@ -180,10 +172,9 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
 
                 <Button
                   onPress={() => setRemovingMember(member)}
-                  className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-error)]/5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-error)]"
-                  aria-label={t('settings.team.removeMember')}
+                  className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
                 >
-                  <Trash2 size={14} />
+                  {t('settings.team.removeMember')}
                 </Button>
               </div>
             )}
@@ -194,17 +185,14 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
       {/* Transfer Ownership link */}
       <Button
         onPress={() => setShowTransfer(true)}
-        className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] rounded"
+        className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
       >
-        <ArrowRightLeft size={14} />
         {t('settings.team.transferOwnership')}
       </Button>
 
       {/* Invite Dialog */}
       {showInvite && (
-        <InviteDialog
-          onClose={() => setShowInvite(false)}
-        />
+        <InviteDialog onClose={() => setShowInvite(false)} />
       )}
 
       {/* Remove Confirmation */}
@@ -229,7 +217,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
 }
 
 // ============================================================================
-// Invite Dialog — email + role, sends magic link
+// Invite Dialog
 // ============================================================================
 
 function InviteDialog({ onClose }: { onClose: () => void }) {
@@ -265,14 +253,14 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
     >
       <Modal
         isKeyboardDismissDisabled
-        className="w-full max-w-md mx-4 rounded-2xl bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
+        className="w-full max-w-md mx-4 bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
       >
         <Dialog className="p-6 outline-none">
-          <Heading slot="title" className="text-lg font-semibold text-[var(--color-text)] mb-4">
+          <Heading slot="title" className="text-sm font-medium text-[var(--color-text)] mb-6">
             {t('settings.team.inviteMember')}
           </Heading>
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-5">
             <Controller
               name="email"
               control={control}
@@ -283,14 +271,14 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
                   onChange={field.onChange}
                   type="email"
                   isRequired
-                  className="space-y-1"
+                  className="space-y-1.5"
                 >
-                  <Label className="text-sm text-[var(--color-text-muted)]">
+                  <Label className={labelClass}>
                     {t('settings.team.email')}
                   </Label>
                   <Input
                     placeholder="colleague@company.com"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                    className={underlineInputClass}
                   />
                 </TextField>
               )}
@@ -305,22 +293,22 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
                   onSelectionChange={(key) =>
                     field.onChange(key as string)
                   }
-                  className="space-y-1"
+                  className="space-y-1.5"
                 >
-                  <Label className="text-sm text-[var(--color-text-muted)]">
+                  <Label className={labelClass}>
                     {t('settings.team.role')}
                   </Label>
-                  <Button className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] cursor-pointer outline-none focus:border-[var(--color-primary)]">
+                  <Button className="w-full flex items-center justify-between bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none focus:border-[#2563EB] transition-colors">
                     <SelectValue />
                   </Button>
-                  <Popover className="w-[var(--trigger-width)] rounded-xl border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
+                  <Popover className="w-[var(--trigger-width)] border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
                     <ListBox className="p-1">
                       {ROLES.map((role) => (
                         <ListBoxItem
                           key={role}
                           id={role}
                           textValue={t(ROLE_LABELS[role])}
-                          className="px-3 py-2 text-sm text-[var(--color-text)] rounded-lg cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:text-[var(--color-primary)]"
+                          className="px-3 py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:font-medium"
                         >
                           {t(ROLE_LABELS[role])}
                         </ListBoxItem>
@@ -331,21 +319,21 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
               )}
             />
 
-            <p className="text-xs text-[var(--color-text-muted)]">
+            <p className="text-[11px] text-[var(--color-text-subtle)]">
               {t('settings.team.inviteNote')}
             </p>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-4 pt-4">
               <Button
                 onPress={onClose}
-                className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.cancel')}
               </Button>
               <Button
                 type="submit"
                 isDisabled={inviteMutation.isPending}
-                className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:opacity-50"
+                className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
               >
                 {inviteMutation.isPending
                   ? t('settings.saving')
@@ -387,23 +375,23 @@ function RemoveDialog({
     >
       <Modal
         isKeyboardDismissDisabled
-        className="w-full max-w-sm mx-4 rounded-2xl bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
+        className="w-full max-w-sm mx-4 bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
       >
         <Dialog className="p-6 outline-none">
-          <Heading slot="title" className="text-lg font-semibold text-[var(--color-text)] mb-2">
+          <Heading slot="title" className="text-sm font-medium text-[var(--color-text)] mb-4">
             {t('settings.team.removeConfirm', { name: member.name })}
           </Heading>
-          <div className="flex justify-end gap-3 mt-4">
+          <div className="flex justify-end gap-4">
             <Button
               onPress={onClose}
-              className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+              className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
             >
               {t('settings.cancel')}
             </Button>
             <Button
               onPress={onConfirm}
               isDisabled={isPending}
-              className="px-4 py-2 rounded-lg bg-[var(--color-error)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-error)] focus-visible:ring-offset-2 disabled:opacity-50"
+              className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
             >
               {t('settings.team.removeAction')}
             </Button>
@@ -415,7 +403,7 @@ function RemoveDialog({
 }
 
 // ============================================================================
-// Transfer Ownership Dialog — requires OTP
+// Transfer Ownership Dialog
 // ============================================================================
 
 function TransferDialog({
@@ -450,35 +438,35 @@ function TransferDialog({
     >
       <Modal
         isKeyboardDismissDisabled
-        className="w-full max-w-md mx-4 rounded-2xl bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
+        className="w-full max-w-md mx-4 bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl"
       >
         <Dialog className="p-6 outline-none">
-          <Heading slot="title" className="text-lg font-semibold text-[var(--color-text)] mb-4">
+          <Heading slot="title" className="text-sm font-medium text-[var(--color-text)] mb-6">
             {t('settings.team.transferOwnership')}
           </Heading>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <Select
               selectedKey={selectedMemberId}
               onSelectionChange={(key) =>
                 setSelectedMemberId(key as string)
               }
-              className="space-y-1"
+              className="space-y-1.5"
             >
-              <Label className="text-sm text-[var(--color-text-muted)]">
+              <Label className={labelClass}>
                 {t('settings.team.transferTo')}
               </Label>
-              <Button className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] cursor-pointer outline-none focus:border-[var(--color-primary)]">
+              <Button className="w-full flex items-center justify-between bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none focus:border-[#2563EB] transition-colors">
                 <SelectValue />
               </Button>
-              <Popover className="w-[var(--trigger-width)] rounded-xl border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
+              <Popover className="w-[var(--trigger-width)] border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
                 <ListBox className="p-1">
                   {members.map((m) => (
                     <ListBoxItem
                       key={m.id}
                       id={m.id}
                       textValue={m.name}
-                      className="px-3 py-2 text-sm text-[var(--color-text)] rounded-lg cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
+                      className="px-3 py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
                     >
                       {m.name}
                     </ListBoxItem>
@@ -490,26 +478,26 @@ function TransferDialog({
             <TextField
               value={otpCode}
               onChange={setOtpCode}
-              className="space-y-1"
+              className="space-y-1.5"
             >
-              <Label className="text-sm text-[var(--color-text-muted)]">
+              <Label className={labelClass}>
                 {t('settings.team.otpCode')}
               </Label>
               <Input
                 placeholder="000000"
                 maxLength={6}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] font-mono text-center tracking-widest outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                className="w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] font-mono text-center tracking-widest outline-none transition-colors focus:border-[#2563EB]"
               />
             </TextField>
 
-            <p className="text-xs text-[var(--color-warning)]">
+            <p className="text-[11px] text-[var(--color-text-subtle)]">
               {t('settings.team.transferWarning')}
             </p>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-4 pt-4">
               <Button
                 onPress={onClose}
-                className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.cancel')}
               </Button>
@@ -527,7 +515,7 @@ function TransferDialog({
                   otpCode.length !== 6 ||
                   transferMutation.isPending
                 }
-                className="px-4 py-2 rounded-lg bg-[var(--color-error)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-error)] focus-visible:ring-offset-2 disabled:opacity-50"
+                className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
               >
                 {t('settings.team.confirmTransfer')}
               </Button>

@@ -1,16 +1,16 @@
 /**
  * Referrals settings section.
- * Stats display via useQuery with getReferralStats.
- * Referral code + link with copy-to-clipboard.
- * Credit explanation. All numbers in Geist Mono.
+ * "Data is the design" — stats as large monospace numbers in a row.
+ * Referral code monospace. Copy as text link. No colored backgrounds.
  */
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Copy, Check, Gift, Users, Clock, Award } from 'lucide-react'
 import { getReferralStats } from '../../lib/server/referrals'
-import type { ReferralStats } from '../../types/settings'
+
+const labelClass =
+  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 export function ReferralsSection() {
   const { t } = useTranslation('portal')
@@ -22,16 +22,13 @@ export function ReferralsSection() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-          {t('settings.referrals.title')}
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
+      <div className="space-y-8">
+        <div className="grid grid-cols-3 gap-8">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-20 rounded-xl bg-[var(--color-surface)] animate-pulse"
-            />
+            <div key={i} className="space-y-2">
+              <div className="h-3 w-16 bg-[var(--color-border)] animate-pulse" />
+              <div className="h-8 w-12 bg-[var(--color-border)] animate-pulse" />
+            </div>
           ))}
         </div>
       </div>
@@ -41,113 +38,79 @@ export function ReferralsSection() {
   if (!stats) return null
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-[var(--color-text)]">
-        {t('settings.referrals.title')}
-      </h2>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          icon={Users}
-          label={t('settings.referrals.totalReferrals')}
-          value={stats.totalReferrals}
-        />
-        <StatCard
-          icon={Clock}
-          label={t('settings.referrals.pendingCredits')}
-          value={stats.pendingCredits}
-          prefix="EGP "
-        />
-        <StatCard
-          icon={Award}
-          label={t('settings.referrals.earnedCredits')}
-          value={stats.earnedCredits}
-          prefix="EGP "
-        />
-      </div>
-
-      {/* Referral code */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[var(--color-text)]">
-          {t('settings.referrals.yourCode')}
-        </label>
-        <div className="flex items-center gap-3">
-          <span className="px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] font-mono text-sm text-[var(--color-primary)]">
-            {stats.referralCode}
+    <div className="space-y-8">
+      {/* Stats — three numbers in a row */}
+      <div className="grid grid-cols-3 gap-8">
+        <div className="space-y-1">
+          <span className={labelClass}>
+            {t('settings.referrals.totalReferrals')}
           </span>
-          <CopyButton text={stats.referralCode} />
+          <p className="text-2xl font-mono text-[var(--color-text)]">
+            {stats.totalReferrals.toLocaleString()}
+          </p>
+        </div>
+        <div className="space-y-1">
+          <span className={labelClass}>
+            {t('settings.referrals.pendingCredits')}
+          </span>
+          <p className="text-2xl font-mono text-[var(--color-text)]">
+            <span className="text-sm">EGP </span>
+            {stats.pendingCredits.toLocaleString()}
+          </p>
+        </div>
+        <div className="space-y-1">
+          <span className={labelClass}>
+            {t('settings.referrals.earnedCredits')}
+          </span>
+          <p className="text-2xl font-mono text-[var(--color-text)]">
+            <span className="text-sm">EGP </span>
+            {stats.earnedCredits.toLocaleString()}
+          </p>
         </div>
       </div>
 
-      {/* Referral link */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[var(--color-text)]">
+      {/* Referral code */}
+      <div className="space-y-1.5">
+        <span className={labelClass}>
+          {t('settings.referrals.yourCode')}
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-sm text-[var(--color-text)]">
+            {stats.referralCode}
+          </span>
+          <CopyLink text={stats.referralCode} />
+        </div>
+      </div>
+
+      {/* Share link */}
+      <div className="space-y-1.5">
+        <span className={labelClass}>
           {t('settings.referrals.yourLink')}
-        </label>
-        <div className="flex items-center gap-3">
-          <span className="flex-1 px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] truncate font-mono">
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="flex-1 font-mono text-sm text-[var(--color-text-subtle)] border-b border-[var(--color-border)] py-2 truncate">
             {stats.referralLink}
           </span>
-          <CopyButton
+          <CopyLink
             text={stats.referralLink}
             label={t('settings.referrals.copyLink')}
           />
         </div>
       </div>
 
-      {/* Share CTA */}
-      <div className="p-4 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/10">
-        <div className="flex items-start gap-3">
-          <Gift size={20} className="text-[var(--color-primary)] mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-[var(--color-text)]">
-              {t('settings.referrals.shareCTA')}
-            </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {t('settings.referrals.creditExplanation')}
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Credit explanation */}
+      <p className="text-[11px] text-[var(--color-text-subtle)]">
+        {t('settings.referrals.creditExplanation')}
+      </p>
     </div>
   )
 }
 
 // ============================================================================
-// Stat Card
+// Copy Link — text link style
 // ============================================================================
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  prefix = '',
-}: {
-  icon: typeof Users
-  label: string
-  value: number
-  prefix?: string
-}) {
-  return (
-    <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)]">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={16} className="text-[var(--color-text-muted)]" />
-        <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
-      </div>
-      <span className="text-xl font-mono font-semibold text-[var(--color-text)]">
-        {prefix}
-        {value.toLocaleString()}
-      </span>
-    </div>
-  )
-}
-
-// ============================================================================
-// Copy Button
-// ============================================================================
-
-function CopyButton({
+function CopyLink({
   text,
   label,
 }: {
@@ -170,10 +133,11 @@ function CopyButton({
   return (
     <Button
       onPress={handleCopy}
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
+      className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded shrink-0"
     >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
-      {label ?? t('settings.referrals.copy')}
+      {copied
+        ? t('settings.referrals.copied', { defaultValue: 'Copied' })
+        : label ?? t('settings.referrals.copy')}
     </Button>
   )
 }

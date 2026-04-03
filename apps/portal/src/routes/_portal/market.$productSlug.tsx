@@ -112,10 +112,10 @@ function MarketProductDetail() {
 
   return (
     <>
-      <WindowShell title={isAr ? product.nameAr : product.name}>
+      <WindowShell title={isAr ? product.nameAr : product.name} maxWidth="960px">
         <div className="flex flex-col overflow-y-auto">
           {/* Back button */}
-          <div className="px-6 py-3 border-b border-[var(--color-border)]">
+          <div className="px-6 py-3 lg:py-4 border-b border-[var(--color-border)]">
             <Button
               onPress={() => navigate({ to: '/market' })}
               className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
@@ -126,7 +126,7 @@ function MarketProductDetail() {
           </div>
 
           {/* Product content */}
-          <div className="flex flex-col lg:flex-row gap-6 p-6">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 p-6 lg:py-10">
             {/* Image */}
             <div className="lg:w-1/2 aspect-[4/3] rounded-2xl overflow-hidden bg-[var(--color-surface)]">
               <img
@@ -137,7 +137,7 @@ function MarketProductDetail() {
             </div>
 
             {/* Details */}
-            <div className="lg:w-1/2 flex flex-col gap-4">
+            <div className="lg:w-1/2 flex flex-col gap-4 lg:gap-5">
               <h1 className="text-xl font-semibold text-[var(--color-text)]">
                 {isAr ? product.nameAr : product.name}
               </h1>
@@ -182,7 +182,7 @@ function MarketProductDetail() {
                   <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                     {t('market.specifications', 'Specifications')}
                   </h3>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
                     {product.specs.map((spec) => (
                       <div key={spec.label} className="flex flex-col">
                         <span className="text-xs text-[var(--color-text-muted)]">
@@ -242,7 +242,7 @@ function MarketProductDetail() {
 
           {/* Related products */}
           {product.related.length > 0 && (
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 lg:pb-10">
               <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">
                 {t('market.relatedProducts', 'Related Products')}
               </h3>

@@ -22,7 +22,7 @@ export function PortalHeader({
   hasSupplierRole = false,
 }: PortalHeaderProps) {
   return (
-    <header className="absolute top-0 end-0 z-10 flex items-center gap-2 pe-4 pt-3">
+    <header className="absolute top-0 end-0 z-10 flex items-center gap-2 pe-4 pt-3 lg:pe-8 lg:pt-4 lg:gap-3">
       <NotificationBell hasUnread={false} />
       <ProfileMenu
         userName={userName}

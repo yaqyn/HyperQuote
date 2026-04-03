@@ -12,6 +12,7 @@ import {
   ChevronsUpDown,
 } from 'lucide-react'
 import {
+  Label,
   Select,
   SelectValue,
   Button,
@@ -346,7 +347,7 @@ function MarketPage() {
                 className="font-[family-name:var(--font-mono)] font-bold text-[var(--color-primary)] leading-none"
                 style={{ fontSize: 'clamp(3.5rem, 8vw, 6rem)' }}
               >
-                {t('market.heroCount', { defaultValue: '2,400+' })}
+                {data.total.toLocaleString()}+
               </span>
               <span className="mt-2 text-[14px] tracking-[0.08em] uppercase opacity-30 font-medium">
                 {t('market.heroCountLabel', { defaultValue: 'Materials' })}

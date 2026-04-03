@@ -52,12 +52,12 @@ function StockWindow() {
 
   return (
     <>
-      <WindowShell title={t('supplier.stockTitle')}>
+      <WindowShell title={t('supplier.stockTitle')} maxWidth="1080px">
         <Tabs
           defaultSelectedKey="products"
           className="flex flex-col h-full"
         >
-          <TabList className="flex gap-1 px-6 pt-4 border-b border-[var(--color-border)]">
+          <TabList className="flex gap-1 px-6 pt-4 lg:pt-6 border-b border-[var(--color-border)]">
             <StyledTab id="products">{t('supplier.myProducts')}</StyledTab>
             <StyledTab id="priceUpdates">
               {t('supplier.priceUpdates')}
@@ -68,7 +68,7 @@ function StockWindow() {
           </TabList>
 
           {/* My Products tab */}
-          <TabPanel id="products" className="flex-1 overflow-auto p-6">
+          <TabPanel id="products" className="flex-1 overflow-auto p-6 lg:py-8">
             {/* Header actions */}
             <div className="flex items-center gap-3 mb-4">
               <Button
@@ -102,7 +102,7 @@ function StockWindow() {
           </TabPanel>
 
           {/* Price Updates tab */}
-          <TabPanel id="priceUpdates" className="flex-1 overflow-auto p-6">
+          <TabPanel id="priceUpdates" className="flex-1 overflow-auto p-6 lg:py-8">
             <Suspense fallback={<LoadingSkeleton />}>
               <PriceHistoryTable locale={locale} />
             </Suspense>

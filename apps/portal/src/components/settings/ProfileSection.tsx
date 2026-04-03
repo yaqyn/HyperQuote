@@ -1,16 +1,15 @@
 /**
  * Profile settings section.
- * Company name, contact name (editable with Save button on change).
- * Phone (read-only, Geist Mono). Email (editable).
- * Trade license upload with status badges. Profile photo 64px circle.
- * Uses React Hook Form with useWatch() for detecting changes.
+ * "Data is the design" — underline inputs, 11px uppercase labels, no decoration.
+ * Phone read-only monospace. Profile photo 48px circle. Trade license minimal upload.
+ * Save button dark bg, only when dirty.
  */
 import { useState } from 'react'
 import { useForm, useWatch, Controller } from 'react-hook-form'
 import { TextField, Input, Label, Button, FileTrigger } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { Upload, Camera, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   updateCustomerProfile,
   uploadTradeLicense,
@@ -27,6 +26,12 @@ interface ProfileFormValues {
   contactName: string
   email: string
 }
+
+const labelClass =
+  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+
+const underlineInputClass =
+  'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
 
 export function ProfileSection({ profile }: ProfileSectionProps) {
   const { t } = useTranslation('portal')
@@ -83,7 +88,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
   function handleLicenseSelect(files: FileList | null) {
     if (!files || files.length === 0) return
     const file = files[0]
-    if (file.size > 5 * 1024 * 1024) return // Max 5MB
+    if (file.size > 5 * 1024 * 1024) return
     const url = URL.createObjectURL(file)
     licenseMutation.mutate(url)
   }
@@ -91,22 +96,21 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
   function handlePhotoSelect(files: FileList | null) {
     if (!files || files.length === 0) return
     const file = files[0]
-    if (file.size > 2 * 1024 * 1024) return // Max 2MB
+    if (file.size > 2 * 1024 * 1024) return
     const url = URL.createObjectURL(file)
     setPhotoPreview(url)
     photoMutation.mutate(url)
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-[var(--color-text)]">
-        {t('settings.profile.title')}
-      </h2>
-
+    <div className="space-y-8">
       {/* Profile Photo */}
       <div className="flex items-center gap-4">
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex items-center justify-center">
+        <FileTrigger
+          acceptedFileTypes={['image/jpeg', 'image/png']}
+          onSelect={handlePhotoSelect}
+        >
+          <Button className="relative w-12 h-12 rounded-full border border-[var(--color-border)] overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">
             {photoPreview ? (
               <img
                 src={photoPreview}
@@ -114,29 +118,20 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Camera size={24} className="text-[var(--color-text-muted)]" />
+              <span className="flex items-center justify-center w-full h-full text-sm text-[var(--color-text-subtle)]">
+                {profile.contactName?.charAt(0)?.toUpperCase() ?? '?'}
+              </span>
             )}
-          </div>
-          <FileTrigger
-            acceptedFileTypes={['image/jpeg', 'image/png']}
-            onSelect={handlePhotoSelect}
-          >
-            <Button className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
-              <Camera size={12} />
-            </Button>
-          </FileTrigger>
-        </div>
+          </Button>
+        </FileTrigger>
         <div>
-          <p className="text-sm font-medium text-[var(--color-text)]">
-            {t('settings.profile.photo')}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)]">
+          <p className="text-xs text-[var(--color-text-subtle)]">
             JPG, PNG. {t('settings.profile.maxSize', { size: '2MB' })}
           </p>
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-6">
         {/* Company Name */}
         <Controller
           name="companyName"
@@ -145,12 +140,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
             <TextField
               value={field.value}
               onChange={field.onChange}
-              className="space-y-1"
+              className="space-y-1.5"
             >
-              <Label className="text-sm text-[var(--color-text-muted)]">
+              <Label className={labelClass}>
                 {t('settings.profile.companyName')}
               </Label>
-              <Input className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]" />
+              <Input className={underlineInputClass} />
             </TextField>
           )}
         />
@@ -163,27 +158,27 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
             <TextField
               value={field.value}
               onChange={field.onChange}
-              className="space-y-1"
+              className="space-y-1.5"
             >
-              <Label className="text-sm text-[var(--color-text-muted)]">
+              <Label className={labelClass}>
                 {t('settings.profile.contactName')}
               </Label>
-              <Input className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]" />
+              <Input className={underlineInputClass} />
             </TextField>
           )}
         />
 
         {/* Phone (read-only) */}
-        <div className="space-y-1">
-          <label className="text-sm text-[var(--color-text-muted)]">
+        <div className="space-y-1.5">
+          <span className={labelClass}>
             {t('settings.profile.phone')}
-          </label>
-          <div className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+          </span>
+          <div className="border-b border-[var(--color-border)] py-2">
             <span className="font-mono text-sm text-[var(--color-text)]">
               {profile.phone}
             </span>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
+          <p className="text-[11px] text-[var(--color-text-subtle)]">
             {t('settings.profile.phoneNote')}
           </p>
         </div>
@@ -197,36 +192,45 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
               value={field.value}
               onChange={field.onChange}
               type="email"
-              className="space-y-1"
+              className="space-y-1.5"
             >
-              <Label className="text-sm text-[var(--color-text-muted)]">
+              <Label className={labelClass}>
                 {t('settings.profile.email')}
               </Label>
-              <Input className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]" />
+              <Input className={underlineInputClass} />
             </TextField>
           )}
         />
 
-        {/* Save button - only shown when changes detected */}
-        {hasChanges && (
-          <Button
-            type="submit"
-            isDisabled={updateMutation.isPending}
-            className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:opacity-50"
-          >
-            {updateMutation.isPending
-              ? t('settings.saving')
-              : t('settings.saveChanges')}
-          </Button>
-        )}
+        {/* Save button — only when dirty */}
+        <AnimatePresence>
+          {hasChanges && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <Button
+                type="submit"
+                isDisabled={updateMutation.isPending}
+                className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+              >
+                {updateMutation.isPending
+                  ? t('settings.saving')
+                  : t('settings.saveChanges')}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </form>
 
-      {/* Trade License Upload */}
-      <div className="space-y-2 pt-4 border-t border-[var(--color-border)]">
+      {/* Trade License */}
+      <div className="space-y-3 pt-6 border-t border-[var(--color-border)]">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-[var(--color-text)]">
+          <span className={labelClass}>
             {t('settings.profile.tradeLicense')}
-          </h3>
+          </span>
           <TradeLicenseBadge status={profile.tradeLicenseStatus} />
         </div>
 
@@ -234,12 +238,11 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           acceptedFileTypes={['application/pdf', 'image/jpeg']}
           onSelect={handleLicenseSelect}
         >
-          <Button className="w-full flex items-center justify-center gap-2 px-4 py-8 rounded-xl border-2 border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] transition-colors">
-            <Upload size={20} />
-            <span>{t('settings.profile.uploadLicense')}</span>
+          <Button className="w-full py-6 border border-dashed border-[var(--color-border)] text-xs text-[var(--color-text-subtle)] hover:border-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors">
+            {t('settings.profile.uploadLicense')}
           </Button>
         </FileTrigger>
-        <p className="text-xs text-[var(--color-text-muted)]">
+        <p className="text-[11px] text-[var(--color-text-subtle)]">
           PDF, JPG. {t('settings.profile.maxSize', { size: '5MB' })}
         </p>
       </div>
@@ -254,27 +257,16 @@ function TradeLicenseBadge({
 }) {
   const { t } = useTranslation('portal')
 
-  switch (status) {
-    case 'verified':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-[var(--color-success)]/10 text-[var(--color-success)]">
-          <CheckCircle size={12} />
-          {t('settings.profile.verified')}
-        </span>
-      )
-    case 'under_review':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-[var(--color-warning)]/10 text-[var(--color-warning)]">
-          <Clock size={12} />
-          {t('settings.profile.underReview')}
-        </span>
-      )
-    default:
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-[var(--color-text-subtle)]/10 text-[var(--color-text-muted)]">
-          <AlertCircle size={12} />
-          {t('settings.profile.notUploaded')}
-        </span>
-      )
+  const labels: Record<string, string> = {
+    verified: t('settings.profile.verified'),
+    under_review: t('settings.profile.underReview'),
   }
+
+  const label = labels[status] ?? t('settings.profile.notUploaded')
+
+  return (
+    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+      {label}
+    </span>
+  )
 }

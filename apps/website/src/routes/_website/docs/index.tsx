@@ -73,7 +73,7 @@ function DocsIndexPage() {
             })}
           </p>
           <p className="mt-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text)] opacity-25 tracking-wide">
-            {t('docs.articleCount', { defaultValue: '34 articles \u00b7 4 guides' })}
+            {DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} articles &middot; {WIZARDS.length} guides
           </p>
 
           {/* Search */}

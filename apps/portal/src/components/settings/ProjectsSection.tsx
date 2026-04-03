@@ -1,8 +1,7 @@
 /**
  * Projects settings section.
- * List of projects: name, order count (Geist Mono), date created (Geist Mono).
- * Create/Edit: inline form (name required, description optional).
- * Archive: soft delete with confirmation.
+ * "Data is the design" — rows with bottom borders, monospace numbers/dates.
+ * Create button dark bg. Edit/archive as text links.
  */
 import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
@@ -18,7 +17,6 @@ import {
   TextArea,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Archive, FolderOpen } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { saveProject, archiveProject } from '../../lib/server/settings'
 import type { Project } from '../../types/settings'
@@ -31,6 +29,12 @@ interface ProjectFormValues {
   name: string
   description: string
 }
+
+const labelClass =
+  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+
+const underlineInputClass =
+  'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
 
 export function ProjectsSection({ projects }: ProjectsSectionProps) {
   const { t } = useTranslation('portal')
@@ -69,86 +73,69 @@ export function ProjectsSection({ projects }: ProjectsSectionProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-          {t('settings.projects.title')}
-        </h2>
+    <div className="space-y-6">
+      {/* Create button */}
+      <div className="flex justify-end">
         <Button
           onPress={handleAdd}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
+          className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
         >
-          <Plus size={16} />
           {t('settings.projects.create')}
         </Button>
       </div>
 
-      {/* Project list */}
-      <div className="space-y-3">
+      {/* Project rows */}
+      <div>
         {projects.map((project) => (
           <div
             key={project.id}
-            className="flex items-start justify-between p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)]"
+            className="flex items-start justify-between py-4 border-b border-[var(--color-border)]"
           >
-            <div className="flex items-start gap-3">
-              <FolderOpen
-                size={18}
-                className="mt-0.5 text-[var(--color-text-muted)]"
-              />
-              <div>
-                <span className="text-sm font-medium text-[var(--color-text)]">
-                  {project.name}
+            <div className="space-y-0.5">
+              <span className="text-sm text-[var(--color-text)]">
+                {project.name}
+              </span>
+              {project.description && (
+                <p className="text-sm text-[var(--color-text-subtle)]">
+                  {project.description}
+                </p>
+              )}
+              <div className="flex items-center gap-4 mt-1">
+                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  {t('settings.projects.orders')}{' '}
+                  <span className="font-mono">
+                    {project.orderCount}
+                  </span>
                 </span>
-                {project.description && (
-                  <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-                    {project.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-4 mt-1">
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {t('settings.projects.orders')}:{' '}
-                    <span className="font-mono">
-                      {project.orderCount}
-                    </span>
+                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  {t('settings.projects.created')}{' '}
+                  <span className="font-mono">
+                    {new Date(project.createdAt).toLocaleDateString()}
                   </span>
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {t('settings.projects.created')}:{' '}
-                    <span className="font-mono">
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </span>
-                  </span>
-                </div>
+                </span>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-4">
               <Button
                 onPress={() => handleEdit(project)}
-                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-                aria-label={t('settings.projects.edit')}
+                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
-                <Pencil size={14} />
+                {t('settings.projects.edit')}
               </Button>
               <Button
                 onPress={() => setArchivingId(project.id)}
-                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-error)]/5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-error)]"
-                aria-label={t('settings.projects.archive')}
+                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
-                <Archive size={14} />
+                {t('settings.projects.archive')}
               </Button>
             </div>
           </div>
         ))}
 
         {projects.length === 0 && (
-          <div className="text-center py-8">
-            <FolderOpen
-              size={32}
-              className="mx-auto text-[var(--color-text-subtle)] mb-2"
-            />
-            <p className="text-sm text-[var(--color-text-muted)]">
-              {t('settings.projects.empty')}
-            </p>
-          </div>
+          <p className="py-8 text-sm text-[var(--color-text-subtle)] text-center">
+            {t('settings.projects.empty')}
+          </p>
         )}
       </div>
 
@@ -211,7 +198,7 @@ function ProjectFormInline({
   return (
     <form
       onSubmit={onSubmit}
-      className="p-4 rounded-xl border border-[var(--color-primary)]/30 bg-[var(--color-surface)] space-y-3"
+      className="space-y-5 pt-4 border-t border-[var(--color-border)]"
     >
       <Controller
         name="name"
@@ -223,12 +210,12 @@ function ProjectFormInline({
             onChange={field.onChange}
             isRequired
             autoFocus
-            className="space-y-1"
+            className="space-y-1.5"
           >
-            <Label className="text-sm text-[var(--color-text-muted)]">
+            <Label className={labelClass}>
               {t('settings.projects.name')}
             </Label>
-            <Input className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]" />
+            <Input className={underlineInputClass} />
           </TextField>
         )}
       />
@@ -240,27 +227,27 @@ function ProjectFormInline({
           <TextField
             value={field.value}
             onChange={field.onChange}
-            className="space-y-1"
+            className="space-y-1.5"
           >
-            <Label className="text-sm text-[var(--color-text-muted)]">
+            <Label className={labelClass}>
               {t('settings.projects.description')}
             </Label>
-            <TextArea className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] resize-none h-20" />
+            <TextArea className="w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] resize-none h-20" />
           </TextField>
         )}
       />
 
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-4">
         <Button
           onPress={onCancel}
-          className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
         >
           {t('settings.cancel')}
         </Button>
         <Button
           type="submit"
           isDisabled={isPending}
-          className="px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:opacity-50"
+          className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
         >
           {isPending ? t('settings.saving') : t('settings.saveChanges')}
         </Button>
@@ -293,25 +280,25 @@ function ArchiveConfirmDialog({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
-      <Modal className="w-full max-w-sm mx-4 rounded-2xl bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl">
+      <Modal className="w-full max-w-sm mx-4 bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl">
         <Dialog className="p-6 outline-none">
-          <Heading slot="title" className="text-lg font-semibold text-[var(--color-text)] mb-2">
+          <Heading slot="title" className="text-sm font-medium text-[var(--color-text)] mb-2">
             {t('settings.projects.archiveConfirm')}
           </Heading>
-          <p className="text-sm text-[var(--color-text-muted)] mb-4">
+          <p className="text-sm text-[var(--color-text-subtle)] mb-6">
             {t('settings.projects.archiveBody')}
           </p>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-4">
             <Button
               onPress={onClose}
-              className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+              className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
             >
               {t('settings.cancel')}
             </Button>
             <Button
               onPress={onConfirm}
               isDisabled={isPending}
-              className="px-4 py-2 rounded-lg bg-[var(--color-error)] text-white text-sm font-medium cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-error)] focus-visible:ring-offset-2 disabled:opacity-50"
+              className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
             >
               {t('settings.projects.archiveAction')}
             </Button>

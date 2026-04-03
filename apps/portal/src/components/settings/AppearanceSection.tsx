@@ -1,11 +1,11 @@
 /**
  * Language & Appearance settings section.
- * Language: RadioGroup (Arabic/English) - changes immediately.
- * Theme: RadioGroup (Light/Dark/System) - changes immediately.
- * Number format: Switch (Arabic-Indic/Western) - only when Arabic locale selected.
- * Date format: RadioGroup (Gregorian/Hijri).
+ * "Data is the design" — text buttons with underline for active state.
+ * No radio circles, no colored backgrounds.
+ * Number format: simple switch, only when Arabic.
  */
-import { Radio, RadioGroup, Switch, Label } from 'react-aria-components'
+import { Switch, Label } from 'react-aria-components'
+import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 
 interface AppearanceSectionProps {
@@ -18,6 +18,9 @@ interface AppearanceSectionProps {
   onNumberFormatChange: (format: 'arabic' | 'western') => void
   onDateFormatChange: (format: 'gregorian' | 'hijri') => void
 }
+
+const labelClass =
+  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 export function AppearanceSection({
   currentLocale,
@@ -44,87 +47,51 @@ export function AppearanceSection({
   const isArabic = currentLocale === 'ar'
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-[var(--color-text)]">
-        {t('settings.appearance.title')}
-      </h2>
-
+    <div className="space-y-8">
       {/* Language */}
-      <div className="space-y-3">
-        <RadioGroup
-          value={currentLocale}
-          onChange={handleLanguageChange}
-          aria-label={t('settings.appearance.language')}
-          className="space-y-2"
-        >
-          <Label className="text-sm font-medium text-[var(--color-text)]">
-            {t('settings.appearance.language')}
-          </Label>
-          <div className="flex gap-3">
-            <Radio
-              value="ar"
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] cursor-pointer outline-none data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]/5 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-            >
-              <span className="w-4 h-4 rounded-full border-2 border-[var(--color-border)] group-data-[selected]:border-[var(--color-primary)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                <span className="absolute inset-1 rounded-full bg-white opacity-0 group-data-[selected]:opacity-100" />
-              </span>
-              <span className="text-sm text-[var(--color-text)]">
-                {t('settings.appearance.arabic')}
-              </span>
-            </Radio>
-            <Radio
-              value="en"
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] cursor-pointer outline-none data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]/5 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-            >
-              <span className="w-4 h-4 rounded-full border-2 border-[var(--color-border)] group-data-[selected]:border-[var(--color-primary)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                <span className="absolute inset-1 rounded-full bg-white opacity-0 group-data-[selected]:opacity-100" />
-              </span>
-              <span className="text-sm text-[var(--color-text)]">
-                {t('settings.appearance.english')}
-              </span>
-            </Radio>
-          </div>
-        </RadioGroup>
+      <div className="space-y-2">
+        <span className={labelClass}>
+          {t('settings.appearance.language')}
+        </span>
+        <div className="flex items-center gap-4">
+          <TextToggle
+            active={currentLocale === 'ar'}
+            onPress={() => handleLanguageChange('ar')}
+            label={t('settings.appearance.arabic')}
+          />
+          <TextToggle
+            active={currentLocale === 'en'}
+            onPress={() => handleLanguageChange('en')}
+            label={t('settings.appearance.english')}
+          />
+        </div>
       </div>
 
       {/* Theme */}
-      <div className="space-y-3">
-        <RadioGroup
-          value={currentTheme}
-          onChange={handleThemeChange}
-          aria-label={t('settings.appearance.theme')}
-          className="space-y-2"
-        >
-          <Label className="text-sm font-medium text-[var(--color-text)]">
-            {t('settings.appearance.theme')}
-          </Label>
-          <div className="flex gap-3">
-            {(['light', 'dark', 'system'] as const).map((theme) => (
-              <Radio
-                key={theme}
-                value={theme}
-                className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] cursor-pointer outline-none data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]/5 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-              >
-                <span className="w-4 h-4 rounded-full border-2 border-[var(--color-border)] group-data-[selected]:border-[var(--color-primary)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                  <span className="absolute inset-1 rounded-full bg-white opacity-0 group-data-[selected]:opacity-100" />
-                </span>
-                <span className="text-sm text-[var(--color-text)]">
-                  {t(`settings.appearance.${theme}`)}
-                </span>
-              </Radio>
-            ))}
-          </div>
-        </RadioGroup>
+      <div className="space-y-2">
+        <span className={labelClass}>
+          {t('settings.appearance.theme')}
+        </span>
+        <div className="flex items-center gap-4">
+          {(['light', 'dark', 'system'] as const).map((theme) => (
+            <TextToggle
+              key={theme}
+              active={currentTheme === theme}
+              onPress={() => handleThemeChange(theme)}
+              label={t(`settings.appearance.${theme}`)}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Number format - only shown when Arabic locale selected */}
+      {/* Number format — only when Arabic */}
       {isArabic && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-[var(--color-text)]">
+          <span className={labelClass}>
             {t('settings.appearance.numberFormat')}
-          </Label>
+          </span>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--color-text-muted)]">
+            <span className="text-sm text-[var(--color-text-subtle)]">
               {t('settings.appearance.westernNumbers')}
             </span>
             <Switch
@@ -135,11 +102,11 @@ export function AppearanceSection({
               className="group inline-flex items-center cursor-pointer outline-none"
               aria-label={t('settings.appearance.numberFormat')}
             >
-              <span className="w-9 h-5 rounded-full transition-colors bg-[var(--color-border)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                <span className="absolute top-0.5 start-0.5 w-4 h-4 rounded-full bg-white transition-transform group-data-[selected]:translate-x-4 rtl:group-data-[selected]:-translate-x-4 shadow-sm" />
+              <span className="w-8 h-[18px] rounded-full transition-colors bg-[var(--color-border)] group-data-[selected]:bg-[#0F172A] dark:group-data-[selected]:bg-[#FAFAFA] relative">
+                <span className="absolute top-[3px] start-[3px] w-3 h-3 rounded-full bg-white dark:bg-[#09090B] transition-transform group-data-[selected]:translate-x-[14px] rtl:group-data-[selected]:-translate-x-[14px]" />
               </span>
             </Switch>
-            <span className="text-sm text-[var(--color-text-muted)]">
+            <span className="text-sm text-[var(--color-text-subtle)]">
               {t('settings.appearance.arabicNumbers')}
             </span>
           </div>
@@ -147,44 +114,50 @@ export function AppearanceSection({
       )}
 
       {/* Date format */}
-      <div className="space-y-3">
-        <RadioGroup
-          value={dateFormat}
-          onChange={(val) =>
-            onDateFormatChange(val as 'gregorian' | 'hijri')
-          }
-          aria-label={t('settings.appearance.dateFormat')}
-          className="space-y-2"
-        >
-          <Label className="text-sm font-medium text-[var(--color-text)]">
-            {t('settings.appearance.dateFormat')}
-          </Label>
-          <div className="flex gap-3">
-            <Radio
-              value="gregorian"
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] cursor-pointer outline-none data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]/5 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-            >
-              <span className="w-4 h-4 rounded-full border-2 border-[var(--color-border)] group-data-[selected]:border-[var(--color-primary)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                <span className="absolute inset-1 rounded-full bg-white opacity-0 group-data-[selected]:opacity-100" />
-              </span>
-              <span className="text-sm text-[var(--color-text)]">
-                {t('settings.appearance.gregorian')}
-              </span>
-            </Radio>
-            <Radio
-              value="hijri"
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] cursor-pointer outline-none data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]/5 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-            >
-              <span className="w-4 h-4 rounded-full border-2 border-[var(--color-border)] group-data-[selected]:border-[var(--color-primary)] group-data-[selected]:bg-[var(--color-primary)] relative">
-                <span className="absolute inset-1 rounded-full bg-white opacity-0 group-data-[selected]:opacity-100" />
-              </span>
-              <span className="text-sm text-[var(--color-text)]">
-                {t('settings.appearance.hijri')}
-              </span>
-            </Radio>
-          </div>
-        </RadioGroup>
+      <div className="space-y-2">
+        <span className={labelClass}>
+          {t('settings.appearance.dateFormat')}
+        </span>
+        <div className="flex items-center gap-4">
+          <TextToggle
+            active={dateFormat === 'gregorian'}
+            onPress={() => onDateFormatChange('gregorian')}
+            label={t('settings.appearance.gregorian')}
+          />
+          <TextToggle
+            active={dateFormat === 'hijri'}
+            onPress={() => onDateFormatChange('hijri')}
+            label={t('settings.appearance.hijri')}
+          />
+        </div>
       </div>
     </div>
+  )
+}
+
+// ============================================================================
+// Text toggle button — active state = underline
+// ============================================================================
+
+function TextToggle({
+  active,
+  onPress,
+  label,
+}: {
+  active: boolean
+  onPress: () => void
+  label: string
+}) {
+  return (
+    <Button
+      onPress={onPress}
+      className={`text-sm cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded pb-0.5 transition-colors ${
+        active
+          ? 'text-[var(--color-text)] border-b border-[var(--color-text)]'
+          : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
+      }`}
+    >
+      {label}
+    </Button>
   )
 }

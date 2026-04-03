@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useInView } from 'motion/react'
+import { motion, useInView } from 'motion/react'
 
 interface SectionNumberProps {
   n: number | string
@@ -7,24 +7,25 @@ interface SectionNumberProps {
 
 /**
  * Watermark-style section number.
- * Black at 10% opacity by default, turns brand blue when it crosses the viewport center.
+ * Black at 10% opacity by default, animates to brand blue when it crosses the viewport center.
  */
 export function SectionNumber({ n }: SectionNumberProps) {
   const ref = useRef<HTMLSpanElement>(null)
   const isActive = useInView(ref, {
-    margin: '0px 0px -50% 0px', // triggers when element passes center of viewport
+    margin: '0px 0px -50% 0px',
   })
 
   return (
-    <span
+    <motion.span
       ref={ref}
-      className={`block font-[family-name:var(--font-mono)] text-[clamp(1.4rem,3vw,2rem)] leading-none transition-colors duration-300 ${
-        isActive
-          ? 'text-[var(--color-primary)]'
-          : 'text-[var(--color-text)] opacity-10'
-      }`}
+      animate={{
+        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
+        opacity: isActive ? 1 : 0.1,
+      }}
+      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      className="block font-[family-name:var(--font-mono)] text-[clamp(1.4rem,3vw,2rem)] leading-none"
     >
       {typeof n === 'number' ? String(n).padStart(2, '0') : n}
-    </span>
+    </motion.span>
   )
 }

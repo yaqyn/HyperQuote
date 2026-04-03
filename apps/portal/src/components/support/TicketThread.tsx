@@ -1,13 +1,14 @@
 /**
- * TicketThread: Conversation thread view for a support ticket.
- * Messages alternate left (support) / right (customer).
- * Reply input at bottom.
+ * TicketThread — conversation as text, not bubbles.
+ * Same "data is the design" as the AI chat:
+ * Customer: right-aligned, medium weight.
+ * Support: left-aligned, muted.
+ * Timestamps on hover.
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, TextArea } from 'react-aria-components'
-import { ArrowLeft, Send } from 'lucide-react'
-import type { Ticket, TicketReply, TicketStatus } from '../../types/support'
+import { motion } from 'motion/react'
+import type { Ticket, TicketReply } from '../../types/support'
 
 interface TicketThreadProps {
   ticket: Ticket
@@ -17,30 +18,10 @@ interface TicketThreadProps {
   isReplying?: boolean
 }
 
-const STATUS_STYLES: Record<TicketStatus, string> = {
-  open: 'bg-[var(--color-info)]/10 text-[var(--color-info)]',
-  pending: 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
-  in_progress: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
-  resolved: 'bg-[var(--color-success)]/10 text-[var(--color-success)]',
-  closed: 'bg-[var(--color-text-muted)]/10 text-[var(--color-text-muted)]',
-}
-
-export function TicketThread({
-  ticket,
-  replies,
-  onReply,
-  onBack,
-  isReplying,
-}: TicketThreadProps) {
+export function TicketThread({ ticket, replies, onReply, onBack, isReplying }: TicketThreadProps) {
   const { t, i18n } = useTranslation('portal')
   const [replyText, setReplyText] = useState('')
   const isArabic = i18n.language === 'ar'
-  const timeFormatter = new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-GB', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 
   function handleSubmitReply() {
     if (!replyText.trim()) return
@@ -48,100 +29,116 @@ export function TicketThread({
     setReplyText('')
   }
 
-  const isClosedOrResolved =
-    ticket.status === 'closed' || ticket.status === 'resolved'
+  const isClosedOrResolved = ticket.status === 'closed' || ticket.status === 'resolved'
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-[var(--color-border)]">
-        <Button
-          onPress={onBack}
+    <div className="flex flex-col">
+      {/* Back + subject */}
+      <div className="flex items-baseline gap-4 mb-10">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors shrink-0"
           aria-label={t('support.backToTickets')}
-          className="p-1.5 rounded-lg hover:bg-[var(--color-surface)] transition-colors cursor-pointer outline-none"
         >
-          <ArrowLeft size={18} className="text-[var(--color-text)] rtl:rotate-180" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[var(--color-text)] truncate">
+          &larr;
+        </button>
+        <div>
+          <h2 className="text-sm font-normal text-[var(--color-text)]">
             {ticket.subject}
-          </p>
-          <span
-            className={`inline-block rounded-sm px-1.5 py-0.5 text-xs mt-1 ${STATUS_STYLES[ticket.status]}`}
-          >
-            {t(`support.status.${ticket.status}`)}
+          </h2>
+          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+            {ticket.status.replace('_', ' ').toUpperCase()}
           </span>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-3">
+      {/* Messages — same style as AI chat */}
+      <div className="flex flex-col gap-6 mb-10">
         {replies.map((reply) => {
           const isCustomer = reply.sender === 'customer'
+          const time = new Date(reply.createdAt).toLocaleTimeString(
+            isArabic ? 'ar-EG' : 'en-US',
+            { hour: '2-digit', minute: '2-digit' },
+          )
+
           return (
-            <div
+            <motion.div
               key={reply.id}
-              className={`flex ${isCustomer ? 'justify-end' : 'justify-start'}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className={`group flex flex-col ${isCustomer ? 'items-end' : 'items-start'}`}
+              style={{ maxWidth: isCustomer ? '75%' : '80%', alignSelf: isCustomer ? 'flex-end' : 'flex-start' }}
             >
-              <div
-                className={`max-w-[80%] rounded-xl px-4 py-3 ${
+              <p
+                className={[
+                  'text-[14px] leading-[1.65] whitespace-pre-wrap',
                   isCustomer
-                    ? 'bg-[var(--color-primary)] text-white'
-                    : 'bg-[var(--color-surface)] text-[var(--color-text)]'
-                }`}
+                    ? 'text-[var(--color-text)] font-medium'
+                    : 'text-[var(--color-text-muted)]',
+                ].join(' ')}
               >
-                <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
-                {reply.attachments && reply.attachments.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {reply.attachments.map((url, i) => (
-                      <a
-                        key={`${reply.id}-attachment-${i}`}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`text-xs underline ${isCustomer ? 'text-white/80' : 'text-[var(--color-primary)]'}`}
-                      >
-                        {t('support.attachment')} {i + 1}
-                      </a>
-                    ))}
-                  </div>
-                )}
-                <p
-                  className={`font-mono text-[11px] mt-1 ${
-                    isCustomer
-                      ? 'text-white/60'
-                      : 'text-[var(--color-text-muted)]'
-                  }`}
-                >
-                  {timeFormatter.format(new Date(reply.createdAt))}
-                </p>
-              </div>
-            </div>
+                {reply.message}
+              </p>
+
+              {/* Attachments */}
+              {reply.attachments && reply.attachments.length > 0 && (
+                <div className="flex gap-2 mt-1">
+                  {reply.attachments.map((url, i) => (
+                    <a
+                      key={`${reply.id}-${i}`}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[var(--color-text-subtle)] underline underline-offset-2 hover:text-[var(--color-text-muted)]"
+                    >
+                      {t('support.attachment')} {i + 1}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Time — hover reveal */}
+              <span className="font-mono text-[10px] text-[var(--color-text-subtle)] mt-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
+                {time}
+              </span>
+            </motion.div>
           )
         })}
       </div>
 
-      {/* Reply input */}
+      {/* Reply input — underline style */}
       {!isClosedOrResolved && (
-        <div className="pt-3 border-t border-[var(--color-border)]">
-          <div className="flex gap-2">
-            <TextArea
-              value={replyText}
-              onChange={(e) => setReplyText(typeof e === 'string' ? e : (e as unknown as React.ChangeEvent<HTMLTextAreaElement>).target.value)}
-              placeholder={t('support.replyPlaceholder')}
-              rows={2}
-              aria-label={t('support.replyLabel')}
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 resize-none"
-            />
-            <Button
-              onPress={handleSubmitReply}
-              isDisabled={isReplying || !replyText.trim()}
+        <div className="flex items-end gap-3 border-t border-[var(--color-border)] pt-6">
+          <textarea
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            placeholder={t('support.replyPlaceholder')}
+            rows={2}
+            aria-label={t('support.replyLabel')}
+            spellCheck={false}
+            className="flex-1 bg-transparent border-0 border-b border-[var(--color-border)] pb-2 text-sm text-[var(--color-text)] outline-none resize-none focus:border-[#2563EB] transition-colors placeholder:text-[var(--color-border)]"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmitReply()
+              }
+            }}
+          />
+          {replyText.trim() && (
+            <button
+              type="button"
+              onClick={handleSubmitReply}
+              disabled={isReplying}
+              className="shrink-0 mb-0.5 disabled:opacity-30"
               aria-label={t('support.sendReply')}
-              className="self-end rounded-lg bg-[var(--color-primary)] p-2.5 text-white outline-none hover:opacity-90 focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-opacity"
             >
-              <Send size={16} />
-            </Button>
-          </div>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-[var(--color-text)]">
+                <path d="M7 12V2M7 2L3 6M7 2L11 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
         </div>
       )}
     </div>

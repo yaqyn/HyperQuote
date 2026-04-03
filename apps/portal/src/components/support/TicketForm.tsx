@@ -1,6 +1,5 @@
 /**
- * TicketForm: Support ticket submission form.
- * Subject, category (React Aria Select), description, related order, attachments.
+ * TicketForm — underline inputs, minimal. Data is the design.
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +7,6 @@ import {
   Button,
   Form,
   TextField,
-  TextArea,
   Input,
   Label,
   Select,
@@ -17,8 +15,23 @@ import {
   ListBox,
   ListBoxItem,
 } from 'react-aria-components'
-import { Send } from 'lucide-react'
 import type { TicketCategory } from '../../types/support'
+
+const CATEGORIES: TicketCategory[] = [
+  'order_issue',
+  'delivery_problem',
+  'billing',
+  'account',
+  'other',
+]
+
+const CATEGORY_LABELS: Record<TicketCategory, string> = {
+  order_issue: 'Order issue',
+  delivery_problem: 'Delivery problem',
+  billing: 'Billing',
+  account: 'Account',
+  other: 'Other',
+}
 
 interface TicketFormProps {
   onSubmit: (data: {
@@ -30,13 +43,8 @@ interface TicketFormProps {
   isSubmitting?: boolean
 }
 
-const CATEGORIES: TicketCategory[] = [
-  'order_issue',
-  'delivery_problem',
-  'billing',
-  'account',
-  'other',
-]
+const labelClass = 'mb-3 block text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+const inputClass = 'w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB]'
 
 export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
   const { t } = useTranslation('portal')
@@ -57,23 +65,13 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
   }
 
   return (
-    <Form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4"
-    >
+    <Form onSubmit={handleSubmit} className="flex flex-col gap-10">
       {/* Subject */}
-      <TextField
-        isRequired
-        value={subject}
-        onChange={setSubject}
-        className="flex flex-col gap-1.5"
-      >
-        <Label className="text-sm font-medium text-[var(--color-text)]">
-          {t('support.formSubject')}
-        </Label>
+      <TextField isRequired value={subject} onChange={setSubject}>
+        <Label className={labelClass}>{t('support.formSubject')}</Label>
         <Input
           placeholder={t('support.formSubjectPlaceholder')}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+          className={`${inputClass} placeholder:text-[var(--color-border)]`}
         />
       </TextField>
 
@@ -81,87 +79,59 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
       <Select
         selectedKey={category}
         onSelectionChange={(key) => setCategory(key as TicketCategory)}
-        className="flex flex-col gap-1.5"
       >
-        <Label className="text-sm font-medium text-[var(--color-text)]">
-          {t('support.formCategory')}
-        </Label>
-        <Button className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 cursor-pointer">
+        <Label className={labelClass}>{t('support.formCategory')}</Label>
+        <Button className="flex items-center justify-between w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-sm text-[var(--color-text)] outline-none cursor-pointer transition-colors focus:border-[#2563EB]">
           <SelectValue />
-          <span aria-hidden="true" className="text-[var(--color-text-muted)]">
-            &#9662;
-          </span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--color-text-subtle)]">
+            <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </Button>
-        <Popover className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg overflow-hidden">
+        <Popover className="rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] shadow-lg overflow-hidden">
           <ListBox className="p-1 outline-none">
             {CATEGORIES.map((cat) => (
               <ListBoxItem
                 key={cat}
                 id={cat}
-                textValue={t(`support.category.${cat}`)}
+                textValue={CATEGORY_LABELS[cat]}
                 className="px-3 py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none rounded-md hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
               >
-                {t(`support.category.${cat}`)}
+                {CATEGORY_LABELS[cat]}
               </ListBoxItem>
             ))}
           </ListBox>
         </Popover>
       </Select>
 
-      {/* Description */}
-      <TextField
-        isRequired
-        value={message}
-        onChange={setMessage}
-        className="flex flex-col gap-1.5"
-      >
-        <Label className="text-sm font-medium text-[var(--color-text)]">
-          {t('support.formDescription')}
-        </Label>
-        <TextArea
+      {/* Message */}
+      <div>
+        <label className={labelClass}>{t('support.formDescription')}</label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
           placeholder={t('support.formDescriptionPlaceholder')}
           rows={4}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 resize-y"
-        />
-      </TextField>
-
-      {/* Related Order (optional) */}
-      <TextField
-        value={orderId}
-        onChange={setOrderId}
-        className="flex flex-col gap-1.5"
-      >
-        <Label className="text-sm font-medium text-[var(--color-text)]">
-          {t('support.formRelatedOrder')}
-        </Label>
-        <Input
-          placeholder="ORD-2026-00042"
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 font-mono"
-        />
-      </TextField>
-
-      {/* Attachments (optional) */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[var(--color-text)]">
-          {t('support.formAttachments')}
-        </label>
-        <input
-          type="file"
-          multiple
-          accept="image/*,.pdf,.doc,.docx"
-          className="text-sm text-[var(--color-text-muted)] file:me-3 file:rounded-lg file:border-0 file:bg-[var(--color-surface)] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[var(--color-text)] file:cursor-pointer"
+          className={`${inputClass} resize-y placeholder:text-[var(--color-border)]`}
         />
       </div>
 
+      {/* Related order */}
+      <TextField value={orderId} onChange={setOrderId}>
+        <Label className={labelClass}>{t('support.formRelatedOrder')}</Label>
+        <Input
+          placeholder="ORD-2026-00042"
+          className={`${inputClass} font-mono placeholder:text-[var(--color-border)]`}
+        />
+      </TextField>
+
       {/* Submit */}
-      <Button
+      <button
         type="submit"
-        isDisabled={isSubmitting || !subject.trim() || !message.trim()}
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white outline-none hover:opacity-90 focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-opacity"
+        disabled={isSubmitting || !subject.trim() || !message.trim()}
+        className="self-start h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-30"
       >
-        <Send size={14} />
         {isSubmitting ? t('support.submitting') : t('support.submitTicket')}
-      </Button>
+      </button>
     </Form>
   )
 }

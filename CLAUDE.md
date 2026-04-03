@@ -54,7 +54,7 @@ Bun workspaces + Turborepo ^2.8.21 | Vitest ^4.1.2 | Playwright ^1.58.2 | Biome 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+**Fix from the root, never patch over symptoms.** When something is misaligned, broken, or wrong — find the actual cause and fix it there. Never add visual hacks (extra dividers, spacers, opacity tricks) to hide a structural problem. If a grid has uneven rows, fix the grid — don't add fake lines between them.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
