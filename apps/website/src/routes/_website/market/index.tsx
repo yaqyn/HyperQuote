@@ -1,21 +1,17 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion } from 'motion/react'
 import {
   SearchX,
   AlertTriangle,
   X,
   ShoppingCart,
-  Search,
   SlidersHorizontal,
   ChevronsUpDown,
 } from 'lucide-react'
 import {
-  SearchField,
-  Label,
-  Input,
   Select,
   SelectValue,
   Button,
@@ -26,6 +22,7 @@ import {
   Modal,
   ModalOverlay,
 } from 'react-aria-components'
+import { SearchDropdown, type SearchEntry } from '../../../components/shared/SearchDropdown'
 import { EmptyState } from '@hyperquote/ui'
 import { getPublicCatalog } from '../../../lib/catalog'
 import { ProductCard } from '../../../components/market/ProductCard'
@@ -188,6 +185,69 @@ function MobileCartButton() {
   )
 }
 
+// ── Market search ──
+// Uses shared SearchDropdown for UI/keyboard, but the real search goes through
+// the route loader (server-side DB query). The dropdown shows current-page items
+// as quick suggestions. On Enter with no selection, navigates with ?q= param
+// so the loader fetches matching results from the database.
+
+function MarketSearch({
+  items: catalogItems,
+  navigate,
+}: {
+  items: Array<{ id: string; slug: string; name: string; name_ar: string | null; category: string; unit_of_measure: string; [key: string]: unknown }>
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  const { t, i18n } = useTranslation('website')
+  const locale = i18n.language === 'ar' ? 'ar' : 'en'
+
+  const searchItems: SearchEntry[] = useMemo(
+    () =>
+      catalogItems.map((p) => ({
+        id: p.id,
+        title: locale === 'ar' ? p.name_ar || p.name : p.name,
+        subtitle: t(`categories.${p.category}`, { defaultValue: p.category.replace(/_/g, ' ') }),
+        body: '',
+        href: `/market/${p.slug}`,
+      })),
+    [catalogItems, locale, t],
+  )
+
+  const handleSelect = useCallback(
+    (item: SearchEntry) => {
+      if (item.href) navigate({ to: item.href })
+    },
+    [navigate],
+  )
+
+  // On Ask Lyon / Enter with no selection → set URL ?q= param for server-side search
+  const handleSearch = useCallback(
+    (q: string) => {
+      navigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          q: q || undefined,
+          page: 1,
+        }),
+      })
+    },
+    [navigate],
+  )
+
+  return (
+    <SearchDropdown
+      items={searchItems}
+      placeholder={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
+      askLyonLabel={t('market.search', { defaultValue: 'Search' })}
+      onSelect={handleSelect}
+      onAskLyon={handleSearch}
+      maxResults={6}
+      className="max-w-[480px]"
+      idPrefix="market-search"
+    />
+  )
+}
+
 // ── Main page ──
 
 function MarketPage() {
@@ -257,33 +317,9 @@ function MarketPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.12 }}
-                className="mt-10 max-w-[480px]"
+                className="mt-10"
               >
-                <SearchField
-                  aria-label={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-                  defaultValue={search.q ?? ''}
-                  onSubmit={(val) => {
-                    navigate({
-                      search: (prev: Record<string, unknown>) => ({
-                        ...prev,
-                        q: val || undefined,
-                        page: 1,
-                      }),
-                    })
-                  }}
-                  className="w-full"
-                >
-                  <Label className="sr-only">
-                    {t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-                  </Label>
-                  <div className="flex items-center border-b border-[var(--color-text)]/[0.1] pb-3 transition-colors duration-200 focus-within:border-[var(--color-primary)]/40">
-                    <Search size={16} className="shrink-0 opacity-25" />
-                    <Input
-                      placeholder={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-                      className="ms-3 w-full border-0 bg-transparent text-[15px] outline-none placeholder:opacity-30"
-                    />
-                  </div>
-                </SearchField>
+                <MarketSearch items={data.items} navigate={navigate} />
               </motion.div>
             </div>
 
