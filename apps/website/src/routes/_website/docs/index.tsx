@@ -178,61 +178,68 @@ function DocsIndexPage() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
-            {DOC_CATEGORIES.map((cat, catIdx) => (
-              <motion.div
-                key={cat.slug}
-                initial="hidden"
-                whileInView="visible"
-                viewport={viewportOnce}
-                variants={stagger(catIdx * 0.06)}
-                className="relative py-8 md:px-8 first:md:ps-0"
-              >
-                {/* Vertical divider between columns (desktop) */}
-                {catIdx % 3 !== 0 && (
-                  <div className="hidden lg:block absolute start-0 top-8 bottom-8 w-px bg-[var(--color-text)] opacity-[0.07]" />
-                )}
-                {/* Horizontal divider between rows (desktop) */}
-                {catIdx >= 3 && (
-                  <div className="hidden lg:block absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
-                )}
-                {/* Horizontal divider (mobile) */}
-                {catIdx > 0 && (
-                  <div className="lg:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
-                )}
-
-                <div className="flex items-baseline gap-2.5 mb-5 min-h-[28px]">
-                  <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
-                    {String(catIdx + 1).padStart(2, '0')}
-                  </span>
-                  <Link
-                    to="/docs/$categorySlug"
-                    params={{ categorySlug: cat.slug }}
-                    className="text-[16px] font-semibold tracking-[-0.01em] hover:text-[var(--color-primary)] transition-colors"
-                  >
-                    {t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
-                  </Link>
-                </div>
-
-                <ul className="space-y-2">
-                  {cat.articles.map((article) => (
-                    <li key={article.slug}>
-                      <Link
-                        to="/docs/$categorySlug/$articleSlug"
-                        params={{ categorySlug: cat.slug, articleSlug: article.slug }}
-                        className="group flex items-center justify-between py-1.5 text-[14px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+          <div className="space-y-0">
+            {/* Chunk categories into rows of 3 so each row sizes independently */}
+            {Array.from({ length: Math.ceil(DOC_CATEGORIES.length / 3) }, (_, rowIdx) => {
+              const rowCats = DOC_CATEGORIES.slice(rowIdx * 3, rowIdx * 3 + 3)
+              return (
+                <div key={rowIdx} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {rowCats.map((cat, colIdx) => {
+                    const catIdx = rowIdx * 3 + colIdx
+                    return (
+                      <motion.div
+                        key={cat.slug}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={viewportOnce}
+                        variants={stagger(catIdx * 0.06)}
+                        className={`relative py-8 ${colIdx > 0 ? 'md:ps-8' : ''} ${colIdx < rowCats.length - 1 ? 'md:pe-8' : ''}`}
                       >
-                        <span>{t(article.titleKey, { defaultValue: displayName(article.titleKey) })}</span>
-                        <ArrowRight
-                          size={13}
-                          className="icon-end shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
+                        {/* Vertical divider between columns */}
+                        {colIdx > 0 && (
+                          <div className="hidden lg:block absolute start-0 top-8 bottom-8 w-px bg-[var(--color-text)] opacity-[0.07]" />
+                        )}
+                        {/* Horizontal divider (mobile) */}
+                        {catIdx > 0 && (
+                          <div className="lg:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
+                        )}
+
+                        <div className="flex items-baseline gap-2.5 mb-5">
+                          <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
+                            {String(catIdx + 1).padStart(2, '0')}
+                          </span>
+                          <Link
+                            to="/docs/$categorySlug"
+                            params={{ categorySlug: cat.slug }}
+                            className="text-[16px] font-semibold tracking-[-0.01em] hover:text-[var(--color-primary)] transition-colors"
+                          >
+                            {t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
+                          </Link>
+                        </div>
+
+                        <ul className="space-y-2">
+                          {cat.articles.map((article) => (
+                            <li key={article.slug}>
+                              <Link
+                                to="/docs/$categorySlug/$articleSlug"
+                                params={{ categorySlug: cat.slug, articleSlug: article.slug }}
+                                className="group flex items-center justify-between py-1.5 text-[14px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                              >
+                                <span>{t(article.titleKey, { defaultValue: displayName(article.titleKey) })}</span>
+                                <ArrowRight
+                                  size={13}
+                                  className="icon-end shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"
+                                />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
