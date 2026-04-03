@@ -141,7 +141,8 @@ export function DocsSearch() {
   const fuse = useMemo(
     () =>
       new Fuse(items, {
-        threshold: 0.3,
+        threshold: 0.4,
+        ignoreFieldNorm: true,
         keys: [
           { name: 'title', weight: 3 },
           { name: 'category', weight: 1 },
