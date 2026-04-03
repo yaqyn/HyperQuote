@@ -15,27 +15,43 @@ interface SearchItem {
   category: string
   slug: string
   href: string
-  /** Markdown body text for full-text search */
   body: string
 }
 
-/** Strip markdown syntax to get plain text for indexing */
 function stripMarkdown(md: string): string {
   return md
-    .replace(/^#{1,6}\s+/gm, '')    // headings
-    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
-    .replace(/\*([^*]+)\*/g, '$1')     // italic
-    .replace(/`([^`]+)`/g, '$1')       // inline code
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
-    .replace(/^[-*+]\s+/gm, '')        // list items
-    .replace(/\n{2,}/g, ' ')           // collapse newlines
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
     .trim()
+}
+
+/** Extract a snippet around the matched keyword */
+function getSnippet(body: string, query: string, radius = 60): string | null {
+  if (!body || !query) return null
+  const lower = body.toLowerCase()
+  const qLower = query.toLowerCase()
+  const idx = lower.indexOf(qLower)
+  if (idx === -1) return null
+
+  const start = Math.max(0, idx - radius)
+  const end = Math.min(body.length, idx + query.length + radius)
+  let snippet = body.slice(start, end)
+
+  if (start > 0) snippet = `\u2026${snippet}`
+  if (end < body.length) snippet = `${snippet}\u2026`
+
+  return snippet
 }
 
 function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] {
   const items: SearchItem[] = []
 
-  // Index wizard guides (title + description only, no markdown body)
   for (const w of WIZARDS) {
     items.push({
       type: 'guide',
@@ -47,7 +63,6 @@ function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] 
     })
   }
 
-  // Index all articles with full markdown content
   const allContent = getAllContent()
   const contentMap = new Map(allContent.map((c) => [`${c.categorySlug}/${c.articleSlug}`, c.content]))
 
@@ -85,7 +100,6 @@ export function DocsSearch() {
           { name: 'category', weight: 1 },
           { name: 'body', weight: 2 },
         ],
-        includeMatches: true,
         minMatchCharLength: 2,
       }),
     [items],
@@ -126,32 +140,39 @@ export function DocsSearch() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className="absolute start-0 top-full z-30 mt-2 w-full border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)]"
+            className="absolute start-0 top-full z-30 mt-2 w-full min-w-[360px] border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)]"
           >
             {results.length > 0 ? (
               <>
-                {results.map((r) => (
-                  <Link
-                    key={r.item.href}
-                    to={r.item.href}
-                    onClick={() => { setQuery(''); setFocused(false) }}
-                    className="group flex w-full items-center justify-between border-b border-[var(--color-text)]/[0.05] px-5 py-4 text-start transition-colors last:border-0 hover:bg-[var(--color-text)]/[0.02]"
-                  >
-                    <div>
-                      <div className="text-[14px] font-medium tracking-[-0.01em]">
-                        {r.item.title}
+                {results.map((r) => {
+                  const snippet = getSnippet(r.item.body, query.trim())
+                  return (
+                    <Link
+                      key={r.item.href}
+                      to={r.item.href}
+                      onClick={() => { setQuery(''); setFocused(false) }}
+                      className="group flex w-full items-center justify-between border-b border-[var(--color-text)]/[0.05] px-5 py-4 text-start transition-colors last:border-0 hover:bg-[var(--color-text)]/[0.02]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] font-medium tracking-[-0.01em]">
+                          {r.item.title}
+                        </div>
+                        <div className="mt-0.5 text-[12px] opacity-35">
+                          {r.item.category}
+                        </div>
+                        {snippet && (
+                          <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--color-text-muted)] line-clamp-2">
+                            {snippet}
+                          </p>
+                        )}
                       </div>
-                      <div className="mt-1 text-[12px] opacity-35">
-                        {r.item.category}
-                      </div>
-                    </div>
-                    <ArrowRight
-                      size={14}
-                      className="icon-end shrink-0 opacity-0 transition-opacity group-hover:opacity-30"
-                    />
-                  </Link>
-                ))}
-                {/* Ask Lyon option */}
+                      <ArrowRight
+                        size={14}
+                        className="icon-end shrink-0 ms-3 opacity-0 transition-opacity group-hover:opacity-30"
+                      />
+                    </Link>
+                  )
+                })}
                 <div className="border-t border-[var(--color-text)]/[0.05] px-5 py-3.5">
                   <AskLyonPill context={query.trim()} />
                 </div>

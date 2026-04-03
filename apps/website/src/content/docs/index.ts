@@ -5,25 +5,33 @@
  */
 
 // Eagerly import all English markdown files as raw strings
-const enModules = import.meta.glob('./en/**/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>
+const enModules = import.meta.glob<string>('./en/**/*.md', { eager: true, query: '?raw', import: 'default' })
 
 // Eagerly import all Arabic markdown files as raw strings
-const arModules = import.meta.glob('./ar/**/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>
+const arModules = import.meta.glob<string>('./ar/**/*.md', { eager: true, query: '?raw', import: 'default' })
+
+/** Safely extract the string content from a glob import result */
+function extractString(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object' && 'default' in val) return (val as { default: string }).default
+  return ''
+}
 
 /**
  * Get markdown content for an article by category/slug and locale.
  * Falls back to English if Arabic not available.
- *
- * @example getContent('platform', 'what-is-hyperquote', 'en')
  */
 export function getContent(categorySlug: string, articleSlug: string, locale: 'en' | 'ar'): string {
   const enKey = `./en/${categorySlug}/${articleSlug}.md`
   const arKey = `./ar/${categorySlug}/${articleSlug}.md`
 
-  if (locale === 'ar' && arModules[arKey]) {
-    return arModules[arKey]
+  if (locale === 'ar' && arKey in arModules) {
+    return extractString(arModules[arKey])
   }
-  return enModules[enKey] ?? ''
+  if (enKey in enModules) {
+    return extractString(enModules[enKey])
+  }
+  return ''
 }
 
 /**
@@ -33,14 +41,13 @@ export function getContent(categorySlug: string, articleSlug: string, locale: 'e
 export function getAllContent(): Array<{ categorySlug: string; articleSlug: string; content: string }> {
   const results: Array<{ categorySlug: string; articleSlug: string; content: string }> = []
 
-  for (const [path, content] of Object.entries(enModules)) {
-    // path format: ./en/{categorySlug}/{articleSlug}.md
+  for (const [path, val] of Object.entries(enModules)) {
     const match = path.match(/^\.\/en\/([^/]+)\/([^/]+)\.md$/)
     if (match) {
       results.push({
         categorySlug: match[1],
         articleSlug: match[2],
-        content,
+        content: extractString(val),
       })
     }
   }
