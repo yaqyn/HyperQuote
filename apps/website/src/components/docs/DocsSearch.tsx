@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
@@ -71,6 +71,21 @@ function findMatchHeading(rawMd: string, query: string): string | null {
   }
 
   return lastHeading
+}
+
+/** Highlight all occurrences of query in text with blue color */
+function highlightMatch(text: string, query: string): ReactNode {
+  if (!query.trim()) return text
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  const parts = text.split(regex)
+  if (parts.length === 1) return text
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <span key={i} className="text-[var(--color-primary)] font-semibold">{part}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  )
 }
 
 function buildSearchIndex(t: (key: string, opts?: any) => string): { items: SearchItem[]; rawContentMap: Map<string, string> } {
@@ -288,14 +303,14 @@ export function DocsSearch() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="text-[14px] font-medium tracking-[-0.01em]">
-                          {r.item.title}
+                          {highlightMatch(r.item.title, query.trim())}
                         </div>
                         <div className="mt-0.5 text-[12px] opacity-35">
-                          {r.item.category}
+                          {highlightMatch(r.item.category, query.trim())}
                         </div>
                         {snippet && (
                           <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--color-text-muted)] line-clamp-2">
-                            {snippet}
+                            {highlightMatch(snippet, query.trim())}
                           </p>
                         )}
                       </div>
