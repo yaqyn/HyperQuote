@@ -1,10 +1,6 @@
-/**
- * Auto-discovered markdown content index.
- * Uses Vite's import.meta.glob with ?raw to load all .md files as strings at build time.
- * Adding/removing/editing a .md file automatically updates — zero manual imports.
- *
- * Requires `assetsInclude: ['**/*.md']` in vite.config.ts.
- */
+// Auto-discovered markdown content index.
+// Uses Vite import.meta.glob with ?raw to load all .md files as strings at build time.
+// Adding/removing/editing a .md file automatically updates — zero manual imports.
 
 const enModules = import.meta.glob('./en/**/*.md', { eager: true, query: '?raw', import: 'default' })
 const arModules = import.meta.glob('./ar/**/*.md', { eager: true, query: '?raw', import: 'default' })
