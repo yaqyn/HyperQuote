@@ -178,7 +178,7 @@ function DocsIndexPage() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 items-start">
             {DOC_CATEGORIES.map((cat, catIdx) => (
               <motion.div
                 key={cat.slug}
@@ -186,7 +186,7 @@ function DocsIndexPage() {
                 whileInView="visible"
                 viewport={viewportOnce}
                 variants={stagger(catIdx * 0.06)}
-                className="relative py-8 md:px-8 first:md:ps-0 last:md:pe-0"
+                className="relative py-8 md:px-8 first:md:ps-0"
               >
                 {/* Vertical divider (desktop) */}
                 {catIdx % 3 !== 0 && (
@@ -197,7 +197,7 @@ function DocsIndexPage() {
                   <div className="md:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
                 )}
 
-                <div className="flex items-baseline gap-2.5 mb-5">
+                <div className="flex items-baseline gap-2.5 mb-5 min-h-[28px]">
                   <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
                     {String(catIdx + 1).padStart(2, '0')}
                   </span>
