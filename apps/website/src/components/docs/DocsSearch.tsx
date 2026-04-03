@@ -6,6 +6,7 @@ import Fuse from 'fuse.js'
 import { Search, ArrowRight } from 'lucide-react'
 import { SearchField, Label, Input } from 'react-aria-components'
 import { WIZARDS, DOC_CATEGORIES, displayName } from '../../content/registry'
+import { getAllContent } from '../../content/docs'
 import { AskLyonPill } from './AskLyonPill'
 
 interface SearchItem {
@@ -13,13 +14,28 @@ interface SearchItem {
   title: string
   category: string
   slug: string
-  /** For articles: categorySlug/articleSlug. For guides: guide/guideSlug */
   href: string
+  /** Markdown body text for full-text search */
+  body: string
+}
+
+/** Strip markdown syntax to get plain text for indexing */
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,6}\s+/gm, '')    // headings
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+    .replace(/\*([^*]+)\*/g, '$1')     // italic
+    .replace(/`([^`]+)`/g, '$1')       // inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/^[-*+]\s+/gm, '')        // list items
+    .replace(/\n{2,}/g, ' ')           // collapse newlines
+    .trim()
 }
 
 function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] {
   const items: SearchItem[] = []
 
+  // Index wizard guides (title + description only, no markdown body)
   for (const w of WIZARDS) {
     items.push({
       type: 'guide',
@@ -27,17 +43,26 @@ function buildSearchIndex(t: (key: string, opts?: any) => string): SearchItem[] 
       category: t('docs.guides', { defaultValue: 'Guides' }),
       slug: w.slug,
       href: `/docs/guide/${w.slug}`,
+      body: t(w.descriptionKey, { defaultValue: displayName(w.descriptionKey) }),
     })
   }
 
+  // Index all articles with full markdown content
+  const allContent = getAllContent()
+  const contentMap = new Map(allContent.map((c) => [`${c.categorySlug}/${c.articleSlug}`, c.content]))
+
   for (const cat of DOC_CATEGORIES) {
     for (const article of cat.articles) {
+      const key = `${cat.slug}/${article.slug}`
+      const rawContent = contentMap.get(key) ?? ''
+
       items.push({
         type: 'article',
         title: t(article.titleKey, { defaultValue: displayName(article.titleKey) }),
         category: t(cat.titleKey, { defaultValue: displayName(cat.titleKey) }),
         slug: article.slug,
         href: `/docs/${cat.slug}/${article.slug}`,
+        body: stripMarkdown(rawContent),
       })
     }
   }
@@ -52,13 +77,23 @@ export function DocsSearch() {
 
   const items = useMemo(() => buildSearchIndex(t), [t])
   const fuse = useMemo(
-    () => new Fuse(items, { threshold: 0.4, keys: ['title', 'category'] }),
+    () =>
+      new Fuse(items, {
+        threshold: 0.3,
+        keys: [
+          { name: 'title', weight: 3 },
+          { name: 'category', weight: 1 },
+          { name: 'body', weight: 2 },
+        ],
+        includeMatches: true,
+        minMatchCharLength: 2,
+      }),
     [items],
   )
 
   const results = useMemo(() => {
     if (!query.trim()) return []
-    return fuse.search(query).slice(0, 6)
+    return fuse.search(query).slice(0, 8)
   }, [query, fuse])
 
   const showResults = focused && query.trim().length > 0
