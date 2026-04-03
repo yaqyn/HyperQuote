@@ -1,25 +1,51 @@
 /**
  * Auto-discovered markdown content index.
  * Uses Vite's import.meta.glob to eagerly load all .md files at build time.
- * Adding/removing/editing a .md file automatically updates the index.
+ * Adding/removing/editing a .md file automatically updates the index — zero manual imports.
  */
 
-// Eagerly import all English markdown files as raw strings
-const enModules = import.meta.glob('./en/**/*.md', { eager: true, query: '?raw' }) as Record<string, { default: string } | string>
+// Import all markdown as raw text using Vite's ?raw suffix
+// The glob pattern discovers every .md file; eager: true loads them at build time
+const enRaw: Record<string, string> = {}
+const arRaw: Record<string, string> = {}
 
-// Eagerly import all Arabic markdown files as raw strings
-const arModules = import.meta.glob('./ar/**/*.md', { eager: true, query: '?raw' }) as Record<string, { default: string } | string>
+// Build the content maps from glob imports
+const enGlob = import.meta.glob('./en/**/*.md', { eager: true, query: '?raw', import: 'default' })
+const arGlob = import.meta.glob('./ar/**/*.md', { eager: true, query: '?raw', import: 'default' })
 
-/** Extract string from glob result (handles both { default: string } and raw string) */
-function str(val: unknown): string {
-  if (typeof val === 'string') return val
-  if (val && typeof val === 'object') {
-    if ('default' in val && typeof (val as any).default === 'string') return (val as any).default
-    // Some Vite versions return the string as the only value
-    const values = Object.values(val as Record<string, unknown>)
-    if (values.length === 1 && typeof values[0] === 'string') return values[0]
+for (const [path, val] of Object.entries(enGlob)) {
+  enRaw[path] = typeof val === 'string' ? val : String(val ?? '')
+}
+for (const [path, val] of Object.entries(arGlob)) {
+  arRaw[path] = typeof val === 'string' ? val : String(val ?? '')
+}
+
+// Fallback: if ?raw glob returned empty strings, try without query
+// (some Vite + TanStack Start configs handle .md differently)
+let enContent = enRaw
+let arContent = arRaw
+
+const enGlobFallback = import.meta.glob('./en/**/*.md', { eager: true })
+const arGlobFallback = import.meta.glob('./ar/**/*.md', { eager: true })
+
+// Check if the ?raw approach worked by testing the first entry
+const firstEnVal = Object.values(enRaw)[0]
+if (!firstEnVal || firstEnVal === '[object Object]' || firstEnVal === 'undefined') {
+  // Fallback: extract from module default export
+  const enFallback: Record<string, string> = {}
+  const arFallback: Record<string, string> = {}
+
+  for (const [path, mod] of Object.entries(enGlobFallback)) {
+    const m = mod as any
+    enFallback[path] = typeof m === 'string' ? m : typeof m?.default === 'string' ? m.default : ''
   }
-  return ''
+  for (const [path, mod] of Object.entries(arGlobFallback)) {
+    const m = mod as any
+    arFallback[path] = typeof m === 'string' ? m : typeof m?.default === 'string' ? m.default : ''
+  }
+
+  enContent = enFallback
+  arContent = arFallback
 }
 
 /**
@@ -30,13 +56,10 @@ export function getContent(categorySlug: string, articleSlug: string, locale: 'e
   const enKey = `./en/${categorySlug}/${articleSlug}.md`
   const arKey = `./ar/${categorySlug}/${articleSlug}.md`
 
-  if (locale === 'ar' && arKey in arModules) {
-    return str(arModules[arKey])
+  if (locale === 'ar' && arContent[arKey]) {
+    return arContent[arKey]
   }
-  if (enKey in enModules) {
-    return str(enModules[enKey])
-  }
-  return ''
+  return enContent[enKey] ?? ''
 }
 
 /**
@@ -45,37 +68,16 @@ export function getContent(categorySlug: string, articleSlug: string, locale: 'e
 export function getAllContent(): Array<{ categorySlug: string; articleSlug: string; content: string }> {
   const results: Array<{ categorySlug: string; articleSlug: string; content: string }> = []
 
-  for (const [path, val] of Object.entries(enModules)) {
+  for (const [path, content] of Object.entries(enContent)) {
     const match = path.match(/^\.\/en\/([^/]+)\/([^/]+)\.md$/)
-    if (match) {
-      const content = str(val)
-      if (content) {
-        results.push({
-          categorySlug: match[1],
-          articleSlug: match[2],
-          content,
-        })
-      }
+    if (match && content) {
+      results.push({
+        categorySlug: match[1],
+        articleSlug: match[2],
+        content,
+      })
     }
   }
 
   return results
-}
-
-/**
- * Debug: log what glob actually imported (call from browser console via window.__debugDocsIndex())
- */
-if (typeof window !== 'undefined') {
-  (window as any).__debugDocsIndex = () => {
-    const entries = Object.entries(enModules)
-    console.log(`enModules: ${entries.length} entries`)
-    for (const [path, val] of entries.slice(0, 3)) {
-      console.log(path, typeof val, val && typeof val === 'object' ? Object.keys(val as object) : val?.toString().slice(0, 80))
-    }
-    const all = getAllContent()
-    console.log(`getAllContent: ${all.length} articles`)
-    for (const a of all.slice(0, 3)) {
-      console.log(`  ${a.categorySlug}/${a.articleSlug}: ${a.content.slice(0, 60)}...`)
-    }
-  }
 }
