@@ -178,7 +178,7 @@ function DocsIndexPage() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
             {DOC_CATEGORIES.map((cat, catIdx) => (
               <motion.div
                 key={cat.slug}
@@ -188,13 +188,17 @@ function DocsIndexPage() {
                 variants={stagger(catIdx * 0.06)}
                 className="relative py-8 md:px-8 first:md:ps-0"
               >
-                {/* Vertical divider (desktop) */}
+                {/* Vertical divider between columns (desktop) */}
                 {catIdx % 3 !== 0 && (
-                  <div className="hidden md:block absolute start-0 top-8 bottom-8 w-px bg-[var(--color-text)] opacity-[0.07]" />
+                  <div className="hidden lg:block absolute start-0 top-8 bottom-8 w-px bg-[var(--color-text)] opacity-[0.07]" />
+                )}
+                {/* Horizontal divider between rows (desktop) */}
+                {catIdx >= 3 && (
+                  <div className="hidden lg:block absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
                 )}
                 {/* Horizontal divider (mobile) */}
                 {catIdx > 0 && (
-                  <div className="md:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
+                  <div className="lg:hidden absolute top-0 inset-x-0 h-px bg-[var(--color-text)] opacity-[0.07]" />
                 )}
 
                 <div className="flex items-baseline gap-2.5 mb-5 min-h-[28px]">
