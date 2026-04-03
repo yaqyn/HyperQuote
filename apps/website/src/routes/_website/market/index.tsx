@@ -203,13 +203,25 @@ function MarketSearch({
 
   const searchItems: SearchEntry[] = useMemo(
     () =>
-      catalogItems.map((p) => ({
-        id: p.id,
-        title: locale === 'ar' ? p.name_ar || p.name : p.name,
-        subtitle: t(`categories.${p.category}`, { defaultValue: p.category.replace(/_/g, ' ') }),
-        body: '',
-        href: `/market/${p.slug}`,
-      })),
+      catalogItems.map((p) => {
+        const name = locale === 'ar' ? p.name_ar || p.name : p.name
+        const category = t(`categories.${p.category}`, { defaultValue: p.category.replace(/_/g, ' ') })
+        const unit = t(`units.${p.unit_of_measure}`, { defaultValue: p.unit_of_measure })
+        const description = (locale === 'ar' ? (p.description_ar as string) : (p.description as string)) ?? ''
+        const specs = p.specifications
+          ? Object.values(p.specifications as Record<string, unknown>).filter(Boolean).join(' ')
+          : ''
+        const brand = (p.brand as string) ?? ''
+        const sku = (p.sku as string) ?? ''
+
+        return {
+          id: p.id,
+          title: name,
+          subtitle: [category, unit].filter(Boolean).join(' · '),
+          body: [p.name, p.name_ar, description, specs, brand, sku, category, unit].filter(Boolean).join(' '),
+          href: `/market/${p.slug}`,
+        }
+      }),
     [catalogItems, locale, t],
   )
 
