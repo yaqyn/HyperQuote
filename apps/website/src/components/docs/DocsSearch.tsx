@@ -303,7 +303,7 @@ export function DocsSearch() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="text-[14px] font-medium tracking-[-0.01em]">
-                          {highlightMatch(r.item.title, query.trim())}
+                          {r.item.title}
                         </div>
                         <div className="mt-0.5 text-[12px] opacity-35">
                           {highlightMatch(r.item.category, query.trim())}
