@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Supplier Portal** - Stock management, catalog upload, PO inbox, invoice submission, analytics (completed 2026-04-01)
 - [x] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes (completed 2026-04-01)
 - [x] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data (completed 2026-04-01)
-- [ ] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout
+- [x] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout (completed 2026-04-05)
 - [ ] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation
 - [ ] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards
 - [ ] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker
@@ -298,10 +298,10 @@ Plans:
   6. Shared activity feed component renders on any entity with @mentions, internal/external comments, and system events
 **Plans**: 4 plans
 Plans:
-- [ ] 15-01-PLAN.md — Dependencies, module registry, stores, hooks, auth layout route
-- [ ] 15-02-PLAN.md — Canvas, icon strip, glass windows, hotkeys, mobile grid
-- [ ] 15-03-PLAN.md — Command palette (Ctrl+K) + notifications system
-- [ ] 15-04-PLAN.md — Activity feed / @mention / handoff infrastructure
+- [x] 15-01-PLAN.md — Dependencies, module registry, stores, hooks, auth layout route
+- [x] 15-02-PLAN.md — Canvas, icon strip, glass windows, hotkeys, mobile grid
+- [x] 15-03-PLAN.md — Command palette (Ctrl+K) + notifications system
+- [x] 15-04-PLAN.md — Activity feed / @mention / handoff infrastructure
 **UI hint**: yes
 
 ### Phase 16: Sales Module
@@ -663,7 +663,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 12. Supplier Portal | 6/6 | Complete    | 2026-04-01 |
 | 13. DB -- Order + Delivery + Finance | 5/5 | Complete    | 2026-04-01 |
 | 14. DB -- Support + HR + AI + System | 4/4 | Complete    | 2026-04-01 |
-| 15. Internal Platform Shell | 0/? | Not started | - |
+| 15. Internal Platform Shell | 4/4 | Complete    | 2026-04-05 |
 | 16. Sales Module | 0/? | Not started | - |
 | 17. Procurement Module | 0/? | Not started | - |
 | 18. Orders/Operations Module | 0/? | Not started | - |
