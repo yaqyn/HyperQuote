@@ -4,6 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { QuoteBuilderHeader } from './QuoteBuilderHeader'
 import { LineItemsTable } from './LineItemsTable'
 import { MarginControlPanel } from './MarginControlPanel'
+import { ApprovalWorkflow } from './ApprovalWorkflow'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
 import { getQuoteBuilderData, saveQuoteDraft } from '../../../lib/server/sales-quotes'
 import type { QuoteFormValues } from './LineItemsTable'
@@ -230,8 +231,15 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
             {/* Step 8: Approval -- rendered as component */}
             <SectionHeader step={8} title={t('sales.quoteBuilder.steps.approval')} />
             <div id="approval-section">
-              {/* ApprovalWorkflow is rendered here in Task 2 */}
-              <StepPlaceholder label="Approval Workflow -- wired in Task 2" />
+              <ApprovalWorkflow
+                quoteId={quoteId ?? 'new'}
+                marginPercent={subtotal > 0 ? Math.round((1 - (watchedItems ?? []).reduce((s, i) => s + i.supplierCost * i.quantity, 0) / subtotal) * 10000) / 100 : 0}
+                totalValue={total}
+                customerTier="A"
+                thresholds={marginThresholds}
+                status={status === 'pending_approval' ? 'pending_approval' : status === 'approved' ? 'approved' : 'draft'}
+                onStatusChange={(newStatus) => setStatus(newStatus as QuoteStatus)}
+              />
             </div>
 
             <SectionHeader step={9} title={t('sales.quoteBuilder.steps.preview')} />
@@ -260,34 +268,6 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
           />
         </div>
       </div>
-    </div>
-  )
-}
-
-// Inline MarginControlPanel stub -- will be replaced in Task 2
-function MarginControlPanel({
-  lineItems,
-  marginThresholds: _marginThresholds,
-  onSetBlanketMargin: _onSetBlanketMargin,
-}: {
-  lineItems: QuoteFormValues['lineItems']
-  marginThresholds: MarginThresholds[]
-  onSetBlanketMargin: (margin: number) => void
-}) {
-  const totalCost = lineItems.reduce((sum, item) => sum + item.supplierCost * item.quantity, 0)
-  const totalRevenue = lineItems.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
-  const blendedMargin = totalRevenue > 0 ? Math.round((1 - totalCost / totalRevenue) * 10000) / 100 : 0
-
-  return (
-    <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-semibold text-black/70 dark:text-white/70">Margin Control</h3>
-      <div className="rounded-lg border border-black/10 p-3 dark:border-white/10">
-        <p className="text-xs text-black/40 dark:text-white/40">Blended Margin</p>
-        <p className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums">
-          {blendedMargin}%
-        </p>
-      </div>
-      <p className="text-xs text-black/30 dark:text-white/30">Full control panel -- Task 2</p>
     </div>
   )
 }
