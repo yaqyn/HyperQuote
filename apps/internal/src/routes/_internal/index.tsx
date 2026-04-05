@@ -1,14 +1,24 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { InternalCanvas } from '../../components/shell/InternalCanvas'
+import { MobileModuleGrid } from '../../components/shell/MobileModuleGrid'
 
 export const Route = createFileRoute('/_internal/')({
-  component: InternalCanvas,
+  component: InternalIndex,
 })
 
-/** Placeholder canvas -- Plan 02 builds the real spatial canvas with greeting + icon strip */
-function InternalCanvas() {
+function InternalIndex() {
+  const { auth } = Route.useRouteContext()
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <p className="text-[var(--color-text-muted)] text-lg">Internal Platform</p>
+    <div className="h-full">
+      {/* Desktop: spatial canvas with greeting */}
+      <div className="max-md:hidden h-full">
+        <InternalCanvas auth={auth} />
+      </div>
+      {/* Mobile: 2-column card grid */}
+      <div className="md:hidden">
+        <MobileModuleGrid auth={auth} />
+      </div>
     </div>
   )
 }
