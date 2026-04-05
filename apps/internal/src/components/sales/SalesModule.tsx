@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSalesStore } from '../../stores/sales'
 import { SalesTabStrip } from './SalesTabStrip'
+import { RFQInboxTable } from './rfq/RFQInboxTable'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -30,7 +31,7 @@ export function SalesModule() {
 
   const tabContent: Record<string, React.ReactNode> = {
     home: <TabPlaceholder label={`${t('sales.tabs.home')} — Coming Soon`} />,
-    'rfq-inbox': <TabPlaceholder label={`${t('sales.tabs.rfqInbox')} — Coming Soon`} />,
+    'rfq-inbox': <RFQInboxTable />,
     'quote-builder': <TabPlaceholder label={`${t('sales.tabs.quoteBuilder')} — Coming Soon`} />,
     pipeline: <TabPlaceholder label={`${t('sales.tabs.pipeline')} — Coming Soon`} />,
     'customer-360': <TabPlaceholder label={`${t('sales.tabs.customer360')} — Coming Soon`} />,
