@@ -1,0 +1,52 @@
+{
+  "greeting": {
+    "morning": "Good morning, {{name}}",
+    "afternoon": "Good afternoon, {{name}}",
+    "evening": "Good evening, {{name}}",
+    "night": "Good night, {{name}}"
+  },
+  "urgentItemsLabel": "items need attention",
+  "modules": {
+    "sales": "Sales",
+    "procurement": "Procurement",
+    "orders": "Orders",
+    "warehouse": "Warehouse",
+    "finance": "Finance",
+    "dispatch": "Dispatch",
+    "customerService": "Customer Service",
+    "hr": "HR",
+    "admin": "Admin",
+    "reports": "Reports",
+    "ai": "AI"
+  },
+  "quickActions": {
+    "viewRfqInbox": "View RFQ Inbox",
+    "receivingQueue": "Receiving Queue",
+    "overdueInvoices": "Overdue Invoices"
+  },
+  "window": {
+    "close": "Close",
+    "comingSoon": "Coming soon"
+  },
+  "commandPalette": {
+    "placeholder": "Search commands, entities, actions...",
+    "noResults": "No results found",
+    "categories": {
+      "modules": "Modules",
+      "entities": "Entities",
+      "actions": "Actions",
+      "recent": "Recent"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "older": "Older",
+    "empty": "No notifications"
+  },
+  "bell": {
+    "label": "Notifications"
+  }
+}

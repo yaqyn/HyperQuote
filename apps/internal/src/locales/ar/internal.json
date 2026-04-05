@@ -1,0 +1,52 @@
+{
+  "greeting": {
+    "morning": "صباح الخير، {{name}}",
+    "afternoon": "مساء الخير، {{name}}",
+    "evening": "مساء الخير، {{name}}",
+    "night": "مساء الخير، {{name}}"
+  },
+  "urgentItemsLabel": "عناصر تحتاج انتباهك",
+  "modules": {
+    "sales": "المبيعات",
+    "procurement": "المشتريات",
+    "orders": "الطلبات",
+    "warehouse": "المخزن",
+    "finance": "المالية",
+    "dispatch": "التوصيل",
+    "customerService": "خدمة العملاء",
+    "hr": "الموارد البشرية",
+    "admin": "الإدارة",
+    "reports": "التقارير",
+    "ai": "الذكاء الاصطناعي"
+  },
+  "quickActions": {
+    "viewRfqInbox": "عرض طلبات الأسعار",
+    "receivingQueue": "قائمة الاستلام",
+    "overdueInvoices": "فواتير متأخرة"
+  },
+  "window": {
+    "close": "إغلاق",
+    "comingSoon": "قريباً"
+  },
+  "commandPalette": {
+    "placeholder": "ابحث عن أوامر، كيانات، إجراءات...",
+    "noResults": "لا توجد نتائج",
+    "categories": {
+      "modules": "الأقسام",
+      "entities": "الكيانات",
+      "actions": "الإجراءات",
+      "recent": "الأخيرة"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تعليم الكل كمقروء",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "older": "أقدم",
+    "empty": "لا توجد إشعارات"
+  },
+  "bell": {
+    "label": "الإشعارات"
+  }
+}
