@@ -8,6 +8,7 @@ import { NegotiationView } from './negotiation/NegotiationView'
 import { Customer360View } from './customer360/Customer360View'
 import { AddCustomerDialog } from './AddCustomerDialog'
 import { PipelineView } from './pipeline/PipelineView'
+import { SalesHomeView } from './home/SalesHomeView'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -48,7 +49,7 @@ export function SalesModule() {
   }
 
   const tabContent: Record<string, React.ReactNode> = {
-    home: <TabPlaceholder label={`${t('sales.tabs.home')} — Coming Soon`} />,
+    home: <SalesHomeView />,
     'rfq-inbox': <RFQInboxTable />,
     'quote-builder': <QuoteBuilderView rfqId="rfq-001" />,
     pipeline: <PipelineView />,
