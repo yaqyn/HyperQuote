@@ -36,6 +36,10 @@ interface SalesStore {
   selectedRfqId: string | null
   setRfqInboxTab: (tab: RfqInboxTab) => void
   setSelectedRfqId: (id: string | null) => void
+
+  // Customer 360
+  selectedCustomerId: string | null
+  setSelectedCustomerId: (id: string | null) => void
 }
 
 export const useSalesStore = create<SalesStore>()(
@@ -67,6 +71,10 @@ export const useSalesStore = create<SalesStore>()(
     selectedRfqId: null,
     setRfqInboxTab: (tab) => set({ rfqInboxTab: tab }),
     setSelectedRfqId: (id) => set({ selectedRfqId: id }),
+
+    // Customer 360
+    selectedCustomerId: null,
+    setSelectedCustomerId: (id) => set({ selectedCustomerId: id }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

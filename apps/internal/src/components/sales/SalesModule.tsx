@@ -25,6 +25,7 @@ function TabPlaceholder({ label }: { label: string }) {
 export function SalesModule() {
   const { t } = useTranslation('internal')
   const activeTab = useSalesStore((s) => s.activeTab)
+  const selectedCustomerId = useSalesStore((s) => s.selectedCustomerId)
   const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(null)
   const [previousTab, setPreviousTab] = useState(activeTab)
 
@@ -57,7 +58,7 @@ export function SalesModule() {
     'rfq-inbox': <RFQInboxTable />,
     'quote-builder': <QuoteBuilderView rfqId="rfq-001" />,
     pipeline: <PipelineView />,
-    'customer-360': <Customer360View customerId="cust-001" />,
+    'customer-360': <Customer360View customerId={selectedCustomerId ?? 'cust-001'} />,
     contacts: <SalesContacts />,
     calendar: <SalesCalendar />,
     reports: <SalesReports />,

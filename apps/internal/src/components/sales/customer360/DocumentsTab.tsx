@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
+import { toast } from '../../../stores/toast'
 
 interface DocumentsTabProps {
   customerId: string
@@ -45,7 +46,10 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault()
-          // TODO: Handle file upload
+          const files = Array.from(e.dataTransfer.files)
+          if (files.length > 0) {
+            toast.info('File upload will be available soon')
+          }
         }}
       >
         <p className="text-sm text-black/40 dark:text-white/40">
@@ -53,7 +57,16 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
         </p>
         <label className="mt-2 px-3 py-1.5 text-xs font-medium text-[#2563EB] border border-[#2563EB]/30 rounded-lg hover:bg-[#2563EB]/5 cursor-pointer">
           {t('sales.customer360.documents.browse')}
-          <input type="file" className="hidden" multiple />
+          <input
+            type="file"
+            className="hidden"
+            multiple
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                toast.info('File upload will be available soon')
+              }
+            }}
+          />
         </label>
       </div>
 
@@ -90,7 +103,10 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
               <Button
                 className="text-xs text-black/40 dark:text-white/40 hover:underline outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 rounded"
                 onPress={() => {
-                  // TODO: Download file
+                  const link = document.createElement('a')
+                  link.href = doc.url
+                  link.download = doc.name
+                  link.click()
                 }}
               >
                 {t('sales.customer360.documents.download')}
