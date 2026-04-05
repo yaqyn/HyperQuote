@@ -6,9 +6,17 @@ import { useShortcut } from '../../hooks/useShortcut'
 
 interface InternalShortcutsProps {
   auth: AuthSession
+  commandPaletteOpen: boolean
+  onToggleCommandPalette: () => void
+  onCloseCommandPalette: () => void
 }
 
-export function InternalShortcuts({ auth }: InternalShortcutsProps) {
+export function InternalShortcuts({
+  auth,
+  commandPaletteOpen,
+  onToggleCommandPalette,
+  onCloseCommandPalette,
+}: InternalShortcutsProps) {
   const { scope } = useKeyboardScope()
   const activeModule = useInternalStore((s) => s.activeModule)
   const setActiveModule = useInternalStore((s) => s.setActiveModule)
@@ -26,9 +34,20 @@ export function InternalShortcuts({ auth }: InternalShortcutsProps) {
     })
   }
 
-  // Escape closes current window (fires in canvas and panel scope, not input)
-  useShortcut('Escape', () => setActiveModule(null), {
-    enabled: scope !== 'input' && activeModule !== null,
+  // Ctrl+K toggles command palette (works in canvas and panel scope, not input)
+  useShortcut('ctrl+k', () => onToggleCommandPalette(), {
+    enabled: scope !== 'input',
+  })
+
+  // Escape: close command palette first, then module window
+  useShortcut('Escape', () => {
+    if (commandPaletteOpen) {
+      onCloseCommandPalette()
+    } else if (activeModule) {
+      setActiveModule(null)
+    }
+  }, {
+    enabled: scope !== 'input' && (commandPaletteOpen || activeModule !== null),
   })
 
   return null

@@ -1,11 +1,15 @@
-import { useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Outlet, createFileRoute } from '@tanstack/react-router'
 import { authGuard } from '@hyperquote/auth'
+import { InternalCommandPalette } from '../components/command-palette/InternalCommandPalette'
 import { IconStrip } from '../components/shell/IconStrip'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationBell } from '../components/shell/NotificationBell'
+import { NotificationsWindow } from '../components/shell/NotificationsWindow'
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
 import { useInternalStore } from '../stores/internal'
+import { useNotificationStore } from '../stores/notifications'
 import { keyboardScopeStore } from '../stores/keyboard-scope'
 
 export const Route = createFileRoute('/_internal')({
@@ -38,6 +42,31 @@ function InternalLayout() {
   const { auth } = Route.useRouteContext()
   const activeModule = useInternalStore((s) => s.activeModule)
   const setActiveModule = useInternalStore((s) => s.setActiveModule)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+
+  // Notification store
+  const unreadCount = useNotificationStore((s) => s.unreadCount)
+  const isWindowOpen = useNotificationStore((s) => s.isWindowOpen)
+  const toggleWindow = useNotificationStore((s) => s.toggleWindow)
+  const closeWindow = useNotificationStore((s) => s.closeWindow)
+
+  // Supabase Realtime notifications
+  useRealtimeNotifications({
+    userId: auth.user?.id ?? 'dev-user',
+    enabled: !!import.meta.env.VITE_SUPABASE_URL,
+  })
+
+  // Mutual exclusivity: command palette closes module, module closes command palette
+  const handleToggleCommandPalette = useCallback(() => {
+    setCommandPaletteOpen((prev) => {
+      if (!prev) setActiveModule(null)
+      return !prev
+    })
+  }, [setActiveModule])
+
+  const handleCloseCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(false)
+  }, [])
 
   // Focus/blur event delegation for keyboard scope
   useEffect(() => {
@@ -75,18 +104,30 @@ function InternalLayout() {
   return (
     <div id="main" className="relative h-dvh w-full overflow-hidden">
       <IconStrip auth={auth} />
-      <InternalShortcuts auth={auth} />
+      <InternalShortcuts
+        auth={auth}
+        commandPaletteOpen={commandPaletteOpen}
+        onToggleCommandPalette={handleToggleCommandPalette}
+        onCloseCommandPalette={handleCloseCommandPalette}
+      />
+
+      {/* Command palette */}
+      <InternalCommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={handleCloseCommandPalette}
+        auth={auth}
+      />
 
       {/* Notification bell -- rendered ONLY here, NOT in _internal/index.tsx */}
       <div className="fixed top-4 end-4 z-40">
         <NotificationBell
-          hasUnread={false}
-          onPress={() => {
-            // TODO: Plan 03 wires the real notification window
-            console.log('notifications')
-          }}
+          hasUnread={unreadCount > 0}
+          onPress={toggleWindow}
         />
       </div>
+
+      {/* Notifications window */}
+      <NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
 
       {/* Module window system */}
       {activeModule && (
