@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FormProvider, useForm } from 'react-hook-form'
+import { FormProvider, useForm, useWatch } from 'react-hook-form'
 import { QuoteBuilderHeader } from './QuoteBuilderHeader'
 import { LineItemsTable } from './LineItemsTable'
 import { MarginControlPanel } from './MarginControlPanel'
 import { ApprovalWorkflow } from './ApprovalWorkflow'
+import { DeliveryTerms } from './DeliveryTerms'
+import { PaymentTerms } from './PaymentTerms'
+import { ValidityPeriod } from './ValidityPeriod'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
 import { getQuoteBuilderData, saveQuoteDraft } from '../../../lib/server/sales-quotes'
 import type { QuoteFormValues } from './LineItemsTable'
@@ -60,6 +63,10 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
       validityDays: 14,
       paymentTerms: '',
       deliveryMethod: '',
+      deliveryDate: '',
+      deliveryWindow: '08:00-17:00',
+      specialInstructions: '',
+      earlyPaymentDiscount: '',
       scheduledSendAt: null,
       coverNote: '',
       sendVia: null,
@@ -136,8 +143,8 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
     }
   }, [handleAutoSave])
 
-  // Compute totals from watched items
-  const watchedItems = methods.watch('lineItems')
+  // Compute totals from watched items (useWatch, NOT watch — React 19 requirement)
+  const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
   const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
   const vatAmount = Math.round(subtotal * 14) / 100
   const total = subtotal + vatAmount
@@ -218,15 +225,24 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
               </div>
             </div>
 
-            {/* Steps 5-10: Placeholders for Plan 05 */}
+            {/* Step 5: Delivery Terms */}
             <SectionHeader step={5} title={t('sales.quoteBuilder.steps.delivery')} />
-            <StepPlaceholder label="Delivery Terms" />
+            <DeliveryTerms
+              deliveryAddress="Cairo, Egypt"
+              totalWeightTons={12}
+              leadTimeDays={3}
+            />
 
+            {/* Step 6: Payment Terms */}
             <SectionHeader step={6} title={t('sales.quoteBuilder.steps.payment')} />
-            <StepPlaceholder label="Payment Terms" />
+            <PaymentTerms
+              customerCredit={customerCredit}
+              isNewCustomer={customerTier === 'new'}
+            />
 
+            {/* Step 7: Validity Period */}
             <SectionHeader step={7} title={t('sales.quoteBuilder.steps.validity')} />
-            <StepPlaceholder label="Validity Period" />
+            <ValidityPeriod />
 
             {/* Step 8: Approval -- rendered as component */}
             <SectionHeader step={8} title={t('sales.quoteBuilder.steps.approval')} />

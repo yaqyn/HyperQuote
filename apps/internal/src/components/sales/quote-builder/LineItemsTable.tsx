@@ -24,6 +24,10 @@ export interface QuoteFormValues {
   validityDays: number
   paymentTerms: string
   deliveryMethod: string
+  deliveryDate: string
+  deliveryWindow: string
+  specialInstructions: string
+  earlyPaymentDiscount: string
   scheduledSendAt: string | null
   coverNote: string
   sendVia: 'portal' | 'email' | 'both' | null
