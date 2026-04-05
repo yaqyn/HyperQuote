@@ -336,15 +336,13 @@ Plans:
   2. Price comparison matrix ranks suppliers per-line (price 40% + availability 25% + lead time 20% + reliability 15%) and supports split sourcing
   3. POs auto-generate from quote acceptance with 10-status flow and three-way match status
   4. Supplier scorecard shows on-time delivery %, fill rate, quality rejection %, and tiering (Preferred/Approved/Conditional/New)
-**Plans**: 8 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 17-01-PLAN.md — Types, server functions, Zustand store, test stubs
+- [ ] 17-02-PLAN.md — Module shell, home view, inquiry builder, response tracker
+- [ ] 17-03-PLAN.md — Price comparison matrix, split sourcing
+- [ ] 17-04-PLAN.md — PO management, three-way match, status flow
+- [ ] 17-05-PLAN.md — Supplier directory, scorecard, tier badges
 **UI hint**: yes
 
 ### Phase 18: Orders/Operations Module
