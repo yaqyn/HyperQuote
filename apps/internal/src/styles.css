@@ -1,1 +1,23 @@
 @import "tailwindcss";
+@plugin "tailwindcss-react-aria-components";
+
+:root {
+  --color-primary: #2563EB;
+  --color-text: #0F172A;
+  --color-text-muted: #64748B;
+  --color-text-subtle: #94A3B8;
+  --color-border: #E2E8F0;
+  --color-surface: #FFFFFF;
+  --font-geist-mono: 'Geist Mono', monospace;
+  --font-inter: 'Inter', sans-serif;
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+[data-theme="dark"] {
+  --color-text: #F8FAFC;
+  --color-text-muted: #94A3B8;
+  --color-text-subtle: #64748B;
+  --color-border: #1E293B;
+  --color-surface: #09090B;
+}
