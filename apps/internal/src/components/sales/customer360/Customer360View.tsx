@@ -7,14 +7,12 @@ import { CustomerHeader } from './CustomerHeader'
 import { OverviewTab } from './OverviewTab'
 import { ContactsTab } from './ContactsTab'
 import { QuotesTab } from './QuotesTab'
-
-// Lazy-imported in Task 1b
-const OrdersTab = lazyTabPlaceholder('Orders')
-const FinancialsTab = lazyTabPlaceholder('Financials')
-const ProjectsTab = lazyTabPlaceholder('Projects')
-const CommunicationsTab = lazyTabPlaceholder('Communications')
-const DocumentsTab = lazyTabPlaceholder('Documents')
-const NotesTab = lazyTabPlaceholder('Notes')
+import { OrdersTab } from './OrdersTab'
+import { FinancialsTab } from './FinancialsTab'
+import { ProjectsTab } from './ProjectsTab'
+import { CommunicationsTab } from './CommunicationsTab'
+import { DocumentsTab } from './DocumentsTab'
+import { NotesTab } from './NotesTab'
 
 const TAB_KEYS = [
   'overview',
@@ -123,16 +121,4 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
       </Tabs>
     </div>
   )
-}
-
-/** Temporary placeholder for tabs built in Task 1b */
-function lazyTabPlaceholder(label: string) {
-  return function PlaceholderTab({ enabled }: { customerId: string; enabled: boolean }) {
-    if (!enabled) return null
-    return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
-        {label} — Loading...
-      </div>
-    )
-  }
 }

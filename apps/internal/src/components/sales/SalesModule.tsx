@@ -6,6 +6,7 @@ import { RFQInboxTable } from './rfq/RFQInboxTable'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { Customer360View } from './customer360/Customer360View'
+import { AddCustomerDialog } from './AddCustomerDialog'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -58,7 +59,12 @@ export function SalesModule() {
 
   return (
     <div className="flex flex-col h-full">
-      <SalesTabStrip />
+      <div className="flex items-center justify-between">
+        <SalesTabStrip />
+        <div className="shrink-0 pe-4">
+          <AddCustomerDialog />
+        </div>
+      </div>
       <div className="flex-1 overflow-auto">
         {tabContent[activeTab] ?? <TabPlaceholder label="Unknown tab" />}
       </div>
