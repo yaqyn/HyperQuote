@@ -48,5 +48,137 @@
   },
   "bell": {
     "label": "Notifications"
+  },
+  "sales": {
+    "tabs": {
+      "home": "Home",
+      "rfqInbox": "RFQ Inbox",
+      "quoteBuilder": "Quote Builder",
+      "pipeline": "Pipeline",
+      "customer360": "Customer 360",
+      "contacts": "Contacts",
+      "calendar": "Calendar",
+      "reports": "Reports"
+    },
+    "rfqInbox": {
+      "filters": {
+        "all": "All",
+        "myRfqs": "My RFQs",
+        "unassigned": "Unassigned",
+        "needsClarification": "Needs Clarification",
+        "urgent": "Urgent"
+      },
+      "columns": {
+        "priority": "Priority",
+        "customer": "Customer",
+        "value": "Value",
+        "items": "Items",
+        "status": "Status",
+        "assigned": "Assigned",
+        "age": "Age"
+      },
+      "actions": {
+        "claim": "Claim",
+        "assign": "Assign to...",
+        "startQuote": "Start Quote",
+        "requestClarification": "Request Clarification",
+        "decline": "Decline RFQ",
+        "addNote": "Add Note",
+        "callCustomer": "Call Customer",
+        "viewProfile": "View Full Customer Profile"
+      }
+    },
+    "quoteBuilder": {
+      "steps": {
+        "initialize": "Initialize",
+        "lineItems": "Line Items",
+        "costLookup": "Cost Lookup",
+        "pricing": "Pricing",
+        "delivery": "Delivery Terms",
+        "payment": "Payment Terms",
+        "validity": "Validity Period",
+        "approval": "Approval",
+        "preview": "Preview",
+        "send": "Send"
+      },
+      "marginLevels": {
+        "green": "At/Above Target",
+        "yellow": "Below Target",
+        "red": "Below Floor",
+        "blocked": "Blocked"
+      },
+      "freshness": {
+        "fresh": "Fresh",
+        "aging": "Aging",
+        "stale": "Stale",
+        "missing": "Missing"
+      },
+      "actions": {
+        "saveDraft": "Save Draft",
+        "previewPdf": "Preview PDF",
+        "requestApproval": "Request Approval",
+        "sendToCustomer": "Send to Customer"
+      }
+    },
+    "pipeline": {
+      "stages": {
+        "rfqReceived": "RFQ Received",
+        "reviewing": "Reviewing",
+        "sourcing": "Sourcing",
+        "quoting": "Quoting",
+        "sent": "Sent to Customer",
+        "negotiating": "Negotiating",
+        "closing": "Closing",
+        "won": "Won",
+        "lostExpired": "Lost / Expired"
+      },
+      "views": {
+        "kanban": "Kanban Board",
+        "list": "List View",
+        "funnel": "Funnel Chart"
+      },
+      "scope": {
+        "my": "My Pipeline",
+        "team": "Team Pipeline"
+      }
+    },
+    "customer360": {
+      "tabs": {
+        "overview": "Overview",
+        "contacts": "Contacts",
+        "quotes": "Quotes",
+        "orders": "Orders",
+        "financials": "Financials",
+        "projects": "Projects",
+        "communications": "Communications",
+        "documents": "Documents",
+        "notes": "Notes"
+      },
+      "healthScore": {
+        "label": "Health Score",
+        "good": "Healthy",
+        "warning": "Needs Attention",
+        "critical": "At Risk"
+      }
+    },
+    "negotiation": {
+      "actions": {
+        "reviseQuote": "Revise Quote",
+        "acceptCounter": "Accept Counter",
+        "markWon": "Mark as Won",
+        "markLost": "Mark as Lost"
+      },
+      "versionLabel": "Version {{value}}"
+    },
+    "general": {
+      "slaTimer": "SLA Timer",
+      "ageTimer": "Age",
+      "priorityScore": "Priority Score",
+      "marginPercent": "Margin %",
+      "blendedMargin": "Blended Margin",
+      "newCustomerWarning": "New Customer -- No credit established",
+      "autoSavedAgo": "Auto-saved {{value}} ago",
+      "pricingOnApplication": "Price on Application -- we'll update within {{value}} hours"
+    }
   }
 }

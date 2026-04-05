@@ -48,5 +48,137 @@
   },
   "bell": {
     "label": "الإشعارات"
+  },
+  "sales": {
+    "tabs": {
+      "home": "الرئيسية",
+      "rfqInbox": "طلبات الأسعار",
+      "quoteBuilder": "إعداد العرض",
+      "pipeline": "خط المبيعات",
+      "customer360": "ملف العميل",
+      "contacts": "جهات الاتصال",
+      "calendar": "التقويم",
+      "reports": "التقارير"
+    },
+    "rfqInbox": {
+      "filters": {
+        "all": "الكل",
+        "myRfqs": "طلباتي",
+        "unassigned": "غير مخصصة",
+        "needsClarification": "تحتاج توضيح",
+        "urgent": "عاجلة"
+      },
+      "columns": {
+        "priority": "الأولوية",
+        "customer": "العميل",
+        "value": "القيمة",
+        "items": "الأصناف",
+        "status": "الحالة",
+        "assigned": "المسؤول",
+        "age": "العمر"
+      },
+      "actions": {
+        "claim": "استلام",
+        "assign": "تخصيص لـ...",
+        "startQuote": "بدء العرض",
+        "requestClarification": "طلب توضيح",
+        "decline": "رفض الطلب",
+        "addNote": "إضافة ملاحظة",
+        "callCustomer": "الاتصال بالعميل",
+        "viewProfile": "عرض ملف العميل الكامل"
+      }
+    },
+    "quoteBuilder": {
+      "steps": {
+        "initialize": "التهيئة",
+        "lineItems": "بنود الأصناف",
+        "costLookup": "البحث عن التكلفة",
+        "pricing": "التسعير",
+        "delivery": "شروط التوصيل",
+        "payment": "شروط الدفع",
+        "validity": "مدة الصلاحية",
+        "approval": "الموافقة",
+        "preview": "المعاينة",
+        "send": "الإرسال"
+      },
+      "marginLevels": {
+        "green": "عند/فوق المستهدف",
+        "yellow": "أقل من المستهدف",
+        "red": "أقل من الحد الأدنى",
+        "blocked": "محظور"
+      },
+      "freshness": {
+        "fresh": "حديث",
+        "aging": "قديم نسبياً",
+        "stale": "قديم",
+        "missing": "غير متوفر"
+      },
+      "actions": {
+        "saveDraft": "حفظ المسودة",
+        "previewPdf": "معاينة PDF",
+        "requestApproval": "طلب موافقة",
+        "sendToCustomer": "إرسال للعميل"
+      }
+    },
+    "pipeline": {
+      "stages": {
+        "rfqReceived": "طلب مستلم",
+        "reviewing": "قيد المراجعة",
+        "sourcing": "البحث عن موردين",
+        "quoting": "إعداد العرض",
+        "sent": "مرسل للعميل",
+        "negotiating": "قيد التفاوض",
+        "closing": "قيد الإغلاق",
+        "won": "تم الفوز",
+        "lostExpired": "خسارة / منتهي"
+      },
+      "views": {
+        "kanban": "لوحة كانبان",
+        "list": "عرض القائمة",
+        "funnel": "مخطط القمع"
+      },
+      "scope": {
+        "my": "خط مبيعاتي",
+        "team": "خط مبيعات الفريق"
+      }
+    },
+    "customer360": {
+      "tabs": {
+        "overview": "نظرة عامة",
+        "contacts": "جهات الاتصال",
+        "quotes": "عروض الأسعار",
+        "orders": "الطلبات",
+        "financials": "المالية",
+        "projects": "المشاريع",
+        "communications": "المراسلات",
+        "documents": "المستندات",
+        "notes": "الملاحظات"
+      },
+      "healthScore": {
+        "label": "مؤشر صحة العميل",
+        "good": "بصحة جيدة",
+        "warning": "يحتاج انتباه",
+        "critical": "معرض للخطر"
+      }
+    },
+    "negotiation": {
+      "actions": {
+        "reviseQuote": "تعديل العرض",
+        "acceptCounter": "قبول العرض المقابل",
+        "markWon": "تحديد كفوز",
+        "markLost": "تحديد كخسارة"
+      },
+      "versionLabel": "الإصدار {{value}}"
+    },
+    "general": {
+      "slaTimer": "مؤقت الاستجابة",
+      "ageTimer": "العمر",
+      "priorityScore": "درجة الأولوية",
+      "marginPercent": "نسبة الهامش",
+      "blendedMargin": "الهامش المختلط",
+      "newCustomerWarning": "عميل جديد -- لا يوجد رصيد ائتماني",
+      "autoSavedAgo": "حُفظ تلقائياً منذ {{value}}",
+      "pricingOnApplication": "السعر عند الطلب -- سنحدثه خلال {{value}} ساعات"
+    }
   }
 }
