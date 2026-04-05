@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button, TextField, Input, TextArea, Label } from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
+import { addInternalNote } from '../../../lib/server/sales-activity'
 
 interface NotesTabProps {
   customerId: string
@@ -17,8 +18,18 @@ const TAG_STYLES: Record<string, string> = {
 
 export function NotesTab({ customerId, enabled }: NotesTabProps) {
   const { t } = useTranslation('internal')
+  const queryClient = useQueryClient()
   const [newNote, setNewNote] = useState('')
   const [selectedTag, setSelectedTag] = useState<'quote-related' | 'order-related' | 'general'>('general')
+
+  const noteMutation = useMutation({
+    mutationFn: (input: { entityType: string; entityId: string; note: string }) =>
+      addInternalNote({ data: input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-360', 'notes', customerId] })
+      setNewNote('')
+    },
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'notes', customerId],
@@ -33,8 +44,11 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
 
   const handleAddNote = () => {
     if (!newNote.trim()) return
-    // TODO: Call addInternalNote server function
-    setNewNote('')
+    noteMutation.mutate({
+      entityType: 'customer',
+      entityId: customerId,
+      note: `[${selectedTag}] ${newNote}`,
+    })
   }
 
   return (
@@ -72,7 +86,7 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
 
           <Button
             onPress={handleAddNote}
-            isDisabled={!newNote.trim()}
+            isDisabled={!newNote.trim() || noteMutation.isPending}
             className="px-4 py-1.5 text-sm font-medium text-white bg-[#2563EB] rounded-lg hover:bg-[#2563EB]/90 disabled:opacity-40 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-2"
           >
             {t('sales.customer360.notes.save')}

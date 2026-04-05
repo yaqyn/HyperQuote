@@ -82,6 +82,11 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
 
         // Pre-populate line items from suggested products
         if (data.suggestedProducts && data.suggestedProducts.length > 0) {
+          const getTargetMargin = (category?: string) => {
+            const threshold = data.marginThresholds.find(t => t.productCategory === category)
+            return threshold?.target ?? data.marginThresholds[0]?.target ?? 18
+          }
+
           const items = data.suggestedProducts.map((p, i) => ({
             id: p.id ?? `item-${i}`,
             productName: p.productName,
@@ -89,9 +94,9 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
             quantity: 100,
             unit: 'piece',
             supplierCost: p.supplierCost,
-            marginPercent: 18,
-            sellPrice: Math.round((p.supplierCost / (1 - 0.18)) * 100) / 100,
-            lineTotal: Math.round((p.supplierCost / (1 - 0.18)) * 100),
+            marginPercent: getTargetMargin(p.category),
+            sellPrice: Math.round((p.supplierCost / (1 - getTargetMargin(p.category) / 100)) * 100) / 100,
+            lineTotal: Math.round((p.supplierCost / (1 - getTargetMargin(p.category) / 100)) * 100),
             freshnessIndicator: p.freshness as FreshnessIndicator,
             supplierName: p.supplierName,
           }))

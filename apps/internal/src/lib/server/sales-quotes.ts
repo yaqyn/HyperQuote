@@ -27,12 +27,13 @@ function getMockQuoteBuilderData(rfqId: string) {
     supplierCost: number
     freshness: FreshnessIndicator
     lastQuotedAt: string
+    category: string
   }[] = [
-    { id: 'sp-1', productName: 'Portland Cement CEM I 42.5N', specification: '50kg bags', supplierName: 'Suez Cement', supplierCost: bufferedCosts[0], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 6 * 3_600_000).toISOString() },
-    { id: 'sp-2', productName: 'Steel Rebar 16mm', specification: 'Grade 60, 12m', supplierName: 'Ezz Steel', supplierCost: bufferedCosts[1], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 12 * 3_600_000).toISOString() },
-    { id: 'sp-3', productName: 'Concrete Blocks 20cm', specification: 'Hollow, load-bearing', supplierName: 'Arabian Cement', supplierCost: bufferedCosts[2], freshness: 'aging', lastQuotedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
-    { id: 'sp-4', productName: 'Plywood Shuttering 18mm', specification: 'Birch, film-faced', supplierName: 'Misr Wood', supplierCost: bufferedCosts[3], freshness: 'stale', lastQuotedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
-    { id: 'sp-5', productName: 'PVC Pipes 110mm', specification: 'Class D, 6m length', supplierName: 'Elswedy Plastics', supplierCost: bufferedCosts[4], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 4 * 3_600_000).toISOString() },
+    { id: 'sp-1', productName: 'Portland Cement CEM I 42.5N', specification: '50kg bags', supplierName: 'Suez Cement', supplierCost: bufferedCosts[0], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 6 * 3_600_000).toISOString(), category: 'cement_concrete' },
+    { id: 'sp-2', productName: 'Steel Rebar 16mm', specification: 'Grade 60, 12m', supplierName: 'Ezz Steel', supplierCost: bufferedCosts[1], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 12 * 3_600_000).toISOString(), category: 'steel_rebar' },
+    { id: 'sp-3', productName: 'Concrete Blocks 20cm', specification: 'Hollow, load-bearing', supplierName: 'Arabian Cement', supplierCost: bufferedCosts[2], freshness: 'aging', lastQuotedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), category: 'cement_concrete' },
+    { id: 'sp-4', productName: 'Plywood Shuttering 18mm', specification: 'Birch, film-faced', supplierName: 'Misr Wood', supplierCost: bufferedCosts[3], freshness: 'stale', lastQuotedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), category: 'lumber_timber' },
+    { id: 'sp-5', productName: 'PVC Pipes 110mm', specification: 'Class D, 6m length', supplierName: 'Elswedy Plastics', supplierCost: bufferedCosts[4], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(), category: 'specialty_custom' },
   ]
 
   // Margin thresholds from pricing_rules (mock — configurable, NOT hardcoded in components)
