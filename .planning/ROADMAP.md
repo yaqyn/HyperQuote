@@ -314,15 +314,17 @@ Plans:
   3. Approval flow pushes notification to approver when margin or value thresholds are exceeded, with 2h escalation
   4. Customer 360 shows 9 tabs of customer history with health score
   5. Pipeline kanban shows 9 stages with click-to-advance and drag-and-drop
-**Plans**: 8 plans
+**Plans**: 9 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 16-01-PLAN.md — Sales types, server functions (mock), Zustand store, i18n
+- [ ] 16-02-PLAN.md — Wire sales module into glass window, shared components
+- [ ] 16-03-PLAN.md — RFQ Inbox + RFQ Detail (SALE-01, SALE-02)
+- [ ] 16-04-PLAN.md — Quote Builder Steps 1-4 + Approval (SALE-03, SALE-04)
+- [ ] 16-05-PLAN.md — Quote Builder Steps 5-10: delivery, payment, preview, send (SALE-05)
+- [ ] 16-06-PLAN.md — Negotiation view (SALE-06)
+- [ ] 16-07-PLAN.md — Customer 360 + Add Customer (SALE-07, SALE-08)
+- [ ] 16-08-PLAN.md — Pipeline/Kanban (SALE-09)
+- [ ] 16-09-PLAN.md — Sales Home, Activity, Calendar, Reports, shortcuts (SALE-10)
 **UI hint**: yes
 
 ### Phase 17: Procurement Module
