@@ -33,13 +33,13 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, badge internal padding |
 | sm | 8px | Compact element spacing, icon strip icon gap, notification dot offset |
-| md | 16px | Card padding, button gaps, mobile canvas card padding |
+| md | 16px | Card padding, button gaps, mobile canvas card padding, mobile card grid gap |
 | lg | 24px | Window header px, section padding, icon strip vertical padding |
 | xl | 32px | Layout gaps, canvas greeting vertical offset |
 | 2xl | 48px | Page-level vertical padding, icon strip width |
 | 3xl | 64px | Major section breaks |
 
-Exceptions: 44px minimum touch target for all interactive elements (close buttons, icon strip icons, mobile cards, notification bell). 56px glass window header bar height. 48px icon strip width (sidebar). 90vh/90vw glass window dimensions on desktop. 600px command palette max-width. 400px command palette results max-height. 20px module icon size in window header. 24px icon strip icon size. 8px notification unread dot diameter. 2-column mobile card grid gap 12px.
+Exceptions: 44px minimum touch target for all interactive elements (close buttons, icon strip icons, mobile cards, notification bell). 56px glass window header bar height. 48px icon strip width (sidebar). 90vh/90vw glass window dimensions on desktop. 600px command palette max-width. 400px command palette results max-height. 20px module icon size in window header. 24px icon strip icon size. 8px notification unread dot diameter.
 
 ---
 
@@ -231,11 +231,11 @@ Canvas recede state (when window open):
   - Module icon (24px, `var(--color-text-muted)`) + module name (14px 600) + badge count if applicable (Geist Mono 12px 600)
   - Min-height: 80px, padding 16px
   - Permission-filtered: cards don't render for unauthorized modules
-- Grid gap: 12px, px-16px
+- Grid gap: 16px, px-16px
 - Tapping opens full-screen module view (100vw x 100vh, slide up)
 - Back gesture: swipe from edge returns to canvas
 - Top bar: greeting (truncated to first name), notification bell, profile avatar
-- Search: magnifying glass icon in top bar, opens full-screen search overlay (command palette adapted to mobile full-screen)
+- Search: magnifying glass icon in top bar (intentionally icon-only, 44px touch target, `aria-label="Search"` / `aria-label="بحث"`, React Aria TooltipTrigger on long-press for label discovery), opens full-screen search overlay (command palette adapted to mobile full-screen)
 - Bottom safe area respected on all screens
 
 ### 11. Activity Feed / @Mentions / Handoff (INT-08)
@@ -313,7 +313,7 @@ Implementation: `@tanstack/react-hotkeys` wrapped behind `useShortcut()` abstrac
 | Command palette: Actions | "Actions" | "الإجراءات" |
 | Command palette: Modules | "Modules" | "الأقسام" |
 | Command palette: Recent | "Recent" | "الأخيرة" |
-| Command palette: no results | "No results found" | "لا توجد نتائج" |
+| Command palette: no results | "No matches for '{query}'" | "لا توجد نتائج لـ '{query}'" |
 | Module: Sales | "Sales" | "المبيعات" |
 | Module: Procurement | "Procurement" | "المشتريات" |
 | Module: Orders | "Orders" | "الطلبات" |
@@ -335,12 +335,15 @@ Implementation: `@tanstack/react-hotkeys` wrapped behind `useShortcut()` abstrac
 | Activity: external toggle | "External" | "خارجي" |
 | Activity: mention placeholder | "Write a comment... Use @ to mention" | "اكتب تعليقاً... استخدم @ للإشارة" |
 | Activity: empty | "No activity yet" | "لا يوجد نشاط بعد" |
-| Error state | "Something went wrong. Retry?" | "حدث خطأ. إعادة المحاولة؟" |
-| Error retry button | "Retry" | "إعادة المحاولة" |
+| Error state | "Something went wrong" | "حدث خطأ" |
+| Error retry button | "Retry Request" | "إعادة المحاولة" |
 | Offline banner | "You're offline -- showing cached data" | "أنت غير متصل -- عرض بيانات مخزنة" |
 | Permission denied | "You don't have access to this module" | "ليس لديك صلاحية الوصول لهذا القسم" |
 | Auth error | "This account doesn't have internal access" | "هذا الحساب ليس لديه صلاحية الوصول الداخلي" |
 | Auth error CTA | "Go to Customer Portal" | "الذهاب لبوابة العملاء" |
+| Sign out confirm question | "Sign out of HyperQuote?" | "تسجيل الخروج من HyperQuote؟" |
+| Sign out confirm CTA | "Yes, Sign Out" | "نعم، تسجيل الخروج" |
+| Sign out cancel | "Cancel" | "إلغاء" |
 | Close aria-label | "Close" | "إغلاق" |
 | Bell aria-label | "Notifications" | "الإشعارات" |
 | Search aria-label | "Search" | "بحث" |
@@ -388,7 +391,7 @@ Note: Module window content is placeholder in this phase. Full implementation co
 **Empty states:** Meaningful message + contextual CTA. Lion watermark at barely-perceptible opacity behind message. Example: module placeholder shows "Coming soon" with lion.
 
 **Error states:**
-- Failed data fetch: inline error message + "Retry" button
+- Failed data fetch: inline error message + "Retry Request" button
 - Failed action: toast notification (minimal, top of viewport, stacked)
 - Network offline: subtle top banner "You're offline -- showing cached data" with auto-dismiss on reconnect
 - Permission denied: redirect to canvas (no error page, no toast)
@@ -405,6 +408,7 @@ Note: Module window content is placeholder in this phase. Full implementation co
 - Each icon: `aria-label="{module name}"`, tooltip on hover
 - Notification bell: `aria-label="Notifications"` (EN) / `aria-label="الإشعارات"` (AR)
 - Close button: `aria-label="Close"` (EN) / `aria-label="إغلاق"` (AR)
+- Mobile search icon: intentionally icon-only (44px touch target), `aria-label="Search"` (EN) / `aria-label="بحث"` (AR), React Aria TooltipTrigger on long-press for visible label discovery on touch devices
 - Activity feed: `role="feed"`, each item `role="article"`, `aria-label` for timestamp
 - @mention autocomplete: React Aria Autocomplete (aria-expanded, aria-activedescendant)
 - Keyboard navigation: all shortcuts documented, all focusable elements reachable via Tab
