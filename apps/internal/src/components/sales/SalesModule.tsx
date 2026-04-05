@@ -7,6 +7,7 @@ import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { Customer360View } from './customer360/Customer360View'
 import { AddCustomerDialog } from './AddCustomerDialog'
+import { PipelineView } from './pipeline/PipelineView'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -50,7 +51,7 @@ export function SalesModule() {
     home: <TabPlaceholder label={`${t('sales.tabs.home')} — Coming Soon`} />,
     'rfq-inbox': <RFQInboxTable />,
     'quote-builder': <QuoteBuilderView rfqId="rfq-001" />,
-    pipeline: <TabPlaceholder label={`${t('sales.tabs.pipeline')} — Coming Soon`} />,
+    pipeline: <PipelineView />,
     'customer-360': <Customer360View customerId="cust-001" />,
     contacts: <TabPlaceholder label={`${t('sales.tabs.contacts')} — Coming Soon`} />,
     calendar: <TabPlaceholder label={`${t('sales.tabs.calendar')} — Coming Soon`} />,
