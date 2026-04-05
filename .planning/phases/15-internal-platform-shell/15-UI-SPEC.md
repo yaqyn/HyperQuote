@@ -343,7 +343,7 @@ Implementation: `@tanstack/react-hotkeys` wrapped behind `useShortcut()` abstrac
 | Auth error CTA | "Go to Customer Portal" | "الذهاب لبوابة العملاء" |
 | Sign out confirm question | "Sign out of HyperQuote?" | "تسجيل الخروج من HyperQuote؟" |
 | Sign out confirm CTA | "Yes, Sign Out" | "نعم، تسجيل الخروج" |
-| Sign out cancel | "Cancel" | "إلغاء" |
+| Sign out cancel | "Stay Signed In" | "أبقَ متصلاً" |
 | Close aria-label | "Close" | "إغلاق" |
 | Bell aria-label | "Notifications" | "الإشعارات" |
 | Search aria-label | "Search" | "بحث" |
