@@ -4,6 +4,7 @@ import { useSalesStore } from '../../stores/sales'
 import { SalesTabStrip } from './SalesTabStrip'
 import { RFQInboxTable } from './rfq/RFQInboxTable'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
+import { NegotiationView } from './negotiation/NegotiationView'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -17,14 +18,27 @@ export function SalesModule() {
   const { t } = useTranslation('internal')
   const activeTab = useSalesStore((s) => s.activeTab)
   const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(null)
+  const [previousTab, setPreviousTab] = useState(activeTab)
 
   // When a quote is in negotiation, render the negotiation view instead of tab content
   if (negotiatingQuoteId) {
     return (
       <div className="flex flex-col h-full">
         <SalesTabStrip />
-        <div className="flex-1 overflow-auto">
-          <TabPlaceholder label={`${t('sales.negotiation.actions.reviseQuote')} — ${negotiatingQuoteId}`} />
+        <div className="flex-1 overflow-hidden">
+          <NegotiationView
+            quoteId={negotiatingQuoteId}
+            onBack={() => {
+              setNegotiatingQuoteId(null)
+            }}
+            onReviseQuote={() => {
+              setNegotiatingQuoteId(null)
+              useSalesStore.getState().setActiveTab('quote-builder')
+            }}
+            onMarkAsWon={() => {
+              // ConvertToOrderDialog will be opened from NegotiationView Task 2
+            }}
+          />
         </div>
       </div>
     )
