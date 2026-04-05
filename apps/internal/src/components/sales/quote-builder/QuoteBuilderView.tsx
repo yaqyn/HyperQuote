@@ -8,6 +8,8 @@ import { ApprovalWorkflow } from './ApprovalWorkflow'
 import { DeliveryTerms } from './DeliveryTerms'
 import { PaymentTerms } from './PaymentTerms'
 import { ValidityPeriod } from './ValidityPeriod'
+import { QuotePreviewModal } from './QuotePreviewModal'
+import { SendQuote } from './SendQuote'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
 import { getQuoteBuilderData, saveQuoteDraft } from '../../../lib/server/sales-quotes'
 import type { QuoteFormValues } from './LineItemsTable'
@@ -32,13 +34,6 @@ function SectionHeader({ step, title }: { step: number; title: string }) {
   )
 }
 
-function StepPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-black/10 px-4 py-6 text-center text-xs text-black/30 dark:border-white/10 dark:text-white/30">
-      {label} -- Plan 05
-    </div>
-  )
-}
 
 export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
   const { t } = useTranslation('internal')
@@ -55,6 +50,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
   const [customerName] = useState('Al-Nour Construction')
   const [customerTier] = useState('A')
   const [rfqReference] = useState(() => `QR-2026-${rfqId.slice(-5).padStart(5, '0')}`)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const methods = useForm<QuoteFormValues>({
@@ -162,7 +158,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         lastSavedAt={lastSavedAt}
         onSaveDraft={handleAutoSave}
         onPreviewPdf={() => {
-          // Placeholder: open PDF preview modal
+          setPreviewOpen(true)
         }}
         onRequestApproval={() => {
           setStatus('pending_approval')
@@ -258,11 +254,37 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
               />
             </div>
 
+            {/* Step 9: Preview */}
             <SectionHeader step={9} title={t('sales.quoteBuilder.steps.preview')} />
-            <StepPlaceholder label="Preview Before Sending" />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/3 dark:border-white/10 dark:hover:bg-white/5"
+              >
+                Open Preview
+              </button>
+              <p className="text-xs text-black/40 dark:text-white/40">
+                Preview the customer-facing quote before sending.
+              </p>
+            </div>
+            <QuotePreviewModal
+              quoteNumber={quoteNumber}
+              version={version}
+              customerName={customerName}
+              validityDays={methods.getValues('validityDays') ?? 14}
+              isOpen={previewOpen}
+              onOpenChange={setPreviewOpen}
+            />
 
+            {/* Step 10: Send */}
             <SectionHeader step={10} title={t('sales.quoteBuilder.steps.send')} />
-            <StepPlaceholder label="Send to Customer" />
+            <SendQuote
+              quoteId={quoteId ?? 'new'}
+              quoteNumber={quoteNumber}
+              customerName={customerName}
+              onSent={() => setStatus('sent')}
+            />
           </FormProvider>
         </div>
 
