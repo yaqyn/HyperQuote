@@ -17,20 +17,20 @@ created: 2026-04-05
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Vitest ^4.1.2 |
-| **Config file** | `apps/internal/vitest.config.ts` or "none — Wave 0 installs" |
-| **Quick run command** | `bun test --filter internal` |
-| **Full suite command** | `bun test` |
-| **Estimated runtime** | ~30 seconds |
+| **Framework** | vitest |
+| **Config file** | `apps/internal/vitest.config.ts` (create if missing) |
+| **Quick run command** | `cd apps/internal && bun test --run` |
+| **Full suite command** | `cd apps/internal && bun test --run --coverage` |
+| **Estimated runtime** | ~15 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `bun test --filter internal`
-- **After every plan wave:** Run `bun test`
+- **After every task commit:** Run `cd apps/internal && bun test --run`
+- **After every plan wave:** Run `cd apps/internal && bun test --run --coverage`
 - **Before `/gsd-verify-work`:** Full suite must be green
-- **Max feedback latency:** 30 seconds
+- **Max feedback latency:** 15 seconds
 
 ---
 
@@ -38,14 +38,14 @@ created: 2026-04-05
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 15-01-01 | 01 | 1 | INT-01 | T-15-01 | Auth guard rejects non-internal users | unit | `bun test --filter internal-auth` | ❌ W0 | ⬜ pending |
-| 15-01-02 | 01 | 1 | INT-02 | — | Canvas renders greeting with time-aware text | unit | `bun test --filter canvas` | ❌ W0 | ⬜ pending |
-| 15-02-01 | 02 | 1 | INT-03 | — | Hotkey opens correct glass window | unit | `bun test --filter shortcuts` | ❌ W0 | ⬜ pending |
-| 15-02-02 | 02 | 1 | INT-04 | — | Command palette searches across entities | unit | `bun test --filter command-palette` | ❌ W0 | ⬜ pending |
-| 15-03-01 | 03 | 2 | INT-05 | — | Window state preserved in Zustand on swap | unit | `bun test --filter window-state` | ❌ W0 | ⬜ pending |
-| 15-04-01 | 04 | 2 | INT-06 | — | Notification panel renders grouped items | unit | `bun test --filter notifications` | ❌ W0 | ⬜ pending |
-| 15-05-01 | 05 | 3 | INT-07 | — | Mobile layout renders card grid | unit | `bun test --filter mobile-layout` | ❌ W0 | ⬜ pending |
-| 15-06-01 | 06 | 3 | INT-08 | — | Activity feed renders comments with mentions | unit | `bun test --filter activity-feed` | ❌ W0 | ⬜ pending |
+| 15-01-01 | 01 | 1 | INT-01 | — | Auth guard rejects non-internal users | unit | `bun test --run auth-guard` | ❌ W0 | ⬜ pending |
+| 15-01-02 | 01 | 1 | INT-02 | — | Canvas renders greeting with time-aware message | unit | `bun test --run canvas` | ❌ W0 | ⬜ pending |
+| 15-02-01 | 02 | 1 | INT-03 | — | Hotkey S opens Sales module window | unit | `bun test --run hotkeys` | ❌ W0 | ⬜ pending |
+| 15-02-02 | 02 | 1 | INT-04 | — | Permission-filtered icon strip hides unauthorized modules | unit | `bun test --run permissions` | ❌ W0 | ⬜ pending |
+| 15-03-01 | 03 | 2 | INT-05 | — | Command palette opens on Ctrl+K with fuse.js search | integration | `bun test --run command-palette` | ❌ W0 | ⬜ pending |
+| 15-03-02 | 03 | 2 | INT-06 | — | Window state preserved across module switches | unit | `bun test --run window-state` | ❌ W0 | ⬜ pending |
+| 15-04-01 | 04 | 2 | INT-07 | — | Activity feed renders @mentions and system events | unit | `bun test --run activity-feed` | ❌ W0 | ⬜ pending |
+| 15-04-02 | 04 | 2 | INT-08 | — | Notification badge shows aggregated urgent count | unit | `bun test --run notifications` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -53,9 +53,9 @@ created: 2026-04-05
 
 ## Wave 0 Requirements
 
-- [ ] `apps/internal/vitest.config.ts` — test config if missing
+- [ ] `apps/internal/vitest.config.ts` — vitest configuration
 - [ ] `apps/internal/src/__tests__/` — test directory structure
-- [ ] Vitest browser mode setup for React Aria component testing
+- [ ] `apps/internal/src/__tests__/setup.ts` — shared test setup (mock Supabase, mock auth)
 
 *If none: "Existing infrastructure covers all phase requirements."*
 
@@ -65,9 +65,12 @@ created: 2026-04-05
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Hotkey S/P/O/W/F/D/C/H/A/R/I opens correct window | INT-03 | Keyboard interaction in browser | Press each key, verify correct module opens |
-| Ctrl+K palette navigates with arrow keys | INT-04 | Keyboard navigation in browser | Open palette, type query, use arrows, press Enter |
-| Mobile card grid layout at 375px viewport | INT-07 | Visual layout verification | Resize to 375px, verify 2-column card grid |
+| Spatial glass visual appearance | INT-02 | Visual quality requires human eye | Open canvas, verify glass effect, blur, transparency |
+| Lion watermark positioning | INT-02 | Layout aesthetics | Open canvas, verify watermark is subtle and centered |
+| Keyboard scope (hotkeys don't fire in text inputs) | INT-03 | Complex focus interaction | Open command palette, type "sales", verify S doesn't open Sales module |
+| RTL layout correctness | INT-02 | Arabic layout visual check | Switch to Arabic, verify all elements flip correctly |
+
+*If none: "All phase behaviors have automated verification."*
 
 ---
 
@@ -77,7 +80,7 @@ created: 2026-04-05
 - [ ] Sampling continuity: no 3 consecutive tasks without automated verify
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
+- [ ] Feedback latency < 15s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
