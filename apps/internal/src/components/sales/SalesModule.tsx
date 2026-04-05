@@ -8,6 +8,11 @@ import { NegotiationView } from './negotiation/NegotiationView'
 import { Customer360View } from './customer360/Customer360View'
 import { AddCustomerDialog } from './AddCustomerDialog'
 import { PipelineView } from './pipeline/PipelineView'
+import { SalesHomeView } from './home/SalesHomeView'
+import { SalesCalendar } from './calendar/SalesCalendar'
+import { SalesContacts } from './contacts/SalesContacts'
+import { SalesReports } from './reports/SalesReports'
+import { SalesShortcuts } from './SalesShortcuts'
 
 function TabPlaceholder({ label }: { label: string }) {
   return (
@@ -48,18 +53,19 @@ export function SalesModule() {
   }
 
   const tabContent: Record<string, React.ReactNode> = {
-    home: <TabPlaceholder label={`${t('sales.tabs.home')} — Coming Soon`} />,
+    home: <SalesHomeView />,
     'rfq-inbox': <RFQInboxTable />,
     'quote-builder': <QuoteBuilderView rfqId="rfq-001" />,
     pipeline: <PipelineView />,
     'customer-360': <Customer360View customerId="cust-001" />,
-    contacts: <TabPlaceholder label={`${t('sales.tabs.contacts')} — Coming Soon`} />,
-    calendar: <TabPlaceholder label={`${t('sales.tabs.calendar')} — Coming Soon`} />,
-    reports: <TabPlaceholder label={`${t('sales.tabs.reports')} — Coming Soon`} />,
+    contacts: <SalesContacts />,
+    calendar: <SalesCalendar />,
+    reports: <SalesReports />,
   }
 
   return (
     <div className="flex flex-col h-full">
+      <SalesShortcuts />
       <div className="flex items-center justify-between">
         <SalesTabStrip />
         <div className="shrink-0 pe-4">
