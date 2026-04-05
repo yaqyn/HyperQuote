@@ -1,10 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
 import { keyboardScopeStore } from '../../stores/keyboard-scope'
 import { useInternalStore } from '../../stores/internal'
 import { MODULES } from '../../lib/modules'
 import { WindowHeader } from './WindowHeader'
+
+const SalesModule = lazy(() =>
+  import('../sales/SalesModule').then((m) => ({ default: m.SalesModule })),
+)
 
 interface ModuleWindowProps {
   moduleId: string
@@ -54,14 +58,25 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
     <GlassWindow isOpen={isOpen} onClose={handleClose}>
       <div className="flex flex-col h-full">
         <WindowHeader moduleId={moduleId} onClose={handleClose} />
-        <div ref={contentRef} data-module-content className="flex-1 overflow-auto p-6">
-          {/* Placeholder until Phases 16-22 build actual module content */}
-          <div className="flex flex-col items-center justify-center h-full gap-3">
-            {mod && <mod.icon size={48} className="text-[var(--color-text-muted)]" />}
-            <p className="text-[var(--color-text-muted)] text-sm">
-              {t('window.comingSoon')}
-            </p>
-          </div>
+        <div ref={contentRef} data-module-content className="flex-1 overflow-auto">
+          {moduleId === 'sales' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <SalesModule />
+            </Suspense>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
+              {mod && <mod.icon size={48} className="text-[var(--color-text-muted)]" />}
+              <p className="text-[var(--color-text-muted)] text-sm">
+                {t('window.comingSoon')}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </GlassWindow>
