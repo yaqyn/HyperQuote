@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 13: Database -- Order + Delivery + Finance Tables** - Core business tables, RLS, state machine triggers, indexes (completed 2026-04-01)
 - [x] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data (completed 2026-04-01)
 - [x] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout (completed 2026-04-05)
-- [ ] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation
+- [x] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation (completed 2026-04-05)
 - [ ] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards
 - [ ] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker
 - [ ] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management
@@ -316,15 +316,15 @@ Plans:
   5. Pipeline kanban shows 9 stages with click-to-advance and drag-and-drop
 **Plans**: 9 plans
 Plans:
-- [ ] 16-01-PLAN.md — Sales types, server functions (mock), Zustand store, i18n
-- [ ] 16-02-PLAN.md — Wire sales module into glass window, shared components
-- [ ] 16-03-PLAN.md — RFQ Inbox + RFQ Detail (SALE-01, SALE-02)
-- [ ] 16-04-PLAN.md — Quote Builder Steps 1-4 + Approval (SALE-03, SALE-04)
-- [ ] 16-05-PLAN.md — Quote Builder Steps 5-10: delivery, payment, preview, send (SALE-05)
-- [ ] 16-06-PLAN.md — Negotiation view (SALE-06)
-- [ ] 16-07-PLAN.md — Customer 360 + Add Customer (SALE-07, SALE-08)
-- [ ] 16-08-PLAN.md — Pipeline/Kanban (SALE-09)
-- [ ] 16-09-PLAN.md — Sales Home, Activity, Calendar, Reports, shortcuts (SALE-10)
+- [x] 16-01-PLAN.md — Sales types, server functions (mock), Zustand store, i18n
+- [x] 16-02-PLAN.md — Wire sales module into glass window, shared components
+- [x] 16-03-PLAN.md — RFQ Inbox + RFQ Detail (SALE-01, SALE-02)
+- [x] 16-04-PLAN.md — Quote Builder Steps 1-4 + Approval (SALE-03, SALE-04)
+- [x] 16-05-PLAN.md — Quote Builder Steps 5-10: delivery, payment, preview, send (SALE-05)
+- [x] 16-06-PLAN.md — Negotiation view (SALE-06)
+- [x] 16-07-PLAN.md — Customer 360 + Add Customer (SALE-07, SALE-08)
+- [x] 16-08-PLAN.md — Pipeline/Kanban (SALE-09)
+- [x] 16-09-PLAN.md — Sales Home, Activity, Calendar, Reports, shortcuts (SALE-10)
 **UI hint**: yes
 
 ### Phase 17: Procurement Module
@@ -666,7 +666,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 13. DB -- Order + Delivery + Finance | 5/5 | Complete    | 2026-04-01 |
 | 14. DB -- Support + HR + AI + System | 4/4 | Complete    | 2026-04-01 |
 | 15. Internal Platform Shell | 4/4 | Complete    | 2026-04-05 |
-| 16. Sales Module | 0/? | Not started | - |
+| 16. Sales Module | 10/10 | Complete    | 2026-04-05 |
 | 17. Procurement Module | 0/? | Not started | - |
 | 18. Orders/Operations Module | 0/? | Not started | - |
 | 19. Warehouse Module | 0/? | Not started | - |
