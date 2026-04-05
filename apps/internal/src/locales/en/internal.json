@@ -180,5 +180,107 @@
       "autoSavedAgo": "Auto-saved {{value}} ago",
       "pricingOnApplication": "Price on Application -- we'll update within {{value}} hours"
     }
+  },
+  "procurement": {
+    "tabs": {
+      "home": "Home",
+      "inquiries": "Supplier Inquiries",
+      "comparison": "Price Comparison",
+      "poManagement": "PO Management",
+      "directory": "Supplier Directory",
+      "scorecard": "Supplier Scorecard"
+    },
+    "home": {
+      "pendingInquiries": "Pending Inquiries",
+      "responsesNeedingReview": "Responses to Review",
+      "activePOs": "Active POs",
+      "performanceHighlights": "Performance",
+      "supplierPerformance": "Supplier Performance This Month",
+      "score": "Score",
+      "poBreakdown": "Active PO Breakdown"
+    },
+    "inquiry": {
+      "title": "Supplier Inquiry Builder",
+      "quoteReference": "Linked Quote Reference",
+      "quoteReferencePlaceholder": "e.g. RFQ-2026-00042",
+      "responseDeadline": "Response Deadline",
+      "template": "Inquiry Template",
+      "itemsToInquire": "Items to Inquire",
+      "product": "Product",
+      "quantity": "Quantity",
+      "uom": "UOM",
+      "specs": "Specifications",
+      "suppliers": "Suppliers",
+      "message": "Inquiry Message",
+      "messagePlaceholder": "Enter your message to suppliers...",
+      "sendViaEmail": "Email",
+      "sendViaPortal": "Supplier Portal",
+      "sendViaWhatsApp": "WhatsApp",
+      "sendToAllSelected": "Send to All Selected Suppliers",
+      "sending": "Sending...",
+      "confirmTitle": "Confirm Send Inquiry",
+      "confirmMessage": "Send this inquiry to {{count}} supplier(s)?",
+      "cancel": "Cancel",
+      "confirmSend": "Send Inquiry",
+      "suppliersSelected": "selected",
+      "searchSuppliers": "Search suppliers...",
+      "noSuppliersFound": "No suppliers found",
+      "onTime": "On-time",
+      "score": "Score",
+      "addSupplier": "+ Add Supplier"
+    },
+    "response": {
+      "title": "Response Tracker",
+      "back": "Back",
+      "supplierName": "Supplier",
+      "sentDate": "Sent Date",
+      "status": "Status",
+      "responseDate": "Response Date",
+      "action": "Action",
+      "remind": "Remind",
+      "remindAll": "Remind All Non-Responders",
+      "closeAndProceed": "Close Inquiry & Proceed",
+      "autoReminderNote": "24h auto-reminder will be sent before deadline",
+      "reviewReady": "Ready for review"
+    },
+    "status": {
+      "sent": "Sent",
+      "opened": "Opened",
+      "responded": "Responded",
+      "overdue": "Overdue",
+      "closed": "Closed"
+    },
+    "freshness": {
+      "fresh": "Fresh",
+      "aging": "Aging",
+      "stale": "Stale",
+      "suppressed": "Suppressed"
+    },
+    "templates": {
+      "standard": "Standard Price Inquiry",
+      "urgent": "Urgent Inquiry",
+      "repeat": "Repeat Order",
+      "projectBased": "Project-Based",
+      "negotiationFollowup": "Negotiation Follow-Up"
+    },
+    "tier": {
+      "preferred": "Preferred",
+      "approved": "Approved",
+      "conditional": "Conditional",
+      "new": "New"
+    },
+    "poStatus": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "confirmed": "Confirmed",
+      "in_production": "In Production",
+      "shipped": "Shipped",
+      "partially_received": "Partially Received",
+      "received": "Received",
+      "inspected": "Inspected",
+      "closed": "Closed",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    }
   }
 }

@@ -180,5 +180,107 @@
       "autoSavedAgo": "حُفظ تلقائياً منذ {{value}}",
       "pricingOnApplication": "السعر عند الطلب -- سنحدثه خلال {{value}} ساعات"
     }
+  },
+  "procurement": {
+    "tabs": {
+      "home": "الرئيسية",
+      "inquiries": "استفسارات الموردين",
+      "comparison": "مقارنة الأسعار",
+      "poManagement": "إدارة أوامر الشراء",
+      "directory": "دليل الموردين",
+      "scorecard": "بطاقة أداء الموردين"
+    },
+    "home": {
+      "pendingInquiries": "استفسارات معلقة",
+      "responsesNeedingReview": "ردود تحتاج مراجعة",
+      "activePOs": "أوامر شراء نشطة",
+      "performanceHighlights": "الأداء",
+      "supplierPerformance": "أداء الموردين هذا الشهر",
+      "score": "النتيجة",
+      "poBreakdown": "تفصيل أوامر الشراء النشطة"
+    },
+    "inquiry": {
+      "title": "إنشاء استفسار للموردين",
+      "quoteReference": "مرجع عرض السعر المرتبط",
+      "quoteReferencePlaceholder": "مثال: RFQ-2026-00042",
+      "responseDeadline": "موعد الرد النهائي",
+      "template": "نموذج الاستفسار",
+      "itemsToInquire": "الأصناف المطلوب الاستفسار عنها",
+      "product": "المنتج",
+      "quantity": "الكمية",
+      "uom": "وحدة القياس",
+      "specs": "المواصفات",
+      "suppliers": "الموردين",
+      "message": "رسالة الاستفسار",
+      "messagePlaceholder": "اكتب رسالتك للموردين...",
+      "sendViaEmail": "بريد إلكتروني",
+      "sendViaPortal": "بوابة الموردين",
+      "sendViaWhatsApp": "واتساب",
+      "sendToAllSelected": "إرسال لجميع الموردين المحددين",
+      "sending": "جاري الإرسال...",
+      "confirmTitle": "تأكيد إرسال الاستفسار",
+      "confirmMessage": "إرسال هذا الاستفسار لـ {{count}} مورد(ين)؟",
+      "cancel": "إلغاء",
+      "confirmSend": "إرسال الاستفسار",
+      "suppliersSelected": "محدد",
+      "searchSuppliers": "البحث عن موردين...",
+      "noSuppliersFound": "لا يوجد موردين",
+      "onTime": "التسليم في الوقت",
+      "score": "النتيجة",
+      "addSupplier": "+ إضافة مورد"
+    },
+    "response": {
+      "title": "تتبع الردود",
+      "back": "رجوع",
+      "supplierName": "المورد",
+      "sentDate": "تاريخ الإرسال",
+      "status": "الحالة",
+      "responseDate": "تاريخ الرد",
+      "action": "الإجراء",
+      "remind": "تذكير",
+      "remindAll": "تذكير جميع غير المستجيبين",
+      "closeAndProceed": "إغلاق والمتابعة",
+      "autoReminderNote": "سيتم إرسال تذكير تلقائي قبل الموعد النهائي بـ ٢٤ ساعة",
+      "reviewReady": "جاهز للمراجعة"
+    },
+    "status": {
+      "sent": "مرسل",
+      "opened": "تم الفتح",
+      "responded": "تم الرد",
+      "overdue": "متأخر",
+      "closed": "مغلق"
+    },
+    "freshness": {
+      "fresh": "حديث",
+      "aging": "قديم نسبياً",
+      "stale": "قديم",
+      "suppressed": "محجوب"
+    },
+    "templates": {
+      "standard": "استفسار أسعار عادي",
+      "urgent": "استفسار عاجل",
+      "repeat": "طلب متكرر",
+      "projectBased": "مبني على مشروع",
+      "negotiationFollowup": "متابعة تفاوض"
+    },
+    "tier": {
+      "preferred": "مفضل",
+      "approved": "معتمد",
+      "conditional": "مشروط",
+      "new": "جديد"
+    },
+    "poStatus": {
+      "draft": "مسودة",
+      "sent": "مرسل",
+      "confirmed": "مؤكد",
+      "in_production": "قيد التصنيع",
+      "shipped": "تم الشحن",
+      "partially_received": "مستلم جزئياً",
+      "received": "مستلم",
+      "inspected": "تم الفحص",
+      "closed": "مغلق",
+      "rejected": "مرفوض",
+      "cancelled": "ملغي"
+    }
   }
 }
