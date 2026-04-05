@@ -296,15 +296,12 @@ Plans:
   4. Ctrl+K opens command palette with fuse.js cross-entity search and keyboard navigation
   5. Swapping between windows preserves each window's state (Zustand keyed by module)
   6. Shared activity feed component renders on any entity with @mentions, internal/external comments, and system events
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 15-01-PLAN.md — Dependencies, module registry, stores, hooks, auth layout route
+- [ ] 15-02-PLAN.md — Canvas, icon strip, glass windows, hotkeys, mobile grid
+- [ ] 15-03-PLAN.md — Command palette (Ctrl+K) + notifications system
+- [ ] 15-04-PLAN.md — Activity feed / @mention / handoff infrastructure
 **UI hint**: yes
 
 ### Phase 16: Sales Module
