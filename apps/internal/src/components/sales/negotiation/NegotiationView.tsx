@@ -4,6 +4,8 @@ import { Dialog, DialogTrigger, Modal, ModalOverlay, Heading } from 'react-aria-
 import { markAsLost } from '../../../lib/server/sales-pipeline'
 import { VersionTimeline } from './VersionTimeline'
 import { SideBySideComparison } from './SideBySideComparison'
+import { WhatIfCalculator } from './WhatIfCalculator'
+import { ConvertToOrderDialog } from './ConvertToOrderDialog'
 import { NegotiationThread } from './NegotiationThread'
 
 // ─── Loss Reason Dialog ──────────────────────────────────────
@@ -141,6 +143,7 @@ export function NegotiationView({
     quoteId,
   ])
   const [showLostDialog, setShowLostDialog] = useState(false)
+  const [showConvertDialog, setShowConvertDialog] = useState(false)
 
   function handleSelectVersion(versionId: string) {
     setSelectedVersions((prev) => {
@@ -183,10 +186,11 @@ export function NegotiationView({
             versionBId={selectedVersions[1]}
           />
         </div>
-        <div className="w-[40%] border-s border-black/10 dark:border-white/10 flex items-center justify-center">
-          <p className="text-sm text-black/40 dark:text-white/40">
-            {t('sales.negotiation.whatIfCalculator', 'What-If Calculator')}
-          </p>
+        <div className="w-[40%] border-s border-black/10 dark:border-white/10 overflow-hidden">
+          <WhatIfCalculator
+            quoteId={quoteId}
+            onApplyMargins={onReviseQuote}
+          />
         </div>
       </div>
 
@@ -211,11 +215,21 @@ export function NegotiationView({
         <div className="flex-1" />
         <button
           type="button"
-          onClick={onMarkAsWon}
+          onClick={() => setShowConvertDialog(true)}
           className="px-4 py-2 text-sm font-medium bg-[#2563EB] text-white rounded-lg hover:bg-[#2563EB]/90 transition-colors"
         >
           {t('sales.negotiation.actions.markAsWon', 'Mark as Won')}
         </button>
+
+        <ConvertToOrderDialog
+          quoteId={quoteId}
+          isOpen={showConvertDialog}
+          onOpenChange={setShowConvertDialog}
+          onSuccess={(orderNumber) => {
+            // TODO: Navigate to order detail (Phase 18)
+            onMarkAsWon?.()
+          }}
+        />
 
         <DialogTrigger isOpen={showLostDialog} onOpenChange={setShowLostDialog}>
           <button
