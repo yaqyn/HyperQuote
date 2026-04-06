@@ -1,0 +1,24 @@
+{
+  "chat": {
+    "placeholder": "Ask me anything...",
+    "send": "Send",
+    "attach": "Attach",
+    "history": "History"
+  },
+  "safety": {
+    "readOnlyDb": "Read-only DB",
+    "draftReviewConfirm": "Draft-Review-Confirm",
+    "auditLogged": "Audit Logged"
+  },
+  "prompts": {
+    "title": "Suggested questions",
+    "subtitle": "Click any question to get started"
+  },
+  "draft": {
+    "badge": "Draft",
+    "review": "Review",
+    "confirm": "Confirm",
+    "reviewed": "Reviewed",
+    "confirmed": "Confirmed"
+  }
+}
