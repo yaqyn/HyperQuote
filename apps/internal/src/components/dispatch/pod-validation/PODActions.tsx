@@ -172,9 +172,10 @@ function FlagIssueDialog({
       <Button className="hidden">trigger</Button>
       <Modal
         isDismissable
+        isKeyboardDismissDisabled
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       >
-        <Dialog className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-6 shadow-xl outline-none" isKeyboardDismissDisabled>
+        <Dialog className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-6 shadow-xl outline-none">
           <Heading slot="title" className="text-lg font-semibold mb-4">
             {t('pod.flagDialog.title', 'Flag Delivery Issue')}
           </Heading>

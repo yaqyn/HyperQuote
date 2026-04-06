@@ -144,7 +144,7 @@ export function DriverList({ drivers, onSelectDriver }: DriverListProps) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((driver) => {
+            {filtered.map((driver: Driver) => {
               const isBlocked = driver.complianceStatus === 'expired' || driver.complianceStatus === 'blocked'
               const badge = TYPE_BADGES[driver.type] ?? TYPE_BADGES.INTERNAL!
               const compliance = COMPLIANCE_BADGES[driver.complianceStatus] ?? COMPLIANCE_BADGES.valid

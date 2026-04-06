@@ -138,7 +138,7 @@ export function DriverSidebar({
   }, [filteredDrivers])
 
   const toggleGroup = useCallback((type: DriverType) => {
-    setExpandedGroups((prev) => {
+    setExpandedGroups((prev: Set<DriverType>) => {
       const next = new Set(prev)
       if (next.has(type)) next.delete(type)
       else next.add(type)
@@ -225,13 +225,13 @@ export function DriverSidebar({
                 <p className="text-[10px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
                   {t('unassigned', 'Unassigned')} ({unassignedTasks.length})
                 </p>
-                <GridList
+                <GridList<DeliveryRoute>
                   aria-label={t('unassignedTasks', 'Unassigned tasks')}
-                  items={unassignedTasks.map((r) => ({ id: r.id, ...r }))}
+                  items={unassignedTasks}
                   dragAndDropHooks={dragAndDropHooks}
                   className="space-y-1"
                 >
-                  {(item) => (
+                  {(item: DeliveryRoute) => (
                     <GridListItem
                       key={item.id}
                       textValue={item.id}
@@ -272,7 +272,7 @@ export function DriverSidebar({
 
                   {isExpanded && (
                     <div className="space-y-0.5 mt-0.5">
-                      {groupDrivers.map((driver) => (
+                      {groupDrivers.map((driver: Driver) => (
                         <DriverRow
                           key={driver.id}
                           driver={driver}

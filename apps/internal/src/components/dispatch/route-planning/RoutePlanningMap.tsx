@@ -71,7 +71,7 @@ export function RoutePlanningMap({
         attributionControl={false}
       >
         {/* Route lines */}
-        {routeFeatures.map(({ route, color, geojson }) => (
+        {routeFeatures.map(({ route, color, geojson }: (typeof routeFeatures)[number]) => (
           <Source
             key={`line-${route.id}`}
             id={`route-line-${route.id}`}
@@ -91,8 +91,8 @@ export function RoutePlanningMap({
         ))}
 
         {/* Stop markers for each route */}
-        {routeFeatures.map(({ route, color }) =>
-          route.stops.map((stop) => {
+        {routeFeatures.map(({ route, color }: (typeof routeFeatures)[number]) =>
+          route.stops.map((stop: RouteStop) => {
             const isSelected = route.id === selectedRouteId
             const size = isSelected ? 28 : 22
 

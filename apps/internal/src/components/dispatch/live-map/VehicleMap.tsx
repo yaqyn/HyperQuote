@@ -310,7 +310,7 @@ export function VehicleMap({
       </Source>
 
       {/* Route lines */}
-      {routeLines.map((rl) => {
+      {routeLines.map((rl: (typeof routeLines)[number]) => {
         const isHighlighted = highlightedRouteId === rl.id
         const opacity = highlightedRouteId && !isHighlighted ? 0.15 : 1
 

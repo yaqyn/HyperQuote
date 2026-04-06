@@ -98,7 +98,7 @@ export function LiveMapView() {
       if (pos) {
         setMapViewport({ latitude: pos.lat, longitude: pos.lng, zoom: 14 })
         setSelectedVehicle(pos)
-        const driverRoute = routes.find((r) => r.driverId === driverId)
+        const driverRoute = routes.find((r: DeliveryRoute) => r.driverId === driverId)
         setHighlightedRouteId(driverRoute?.id ?? null)
       }
     },
@@ -108,7 +108,7 @@ export function LiveMapView() {
   // Sync selectedDriverId from store to highlight
   useEffect(() => {
     if (selectedDriverId) {
-      const driverRoute = routes.find((r) => r.driverId === selectedDriverId)
+      const driverRoute = routes.find((r: DeliveryRoute) => r.driverId === selectedDriverId)
       setHighlightedRouteId(driverRoute?.id ?? null)
     } else {
       setHighlightedRouteId(null)
@@ -120,7 +120,7 @@ export function LiveMapView() {
       setSelectedVehicle(pos)
       if (pos) {
         setSelectedDriverId(pos.driverId)
-        const driverRoute = routes.find((r) => r.driverId === pos.driverId)
+        const driverRoute = routes.find((r: DeliveryRoute) => r.driverId === pos.driverId)
         setHighlightedRouteId(driverRoute?.id ?? null)
       } else {
         setSelectedDriverId(null)
@@ -148,7 +148,7 @@ export function LiveMapView() {
         <div className="absolute top-3 start-3 z-10">
           <Button
             aria-label={sidebarCollapsed ? t('openSidebar', 'Open sidebar') : t('closeSidebar', 'Close sidebar')}
-            onPress={() => setSidebarCollapsed((c) => !c)}
+            onPress={() => setSidebarCollapsed((c: boolean) => !c)}
             className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors"
           >
             {sidebarCollapsed ? (

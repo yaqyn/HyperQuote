@@ -62,7 +62,7 @@ export function DispatchShortcuts() {
 
   // ? - Show shortcuts help
   useShortcut('?', () => {
-    setShowHelp((prev) => !prev)
+    setShowHelp((prev: boolean) => !prev)
   }, { enabled: isActive })
 
   if (!showHelp) return null

@@ -88,13 +88,13 @@ export function RoutePlanningView() {
   // Reorder stops within a route
   const handleReorder = useCallback(
     (routeId: string, reorderedStops: RouteStop[]) => {
-      setRoutes((prev) =>
-        prev.map((r) =>
+      setRoutes((prev: DeliveryRoute[]) =>
+        prev.map((r: DeliveryRoute) =>
           r.id === routeId
             ? {
                 ...r,
                 stops: reorderedStops,
-                totalWeight: reorderedStops.reduce((s, st) => s + st.weight, 0),
+                totalWeight: reorderedStops.reduce((s: number, st: RouteStop) => s + st.weight, 0),
               }
             : r,
         ),
@@ -106,30 +106,30 @@ export function RoutePlanningView() {
   // Insert stop from another route or unassigned pool
   const handleInsert = useCallback(
     (targetRouteId: string, stop: RouteStop, index: number) => {
-      setRoutes((prev) => {
+      setRoutes((prev: DeliveryRoute[]) => {
         // Remove stop from its current route
-        const updated = prev.map((r) => ({
+        const updated = prev.map((r: DeliveryRoute) => ({
           ...r,
-          stops: r.stops.filter((s) => s.id !== stop.id),
+          stops: r.stops.filter((s: RouteStop) => s.id !== stop.id),
         }))
 
         // Add to target route at index
-        return updated.map((r) => {
+        return updated.map((r: DeliveryRoute) => {
           if (r.id !== targetRouteId) return r
           const newStops = [...r.stops]
           newStops.splice(index, 0, { ...stop, sequence: index + 1 })
           // Re-sequence
-          const resequenced = newStops.map((s, i) => ({ ...s, sequence: i + 1 }))
+          const resequenced = newStops.map((s: RouteStop, i: number) => ({ ...s, sequence: i + 1 }))
           return {
             ...r,
             stops: resequenced,
-            totalWeight: resequenced.reduce((sum, s) => sum + s.weight, 0),
+            totalWeight: resequenced.reduce((sum: number, s: RouteStop) => sum + s.weight, 0),
           }
         })
       })
 
       // Also remove from unassigned pool if it was there
-      setUnassigned((prev) => prev.filter((s) => s.id !== stop.id))
+      setUnassigned((prev: RouteStop[]) => prev.filter((s: RouteStop) => s.id !== stop.id))
     },
     [],
   )
@@ -137,13 +137,13 @@ export function RoutePlanningView() {
   // Update routes after optimization
   const handleOptimized = useCallback(
     (routeId: string, optimizedStops: RouteStop[]) => {
-      setRoutes((prev) =>
-        prev.map((r) =>
+      setRoutes((prev: DeliveryRoute[]) =>
+        prev.map((r: DeliveryRoute) =>
           r.id === routeId
             ? {
                 ...r,
-                stops: optimizedStops.map((s, i) => ({ ...s, sequence: i + 1 })),
-                totalWeight: optimizedStops.reduce((sum, s) => sum + s.weight, 0),
+                stops: optimizedStops.map((s: RouteStop, i: number) => ({ ...s, sequence: i + 1 })),
+                totalWeight: optimizedStops.reduce((sum: number, s: RouteStop) => sum + s.weight, 0),
               }
             : r,
         ),
@@ -152,7 +152,7 @@ export function RoutePlanningView() {
     [],
   )
 
-  const selectedRoute = routes.find((r) => r.id === selectedRouteId)
+  const selectedRoute = routes.find((r: DeliveryRoute) => r.id === selectedRouteId)
 
   return (
     <div className="flex h-full flex-col">
@@ -207,7 +207,7 @@ export function RoutePlanningView() {
                   onStopClick={(stopId) => {
                     // Find which route this stop belongs to
                     for (const route of routes) {
-                      if (route.stops.some((s) => s.id === stopId)) {
+                      if (route.stops.some((s: RouteStop) => s.id === stopId)) {
                         setSelectedRouteId(route.id)
                         break
                       }

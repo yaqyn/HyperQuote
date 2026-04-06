@@ -11,6 +11,8 @@ import { PODReviewSplit } from './PODReviewSplit'
 import type { PODRecord, RouteStop } from '../../../types/dispatch'
 
 type FilterTab = 'needs_review' | 'confirmed' | 'flagged' | 'all'
+type ReviewStatus = 'needs_review' | 'confirmed' | 'flagged'
+interface DeliveryEntry { pod: PODRecord; stop: RouteStop | undefined; status: ReviewStatus }
 
 // ─── Mock POD records (inline, matching server mock data) ──
 
@@ -125,15 +127,15 @@ export function PODValidationView() {
   // Filter by active tab
   const filtered = useMemo(() => {
     if (activeFilter === 'all') return deliveries
-    return deliveries.filter((d) => d.status === activeFilter)
+    return deliveries.filter((d: DeliveryEntry) => d.status === activeFilter)
   }, [deliveries, activeFilter])
 
   // Selected delivery for review
-  const selected = deliveries.find((d) => d.pod.deliveryId === selectedDeliveryId)
+  const selected = deliveries.find((d: DeliveryEntry) => d.pod.deliveryId === selectedDeliveryId)
 
   const handleActionComplete = () => {
     if (selectedDeliveryId) {
-      setReviewStatuses((prev) => ({ ...prev, [selectedDeliveryId]: 'confirmed' }))
+      setReviewStatuses((prev: Record<string, ReviewStatus>) => ({ ...prev, [selectedDeliveryId]: 'confirmed' }))
     }
     setSelectedDeliveryId(null)
   }
@@ -208,7 +210,7 @@ export function PODValidationView() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(({ pod, stop, status }) => {
+            {filtered.map(({ pod, stop, status }: DeliveryEntry) => {
               const time = new Date(pod.timestamp)
               return (
                 <tr

@@ -195,29 +195,29 @@ export function DeliveryLogView() {
   }, [board, driverMap, podMap])
 
   // Filter
-  const filtered = useMemo(() => {
+  const filtered = useMemo((): DeliveryLogEntry[] => {
     let result = allEntries
 
     // Status filter
     if (statusFilter === 'needs_review') {
       result = result.filter(
-        (e) => e.stop.status === 'delivered' && e.pod && !e.pod.autoChecksPassed,
+        (e: DeliveryLogEntry) => e.stop.status === 'delivered' && e.pod && !e.pod.autoChecksPassed,
       )
     } else if (statusFilter === 'delivered') {
-      result = result.filter((e) => e.stop.status === 'delivered')
+      result = result.filter((e: DeliveryLogEntry) => e.stop.status === 'delivered')
     } else if (statusFilter === 'in_progress') {
-      result = result.filter((e) => e.stop.status === 'en_route' || e.stop.status === 'arrived')
+      result = result.filter((e: DeliveryLogEntry) => e.stop.status === 'en_route' || e.stop.status === 'arrived')
     } else if (statusFilter === 'pending') {
-      result = result.filter((e) => e.stop.status === 'pending')
+      result = result.filter((e: DeliveryLogEntry) => e.stop.status === 'pending')
     } else if (statusFilter === 'failed') {
-      result = result.filter((e) => e.stop.status === 'failed')
+      result = result.filter((e: DeliveryLogEntry) => e.stop.status === 'failed')
     }
 
     // Search by order ID or customer name
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       result = result.filter(
-        (e) =>
+        (e: DeliveryLogEntry) =>
           e.stop.orderId.toLowerCase().includes(q) ||
           e.stop.customerName.toLowerCase().includes(q) ||
           (e.driver?.name.toLowerCase().includes(q) ?? false),
@@ -228,9 +228,9 @@ export function DeliveryLogView() {
   }, [allEntries, statusFilter, searchQuery])
 
   // Sort
-  const sorted = useMemo(() => {
+  const sorted = useMemo((): DeliveryLogEntry[] => {
     const copy = [...filtered]
-    copy.sort((a, b) => {
+    copy.sort((a: DeliveryLogEntry, b: DeliveryLogEntry) => {
       let cmp = 0
       switch (sortField) {
         case 'date':
@@ -267,7 +267,7 @@ export function DeliveryLogView() {
   const toggleSort = useCallback(
     (field: SortField) => {
       if (sortField === field) {
-        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        setSortDir((d: SortDir) => (d === 'asc' ? 'desc' : 'asc'))
       } else {
         setSortField(field)
         setSortDir('desc')
@@ -289,7 +289,7 @@ export function DeliveryLogView() {
   // ---- POD Review drill-down ----
 
   if (reviewDeliveryId) {
-    const entry = allEntries.find((e) => e.stop.deliveryId === reviewDeliveryId)
+    const entry = allEntries.find((e: DeliveryLogEntry) => e.stop.deliveryId === reviewDeliveryId)
     const pod = podMap.get(reviewDeliveryId)
     if (entry && pod) {
       return (
@@ -437,7 +437,7 @@ export function DeliveryLogView() {
               </tr>
             </thead>
             <tbody>
-              {paged.map(({ stop, route, driver, pod }) => (
+              {paged.map(({ stop, route, driver, pod }: DeliveryLogEntry) => (
                 <tr
                   key={stop.id}
                   onClick={() => handleRowClick(stop.deliveryId)}
@@ -551,7 +551,7 @@ export function DeliveryLogView() {
           <div className="flex gap-1">
             <Button
               isDisabled={page === 0}
-              onPress={() => setPage((p) => Math.max(0, p - 1))}
+              onPress={() => setPage((p: number) => Math.max(0, p - 1))}
               aria-label={t('deliveryLog.prevPage', 'Previous page')}
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
             >
@@ -562,7 +562,7 @@ export function DeliveryLogView() {
             </span>
             <Button
               isDisabled={page >= totalPages - 1}
-              onPress={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              onPress={() => setPage((p: number) => Math.min(totalPages - 1, p + 1))}
               aria-label={t('deliveryLog.nextPage', 'Next page')}
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
             >
