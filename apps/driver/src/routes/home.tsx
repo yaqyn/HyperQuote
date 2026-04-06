@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShiftStore } from '@/stores/shift'
 import { useAuthStore } from '@/stores/auth'
+import { useExternalDriverStore } from '@/stores/external-driver'
 import { db } from '@/lib/powersync'
 import { DriverCard } from '@/components/shared/DriverCard'
 import { DriverButton } from '@/components/shared/DriverButton'
@@ -37,6 +38,7 @@ function HomePage() {
   const activeShiftId = useShiftStore((s) => s.activeShiftId)
   const selectedVehicle = useShiftStore((s) => s.selectedVehicle)
   const driverProfile = useAuthStore((s) => s.driverProfile)
+  const isExternalDriver = useAuthStore((s) => s.isExternalDriver)
   const [route, setRoute] = useState<RouteData | null>(null)
   const [stops, setStops] = useState<RouteStop[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -201,6 +203,22 @@ function HomePage() {
                 {t('home.contactDispatch', 'Contact Dispatch')}
               </DriverButton>
             </div>
+
+            {/* External driver actions */}
+            {isExternalDriver && (
+              <div className="flex gap-3">
+                <DriverButton className="flex-1" onPress={() => {
+                  navigate({ to: '/job-offers' })
+                }}>
+                  {t('home.jobOffers', 'Job Offers')}
+                </DriverButton>
+                <DriverButton variant="secondary" className="flex-1" onPress={() => {
+                  navigate({ to: '/earnings' })
+                }}>
+                  {t('home.earnings', 'Earnings')}
+                </DriverButton>
+              </div>
+            )}
 
             {/* End Shift button — only when shift is active */}
             {activeShiftId && (
