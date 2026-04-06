@@ -12,12 +12,18 @@
 		"@capacitor-community/sqlite": "^8.1.0",
 		"@capacitor/camera": "^8.0.2",
 		"@capacitor/core": "^8.3.0",
+		"@capacitor/haptics": "^8.0.2",
+		"@capacitor/preferences": "^8.0.1",
+		"@capgo/capacitor-native-biometric": "^8.4.2",
 		"@journeyapps/wa-sqlite": "^1.5.0",
 		"@powersync/capacitor": "^0.5.2",
 		"@powersync/web": "^1.37.1",
 		"@supabase/supabase-js": "^2.101.1",
+		"motion": "^12.38.0",
 		"react": "^19.2.4",
-		"react-dom": "^19.2.4"
+		"react-aria-components": "^1.16.0",
+		"react-dom": "^19.2.4",
+		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
 		"@tailwindcss/vite": "^4.2.2",

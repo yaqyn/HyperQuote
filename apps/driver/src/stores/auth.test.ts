@@ -16,10 +16,14 @@ vi.mock('../lib/biometric', () => ({
   isBiometricAvailable: vi.fn().mockResolvedValue({ isAvailable: false, biometryType: 0 }),
 }))
 
-// Mock pin
-vi.mock('../lib/pin', () => ({
-  getPinHash: vi.fn().mockResolvedValue(null),
-}))
+// Mock pin - keep real implementations, only mock getPinHash for auth store
+vi.mock('../lib/pin', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/pin')>()
+  return {
+    ...actual,
+    getPinHash: vi.fn().mockResolvedValue(null),
+  }
+})
 
 // We need to import after mocks
 const { useAuthStore } = await import('./auth')
