@@ -11,8 +11,13 @@
   /* NO --color-primary / --color-accent -- intentionally absent */
   /* Semantic status colors for DATA only */
   --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
   --color-warning: #d97706;
+  --color-warning-bg: #fefce8;
   --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-info: #6b7280;
+  --color-info-bg: #f3f4f6;
 }
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -25,6 +30,11 @@
   --color-border: #27272a;
   --color-surface: #18181b;
   --color-success: #22c55e;
+  --color-success-bg: rgba(74, 222, 128, 0.1);
   --color-warning: #f59e0b;
+  --color-warning-bg: rgba(250, 204, 21, 0.1);
   --color-error: #ef4444;
+  --color-error-bg: rgba(248, 113, 113, 0.1);
+  --color-info: #a1a1aa;
+  --color-info-bg: rgba(161, 161, 170, 0.1);
 }
