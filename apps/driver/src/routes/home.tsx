@@ -201,6 +201,19 @@ function HomePage() {
                 {t('home.contactDispatch', 'Contact Dispatch')}
               </DriverButton>
             </div>
+
+            {/* End Shift button — only when shift is active */}
+            {activeShiftId && (
+              <DriverButton
+                variant="danger"
+                className="min-h-[56px]"
+                onPress={() => {
+                  navigate({ to: '/end-of-day' })
+                }}
+              >
+                {t('home.endShift', 'End Shift')}
+              </DriverButton>
+            )}
           </div>
         ) : (
           /* No route for today */
