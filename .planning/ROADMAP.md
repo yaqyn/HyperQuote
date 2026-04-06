@@ -431,15 +431,13 @@ Plans:
   2. HR tracks driver compliance (CDL/medical/drug test) and blocks dispatch if certifications are expired
   3. Admin manages users/roles/permissions, margin rules, approval thresholds, holiday calendar, and audit log
   4. AI assistant operates within glass window with role-aware capabilities and safety guardrails (read-only DB, draft-review-confirm)
-**Plans**: 8 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 22-01-PLAN.md — Customer Service module: tickets, WhatsApp inbox, SLA tracking, returns/claims
+- [ ] 22-02-PLAN.md — HR module: employee directory, driver compliance, leave, attendance
+- [ ] 22-03-PLAN.md — Admin module: users/roles, settings, margin rules, holidays, audit log
+- [ ] 22-04-PLAN.md — Reports (7 role dashboards) + AI Assistant (chat with mock streaming)
+- [ ] 22-05-PLAN.md — Wire all 5 modules into ModuleWindow + verify build
 **UI hint**: yes
 
 ### Phase 23: CEO Command Center
