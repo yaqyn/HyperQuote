@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant (completed 2026-04-06)
 - [x] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA (completed 2026-04-06)
 - [x] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR (completed 2026-04-06)
-- [ ] **Phase 25: Driver Route + Delivery + POD** - Route overview, navigation, loading verification, delivery execution, POD capture
+- [x] **Phase 25: Driver Route + Delivery + POD** - Route overview, navigation, loading verification, delivery execution, POD capture (completed 2026-04-06)
 - [ ] **Phase 26: Driver Remaining** - Exception reporting, end of day, external driver features, offline sync
 - [ ] **Phase 27: WhatsApp Integration** - Cloud API, OTP, notifications, AR reminders, CEO digest, drop-ship POD
 - [ ] **Phase 28: Email + PDF Generation** - Resend transactional email, pdf-lib for 8 document types (Arabic-primary)
@@ -489,11 +489,11 @@ Plans:
   5. POD captures photos + digital signature + GPS location + quantity confirmation per item
 **Plans**: 5 plans
 Plans:
-- [ ] 25-01-PLAN.md — PowerSync schema extension, lib modules (map, geofence, barcode, navigation, truck-ban, upload-queue), Zustand stores
-- [ ] 25-02-PLAN.md — Route overview (map + list), stop detail, navigation deep-links
-- [ ] 25-03-PLAN.md — Loading verification (barcode scan, weight check, photos, sign-off)
-- [ ] 25-04-PLAN.md — Delivery execution (per-line items, unloading timer, geofence arrival)
-- [ ] 25-05-PLAN.md — POD capture (photos, signature, GPS, swipe-to-complete)
+- [x] 25-01-PLAN.md — PowerSync schema extension, lib modules (map, geofence, barcode, navigation, truck-ban, upload-queue), Zustand stores
+- [x] 25-02-PLAN.md — Route overview (map + list), stop detail, navigation deep-links
+- [x] 25-03-PLAN.md — Loading verification (barcode scan, weight check, photos, sign-off)
+- [x] 25-04-PLAN.md — Delivery execution (per-line items, unloading timer, geofence arrival)
+- [x] 25-05-PLAN.md — POD capture (photos, signature, GPS, swipe-to-complete)
 **UI hint**: yes
 
 ### Phase 26: Driver Remaining
@@ -661,7 +661,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 22. Remaining Internal Modules | 5/5 | Complete    | 2026-04-06 |
 | 23. CEO Command Center | 6/6 | Complete    | 2026-04-06 |
 | 24. Driver App Scaffold + Auth + Shift | 4/4 | Complete    | 2026-04-06 |
-| 25. Driver Route + Delivery + POD | 0/? | Not started | - |
+| 25. Driver Route + Delivery + POD | 5/5 | Complete    | 2026-04-06 |
 | 26. Driver Remaining | 0/? | Not started | - |
 | 27. WhatsApp Integration | 0/? | Not started | - |
 | 28. Email + PDF Generation | 0/? | Not started | - |
