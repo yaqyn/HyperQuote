@@ -14,4 +14,10 @@ export default defineConfig({
 			'@': resolve(import.meta.dirname, 'src'),
 		},
 	},
+	worker: {
+		format: 'es',
+	},
+	optimizeDeps: {
+		exclude: ['@powersync/web', '@powersync/capacitor'],
+	},
 })
