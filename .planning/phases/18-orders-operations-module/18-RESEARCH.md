@@ -421,19 +421,19 @@ function computeSLAStatus(remainingMs: number, totalMs: number): 'on_track' | 'a
 ### Phase Requirements -> Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| OPS-01 | Kanban renders 6 columns, cards display correct data, DnD triggers confirmation | unit | `bun vitest apps/internal/src/components/operations/kanban/FulfillmentKanban.test.tsx -x` | Wave 0 |
-| OPS-02 | Order detail shows line items, progress bar, activity log | unit | `bun vitest apps/internal/src/components/operations/order-detail/OrderDetailView.test.tsx -x` | Wave 0 |
-| OPS-03 | Dashboard metrics render, SLA tracker sorts by urgency, Nudge creates notification | unit | `bun vitest apps/internal/src/components/operations/dashboard/OperationsDashboard.test.tsx -x` | Wave 0 |
+| OPS-01 | Kanban renders 6 columns, cards display correct data, DnD triggers confirmation | unit | `bun vitest apps/internal/src/__tests__/fulfillment-kanban.test.ts --run` | Wave 0 |
+| OPS-02 | Order detail shows line items, progress bar, activity log | unit | `bun vitest apps/internal/src/__tests__/order-detail.test.ts --run` | Wave 0 |
+| OPS-03 | Dashboard metrics render, SLA tracker sorts by urgency, Nudge creates notification | unit | `bun vitest apps/internal/src/__tests__/operations-dashboard.test.ts --run` | Wave 0 |
 
 ### Sampling Rate
-- **Per task commit:** `bun vitest --run apps/internal/src/components/operations/ -x`
+- **Per task commit:** `bun vitest --run apps/internal/src/__tests__/fulfillment-kanban.test.ts apps/internal/src/__tests__/order-detail.test.ts apps/internal/src/__tests__/operations-dashboard.test.ts`
 - **Per wave merge:** `bun run test`
 - **Phase gate:** Full suite green before `/gsd:verify-work`
 
 ### Wave 0 Gaps
-- [ ] `apps/internal/src/components/operations/kanban/FulfillmentKanban.test.tsx` -- covers OPS-01
-- [ ] `apps/internal/src/components/operations/order-detail/OrderDetailView.test.tsx` -- covers OPS-02
-- [ ] `apps/internal/src/components/operations/dashboard/OperationsDashboard.test.tsx` -- covers OPS-03
+- [ ] `apps/internal/src/__tests__/fulfillment-kanban.test.ts` -- covers OPS-01
+- [ ] `apps/internal/src/__tests__/order-detail.test.ts` -- covers OPS-02
+- [ ] `apps/internal/src/__tests__/operations-dashboard.test.ts` -- covers OPS-03
 - [ ] Vitest config for internal app if not already present
 
 ## Sources
