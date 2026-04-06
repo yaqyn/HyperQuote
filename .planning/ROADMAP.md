@@ -450,15 +450,14 @@ Plans:
   3. AI chat routes between Analytics AI (pre-computed metrics + text-to-SQL) and RAG AI (pgvector embeddings) based on query type
   4. Attention items surface bounced cheques, overdue 60+ days, delivery failures, and PO rejections from materialized view
   5. PWA installs and works offline in read-only mode
-**Plans**: 8 plans
+**Plans**: 6 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 23-01-PLAN.md — Foundation: types, theme, store, i18n, auth guard, server functions
+- [ ] 23-02-PLAN.md — Home screen: search bar + lion + greeting + attention count
+- [ ] 23-03-PLAN.md — Search results + 7 entity detail views
+- [ ] 23-04-PLAN.md — AI chat + attention items + digest + weekly insight
+- [ ] 23-05-PLAN.md — Approval flow + compose + settings + login
+- [ ] 23-06-PLAN.md — PWA + offline mode + service worker
 **UI hint**: yes
 
 ### Phase 24: Driver App Scaffold + Auth + Shift
