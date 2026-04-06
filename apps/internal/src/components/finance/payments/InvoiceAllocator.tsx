@@ -50,8 +50,7 @@ export function InvoiceAllocator() {
   const { t } = useTranslation('finance')
   const setPaymentFlowStep = useFinanceStore((s) => s.setPaymentFlowStep)
 
-  // Mock payment amount (in real app, comes from previous step's form data via store or context)
-  const paymentAmount = 247_500
+  const paymentAmount = useFinanceStore((s) => s.paymentFlow.amount) ?? 0
 
   const [allocations, setAllocations] = useState<AllocationEntry[]>([])
   const [partialAmounts, setPartialAmounts] = useState<Record<string, number>>({})

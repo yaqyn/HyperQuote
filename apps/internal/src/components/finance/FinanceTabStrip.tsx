@@ -9,9 +9,11 @@ const TAB_KEYS: FinanceTab[] = [
   'ar',
   'ap',
   'payments',
+  'pdc',
   'credit',
   'recon',
   'reports',
+  'disputes',
 ]
 
 const TAB_CONFIG: Record<FinanceTab, { key: string; fallback: string }> = {
@@ -20,9 +22,11 @@ const TAB_CONFIG: Record<FinanceTab, { key: string; fallback: string }> = {
   ar: { key: 'finance:tabs.ar', fallback: 'AR' },
   ap: { key: 'finance:tabs.ap', fallback: 'AP' },
   payments: { key: 'finance:tabs.payments', fallback: 'Payments' },
+  pdc: { key: 'finance:tabs.pdc', fallback: 'PDC' },
   credit: { key: 'finance:tabs.credit', fallback: 'Credit' },
   recon: { key: 'finance:tabs.recon', fallback: 'Bank Recon' },
   reports: { key: 'finance:tabs.reports', fallback: 'Reports' },
+  disputes: { key: 'finance:tabs.disputes', fallback: 'Disputes' },
 }
 
 export function FinanceTabStrip() {

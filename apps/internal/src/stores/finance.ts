@@ -12,6 +12,7 @@ interface ARFilters {
 interface PaymentFlowState {
   step: 'select_method' | 'details' | 'allocate' | 'confirm'
   method?: PaymentMethod
+  amount?: number
 }
 
 interface FinanceStore {

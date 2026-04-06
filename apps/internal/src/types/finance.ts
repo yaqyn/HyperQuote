@@ -9,9 +9,11 @@ export type FinanceTab =
   | 'ar'
   | 'ap'
   | 'payments'
+  | 'pdc'
   | 'credit'
   | 'recon'
   | 'reports'
+  | 'disputes'
 
 // ─── Status Unions ───────────────────────────────────────
 
