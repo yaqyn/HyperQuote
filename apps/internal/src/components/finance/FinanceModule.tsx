@@ -3,6 +3,7 @@ import { useFinanceStore } from '../../stores/finance'
 import { FinanceTabStrip } from './FinanceTabStrip'
 import { FinanceShortcuts } from './FinanceShortcuts'
 import { CurrencyCell } from './shared/CurrencyCell'
+import { ARDashboard } from './ar/ARDashboard'
 
 /**
  * Root finance module component.
@@ -17,6 +18,8 @@ export function FinanceModule() {
     switch (activeTab) {
       case 'home':
         return <FinanceHome />
+      case 'ar':
+        return <ARDashboard />
       default:
         return (
           <div className="p-6 text-center text-[var(--color-text-muted)]">
