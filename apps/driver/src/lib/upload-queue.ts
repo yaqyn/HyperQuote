@@ -1,7 +1,7 @@
 import { db } from './powersync'
 
 export interface UploadMetadata {
-  type: 'loading' | 'pod' | 'damage'
+  type: 'loading' | 'pod' | 'damage' | 'exception' | 'inspection'
   entityId: string
 }
 

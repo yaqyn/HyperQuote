@@ -141,6 +141,72 @@ const proof_of_delivery = new Table({
   created_at: column.text,
 })
 
+const delivery_exceptions = new Table({
+  delivery_id: column.text,
+  stop_id: column.text,
+  type: column.text,
+  photos: column.text,
+  gps_lat: column.real,
+  gps_lng: column.real,
+  details: column.text,
+  resolution: column.text,
+  dispatch_notified: column.text,
+  created_at: column.text,
+})
+
+const driver_jobs = new Table({
+  delivery_id: column.text,
+  status: column.text,
+  offered_at: column.text,
+  expires_at: column.text,
+  accepted_at: column.text,
+  completed_at: column.text,
+  payout_amount: column.real,
+  payout_currency: column.text,
+  pickup_address: column.text,
+  delivery_address: column.text,
+  estimated_distance_km: column.real,
+  estimated_duration_minutes: column.integer,
+  materials_summary: column.text,
+  total_weight_kg: column.real,
+  requires_moffett: column.text,
+  requires_boom: column.text,
+})
+
+const driver_earnings = new Table({
+  driver_id: column.text,
+  period_start: column.text,
+  period_end: column.text,
+  total_jobs: column.integer,
+  total_earned: column.real,
+  withholding_tax: column.real,
+  net_payable: column.real,
+  status: column.text,
+  paid_at: column.text,
+})
+
+const driver_withdrawals = new Table({
+  driver_id: column.text,
+  amount: column.real,
+  bank_account_id: column.text,
+  status: column.text,
+  requested_at: column.text,
+  completed_at: column.text,
+})
+
+const shift_returns = new Table({
+  shift_id: column.text,
+  delivery_id: column.text,
+  delivery_item_id: column.text,
+  product_name: column.text,
+  quantity: column.real,
+  unit: column.text,
+  reason: column.text,
+  linked_exception_id: column.text,
+  notes: column.text,
+  created_at: column.text,
+})
+
 const upload_queue = new Table({
   file_uri: column.text,
   upload_type: column.text,
@@ -163,6 +229,11 @@ export const DriverSchema = new Schema({
   load_verifications,
   proof_of_delivery,
   upload_queue,
+  delivery_exceptions,
+  driver_jobs,
+  driver_earnings,
+  driver_withdrawals,
+  shift_returns,
 })
 
 export const db = new PowerSyncDatabase({

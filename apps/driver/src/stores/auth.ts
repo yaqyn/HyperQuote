@@ -18,12 +18,14 @@ export interface DriverProfile {
   phone: string
   name: string | null
   avatar_url: string | null
+  driver_type: 'internal' | 'contracted' | 'on_demand'
 }
 
 interface AuthState {
   session: Session | null
   isAuthenticated: boolean
   driverProfile: DriverProfile | null
+  isExternalDriver: boolean
   hasBiometric: boolean
   hasPin: boolean
   authStep: AuthStep
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isAuthenticated: false,
   driverProfile: null,
+  isExternalDriver: false,
   hasBiometric: false,
   hasPin: false,
   authStep: 'phone',
@@ -60,10 +63,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       isAuthenticated: false,
       driverProfile: null,
+      isExternalDriver: false,
     })
   },
 
-  setDriverProfile: (profile) => set({ driverProfile: profile }),
+  setDriverProfile: (profile) => set({
+    driverProfile: profile,
+    isExternalDriver: profile?.driver_type === 'contracted' || profile?.driver_type === 'on_demand',
+  }),
   setHasBiometric: (v) => set({ hasBiometric: v }),
   setHasPin: (v) => set({ hasPin: v }),
   setAuthStep: (step) => set({ authStep: step }),
