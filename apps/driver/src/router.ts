@@ -8,6 +8,11 @@ import { Route as stopDetailRoute } from './routes/stop-detail'
 import { Route as loadingRoute } from './routes/loading'
 import { Route as deliveryRoute } from './routes/delivery'
 import { Route as podRoute } from './routes/pod'
+import { Route as exceptionRoute } from './routes/exception'
+import { Route as endOfDayRoute } from './routes/end-of-day'
+import { Route as jobOffersRoute } from './routes/job-offers'
+import { Route as jobDetailRoute } from './routes/job-detail'
+import { Route as earningsRoute } from './routes/earnings'
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -18,6 +23,11 @@ const routeTree = rootRoute.addChildren([
   loadingRoute,
   deliveryRoute,
   podRoute,
+  exceptionRoute,
+  endOfDayRoute,
+  jobOffersRoute,
+  jobDetailRoute,
+  earningsRoute,
 ])
 
 export const router = createRouter({
