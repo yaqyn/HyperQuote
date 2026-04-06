@@ -2,12 +2,14 @@ import { useDispatchStore } from '../../stores/dispatch'
 import { DispatchTabStrip } from './DispatchTabStrip'
 import { DispatchShortcuts } from './DispatchShortcuts'
 import { DispatchHomeView } from './home/DispatchHomeView'
-import type { DispatchTab } from '../../types/dispatch'
+import { RoutePlanningView } from './route-planning/RoutePlanningView'
+import { LiveMapView } from './live-map/LiveMapView'
+import { DriverManagementView } from './driver-management/DriverManagementView'
+import { DeliveryLogView } from './delivery-log/DeliveryLogView'
 
 /**
  * Root dispatch module component.
- * Only home tab wired — other tabs added in Plan 05 to avoid merge conflicts
- * with Plans 02-04 running in parallel.
+ * All tabs wired to actual components -- no placeholders.
  */
 export function DispatchModule() {
   const activeTab = useDispatchStore((s) => s.activeTab)
@@ -16,8 +18,16 @@ export function DispatchModule() {
     switch (activeTab) {
       case 'home':
         return <DispatchHomeView />
+      case 'route-planning':
+        return <RoutePlanningView />
+      case 'live-map':
+        return <LiveMapView />
+      case 'driver-management':
+        return <DriverManagementView />
+      case 'delivery-log':
+        return <DeliveryLogView />
       default:
-        return <TabPlaceholder tab={activeTab} />
+        return null
     }
   }
 
@@ -28,24 +38,6 @@ export function DispatchModule() {
       <div className="flex-1 overflow-auto">
         {renderTab()}
       </div>
-    </div>
-  )
-}
-
-function TabPlaceholder({ tab }: { tab: DispatchTab }) {
-  const labels: Record<DispatchTab, string> = {
-    home: 'Home',
-    'route-planning': 'Route Planning',
-    'live-map': 'Live Map',
-    'driver-management': 'Driver Management',
-    'delivery-log': 'Delivery Log',
-  }
-
-  return (
-    <div className="flex items-center justify-center h-full">
-      <p className="text-sm text-black/40 dark:text-white/40">
-        {labels[tab]}
-      </p>
     </div>
   )
 }
