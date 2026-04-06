@@ -1,0 +1,45 @@
+{
+  "login": {
+    "phone": "رقم الهاتف",
+    "otp": "رمز التحقق",
+    "pin": "رمز الدخول",
+    "biometric": "تسجيل الدخول بالبصمة",
+    "sendCode": "إرسال الرمز",
+    "verify": "تحقق",
+    "welcome": "مرحبا بك في هايبر كوت",
+    "enterPhone": "أدخل رقم هاتفك للبدء"
+  },
+  "shift": {
+    "vehicle": "المركبة",
+    "inspection": "فحص المركبة",
+    "odometer": "عداد الكيلومترات",
+    "gpsConsent": "الموافقة على تتبع الموقع",
+    "startShift": "بدء الوردية",
+    "endShift": "إنهاء الوردية",
+    "selectVehicle": "اختر المركبة",
+    "confirmInspection": "تأكيد الفحص",
+    "enterOdometer": "أدخل قراءة العداد"
+  },
+  "home": {
+    "route": "المسار",
+    "stops": "المحطات",
+    "distance": "المسافة",
+    "weight": "الوزن",
+    "start": "ابدأ",
+    "activeDeliveries": "التوصيلات النشطة",
+    "noDeliveries": "لا توجد توصيلات حالية",
+    "todayRoute": "مسار اليوم"
+  },
+  "common": {
+    "confirm": "تأكيد",
+    "cancel": "إلغاء",
+    "back": "رجوع",
+    "next": "التالي",
+    "retry": "إعادة المحاولة",
+    "noConnection": "لا يوجد اتصال بالإنترنت",
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "save": "حفظ",
+    "done": "تم"
+  }
+}

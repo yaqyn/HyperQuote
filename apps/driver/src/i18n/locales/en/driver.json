@@ -1,0 +1,45 @@
+{
+  "login": {
+    "phone": "Phone Number",
+    "otp": "Verification Code",
+    "pin": "Login PIN",
+    "biometric": "Login with Biometrics",
+    "sendCode": "Send Code",
+    "verify": "Verify",
+    "welcome": "Welcome to HyperQuote",
+    "enterPhone": "Enter your phone number to get started"
+  },
+  "shift": {
+    "vehicle": "Vehicle",
+    "inspection": "Vehicle Inspection",
+    "odometer": "Odometer Reading",
+    "gpsConsent": "GPS Tracking Consent",
+    "startShift": "Start Shift",
+    "endShift": "End Shift",
+    "selectVehicle": "Select Vehicle",
+    "confirmInspection": "Confirm Inspection",
+    "enterOdometer": "Enter Odometer Reading"
+  },
+  "home": {
+    "route": "Route",
+    "stops": "Stops",
+    "distance": "Distance",
+    "weight": "Weight",
+    "start": "Start",
+    "activeDeliveries": "Active Deliveries",
+    "noDeliveries": "No current deliveries",
+    "todayRoute": "Today's Route"
+  },
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
+    "retry": "Retry",
+    "noConnection": "No Internet Connection",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "done": "Done"
+  }
+}
