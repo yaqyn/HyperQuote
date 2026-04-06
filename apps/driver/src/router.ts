@@ -7,6 +7,7 @@ import { Route as routeOverviewRoute } from './routes/route-overview'
 import { Route as stopDetailRoute } from './routes/stop-detail'
 import { Route as loadingRoute } from './routes/loading'
 import { Route as deliveryRoute } from './routes/delivery'
+import { Route as podRoute } from './routes/pod'
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -16,6 +17,7 @@ const routeTree = rootRoute.addChildren([
   stopDetailRoute,
   loadingRoute,
   deliveryRoute,
+  podRoute,
 ])
 
 export const router = createRouter({
