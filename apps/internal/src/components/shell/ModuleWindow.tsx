@@ -14,6 +14,10 @@ const ProcurementModule = lazy(() =>
   import('../procurement/ProcurementModule').then((m) => ({ default: m.ProcurementModule })),
 )
 
+const OperationsModule = lazy(() =>
+  import('../operations/OperationsModule').then((m) => ({ default: m.OperationsModule })),
+)
+
 interface ModuleWindowProps {
   moduleId: string
   isOpen: boolean
@@ -82,6 +86,16 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
               }
             >
               <ProcurementModule />
+            </Suspense>
+          ) : moduleId === 'orders' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <OperationsModule />
             </Suspense>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
