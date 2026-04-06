@@ -35,7 +35,7 @@ export function WarehouseModule() {
   // Local state for sub-views
   const [countView, setCountView] = useState<'blind' | 'review' | 'approval'>('blind')
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null)
-  const [stagingRouteId] = useState<string | null>(null)
+  const [stagingRouteId, setStagingRouteId] = useState<string | null>(null)
 
   // ─── Receiving detail view ─────────────────────────────
   if (selectedReceivingId && activeTab === 'receiving') {
@@ -128,7 +128,7 @@ export function WarehouseModule() {
         return stagingRouteId ? (
           <StagingLoadView routeId={stagingRouteId} onProceedToVerification={() => {}} />
         ) : (
-          <StagingPlaceholderList />
+          <StagingRouteList onSelectRoute={setStagingRouteId} />
         )
       case 'count':
         return (
@@ -177,11 +177,34 @@ function Shell({ children }: { children: React.ReactNode }) {
  * Once a route is selected, StagingLoadView takes over.
  * This is a minimal list — full route selection is driven by dispatch module.
  */
-function StagingPlaceholderList() {
+function StagingRouteList({ onSelectRoute }: { onSelectRoute: (id: string) => void }) {
+  // Mock pending routes — server function will provide real data
+  const pendingRoutes = [
+    { id: 'RT-2024-001', truck: 'Cairo-North #3', items: 24, departure: '14:00' },
+    { id: 'RT-2024-002', truck: 'Giza Express #1', items: 18, departure: '15:30' },
+    { id: 'RT-2024-003', truck: 'Delta Run #7', items: 31, departure: '16:00' },
+  ]
+
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-[var(--color-text-secondary)]">
-      <div className="text-sm">No active staging route selected</div>
-      <div className="mt-1 text-xs">Select a route from Dispatch to begin staging</div>
+    <div className="p-4 space-y-3">
+      <h3 className="text-sm font-semibold">Pending Staging Routes</h3>
+      {pendingRoutes.map((route) => (
+        <button
+          key={route.id}
+          type="button"
+          onClick={() => onSelectRoute(route.id)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-start"
+        >
+          <div>
+            <div className="text-sm font-medium">{route.truck}</div>
+            <div className="text-xs text-black/50 dark:text-white/50">{route.id}</div>
+          </div>
+          <div className="text-end">
+            <div className="font-mono text-sm">{route.items}</div>
+            <div className="text-xs text-black/50 dark:text-white/50">{route.departure}</div>
+          </div>
+        </button>
+      ))}
     </div>
   )
 }
