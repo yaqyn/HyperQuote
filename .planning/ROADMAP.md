@@ -487,15 +487,13 @@ Plans:
   3. Loading verification scans barcodes per item, checks weight, and captures photo of loaded truck
   4. Delivery execution auto-detects arrival via geofence, confirms per-line items, and runs unloading timer
   5. POD captures photos + digital signature + GPS location + quantity confirmation per item
-**Plans**: 8 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 25-01-PLAN.md — PowerSync schema extension, lib modules (map, geofence, barcode, navigation, truck-ban, upload-queue), Zustand stores
+- [ ] 25-02-PLAN.md — Route overview (map + list), stop detail, navigation deep-links
+- [ ] 25-03-PLAN.md — Loading verification (barcode scan, weight check, photos, sign-off)
+- [ ] 25-04-PLAN.md — Delivery execution (per-line items, unloading timer, geofence arrival)
+- [ ] 25-05-PLAN.md — POD capture (photos, signature, GPS, swipe-to-complete)
 **UI hint**: yes
 
 ### Phase 26: Driver Remaining
