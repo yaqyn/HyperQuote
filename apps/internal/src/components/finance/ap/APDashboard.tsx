@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { APInvoiceList } from './APInvoiceList'
 import { ThreeWayMatchReview } from './ThreeWayMatchReview'
+import { WithholdingTaxSection } from './WithholdingTaxSection'
+import { APAgingTable } from './APAgingTable'
 import type { APInvoice } from '../../../types/finance'
 
 type APView = 'list' | 'review'
@@ -32,6 +34,18 @@ export function APDashboard() {
       )}
       {view === 'review' && selectedInvoice && (
         <ThreeWayMatchReview invoice={selectedInvoice} onBack={handleBack} />
+      )}
+
+      {/* Sub-sections visible in list view */}
+      {view === 'list' && (
+        <>
+          <div className="border-t border-black/10 dark:border-white/10 pt-4">
+            <WithholdingTaxSection />
+          </div>
+          <div className="border-t border-black/10 dark:border-white/10 pt-4">
+            <APAgingTable />
+          </div>
+        </>
       )}
     </div>
   )
