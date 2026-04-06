@@ -2,6 +2,8 @@ import { useFinanceStore } from '../../stores/finance'
 import { FinanceTabStrip } from './FinanceTabStrip'
 import { FinanceShortcuts } from './FinanceShortcuts'
 import { FinanceHome } from './home/FinanceHome'
+import { InvoiceList } from './invoicing/InvoiceList'
+import { InvoiceDetail } from './invoicing/InvoiceDetail'
 
 /**
  * Root finance module component.
@@ -10,7 +12,6 @@ import { FinanceHome } from './home/FinanceHome'
  */
 export function FinanceModule() {
   const activeTab = useFinanceStore((s) => s.activeTab)
-  const selectedInvoiceId = useFinanceStore((s) => s.selectedInvoiceId)
 
   const renderTab = () => {
     switch (activeTab) {
@@ -40,15 +41,14 @@ export function FinanceModule() {
 
 /**
  * Invoicing tab: shows InvoiceDetail when an invoice is selected,
- * InvoiceList otherwise. Lazy-loaded in Plan 02.
+ * InvoiceList otherwise.
  */
 function InvoicingTab() {
   const selectedInvoiceId = useFinanceStore((s) => s.selectedInvoiceId)
 
-  // Plan 02 will replace these with real components
-  return (
-    <div className="p-6 text-center text-[var(--color-text-muted)]">
-      Invoicing — coming in Plan 02
-    </div>
-  )
+  if (selectedInvoiceId) {
+    return <InvoiceDetail />
+  }
+
+  return <InvoiceList />
 }
