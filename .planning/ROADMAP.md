@@ -469,15 +469,12 @@ Plans:
   2. Login completes phone OTP -> 6-digit PIN -> biometric enrollment flow
   3. Shift start captures vehicle selection, 10-point DVIR checklist with photos, odometer, GPS consent
   4. PowerSync + SQLite is initialized and syncs driver-relevant tables from Supabase
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 24-01-PLAN.md — Capacitor scaffold, routing, Supabase client, i18n, test infra
+- [ ] 24-02-PLAN.md — PowerSync + SQLite schema, Supabase connector, photo utility
+- [ ] 24-03-PLAN.md — Login flow (OTP -> PIN -> biometric), auth store, route guards
+- [ ] 24-04-PLAN.md — Shift start (DVIR inspection), home dashboard
 **UI hint**: yes
 
 ### Phase 25: Driver Route + Delivery + POD
