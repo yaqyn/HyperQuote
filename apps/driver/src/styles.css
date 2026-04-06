@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+:root {
+  /* Brand — three colors only */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-blue: #2563EB;
+
+  /* Semantic status */
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-danger: #dc2626;
+  --color-muted: #64748b;
+
+  /* Typography */
+  --font-text: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
+
+  /* Base sizing — larger for outdoor readability */
+  --text-base: 16px;
+  --touch-min: 56px;
+
+  /* Safe area */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Surfaces */
+  --bg-primary: var(--color-white);
+  --bg-secondary: #f8fafc;
+  --text-primary: var(--color-black);
+  --text-secondary: var(--color-muted);
+  --border-color: #e2e8f0;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #171717;
+  --text-primary: var(--color-white);
+  --text-secondary: #94a3b8;
+  --border-color: #27272a;
+}
+
+html {
+  font-size: var(--text-base);
+  font-family: var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+/* Geist Mono for all numbers */
+.font-mono,
+[data-numeric] {
+  font-family: var(--font-mono);
+}

@@ -8,4 +8,9 @@ export default defineConfig({
 		tailwindcss(),
 		viteReact(),
 	],
+	resolve: {
+		alias: {
+			'@': new URL('./src', import.meta.url).pathname,
+		},
+	},
 })
