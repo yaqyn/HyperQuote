@@ -393,13 +393,14 @@ Plans:
   5. Bank reconciliation imports CSV, auto-matches by amount+reference, and surfaces unmatched items
 **Plans**: 8 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 20-01-PLAN.md — Types, server functions, store, business logic utilities, shared components, module registration
+- [ ] 20-02-PLAN.md — Finance home dashboard + invoicing tab (list, detail, send, credit note)
+- [ ] 20-03-PLAN.md — AR aging (KPI strip, color-coded aging table, sparklines, drill-down, filters)
+- [ ] 20-04-PLAN.md — Payment recording (wire + cheque + LC wizard with invoice allocation)
+- [ ] 20-05-PLAN.md — PDC grid + calendar (status state machine, bounce handling, maturity view)
+- [ ] 20-06-PLAN.md — AP (three-way match review, withholding tax, AP aging)
+- [ ] 20-07-PLAN.md — Credit management (profile card, utilization bar, auto-hold, approval chain)
+- [ ] 20-08-PLAN.md — Bank reconciliation + reports + invoice dispute workflow
 **UI hint**: yes
 
 ### Phase 21: Dispatch Module
