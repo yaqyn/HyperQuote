@@ -412,9 +412,10 @@ Plans:
   2. Live GPS map shows color-coded vehicle pins (yellow=loading, green=transit, blue=at site, red=problem) with route lines
   3. POD validation split-view shows photo + delivery note with item-by-item confirmation and damage flagging
   4. Driver management tracks license expiry, certifications, and performance metrics
-**Plans**: 5 plans
+**Plans**: 6 plans
 Plans:
-- [ ] 21-01-PLAN.md — Foundation: types, store, constraints (TDD), server functions, home view, ModuleWindow registration
+- [ ] 21-01a-PLAN.md — Foundation: types, store, constraints (TDD), i18n, map deps
+- [ ] 21-01b-PLAN.md — Server functions, DispatchModule shell, home view, shared components, ModuleWindow
 - [ ] 21-02-PLAN.md — Route planning: split pane, DnD stops, map, optimize, publish
 - [ ] 21-03-PLAN.md — Live GPS map: vehicle pins, clusters, broadcast, sidebar
 - [ ] 21-04-PLAN.md — POD validation + driver management: split-view, checklist, compliance, metrics
