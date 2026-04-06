@@ -371,15 +371,14 @@ Plans:
   3. Staging + load verification completes 5-step gated flow (scan truck -> scan items -> verify weight -> photos -> dual sign-off)
   4. Blind cycle count hides system quantities, triggers threshold recount by ABC class, and requires supervisor approval for variances
   5. Yard management shows interactive zone map with capacity utilization color coding and Khamsin weather alerts
-**Plans**: 8 plans
+**Plans**: 6 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 19-01-PLAN.md — Types, store, server functions, shared components, business logic utilities, module registration
+- [ ] 19-02-PLAN.md — Warehouse home (worker tiles + manager KPIs) + receiving workflow (standard + bulk)
+- [ ] 19-03-PLAN.md — Putaway workflow + picking workflow (FEFO, two-scan, exceptions, weight tracker)
+- [ ] 19-04-PLAN.md — Staging + load verification (5-step gated flow, dual sign-off)
+- [ ] 19-05-PLAN.md — Cycle count (blind count, review, supervisor approval) + inventory lookup
+- [ ] 19-06-PLAN.md — Yard management (SVG zone map, weather alerts) + i18n keys + tab wiring
 **UI hint**: yes
 
 ### Phase 20: Finance Module
