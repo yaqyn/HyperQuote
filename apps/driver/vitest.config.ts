@@ -1,15 +1,14 @@
 import { defineConfig } from 'vitest/config'
-import { resolve } from 'node:path'
 
 export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['src/test/setup.ts'],
-    globals: true,
+  define: {
+    'import.meta.env.VITE_POWERSYNC_URL': JSON.stringify('https://test.powersync.dev'),
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://test.supabase.co'),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('test-anon-key'),
   },
-  resolve: {
-    alias: {
-      '@': resolve(import.meta.dirname, 'src'),
-    },
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 })
