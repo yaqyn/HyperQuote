@@ -5,9 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --port 3003",
-		"build": "vite build",
+		"build": "vite build && bun run scripts/build-sw.ts",
 		"preview": "vite preview",
-		"deploy": "vite build && wrangler deploy",
+		"deploy": "vite build && bun run scripts/build-sw.ts && wrangler deploy",
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
