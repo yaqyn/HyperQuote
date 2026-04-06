@@ -1,0 +1,120 @@
+{
+  "tabs": {
+    "sales": "المبيعات",
+    "procurement": "المشتريات",
+    "operations": "العمليات",
+    "finance": "المالية",
+    "warehouse": "المستودعات",
+    "dispatch": "التوصيل",
+    "cs": "خدمة العملاء"
+  },
+  "filters": {
+    "mtd": "الشهر الحالي",
+    "qtd": "الربع الحالي",
+    "ytd": "السنة الحالية",
+    "custom": "مخصص",
+    "dateRange": "النطاق الزمني",
+    "department": "القسم",
+    "team": "الفريق",
+    "individual": "الفرد",
+    "customerTier": "فئة العميل",
+    "category": "الفئة",
+    "region": "المنطقة"
+  },
+  "export": {
+    "csv": "CSV",
+    "pdf": "PDF",
+    "schedule": "جدولة",
+    "daily": "يومي",
+    "weekly": "أسبوعي",
+    "monthly": "شهري"
+  },
+  "loading": "جاري التحميل...",
+  "kpi": {
+    "pipeline_value": "قيمة خط الأنابيب",
+    "conversion_rate": "معدل التحويل",
+    "avg_response_time": "متوسط وقت الاستجابة",
+    "win_rate": "معدل الفوز",
+    "revenue_mtd": "الإيراد الشهري",
+    "revenue_target": "هدف الإيراد",
+    "revenue_vs_target": "الإيراد مقابل الهدف",
+    "pending_inquiries": "استفسارات معلقة",
+    "response_rate": "معدل الاستجابة",
+    "po_pending": "أوامر شراء معلقة",
+    "po_approved": "أوامر شراء معتمدة",
+    "cost_savings_mtd": "توفير التكاليف الشهري",
+    "orders_in_pipeline": "الطلبات في خط الأنابيب",
+    "on-time_delivery": "التسليم في الموعد",
+    "completion_rate": "معدل الإنجاز",
+    "avg_cycle_time": "متوسط وقت الدورة",
+    "resource_utilization": "استخدام الموارد",
+    "ar_outstanding": "الذمم المدينة",
+    "overdue_ar": "الذمم المتأخرة",
+    "cash_position": "الرصيد النقدي",
+    "margin_trend": "اتجاه الهامش",
+    "inventory_accuracy": "دقة المخزون",
+    "pick_accuracy": "دقة الانتقاء",
+    "on-time_shipment": "الشحن في الموعد",
+    "receiving_cycle_time": "وقت دورة الاستلام",
+    "capacity_utilization": "استخدام السعة",
+    "slow-moving_value": "قيمة البضائع بطيئة الحركة",
+    "deliveries_today": "تسليمات اليوم",
+    "first-attempt_success": "نجاح المحاولة الأولى",
+    "avg_stops/driver": "متوسط المحطات/سائق",
+    "route_efficiency": "كفاءة المسار",
+    "cairo_night_count": "عدد رحلات القاهرة الليلية",
+    "open_tickets_-_high": "تذاكر مفتوحة - عالية",
+    "open_tickets_-_medium": "تذاكر مفتوحة - متوسطة",
+    "open_tickets_-_low": "تذاكر مفتوحة - منخفضة",
+    "sla_compliance": "الامتثال لاتفاقية الخدمة",
+    "avg_resolution_time": "متوسط وقت الحل",
+    "nps_score": "مؤشر صافي الترويج"
+  },
+  "table": {
+    "customer": "العميل",
+    "deal": "الصفقة",
+    "value": "القيمة",
+    "stage": "المرحلة",
+    "rep": "الممثل",
+    "supplier": "المورد",
+    "response_rate": "معدل الاستجابة",
+    "avg_response_time": "متوسط الاستجابة",
+    "active_pos": "أوامر شراء نشطة",
+    "rating": "التقييم",
+    "bucket": "الفترة",
+    "amount": "المبلغ",
+    "count": "العدد",
+    "item": "الصنف",
+    "sku": "رمز المنتج",
+    "qty": "الكمية",
+    "unit": "الوحدة",
+    "turnover": "معدل الدوران",
+    "driver": "السائق",
+    "vehicle": "المركبة",
+    "stops": "المحطات",
+    "completed": "مكتمل",
+    "status": "الحالة"
+  },
+  "sales": {
+    "top_deals": "أكبر ١٠ صفقات"
+  },
+  "procurement": {
+    "supplier_rankings": "تصنيف الموردين"
+  },
+  "operations": {
+    "orders_by_stage": "الطلبات حسب المرحلة"
+  },
+  "finance": {
+    "ar_aging": "تقادم الذمم المدينة",
+    "payment_distribution": "توزيع المدفوعات"
+  },
+  "warehouse": {
+    "inventory_overview": "نظرة عامة على المخزون"
+  },
+  "dispatch": {
+    "driver_status": "حالة السائقين"
+  },
+  "cs": {
+    "top_issues": "أبرز فئات المشاكل"
+  }
+}
