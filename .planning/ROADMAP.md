@@ -412,15 +412,13 @@ Plans:
   2. Live GPS map shows color-coded vehicle pins (yellow=loading, green=transit, blue=at site, red=problem) with route lines
   3. POD validation split-view shows photo + delivery note with item-by-item confirmation and damage flagging
   4. Driver management tracks license expiry, certifications, and performance metrics
-**Plans**: 8 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 21-01-PLAN.md — Foundation: types, store, constraints (TDD), server functions, home view, ModuleWindow registration
+- [ ] 21-02-PLAN.md — Route planning: split pane, DnD stops, map, optimize, publish
+- [ ] 21-03-PLAN.md — Live GPS map: vehicle pins, clusters, broadcast, sidebar
+- [ ] 21-04-PLAN.md — POD validation + driver management: split-view, checklist, compliance, metrics
+- [ ] 21-05-PLAN.md — Wiring: connect all tabs into DispatchModule + delivery log
 **UI hint**: yes
 
 ### Phase 22: Remaining Internal Modules
