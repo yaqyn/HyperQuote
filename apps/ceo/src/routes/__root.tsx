@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   HeadContent,
   Outlet,
@@ -6,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { I18nProvider } from 'react-aria-components'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerServiceWorker } from '../lib/registerSW'
 import '../styles.css'
 
 const queryClient = new QueryClient({
@@ -47,6 +49,10 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+  useEffect(() => {
+    registerServiceWorker()
+  }, [])
+
   return (
     <html lang="ar" dir="rtl">
       <head>
