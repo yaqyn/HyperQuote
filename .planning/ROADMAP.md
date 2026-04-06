@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management (completed 2026-04-06)
 - [x] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant (completed 2026-04-06)
 - [x] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA (completed 2026-04-06)
-- [ ] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR
+- [x] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR (completed 2026-04-06)
 - [ ] **Phase 25: Driver Route + Delivery + POD** - Route overview, navigation, loading verification, delivery execution, POD capture
 - [ ] **Phase 26: Driver Remaining** - Exception reporting, end of day, external driver features, offline sync
 - [ ] **Phase 27: WhatsApp Integration** - Cloud API, OTP, notifications, AR reminders, CEO digest, drop-ship POD
@@ -471,10 +471,10 @@ Plans:
   4. PowerSync + SQLite is initialized and syncs driver-relevant tables from Supabase
 **Plans**: 4 plans
 Plans:
-- [ ] 24-01-PLAN.md — Capacitor scaffold, routing, Supabase client, i18n, test infra
-- [ ] 24-02-PLAN.md — PowerSync + SQLite schema, Supabase connector, photo utility
-- [ ] 24-03-PLAN.md — Login flow (OTP -> PIN -> biometric), auth store, route guards
-- [ ] 24-04-PLAN.md — Shift start (DVIR inspection), home dashboard
+- [x] 24-01-PLAN.md — Capacitor scaffold, routing, Supabase client, i18n, test infra
+- [x] 24-02-PLAN.md — PowerSync + SQLite schema, Supabase connector, photo utility
+- [x] 24-03-PLAN.md — Login flow (OTP -> PIN -> biometric), auth store, route guards
+- [x] 24-04-PLAN.md — Shift start (DVIR inspection), home dashboard
 **UI hint**: yes
 
 ### Phase 25: Driver Route + Delivery + POD
@@ -662,7 +662,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 21. Dispatch Module | 6/6 | Complete    | 2026-04-06 |
 | 22. Remaining Internal Modules | 5/5 | Complete    | 2026-04-06 |
 | 23. CEO Command Center | 6/6 | Complete    | 2026-04-06 |
-| 24. Driver App Scaffold + Auth + Shift | 0/? | Not started | - |
+| 24. Driver App Scaffold + Auth + Shift | 4/4 | Complete    | 2026-04-06 |
 | 25. Driver Route + Delivery + POD | 0/? | Not started | - |
 | 26. Driver Remaining | 0/? | Not started | - |
 | 27. WhatsApp Integration | 0/? | Not started | - |
