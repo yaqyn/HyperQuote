@@ -30,6 +30,26 @@ const DispatchModule = lazy(() =>
   import('../dispatch/DispatchModule').then((m) => ({ default: m.DispatchModule })),
 )
 
+const CustomerServiceModule = lazy(() =>
+  import('../customer-service/CustomerServiceModule').then((m) => ({ default: m.CustomerServiceModule })),
+)
+
+const HRModule = lazy(() =>
+  import('../hr/HRModule').then((m) => ({ default: m.HRModule })),
+)
+
+const AdminModule = lazy(() =>
+  import('../admin/AdminModule').then((m) => ({ default: m.AdminModule })),
+)
+
+const ReportsModule = lazy(() =>
+  import('../reports/ReportsModule').then((m) => ({ default: m.ReportsModule })),
+)
+
+const AIModule = lazy(() =>
+  import('../ai/AIModule').then((m) => ({ default: m.AIModule })),
+)
+
 interface ModuleWindowProps {
   moduleId: string
   isOpen: boolean
@@ -138,6 +158,56 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
               }
             >
               <DispatchModule />
+            </Suspense>
+          ) : moduleId === 'customer-service' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <CustomerServiceModule />
+            </Suspense>
+          ) : moduleId === 'hr' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <HRModule />
+            </Suspense>
+          ) : moduleId === 'admin' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <AdminModule />
+            </Suspense>
+          ) : moduleId === 'reports' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <ReportsModule />
+            </Suspense>
+          ) : moduleId === 'ai' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <AIModule />
             </Suspense>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
