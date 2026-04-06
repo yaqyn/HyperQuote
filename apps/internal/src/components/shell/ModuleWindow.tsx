@@ -18,6 +18,10 @@ const OperationsModule = lazy(() =>
   import('../operations/OperationsModule').then((m) => ({ default: m.OperationsModule })),
 )
 
+const WarehouseModule = lazy(() =>
+  import('../warehouse/WarehouseModule').then((m) => ({ default: m.WarehouseModule })),
+)
+
 interface ModuleWindowProps {
   moduleId: string
   isOpen: boolean
@@ -96,6 +100,16 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
               }
             >
               <OperationsModule />
+            </Suspense>
+          ) : moduleId === 'warehouse' ? (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                </div>
+              }
+            >
+              <WarehouseModule />
             </Suspense>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
