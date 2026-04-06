@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import type { ARAgingBucket, ARAgingRow } from '../../../types/finance'
 import { ARKPIStrip } from './ARKPIStrip'
 import { ARAgingTable } from './ARAgingTable'
+import { ARDrillDown } from './ARDrillDown'
+import { ARFilters } from './ARFilters'
 
 interface DrillDownState {
   customerId: string
@@ -120,11 +122,13 @@ export function ARDashboard() {
       {/* KPI Strip */}
       <ARKPIStrip {...MOCK_KPI} onCardClick={handleKPIClick} />
 
+      {/* Filters (shown when not in drill-down) */}
+      {!drillDown && <ARFilters />}
+
       {/* Main content: table or drill-down */}
       {drillDown ? (
-        <DrillDownPlaceholder
+        <ARDrillDown
           customerId={drillDown.customerId}
-          customerName={drillDown.customerName}
           bucket={drillDown.bucket}
           onBack={handleBack}
         />
@@ -133,41 +137,6 @@ export function ARDashboard() {
           <ARAgingTable rows={MOCK_ROWS} onCellClick={handleCellClick} />
         </div>
       )}
-    </div>
-  )
-}
-
-/**
- * Temporary placeholder for drill-down view.
- * Will be replaced by ARDrillDown component in Task 2.
- */
-function DrillDownPlaceholder({
-  customerName,
-  bucket,
-  onBack,
-}: {
-  customerId: string
-  customerName: string
-  bucket: ARAgingBucket
-  onBack: () => void
-}) {
-  const { t } = useTranslation('finance')
-
-  return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-6 text-center">
-      <p className="text-black/60 dark:text-white/60">
-        {t('ar.drillDown.placeholder', 'Drill-down view for {{customer}} - {{bucket}}', {
-          customer: customerName,
-          bucket,
-        })}
-      </p>
-      <button
-        type="button"
-        onClick={onBack}
-        className="mt-3 px-3 py-1 text-sm rounded border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-      >
-        {t('ar.drillDown.back', 'Back to AR Dashboard')}
-      </button>
     </div>
   )
 }
