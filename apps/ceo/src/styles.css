@@ -1,1 +1,30 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@plugin 'tailwindcss-react-aria-components';
+
+:root {
+  --color-bg: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #9ca3af;
+  --color-border: #e5e7eb;
+  --color-surface: #f9fafb;
+  /* NO --color-primary / --color-accent -- intentionally absent */
+  /* Semantic status colors for DATA only */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root:where([data-theme="dark"]) {
+  --color-bg: #09090b;
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1aa;
+  --color-text-subtle: #71717a;
+  --color-border: #27272a;
+  --color-surface: #18181b;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+}
