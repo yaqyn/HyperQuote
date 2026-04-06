@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout (completed 2026-04-05)
 - [x] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation (completed 2026-04-05)
 - [x] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards (completed 2026-04-05)
-- [ ] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker
+- [x] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker (completed 2026-04-06)
 - [ ] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management
 - [ ] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports
 - [ ] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management
@@ -355,10 +355,10 @@ Plans:
   3. Operations dashboard shows 4 metric cards, bottleneck pipeline, 5 SLA types, and cross-module "Nudge" button
 **Plans**: 4 plans
 Plans:
-- [ ] 18-01-PLAN.md — Operations types, server functions, Zustand store, module registration
-- [ ] 18-02-PLAN.md — Fulfillment kanban with 6 columns, DnD, confirmation dialog
-- [ ] 18-03-PLAN.md — Order detail with line items, progress, activity log, handoff + Nudge
-- [ ] 18-04-PLAN.md — Operations dashboard with metric cards, bottleneck pipeline, SLA tracker
+- [x] 18-01-PLAN.md — Operations types, server functions, Zustand store, module registration
+- [x] 18-02-PLAN.md — Fulfillment kanban with 6 columns, DnD, confirmation dialog
+- [x] 18-03-PLAN.md — Order detail with line items, progress, activity log, handoff + Nudge
+- [x] 18-04-PLAN.md — Operations dashboard with metric cards, bottleneck pipeline, SLA tracker
 **UI hint**: yes
 
 ### Phase 19: Warehouse Module
@@ -663,7 +663,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 15. Internal Platform Shell | 4/4 | Complete    | 2026-04-05 |
 | 16. Sales Module | 10/10 | Complete    | 2026-04-05 |
 | 17. Procurement Module | 5/5 | Complete    | 2026-04-06 |
-| 18. Orders/Operations Module | 0/? | Not started | - |
+| 18. Orders/Operations Module | 4/4 | Complete    | 2026-04-06 |
 | 19. Warehouse Module | 0/? | Not started | - |
 | 20. Finance Module | 0/? | Not started | - |
 | 21. Dispatch Module | 0/? | Not started | - |
