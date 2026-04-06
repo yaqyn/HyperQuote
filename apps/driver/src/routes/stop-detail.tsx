@@ -366,9 +366,7 @@ function StopDetailPage() {
 
         <DriverButton
           variant="secondary"
-          onPress={() => {
-            // Phase 26 stub -- exception report
-          }}
+          onPress={() => navigate({ to: '/exception', search: { deliveryId: stop.delivery_id, stopId: stop.id } })}
         >
           {t('stopDetail.reportIssue')}
         </DriverButton>

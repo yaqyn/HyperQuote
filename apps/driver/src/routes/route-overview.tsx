@@ -147,6 +147,16 @@ function RouteOverviewPage() {
         </button>
       </div>
 
+      {/* Report Issue */}
+      <div className="px-4 pb-2">
+        <DriverButton
+          variant="secondary"
+          onPress={() => navigate({ to: '/exception', search: {} })}
+        >
+          {t('stopDetail.reportIssue')}
+        </DriverButton>
+      </div>
+
       {/* Content */}
       {isMapMode ? (
         <div className="relative flex-1">

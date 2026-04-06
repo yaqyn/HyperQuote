@@ -88,6 +88,13 @@ function DeliveryScreen() {
         >
           {t('delivery.markComplete')}
         </DriverButton>
+        <DriverButton
+          variant="secondary"
+          onPress={() => navigate({ to: '/exception', search: { deliveryId } })}
+          className="mt-2"
+        >
+          {t('stopDetail.reportIssue')}
+        </DriverButton>
       </div>
     </div>
   )
