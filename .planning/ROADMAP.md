@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards (completed 2026-04-05)
 - [x] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker (completed 2026-04-06)
 - [x] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management (completed 2026-04-06)
-- [ ] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports
+- [x] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports (completed 2026-04-06)
 - [ ] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management
 - [ ] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant
 - [ ] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA
@@ -394,13 +394,13 @@ Plans:
 **Plans**: 8 plans
 Plans:
 - [x] 20-01-PLAN.md — Types, server functions, store, business logic utilities, shared components, module registration
-- [ ] 20-02-PLAN.md — Finance home dashboard + invoicing tab (list, detail, send, credit note)
-- [ ] 20-03-PLAN.md — AR aging (KPI strip, color-coded aging table, sparklines, drill-down, filters)
-- [ ] 20-04-PLAN.md — Payment recording (wire + cheque + LC wizard with invoice allocation)
-- [ ] 20-05-PLAN.md — PDC grid + calendar (status state machine, bounce handling, maturity view)
-- [ ] 20-06-PLAN.md — AP (three-way match review, withholding tax, AP aging)
-- [ ] 20-07-PLAN.md — Credit management (profile card, utilization bar, auto-hold, approval chain)
-- [ ] 20-08-PLAN.md — Bank reconciliation + reports + invoice dispute workflow
+- [x] 20-02-PLAN.md — Finance home dashboard + invoicing tab (list, detail, send, credit note)
+- [x] 20-03-PLAN.md — AR aging (KPI strip, color-coded aging table, sparklines, drill-down, filters)
+- [x] 20-04-PLAN.md — Payment recording (wire + cheque + LC wizard with invoice allocation)
+- [x] 20-05-PLAN.md — PDC grid + calendar (status state machine, bounce handling, maturity view)
+- [x] 20-06-PLAN.md — AP (three-way match review, withholding tax, AP aging)
+- [x] 20-07-PLAN.md — Credit management (profile card, utilization bar, auto-hold, approval chain)
+- [x] 20-08-PLAN.md — Bank reconciliation + reports + invoice dispute workflow
 **UI hint**: yes
 
 ### Phase 21: Dispatch Module
@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 17. Procurement Module | 5/5 | Complete    | 2026-04-06 |
 | 18. Orders/Operations Module | 4/4 | Complete    | 2026-04-06 |
 | 19. Warehouse Module | 6/6 | Complete    | 2026-04-06 |
-| 20. Finance Module | 1/8 | In Progress|  |
+| 20. Finance Module | 8/8 | Complete    | 2026-04-06 |
 | 21. Dispatch Module | 0/? | Not started | - |
 | 22. Remaining Internal Modules | 0/? | Not started | - |
 | 23. CEO Command Center | 0/? | Not started | - |
