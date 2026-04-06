@@ -99,6 +99,56 @@ const route_stops = new Table({
   eta: column.text,
   notes: column.text,
   unloading_method: column.text,
+  contact_phone: column.text,
+  delivery_window_start: column.text,
+  delivery_window_end: column.text,
+  ppe_required: column.text,
+  access_instructions: column.text,
+  previous_delivery_notes: column.text,
+  site_photos: column.text,
+})
+
+const load_verifications = new Table({
+  route_id: column.text,
+  vehicle_id: column.text,
+  verified_by: column.text,
+  scan_results: column.text,
+  total_items_expected: column.integer,
+  total_items_scanned: column.integer,
+  weight_expected_kg: column.real,
+  weight_actual_kg: column.real,
+  weight_variance_percent: column.real,
+  truck_photo_uri: column.text,
+  cargo_photo_uri: column.text,
+  driver_signature_url: column.text,
+  gate_clearance: column.text,
+  created_at: column.text,
+})
+
+const proof_of_delivery = new Table({
+  delivery_id: column.text,
+  signer_name: column.text,
+  signer_role: column.text,
+  signature_url: column.text,
+  photos: column.text,
+  gps_lat: column.real,
+  gps_lng: column.real,
+  gps_accuracy_meters: column.real,
+  condition_notes: column.text,
+  condition_status: column.text,
+  offline_captured: column.text,
+  captured_at: column.text,
+  created_at: column.text,
+})
+
+const upload_queue = new Table({
+  file_uri: column.text,
+  upload_type: column.text,
+  entity_id: column.text,
+  status: column.text,
+  retry_count: column.integer,
+  uploaded_at: column.text,
+  created_at: column.text,
 })
 
 export const DriverSchema = new Schema({
@@ -110,6 +160,9 @@ export const DriverSchema = new Schema({
   delivery_items,
   routes,
   route_stops,
+  load_verifications,
+  proof_of_delivery,
+  upload_queue,
 })
 
 export const db = new PowerSyncDatabase({
