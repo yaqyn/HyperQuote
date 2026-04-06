@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA (completed 2026-04-06)
 - [x] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR (completed 2026-04-06)
 - [x] **Phase 25: Driver Route + Delivery + POD** - Route overview, navigation, loading verification, delivery execution, POD capture (completed 2026-04-06)
-- [ ] **Phase 26: Driver Remaining** - Exception reporting, end of day, external driver features, offline sync
+- [x] **Phase 26: Driver Remaining** - Exception reporting, end of day, external driver features, offline sync (completed 2026-04-06)
 - [ ] **Phase 27: WhatsApp Integration** - Cloud API, OTP, notifications, AR reminders, CEO digest, drop-ship POD
 - [ ] **Phase 28: Email + PDF Generation** - Resend transactional email, pdf-lib for 8 document types (Arabic-primary)
 - [ ] **Phase 29: ETA E-Invoicing** - Egyptian Tax Authority API, HSM digital signature, real-time submission, credit notes
@@ -507,10 +507,10 @@ Plans:
   4. Full delivery flow completes without internet; mutations queue in PowerSync and sync on reconnect
 **Plans**: 4 plans
 Plans:
-- [ ] 26-01-PLAN.md — PowerSync schema extension, Zustand stores, route stubs, router
-- [ ] 26-02-PLAN.md — Exception reporting (7 guided workflows + wizard + route)
-- [ ] 26-03-PLAN.md — End of day (returns, fuel, DVIR, odometer, summary, sign-off)
-- [ ] 26-04-PLAN.md — External driver (job offers, earnings dashboard, withdrawal)
+- [x] 26-01-PLAN.md — PowerSync schema extension, Zustand stores, route stubs, router
+- [x] 26-02-PLAN.md — Exception reporting (7 guided workflows + wizard + route)
+- [x] 26-03-PLAN.md — End of day (returns, fuel, DVIR, odometer, summary, sign-off)
+- [x] 26-04-PLAN.md — External driver (job offers, earnings dashboard, withdrawal)
 **UI hint**: yes
 
 ### Phase 27: WhatsApp Integration
@@ -659,7 +659,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 23. CEO Command Center | 6/6 | Complete    | 2026-04-06 |
 | 24. Driver App Scaffold + Auth + Shift | 4/4 | Complete    | 2026-04-06 |
 | 25. Driver Route + Delivery + POD | 5/5 | Complete   | 2026-04-06 |
-| 26. Driver Remaining | 0/? | Not started | - |
+| 26. Driver Remaining | 4/4 | Complete    | 2026-04-06 |
 | 27. WhatsApp Integration | 0/? | Not started | - |
 | 28. Email + PDF Generation | 0/? | Not started | - |
 | 29. ETA E-Invoicing | 0/? | Not started | - |
