@@ -505,15 +505,12 @@ Plans:
   2. End of day completes shift summary, returns processing, post-trip DVIR, odometer, and sign-off
   3. External drivers see job offers (accept/decline with payout visibility) and earnings dashboard
   4. Full delivery flow completes without internet; mutations queue in PowerSync and sync on reconnect
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 26-01-PLAN.md — PowerSync schema extension, Zustand stores, route stubs, router
+- [ ] 26-02-PLAN.md — Exception reporting (7 guided workflows + wizard + route)
+- [ ] 26-03-PLAN.md — End of day (returns, fuel, DVIR, odometer, summary, sign-off)
+- [ ] 26-04-PLAN.md — External driver (job offers, earnings dashboard, withdrawal)
 **UI hint**: yes
 
 ### Phase 27: WhatsApp Integration
