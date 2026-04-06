@@ -3,19 +3,11 @@ import { Button } from 'react-aria-components'
 import { useFinanceStore } from '../../../stores/finance'
 import { MethodSelector } from './MethodSelector'
 import { WireTransferForm } from './WireTransferForm'
+import { ChequeForm } from './ChequeForm'
+import { LCForm } from './LCForm'
 import { CashForm } from './CashForm'
 import { InvoiceAllocator } from './InvoiceAllocator'
-
-// Lazy placeholders for Task 2 components (ChequeForm, LCForm, PaymentConfirmation)
-function ChequeFormPlaceholder() {
-  return <div className="p-6 text-center text-black/40 dark:text-white/40">Cheque form loading...</div>
-}
-function LCFormPlaceholder() {
-  return <div className="p-6 text-center text-black/40 dark:text-white/40">LC form loading...</div>
-}
-function PaymentConfirmationPlaceholder() {
-  return <div className="p-6 text-center text-black/40 dark:text-white/40">Confirmation loading...</div>
-}
+import { PaymentConfirmation } from './PaymentConfirmation'
 
 const STEPS = ['select_method', 'details', 'allocate', 'confirm'] as const
 const STEP_INDEX: Record<string, number> = {
@@ -58,9 +50,9 @@ export function PaymentFlow() {
       case 'wire':
         return <WireTransferForm />
       case 'cheque':
-        return <ChequeFormPlaceholder />
+        return <ChequeForm />
       case 'lc':
-        return <LCFormPlaceholder />
+        return <LCForm />
       case 'cash':
         return <CashForm />
       default:
@@ -77,7 +69,7 @@ export function PaymentFlow() {
       case 'allocate':
         return <InvoiceAllocator />
       case 'confirm':
-        return <PaymentConfirmationPlaceholder />
+        return <PaymentConfirmation />
       default:
         return <MethodSelector />
     }
