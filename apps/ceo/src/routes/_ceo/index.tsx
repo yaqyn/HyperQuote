@@ -95,6 +95,24 @@ function CEOHome() {
           count={attentionCount}
           onClick={handleAttentionClick}
         />
+
+        {/* Digest / Insight links -- typography emphasis only, no accent */}
+        <div className="flex gap-4 text-sm">
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/_ceo/digest' })}
+            className="font-semibold text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors"
+          >
+            View today's digest
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/_ceo/insight' })}
+            className="font-semibold text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors"
+          >
+            View weekly insight
+          </button>
+        </div>
       </div>
     </div>
   )
