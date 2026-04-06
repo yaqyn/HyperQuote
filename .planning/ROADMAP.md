@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: Database -- Support + HR + AI + System Tables** - Remaining tables, business triggers, materialized views, cron jobs, seed data (completed 2026-04-01)
 - [x] **Phase 15: Internal Platform Shell** - Canvas, icon strip, glass windows, hotkeys, command palette, mobile layout (completed 2026-04-05)
 - [x] **Phase 16: Sales Module** - RFQ inbox, quote builder, customer 360, pipeline kanban, negotiation (completed 2026-04-05)
-- [ ] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards
+- [x] **Phase 17: Procurement Module** - Supplier inquiry, response tracking, price comparison, PO management, scorecards (completed 2026-04-05)
 - [ ] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker
 - [ ] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management
 - [ ] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports
@@ -338,11 +338,11 @@ Plans:
   4. Supplier scorecard shows on-time delivery %, fill rate, quality rejection %, and tiering (Preferred/Approved/Conditional/New)
 **Plans**: 5 plans
 Plans:
-- [ ] 17-01-PLAN.md — Types, server functions, Zustand store, test stubs
-- [ ] 17-02-PLAN.md — Module shell, home view, inquiry builder, response tracker
-- [ ] 17-03-PLAN.md — Price comparison matrix, split sourcing
-- [ ] 17-04-PLAN.md — PO management, three-way match, status flow
-- [ ] 17-05-PLAN.md — Supplier directory, scorecard, tier badges
+- [x] 17-01-PLAN.md — Types, server functions, Zustand store, test stubs
+- [x] 17-02-PLAN.md — Module shell, home view, inquiry builder, response tracker
+- [x] 17-03-PLAN.md — Price comparison matrix, split sourcing
+- [x] 17-04-PLAN.md — PO management, three-way match, status flow
+- [x] 17-05-PLAN.md — Supplier directory, scorecard, tier badges
 **UI hint**: yes
 
 ### Phase 18: Orders/Operations Module
@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 14. DB -- Support + HR + AI + System | 4/4 | Complete    | 2026-04-01 |
 | 15. Internal Platform Shell | 4/4 | Complete    | 2026-04-05 |
 | 16. Sales Module | 10/10 | Complete    | 2026-04-05 |
-| 17. Procurement Module | 0/? | Not started | - |
+| 17. Procurement Module | 5/5 | Complete    | 2026-04-06 |
 | 18. Orders/Operations Module | 0/? | Not started | - |
 | 19. Warehouse Module | 0/? | Not started | - |
 | 20. Finance Module | 0/? | Not started | - |
