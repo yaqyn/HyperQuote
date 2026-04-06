@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ToggleButton } from 'react-aria-components'
 import { useFinanceStore } from '../../stores/finance'
 import { FinanceTabStrip } from './FinanceTabStrip'
 import { FinanceShortcuts } from './FinanceShortcuts'
 import { CurrencyCell } from './shared/CurrencyCell'
-import { PDCContainer } from './pdc/PDCContainer'
+import { APDashboard } from './ap/APDashboard'
 
 /**
  * Root finance module component.
@@ -20,8 +18,8 @@ export function FinanceModule() {
     switch (activeTab) {
       case 'home':
         return <FinanceHome />
-      case 'payments':
-        return <PaymentsTab />
+      case 'ap':
+        return <APDashboard />
       default:
         return (
           <div className="p-6 text-center text-[var(--color-text-muted)]">
@@ -37,47 +35,6 @@ export function FinanceModule() {
       <FinanceTabStrip />
       <div className="flex-1 overflow-auto">
         {renderTab()}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Payments tab with sub-view toggle for Payments List vs PDC Tracker.
- */
-function PaymentsTab() {
-  const { t } = useTranslation('finance')
-  const [subView, setSubView] = useState<'list' | 'pdc'>('list')
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Sub-view toggle */}
-      <div className="flex items-center gap-2 px-6 pt-4">
-        <ToggleButton
-          isSelected={subView === 'list'}
-          onChange={() => setSubView('list')}
-          className="rounded-lg px-3 py-1.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] data-[selected]:bg-[#2563EB] data-[selected]:text-white text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 border border-black/10 dark:border-white/10"
-        >
-          {t('payments.list', 'Payments')}
-        </ToggleButton>
-        <ToggleButton
-          isSelected={subView === 'pdc'}
-          onChange={() => setSubView('pdc')}
-          className="rounded-lg px-3 py-1.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] data-[selected]:bg-[#2563EB] data-[selected]:text-white text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 border border-black/10 dark:border-white/10"
-        >
-          {t('payments.pdcTracker', 'PDC Tracker')}
-        </ToggleButton>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto">
-        {subView === 'pdc' ? (
-          <PDCContainer />
-        ) : (
-          <div className="p-6 text-center text-black/40 dark:text-white/40">
-            {t('payments.comingSoon', 'Payment recording coming soon')}
-          </div>
-        )}
       </div>
     </div>
   )
