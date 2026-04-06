@@ -393,7 +393,7 @@ Plans:
   5. Bank reconciliation imports CSV, auto-matches by amount+reference, and surfaces unmatched items
 **Plans**: 8 plans
 Plans:
-- [ ] 20-01-PLAN.md — Types, server functions, store, business logic utilities, shared components, module registration
+- [x] 20-01-PLAN.md — Types, server functions, store, business logic utilities, shared components, module registration
 - [ ] 20-02-PLAN.md — Finance home dashboard + invoicing tab (list, detail, send, credit note)
 - [ ] 20-03-PLAN.md — AR aging (KPI strip, color-coded aging table, sparklines, drill-down, filters)
 - [ ] 20-04-PLAN.md — Payment recording (wire + cheque + LC wizard with invoice allocation)
@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 17. Procurement Module | 5/5 | Complete    | 2026-04-06 |
 | 18. Orders/Operations Module | 4/4 | Complete    | 2026-04-06 |
 | 19. Warehouse Module | 6/6 | Complete    | 2026-04-06 |
-| 20. Finance Module | 0/? | Not started | - |
+| 20. Finance Module | 1/8 | In Progress|  |
 | 21. Dispatch Module | 0/? | Not started | - |
 | 22. Remaining Internal Modules | 0/? | Not started | - |
 | 23. CEO Command Center | 0/? | Not started | - |
