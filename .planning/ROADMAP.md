@@ -353,15 +353,12 @@ Plans:
   1. Fulfillment kanban shows 6 columns (PO Placed through Delivered) with drag-and-drop
   2. Order detail shows per-line-item status, overall progress bar, and activity log
   3. Operations dashboard shows 4 metric cards, bottleneck pipeline, 5 SLA types, and cross-module "Nudge" button
-**Plans**: 8 plans
+**Plans**: 4 plans
 Plans:
-- [ ] 11-01-PLAN.md — Orders window upgrade with 4 data-driven tabs, OrderCard, reorder flow
-- [ ] 11-02-PLAN.md — Market window with infinite scroll, quick-add, filter sidebar
-- [ ] 11-03-PLAN.md — Notifications window with Supabase Realtime, grouped list
-- [ ] 11-04-PLAN.md — Documents + Support windows
-- [x] 11-05-PLAN.md — Order tracking with GPS map, POD flow, favorites, AI suggestions
-- [ ] 11-06-PLAN.md — Settings window with all 8 sections
-- [ ] 11-07-PLAN.md — PWA + Guest order claiming
+- [ ] 18-01-PLAN.md — Operations types, server functions, Zustand store, module registration
+- [ ] 18-02-PLAN.md — Fulfillment kanban with 6 columns, DnD, confirmation dialog
+- [ ] 18-03-PLAN.md — Order detail with line items, progress, activity log, handoff + Nudge
+- [ ] 18-04-PLAN.md — Operations dashboard with metric cards, bottleneck pipeline, SLA tracker
 **UI hint**: yes
 
 ### Phase 19: Warehouse Module
