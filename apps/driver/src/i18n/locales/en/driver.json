@@ -197,6 +197,28 @@
     "weight": "Weight",
     "sig": "Sig"
   },
+  "delivery": {
+    "title": "Delivery",
+    "itemsProgress": "Items Progress",
+    "confirmAll": "Confirm All",
+    "adjustQuantity": "Adjust Quantity",
+    "flagDamage": "Flag Damage",
+    "markComplete": "Mark Delivery Complete",
+    "allItemsRequired": "All items must have a status before completing delivery",
+    "unloadingTime": "Unloading Time",
+    "partialDelivery": "Partial Delivery",
+    "reasonCode": "Reason Code",
+    "damagedAtWarehouse": "Damaged at Warehouse",
+    "notLoaded": "Not Loaded",
+    "customerRequest": "Customer Request",
+    "other": "Other",
+    "damageNotes": "Damage Notes",
+    "damagePhoto": "Damage Photo",
+    "fullQuantity": "Full Qty",
+    "partial": "Partial",
+    "damaged": "Damaged",
+    "refused": "Refused"
+  },
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",

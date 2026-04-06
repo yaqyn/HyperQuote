@@ -197,6 +197,28 @@
     "weight": "الوزن",
     "sig": "التوقيع"
   },
+  "delivery": {
+    "title": "التوصيل",
+    "itemsProgress": "تقدم العناصر",
+    "confirmAll": "تأكيد الكل",
+    "adjustQuantity": "تعديل الكمية",
+    "flagDamage": "إبلاغ عن تلف",
+    "markComplete": "إتمام التوصيل",
+    "allItemsRequired": "يجب تحديد حالة جميع العناصر قبل إتمام التوصيل",
+    "unloadingTime": "وقت التفريغ",
+    "partialDelivery": "توصيل جزئي",
+    "reasonCode": "رمز السبب",
+    "damagedAtWarehouse": "تالف في المستودع",
+    "notLoaded": "لم يتم تحميله",
+    "customerRequest": "طلب العميل",
+    "other": "أخرى",
+    "damageNotes": "ملاحظات التلف",
+    "damagePhoto": "صورة التلف",
+    "fullQuantity": "الكمية كاملة",
+    "partial": "جزئي",
+    "damaged": "تالف",
+    "refused": "مرفوض"
+  },
   "common": {
     "confirm": "تأكيد",
     "cancel": "إلغاء",

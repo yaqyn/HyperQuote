@@ -6,6 +6,7 @@ import { Route as shiftStartRoute } from './routes/shift-start'
 import { Route as routeOverviewRoute } from './routes/route-overview'
 import { Route as stopDetailRoute } from './routes/stop-detail'
 import { Route as loadingRoute } from './routes/loading'
+import { Route as deliveryRoute } from './routes/delivery'
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -14,6 +15,7 @@ const routeTree = rootRoute.addChildren([
   routeOverviewRoute,
   stopDetailRoute,
   loadingRoute,
+  deliveryRoute,
 ])
 
 export const router = createRouter({
