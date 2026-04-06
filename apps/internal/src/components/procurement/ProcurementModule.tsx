@@ -1,21 +1,15 @@
-import { useTranslation } from 'react-i18next'
 import { useProcurementStore } from '../../stores/procurement'
 import { ProcurementTabStrip } from './ProcurementTabStrip'
 import { ProcurementShortcuts } from './ProcurementShortcuts'
 import { ProcurementHomeView } from './home/ProcurementHomeView'
 import { InquiryBuilder } from './inquiry/InquiryBuilder'
 import { ResponseTracker } from './inquiry/ResponseTracker'
-
-function TabPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <p className="text-sm text-black/40 dark:text-white/40">{label}</p>
-    </div>
-  )
-}
+import { PriceComparisonMatrix } from './comparison/PriceComparisonMatrix'
+import { POList } from './po/POList'
+import { SupplierDirectory } from './supplier/SupplierDirectory'
+import { SupplierScorecard } from './supplier/SupplierScorecard'
 
 export function ProcurementModule() {
-  const { t } = useTranslation('internal')
   const activeTab = useProcurementStore((s) => s.activeTab)
   const selectedInquiryId = useProcurementStore((s) => s.selectedInquiryId)
 
@@ -35,10 +29,10 @@ export function ProcurementModule() {
   const tabContent: Record<string, React.ReactNode> = {
     home: <ProcurementHomeView />,
     inquiries: <InquiryBuilder />,
-    comparison: <TabPlaceholder label={t('procurement.tabs.comparison')} />,
-    'po-management': <TabPlaceholder label={t('procurement.tabs.poManagement')} />,
-    directory: <TabPlaceholder label={t('procurement.tabs.directory')} />,
-    scorecard: <TabPlaceholder label={t('procurement.tabs.scorecard')} />,
+    comparison: <PriceComparisonMatrix />,
+    'po-management': <POList />,
+    directory: <SupplierDirectory />,
+    scorecard: <SupplierScorecard />,
   }
 
   return (
@@ -46,7 +40,7 @@ export function ProcurementModule() {
       <ProcurementShortcuts />
       <ProcurementTabStrip />
       <div className="flex-1 overflow-auto">
-        {tabContent[activeTab] ?? <TabPlaceholder label="Unknown tab" />}
+        {tabContent[activeTab] ?? null}
       </div>
     </div>
   )
