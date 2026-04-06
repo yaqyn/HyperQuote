@@ -6,13 +6,16 @@
 	"scripts": {
 		"dev": "vite dev --port 3004",
 		"build": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"test": "vitest"
 	},
 	"dependencies": {
 		"@capacitor-community/sqlite": "^8.1.0",
+		"@capacitor/app": "^8.1.0",
 		"@capacitor/camera": "^8.0.2",
 		"@capacitor/core": "^8.3.0",
 		"@capacitor/device": "^8.0.2",
+		"@capacitor/geolocation": "^8.2.0",
 		"@capacitor/haptics": "^8.0.2",
 		"@capacitor/preferences": "^8.0.1",
 		"@capgo/capacitor-native-biometric": "^8.4.2",
