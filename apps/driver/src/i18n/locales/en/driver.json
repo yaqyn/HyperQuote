@@ -107,6 +107,58 @@
     "dispatchNotes": "Special notes from dispatch",
     "onDuty": "On Duty - Not Driving"
   },
+  "route": {
+    "mapView": "Map View",
+    "listView": "List View",
+    "stopsProgress": "stops",
+    "navigate": "Navigate",
+    "skipStop": "Skip",
+    "skipConfirm": "Confirm Skip",
+    "status": {
+      "pending": "Pending",
+      "en_route": "En Route",
+      "arrived": "Arrived",
+      "completed": "Completed",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
+  },
+  "stopDetail": {
+    "customerName": "Customer",
+    "contactPhone": "Site Contact",
+    "address": "Address",
+    "deliveryWindow": "Delivery Window",
+    "onTime": "On Time",
+    "late": "Late",
+    "soon": "Due Soon",
+    "accessInstructions": "Access Instructions",
+    "ppeRequired": "PPE Required",
+    "ppeAcknowledge": "I confirm PPE is worn and safety requirements are met",
+    "unloadingMethod": "Unloading Method",
+    "moffett": "Moffett (Forklift)",
+    "boom": "Boom (Crane)",
+    "manual": "Manual",
+    "siteEquipment": "Site Equipment",
+    "previousNotes": "Previous Delivery Notes",
+    "items": "Items Manifest",
+    "navigate": "Navigate",
+    "call": "Call Site Contact",
+    "arrived": "Arrived",
+    "reportIssue": "Report Issue",
+    "product": "Product",
+    "quantity": "Qty",
+    "weight": "Weight",
+    "unit": "Unit",
+    "placementInstructions": "Placement Instructions"
+  },
+  "truckBan": {
+    "active": "Cairo truck ban active (6AM-midnight for 5+ ton vehicles)",
+    "nightWindow": "Night delivery window (midnight-6AM)"
+  },
+  "navigation": {
+    "downloadSygic": "Download Sygic Truck Navigation for truck-safe routing",
+    "noNavApp": "No truck navigation app found"
+  },
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",

@@ -178,7 +178,7 @@ function HomePage() {
 
             {/* Start Route button */}
             <DriverButton onPress={() => {
-              // Phase 25 stub — route overview not yet built
+              navigate({ to: '/route-overview' })
             }}>
               {t('home.startRoute', 'Start Route')}
             </DriverButton>
@@ -186,7 +186,7 @@ function HomePage() {
             {/* Action buttons row */}
             <div className="flex gap-3">
               <DriverButton variant="secondary" className="flex-1" onPress={() => {
-                // Phase 25 stub
+                navigate({ to: '/route-overview' })
               }}>
                 {t('home.viewFullRoute', 'View Full Route')}
               </DriverButton>

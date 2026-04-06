@@ -107,6 +107,58 @@
     "dispatchNotes": "ملاحظات خاصة من التوزيع",
     "onDuty": "في الخدمة - غير قائد"
   },
+  "route": {
+    "mapView": "عرض الخريطة",
+    "listView": "عرض القائمة",
+    "stopsProgress": "محطات",
+    "navigate": "تنقل",
+    "skipStop": "تخطي",
+    "skipConfirm": "تأكيد التخطي",
+    "status": {
+      "pending": "قيد الانتظار",
+      "en_route": "في الطريق",
+      "arrived": "وصل",
+      "completed": "مكتمل",
+      "failed": "ف��ل",
+      "skipped": "تم التخطي"
+    }
+  },
+  "stopDetail": {
+    "customerName": "العميل",
+    "contactPhone": "جهة اتصال الموقع",
+    "address": "العنوان",
+    "deliveryWindow": "نافذة التوصيل",
+    "onTime": "في الموعد",
+    "late": "متأخر",
+    "soon": "قريباً",
+    "accessInstructions": "تعليمات الوصول",
+    "ppeRequired": "معدات الحماية مطلوبة",
+    "ppeAcknowledge": "أؤكد ارتداء معدات الحماية واستيفاء متطلبات السلامة",
+    "unloadingMethod": "طريقة التفريغ",
+    "moffett": "موفيت (رافعة شوكية)",
+    "boom": "بوم (رافعة)",
+    "manual": "يدوي",
+    "siteEquipment": "معدات المو��ع",
+    "previousNotes": "ملاحظات التوصيل السابقة",
+    "items": "قائمة المواد",
+    "navigate": "تنقل",
+    "call": "اتصل بجهة الموقع",
+    "arrived": "وصلت",
+    "reportIssue": "إبلاغ عن مشكلة",
+    "product": "المنتج",
+    "quantity": "الكمية",
+    "weight": "الوزن",
+    "unit": "الوحدة",
+    "placementInstructions": "تعليمات التوضيع"
+  },
+  "truckBan": {
+    "active": "حظر الشاحنات في القاهرة نشط (٦ص-١٢م للمركبات ٥+ طن)",
+    "nightWindow": "نافذة التوصيل الليلي (١٢م-٦ص)"
+  },
+  "navigation": {
+    "downloadSygic": "حمّل تطبيق Sygic للملاحة الآمنة للشاحنات",
+    "noNavApp": "لم يتم العثور على تطبيق ملاحة الشاحنات"
+  },
   "common": {
     "confirm": "تأكيد",
     "cancel": "إلغاء",
