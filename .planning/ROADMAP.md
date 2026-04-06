@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 18: Orders/Operations Module** - Fulfillment kanban, order detail, operations dashboard, SLA tracker (completed 2026-04-06)
 - [x] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management (completed 2026-04-06)
 - [x] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports (completed 2026-04-06)
-- [ ] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management
+- [x] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management (completed 2026-04-06)
 - [ ] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant
 - [ ] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA
 - [ ] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR
@@ -414,12 +414,12 @@ Plans:
   4. Driver management tracks license expiry, certifications, and performance metrics
 **Plans**: 6 plans
 Plans:
-- [ ] 21-01a-PLAN.md — Foundation: types, store, constraints (TDD), i18n, map deps
-- [ ] 21-01b-PLAN.md — Server functions, DispatchModule shell, home view, shared components, ModuleWindow
-- [ ] 21-02-PLAN.md — Route planning: split pane, DnD stops, map, optimize, publish
-- [ ] 21-03-PLAN.md — Live GPS map: vehicle pins, clusters, broadcast, sidebar
-- [ ] 21-04-PLAN.md — POD validation + driver management: split-view, checklist, compliance, metrics
-- [ ] 21-05-PLAN.md — Wiring: connect all tabs into DispatchModule + delivery log
+- [x] 21-01a-PLAN.md — Foundation: types, store, constraints (TDD), i18n, map deps
+- [x] 21-01b-PLAN.md — Server functions, DispatchModule shell, home view, shared components, ModuleWindow
+- [x] 21-02-PLAN.md — Route planning: split pane, DnD stops, map, optimize, publish
+- [x] 21-03-PLAN.md — Live GPS map: vehicle pins, clusters, broadcast, sidebar
+- [x] 21-04-PLAN.md — POD validation + driver management: split-view, checklist, compliance, metrics
+- [x] 21-05-PLAN.md — Wiring: connect all tabs into DispatchModule + delivery log
 **UI hint**: yes
 
 ### Phase 22: Remaining Internal Modules
@@ -665,7 +665,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 18. Orders/Operations Module | 4/4 | Complete    | 2026-04-06 |
 | 19. Warehouse Module | 6/6 | Complete    | 2026-04-06 |
 | 20. Finance Module | 8/8 | Complete    | 2026-04-06 |
-| 21. Dispatch Module | 0/? | Not started | - |
+| 21. Dispatch Module | 6/6 | Complete    | 2026-04-06 |
 | 22. Remaining Internal Modules | 0/? | Not started | - |
 | 23. CEO Command Center | 0/? | Not started | - |
 | 24. Driver App Scaffold + Auth + Shift | 0/? | Not started | - |
