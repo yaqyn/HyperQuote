@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 19: Warehouse Module** - Receiving, putaway, picking, staging, cycle count, inventory lookup, yard management (completed 2026-04-06)
 - [x] **Phase 20: Finance Module** - Invoicing, AR aging, payment recording, PDC, AP matching, credit management, bank recon, reports (completed 2026-04-06)
 - [x] **Phase 21: Dispatch Module** - Route planning, live GPS map, POD validation, driver management (completed 2026-04-06)
-- [ ] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant
+- [x] **Phase 22: Remaining Internal Modules** - Customer service, HR, admin, reports, AI assistant (completed 2026-04-06)
 - [ ] **Phase 23: CEO Command Center** - Search bar + lion, cross-entity search, dual AI, attention items, approvals, PWA
 - [ ] **Phase 24: Driver App Scaffold + Auth + Shift** - Capacitor setup, phone OTP + PIN + biometric, pre-trip DVIR
 - [ ] **Phase 25: Driver Route + Delivery + POD** - Route overview, navigation, loading verification, delivery execution, POD capture
@@ -433,11 +433,11 @@ Plans:
   4. AI assistant operates within glass window with role-aware capabilities and safety guardrails (read-only DB, draft-review-confirm)
 **Plans**: 5 plans
 Plans:
-- [ ] 22-01-PLAN.md — Customer Service module: tickets, WhatsApp inbox, SLA tracking, returns/claims
-- [ ] 22-02-PLAN.md — HR module: employee directory, driver compliance, leave, attendance
-- [ ] 22-03-PLAN.md — Admin module: users/roles, settings, margin rules, holidays, audit log
-- [ ] 22-04-PLAN.md — Reports (7 role dashboards) + AI Assistant (chat with mock streaming)
-- [ ] 22-05-PLAN.md — Wire all 5 modules into ModuleWindow + verify build
+- [x] 22-01-PLAN.md — Customer Service module: tickets, WhatsApp inbox, SLA tracking, returns/claims
+- [x] 22-02-PLAN.md — HR module: employee directory, driver compliance, leave, attendance
+- [x] 22-03-PLAN.md — Admin module: users/roles, settings, margin rules, holidays, audit log
+- [x] 22-04-PLAN.md — Reports (7 role dashboards) + AI Assistant (chat with mock streaming)
+- [x] 22-05-PLAN.md — Wire all 5 modules into ModuleWindow + verify build
 **UI hint**: yes
 
 ### Phase 23: CEO Command Center
@@ -664,7 +664,7 @@ Phases 13-14 should complete before Phase 15 starts. They can run parallel with 
 | 19. Warehouse Module | 6/6 | Complete    | 2026-04-06 |
 | 20. Finance Module | 8/8 | Complete    | 2026-04-06 |
 | 21. Dispatch Module | 6/6 | Complete    | 2026-04-06 |
-| 22. Remaining Internal Modules | 0/? | Not started | - |
+| 22. Remaining Internal Modules | 5/5 | Complete    | 2026-04-06 |
 | 23. CEO Command Center | 0/? | Not started | - |
 | 24. Driver App Scaffold + Auth + Shift | 0/? | Not started | - |
 | 25. Driver Route + Delivery + POD | 0/? | Not started | - |
