@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Outlet, createFileRoute } from '@tanstack/react-router'
-import { authGuard } from '@hyperquote/auth'
+import { createServerFn } from '@tanstack/react-start'
 import { InternalCommandPalette } from '../components/command-palette/InternalCommandPalette'
 import { IconStrip } from '../components/shell/IconStrip'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
@@ -12,27 +12,30 @@ import { useInternalStore } from '../stores/internal'
 import { useNotificationStore } from '../stores/notifications'
 import { keyboardScopeStore } from '../stores/keyboard-scope'
 
+const getAuthSession = createServerFn({ method: 'GET' }).handler(async () => {
+  // Dev mode fallback: skip auth when Supabase is not configured
+  if (!process.env.VITE_SUPABASE_URL) {
+    return {
+      session: null as any,
+      user: { user_metadata: { name: 'Dev User' } } as any,
+      pool: 'internal' as const,
+      roles: ['admin'],
+      tenantId: 'dev-tenant',
+    }
+  }
+
+  const { authGuard } = await import('@hyperquote/auth')
+  return authGuard({
+    supabaseUrl: process.env.VITE_SUPABASE_URL!,
+    supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY!,
+    requiredPool: 'internal',
+    loginPath: '/login',
+  })
+})
+
 export const Route = createFileRoute('/_internal')({
   beforeLoad: async () => {
-    // Dev mode fallback: skip auth when Supabase is not configured
-    if (!import.meta.env.VITE_SUPABASE_URL) {
-      return {
-        auth: {
-          session: null as any,
-          user: { user_metadata: { name: 'Dev User' } } as any,
-          pool: 'internal' as const,
-          roles: ['admin'],
-          tenantId: 'dev-tenant',
-        },
-      }
-    }
-
-    const auth = await authGuard({
-      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-      supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      requiredPool: 'internal',
-      loginPath: '/login',
-    })
+    const auth = await getAuthSession()
     return { auth }
   },
   component: InternalLayout,

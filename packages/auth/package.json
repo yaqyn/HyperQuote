@@ -9,6 +9,7 @@
 		"./client": "./src/client.ts",
 		"./guard": "./src/guard.ts",
 		"./session": "./src/session.ts",
+		"./permissions": "./src/permissions.ts",
 		"./types": "./src/types.ts",
 		"./rate-limit": "./src/rate-limit.ts"
 	},

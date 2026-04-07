@@ -5,5 +5,5 @@ export {
   checkOTPVerifyLimit,
   clearRateLimit,
   getKVNamespace,
-} from '@hyperquote/auth'
-export type { RateLimitOptions, RateLimitResult } from '@hyperquote/auth'
+} from '@hyperquote/auth/rate-limit'
+export type { RateLimitOptions, RateLimitResult } from '@hyperquote/auth/rate-limit'

@@ -5,7 +5,7 @@
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getServerSession } from '@hyperquote/auth'
+import { getServerSession } from '@hyperquote/auth/session'
 
 // ============================================================================
 // Public columns whitelist -- NEVER expose cost fields to clients

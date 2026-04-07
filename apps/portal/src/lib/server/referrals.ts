@@ -4,7 +4,7 @@
  * Dev mode fallback when Supabase not configured.
  */
 import { createServerFn } from '@tanstack/react-start'
-import { getServerSession } from '@hyperquote/auth'
+import { getServerSession } from '@hyperquote/auth/session'
 import type { ReferralStats } from '../../types/settings'
 
 // ============================================================================

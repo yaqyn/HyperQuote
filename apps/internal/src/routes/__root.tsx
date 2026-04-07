@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from 'react-aria-components'
+import '../lib/i18n'
 import styles from '../styles.css?url'
 
 export const Route = createRootRoute({

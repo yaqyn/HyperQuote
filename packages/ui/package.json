@@ -4,7 +4,10 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./glass/GlassWindow": "./src/glass/GlassWindow.tsx",
+		"./glass/GlassElevated": "./src/glass/GlassElevated.tsx",
+		"./brand/LionMark": "./src/brand/LionMark.tsx"
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",

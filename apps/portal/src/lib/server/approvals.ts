@@ -5,7 +5,7 @@
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getServerSession } from '@hyperquote/auth'
+import { getServerSession } from '@hyperquote/auth/session'
 
 // ============================================================================
 // Helpers

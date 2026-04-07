@@ -1,12 +1,8 @@
-export { createSupabaseServerClient } from './server'
+// Client-safe exports only — no server-only imports in this barrel.
+// Server-only functions available via subpath imports:
+//   @hyperquote/auth/server  → createSupabaseServerClient
+//   @hyperquote/auth/guard   → authGuard
+//   @hyperquote/auth/session → getServerSession
 export { createSupabaseBrowserClient } from './client'
-export { authGuard } from './guard'
-export { getServerSession, hasPermission } from './session'
-export {
-  checkRateLimit,
-  checkOTPVerifyLimit,
-  clearRateLimit,
-  getKVNamespace,
-} from './rate-limit'
+export { hasPermission } from './permissions'
 export type { AuthSession, AuthGuardOptions } from './types'
-export type { RateLimitOptions, RateLimitResult } from './rate-limit'

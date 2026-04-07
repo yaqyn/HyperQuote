@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@hyperquote/auth/server'
-import { getServerSession } from '@hyperquote/auth'
+import { getServerSession } from '@hyperquote/auth/session'
 import type { AuthSession } from '@hyperquote/auth'
 import { getRequest } from '@tanstack/react-start/server'
 import {
@@ -9,7 +9,7 @@ import {
   checkOTPVerifyLimit,
   clearRateLimit,
   getKVNamespace,
-} from '@hyperquote/auth'
+} from '@hyperquote/auth/rate-limit'
 
 // ============================================================================
 // Input Schemas
