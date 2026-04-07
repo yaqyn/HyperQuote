@@ -22,13 +22,13 @@ function formatRemaining(ms: number): string {
   return `${minutes}m`
 }
 
-function getColorClass(ms: number): string {
+function getUrgencyClass(ms: number): string {
   const hours = ms / (1000 * 60 * 60)
 
-  if (hours <= 0) return 'text-red-600 animate-pulse'
-  if (hours < 4) return 'text-red-600'
-  if (hours < 24) return 'text-yellow-600'
-  return 'text-green-600'
+  if (hours <= 0) return 'text-[var(--color-text)] animate-pulse'
+  if (hours < 4) return 'text-[var(--color-text)]'
+  if (hours < 24) return 'text-[var(--color-text-muted)]'
+  return 'text-[var(--color-text-subtle)]'
 }
 
 export function DeadlineCountdown({ deadline }: DeadlineCountdownProps) {
@@ -46,7 +46,7 @@ export function DeadlineCountdown({ deadline }: DeadlineCountdownProps) {
 
   return (
     <span
-      className={`font-[family-name:var(--font-geist-mono)] text-sm tabular-nums ${getColorClass(remainingMs)}`}
+      className={`font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums ${getUrgencyClass(remainingMs)}`}
     >
       {formatRemaining(remainingMs)}
     </span>

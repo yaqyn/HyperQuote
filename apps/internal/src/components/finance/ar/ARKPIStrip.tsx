@@ -1,17 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { CurrencyCell } from '../shared/CurrencyCell'
 
-interface ARKPICard {
-  key: string
-  label: string
-  value: number
-  isCurrency: boolean
-  suffix?: string
-  trend?: { direction: 'up' | 'down'; isGood: boolean }
-  highlight?: boolean
-  filterAction?: () => void
-}
-
 interface ARKPIStripProps {
   totalOutstanding: number
   dso: number
@@ -25,10 +14,8 @@ interface ARKPIStripProps {
 }
 
 /**
- * Horizontal KPI card strip for AR view.
- * 5 glass panel cards: Total Outstanding, DSO, CEI%, Overdue, Collections.
- * Each card clickable to filter table below.
- * All amounts via CurrencyCell (Geist Mono).
+ * 4 metrics in a tight row — Total AR, DSO, Collection Rate, At-Risk Amount.
+ * Large mono numbers, tiny labels below. Bloomberg density.
  */
 export function ARKPIStrip({
   totalOutstanding,
@@ -44,113 +31,85 @@ export function ARKPIStrip({
   const { t } = useTranslation('finance')
 
   const dsoDelta = dso - dsoPrior
-  // For DSO, lower is better -> down is good
-  const dsoTrend: ARKPICard['trend'] =
-    dsoDelta !== 0
-      ? { direction: dsoDelta > 0 ? 'up' : 'down', isGood: dsoDelta < 0 }
-      : undefined
-
   const collectionsPercent =
     collectionsTarget > 0
       ? Math.round((currentCollections / collectionsTarget) * 100)
       : 0
 
-  const cards: ARKPICard[] = [
+  const metrics: {
+    key: string
+    label: string
+    content: React.ReactNode
+    sub?: React.ReactNode
+    warn?: boolean
+  }[] = [
     {
       key: 'totalOutstanding',
-      label: t('ar.kpi.totalOutstanding', 'Total Outstanding'),
-      value: totalOutstanding,
-      isCurrency: true,
-      filterAction: () => onCardClick?.('totalOutstanding'),
+      label: t('ar.kpi.totalOutstanding', 'Total AR'),
+      content: <CurrencyCell amount={totalOutstanding} className="text-2xl" subtle />,
     },
     {
       key: 'dso',
       label: t('ar.kpi.dso', 'DSO'),
-      value: dso,
-      isCurrency: false,
-      suffix: t('ar.kpi.days', 'days'),
-      trend: dsoTrend,
-      filterAction: () => onCardClick?.('dso'),
-    },
-    {
-      key: 'cei',
-      label: t('ar.kpi.cei', 'CEI %'),
-      value: cei,
-      isCurrency: false,
-      suffix: '%',
-      filterAction: () => onCardClick?.('cei'),
-    },
-    {
-      key: 'overdue',
-      label: t('ar.kpi.overdue', 'Overdue Amount'),
-      value: overdueAmount,
-      isCurrency: true,
-      highlight: overdueAmount > overdueThreshold,
-      filterAction: () => onCardClick?.('overdue'),
+      content: (
+        <div className="flex items-baseline gap-2">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl">
+            {dso}
+          </span>
+          <span className="text-xs text-black/40 dark:text-white/40">
+            {t('ar.kpi.days', 'days')}
+          </span>
+        </div>
+      ),
+      sub: dsoDelta !== 0 ? (
+        <span
+          className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${dsoDelta < 0 ? 'text-green-600' : 'text-red-600'}`}
+        >
+          {dsoDelta > 0 ? '\u2191' : '\u2193'}{Math.abs(dsoDelta)} {t('ar.kpi.vsPrior', 'vs prior')}
+        </span>
+      ) : undefined,
     },
     {
       key: 'collections',
-      label: t('ar.kpi.collections', 'Collections'),
-      value: currentCollections,
-      isCurrency: true,
-      suffix: `${collectionsPercent}% ${t('ar.kpi.ofTarget', 'of target')}`,
-      filterAction: () => onCardClick?.('collections'),
+      label: t('ar.kpi.collections', 'Collection Rate'),
+      content: (
+        <div className="flex items-baseline gap-1">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl">
+            {collectionsPercent}
+          </span>
+          <span className="text-sm text-black/30 dark:text-white/30">%</span>
+        </div>
+      ),
+      sub: (
+        <span className="text-xs text-black/40 dark:text-white/40">
+          CEI {cei}%
+        </span>
+      ),
+    },
+    {
+      key: 'overdue',
+      label: t('ar.kpi.overdue', 'At-Risk'),
+      content: <CurrencyCell amount={overdueAmount} className="text-2xl" subtle />,
+      warn: overdueAmount > overdueThreshold,
     },
   ]
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
-      {cards.map((card) => (
+    <div className="grid grid-cols-4 gap-px bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden">
+      {metrics.map((m) => (
         <button
-          key={card.key}
+          key={m.key}
           type="button"
-          onClick={card.filterAction}
-          className={`flex-1 min-w-[180px] rounded-xl border backdrop-blur-sm p-4 text-start transition-colors
-            ${
-              card.highlight
-                ? 'border-red-300 bg-red-50/60 dark:border-red-800 dark:bg-red-950/40'
-                : 'border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60'
-            }
-            hover:border-[#2563EB]/40 hover:bg-[#2563EB]/5 cursor-pointer`}
+          onClick={() => onCardClick?.(m.key)}
+          className={`bg-white dark:bg-black px-4 py-3 text-start cursor-pointer transition-colors hover:bg-[#2563EB]/[0.03] ${
+            m.warn ? 'border-s-2 border-red-500' : ''
+          }`}
         >
-          <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-            {card.label}
+          <div className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+            {m.label}
           </div>
-          <div className="flex items-baseline gap-2">
-            {card.isCurrency ? (
-              <CurrencyCell amount={card.value} className="text-2xl" />
-            ) : (
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl">
-                {card.value}
-              </span>
-            )}
-            {card.suffix && !card.isCurrency && (
-              <span className="text-xs text-black/40 dark:text-white/40">
-                {card.suffix}
-              </span>
-            )}
-          </div>
-          {card.trend && (
-            <div
-              className={`mt-1 flex items-center gap-1 text-xs ${
-                card.trend.isGood ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
-              <span>{card.trend.direction === 'up' ? '\u2191' : '\u2193'}</span>
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {Math.abs(dso - dsoPrior)}
-              </span>
-              <span>{t('ar.kpi.vsPrior', 'vs prior')}</span>
-            </div>
-          )}
-          {card.key === 'collections' && (
-            <div className="mt-1 text-xs text-black/40 dark:text-white/40">
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {collectionsPercent}%
-              </span>{' '}
-              {t('ar.kpi.ofTarget', 'of target')}
-            </div>
-          )}
+          {m.content}
+          {m.sub && <div className="mt-0.5">{m.sub}</div>}
         </button>
       ))}
     </div>

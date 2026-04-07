@@ -22,9 +22,9 @@ describe('Order Detail (OPS-02)', () => {
       expect(src).toContain('font-geist-mono')
     })
 
-    it('renders back button that resets to kanban', () => {
+    it('renders back button that resets to operations', () => {
       expect(src).toContain('ChevronLeft')
-      expect(src).toContain("setActiveTab('kanban')")
+      expect(src).toContain("setActiveTab('operations')")
     })
 
     it('includes all sub-components', () => {

@@ -17,76 +17,115 @@ const DOCUMENT_TYPES: PODocument[] = [
   { type: 'inspection_report', label: 'Inspection Reports', status: 'not_required' },
 ]
 
-const STATUS_STYLES: Record<DocumentStatus, string> = {
-  available: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-  pending: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300',
-  not_required: 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40',
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  po_pdf: (
+    <svg className="size-5" viewBox="0 0 20 20" fill="none">
+      <rect x="4" y="2" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 7h4M8 10h4M8 13h2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  ),
+  supplier_confirmation: (
+    <svg className="size-5" viewBox="0 0 20 20" fill="none">
+      <rect x="4" y="2" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M7.5 10L9 11.5L12.5 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  bol: (
+    <svg className="size-5" viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M7 8h6M7 11h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  ),
+  supplier_invoice: (
+    <svg className="size-5" viewBox="0 0 20 20" fill="none">
+      <rect x="4" y="2" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 7h4M8 10h4M8 13h4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  ),
+  inspection_report: (
+    <svg className="size-5" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M10 7v3.5l2 1.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 }
 
 /**
- * PO Documents section -- list of document types with view/download.
+ * PO Documents section -- file grid with type icons.
  * PDF generation is Phase 28, so actions are mock.
  */
 export function PODocuments() {
   const { t } = useTranslation('internal')
 
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
-      <h4 className="text-sm font-semibold mb-3">Documents</h4>
+    <section>
+      <h4 className="text-[11px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30 mb-3">
+        Documents
+      </h4>
 
-      <div className="space-y-2">
+      {/* File grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {DOCUMENT_TYPES.map((doc) => (
           <div
             key={doc.type}
-            className="flex items-center justify-between rounded-md bg-black/[0.02] dark:bg-white/[0.02] px-3 py-2"
+            className={`
+              group flex flex-col items-center gap-2 rounded-xl p-4 text-center transition-colors
+              ${doc.status === 'available'
+                ? 'bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] cursor-pointer'
+                : 'bg-black/[0.01] dark:bg-white/[0.01]'
+              }
+            `}
           >
-            <div className="flex items-center gap-2">
-              <svg className="h-4 w-4 text-black/30 dark:text-white/30" viewBox="0 0 16 16" fill="none">
-                <path d="M4 2H10L12 4V14H4V2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                <path d="M10 2V4H12" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-              <span className="text-xs font-medium">{doc.label}</span>
+            {/* Icon */}
+            <div className={`
+              ${doc.status === 'available'
+                ? 'text-black/50 dark:text-white/50'
+                : doc.status === 'pending'
+                  ? 'text-black/20 dark:text-white/20'
+                  : 'text-black/10 dark:text-white/10'
+              }
+            `}>
+              {TYPE_ICONS[doc.type] ?? TYPE_ICONS.po_pdf}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[doc.status]}`}>
-                {doc.status === 'not_required' ? 'Not Required' : doc.status === 'available' ? 'Available' : 'Pending'}
-              </span>
+            {/* Label */}
+            <span className={`text-[11px] leading-tight ${
+              doc.status === 'available'
+                ? 'text-black/60 dark:text-white/60'
+                : 'text-black/25 dark:text-white/25'
+            }`}>
+              {doc.label}
+            </span>
 
-              {doc.status === 'available' && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    className="rounded-md border border-black/10 px-2 py-0.5 text-[10px] font-medium text-black/60
-                      outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                      dark:border-white/10 dark:text-white/60 dark:data-[hovered]:bg-white/10"
-                    onPress={() => {/* Mock: Phase 28 */}}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    className="rounded-md border border-black/10 px-2 py-0.5 text-[10px] font-medium text-black/60
-                      outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                      dark:border-white/10 dark:text-white/60 dark:data-[hovered]:bg-white/10"
-                    onPress={() => {/* Mock: Phase 28 */}}
-                  >
-                    Download
-                  </Button>
-                </div>
-              )}
-            </div>
+            {/* Status indicator */}
+            {doc.status === 'available' ? (
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  className="rounded-md px-2 py-0.5 text-[9px] font-medium text-[#2563EB] outline-none
+                    data-[hovered]:bg-[#2563EB]/10 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+                  onPress={() => {/* Mock: Phase 28 */}}
+                >
+                  View
+                </Button>
+              </div>
+            ) : doc.status === 'pending' ? (
+              <span className="text-[9px] text-black/20 dark:text-white/20">Pending</span>
+            ) : (
+              <span className="text-[9px] text-black/15 dark:text-white/15">N/A</span>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Upload area (mock) */}
-      <div className="mt-3 rounded-lg border-2 border-dashed border-black/10 dark:border-white/10 p-4 text-center">
-        <p className="text-xs text-black/40 dark:text-white/40">
-          Drag and drop supplier confirmation here
+      {/* Upload area */}
+      <div className="mt-3 rounded-xl border border-dashed border-black/[0.08] dark:border-white/[0.08] p-5 text-center">
+        <p className="text-[11px] text-black/25 dark:text-white/25">
+          Drop supplier documents here
         </p>
-        <p className="text-[10px] text-black/30 dark:text-white/30 mt-1">
-          PDF, JPG, or PNG up to 10MB
+        <p className="text-[9px] text-black/15 dark:text-white/15 mt-0.5">
+          PDF, JPG, PNG up to 10MB
         </p>
       </div>
-    </div>
+    </section>
   )
 }

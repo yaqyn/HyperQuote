@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ComboBox, Input, ListBox, ListBoxItem, Popover, Label } from 'react-aria-components'
+import { ComboBox, Input, ListBox, ListBoxItem, Popover, Label, Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getSupplierDirectory } from '../../../lib/server/procurement-suppliers'
@@ -18,6 +18,40 @@ function getStockFreshness(avgResponseDays: number): StockFreshness {
   if (avgResponseDays <= 7) return 'stale'
   return 'suppressed'
 }
+
+// ─── Supplier Pill ───────────────────────────────────────
+
+function SupplierPill({
+  name,
+  tier,
+  onRemove,
+}: {
+  name: string
+  tier: string
+  onRemove: () => void
+}) {
+  const { t } = useTranslation('internal')
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-black/[0.04] py-0.5 pe-1 ps-2 text-[12px] dark:bg-white/[0.04]">
+      <span className="max-w-[100px] truncate font-medium text-[var(--color-text)]">{name}</span>
+      <span className="text-[10px] text-[var(--color-text-subtle)]">
+        {t(`procurement.tier.${tier}`)}
+      </span>
+      <Button
+        onPress={onRemove}
+        aria-label={`Remove ${name}`}
+        className="ms-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-sm outline-none transition-colors
+          data-[hovered]:bg-black/[0.06] dark:data-[hovered]:bg-white/[0.06]
+          data-[focus-visible]:ring-1 data-[focus-visible]:ring-[var(--color-primary)]/40"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </Button>
+    </span>
+  )
+}
+
+// ─── Main Selector ───────────────────────────────────────
 
 export function SupplierSelector({ productId, selectedIds, onSelectionChange }: SupplierSelectorProps) {
   const { t } = useTranslation('internal')
@@ -46,16 +80,25 @@ export function SupplierSelector({ productId, selectedIds, onSelectionChange }: 
     }
   }
 
+  const selectedSuppliers = suppliers.filter((s) => selectedIds.includes(s.supplierId))
+
   return (
-    <div className="flex flex-col gap-2">
-      {/* Selected count badge */}
-      {selectedIds.length > 0 && (
-        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-xs text-[#2563EB]">
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{selectedIds.length}</span>
-          {t('procurement.inquiry.suppliersSelected')}
-        </span>
+    <div className="flex flex-col gap-1.5">
+      {/* Selected supplier pills */}
+      {selectedSuppliers.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedSuppliers.map((s) => (
+            <SupplierPill
+              key={s.supplierId}
+              name={s.supplierName}
+              tier={s.tier}
+              onRemove={() => toggleSupplier(s.supplierId)}
+            />
+          ))}
+        </div>
       )}
 
+      {/* Search + dropdown */}
       <ComboBox
         inputValue={search}
         onInputChange={setSearch}
@@ -64,13 +107,13 @@ export function SupplierSelector({ productId, selectedIds, onSelectionChange }: 
         <Label className="sr-only">{t('procurement.inquiry.searchSuppliers')}</Label>
         <Input
           placeholder={t('procurement.inquiry.searchSuppliers')}
-          className="w-full rounded-lg border border-black/10 bg-white/60 px-3 py-1.5 text-sm outline-none backdrop-blur-xl transition-colors focus:border-[#2563EB] dark:border-white/10 dark:bg-black/60"
+          className="w-full border-b border-black/[0.06] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] dark:border-white/[0.06]"
         />
-        <Popover className="w-[var(--trigger-width)] rounded-xl border border-black/10 bg-white/95 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-black/95">
+        <Popover className="w-[var(--trigger-width)] rounded-xl border border-black/[0.06] bg-white/95 shadow-xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/95">
           <ListBox
             className="max-h-60 overflow-auto p-1"
             renderEmptyState={() => (
-              <div className="px-3 py-2 text-sm text-black/40 dark:text-white/40">
+              <div className="px-3 py-2 text-[12px] text-[var(--color-text-subtle)]">
                 {t('procurement.inquiry.noSuppliersFound')}
               </div>
             )}
@@ -83,45 +126,43 @@ export function SupplierSelector({ productId, selectedIds, onSelectionChange }: 
                   id={supplier.supplierId}
                   textValue={supplier.supplierName}
                   onAction={() => toggleSupplier(supplier.supplierId)}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 outline-none transition-colors data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none transition-colors
+                    data-[hovered]:bg-black/[0.03] dark:data-[hovered]:bg-white/[0.03]
+                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
                 >
-                  {/* Checkbox */}
+                  {/* Check indicator */}
                   <div
-                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                    className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm transition-colors ${
                       isSelected
-                        ? 'border-[#2563EB] bg-[#2563EB] text-white'
-                        : 'border-black/20 dark:border-white/20'
+                        ? 'bg-[var(--color-primary)] text-white'
+                        : 'border border-black/[0.12] dark:border-white/[0.12]'
                     }`}
                   >
                     {isSelected && (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                     )}
                   </div>
 
-                  {/* Supplier info */}
-                  <div className="flex flex-1 flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-medium truncate">{supplier.supplierName}</span>
-                    <div className="flex items-center gap-3 text-xs text-black/50 dark:text-white/50">
-                      <span>
-                        {t('procurement.inquiry.onTime')}:{' '}
-                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                          {supplier.onTimeDeliveryRate}%
-                        </span>
-                      </span>
-                      <span>
-                        {t('procurement.inquiry.score')}:{' '}
-                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                          {supplier.overallScore}
-                        </span>
-                      </span>
-                      <FreshnessIndicator freshness={getStockFreshness(supplier.avgResponseTimeDays)} compact />
-                    </div>
+                  {/* Supplier info — single compact line */}
+                  <div className="flex flex-1 items-center gap-2 min-w-0">
+                    <span className="truncate text-[13px] font-medium text-[var(--color-text)]">
+                      {supplier.supplierName}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-[var(--color-text-subtle)]">
+                      {t(`procurement.tier.${supplier.tier}`)}
+                    </span>
                   </div>
 
-                  {/* Tier badge */}
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getTierStyle(supplier.tier)}`}>
-                    {t(`procurement.tier.${supplier.tier}`)}
-                  </span>
+                  {/* Metrics */}
+                  <div className="flex shrink-0 items-center gap-2.5">
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                      {supplier.onTimeDeliveryRate}%
+                    </span>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                      {supplier.overallScore}
+                    </span>
+                    <FreshnessIndicator freshness={getStockFreshness(supplier.avgResponseTimeDays)} compact />
+                  </div>
                 </ListBoxItem>
               )
             })}
@@ -130,17 +171,4 @@ export function SupplierSelector({ productId, selectedIds, onSelectionChange }: 
       </ComboBox>
     </div>
   )
-}
-
-function getTierStyle(tier: string): string {
-  switch (tier) {
-    case 'preferred':
-      return 'bg-[#2563EB]/10 text-[#2563EB]'
-    case 'approved':
-      return 'bg-green-500/10 text-green-600 dark:text-green-400'
-    case 'conditional':
-      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-    default:
-      return 'bg-black/5 text-black/50 dark:bg-white/5 dark:text-white/50'
-  }
 }

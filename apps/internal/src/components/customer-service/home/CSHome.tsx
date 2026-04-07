@@ -1,33 +1,20 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
 import { getTicketQueue } from '../../../lib/server/customer-service'
 import { getWhatsAppInbox, getReturnsClaims } from '../../../lib/server/customer-service'
+import { useCustomerServiceStore } from '../../../stores/customer-service'
 import type { TicketPriority } from '../../../types/customer-service'
 
-// ─── Glass panel wrapper ────────────────────────────────
-
-function GlassPanel({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={`rounded-2xl border border-black/5 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-5 ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
 /**
- * CS Home view — overview dashboard with 4 glass panels.
- * Open tickets by priority, unread WhatsApp, SLA status, active returns.
+ * CS Home — "The Queue"
+ * Live stats strip + priority queue of tickets sorted by urgency.
+ * Data is the design. No glass panels, no cards — raw data, large mono numbers.
  */
 export function CSHome() {
   const { t } = useTranslation('customer-service')
+  const setActiveTab = useCustomerServiceStore((s) => s.setActiveTab)
+  const setSelectedTicketId = useCustomerServiceStore((s) => s.setSelectedTicketId)
 
   const { data: tickets } = useQuery({
     queryKey: ['cs', 'tickets'],
@@ -49,167 +36,197 @@ export function CSHome() {
 
   if (!tickets || !conversations || !returnsClaims) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="p-5 text-center text-[var(--color-text-subtle)]">
         Loading...
       </div>
     )
   }
 
-  // Compute ticket counts by priority
+  // Compute stats
   const openTickets = tickets.filter((t) => t.status !== 'resolved' && t.status !== 'closed')
-  const priorityCounts: Record<TicketPriority, number> = {
-    critical: openTickets.filter((t) => t.priority === 'critical').length,
-    high: openTickets.filter((t) => t.priority === 'high').length,
-    medium: openTickets.filter((t) => t.priority === 'medium').length,
-    low: openTickets.filter((t) => t.priority === 'low').length,
-  }
 
-  // Oldest ticket age
-  const oldestTicket = openTickets.length > 0
-    ? openTickets.reduce((oldest, ticket) =>
-        new Date(ticket.createdAt) < new Date(oldest.createdAt) ? ticket : oldest
+  // Avg response time (mock from SLA data)
+  const avgResponseMin = openTickets.length > 0
+    ? Math.round(
+        openTickets.reduce((sum, t) => {
+          const age = Date.now() - new Date(t.createdAt).getTime()
+          return sum + age / (1000 * 60)
+        }, 0) / openTickets.length,
       )
-    : null
-  const oldestAgeHours = oldestTicket
-    ? Math.round((Date.now() - new Date(oldestTicket.createdAt).getTime()) / (1000 * 60 * 60))
     : 0
 
-  // WhatsApp unread count
-  const unreadCount = conversations.filter((c) => c.unread).length
+  // Resolution rate
+  const resolvedCount = tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length
+  const resolutionRate = tickets.length > 0 ? Math.round((resolvedCount / tickets.length) * 100) : 0
 
-  // Active returns/claims count
-  const activeClaimsCount = returnsClaims.claims.filter((c) => c.status !== 'settled').length
-  const activeReturnsCount = returnsClaims.returns.filter((r) => r.status !== 'credit_issued').length
+  // Active returns
+  const activeReturnsCount =
+    returnsClaims.claims.filter((c) => c.status !== 'settled').length +
+    returnsClaims.returns.filter((r) => r.status !== 'credit_issued').length
 
-  // SLA mock percentages (computed dynamically from ticket data)
-  const totalOpen = openTickets.length || 1
-  const breachedCount = openTickets.filter((t) => new Date(t.slaDeadline) < new Date()).length
-  const atRiskCount = openTickets.filter((t) => {
-    const deadline = new Date(t.slaDeadline).getTime()
-    const now = Date.now()
-    const remaining = deadline - now
-    const total = deadline - new Date(t.createdAt).getTime()
-    return remaining > 0 && remaining / total < 0.2
-  }).length
-  const onTrackCount = totalOpen - breachedCount - atRiskCount
-  const onTrackPct = Math.round((onTrackCount / totalOpen) * 100)
-  const atRiskPct = Math.round((atRiskCount / totalOpen) * 100)
-  const breachedPct = Math.round((breachedCount / totalOpen) * 100)
+  // Priority queue — sorted by urgency (critical first, then by SLA deadline)
+  const priorityOrder: Record<TicketPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+  const queue = [...openTickets].sort((a, b) => {
+    const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+    if (pDiff !== 0) return pDiff
+    return new Date(a.slaDeadline).getTime() - new Date(b.slaDeadline).getTime()
+  })
 
-  const PRIORITY_COLORS: Record<TicketPriority, string> = {
-    critical: 'text-red-600 dark:text-red-400',
-    high: 'text-orange-600 dark:text-orange-400',
-    medium: 'text-[#2563EB]',
-    low: 'text-black/50 dark:text-white/50',
-  }
+  const stats = [
+    {
+      label: t('home.openTickets', 'Open Tickets'),
+      value: openTickets.length,
+      color: openTickets.length > 0 ? 'text-[var(--color-text)]' : 'text-[var(--color-text-subtle)]',
+    },
+    {
+      label: t('home.avgResponse', 'Avg Response'),
+      value: avgResponseMin > 60 ? `${Math.round(avgResponseMin / 60)}h` : `${avgResponseMin}m`,
+      color: 'text-[var(--color-text)]',
+    },
+    {
+      label: t('home.resolutionRate', 'Resolution Rate'),
+      value: `${resolutionRate}%`,
+      color: resolutionRate >= 80 ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text)]',
+    },
+    {
+      label: t('home.activeReturns', 'Active Returns'),
+      value: activeReturnsCount,
+      color: activeReturnsCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--color-text-subtle)]',
+    },
+  ]
 
   return (
-    <div className="p-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* 1. Open tickets by priority */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-4">
-            {t('home.openTickets', 'Open Tickets')}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            {(['critical', 'high', 'medium', 'low'] as TicketPriority[]).map((priority) => (
-              <div key={priority}>
-                <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                  {t(`priority.${priority}`, priority)}
-                </div>
-                <div className={`text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums ${PRIORITY_COLORS[priority]}`}>
-                  {priorityCounts[priority]}
-                </div>
-              </div>
-            ))}
+    <div className="p-5 space-y-6">
+      {/* Stats strip */}
+      <div className="flex items-baseline gap-8 border-b border-[var(--color-border)] pb-5">
+        {stats.map((stat) => (
+          <div key={stat.label}>
+            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
+              {stat.label}
+            </div>
+            <div className={`text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums ${stat.color}`}>
+              {stat.value}
+            </div>
           </div>
-          {oldestTicket && (
-            <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-              {t('home.oldestAge', 'Oldest')}:{' '}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {oldestAgeHours}h
-              </span>
+        ))}
+      </div>
+
+      {/* Priority queue */}
+      <div>
+        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+          {t('home.priorityQueue', 'Priority Queue')}
+        </div>
+
+        <div className="flex flex-col">
+          <AnimatePresence mode="popLayout">
+            {queue.map((ticket) => {
+              const sla = computeSLA(ticket.slaDeadline)
+              const isUnresponded = ticket.status === 'new' || ticket.status === 'open'
+
+              return (
+                <motion.button
+                  key={ticket.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  onClick={() => {
+                    setSelectedTicketId(ticket.id)
+                    setActiveTab('conversations')
+                  }}
+                  className={`group flex items-center gap-4 px-3 py-2.5 -mx-3 rounded-lg cursor-pointer transition-colors
+                    hover:bg-black/[0.03] dark:hover:bg-white/[0.03]
+                    ${isUnresponded ? 'border-s-2 border-[var(--color-primary)] ps-2.5' : 'border-s-2 border-transparent ps-2.5'}`}
+                >
+                  {/* Ticket number */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-subtle)] w-16 shrink-0 text-start">
+                    {ticket.number}
+                  </span>
+
+                  {/* Customer */}
+                  <span className="text-sm text-[var(--color-text-muted)] w-32 shrink-0 truncate text-start">
+                    {ticket.customerName}
+                  </span>
+
+                  {/* Subject */}
+                  <span className="text-sm text-[var(--color-text)] flex-1 truncate text-start">
+                    {ticket.subject}
+                  </span>
+
+                  {/* Age */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-subtle)] w-12 shrink-0 text-end">
+                    {formatAge(ticket.createdAt)}
+                  </span>
+
+                  {/* SLA countdown */}
+                  <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-medium w-14 shrink-0 text-end ${sla.color}`}>
+                    {sla.label}
+                  </span>
+
+                  {/* Status dot */}
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot(ticket.priority)}`} />
+                </motion.button>
+              )
+            })}
+          </AnimatePresence>
+
+          {queue.length === 0 && (
+            <div className="py-12 text-center text-sm text-[var(--color-text-subtle)]">
+              {t('home.allClear', 'All clear — no open tickets')}
             </div>
           )}
-        </GlassPanel>
-
-        {/* 2. Unread WhatsApp */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-4">
-            {t('home.unreadWhatsApp', 'Unread WhatsApp')}
-          </h3>
-          <div className="text-4xl font-[family-name:var(--font-geist-mono)] tabular-nums text-[#2563EB]">
-            {unreadCount}
-          </div>
-          <div className="mt-2 text-xs text-black/50 dark:text-white/50">
-            {t('whatsapp.conversations', 'Conversations')}:{' '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {conversations.length}
-            </span>
-          </div>
-        </GlassPanel>
-
-        {/* 3. SLA Status */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-4">
-            {t('home.slaStatus', 'SLA Status')}
-          </h3>
-          <div className="flex gap-6">
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('home.onTrack', 'On Track')}
-              </div>
-              <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums text-green-600 dark:text-green-400">
-                {onTrackPct}%
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('home.atRisk', 'At Risk')}
-              </div>
-              <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums text-amber-600 dark:text-amber-400">
-                {atRiskPct}%
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('home.breached', 'Breached')}
-              </div>
-              <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums text-red-600 dark:text-red-400">
-                {breachedPct}%
-              </div>
-            </div>
-          </div>
-        </GlassPanel>
-
-        {/* 4. Active Returns / Claims */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-4">
-            {t('home.activeReturns', 'Active Returns')}
-          </h3>
-          <div className="flex gap-6">
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('returns.damageClaims', 'Damage Claims')}
-              </div>
-              <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {activeClaimsCount}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('returns.returnRequests', 'Return Requests')}
-              </div>
-              <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {activeReturnsCount}
-              </div>
-            </div>
-          </div>
-          {/* FIRST ORDER concept: flag damage claims where customer.total_orders <= 1
-              This would be implemented when real customer data is available from the database.
-              First-time customer damage claims should be handled with extra care to ensure retention. */}
-        </GlassPanel>
+        </div>
       </div>
     </div>
   )
+}
+
+// ─── Helpers ────────────────────────────────────────────
+
+function statusDot(priority: TicketPriority): string {
+  const map: Record<TicketPriority, string> = {
+    critical: 'bg-red-500',
+    high: 'bg-amber-500',
+    medium: 'bg-[var(--color-primary)]',
+    low: 'bg-black/20 dark:bg-white/20',
+  }
+  return map[priority]
+}
+
+function computeSLA(slaDeadline: string): { label: string; color: string } {
+  const remaining = new Date(slaDeadline).getTime() - Date.now()
+
+  if (remaining <= 0) {
+    const breachedMin = Math.abs(Math.round(remaining / (1000 * 60)))
+    return {
+      label: breachedMin >= 60 ? `-${Math.round(breachedMin / 60)}h` : `-${breachedMin}m`,
+      color: 'text-red-600 dark:text-red-400',
+    }
+  }
+
+  const remainingMin = Math.round(remaining / (1000 * 60))
+  const color = remainingMin > 120
+    ? 'text-green-600 dark:text-green-400'
+    : remainingMin > 30
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-red-600 dark:text-red-400'
+
+  if (remainingMin >= 60) {
+    const h = Math.floor(remainingMin / 60)
+    const m = remainingMin % 60
+    return { label: m > 0 ? `${h}h ${m}m` : `${h}h`, color }
+  }
+  return { label: `${remainingMin}m`, color }
+}
+
+function formatAge(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const diffMin = Math.floor(diffMs / (1000 * 60))
+  if (diffMin < 1) return 'now'
+  if (diffMin < 60) return `${diffMin}m`
+  const diffHours = Math.floor(diffMin / 60)
+  if (diffHours < 24) return `${diffHours}h`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays}d`
 }

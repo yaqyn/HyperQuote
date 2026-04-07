@@ -30,6 +30,10 @@ interface FinanceStore {
   selectedChequeId: string | null
   setSelectedChequeId: (id: string | null) => void
 
+  // Dispute detail drill-down (merged into AR)
+  selectedDisputeId: string | null
+  setSelectedDisputeId: (id: string | null) => void
+
   // AR filters
   arFilters: ARFilters
   setARFilters: (filters: Partial<ARFilters>) => void
@@ -50,7 +54,7 @@ const DEFAULT_PAYMENT_FLOW: PaymentFlowState = {
 export const useFinanceStore = create<FinanceStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'home',
+    activeTab: 'receivables',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Entity selection
@@ -62,6 +66,10 @@ export const useFinanceStore = create<FinanceStore>()(
 
     selectedChequeId: null,
     setSelectedChequeId: (id) => set({ selectedChequeId: id }),
+
+    // Dispute detail drill-down (merged into AR)
+    selectedDisputeId: null,
+    setSelectedDisputeId: (id) => set({ selectedDisputeId: id }),
 
     // AR filters
     arFilters: DEFAULT_AR_FILTERS,

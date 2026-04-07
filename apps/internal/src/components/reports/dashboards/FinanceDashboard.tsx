@@ -4,8 +4,10 @@ import { getDashboardData } from '../../../lib/server/reports'
 import { useReportsStore } from '../../../stores/reports'
 
 /**
- * Finance dashboard: revenue MTD, AR/AP outstanding, overdue AR,
- * cash position, AR aging breakdown table, cheque summary.
+ * Finance — "The Ledger"
+ * Hero metric: Cash Position. Supporting: AR outstanding, AP outstanding, overdue AR.
+ * Table: AR aging breakdown.
+ * Chart: Payment distribution by type.
  */
 export function FinanceDashboard() {
   const { t } = useTranslation('reports')
@@ -19,67 +21,71 @@ export function FinanceDashboard() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
-        {t('loading', 'Loading...')}
+      <div className="flex items-center justify-center h-64">
+        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
 
+  const heroKpi = data.kpis[0]
+  const supportingKpis = data.kpis.slice(1)
+
   return (
-    <div className="p-6 space-y-6">
-      {/* ─── KPI Strip ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {data.kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5"
-          >
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
+    <div className="p-5 space-y-6 max-w-4xl">
+      {/* Hero */}
+      {heroKpi && (
+        <div>
+          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+            {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
+          </div>
+          <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] leading-none font-light">
+            {formatKpiValue(heroKpi.value, heroKpi.unit)}
+          </div>
+          {heroKpi.trend !== undefined && heroKpi.trendDirection && (
+            <TrendIndicator trend={heroKpi.trend} direction={heroKpi.trendDirection} />
+          )}
+        </div>
+      )}
+
+      {/* Supporting */}
+      <div className="flex items-start gap-8">
+        {supportingKpis.slice(0, 3).map((kpi) => (
+          <div key={kpi.label}>
+            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl">
-              {typeof kpi.value === 'number' && kpi.unit === 'EGP'
-                ? new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(kpi.value)
-                : typeof kpi.value === 'number' && kpi.unit === '%'
-                  ? `${kpi.value}%`
-                  : kpi.value}
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
+              {formatKpiValue(kpi.value, kpi.unit)}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
-              <div className={`text-xs mt-1 font-[family-name:var(--font-geist-mono)] tabular-nums ${
-                kpi.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' :
-                kpi.trendDirection === 'down' ? 'text-red-600 dark:text-red-400' :
-                'text-black/40 dark:text-white/40'
-              }`}>
-                {kpi.trendDirection === 'up' ? '+' : ''}{kpi.trend}%
-              </div>
+              <TrendIndicator trend={kpi.trend} direction={kpi.trendDirection} />
             )}
           </div>
         ))}
       </div>
 
-      {/* ─── AR Aging Breakdown Table ───────────────────── */}
-      <div className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5">
-        <h3 className="text-sm font-semibold mb-3">{t('finance.ar_aging', 'AR Aging Breakdown')}</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* AR Aging */}
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+          {t('finance.ar_aging', 'AR Aging')}
+        </div>
+        <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="text-xs text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
-                <th className="pb-2 ps-2 font-medium text-start">{t('table.bucket', 'Bucket')}</th>
-                <th className="pb-2 font-medium text-end">{t('table.amount', 'Amount')}</th>
-                <th className="pb-2 pe-2 font-medium text-end">{t('table.count', 'Count')}</th>
+              <tr className="border-b border-black/6 dark:border-white/6 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
+                <th className="py-2 ps-3 font-medium text-start">{t('table.bucket', 'Bucket')}</th>
+                <th className="py-2 font-medium text-end">{t('table.amount', 'Amount')}</th>
+                <th className="py-2 pe-3 font-medium text-end">{t('table.count', 'Count')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
               {(data.tableData ?? []).map((row) => (
-                <tr
-                  key={row.bucket as string}
-                  className="border-b border-black/5 dark:border-white/5"
-                >
-                  <td className="py-2 ps-2">{row.bucket as string}</td>
+                <tr key={row.bucket as string}>
+                  <td className="py-2 ps-3">{row.bucket as string}</td>
                   <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(row.amount as number)}
+                    {formatCurrency(row.amount as number)}
                   </td>
-                  <td className="py-2 pe-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{row.count as number}</td>
+                  <td className="py-2 pe-3 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">{row.count as number}</td>
                 </tr>
               ))}
             </tbody>
@@ -87,23 +93,61 @@ export function FinanceDashboard() {
         </div>
       </div>
 
-      {/* ─── Payment Distribution ───────────────────────── */}
-      <div className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5">
-        <h3 className="text-sm font-semibold mb-3">{t('finance.payment_distribution', 'Payment Distribution')}</h3>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {(data.chartData ?? []).map((row) => (
-            <div key={row.type as string} className="text-center">
-              <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl">
-                {row.count as number}
-              </div>
-              <div className="text-xs text-black/50 dark:text-white/50">{row.type as string}</div>
-              <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-black/60 dark:text-white/60 mt-1">
-                {new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(row.amount as number)}
-              </div>
-            </div>
-          ))}
+      {/* Payment Distribution — CSS-only */}
+      {data.chartData && data.chartData.length > 0 && (
+        <div>
+          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+            {t('finance.payment_distribution', 'Payment Distribution')}
+          </div>
+          <div className="flex items-end gap-4">
+            {data.chartData.map((row) => {
+              const maxCount = Math.max(...data.chartData!.map((r) => r.count as number))
+              const height = maxCount > 0 ? ((row.count as number) / maxCount) * 80 : 0
+              return (
+                <div key={row.type as string} className="flex-1 flex flex-col items-center">
+                  {/* Bar */}
+                  <div
+                    className="w-full max-w-[40px] bg-[#2563EB]/15 rounded-t transition-all duration-500"
+                    style={{ height: `${height}px` }}
+                  />
+                  {/* Count */}
+                  <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm mt-2">
+                    {row.count as number}
+                  </div>
+                  {/* Type */}
+                  <div className="text-[10px] text-black/30 dark:text-white/30 mt-0.5">{row.type as string}</div>
+                  {/* Amount */}
+                  <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 mt-0.5">
+                    {formatCurrency(row.amount as number)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
+}
+
+function TrendIndicator({ trend, direction }: { trend: number; direction: 'up' | 'down' | 'flat' }) {
+  const arrow = direction === 'up' ? '\u2191' : direction === 'down' ? '\u2193' : '\u2192'
+  const color = direction === 'up' ? 'text-green-600 dark:text-green-400' :
+                direction === 'down' ? 'text-red-600 dark:text-red-400' :
+                'text-black/30 dark:text-white/30'
+  return (
+    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] ${color}`}>
+      {arrow} {direction === 'up' ? '+' : ''}{trend}%
+    </span>
+  )
+}
+
+function formatKpiValue(value: number | string, unit?: string): string {
+  if (typeof value === 'number' && unit === 'EGP') return formatCurrency(value)
+  if (typeof value === 'number' && unit === '%') return `${value}%`
+  return String(value)
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(value)
 }

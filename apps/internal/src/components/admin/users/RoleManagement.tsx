@@ -3,8 +3,9 @@ import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 
 /**
- * Role & Permission Management view.
- * Left panel: role list. Right panel: permission checkboxes grouped by entity.
+ * RoleManagement — "The Permissions Matrix"
+ * Grid: roles across top, permissions down left. Each cell: checkbox.
+ * Clean, spreadsheet-like. No heavy borders — thin lines only.
  *
  * NOTE: Frontend permission checks are UX only — gateway validates on every API call.
  */
@@ -57,6 +58,9 @@ const PERMISSION_GROUPS: Record<string, string[]> = {
   report: ['report.read', 'report.create', 'report.export'],
 }
 
+// Flatten all permissions for the matrix columns
+const ALL_PERMISSIONS = Object.entries(PERMISSION_GROUPS).flatMap(([, perms]) => perms)
+
 export function RoleManagement() {
   const { t } = useTranslation('admin')
   const [selectedRoleId, setSelectedRoleId] = useState<string>('admin')
@@ -76,18 +80,24 @@ export function RoleManagement() {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold">{t('roles.title', 'Role & Permission Management')}</h2>
-      {/* Note about frontend checks */}
-      <p className="text-xs text-black/40 dark:text-white/40 italic">
-        {t('roles.frontendNote', 'Frontend permission checks are UX only — gateway validates on every API call')}
-      </p>
+    <div className="p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
+          {t('roles.title', 'Permissions Matrix')}
+        </span>
+        <span className="text-[11px] text-black/25 dark:text-white/25 italic">
+          {t('roles.frontendNote', 'UX only — gateway validates every call')}
+        </span>
+      </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr]">
         {/* Left: Role List */}
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-            <h3 className="text-sm font-semibold">{t('roles.roleList', 'Roles')}</h3>
+        <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-black/6 dark:border-white/6">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
+              {t('roles.roleList', 'Roles')}
+            </span>
           </div>
           <div className="max-h-[600px] overflow-y-auto">
             {ROLES.map((role) => (
@@ -95,62 +105,80 @@ export function RoleManagement() {
                 type="button"
                 key={role.id}
                 onClick={() => setSelectedRoleId(role.id)}
-                className={`w-full px-4 py-2.5 text-start text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                className={`w-full px-3 py-2 text-start text-xs flex items-center justify-between transition-colors cursor-pointer ${
                   selectedRoleId === role.id
-                    ? 'bg-[#2563EB]/10 text-[#2563EB] font-medium'
-                    : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+                    ? 'bg-black/[0.04] dark:bg-white/[0.04] font-medium'
+                    : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] text-black/60 dark:text-white/60'
                 }`}
               >
-                <span>{role.name}</span>
-                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
-                  {role.userCount} {t('roles.userCount', 'users')}
+                <span className="truncate">{role.name}</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 shrink-0 ms-2">
+                  {role.userCount}
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Right: Permissions */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-            <h3 className="text-sm font-semibold mb-4">
-              {t('roles.permissions', 'Permissions')}: {selectedRole.name}
-            </h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
-                <div key={group} className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
-                    {group}
-                  </h4>
-                  {perms.map((perm) => (
-                    <label key={perm} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={hasPermission(perm)}
-                        readOnly
-                        className="rounded border-black/20 text-[#2563EB] focus:ring-[#2563EB]/50"
-                      />
-                      <span className="text-black/70 dark:text-white/70">
-                        {perm.split('.')[1]}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              ))}
+        {/* Right: Permission Grid */}
+        <div className="space-y-4">
+          {/* Matrix */}
+          <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
+            <div className="px-3 py-2 border-b border-black/6 dark:border-white/6 flex items-center justify-between">
+              <span className="text-xs font-medium">{selectedRole.name}</span>
+              {isWildcard && (
+                <span className="text-[10px] text-[#2563EB] font-medium">Full access</span>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]">
+                {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
+                  <div key={group} className="border-b border-black/[0.03] dark:border-white/[0.03] last:border-0">
+                    {/* Group header */}
+                    <div className="grid items-center gap-0" style={{ gridTemplateColumns: `120px repeat(${perms.length}, 1fr)` }}>
+                      <div className="px-3 py-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-black/30 dark:text-white/30">
+                          {group}
+                        </span>
+                      </div>
+                      {perms.map((perm) => {
+                        const action = perm.split('.')[1]!
+                        const checked = hasPermission(perm)
+                        return (
+                          <div key={perm} className="flex flex-col items-center gap-0.5 py-2">
+                            <span className="text-[9px] text-black/25 dark:text-white/25 leading-none mb-1">
+                              {action}
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              readOnly
+                              className="w-3.5 h-3.5 rounded border-black/15 dark:border-white/15 text-[#2563EB] focus:ring-[#2563EB]/30 cursor-pointer"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Temporary Delegation */}
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-            <h3 className="text-sm font-semibold mb-3">{t('roles.temporaryDelegation', 'Temporary Delegation')}</h3>
-            <p className="text-xs text-black/40 dark:text-white/40 mb-3">
-              {t('roles.vacationCoverage', 'Vacation coverage')}: assign role temporarily with expiry date.
-            </p>
-            <Button
-              className="rounded-lg border border-[#2563EB]/20 bg-[#2563EB]/5 px-4 py-2 text-sm font-medium text-[#2563EB] hover:bg-[#2563EB]/10 cursor-pointer outline-none"
-            >
-              {t('roles.delegateRole', 'Delegate Role')}
-            </Button>
+          <div className="border border-black/6 dark:border-white/6 rounded-lg px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-medium">{t('roles.temporaryDelegation', 'Temporary Delegation')}</span>
+                <p className="text-[11px] text-black/30 dark:text-white/30 mt-0.5">
+                  {t('roles.vacationCoverage', 'Assign role temporarily with expiry date')}
+                </p>
+              </div>
+              <Button className="rounded-lg border border-[#2563EB]/15 bg-[#2563EB]/5 px-3 py-1.5 text-xs font-medium text-[#2563EB] hover:bg-[#2563EB]/10 cursor-pointer outline-none">
+                {t('roles.delegateRole', 'Delegate')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

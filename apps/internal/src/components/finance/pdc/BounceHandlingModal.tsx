@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import {
   Button,
   Dialog,
-  DialogTrigger,
   Heading,
   Modal,
   ModalOverlay,
@@ -42,13 +41,14 @@ const BOUNCE_REASONS: { id: BounceReason; label: string }[] = [
   { id: 'other', label: 'Other' },
 ]
 
+type BounceAction = 're_present' | 'replace' | 'legal'
+
 type ModalStep = 'form' | 'confirming' | 'success'
 
 /**
- * Bounce handling modal for PDC.
- * Shows cheque details, reason dropdown, warning banner about consequences,
- * and action buttons. On confirm, calls updateChequeStatus which handles
- * AR reversal side-effect automatically.
+ * Serious bounce handling modal — warning icon, bounce details,
+ * action options (re-present, replace, legal), customer notification toggle.
+ * Elevated glass tier: backdrop-blur-2xl bg-white/90.
  */
 export function BounceHandlingModal({
   cheque,
@@ -59,6 +59,8 @@ export function BounceHandlingModal({
   const { t } = useTranslation('finance')
   const [reason, setReason] = useState<BounceReason | null>(null)
   const [notes, setNotes] = useState('')
+  const [selectedAction, setSelectedAction] = useState<BounceAction | null>(null)
+  const [notifyCustomer, setNotifyCustomer] = useState(true)
   const [step, setStep] = useState<ModalStep>('form')
   const [error, setError] = useState<string | null>(null)
 
@@ -95,6 +97,7 @@ export function BounceHandlingModal({
     setStep('form')
     setReason(null)
     setNotes('')
+    setSelectedAction(null)
     setError(null)
     onOpenChange(false)
   }
@@ -106,174 +109,211 @@ export function BounceHandlingModal({
         if (!open) handleClose()
       }}
       isDismissable={step !== 'confirming'}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      isKeyboardDismissDisabled
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
     >
-      <Modal className="w-full max-w-lg mx-4">
-        <Dialog className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 outline-none">
+      <Modal className="w-full max-w-md mx-4">
+        <Dialog className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-0 outline-none">
           {({ close }) => (
             <>
-              <Heading
-                slot="title"
-                className="text-lg font-semibold text-black dark:text-white mb-4"
-              >
-                {t('pdc.bounceHandling', 'Bounce Handling')}
-              </Heading>
-
               {step === 'success' ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4">
-                    <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                      {t('pdc.bounceSuccess', 'Cheque marked as bounced successfully')}
+                <div className="p-6 flex flex-col items-center gap-4 py-10">
+                  <div className="size-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-5 text-green-600">
+                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-black dark:text-white mb-2">
+                      {t('pdc.bounceSuccess', 'Cheque marked as bounced')}
                     </p>
-                    <ul className="mt-2 space-y-1 text-sm text-green-700 dark:text-green-400">
-                      <li>{t('pdc.arReversed', 'AR accounting entry reversed')}</li>
-                      <li>
-                        {t('pdc.amountAddedBack', 'Amount added back to customer outstanding AR')}
-                      </li>
-                      <li>{t('pdc.creditHoldPlaced', 'Customer placed on credit hold')}</li>
-                      <li>
-                        {t('pdc.legalNotificationTriggered', 'Legal notification triggered')}
-                      </li>
-                    </ul>
+                    <div className="flex flex-col gap-1 text-[10px] text-black/40 dark:text-white/40">
+                      <span>{t('pdc.arReversed', 'AR entry reversed')}</span>
+                      <span>{t('pdc.creditHoldPlaced', 'Customer on credit hold')}</span>
+                      <span>{t('pdc.legalNotificationTriggered', 'Legal notification triggered')}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      onPress={handleClose}
-                      className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
-                    >
-                      {t('common.close', 'Close')}
-                    </Button>
-                  </div>
+                  <Button
+                    onPress={handleClose}
+                    className="rounded-md bg-black dark:bg-white text-white dark:text-black px-5 py-2 text-xs font-medium hover:opacity-90 pressed:opacity-80 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-opacity"
+                  >
+                    {t('common.close', 'Close')}
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Cheque details */}
-                  <div className="grid grid-cols-2 gap-3 rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-3">
-                    <div>
-                      <span className="text-xs text-black/50 dark:text-white/50">
-                        {t('pdc.chequeNo', 'Cheque #')}
-                      </span>
-                      <p className="font-[family-name:var(--font-geist-mono)] text-sm text-black dark:text-white">
-                        {cheque.chequeNumber}
-                      </p>
+                <>
+                  {/* Header with warning */}
+                  <div className="flex items-center gap-3 px-6 py-4 border-b border-black/[0.04] dark:border-white/[0.04]">
+                    <div className="size-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4 text-red-500">
+                        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </div>
-                    <div>
-                      <span className="text-xs text-black/50 dark:text-white/50">
-                        {t('pdc.customer', 'Customer')}
-                      </span>
-                      <p className="text-sm text-black dark:text-white">{cheque.customerName}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-black/50 dark:text-white/50">
-                        {t('pdc.amount', 'Amount')}
-                      </span>
-                      <p className="text-sm">
-                        <CurrencyCell amount={cheque.amount} />
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-black/50 dark:text-white/50">
-                        {t('pdc.bank', 'Bank')}
-                      </span>
-                      <p className="text-sm text-black dark:text-white">{cheque.bankName}</p>
-                    </div>
+                    <Heading
+                      slot="title"
+                      className="text-sm font-semibold text-black dark:text-white"
+                    >
+                      {t('pdc.bounceHandling', 'Bounce Handling')}
+                    </Heading>
                   </div>
 
-                  {/* Reason dropdown */}
-                  <Select
-                    selectedKey={reason}
-                    onSelectionChange={(key) => setReason(key as BounceReason)}
-                    className="flex flex-col gap-1"
-                  >
-                    <Label className="text-sm font-medium text-black dark:text-white">
-                      {t('pdc.bounceReason', 'Reason')}
-                    </Label>
-                    <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black px-3 py-2 text-sm text-start outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]">
-                      <SelectValue className="text-black dark:text-white placeholder-shown:text-black/40 dark:placeholder-shown:text-white/40">
-                        {({ isPlaceholder }) =>
-                          isPlaceholder
-                            ? t('pdc.selectReason', 'Select reason...')
-                            : BOUNCE_REASONS.find((r) => r.id === reason)?.label
-                        }
-                      </SelectValue>
-                      <span className="text-black/40 dark:text-white/40" aria-hidden="true">
-                        &#x25BE;
-                      </span>
-                    </Button>
-                    <Popover className="w-[var(--trigger-width)] rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
-                      <ListBox className="p-1 outline-none">
-                        {BOUNCE_REASONS.map((r) => (
-                          <ListBoxItem
-                            key={r.id}
-                            id={r.id}
-                            className="cursor-pointer rounded-md px-3 py-2 text-sm text-black dark:text-white outline-none hover:bg-black/5 dark:hover:bg-white/5 focus:bg-black/5 dark:focus:bg-white/5 selected:bg-[#2563EB]/10 selected:text-[#2563EB]"
+                  <div className="p-6 flex flex-col gap-4">
+                    {/* Cheque details — compact inline */}
+                    <div className="flex items-center justify-between py-2.5 px-3 rounded-md bg-black/[0.02] dark:bg-white/[0.02]">
+                      <div className="flex items-center gap-3">
+                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black dark:text-white">
+                          {cheque.chequeNumber}
+                        </span>
+                        <span className="text-xs text-black/40 dark:text-white/40">
+                          {cheque.customerName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CurrencyCell amount={cheque.amount} className="text-sm font-semibold text-black dark:text-white" />
+                        <span className="text-[10px] text-black/30 dark:text-white/30">
+                          {cheque.bankName}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Reason dropdown */}
+                    <Select
+                      selectedKey={reason}
+                      onSelectionChange={(key) => setReason(key as BounceReason)}
+                      className="flex flex-col gap-1"
+                    >
+                      <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+                        {t('pdc.bounceReason', 'Reason')}
+                      </Label>
+                      <Button className="flex items-center justify-between rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-xs text-start outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors">
+                        <SelectValue className="text-black dark:text-white placeholder-shown:text-black/30 dark:placeholder-shown:text-white/30">
+                          {({ isPlaceholder }) =>
+                            isPlaceholder
+                              ? t('pdc.selectReason', 'Select reason...')
+                              : BOUNCE_REASONS.find((r) => r.id === reason)?.label
+                          }
+                        </SelectValue>
+                        <span className="text-black/20 dark:text-white/20" aria-hidden="true">
+                          &#x25BE;
+                        </span>
+                      </Button>
+                      <Popover className="w-[var(--trigger-width)] rounded-md border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
+                        <ListBox className="p-1 outline-none">
+                          {BOUNCE_REASONS.map((r) => (
+                            <ListBoxItem
+                              key={r.id}
+                              id={r.id}
+                              className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-black dark:text-white outline-none hover:bg-black/5 dark:hover:bg-white/5 focus:bg-black/5 dark:focus:bg-white/5 selected:bg-[#2563EB]/10 selected:text-[#2563EB]"
+                            >
+                              {r.label}
+                            </ListBoxItem>
+                          ))}
+                        </ListBox>
+                      </Popover>
+                    </Select>
+
+                    {/* Notes */}
+                    <TextField
+                      value={notes}
+                      onChange={setNotes}
+                      className="flex flex-col gap-1"
+                    >
+                      <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+                        {t('pdc.notes', 'Notes')}
+                      </Label>
+                      <TextArea
+                        className="rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-xs text-black dark:text-white outline-none focus:border-[#2563EB] resize-none transition-colors"
+                        rows={2}
+                        placeholder={t('pdc.notesPlaceholder', 'Additional notes (optional)')}
+                      />
+                    </TextField>
+
+                    {/* Action options */}
+                    <div>
+                      <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-2 block">
+                        {t('pdc.nextAction', 'Action')}
+                      </Label>
+                      <div className="flex gap-2">
+                        {(
+                          [
+                            { key: 're_present' as const, label: t('pdc.rePresent', 'Re-present') },
+                            { key: 'replace' as const, label: t('pdc.replace', 'Replace') },
+                            { key: 'legal' as const, label: t('pdc.legal', 'Legal') },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => setSelectedAction(opt.key)}
+                            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                              selectedAction === opt.key
+                                ? opt.key === 'legal'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-[#2563EB] text-white'
+                                : 'border border-black/10 dark:border-white/10 text-black/50 dark:text-white/50 hover:border-black/20 dark:hover:border-white/20'
+                            }`}
                           >
-                            {r.label}
-                          </ListBoxItem>
+                            {opt.label}
+                          </button>
                         ))}
-                      </ListBox>
-                    </Popover>
-                  </Select>
+                      </div>
+                    </div>
 
-                  {/* Notes */}
-                  <TextField
-                    value={notes}
-                    onChange={setNotes}
-                    className="flex flex-col gap-1"
-                  >
-                    <Label className="text-sm font-medium text-black dark:text-white">
-                      {t('pdc.notes', 'Notes')}
-                    </Label>
-                    <TextArea
-                      className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black px-3 py-2 text-sm text-black dark:text-white outline-none focus:ring-2 focus:ring-[#2563EB] resize-none"
-                      rows={2}
-                      placeholder={t('pdc.notesPlaceholder', 'Additional notes (optional)')}
-                    />
-                  </TextField>
+                    {/* Customer notification toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notifyCustomer}
+                        onChange={(e) => setNotifyCustomer(e.target.checked)}
+                        className="size-3.5 rounded-sm border-black/20 dark:border-white/20 accent-[#2563EB]"
+                      />
+                      <span className="text-xs text-black/50 dark:text-white/50">
+                        {t('pdc.notifyCustomer', 'Notify customer')}
+                      </span>
+                    </label>
 
-                  {/* Warning banner */}
-                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-                    <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
-                      {t('pdc.bounceWarning', 'Bouncing this cheque will:')}
-                    </p>
-                    <ol className="list-decimal list-inside space-y-1 text-sm text-red-700 dark:text-red-400">
-                      <li>{t('pdc.reverseEntry', 'Reverse accounting entry')}</li>
-                      <li>
-                        {t('pdc.addBackToAR', 'Add EGP back to AR')}{' '}
-                        <CurrencyCell amount={cheque.amount} className="text-red-700 dark:text-red-400" />
-                      </li>
-                      <li>{t('pdc.creditHold', 'Place customer on credit hold')}</li>
-                      <li>{t('pdc.legalNotification', 'Trigger legal notification')}</li>
-                    </ol>
+                    {/* Warning — consequences */}
+                    <div className="rounded-md bg-red-500/[0.04] border border-red-500/10 px-3 py-2.5">
+                      <div className="text-[10px] text-red-600 dark:text-red-400 space-y-0.5">
+                        <div>{t('pdc.reverseEntry', 'Reverses accounting entry')}</div>
+                        <div>
+                          {t('pdc.addBackToAR', 'Adds back to AR:')}{' '}
+                          <CurrencyCell amount={cheque.amount} className="text-[10px] text-red-600 dark:text-red-400 font-medium" />
+                        </div>
+                        <div>{t('pdc.creditHold', 'Places customer on credit hold')}</div>
+                        <div>{t('pdc.legalNotification', 'Triggers legal notification')}</div>
+                      </div>
+                    </div>
+
+                    {/* Error message */}
+                    {error && (
+                      <p className="text-[10px] text-red-500">{error}</p>
+                    )}
                   </div>
 
-                  {/* Error message */}
-                  {error && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2 justify-end pt-2">
-                    <Button
-                      onPress={() => {
+                  {/* Action bar */}
+                  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-black/[0.04] dark:border-white/[0.04]">
+                    <button
+                      type="button"
+                      onClick={() => {
                         handleClose()
                         close()
                       }}
-                      className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm font-medium text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/5 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+                      className="text-xs text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 transition-colors"
                     >
                       {t('common.cancel', 'Cancel')}
-                    </Button>
+                    </button>
                     <Button
                       onPress={handleConfirmBounce}
                       isDisabled={!reason || step === 'confirming'}
-                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 pressed:bg-red-800 disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      className="rounded-md bg-red-600 px-5 py-2 text-xs font-medium text-white hover:bg-red-700 pressed:bg-red-800 disabled:opacity-30 outline-none focus-visible:ring-2 focus-visible:ring-red-600 transition-colors"
                     >
                       {step === 'confirming'
                         ? t('pdc.processing', 'Processing...')
                         : t('pdc.confirmBounce', 'Confirm Bounce')}
                     </Button>
                   </div>
-                </div>
+                </>
               )}
             </>
           )}

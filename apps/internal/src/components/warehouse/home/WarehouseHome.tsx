@@ -1,20 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
 import { WorkerTileGrid } from './WorkerTileGrid'
 import { ManagerKPIs } from './ManagerKPIs'
 import { getWarehouseDashboard } from '../../../lib/server/warehouse-dashboard'
 
 interface WarehouseHomeProps {
-  /** Whether the current user has manager-level access */
   isManager?: boolean
 }
 
 /**
- * Warehouse home view.
- * Always shows 3x3 worker tile grid.
- * Manager role additionally sees KPI strip below tiles.
- * Bottom section shows top 3 critical alerts.
+ * "The Board" — Warehouse home.
+ * Manager view (desktop): 3x2 KPI grid with huge numbers, then worker tiles below.
+ * Worker view (tablet/mobile): Large touch tiles only.
+ * Critical alerts at bottom if any.
  */
 export function WarehouseHome({ isManager = true }: WarehouseHomeProps) {
   const { t } = useTranslation('internal')
@@ -26,43 +24,38 @@ export function WarehouseHome({ isManager = true }: WarehouseHomeProps) {
   })
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Worker Tile Grid — always visible */}
-      <WorkerTileGrid />
-
-      {/* Manager KPIs — conditional on role */}
+    <div className="flex flex-col gap-6">
+      {/* Manager KPIs — huge numbers, no borders */}
       {isManager && <ManagerKPIs />}
 
-      {/* Critical Alerts */}
+      {/* Worker tile grid — always visible */}
+      <WorkerTileGrid />
+
+      {/* Critical alerts — minimal, high contrast */}
       {dashboard && dashboard.criticalAlerts > 0 && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-red-500" />
-            <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">
-              {t('warehouse.alerts.title', 'Critical Alerts')}
-            </h3>
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-red-500 font-medium">
+        <div className="px-5 pb-5">
+          <div className="flex items-baseline gap-3 mb-3">
+            <span className="text-xs font-medium text-red-500 uppercase tracking-wider">
+              {t('warehouse.alerts.title', 'Alerts')}
+            </span>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-red-500">
               {dashboard.criticalAlerts}
             </span>
           </div>
-          <div className="flex flex-col gap-2">
-            {/* Mock alert cards — will be populated by server data */}
-            <AlertCard
-              title={t('warehouse.alerts.lowStock', 'Low Stock Alert')}
-              description={t('warehouse.alerts.lowStockDesc', 'Steel Rebar 16mm below reorder point')}
+          <div className="flex flex-col gap-1">
+            <AlertRow
+              text={t('warehouse.alerts.lowStockDesc', 'Steel Rebar 16mm below reorder point')}
               severity="critical"
             />
             {dashboard.criticalAlerts > 1 && (
-              <AlertCard
-                title={t('warehouse.alerts.expiring', 'Expiring Material')}
-                description={t('warehouse.alerts.expiringDesc', 'Cement batch LOT-2026-CM-015 expires in 3 days')}
+              <AlertRow
+                text={t('warehouse.alerts.expiringDesc', 'Cement batch LOT-2026-CM-015 expires in 3 days')}
                 severity="warning"
               />
             )}
             {dashboard.criticalAlerts > 2 && (
-              <AlertCard
-                title={t('warehouse.alerts.variance', 'Count Variance')}
-                description={t('warehouse.alerts.varianceDesc', 'Location WH-B/ROW-4 variance exceeds 5% threshold')}
+              <AlertRow
+                text={t('warehouse.alerts.varianceDesc', 'Location WH-B/ROW-4 variance exceeds 5%')}
                 severity="warning"
               />
             )}
@@ -73,22 +66,19 @@ export function WarehouseHome({ isManager = true }: WarehouseHomeProps) {
   )
 }
 
-function AlertCard({
-  title,
-  description,
+function AlertRow({
+  text,
   severity,
 }: {
-  title: string
-  description: string
+  text: string
   severity: 'critical' | 'warning'
 }) {
-  const borderClass = severity === 'critical' ? 'border-red-500/30' : 'border-yellow-500/30'
-  const bgClass = severity === 'critical' ? 'bg-red-500/5' : 'bg-yellow-500/5'
+  const dotColor = severity === 'critical' ? 'bg-red-500' : 'bg-amber-500'
 
   return (
-    <div className={`rounded-lg border ${borderClass} ${bgClass} p-3`}>
-      <p className="text-sm font-medium text-black/80 dark:text-white/80">{title}</p>
-      <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">{description}</p>
+    <div className="flex items-center gap-3 min-h-[48px] px-4 py-2 rounded-lg bg-black/[0.02] dark:bg-white/[0.02]">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
+      <span className="text-sm text-black/70 dark:text-white/70">{text}</span>
     </div>
   )
 }

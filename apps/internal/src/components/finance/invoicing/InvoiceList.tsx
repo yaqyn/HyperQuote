@@ -1,46 +1,82 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'motion/react'
+import { Button } from 'react-aria-components'
 import { getInvoices } from '../../../lib/server/finance-invoices'
 import { useFinanceStore } from '../../../stores/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
 import { StatusBadge } from '../shared/StatusBadge'
 import type { Invoice, InvoiceStatus, ETASubmissionStatus } from '../../../types/finance'
 
-// ─── ETA Status Badge (separate color scheme) ───────────
-const ETA_COLORS: Record<ETASubmissionStatus, string> = {
-  pending: 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60',
-  submitted: 'bg-[#2563EB]/10 text-[#2563EB]',
-  accepted: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  error: 'bg-red-200 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-300',
+// ─── Status grouping for "The Document Press" ──────────
+type StatusGroup = 'draft' | 'sent' | 'overdue' | 'paid'
+
+const STATUS_GROUP_MAP: Record<InvoiceStatus, StatusGroup> = {
+  draft: 'draft',
+  sent: 'sent',
+  viewed: 'sent',
+  partially_paid: 'sent',
+  paid: 'paid',
+  overdue: 'overdue',
+  collections: 'overdue',
+  disputed: 'overdue',
+  resolved: 'paid',
+  adjusted: 'paid',
+  written_off: 'paid',
 }
 
-function ETABadge({ status }: { status: ETASubmissionStatus }) {
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+const GROUP_ORDER: StatusGroup[] = ['draft', 'sent', 'overdue', 'paid']
+
+const GROUP_LABELS: Record<StatusGroup, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  overdue: 'Overdue',
+  paid: 'Paid',
+}
+
+// ─── ETA dot ───────────────────────────────────────────
+const ETA_DOT: Record<ETASubmissionStatus, string> = {
+  pending: 'bg-black/20 dark:bg-white/20',
+  submitted: 'bg-[#2563EB]',
+  accepted: 'bg-green-500',
+  rejected: 'bg-red-500',
+  error: 'bg-red-500',
+}
+
+function ETADot({ status }: { status: ETASubmissionStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ETA_COLORS[status]}`}>
-      ETA: {label}
-    </span>
+    <span
+      className={`inline-block size-1.5 rounded-full ${ETA_DOT[status]}`}
+      title={`ETA: ${status}`}
+    />
   )
 }
 
-// ─── Filter bar types ───────────────────────────────────
-const STATUS_OPTIONS: InvoiceStatus[] = [
+// ─── Age calculation ───────────────────────────────────
+function getAge(issuedDate: string): string {
+  const now = new Date()
+  const issued = new Date(issuedDate)
+  const days = Math.floor((now.getTime() - issued.getTime()) / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'today'
+  if (days === 1) return '1d'
+  return `${days}d`
+}
+
+const STATUS_FILTERS: InvoiceStatus[] = [
   'draft', 'sent', 'viewed', 'partially_paid', 'paid',
   'overdue', 'collections', 'disputed', 'resolved', 'adjusted', 'written_off',
 ]
 
 /**
- * Invoice list table with filters and bulk actions.
- * Columns: Invoice #, Customer, Amount, Date, Due Date, Status, ETA Status.
- * Row click sets selectedInvoiceId in store.
+ * "The Document Press" — Dense invoice list grouped by status.
+ * Each invoice is a single row: invoice # (mono blue) + customer + amount (mono)
+ * + due date + status dot + age. Grouped by Draft | Sent | Overdue | Paid.
  */
 export function InvoiceList() {
   const { t } = useTranslation('finance')
   const setSelectedInvoiceId = useFinanceStore((s) => s.setSelectedInvoiceId)
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -53,15 +89,27 @@ export function InvoiceList() {
 
   const invoices = data?.invoices ?? []
 
-  // Apply filters
-  const filtered = invoices.filter((inv) => {
-    if (statusFilter && inv.status !== statusFilter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      if (!inv.number.toLowerCase().includes(q) && !inv.customerName.toLowerCase().includes(q)) return false
+  // Filter
+  const filtered = useMemo(() => {
+    return invoices.filter((inv) => {
+      if (statusFilter && inv.status !== statusFilter) return false
+      if (search) {
+        const q = search.toLowerCase()
+        if (!inv.number.toLowerCase().includes(q) && !inv.customerName.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+  }, [invoices, statusFilter, search])
+
+  // Group by status
+  const grouped = useMemo(() => {
+    const groups: Record<StatusGroup, Invoice[]> = { draft: [], sent: [], overdue: [], paid: [] }
+    for (const inv of filtered) {
+      const group = STATUS_GROUP_MAP[inv.status] ?? 'sent'
+      groups[group].push(inv)
     }
-    return true
-  })
+    return groups
+  }, [filtered])
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -82,119 +130,191 @@ export function InvoiceList() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
-        Loading invoices...
+      <div className="flex items-center justify-center py-20">
+        <span className="text-xs tracking-widest uppercase text-black/30 dark:text-white/30">
+          Loading
+        </span>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-4">
-      {/* ─── Filter Bar ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as InvoiceStatus | '')}
-          className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-1.5 text-sm"
-        >
-          <option value="">{t('invoicing.allStatuses', 'All Statuses')}</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-            </option>
+    <div className="space-y-0">
+      {/* ─── Toolbar ─────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+        {/* Status filter pills */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              statusFilter === ''
+                ? 'bg-black/[0.06] dark:bg-white/[0.06] text-black dark:text-white'
+                : 'text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70'
+            }`}
+          >
+            {t('invoicing.all', 'All')}
+          </button>
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === s ? '' : s)}
+              className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+                statusFilter === s
+                  ? 'bg-black/[0.06] dark:bg-white/[0.06] text-black dark:text-white font-medium'
+                  : 'text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60'
+              }`}
+            >
+              {s.replace(/_/g, ' ')}
+            </button>
           ))}
-        </select>
+        </div>
 
+        <div className="flex-1" />
+
+        {/* Search */}
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('invoicing.searchPlaceholder', 'Search invoice # or customer...')}
-          className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-1.5 text-sm flex-1 min-w-[200px]"
+          placeholder={t('invoicing.searchPlaceholder', 'Search...')}
+          className="w-48 bg-transparent border-b border-black/10 dark:border-white/10 px-0 py-1 text-xs outline-none placeholder:text-black/25 dark:placeholder:text-white/25 focus:border-[#2563EB] transition-colors"
         />
       </div>
 
       {/* ─── Bulk Action Bar ────────────────────────────── */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-[#2563EB]/30 bg-[#2563EB]/5 px-4 py-2">
-          <span className="text-sm font-[family-name:var(--font-geist-mono)] tabular-nums">
-            {selectedIds.size} {t('invoicing.selected', 'selected')}
-          </span>
-          <button
-            type="button"
-            className="rounded-lg bg-[#2563EB] text-white px-3 py-1 text-xs font-medium hover:bg-[#2563EB]/90 transition-colors"
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeIn' }}
+            className="overflow-hidden"
           >
-            {t('invoicing.batchSend', 'Batch Send')}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-[#2563EB] text-[#2563EB] px-3 py-1 text-xs font-medium hover:bg-[#2563EB]/10 transition-colors"
-          >
-            {t('invoicing.batchGenerate', 'Batch Generate')}
-          </button>
-        </div>
-      )}
+            <div className="flex items-center gap-3 px-5 py-2 border-b border-[#2563EB]/20 bg-[#2563EB]/[0.03]">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[#2563EB]">
+                {selectedIds.size}
+              </span>
+              <span className="text-xs text-black/40 dark:text-white/40">
+                {t('invoicing.selected', 'selected')}
+              </span>
+              <div className="flex-1" />
+              <Button className="rounded-md bg-[#2563EB] text-white px-3 py-1 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors">
+                {t('invoicing.batchSend', 'Batch Send')}
+              </Button>
+              <Button className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1 text-xs font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
+                {t('invoicing.batchGenerate', 'Batch Generate')}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ─── Invoice Table ──────────────────────────────── */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-                <th className="py-3 ps-4 pe-2 w-8">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === filtered.length && filtered.length > 0}
-                    onChange={toggleSelectAll}
-                    className="rounded border-black/20 dark:border-white/20"
-                  />
-                </th>
-                <th className="py-3 px-2 font-medium text-start">{t('invoicing.invoiceNumber', 'Invoice #')}</th>
-                <th className="py-3 px-2 font-medium text-start">{t('invoicing.customer', 'Customer')}</th>
-                <th className="py-3 px-2 font-medium text-end">{t('invoicing.amount', 'Amount')}</th>
-                <th className="py-3 px-2 font-medium text-start">{t('invoicing.date', 'Date')}</th>
-                <th className="py-3 px-2 font-medium text-start">{t('invoicing.dueDate', 'Due Date')}</th>
-                <th className="py-3 px-2 font-medium text-center">{t('invoicing.status', 'Status')}</th>
-                <th className="py-3 px-2 pe-4 font-medium text-center">{t('invoicing.etaStatus', 'ETA Status')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((inv) => (
-                <tr
+      {/* ─── Grouped Invoice Rows ───────────────────────── */}
+      <div>
+        {/* Column header */}
+        <div className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_32px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/30 dark:text-white/30 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === filtered.length && filtered.length > 0}
+              onChange={toggleSelectAll}
+              className="rounded border-black/15 dark:border-white/15 size-3"
+            />
+          </div>
+          <div>{t('invoicing.invoiceNumber', 'Invoice')}</div>
+          <div>{t('invoicing.customer', 'Customer')}</div>
+          <div className="text-end">{t('invoicing.amount', 'Amount')}</div>
+          <div>{t('invoicing.dueDate', 'Due')}</div>
+          <div className="text-center">{t('invoicing.status', 'Status')}</div>
+          <div className="text-end">{t('invoicing.age', 'Age')}</div>
+          <div className="text-center">ETA</div>
+        </div>
+
+        {GROUP_ORDER.map((group) => {
+          const items = grouped[group]
+          if (items.length === 0) return null
+
+          return (
+            <div key={group}>
+              {/* Group header */}
+              <div className="px-5 py-1.5 bg-black/[0.02] dark:bg-white/[0.02] border-b border-black/[0.04] dark:border-white/[0.04]">
+                <span className="text-[10px] tracking-widest uppercase font-medium text-black/35 dark:text-white/35">
+                  {GROUP_LABELS[group]}
+                </span>
+                <span className="ms-2 font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
+                  {items.length}
+                </span>
+              </div>
+
+              {/* Invoice rows */}
+              {items.map((inv) => (
+                <div
                   key={inv.id}
-                  className="border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedInvoiceId(inv.id)}
                   onKeyDown={(e) => { if (e.key === 'Enter') setSelectedInvoiceId(inv.id) }}
-                  tabIndex={0}
-                  role="button"
+                  className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_32px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
                 >
-                  <td className="py-3 ps-4 pe-2" onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(inv.id)}
                       onChange={() => toggleSelect(inv.id)}
-                      className="rounded border-black/20 dark:border-white/20"
+                      className="rounded border-black/15 dark:border-white/15 size-3"
                     />
-                  </td>
-                  <td className="py-3 px-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.number}</td>
-                  <td className="py-3 px-2">{inv.customerName}</td>
-                  <td className="py-3 px-2 text-end"><CurrencyCell amount={inv.grandTotal} /></td>
-                  <td className="py-3 px-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.issuedDate}</td>
-                  <td className="py-3 px-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.dueDate}</td>
-                  <td className="py-3 px-2 text-center"><StatusBadge status={inv.status} /></td>
-                  <td className="py-3 px-2 pe-4 text-center"><ETABadge status={inv.etaStatus} /></td>
-                </tr>
+                  </div>
+
+                  {/* Invoice # — mono blue */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[#2563EB] font-medium">
+                    {inv.number}
+                  </span>
+
+                  {/* Customer */}
+                  <span className="text-xs text-black/70 dark:text-white/70 truncate pe-3">
+                    {inv.customerName}
+                  </span>
+
+                  {/* Amount — mono, end-aligned */}
+                  <span className="text-end">
+                    <CurrencyCell amount={inv.grandTotal} className="text-xs" />
+                  </span>
+
+                  {/* Due date — mono */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+                    {inv.dueDate}
+                  </span>
+
+                  {/* Status dot + label */}
+                  <div className="text-center">
+                    <StatusBadge status={inv.status} />
+                  </div>
+
+                  {/* Age */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-end text-black/30 dark:text-white/30">
+                    {getAge(inv.issuedDate)}
+                  </span>
+
+                  {/* ETA dot */}
+                  <div className="flex justify-center">
+                    <ETADot status={inv.etaStatus} />
+                  </div>
+                </div>
               ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-black/40 dark:text-white/40">
-                    {t('invoicing.noInvoices', 'No invoices found')}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )
+        })}
+
+        {filtered.length === 0 && (
+          <div className="flex items-center justify-center py-16">
+            <span className="text-xs text-black/25 dark:text-white/25 tracking-wider uppercase">
+              {t('invoicing.noInvoices', 'No invoices')}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -4,11 +4,7 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type CSTab =
-  | 'home'
-  | 'whatsapp'
-  | 'tickets'
-  | 'returns'
-  | 'knowledge-base'
+  | 'conversations'
 
 // ─── Ticket Types ────────────────────────────────────────
 

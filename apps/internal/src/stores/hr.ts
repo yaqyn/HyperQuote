@@ -17,7 +17,7 @@ interface HRStore {
 export const useHRStore = create<HRStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'home',
+    activeTab: 'people',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Entity selection

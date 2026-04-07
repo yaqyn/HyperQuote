@@ -9,12 +9,12 @@ interface DocumentsTabProps {
   enabled: boolean
 }
 
-const DOC_TYPE_ICONS: Record<string, string> = {
-  quote: '\u{1F4C4}',
-  invoice: '\u{1F4B0}',
-  delivery_note: '\u{1F69A}',
-  contract: '\u{1F4DD}',
-  certificate: '\u{1F3C6}',
+const DOC_TYPE_LABELS: Record<string, string> = {
+  quote: 'QT',
+  invoice: 'INV',
+  delivery_note: 'DN',
+  contract: 'CTR',
+  certificate: 'CRT',
 }
 
 export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
@@ -22,7 +22,7 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'documents', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
     enabled,
     select: (d) => d.documents,
@@ -32,17 +32,17 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
   if (isLoading) return <TabSkeleton />
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
         {t('sales.customer360.documents.noDocuments')}
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Upload Area */}
+    <div className="p-6 space-y-5">
+      {/* Upload area */}
       <div
-        className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-[#2563EB]/30 transition-colors cursor-pointer"
+        className="flex items-center justify-center gap-3 py-4 rounded-lg border border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#2563EB]/30 transition-colors cursor-pointer"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault()
@@ -52,10 +52,10 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
           }
         }}
       >
-        <p className="text-sm text-black/40 dark:text-white/40">
+        <span className="text-[13px] text-black/25 dark:text-white/25">
           {t('sales.customer360.documents.dragDrop')}
-        </p>
-        <label className="mt-2 px-3 py-1.5 text-xs font-medium text-[#2563EB] border border-[#2563EB]/30 rounded-lg hover:bg-[#2563EB]/5 cursor-pointer">
+        </span>
+        <label className="px-3 py-1 text-[11px] font-medium text-[#2563EB] rounded-md bg-[#2563EB]/[0.06] hover:bg-[#2563EB]/[0.1] cursor-pointer transition-colors">
           {t('sales.customer360.documents.browse')}
           <input
             type="file"
@@ -70,38 +70,39 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
         </label>
       </div>
 
-      {/* Documents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* File grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {data.map((doc) => (
           <div
             key={doc.id}
-            className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/40 p-3"
+            className="group relative p-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
           >
-            <div className="flex items-start gap-3">
-              <span className="text-lg shrink-0">
-                {DOC_TYPE_ICONS[doc.type] ?? '\u{1F4C4}'}
+            {/* Type badge */}
+            <div className="w-8 h-8 rounded bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center mb-2">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold text-black/35 dark:text-white/35 tabular-nums">
+                {DOC_TYPE_LABELS[doc.type] ?? 'DOC'}
               </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-black dark:text-white truncate">
-                  {doc.name}
-                </p>
-                <p className="text-xs text-black/40 dark:text-white/40 capitalize">
-                  {doc.type.replace(/_/g, ' ')}
-                </p>
-                <p className="text-xs font-[family-name:var(--font-geist-mono)] text-black/30 dark:text-white/30 mt-1">
-                  {new Date(doc.uploadedAt).toLocaleDateString()}
-                </p>
-              </div>
             </div>
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-black/5 dark:border-white/5">
+
+            {/* Filename */}
+            <p className="text-[13px] font-medium text-[var(--color-text)] dark:text-white truncate leading-tight">
+              {doc.name}
+            </p>
+
+            {/* Type + date */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.03] dark:bg-white/[0.04] text-black/35 dark:text-white/35 capitalize">
+                {doc.type.replace(/_/g, ' ')}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
+                {new Date(doc.uploadedAt).toLocaleDateString()}
+              </span>
+            </div>
+
+            {/* Download action — visible on hover */}
+            <div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
-                className="text-xs text-[#2563EB] hover:underline outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 rounded"
-                onPress={() => window.open(doc.url, '_blank')}
-              >
-                {t('sales.customer360.documents.view')}
-              </Button>
-              <Button
-                className="text-xs text-black/40 dark:text-white/40 hover:underline outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 rounded"
+                className="text-[10px] font-medium text-[#2563EB] px-2 py-1 rounded bg-white dark:bg-[var(--color-bg)] shadow-sm outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
                 onPress={() => {
                   const link = document.createElement('a')
                   link.href = doc.url
@@ -121,11 +122,11 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
 
 function TabSkeleton() {
   return (
-    <div className="p-4 space-y-4 animate-pulse">
-      <div className="h-24 rounded-xl bg-black/5 dark:bg-white/5" />
-      <div className="grid grid-cols-3 gap-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-lg bg-black/5 dark:bg-white/5" />
+    <div className="p-6 space-y-4 animate-pulse">
+      <div className="h-12 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
         ))}
       </div>
     </div>

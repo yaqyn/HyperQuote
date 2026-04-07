@@ -7,11 +7,11 @@ interface ProjectsTabProps {
   enabled: boolean
 }
 
-const STAGE_STYLES: Record<string, string> = {
-  planning: 'bg-[#2563EB]/10 text-[#2563EB]',
-  foundation: 'bg-[#eab308]/10 text-[#eab308]',
-  structure: 'bg-[#22c55e]/10 text-[#22c55e]',
-  finishing: 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60',
+const STAGE_COLORS: Record<string, string> = {
+  planning: '#2563EB',
+  foundation: '#eab308',
+  structure: '#22c55e',
+  finishing: 'var(--color-text-muted)',
 }
 
 export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
@@ -19,7 +19,7 @@ export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'projects', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
     enabled,
     select: (d) => d.projects,
@@ -29,65 +29,82 @@ export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
   if (isLoading) return <TabSkeleton />
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
         {t('sales.customer360.projects.noProjects')}
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {data.map((project) => (
-        <div
-          key={project.id}
-          className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/40 p-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-black dark:text-white">
-              {project.name}
-            </h4>
-            <span
-              className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${
-                STAGE_STYLES[project.stage] ?? STAGE_STYLES.planning
-              }`}
-            >
-              {project.stage}
-            </span>
-          </div>
+    <div className="p-6">
+      {/* Timeline-style vertical list */}
+      <div className="relative">
+        {/* Vertical timeline line */}
+        <div className="absolute start-[7px] top-2 bottom-2 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
 
-          <div>
-            <p className="text-xs text-black/40 dark:text-white/40 mb-2">
-              {t('sales.customer360.projects.materialRequirements')}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {project.materialRequirements.map((mat) => (
-                <span
-                  key={mat}
-                  className="text-xs px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60"
-                >
-                  {mat.replace(/_/g, ' ')}
-                </span>
-              ))}
-            </div>
-          </div>
+        <div className="space-y-6">
+          {data.map((project) => {
+            const stageColor = STAGE_COLORS[project.stage] ?? STAGE_COLORS.planning
 
-          {/* AI Cross-sell Placeholder */}
-          <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5">
-            <p className="text-xs text-black/30 dark:text-white/30 italic">
-              {t('sales.customer360.projects.aiCrossSell')}
-            </p>
-          </div>
+            return (
+              <div key={project.id} className="relative flex items-start gap-4 ps-6">
+                {/* Timeline dot */}
+                <div
+                  className="absolute start-0 top-1 w-[15px] h-[15px] rounded-full border-2 bg-white dark:bg-[var(--color-bg)]"
+                  style={{ borderColor: stageColor }}
+                />
+
+                <div className="flex-1 min-w-0">
+                  {/* Name + stage pill */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="text-[13px] font-semibold text-[var(--color-text)] dark:text-white">
+                      {project.name}
+                    </h4>
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-medium capitalize"
+                      style={{ color: stageColor, backgroundColor: `color-mix(in srgb, ${stageColor} 10%, transparent)` }}
+                    >
+                      {project.stage}
+                    </span>
+                  </div>
+
+                  {/* Materials as tiny tags */}
+                  <div className="flex flex-wrap gap-1">
+                    {project.materialRequirements.map((mat) => (
+                      <span
+                        key={mat}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.03] dark:bg-white/[0.05] text-black/40 dark:text-white/40"
+                      >
+                        {mat.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* AI Cross-sell placeholder */}
+                  <p className="text-[11px] text-black/20 dark:text-white/20 italic mt-2">
+                    {t('sales.customer360.projects.aiCrossSell')}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
         </div>
-      ))}
+      </div>
     </div>
   )
 }
 
 function TabSkeleton() {
   return (
-    <div className="p-4 space-y-4 animate-pulse">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="h-32 rounded-xl bg-black/5 dark:bg-white/5" />
+    <div className="p-6 space-y-6 animate-pulse">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex gap-4 ps-6">
+          <div className="w-3 h-3 rounded-full bg-black/[0.03] dark:bg-white/[0.03]" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-40 rounded bg-black/[0.03] dark:bg-white/[0.03]" />
+            <div className="h-3 w-60 rounded bg-black/[0.03] dark:bg-white/[0.03]" />
+          </div>
+        </div>
       ))}
     </div>
   )

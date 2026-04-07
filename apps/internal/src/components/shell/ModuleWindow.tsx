@@ -6,49 +6,18 @@ import { useInternalStore } from '../../stores/internal'
 import { MODULES } from '../../lib/modules'
 import { WindowHeader } from './WindowHeader'
 
-const SalesModule = lazy(() =>
-  import('../sales/SalesModule').then((m) => ({ default: m.SalesModule })),
-)
-
-const ProcurementModule = lazy(() =>
-  import('../procurement/ProcurementModule').then((m) => ({ default: m.ProcurementModule })),
-)
-
-const OperationsModule = lazy(() =>
-  import('../operations/OperationsModule').then((m) => ({ default: m.OperationsModule })),
-)
-
-const WarehouseModule = lazy(() =>
-  import('../warehouse/WarehouseModule').then((m) => ({ default: m.WarehouseModule })),
-)
-
-const FinanceModule = lazy(() =>
-  import('../finance/FinanceModule').then((m) => ({ default: m.FinanceModule })),
-)
-
-const DispatchModule = lazy(() =>
-  import('../dispatch/DispatchModule').then((m) => ({ default: m.DispatchModule })),
-)
-
-const CustomerServiceModule = lazy(() =>
-  import('../customer-service/CustomerServiceModule').then((m) => ({ default: m.CustomerServiceModule })),
-)
-
-const HRModule = lazy(() =>
-  import('../hr/HRModule').then((m) => ({ default: m.HRModule })),
-)
-
-const AdminModule = lazy(() =>
-  import('../admin/AdminModule').then((m) => ({ default: m.AdminModule })),
-)
-
-const ReportsModule = lazy(() =>
-  import('../reports/ReportsModule').then((m) => ({ default: m.ReportsModule })),
-)
-
-const AIModule = lazy(() =>
-  import('../ai/AIModule').then((m) => ({ default: m.AIModule })),
-)
+const MODULE_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
+  sales: lazy(() => import('../sales/SalesModule').then((m) => ({ default: m.SalesModule }))),
+  procurement: lazy(() => import('../procurement/ProcurementModule').then((m) => ({ default: m.ProcurementModule }))),
+  orders: lazy(() => import('../operations/OperationsModule').then((m) => ({ default: m.OperationsModule }))),
+  warehouse: lazy(() => import('../warehouse/WarehouseModule').then((m) => ({ default: m.WarehouseModule }))),
+  finance: lazy(() => import('../finance/FinanceModule').then((m) => ({ default: m.FinanceModule }))),
+  dispatch: lazy(() => import('../dispatch/DispatchModule').then((m) => ({ default: m.DispatchModule }))),
+  'customer-service': lazy(() => import('../customer-service/CustomerServiceModule').then((m) => ({ default: m.CustomerServiceModule }))),
+  hr: lazy(() => import('../hr/HRModule').then((m) => ({ default: m.HRModule }))),
+  admin: lazy(() => import('../admin/AdminModule').then((m) => ({ default: m.AdminModule }))),
+  reports: lazy(() => import('../reports/ReportsModule').then((m) => ({ default: m.ReportsModule }))),
+}
 
 interface ModuleWindowProps {
   moduleId: string
@@ -63,6 +32,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
   const saveWindowState = useInternalStore((s) => s.saveWindowState)
 
   const mod = MODULES.find((m) => m.id === moduleId)
+  const ModuleComponent = MODULE_COMPONENTS[moduleId]
 
   // Manage keyboard scope
   useEffect(() => {
@@ -87,7 +57,6 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
   }, [isOpen, moduleId, getWindowState])
 
   function handleClose() {
-    // Save scroll position before closing
     if (contentRef.current) {
       saveWindowState(moduleId, { scrollTop: contentRef.current.scrollTop })
     }
@@ -96,129 +65,36 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 
   return (
     <GlassWindow isOpen={isOpen} onClose={handleClose}>
-      <div className="flex flex-col h-full">
-        <WindowHeader moduleId={moduleId} onClose={handleClose} />
-        <div ref={contentRef} data-module-content className="flex-1 overflow-auto">
-          {moduleId === 'sales' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <SalesModule />
-            </Suspense>
-          ) : moduleId === 'procurement' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <ProcurementModule />
-            </Suspense>
-          ) : moduleId === 'orders' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <OperationsModule />
-            </Suspense>
-          ) : moduleId === 'warehouse' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <WarehouseModule />
-            </Suspense>
-          ) : moduleId === 'finance' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <FinanceModule />
-            </Suspense>
-          ) : moduleId === 'dispatch' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <DispatchModule />
-            </Suspense>
-          ) : moduleId === 'customer-service' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <CustomerServiceModule />
-            </Suspense>
-          ) : moduleId === 'hr' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <HRModule />
-            </Suspense>
-          ) : moduleId === 'admin' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <AdminModule />
-            </Suspense>
-          ) : moduleId === 'reports' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <ReportsModule />
-            </Suspense>
-          ) : moduleId === 'ai' ? (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-                </div>
-              }
-            >
-              <AIModule />
-            </Suspense>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
-              {mod && <mod.icon size={48} className="text-[var(--color-text-muted)]" />}
-              <p className="text-[var(--color-text-muted)] text-sm">
-                {t('window.comingSoon')}
-              </p>
-            </div>
-          )}
-        </div>
+      {/* Header — pinned at top, never scrolls */}
+      <WindowHeader moduleId={moduleId} onClose={handleClose} />
+
+      {/* Scrollable content area — takes remaining height */}
+      <div
+        ref={contentRef}
+        data-module-content
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+      >
+        {ModuleComponent ? (
+          <Suspense fallback={<ModuleLoader />}>
+            <ModuleComponent />
+          </Suspense>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
+            {mod && <mod.icon size={48} className="text-[var(--color-text-muted)]" />}
+            <p className="text-[var(--color-text-muted)] text-sm">
+              {t('window.comingSoon')}
+            </p>
+          </div>
+        )}
       </div>
     </GlassWindow>
+  )
+}
+
+function ModuleLoader() {
+  return (
+    <div className="flex items-center justify-center h-full min-h-[200px]">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
+    </div>
   )
 }

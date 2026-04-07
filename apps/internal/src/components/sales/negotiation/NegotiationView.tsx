@@ -1,128 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogTrigger, Modal, ModalOverlay, Heading } from 'react-aria-components'
-import { markAsLost } from '../../../lib/server/sales-pipeline'
 import { VersionTimeline } from './VersionTimeline'
 import { SideBySideComparison } from './SideBySideComparison'
 import { WhatIfCalculator } from './WhatIfCalculator'
 import { ConvertToOrderDialog } from './ConvertToOrderDialog'
 import { NegotiationThread } from './NegotiationThread'
+import { MarkAsLostDialog } from './MarkAsLostDialog'
 
-// ─── Loss Reason Dialog ──────────────────────────────────────
-
-const LOSS_REASONS = [
-  'lost_to_competitor',
-  'price_too_high',
-  'project_cancelled',
-  'no_response',
-  'other',
-] as const
-
-type LossReason = (typeof LOSS_REASONS)[number]
-
-function MarkAsLostDialog({
-  quoteId,
-  onClose,
-}: {
-  quoteId: string
-  onClose: () => void
-}) {
-  const { t } = useTranslation('internal')
-  const [reason, setReason] = useState<LossReason>('lost_to_competitor')
-  const [competitorName, setCompetitorName] = useState('')
-  const [notes, setNotes] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  async function handleSubmit() {
-    setIsSubmitting(true)
-    try {
-      await markAsLost({
-        data: {
-          quoteId,
-          lossReason: reason,
-          competitorName: competitorName || undefined,
-        },
-      })
-      onClose()
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="p-6 space-y-4">
-      <Heading slot="title" className="text-lg font-semibold">
-        {t('sales.negotiation.markAsLost', 'Mark as Lost')}
-      </Heading>
-
-      <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          {t('sales.negotiation.lossReason', 'Reason')}
-        </label>
-        <select
-          value={reason}
-          onChange={(e) => setReason(e.target.value as LossReason)}
-          className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-2 text-sm"
-        >
-          {LOSS_REASONS.map((r) => (
-            <option key={r} value={r}>
-              {t(`sales.negotiation.lossReasons.${r}`, r.replace(/_/g, ' '))}
-            </option>
-          ))}
-        </select>
-
-        {reason === 'lost_to_competitor' && (
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              {t('sales.negotiation.competitorName', 'Competitor Name')}
-            </label>
-            <input
-              type="text"
-              value={competitorName}
-              onChange={(e) => setCompetitorName(e.target.value)}
-              className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-2 text-sm"
-              placeholder={t('sales.negotiation.competitorPlaceholder', 'e.g., Egyptian Steel Distribution')}
-            />
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            {t('sales.negotiation.notes', 'Notes (optional)')}
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-2 text-sm resize-none"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-        >
-          {t('common.cancel', 'Cancel')}
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg disabled:opacity-40 hover:bg-red-700 transition-colors"
-        >
-          {isSubmitting
-            ? t('common.submitting', 'Submitting...')
-            : t('sales.negotiation.confirmLost', 'Confirm Lost')}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Main Component ──────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────
 
 interface NegotiationViewProps {
   quoteId: string
@@ -147,111 +32,110 @@ export function NegotiationView({
 
   function handleSelectVersion(versionId: string) {
     setSelectedVersions((prev) => {
-      // If already selected, deselect (keep the other)
-      if (prev.includes(versionId)) {
-        return prev
-      }
-      // Replace the older selection (slot A) with current slot B, put new in slot B
+      if (prev.includes(versionId)) return prev
       return [prev[1], versionId]
     })
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Back button */}
+    <div className="flex h-full flex-col">
+      {/* Back */}
       {onBack && (
-        <div className="px-4 py-2 border-b border-black/10 dark:border-white/10">
+        <div className="border-b border-black/[0.06] px-5 py-2.5 dark:border-white/[0.06]">
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-[#2563EB] hover:underline"
+            className="text-[13px] text-[var(--color-primary)] transition-colors hover:underline"
           >
             {t('sales.negotiation.backToPipeline', 'Back to Pipeline')}
           </button>
         </div>
       )}
 
-      {/* Version Timeline */}
-      <VersionTimeline
-        quoteId={quoteId}
-        selectedVersions={selectedVersions}
-        onSelectVersion={handleSelectVersion}
-      />
-
-      {/* Main Content: Comparison (60%) + What-If Calculator placeholder (40%) */}
-      <div className="flex-1 flex min-h-0">
-        <div className="w-[60%] flex flex-col overflow-hidden">
-          <SideBySideComparison
-            versionAId={selectedVersions[0]}
-            versionBId={selectedVersions[1]}
+      {/* Split layout: Timeline (narrow left) + Content (right) */}
+      <div className="flex min-h-0 flex-1">
+        {/* Version Timeline — vertical thread on the left */}
+        <div className="w-[280px] shrink-0 overflow-y-auto border-e border-black/[0.06] dark:border-white/[0.06]">
+          <VersionTimeline
+            quoteId={quoteId}
+            selectedVersions={selectedVersions}
+            onSelectVersion={handleSelectVersion}
           />
         </div>
-        <div className="w-[40%] border-s border-black/10 dark:border-white/10 overflow-hidden">
-          <WhatIfCalculator
-            quoteId={quoteId}
-            onApplyMargins={onReviseQuote}
-          />
+
+        {/* Main content area */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Comparison + What-If */}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex w-[60%] flex-col overflow-hidden">
+              <SideBySideComparison
+                versionAId={selectedVersions[0]}
+                versionBId={selectedVersions[1]}
+              />
+            </div>
+            <div className="w-[40%] overflow-hidden border-s border-black/[0.06] dark:border-white/[0.06]">
+              <WhatIfCalculator
+                quoteId={quoteId}
+                onApplyMargins={onReviseQuote}
+              />
+            </div>
+          </div>
+
+          {/* Negotiation Thread */}
+          <NegotiationThread quoteId={quoteId} />
         </div>
       </div>
 
-      {/* Negotiation Thread */}
-      <NegotiationThread quoteId={quoteId} />
-
       {/* Actions Bar */}
-      <div className="px-4 py-3 border-t border-black/10 dark:border-white/10 flex items-center gap-3">
+      <div className="flex items-center gap-2 border-t border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
         <button
           type="button"
           onClick={onReviseQuote}
-          className="px-4 py-2 text-sm font-medium border border-black/20 dark:border-white/20 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="rounded-full border border-black/[0.06] px-4 py-1.5 text-[13px] font-medium text-[var(--color-text)] transition-colors hover:bg-black/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.02]"
         >
           {t('sales.negotiation.actions.reviseQuote', 'Revise Quote')}
         </button>
         <button
           type="button"
-          className="px-4 py-2 text-sm font-medium border border-black/20 dark:border-white/20 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="rounded-full border border-black/[0.06] px-4 py-1.5 text-[13px] font-medium text-[var(--color-text)] transition-colors hover:bg-black/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.02]"
         >
-          {t('sales.negotiation.actions.acceptCounter', 'Accept Customer Counter')}
+          {t('sales.negotiation.actions.acceptCounter', 'Accept Counter')}
         </button>
+
         <div className="flex-1" />
+
         <button
           type="button"
           onClick={() => setShowConvertDialog(true)}
-          className="px-4 py-2 text-sm font-medium bg-[#2563EB] text-white rounded-lg hover:bg-[#2563EB]/90 transition-colors"
+          className="rounded-full bg-[var(--color-primary)] px-4 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90"
         >
           {t('sales.negotiation.actions.markAsWon', 'Mark as Won')}
         </button>
 
-        <ConvertToOrderDialog
-          quoteId={quoteId}
-          isOpen={showConvertDialog}
-          onOpenChange={setShowConvertDialog}
-          onSuccess={(orderNumber) => {
-            // TODO: Navigate to order detail (Phase 18)
-            onMarkAsWon?.()
-          }}
-        />
-
-        <DialogTrigger isOpen={showLostDialog} onOpenChange={setShowLostDialog}>
-          <button
-            type="button"
-            className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            {t('sales.negotiation.actions.markAsLost', 'Mark as Lost')}
-          </button>
-          <ModalOverlay
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          >
-            <Modal className="backdrop-blur-2xl bg-white/90 dark:bg-black/90 rounded-2xl shadow-2xl w-full max-w-md">
-              <Dialog className="outline-none">
-                <MarkAsLostDialog
-                  quoteId={quoteId}
-                  onClose={() => setShowLostDialog(false)}
-                />
-              </Dialog>
-            </Modal>
-          </ModalOverlay>
-        </DialogTrigger>
+        <button
+          type="button"
+          onClick={() => setShowLostDialog(true)}
+          className="rounded-full bg-[var(--color-text)] px-4 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-text)]/90 dark:bg-white dark:text-black"
+        >
+          {t('sales.negotiation.actions.markAsLost', 'Mark as Lost')}
+        </button>
       </div>
+
+      {/* Dialogs */}
+      <ConvertToOrderDialog
+        quoteId={quoteId}
+        isOpen={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+        onSuccess={(orderNumber) => {
+          onMarkAsWon?.()
+        }}
+      />
+
+      <MarkAsLostDialog
+        quoteId={quoteId}
+        isOpen={showLostDialog}
+        onOpenChange={setShowLostDialog}
+      />
     </div>
   )
 }

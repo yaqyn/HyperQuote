@@ -1,4 +1,4 @@
-import { Checkbox } from 'react-aria-components'
+import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { getQualityChecklist } from '../../../lib/warehouse/quality-checklists'
 import type { MaterialCategory, QualityChecklistItem } from '../../../types/warehouse'
@@ -10,9 +10,9 @@ interface QualityChecklistProps {
 }
 
 /**
- * Material-specific quality checklist component.
- * Renders checklist items from getQualityChecklist() for the given material category.
- * Required items marked with asterisk and must be checked before completion.
+ * Quality checklist — each item is a FULL-WIDTH PRESSABLE ROW.
+ * NOT small checkboxes. Large toggle buttons: Pass / Fail.
+ * Designed for gloved hands on tablets. Min 56px row height.
  */
 export function QualityChecklist({
   materialCategory,
@@ -33,50 +33,55 @@ export function QualityChecklist({
   const allRequiredDone = requiredChecked === requiredCount
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-black/80 dark:text-white/80">
+        <h4 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
           {t('warehouse.receiving.qualityChecklist', 'Quality Checklist')}
         </h4>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/50 dark:text-white/50">
-          {requiredChecked}/{requiredCount} {t('warehouse.receiving.required', 'required')}
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold text-black/60 dark:text-white/60">
+          {requiredChecked}/{requiredCount}
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
+      {/* Full-width pressable rows */}
+      <div className="flex flex-col gap-1">
         {items.map((item) => (
-          <Checkbox
+          <Button
             key={item.id}
-            isSelected={item.checked}
-            onChange={(checked) => handleToggle(item.id, checked)}
-            className="group flex items-start gap-3 cursor-pointer"
+            onPress={() => handleToggle(item.id, !item.checked)}
+            className={`
+              flex items-center justify-between gap-4 min-h-[56px] px-4 py-3 rounded-lg cursor-pointer transition-colors text-start
+              ${item.checked
+                ? 'bg-green-500/5 border border-green-500/20'
+                : 'bg-transparent border border-black/5 dark:border-white/5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+              }
+            `}
           >
-            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-black/20 dark:border-white/20 transition-colors group-data-[selected]:bg-[#2563EB] group-data-[selected]:border-[#2563EB]">
-              <svg
-                className="h-3.5 w-3.5 text-white opacity-0 group-data-[selected]:opacity-100 transition-opacity"
-                viewBox="0 0 14 14"
-                fill="none"
-              >
-                <path
-                  d="M3 7.5L5.5 10L11 4"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <span className="text-sm text-black/70 dark:text-white/70">
+            {/* Check description */}
+            <span className={`text-sm flex-1 ${item.checked ? 'text-black/70 dark:text-white/70' : 'text-black/60 dark:text-white/60'}`}>
               {item.label}
               {item.required && <span className="text-red-500 ms-1">*</span>}
             </span>
-          </Checkbox>
+
+            {/* Pass/Fail indicator */}
+            <span className={`
+              shrink-0 text-xs font-semibold uppercase tracking-wider px-3 py-1.5 rounded
+              ${item.checked
+                ? 'text-green-700 dark:text-green-400 bg-green-500/10'
+                : 'text-black/30 dark:text-white/30'
+              }
+            `}>
+              {item.checked ? 'Pass' : 'Fail'}
+            </span>
+          </Button>
         ))}
       </div>
 
+      {/* Warning */}
       {!allRequiredDone && (
-        <p className="text-xs text-red-500">
-          {t('warehouse.receiving.completeRequired', 'All required items must be checked before completion')}
+        <p className="text-xs font-medium text-red-500">
+          {t('warehouse.receiving.completeRequired', 'All required items must pass before completion')}
         </p>
       )}
     </div>

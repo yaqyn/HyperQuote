@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay, TextField, Label, Input } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { GatedStep } from './GatedStep'
 import { ScanInput } from '../shared/ScanInput'
 import { SignaturePad } from '../shared/SignaturePad'
@@ -11,30 +12,23 @@ import { loadVerification } from '../../../lib/server/warehouse-staging'
 import type { LoadVerificationStep, StagingItem } from '../../../types/warehouse'
 
 // ─── Configurable Tolerance ──────────────────────────────────
-// Weight verification tolerance is configurable, NOT hardcoded (per locked decision)
 const TOLERANCE_CONFIG = {
-  /** Green: within this percentage — load approved */
   green: 2,
-  /** Yellow: between green and red — warning but passable with review */
   yellow: 5,
-  /** Red: above this — blocked, requires manager override */
   red: 5,
-  /** Minimum required photos for gate clearance */
   minPhotos: 3,
 } as const
 
 // ─── Step Definitions ────────────────────────────────────────
-
 const STEPS: { key: LoadVerificationStep; title: string; description: string }[] = [
-  { key: 'scan_truck', title: 'Scan Truck ID', description: 'Scan the truck barcode to confirm assignment' },
-  { key: 'scan_items', title: 'Scan Items', description: 'Scan each item as it is loaded onto the truck' },
-  { key: 'verify_weight', title: 'Verify Weight', description: 'Compare actual weight against expected' },
-  { key: 'photos', title: 'Capture Photos', description: 'Take rear, side, and seal photos' },
-  { key: 'sign_off', title: 'Sign-Off', description: 'Driver and loader signatures required' },
+  { key: 'scan_truck', title: 'Scan Truck ID', description: 'Confirm truck assignment' },
+  { key: 'scan_items', title: 'Scan Items', description: 'Verify each loaded item' },
+  { key: 'verify_weight', title: 'Verify Weight', description: 'Compare actual vs expected' },
+  { key: 'photos', title: 'Capture Photos', description: 'Rear, side, and seal' },
+  { key: 'sign_off', title: 'Sign-Off', description: 'Driver + loader signatures' },
 ]
 
 // ─── Form Types ──────────────────────────────────────────────
-
 interface VerificationFormValues {
   truckId: string
   actualWeightKg: number | null
@@ -54,10 +48,10 @@ interface LoadVerificationProps {
 }
 
 /**
- * 5-step gated load verification flow.
+ * "The Dock Out" — 5-step gated load verification.
+ * Sequential gate: must complete current step before next unlocks.
  * Hard gating blocks departure for missing items, weight variance, or missing photos.
- * Manager override available for blocked departures via React Aria Dialog.
- * Dual signature pad captures driver + loader separately.
+ * Checklist style: verified items muted, remaining items bold.
  */
 export function LoadVerification({
   routeId,
@@ -70,7 +64,6 @@ export function LoadVerification({
 }: LoadVerificationProps) {
   const { activeWorkflow, setActiveWorkflow, clearWorkflow } = useWarehouseStore()
 
-  // Restore persisted step from workflow state
   const persistedStep = activeWorkflow?.type === 'load-verification'
     ? (activeWorkflow.step as number)
     : 0
@@ -79,9 +72,7 @@ export function LoadVerification({
   const [truckScanned, setTruckScanned] = useState(false)
   const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(new Set())
   const [photos, setPhotos] = useState<{ rear: File | null; side: File | null; seal: File | null }>({
-    rear: null,
-    side: null,
-    seal: null,
+    rear: null, side: null, seal: null,
   })
   const [driverSignature, setDriverSignature] = useState<string | null>(null)
   const [loaderSignature, setLoaderSignature] = useState<string | null>(null)
@@ -129,18 +120,12 @@ export function LoadVerification({
   const canAdvanceForStep = useCallback(
     (stepIndex: number): boolean => {
       switch (STEPS[stepIndex].key) {
-        case 'scan_truck':
-          return truckScanned
-        case 'scan_items':
-          return allItemsScanned
-        case 'verify_weight':
-          return Boolean(actualWeightKg) && (weightWithinTolerance || managerOverride)
-        case 'photos':
-          return minPhotosReached
-        case 'sign_off':
-          return bothSigned
-        default:
-          return false
+        case 'scan_truck': return truckScanned
+        case 'scan_items': return allItemsScanned
+        case 'verify_weight': return Boolean(actualWeightKg) && (weightWithinTolerance || managerOverride)
+        case 'photos': return minPhotosReached
+        case 'sign_off': return bothSigned
+        default: return false
       }
     },
     [truckScanned, allItemsScanned, actualWeightKg, weightWithinTolerance, managerOverride, minPhotosReached, bothSigned],
@@ -150,22 +135,18 @@ export function LoadVerification({
     const nextIndex = currentStepIndex + 1
     if (nextIndex < STEPS.length) {
       setCurrentStepIndex(nextIndex)
-      setActiveWorkflow({
-        type: 'load-verification',
-        step: nextIndex,
-        data: { routeId },
-      })
+      setActiveWorkflow({ type: 'load-verification', step: nextIndex, data: { routeId } })
     }
   }, [currentStepIndex, setActiveWorkflow, routeId])
 
   // ─── Block Reasons ───────────────────────────────────────
   const blockReasons = useMemo(() => {
     const reasons: string[] = []
-    if (!allItemsScanned) reasons.push(`Missing items: ${totalItems - scannedCount} not scanned`)
+    if (!allItemsScanned) reasons.push(`${totalItems - scannedCount} items not scanned`)
     if (actualWeightKg && !weightWithinTolerance && !managerOverride) {
-      reasons.push(`Weight variance ${weightVariancePercent.toFixed(1)}% exceeds ${TOLERANCE_CONFIG.green}% tolerance`)
+      reasons.push(`Weight variance ${weightVariancePercent.toFixed(1)}% exceeds ${TOLERANCE_CONFIG.green}%`)
     }
-    if (!minPhotosReached) reasons.push(`Photos missing: ${photoCapturedCount}/${TOLERANCE_CONFIG.minPhotos} captured`)
+    if (!minPhotosReached) reasons.push(`${photoCapturedCount}/${TOLERANCE_CONFIG.minPhotos} photos`)
     return reasons
   }, [allItemsScanned, totalItems, scannedCount, actualWeightKg, weightWithinTolerance, managerOverride, weightVariancePercent, minPhotosReached, photoCapturedCount])
 
@@ -189,7 +170,6 @@ export function LoadVerification({
           loaderSignature: loaderSignature ?? '',
         },
       })
-
       if (result.clearance) {
         setClearanceResult('granted')
         clearWorkflow()
@@ -202,7 +182,6 @@ export function LoadVerification({
     }
   }, [routeId, items, scannedItemIds, actualWeightKg, photos, driverSignature, loaderSignature, clearWorkflow, onComplete])
 
-  // ─── Manager Override ────────────────────────────────────
   const handleManagerOverride = useCallback(() => {
     const creds = getValues('managerCredentials')
     const reason = getValues('managerReason')
@@ -214,42 +193,60 @@ export function LoadVerification({
   // ─── Success State ───────────────────────────────────────
   if (clearanceResult === 'granted') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path d="M8 17L14 23L24 10" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        className="flex flex-col items-center justify-center gap-6 py-24"
+      >
+        <div className="flex h-24 w-24 items-center justify-center rounded-full" style={{ background: 'rgba(22, 163, 74, 0.08)' }}>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <path d="M14 24L22 32L34 16" stroke="#16a34a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-          Gate clearance granted
-        </h2>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          BOL will be generated
-        </p>
-      </div>
+        <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Gate Clearance Granted</h2>
+        <p className="text-sm text-[var(--color-text-secondary)]">BOL will be generated</p>
+      </motion.div>
     )
   }
 
   const allStepsComplete = currentStepIndex === STEPS.length - 1 && canAdvanceForStep(STEPS.length - 1)
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-5">
+      {/* ─── Header ──────────────────────────────────────── */}
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
         <Button
           onPress={onBack}
-          className="text-sm text-[#2563EB] hover:underline cursor-pointer"
+          className="text-sm font-semibold text-[#2563EB] hover:underline cursor-pointer min-h-[48px] flex items-center"
         >
-          Back to Staging
+          Back
         </Button>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
           Load Verification
         </h2>
+        <div className="w-12" />
       </div>
 
-      {/* Steps */}
+      {/* ─── Step progress strip ─────────────────────────── */}
+      <div className="flex items-center gap-1">
+        {STEPS.map((step, i) => (
+          <div
+            key={step.key}
+            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+              i < currentStepIndex
+                ? 'bg-green-500'
+                : i === currentStepIndex
+                  ? 'bg-[#2563EB]'
+                  : 'bg-[var(--color-border)]'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* ─── Steps ───────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
-        {/* Step 1: Scan Truck ID */}
+        {/* Step 1: Scan Truck */}
         <GatedStep
           stepNumber={1}
           totalSteps={5}
@@ -260,7 +257,7 @@ export function LoadVerification({
           isCompleted={currentStepIndex > 0}
           onAdvance={advanceStep}
         >
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <ScanInput
               label="Truck ID Barcode"
               expectedValue={assignedTruckId}
@@ -269,21 +266,21 @@ export function LoadVerification({
               size="large"
             />
             {truckScanned && (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                <div className="text-sm">
-                  <span className="text-[var(--color-text-secondary)]">Truck ID: </span>
-                  <span className="font-mono font-medium">{assignedTruckId}</span>
+              <div className="flex items-baseline gap-6">
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Truck</span>
+                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-base font-bold text-[var(--color-text-primary)]">{assignedTruckId}</p>
                 </div>
-                <div className="text-sm">
-                  <span className="text-[var(--color-text-secondary)]">Route: </span>
-                  <span className="font-medium">{assignedRoute}</span>
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Route</span>
+                  <p className="text-base font-semibold text-[var(--color-text-primary)]">{assignedRoute}</p>
                 </div>
               </div>
             )}
           </div>
         </GatedStep>
 
-        {/* Step 2: Scan Items */}
+        {/* Step 2: Scan Items — checklist */}
         <GatedStep
           stepNumber={2}
           totalSteps={5}
@@ -294,40 +291,39 @@ export function LoadVerification({
           isCompleted={currentStepIndex > 1}
           onAdvance={advanceStep}
         >
-          <div className="flex flex-col gap-3">
-            <div className="text-sm text-[var(--color-text-secondary)]">
-              <span className="font-mono font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-[var(--color-text-primary)]">
+          <div className="flex flex-col gap-4">
+            {/* Counter */}
+            <div className="flex items-baseline gap-1">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-[var(--color-text-primary)]">
                 {scannedCount}
-              </span>{' '}
-              of{' '}
-              <span className="font-mono font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-[var(--color-text-primary)]">
-                {totalItems}
-              </span>{' '}
-              scanned
+              </span>
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                / <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">{totalItems}</span>
+              </span>
             </div>
 
             {/* Progress bar */}
-            <div className="h-2 w-full rounded-full bg-[var(--color-border)]">
+            <div className="h-1.5 w-full rounded-full bg-[var(--color-border)]">
               <div
                 className="h-full rounded-full bg-[#2563EB] transition-all duration-300"
                 style={{ width: `${totalItems > 0 ? (scannedCount / totalItems) * 100 : 0}%` }}
               />
             </div>
 
-            {/* Remaining items checklist */}
-            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+            {/* Checklist — verified items muted, remaining bold */}
+            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
               {items.map((item) => {
                 const isScanned = scannedItemIds.has(item.id)
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
-                      isScanned ? 'border-green-200 bg-green-50' : 'border-[var(--color-border)]'
+                    className={`flex items-center gap-3 rounded-lg px-3 py-3 min-h-[48px] transition-all ${
+                      isScanned ? 'opacity-40' : ''
                     }`}
                   >
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                        isScanned ? 'bg-green-500 text-white' : 'border border-[var(--color-border)]'
+                        isScanned ? 'bg-green-500 text-white' : 'border-2 border-[var(--color-border)]'
                       }`}
                     >
                       {isScanned && (
@@ -336,7 +332,9 @@ export function LoadVerification({
                         </svg>
                       )}
                     </div>
-                    <span className="flex-1 text-sm">{item.name}</span>
+                    <span className={`flex-1 text-sm ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
+                      {item.name}
+                    </span>
                     {!isScanned && (
                       <div className="w-44">
                         <ScanInput
@@ -366,25 +364,27 @@ export function LoadVerification({
           isCompleted={currentStepIndex > 2}
           onAdvance={advanceStep}
         >
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-3 gap-6">
               <div>
-                <div className="text-xs text-[var(--color-text-secondary)]">Expected</div>
-                <div className="font-mono font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold">
-                  {expectedWeightKg.toLocaleString()} kg
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Expected</span>
+                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold text-[var(--color-text-primary)] mt-0.5">
+                  {expectedWeightKg.toLocaleString()}
+                  <span className="text-xs font-medium text-[var(--color-text-secondary)] ms-1">kg</span>
+                </p>
               </div>
               <div>
-                <div className="text-xs text-[var(--color-text-secondary)]">Actual</div>
-                <div className={`font-mono font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold ${weightColor}`}>
-                  {actualWeightKg ? `${actualWeightKg.toLocaleString()} kg` : '—'}
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Actual</span>
+                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold mt-0.5 ${weightColor}`}>
+                  {actualWeightKg ? `${actualWeightKg.toLocaleString()}` : '--'}
+                  {actualWeightKg && <span className="text-xs font-medium ms-1">kg</span>}
+                </p>
               </div>
               <div>
-                <div className="text-xs text-[var(--color-text-secondary)]">Variance</div>
-                <div className={`font-mono font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold ${weightColor}`}>
-                  {actualWeightKg ? `${weightVariancePercent.toFixed(1)}%` : '—'}
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Variance</span>
+                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold mt-0.5 ${weightColor}`}>
+                  {actualWeightKg ? `${weightVariancePercent.toFixed(1)}%` : '--'}
+                </p>
               </div>
             </div>
 
@@ -398,17 +398,17 @@ export function LoadVerification({
               step={10}
             />
 
-            {/* Tolerance info */}
-            <div className="text-xs text-[var(--color-text-secondary)]">
-              Tolerance: within{' '}
-              <span className="font-mono tabular-nums">{TOLERANCE_CONFIG.green}%</span> = approved,{' '}
-              <span className="font-mono tabular-nums">{TOLERANCE_CONFIG.green}-{TOLERANCE_CONFIG.yellow}%</span> = warning,{' '}
-              above <span className="font-mono tabular-nums">{TOLERANCE_CONFIG.red}%</span> = blocked
-            </div>
+            <p className="text-[10px] font-medium text-[var(--color-text-secondary)]">
+              {'<'}<span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{TOLERANCE_CONFIG.green}%</span> approved
+              {' / '}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{TOLERANCE_CONFIG.green}-{TOLERANCE_CONFIG.yellow}%</span> warning
+              {' / '}
+              {'>'}<span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{TOLERANCE_CONFIG.red}%</span> blocked
+            </p>
           </div>
         </GatedStep>
 
-        {/* Step 4: Capture Photos */}
+        {/* Step 4: Photos */}
         <GatedStep
           stepNumber={4}
           totalSteps={5}
@@ -420,25 +420,13 @@ export function LoadVerification({
           onAdvance={advanceStep}
         >
           <div className="grid grid-cols-3 gap-4">
-            <PhotoCapture
-              label="Rear Photo"
-              required
-              onCapture={(file) => setPhotos((p) => ({ ...p, rear: file }))}
-            />
-            <PhotoCapture
-              label="Side Photo"
-              required
-              onCapture={(file) => setPhotos((p) => ({ ...p, side: file }))}
-            />
-            <PhotoCapture
-              label="Seal Photo"
-              required
-              onCapture={(file) => setPhotos((p) => ({ ...p, seal: file }))}
-            />
+            <PhotoCapture label="Rear" required onCapture={(file) => setPhotos((p) => ({ ...p, rear: file }))} />
+            <PhotoCapture label="Side" required onCapture={(file) => setPhotos((p) => ({ ...p, side: file }))} />
+            <PhotoCapture label="Seal" required onCapture={(file) => setPhotos((p) => ({ ...p, seal: file }))} />
           </div>
         </GatedStep>
 
-        {/* Step 5: Sign-Off — dual SignaturePad (driver + loader) */}
+        {/* Step 5: Sign-Off */}
         <GatedStep
           stepNumber={5}
           totalSteps={5}
@@ -447,87 +435,56 @@ export function LoadVerification({
           canAdvance={canAdvanceForStep(4)}
           isActive={currentStepIndex === 4}
           isCompleted={false}
-          onAdvance={() => {
-            // Final step — no more steps to advance to
-          }}
+          onAdvance={() => {}}
         >
           <div className="flex flex-col gap-6">
-            {/* Driver Signature — SignaturePad instance 1 */}
-            <SignaturePad
-              label="Driver Signature"
-              onSign={(dataUrl) => setDriverSignature(dataUrl)}
-            />
-
-            {/* Loader Signature — SignaturePad instance 2 */}
-            <SignaturePad
-              label="Loader Signature"
-              onSign={(dataUrl) => setLoaderSignature(dataUrl)}
-            />
+            <SignaturePad label="Driver Signature" onSign={(dataUrl) => setDriverSignature(dataUrl)} />
+            <SignaturePad label="Loader Signature" onSign={(dataUrl) => setLoaderSignature(dataUrl)} />
           </div>
         </GatedStep>
       </div>
 
-      {/* Hard Gating / Gate Clearance */}
+      {/* ─── Gate Clearance ──────────────────────────────── */}
       {allStepsComplete && (
         <div className="mt-2">
           {isBlocked ? (
             <div className="flex flex-col gap-3">
-              {/* BLOCKED banner */}
-              <div className="rounded-xl border border-red-300 bg-red-50 p-4">
-                <h3 className="text-sm font-semibold text-red-700">
-                  BLOCKED - Resolve Issues
-                </h3>
-                <ul className="mt-2 flex flex-col gap-1">
+              {/* BLOCKED */}
+              <div className="rounded-xl border border-red-200 p-5" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
+                <h3 className="text-sm font-bold text-red-700 mb-2">BLOCKED</h3>
+                <ul className="flex flex-col gap-1">
                   {blockReasons.map((reason, i) => (
-                    <li key={i} className="text-sm text-red-600">
-                      {reason}
-                    </li>
+                    <li key={i} className="text-sm text-red-600">{reason}</li>
                   ))}
                 </ul>
               </div>
 
               {/* Manager Override */}
               <DialogTrigger>
-                <Button className="h-12 min-h-[48px] w-full rounded-lg border border-amber-300 bg-amber-50 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer">
+                <Button className="h-14 min-h-[48px] w-full rounded-xl border border-amber-300 text-sm font-bold text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer">
                   Manager Override
                 </Button>
-                <ModalOverlay
-                  isDismissable={false}
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                >
+                <ModalOverlay isDismissable={false} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                   <Modal className="w-full max-w-md">
                     <Dialog className="rounded-2xl bg-white p-6 shadow-xl outline-none" isKeyboardDismissDisabled>
-                      <Heading slot="title" className="text-base font-semibold text-[var(--color-text-primary)]">
+                      <Heading slot="title" className="text-lg font-bold text-[var(--color-text-primary)]">
                         Manager Override
                       </Heading>
                       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                        Enter manager credentials and reason to override gate blocks.
+                        Enter credentials and reason to override.
                       </p>
-
-                      <div className="mt-4 flex flex-col gap-3">
-                        <TextField
-                          value={getValues('managerCredentials')}
-                          onChange={(v) => setValue('managerCredentials', v)}
-                        >
-                          <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                            Manager ID / Credentials
-                          </Label>
-                          <Input className="h-12 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm" />
+                      <div className="mt-5 flex flex-col gap-4">
+                        <TextField value={getValues('managerCredentials')} onChange={(v) => setValue('managerCredentials', v)}>
+                          <Label className="text-sm font-semibold text-[var(--color-text-secondary)]">Manager ID</Label>
+                          <Input className="h-14 w-full rounded-xl border border-[var(--color-border)] px-4 text-sm" />
                         </TextField>
-
-                        <TextField
-                          value={getValues('managerReason')}
-                          onChange={(v) => setValue('managerReason', v)}
-                        >
-                          <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                            Override Reason
-                          </Label>
-                          <Input className="h-12 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm" />
+                        <TextField value={getValues('managerReason')} onChange={(v) => setValue('managerReason', v)}>
+                          <Label className="text-sm font-semibold text-[var(--color-text-secondary)]">Override Reason</Label>
+                          <Input className="h-14 w-full rounded-xl border border-[var(--color-border)] px-4 text-sm" />
                         </TextField>
-
                         <Button
                           onPress={handleManagerOverride}
-                          className="h-12 min-h-[48px] w-full rounded-lg bg-amber-600 text-sm font-medium text-white hover:bg-amber-700 transition-colors cursor-pointer"
+                          className="h-14 min-h-[48px] w-full rounded-xl bg-amber-600 text-sm font-bold text-white hover:bg-amber-700 transition-colors cursor-pointer"
                         >
                           Confirm Override
                         </Button>
@@ -541,7 +498,7 @@ export function LoadVerification({
             <Button
               onPress={handleGateClearance}
               isDisabled={isSubmitting}
-              className="h-14 min-h-[48px] w-full rounded-xl bg-[#2563EB] text-base font-semibold text-white hover:bg-[#1d4ed8] transition-colors cursor-pointer"
+              className="h-16 min-h-[48px] w-full rounded-xl bg-[#2563EB] text-base font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.98] cursor-pointer"
             >
               {isSubmitting ? 'Processing...' : 'Generate BOL'}
             </Button>

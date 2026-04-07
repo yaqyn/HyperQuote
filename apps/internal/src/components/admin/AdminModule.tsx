@@ -1,3 +1,5 @@
+import { Button } from 'react-aria-components'
+import { ArrowLeft } from 'lucide-react'
 import { useAdminStore } from '../../stores/admin'
 import { AdminTabStrip } from './AdminTabStrip'
 import { AdminShortcuts } from './AdminShortcuts'
@@ -10,30 +12,68 @@ import { HolidayCalendar } from './holidays/HolidayCalendar'
 import { AuditLogViewer } from './audit/AuditLogViewer'
 
 /**
- * Root admin module component.
- * 8 tabs: Users, Permissions, Settings, Margins, Approvals, Holidays, Integrations, Audit.
+ * Admin — "The Console"
+ * Developer tools aesthetic. Configuration-dense, clean forms, no fluff.
+ * 6 tabs: Users (merged permissions), Settings, Rules (merged margins+approvals), Holidays, Integrations, Audit.
  */
 export function AdminModule() {
   const activeTab = useAdminStore((s) => s.activeTab)
+  const editingRoleId = useAdminStore((s) => s.editingRoleId)
+  const setEditingRoleId = useAdminStore((s) => s.setEditingRoleId)
 
   const renderTab = () => {
     switch (activeTab) {
       case 'users':
+        // Master-detail: user list → role management inline
+        if (editingRoleId) {
+          return (
+            <div className="flex flex-col">
+              <div className="p-5">
+                <Button
+                  onPress={() => setEditingRoleId(null)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 cursor-pointer outline-none"
+                >
+                  <ArrowLeft size={16} strokeWidth={1.5} /> Back to users
+                </Button>
+              </div>
+              <RoleManagement />
+            </div>
+          )
+        }
         return <UserList />
-      case 'permissions':
-        return <RoleManagement />
       case 'settings':
-        return <SystemSettings />
-      case 'margins':
-        return <MarginRules />
-      case 'approvals':
-        return <ApprovalThresholds />
-      case 'holidays':
-        return <HolidayCalendar />
-      case 'integrations':
         return (
-          <div className="p-6 text-center text-black/40 dark:text-white/40">
-            Integrations configuration — coming in Phase 27 (WhatsApp, ETA e-invoicing, payment gateways)
+          <div className="flex flex-col">
+            <SystemSettings />
+            <div className="px-5 py-6">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-black/30 dark:text-white/30 mb-4">
+                Holiday Calendar
+              </h3>
+            </div>
+            <HolidayCalendar />
+            <div className="px-5 py-6">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-black/30 dark:text-white/30 mb-4">
+                Integrations
+              </h3>
+            </div>
+            <div className="px-5 pb-6">
+              <span className="text-sm text-black/30 dark:text-white/30">
+                Integrations configuration — coming in Phase 27
+              </span>
+            </div>
+          </div>
+        )
+      case 'rules':
+        // Stacked: MarginRules + ApprovalThresholds
+        return (
+          <div className="flex flex-col">
+            <MarginRules />
+            <div className="px-5 py-6">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-black/30 dark:text-white/30 mb-4">
+                Approval Thresholds
+              </h3>
+            </div>
+            <ApprovalThresholds />
           </div>
         )
       case 'audit':
@@ -47,9 +87,7 @@ export function AdminModule() {
     <div className="flex flex-col h-full">
       <AdminShortcuts />
       <AdminTabStrip />
-      <div className="flex-1 overflow-auto">
-        {renderTab()}
-      </div>
+      <div className="flex-1 overflow-auto">{renderTab()}</div>
     </div>
   )
 }

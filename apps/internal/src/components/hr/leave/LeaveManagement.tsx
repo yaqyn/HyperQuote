@@ -2,45 +2,20 @@ import { useState, useMemo } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion } from 'motion/react'
 import { getLeaveRequests, approveLeaveRequest, getEmployeeDirectory } from '../../../lib/server/hr'
 import { LEAVE_ALLOWANCES } from '../../../types/hr'
 import type { LeaveStatus, LeaveType } from '../../../types/hr'
 
-// ─── Glass panel wrapper ────────────────────────────────
-
-function GlassPanel({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={`rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
 type FilterKey = 'all' | 'pending' | 'approved' | 'rejected'
-
-const STATUS_BADGE: Record<LeaveStatus, string> = {
-  pending: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
-  approved: 'bg-green-500/20 text-green-700 dark:text-green-300',
-  rejected: 'bg-red-500/20 text-red-700 dark:text-red-300',
-}
 
 const LEAVE_TYPES: LeaveType[] = ['annual', 'sick', 'maternity', 'paternity', 'study', 'pilgrimage', 'childcare', 'nursing']
 
 /**
- * Leave management view.
- * Tab filter: All/Pending/Approved/Rejected.
- * Table with approve/reject actions for pending requests.
- * New leave request form (inline).
- * Egyptian labor law reference sidebar.
- * Simple team calendar.
+ * Leave Management — "The Calendar"
+ * Leave requests as a list: employee name + type tag + dates (mono) + duration + status dot.
+ * Approve/Reject as inline hover buttons.
+ * Leave balance shown as thin utilization bars per employee.
  */
 export function LeaveManagement() {
   const { t } = useTranslation('hr')
@@ -71,14 +46,13 @@ export function LeaveManagement() {
     return requests.filter((r) => r.status === filter)
   }, [requests, filter])
 
-  // Simple day count between two dates
   function daysBetween(start: string, end: string): number {
     const d1 = new Date(start)
     const d2 = new Date(end)
     return Math.max(1, Math.ceil((d2.getTime() - d1.getTime()) / (24 * 60 * 60 * 1000)) + 1)
   }
 
-  const FILTER_BUTTONS: Array<{ key: FilterKey; label: string }> = [
+  const FILTERS: Array<{ key: FilterKey; label: string }> = [
     { key: 'all', label: t('leave.all', 'All') },
     { key: 'pending', label: t('leave.pending', 'Pending') },
     { key: 'approved', label: t('leave.approved', 'Approved') },
@@ -87,190 +61,228 @@ export function LeaveManagement() {
 
   if (!requests) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="p-5 text-center text-[var(--color-text-subtle)]">
         Loading...
       </div>
     )
   }
 
+  const statusDot: Record<LeaveStatus, string> = {
+    pending: 'bg-amber-500',
+    approved: 'bg-green-500',
+    rejected: 'bg-red-500',
+  }
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-5 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('leave.title', 'Leave Management')}</h2>
+        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          {t('leave.title', 'Leave Management')}
+        </div>
         <Button
           onPress={() => setShowNewForm(!showNewForm)}
-          className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-sm text-white font-medium hover:bg-[#2563EB]/90 cursor-pointer"
+          className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-sm text-white font-medium cursor-pointer hover:opacity-90 transition-opacity outline-none"
         >
-          {showNewForm ? t('leave.cancel', 'Cancel') : t('leave.newRequest', 'New Leave Request')}
+          {showNewForm ? t('leave.cancel', 'Cancel') : t('leave.newRequest', 'New Request')}
         </Button>
       </div>
 
       {/* New request form */}
       {showNewForm && (
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-3">{t('leave.newRequest', 'New Leave Request')}</h3>
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="border border-[var(--color-border)] rounded-xl p-4 space-y-3"
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.selectEmployee', 'Select Employee')}</label>
-              <select className="w-full rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#2563EB]">
-                <option value="">{t('leave.selectEmployee', 'Select Employee')}</option>
+              <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.selectEmployee', 'Employee')}</label>
+              <select className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40">
+                <option value="">{t('leave.selectEmployee', 'Select...')}</option>
                 {(employees ?? []).map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.selectType', 'Select Type')}</label>
-              <select className="w-full rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#2563EB]">
-                <option value="">{t('leave.selectType', 'Select Type')}</option>
+              <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.selectType', 'Type')}</label>
+              <select className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40">
+                <option value="">{t('leave.selectType', 'Select...')}</option>
                 {LEAVE_TYPES.map((type) => (
                   <option key={type} value={type}>{t(`leave.types.${type}`, type)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.startDate', 'Start Date')}</label>
-              <input type="date" className="w-full rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#2563EB]" />
+              <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.startDate', 'Start')}</label>
+              <input type="date" className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40" />
             </div>
             <div>
-              <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.endDate', 'End Date')}</label>
-              <input type="date" className="w-full rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#2563EB]" />
+              <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.endDate', 'End')}</label>
+              <input type="date" className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40" />
             </div>
           </div>
-          <div className="mt-3">
-            <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.reason', 'Reason')}</label>
-            <textarea className="w-full rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none resize-y min-h-16 focus:border-[#2563EB]" />
-          </div>
-          <div className="mt-3">
-            <label className="block text-xs text-black/50 dark:text-white/50 mb-1">{t('leave.attachment', 'Attachment')}</label>
-            <div className="rounded-lg border-2 border-dashed border-black/10 dark:border-white/10 p-4 text-center text-xs text-black/40 dark:text-white/40">
-              Drop file here or click to upload
-            </div>
-          </div>
-          <div className="mt-3 flex justify-end">
+          <div className="flex justify-end">
             <Button
               onPress={() => setShowNewForm(false)}
-              className="rounded-lg bg-[#2563EB] px-4 py-1.5 text-sm text-white font-medium hover:bg-[#2563EB]/90 cursor-pointer"
+              className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-sm text-white font-medium cursor-pointer hover:opacity-90 transition-opacity outline-none"
             >
-              {t('leave.submit', 'Submit Request')}
+              {t('leave.submit', 'Submit')}
             </Button>
           </div>
-        </GlassPanel>
+        </motion.div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
         <div className="space-y-4">
-          {/* Filter tabs */}
-          <div className="flex gap-2">
-            {FILTER_BUTTONS.map((btn) => (
-              <button
-                key={btn.key}
-                type="button"
-                onClick={() => setFilter(btn.key)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  filter === btn.key
-                    ? 'bg-[#2563EB] text-white'
-                    : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-                }`}
+          {/* Filter pills */}
+          <div className="flex items-center gap-1">
+            {FILTERS.map((f) => (
+              <Button
+                key={f.key}
+                onPress={() => setFilter(f.key)}
+                className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none
+                  ${filter === f.key
+                    ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
+                    : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
+                  }`}
               >
-                {btn.label}
-                {btn.key !== 'all' && (
+                {f.label}
+                {f.key !== 'all' && (
                   <span className="ms-1.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {requests.filter((r) => r.status === btn.key).length}
+                    {requests.filter((r) => r.status === f.key).length}
                   </span>
                 )}
-              </button>
+              </Button>
             ))}
           </div>
 
-          {/* Table */}
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.employee', 'Employee')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.type', 'Type')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.startDate', 'Start')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.endDate', 'End')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.days', 'Days')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.reason', 'Reason')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('leave.status', 'Status')}</th>
-                  <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((req) => (
-                  <tr key={req.id} className="border-b border-black/5 dark:border-white/5">
-                    <td className="px-4 py-3 font-medium">{req.employeeName}</td>
-                    <td className="px-4 py-3 text-black/60 dark:text-white/60">{t(`leave.types.${req.type}`, req.type)}</td>
-                    <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">{req.startDate}</td>
-                    <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">{req.endDate}</td>
-                    <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{daysBetween(req.startDate, req.endDate)}</td>
-                    <td className="px-4 py-3 text-black/60 dark:text-white/60 max-w-32 truncate">{req.reason}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[req.status]}`}>
-                        {t(`leave.${req.status}`, req.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {req.status === 'pending' && (
-                        <div className="flex gap-1.5">
-                          <Button
-                            onPress={() => approveMutation.mutate()}
-                            className="rounded px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300 bg-green-500/10 hover:bg-green-500/20 cursor-pointer"
-                          >
-                            {t('leave.approve', 'Approve')}
-                          </Button>
-                          <Button
-                            onPress={() => approveMutation.mutate()}
-                            className="rounded px-2 py-1 text-xs font-medium text-red-700 dark:text-red-300 bg-red-500/10 hover:bg-red-500/20 cursor-pointer"
-                          >
-                            {t('leave.reject', 'Reject')}
-                          </Button>
-                        </div>
-                      )}
-                      {req.approverComment && (
-                        <span className="text-[10px] text-black/40 dark:text-white/40 block mt-0.5">
-                          {req.approverComment}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-black/40 dark:text-white/40">
-                      No leave requests found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          {/* Request list */}
+          <div className="flex flex-col">
+            {filtered.map((req) => {
+              const days = daysBetween(req.startDate, req.endDate)
+
+              return (
+                <div
+                  key={req.id}
+                  className="group flex items-center gap-3 px-2 py-2.5 -mx-2 border-b border-[var(--color-border)]/30 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors rounded-lg"
+                >
+                  {/* Status dot */}
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot[req.status]}`} />
+
+                  {/* Employee */}
+                  <span className="text-sm text-[var(--color-text)] w-32 shrink-0 truncate">{req.employeeName}</span>
+
+                  {/* Type tag */}
+                  <span className="rounded-md bg-black/[0.04] dark:bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)] shrink-0">
+                    {t(`leave.types.${req.type}`, req.type)}
+                  </span>
+
+                  {/* Dates */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)] shrink-0">
+                    {req.startDate} - {req.endDate}
+                  </span>
+
+                  {/* Duration */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text)] shrink-0">
+                    {days}d
+                  </span>
+
+                  <span className="flex-1" />
+
+                  {/* Approve/Reject buttons (only on hover for pending) */}
+                  {req.status === 'pending' && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        onPress={() => approveMutation.mutate()}
+                        className="rounded-md px-2 py-0.5 text-[11px] font-medium text-green-700 dark:text-green-400 bg-green-500/10 hover:bg-green-500/20 cursor-pointer outline-none"
+                      >
+                        {t('leave.approve', 'Approve')}
+                      </Button>
+                      <Button
+                        onPress={() => approveMutation.mutate()}
+                        className="rounded-md px-2 py-0.5 text-[11px] font-medium text-red-700 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 cursor-pointer outline-none"
+                      >
+                        {t('leave.reject', 'Reject')}
+                      </Button>
+                    </div>
+                  )}
+
+                  {req.approverComment && (
+                    <span className="text-[10px] text-[var(--color-text-subtle)]">
+                      {req.approverComment}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+
+            {filtered.length === 0 && (
+              <div className="py-12 text-center text-sm text-[var(--color-text-subtle)]">
+                No leave requests found
+              </div>
+            )}
           </div>
 
-          {/* Simple Team Calendar */}
-          <GlassPanel>
-            <h3 className="text-sm font-semibold mb-3">{t('leave.teamCalendar', 'Team Calendar')}</h3>
+          {/* Team Calendar */}
+          <div className="pt-4">
+            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+              {t('leave.teamCalendar', 'Team Calendar')}
+            </div>
             <TeamCalendar requests={requests} />
-          </GlassPanel>
+          </div>
         </div>
 
-        {/* Sidebar: Egyptian labor law reference */}
-        <GlassPanel className="h-fit">
-          <h3 className="text-sm font-semibold mb-3">{t('leave.laborLaw', 'Egyptian Labor Law Reference')}</h3>
-          <div className="space-y-2 text-xs">
-            <LawRef label={t('leave.types.annual', 'Annual Leave')} detail={t('leave.allowances.annualFirstYear', `${LEAVE_ALLOWANCES.annual_first_year} days (first year)`)} />
-            <LawRef label="" detail={t('leave.allowances.annualAfterYear', `${LEAVE_ALLOWANCES.annual_after_year} days (after 1 year)`)} />
-            <LawRef label="" detail={t('leave.allowances.annualSenior', `${LEAVE_ALLOWANCES.annual_after_10_years_or_50} days (10+ years or age 50+)`)} />
-            <LawRef label={t('leave.types.maternity', 'Maternity Leave')} detail={t('leave.allowances.maternity', `${LEAVE_ALLOWANCES.maternity_days} days (max ${LEAVE_ALLOWANCES.maternity_max_times} times)`)} />
-            <LawRef label={t('leave.types.paternity', 'Paternity Leave')} detail={t('leave.allowances.paternity', `${LEAVE_ALLOWANCES.paternity_days} day`)} />
-            <LawRef label={t('leave.types.sick', 'Sick Leave')} detail={t('leave.allowances.sick', `${LEAVE_ALLOWANCES.sick_total_days} days (${LEAVE_ALLOWANCES.sick_first_90_pay_percent}% pay first 90, ${LEAVE_ALLOWANCES.sick_next_90_pay_percent}% next 90)`)} />
-            <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5">
-              <LawRef label="" detail={t('leave.allowances.mandatoryIncrease', `${LEAVE_ALLOWANCES.mandatory_annual_increase_percent}% mandatory annual salary increase`)} />
+        {/* Sidebar: labor law + leave balances */}
+        <div className="space-y-5">
+          {/* Leave balances as utilization bars */}
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+              {t('leave.balances', 'Leave Balances')}
+            </div>
+            {(employees ?? []).slice(0, 6).map((emp) => {
+              const used = requests.filter((r) => r.employeeId === emp.id && r.status === 'approved').length * 2
+              const total = LEAVE_ALLOWANCES.annual_after_year
+              const pct = Math.min((used / total) * 100, 100)
+
+              return (
+                <div key={emp.id} className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-[var(--color-text)] truncate">{emp.name}</span>
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-subtle)]">
+                      {total - used}d left
+                    </span>
+                  </div>
+                  <div className="h-1 w-full rounded-full bg-black/[0.05] dark:bg-white/[0.05] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-primary)] transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Labor law reference */}
+          <div className="border-t border-[var(--color-border)] pt-4">
+            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+              {t('leave.laborLaw', 'Egyptian Labor Law')}
+            </div>
+            <div className="space-y-2 text-[11px] text-[var(--color-text-subtle)]">
+              <LawLine label="Annual (1st year)" value={`${LEAVE_ALLOWANCES.annual_first_year}d`} />
+              <LawLine label="Annual (after 1y)" value={`${LEAVE_ALLOWANCES.annual_after_year}d`} />
+              <LawLine label="Annual (10y+/50+)" value={`${LEAVE_ALLOWANCES.annual_after_10_years_or_50}d`} />
+              <LawLine label="Maternity" value={`${LEAVE_ALLOWANCES.maternity_days}d`} />
+              <LawLine label="Paternity" value={`${LEAVE_ALLOWANCES.paternity_days}d`} />
+              <LawLine label="Sick" value={`${LEAVE_ALLOWANCES.sick_total_days}d`} />
             </div>
           </div>
-        </GlassPanel>
+        </div>
       </div>
     </div>
   )
@@ -278,17 +290,16 @@ export function LeaveManagement() {
 
 // ─── Sub-components ─────────────────────────────────────
 
-function LawRef({ label, detail }: { label: string; detail: string }) {
+function LawLine({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      {label && <div className="font-medium text-black/70 dark:text-white/70 mb-0.5">{label}</div>}
-      <div className="text-black/50 dark:text-white/50">{detail}</div>
+    <div className="flex items-center justify-between">
+      <span>{label}</span>
+      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text-muted)]">{value}</span>
     </div>
   )
 }
 
 function TeamCalendar({ requests }: { requests: import('../../../types/hr').LeaveRequest[] }) {
-  // Simple month grid showing who's off which days
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
@@ -298,14 +309,8 @@ function TeamCalendar({ requests }: { requests: import('../../../types/hr').Leav
 
   const approvedRequests = requests.filter((r) => r.status === 'approved' || r.status === 'pending')
 
-  // Build day cells
   const cells: Array<{ day: number | null; people: string[] }> = []
-
-  // Empty cells for padding
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    cells.push({ day: null, people: [] })
-  }
-
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, people: [] })
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const people = approvedRequests
@@ -316,27 +321,23 @@ function TeamCalendar({ requests }: { requests: import('../../../types/hr').Leav
 
   return (
     <div>
-      <div className="text-sm font-medium mb-2">{monthName}</div>
+      <div className="text-sm font-medium text-[var(--color-text)] mb-2">{monthName}</div>
       <div className="grid grid-cols-7 gap-px text-center">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-          <div key={d} className="text-[10px] text-black/40 dark:text-white/40 py-1">{d}</div>
+          <div key={d} className="text-[10px] text-[var(--color-text-subtle)] py-1">{d}</div>
         ))}
         {cells.map((cell, i) => (
           <div
             key={i}
             className={`min-h-8 text-xs p-0.5 rounded ${
-              cell.day === null
-                ? ''
-                : cell.people.length > 0
-                  ? 'bg-[#2563EB]/5'
-                  : ''
+              cell.day !== null && cell.people.length > 0 ? 'bg-[var(--color-primary)]/5' : ''
             }`}
           >
             {cell.day !== null && (
               <>
-                <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px]">{cell.day}</div>
+                <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-muted)]">{cell.day}</div>
                 {cell.people.length > 0 && (
-                  <div className="text-[8px] text-[#2563EB] leading-tight truncate">
+                  <div className="text-[8px] text-[var(--color-primary)] leading-tight truncate">
                     {cell.people.join(', ')}
                   </div>
                 )}

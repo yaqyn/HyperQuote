@@ -26,7 +26,7 @@ interface OperationsStore {
 export const useOperationsStore = create<OperationsStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'dashboard',
+    activeTab: 'operations',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Order selection

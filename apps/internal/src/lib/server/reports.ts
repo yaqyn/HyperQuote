@@ -168,13 +168,13 @@ function resolveDashboard(role: ReportsTab): DashboardData {
 // ─── Server Functions ───────────────────────────────────
 
 export const getDashboardData = createServerFn({ method: 'GET' })
-  .validator((input: { role: ReportsTab; filters: ReportFilter }) => input)
+  .inputValidator((input: { role: ReportsTab; filters: ReportFilter }) => input)
   .handler(async ({ data }): Promise<DashboardData> => {
     return resolveDashboard(data.role)
   })
 
 export const exportReport = createServerFn({ method: 'POST' })
-  .validator((input: { role: ReportsTab; format: 'csv' | 'pdf'; filters: ReportFilter }) => input)
+  .inputValidator((input: { role: ReportsTab; format: 'csv' | 'pdf'; filters: ReportFilter }) => input)
   .handler(async ({ data }): Promise<{ url: string; filename: string }> => {
     // Mock export — returns a placeholder download URL
     const ext = data.format

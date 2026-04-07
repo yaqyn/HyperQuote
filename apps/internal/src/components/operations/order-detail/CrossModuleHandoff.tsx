@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
-import { Bell, ChevronDown, ChevronUp, Check } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { HANDOFF_STAGES, type HandoffStatus, type HandoffStage } from '../../../types/operations'
 import { nudgeHandoff } from '../../../lib/server/operations-actions'
@@ -22,14 +21,14 @@ function getStageState(
 
 function formatDuration(ms: number): string {
   const hours = Math.floor(ms / (60 * 60 * 1000))
-  if (hours < 1) return 'Less than 1 hour'
-  if (hours === 1) return '1 hour'
-  return `${hours} hours`
+  if (hours < 1) return '<1h'
+  if (hours === 1) return '1h'
+  return `${hours}h`
 }
 
 /**
- * Horizontal step indicator showing which department currently owns the order.
- * Expandable section with 6 handoff stages, SLA breach warning, and Nudge button.
+ * Visual handoff indicator — shows which module owns the order now and what's next.
+ * Arrow between module icons. Compact inline, expandable for detail.
  */
 export function CrossModuleHandoff({ orderId, handoff }: CrossModuleHandoffProps) {
   const [expanded, setExpanded] = useState(false)
@@ -40,8 +39,6 @@ export function CrossModuleHandoff({ orderId, handoff }: CrossModuleHandoffProps
         data: { orderId, targetStage: handoff.currentStage },
       }),
     onSuccess: (result) => {
-      // Toast: "Notification sent to [name]"
-      // Will use toast store when integrated
       console.info(`Notification sent to ${result.notifiedUser}`)
     },
   })
@@ -50,62 +47,96 @@ export function CrossModuleHandoff({ orderId, handoff }: CrossModuleHandoffProps
   const slaHours = Math.floor(handoff.slaMs / (60 * 60 * 1000))
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-      {/* Toggle header */}
+    <div>
+      {/* Compact header — always visible */}
       <button
         type="button"
-        className="flex w-full items-center justify-between"
+        className="flex w-full items-center gap-3 outline-none group"
         onClick={() => setExpanded((v) => !v)}
       >
-        <span className="text-sm font-medium">Handoff Status</span>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-black/40 dark:text-white/40" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-black/40 dark:text-white/40" />
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          Handoff
+        </span>
+
+        {/* Inline mini-dots for quick glance */}
+        <div className="flex items-center gap-1">
+          {HANDOFF_STAGES.map((stageInfo) => {
+            const state = getStageState(stageInfo.stage, handoff.currentStage, handoff.completedStages)
+            return (
+              <div
+                key={stageInfo.stage}
+                className={`w-1.5 h-1.5 rounded-full ${
+                  state === 'completed'
+                    ? 'bg-[#2563EB]'
+                    : state === 'current'
+                      ? isBreached ? 'bg-red-500' : 'bg-[#2563EB] ring-2 ring-[#2563EB]/20'
+                      : 'bg-black/10 dark:bg-white/10'
+                }`}
+              />
+            )
+          })}
+        </div>
+
+        <span className="text-[12px] text-black/40 dark:text-white/40">
+          {handoff.currentOwner}
+        </span>
+
+        {isBreached && (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
+            {formatDuration(handoff.timeInStage)} (SLA: {slaHours}h)
+          </span>
         )}
+
+        <svg
+          width="12" height="12" viewBox="0 0 12 12" fill="none"
+          className={`text-black/25 dark:text-white/25 transition-transform ms-auto ${expanded ? 'rotate-180' : ''}`}
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
 
       {expanded && (
         <div className="mt-4">
           {/* SLA breach warning */}
           {isBreached && (
-            <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 px-3 py-2">
-              <p className="text-sm text-red-700 dark:text-red-300">
+            <div className="mb-4 rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2">
+              <p className="text-[13px] text-red-600 dark:text-red-400">
                 Waiting on{' '}
                 <span className="font-medium capitalize">{handoff.currentStage}</span> for{' '}
-                <span className="font-geist-mono">{formatDuration(handoff.timeInStage)}</span>{' '}
-                (SLA: <span className="font-geist-mono">{slaHours} hours</span>)
+                <span className="font-[family-name:var(--font-geist-mono)]">{formatDuration(handoff.timeInStage)}</span>
+                {' '}(SLA: <span className="font-[family-name:var(--font-geist-mono)]">{slaHours}h</span>)
               </p>
             </div>
           )}
 
           {/* Horizontal pipeline */}
-          <div className="flex items-center gap-0">
+          <div className="flex items-center">
             {HANDOFF_STAGES.map((stageInfo, index) => {
               const state = getStageState(stageInfo.stage, handoff.currentStage, handoff.completedStages)
 
               return (
                 <div key={stageInfo.stage} className="flex items-center flex-1 last:flex-none">
-                  {/* Stage circle + label */}
-                  <div className="flex flex-col items-center gap-1">
+                  <div className="flex flex-col items-center gap-1.5">
+                    {/* Dot */}
                     <div
-                      className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                      className={`w-2.5 h-2.5 rounded-full ${
                         state === 'completed'
-                          ? 'bg-green-500 text-white'
+                          ? 'bg-[#2563EB]'
                           : state === 'current'
-                            ? 'bg-[#2563EB] text-white'
-                            : 'border-2 border-black/20 dark:border-white/20'
+                            ? isBreached
+                              ? 'bg-red-500 ring-4 ring-red-500/10'
+                              : 'bg-[#2563EB] ring-4 ring-[#2563EB]/10'
+                            : 'border-[1.5px] border-black/15 dark:border-white/15'
                       }`}
-                    >
-                      {state === 'completed' && <Check className="h-4 w-4" />}
-                    </div>
+                    />
+                    {/* Label */}
                     <span
-                      className={`text-[13px] whitespace-nowrap ${
+                      className={`text-[10px] font-medium whitespace-nowrap ${
                         state === 'current'
-                          ? 'font-semibold'
+                          ? isBreached ? 'text-red-600' : 'text-[#2563EB]'
                           : state === 'completed'
-                            ? 'text-black/70 dark:text-white/70'
-                            : 'text-black/40 dark:text-white/40'
+                            ? 'text-black/50 dark:text-white/50'
+                            : 'text-black/25 dark:text-white/25'
                       }`}
                     >
                       {stageInfo.label}
@@ -115,12 +146,10 @@ export function CrossModuleHandoff({ orderId, handoff }: CrossModuleHandoffProps
                   {/* Connecting line */}
                   {index < HANDOFF_STAGES.length - 1 && (
                     <div
-                      className={`h-0.5 flex-1 mx-1 ${
+                      className={`h-px flex-1 mx-2 ${
                         state === 'completed'
-                          ? 'bg-green-500'
-                          : state === 'current'
-                            ? 'bg-[#2563EB]'
-                            : 'bg-black/10 dark:bg-white/10'
+                          ? 'bg-[#2563EB]'
+                          : 'bg-black/8 dark:bg-white/8'
                       }`}
                     />
                   )}
@@ -131,23 +160,21 @@ export function CrossModuleHandoff({ orderId, handoff }: CrossModuleHandoffProps
 
           {/* Current owner + Nudge */}
           <div className="mt-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">
-                Current owner: {handoff.currentOwner}
-              </p>
-              <p className="font-geist-mono text-[13px] text-black/50 dark:text-white/50">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[13px] font-medium">{handoff.currentOwner}</span>
+              <span className="font-[family-name:var(--font-geist-mono)] text-[12px] text-black/35 dark:text-white/35">
                 {formatDuration(handoff.timeInStage)} in {handoff.currentStage}
-              </p>
+              </span>
             </div>
 
             <Button
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 text-sm font-medium
-                outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                dark:data-[hovered]:bg-white/10"
+              className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-black/50 dark:text-white/50 outline-none
+                data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
+                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40
+                data-[disabled]:opacity-40"
               onPress={() => nudgeMutation.mutate()}
               isDisabled={nudgeMutation.isPending}
             >
-              <Bell className="h-4 w-4" />
               Nudge
             </Button>
           </div>

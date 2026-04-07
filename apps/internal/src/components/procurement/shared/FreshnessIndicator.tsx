@@ -7,32 +7,51 @@ interface FreshnessIndicatorProps {
   compact?: boolean
 }
 
-const FRESHNESS_CONFIG: Record<StockFreshness, { dot: string; label: string }> = {
-  fresh: { dot: 'bg-green-500', label: 'procurement.freshness.fresh' },
-  aging: { dot: 'bg-yellow-500', label: 'procurement.freshness.aging' },
-  stale: { dot: 'bg-red-500', label: 'procurement.freshness.stale' },
-  suppressed: { dot: 'bg-black/30 dark:bg-white/30', label: 'procurement.freshness.suppressed' },
+const FRESHNESS_LETTER: Record<StockFreshness, string> = {
+  fresh: 'F',
+  aging: 'A',
+  stale: 'S',
+  suppressed: 'M',
+}
+
+const FRESHNESS_COLOR: Record<StockFreshness, string> = {
+  fresh: 'text-[var(--color-text)]',
+  aging: 'text-[var(--color-text-muted)]',
+  stale: 'text-[var(--color-text-subtle)]',
+  suppressed: 'text-[var(--color-text-subtle)] opacity-50',
+}
+
+const FRESHNESS_I18N: Record<StockFreshness, string> = {
+  fresh: 'procurement.freshness.fresh',
+  aging: 'procurement.freshness.aging',
+  stale: 'procurement.freshness.stale',
+  suppressed: 'procurement.freshness.suppressed',
 }
 
 export function FreshnessIndicator({ freshness, timestamp, compact }: FreshnessIndicatorProps) {
   const { t } = useTranslation('internal')
-  const config = FRESHNESS_CONFIG[freshness]
 
   if (compact) {
     return (
-      <span className="inline-flex items-center gap-1">
-        <span className={`inline-block h-1.5 w-1.5 rounded-full ${config.dot}`} />
-        <span className="text-xs text-black/50 dark:text-white/50">{t(config.label)}</span>
+      <span
+        className={`inline-flex items-center justify-center font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums ${FRESHNESS_COLOR[freshness]}`}
+        title={t(FRESHNESS_I18N[freshness])}
+      >
+        {FRESHNESS_LETTER[freshness]}
       </span>
     )
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-block h-2 w-2 rounded-full ${config.dot}`} />
-      <span className="text-sm">{t(config.label)}</span>
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold tabular-nums ${FRESHNESS_COLOR[freshness]}`}
+      >
+        {FRESHNESS_LETTER[freshness]}
+      </span>
+      <span className="text-[12px] text-[var(--color-text-muted)]">{t(FRESHNESS_I18N[freshness])}</span>
       {timestamp && (
-        <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/40 dark:text-white/40">
+        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
           {new Date(timestamp).toLocaleString()}
         </span>
       )}

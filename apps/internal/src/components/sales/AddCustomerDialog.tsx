@@ -82,7 +82,7 @@ export function AddCustomerDialog({ onCustomerCreated }: AddCustomerDialogProps)
 
       // Navigate to Customer 360 for the newly created customer
       useSalesStore.getState().setSelectedCustomerId(result.customerId)
-      useSalesStore.getState().setActiveTab('customer-360')
+      useSalesStore.getState().setActiveTab('customers')
 
       if (onCustomerCreated) {
         onCustomerCreated(result.customerId)
@@ -364,7 +364,7 @@ function DuplicateWarningBanner({
         type="button"
         onClick={() => {
           useSalesStore.getState().setSelectedCustomerId(customerId)
-          setActiveTab('customer-360')
+          setActiveTab('customers')
         }}
         className="text-xs text-[#2563EB] hover:underline"
       >

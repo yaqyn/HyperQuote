@@ -1,5 +1,6 @@
 {
   "tabs": {
+    "reports": "Reports",
     "sales": "Sales",
     "procurement": "Procurement",
     "operations": "Operations",
@@ -29,6 +30,8 @@
     "weekly": "Weekly",
     "monthly": "Monthly"
   },
+  "csv": "CSV",
+  "pdf": "PDF",
   "loading": "Loading...",
   "kpi": {
     "pipeline_value": "Pipeline Value",

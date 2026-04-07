@@ -10,7 +10,6 @@ import {
   Users,
   Settings,
   BarChart3,
-  Sparkles,
 } from 'lucide-react'
 
 export interface ModuleConfig {
@@ -32,5 +31,4 @@ export const MODULES: ModuleConfig[] = [
   { id: 'hr', icon: Users, labelKey: 'modules.hr', hotkey: 'H', permission: 'hr.read' },
   { id: 'admin', icon: Settings, labelKey: 'modules.admin', hotkey: 'A', permission: 'admin.read' },
   { id: 'reports', icon: BarChart3, labelKey: 'modules.reports', hotkey: 'R', permission: 'reports.read' },
-  { id: 'ai', icon: Sparkles, labelKey: 'modules.ai', hotkey: 'I', permission: 'ai.read' },
 ]

@@ -4,37 +4,17 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import {
   RadioGroup,
   Radio,
-  Label,
   Switch,
-  DatePicker,
-  DateInput,
-  DateSegment,
-  Calendar,
-  CalendarGrid,
-  CalendarGridBody,
-  CalendarGridHeader,
-  CalendarHeaderCell,
-  CalendarCell,
   Heading,
-  Popover,
-  Dialog,
-  DialogTrigger,
   Modal,
   ModalOverlay,
-  Group,
+  Dialog,
   Button as AriaButton,
-  TextArea,
+  Input,
   TextField,
 } from 'react-aria-components'
-import { today, getLocalTimeZone } from '@internationalized/date'
 import { sendQuote } from '../../../lib/server/sales-send'
 import type { QuoteFormValues } from './LineItemsTable'
-import type { FreshnessIndicator } from '../../../types/sales'
-
-// ─── SendQuote ────────────────────────────────────────────
-// Step 10: Send to customer via Portal / Email / Both.
-// Schedule send option. Partial quote handling.
-// Confirmation dialog with isKeyboardDismissDisabled.
 
 interface SendQuoteProps {
   quoteId: string
@@ -49,8 +29,9 @@ export function SendQuote({
   customerName,
   onSent,
 }: SendQuoteProps) {
-  const { t, i18n } = useTranslation('internal')
+  const { i18n } = useTranslation('internal')
   const { control } = useFormContext<QuoteFormValues>()
+  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
 
   const lineItems = useWatch({ control, name: 'lineItems' })
   const coverNote = useWatch({ control, name: 'coverNote' })
@@ -61,7 +42,6 @@ export function SendQuote({
   const [sendMethod, setSendMethod] = useState<'portal' | 'email' | 'both'>('portal')
   const [scheduledDate, setScheduledDate] = useState<string | null>(null)
 
-  // Detect partial quote: items with missing freshness
   const missingItems = (lineItems ?? []).filter(
     (item) => item.freshnessIndicator === 'missing',
   )
@@ -89,119 +69,78 @@ export function SendQuote({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Partial Quote Notice */}
+    <div className="space-y-3">
+      {/* Missing pricing -- compact */}
       {hasMissingPricing && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 dark:border-yellow-800 dark:bg-yellow-950/30">
-          <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
-            {missingItems.length} item{missingItems.length > 1 ? 's' : ''} without pricing
-          </p>
-          <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
-            These items will show "Price on Application -- we'll update within 24 hours" on the customer quote.
-          </p>
-        </div>
+        <p className="text-[11px] text-yellow-700 dark:text-yellow-300">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{missingItems.length}</span>
+          {' '}item{missingItems.length > 1 ? 's' : ''} will show "Price on Application"
+        </p>
       )}
 
-      {/* Send Method */}
-      <RadioGroup
-        aria-label="Send method"
-        value={sendMethod}
-        onChange={(val) => setSendMethod(val as 'portal' | 'email' | 'both')}
-        className="flex flex-col gap-1"
-      >
-        <Label className="text-xs font-medium text-black/50 dark:text-white/50">
-          Send Via
-        </Label>
-        <div className="flex gap-3">
+      {/* Recipients + Cover Note + Send Via -- compact rows */}
+      <div className="flex items-center gap-3">
+        {/* Recipients as tags */}
+        <span className="rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
+          Primary Contact
+        </span>
+        <AriaButton
+          className="text-[10px] font-medium text-[var(--color-primary)] outline-none transition-opacity data-[hovered]:opacity-70 data-[focus-visible]:underline"
+          onPress={() => {
+            console.log('Add CC recipient')
+          }}
+        >
+          + CC
+        </AriaButton>
+
+        {/* Separator */}
+        <div className="h-4 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
+
+        {/* Send via pills */}
+        <RadioGroup
+          aria-label="Send method"
+          value={sendMethod}
+          onChange={(val) => setSendMethod(val as 'portal' | 'email' | 'both')}
+          className="flex gap-1"
+        >
           {([
-            { value: 'portal', label: 'Portal', description: 'Preferred -- instant access', highlighted: true },
-            { value: 'email', label: 'Email (PDF)', description: 'PDF attachment' },
-            { value: 'both', label: 'Both', description: 'Portal + Email' },
+            { value: 'portal', label: 'Portal' },
+            { value: 'email', label: 'Email' },
+            { value: 'both', label: 'Both' },
           ] as const).map((opt) => (
             <Radio
               key={opt.value}
               value={opt.value}
-              className={`flex flex-1 cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2.5 outline-none transition-colors
-                data-[selected]:border-[#2563EB] data-[selected]:bg-[#2563EB]/5
-                data-[hovered]:bg-black/3 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                dark:data-[selected]:border-[#2563EB] dark:data-[selected]:bg-[#2563EB]/10
-                dark:data-[hovered]:bg-white/5
-                ${'highlighted' in opt && opt.highlighted
-                  ? 'border-[#2563EB]/30 dark:border-[#2563EB]/30'
-                  : 'border-black/10 dark:border-white/10'
-                }`}
+              className="cursor-pointer rounded-full border border-black/[0.08] px-2.5 py-0.5 text-[10px] font-medium outline-none transition-all
+                data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white
+                data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
+                dark:border-white/[0.08] dark:data-[selected]:border-[var(--color-primary)]
+                dark:data-[hovered]:bg-white/[0.03]"
             >
-              <span className="text-sm font-medium">{opt.label}</span>
-              <span className="text-xs text-black/40 dark:text-white/40">{opt.description}</span>
+              {opt.label}
             </Radio>
           ))}
-        </div>
-      </RadioGroup>
+        </RadioGroup>
 
-      {/* Recipient Selection */}
-      <div className="flex flex-col gap-1">
-        <Label className="text-xs font-medium text-black/50 dark:text-white/50">
-          Recipients
-        </Label>
-        <div className="flex items-center gap-2 rounded-lg border border-black/10 bg-white/60 px-3 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-black/40">
-          <span className="rounded bg-[#2563EB]/10 px-2 py-0.5 text-xs font-medium text-[#2563EB]">
-            Primary Contact
-          </span>
-          <AriaButton
-            className="rounded border border-dashed border-black/20 px-2 py-0.5 text-xs text-black/40 outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:border-white/20 dark:text-white/40 dark:data-[hovered]:bg-white/10"
-            onPress={() => {
-              // TODO: Open CC contact picker ComboBox
-              console.log('Add CC recipient')
-            }}
-          >
-            + Add CC
-          </AriaButton>
-        </div>
-      </div>
+        {/* Separator */}
+        <div className="h-4 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
 
-      {/* Cover Note */}
-      <Controller
-        control={control}
-        name="coverNote"
-        render={({ field }) => (
-          <TextField
-            aria-label="Cover note"
-            className="flex flex-col gap-1"
-          >
-            <Label className="text-xs font-medium text-black/50 dark:text-white/50">
-              Cover Note (personalized)
-            </Label>
-            <TextArea
-              value={field.value ?? ''}
-              onChange={(e) => field.onChange(e.target.value)}
-              placeholder="Dear valued customer, please find attached our competitive quotation..."
-              rows={3}
-              className="rounded-lg border border-black/10 bg-white/60 px-3 py-2 text-sm backdrop-blur-sm outline-none placeholder:text-black/30 focus:ring-2 focus:ring-[#2563EB]/50 dark:border-white/10 dark:bg-black/40 dark:placeholder:text-white/30"
-            />
-          </TextField>
-        )}
-      />
-
-      {/* Schedule Send */}
-      <div className="flex flex-col gap-2">
+        {/* Schedule toggle */}
         <Switch
           isSelected={scheduleSend}
           onChange={setScheduleSend}
-          className="group flex items-center gap-2"
+          className="group flex items-center gap-1.5"
         >
-          <div className="h-5 w-9 rounded-full border border-black/10 bg-black/5 p-0.5 transition-colors group-data-[selected]:bg-[#2563EB] dark:border-white/10 dark:bg-white/10">
-            <div className="h-4 w-4 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-4 dark:bg-black" />
+          <div className="h-4 w-7 rounded-full border border-black/[0.06] bg-black/[0.04] p-0.5 transition-colors group-data-[selected]:bg-[var(--color-primary)] dark:border-white/[0.06] dark:bg-white/[0.06]">
+            <div className="h-3 w-3 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-3 dark:bg-black" />
           </div>
-          <span className="text-sm">Schedule for later</span>
+          <span className="text-[10px] text-[var(--color-text-muted)]">Schedule</span>
         </Switch>
 
         {scheduleSend && (
-          <div className="ms-11 flex items-center gap-2">
-            <p className="text-xs text-black/40 dark:text-white/40">
-              Default suggestion: Send at 8 AM tomorrow
-            </p>
+          <>
             <AriaButton
-              className="rounded border border-black/10 px-2 py-1 text-xs outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:border-white/10 dark:data-[hovered]:bg-white/10"
+              className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[10px] font-medium outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.06]"
               onPress={() => {
                 const tomorrow = new Date()
                 tomorrow.setDate(tomorrow.getDate() + 1)
@@ -209,70 +148,87 @@ export function SendQuote({
                 setScheduledDate(tomorrow.toISOString())
               }}
             >
-              Use suggestion
+              Tomorrow 8 AM
             </AriaButton>
             {scheduledDate && (
-              <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/60 dark:text-white/60">
-                Scheduled: {new Date(scheduledDate).toLocaleString(locale)}
+              <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                {new Date(scheduledDate).toLocaleString(locale)}
               </span>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      {/* Send Button */}
-      <div className="flex justify-end pt-2">
-        <AriaButton
-          onPress={() => setShowConfirm(true)}
-          className="rounded-lg bg-[#2563EB] px-6 py-2.5 text-sm font-medium text-white outline-none data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[disabled]:opacity-50"
-          isDisabled={isSending}
-        >
-          {scheduleSend ? 'Schedule Send' : 'Send Quote'}
-        </AriaButton>
-      </div>
+      {/* Cover note -- single line input that can expand */}
+      <Controller
+        control={control}
+        name="coverNote"
+        render={({ field }) => (
+          <TextField
+            aria-label="Cover note"
+            className="flex items-center gap-2"
+          >
+            <Input
+              value={field.value ?? ''}
+              onChange={(e) => field.onChange(e.target.value)}
+              placeholder="Cover note (optional)..."
+              className="w-full rounded-md border border-black/[0.08] px-2 py-1.5 text-[12px] outline-none transition-colors placeholder:text-black/20 focus:border-[var(--color-primary)] dark:border-white/[0.08] dark:placeholder:text-white/20"
+            />
+          </TextField>
+        )}
+      />
+
+      {/* Big Send button */}
+      <AriaButton
+        onPress={() => setShowConfirm(true)}
+        className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-[14px] font-semibold text-white outline-none transition-colors
+          data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[disabled]:opacity-50"
+        isDisabled={isSending}
+      >
+        {scheduleSend ? 'Schedule Send' : 'Send Quote'}
+      </AriaButton>
 
       {/* Confirmation Dialog */}
       <ModalOverlay
         isOpen={showConfirm}
         onOpenChange={setShowConfirm}
+        isKeyboardDismissDisabled
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       >
         <Modal className="w-full max-w-md rounded-2xl">
           <Dialog
-            className="rounded-2xl border border-black/10 bg-white/90 p-6 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/10 dark:bg-black/90"
-            isKeyboardDismissDisabled
+            className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
           >
-            <Heading slot="title" className="text-base font-semibold">
-              Send quote to {customerName}?
+            <Heading slot="title" className="text-[16px] font-semibold">
+              Send to {customerName}?
             </Heading>
-            <p className="mt-2 text-sm text-black/60 dark:text-white/60">
-              Quote{' '}
+            <p className="mt-2 text-[13px] text-[var(--color-text-muted)]">
               <span className="font-[family-name:var(--font-geist-mono)] font-medium tabular-nums">
                 {quoteNumber}
               </span>{' '}
-              will be sent via {sendMethod === 'both' ? 'Portal and Email' : sendMethod === 'portal' ? 'Portal' : 'Email'}.
+              via {sendMethod === 'both' ? 'Portal + Email' : sendMethod === 'portal' ? 'Portal' : 'Email'}
               {scheduleSend && scheduledDate
-                ? ` Scheduled for ${new Date(scheduledDate).toLocaleString(locale)}.`
+                ? ` at ${new Date(scheduledDate).toLocaleString(locale)}`
                 : ''}
             </p>
             {hasMissingPricing && (
-              <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-300">
+              <p className="mt-2 text-[11px] text-yellow-700 dark:text-yellow-300">
                 {missingItems.length} item{missingItems.length > 1 ? 's' : ''} will show "Price on Application".
               </p>
             )}
-            <div className="mt-4 flex justify-end gap-3">
+            <div className="mt-5 flex justify-end gap-3">
               <AriaButton
                 onPress={() => setShowConfirm(false)}
-                className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:border-white/10 dark:data-[hovered]:bg-white/10"
+                className="rounded-lg border border-black/[0.06] px-4 py-2 text-[13px] font-medium outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:border-white/[0.06] dark:data-[hovered]:bg-white/[0.06]"
               >
                 Cancel
               </AriaButton>
               <AriaButton
                 onPress={handleSend}
                 isDisabled={isSending}
-                className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white outline-none data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[disabled]:opacity-50"
+                className="rounded-lg bg-[var(--color-primary)] px-5 py-2 text-[13px] font-medium text-white outline-none data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[disabled]:opacity-50"
               >
-                {isSending ? 'Sending...' : 'Confirm Send'}
+                {isSending ? 'Sending...' : 'Confirm'}
               </AriaButton>
             </div>
           </Dialog>

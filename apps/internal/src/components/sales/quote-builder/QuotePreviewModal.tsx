@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useWatch } from 'react-hook-form'
 import {
-  DialogTrigger,
   Modal,
   ModalOverlay,
   Dialog,
@@ -11,11 +10,6 @@ import {
   Switch,
 } from 'react-aria-components'
 import type { QuoteFormValues } from './LineItemsTable'
-
-// ─── QuotePreviewModal ────────────────────────────────────
-// Step 9: PDF preview in elevated glass modal.
-// Customer-facing: NO cost, NO margin, NO supplier columns.
-// Since PDF generation is Phase 28, this is a styled HTML preview.
 
 interface QuotePreviewModalProps {
   quoteNumber: string
@@ -34,7 +28,7 @@ export function QuotePreviewModal({
   isOpen,
   onOpenChange,
 }: QuotePreviewModalProps) {
-  const { t, i18n } = useTranslation('internal')
+  const { i18n } = useTranslation('internal')
   const { control } = useFormContext<QuoteFormValues>()
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
   const fmt = new Intl.NumberFormat(locale, {
@@ -50,18 +44,16 @@ export function QuotePreviewModal({
 
   const [showSpecDetails, setShowSpecDetails] = useState(false)
 
-  // Watch form values for preview
   const lineItems = useWatch({ control, name: 'lineItems' })
   const paymentTerms = useWatch({ control, name: 'paymentTerms' })
   const coverNote = useWatch({ control, name: 'coverNote' })
 
-  // Compute totals -- customer-facing (NO cost/margin)
   const subtotal = lineItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
   const vatAmount = Math.round(subtotal * 14) / 100
   const grandTotal = subtotal + vatAmount
 
-  const today = new Date()
-  const expiryDate = new Date(today)
+  const todayDate = new Date()
+  const expiryDate = new Date(todayDate)
   expiryDate.setDate(expiryDate.getDate() + validityDays)
 
   return (
@@ -69,22 +61,20 @@ export function QuotePreviewModal({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable
+      isKeyboardDismissDisabled
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
       <Modal className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl">
         <Dialog
-          className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/90 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/10 dark:bg-black/90"
-          isKeyboardDismissDisabled
+          className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white/90 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
         >
-          {({ close }) => (
-            <>
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-black/10 px-6 py-4 dark:border-white/10">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-3.5 dark:border-white/[0.06]">
                 <div className="flex items-center gap-3">
-                  <Heading slot="title" className="text-base font-semibold">
-                    Quote Preview
+                  <Heading slot="title" className="text-[16px] font-semibold">
+                    Preview
                   </Heading>
-                  <span className="rounded bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs tabular-nums dark:bg-white/10">
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
                     {quoteNumber} v{version}
                   </span>
                 </div>
@@ -94,117 +84,103 @@ export function QuotePreviewModal({
                     onChange={setShowSpecDetails}
                     className="group flex items-center gap-2"
                   >
-                    <div className="h-5 w-9 rounded-full border border-black/10 bg-black/5 p-0.5 transition-colors group-data-[selected]:bg-[#2563EB] dark:border-white/10 dark:bg-white/10">
+                    <div className="h-5 w-9 rounded-full border border-black/[0.06] bg-black/[0.04] p-0.5 transition-colors group-data-[selected]:bg-[var(--color-primary)] dark:border-white/[0.06] dark:bg-white/[0.06]">
                       <div className="h-4 w-4 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-4 dark:bg-black" />
                     </div>
-                    <span className="text-xs text-black/50 dark:text-white/50">
-                      {showSpecDetails ? 'Spec details' : 'Summary view'}
+                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                      {showSpecDetails ? 'Detailed' : 'Summary'}
                     </span>
                   </Switch>
                   <AriaButton
-                    onPress={close}
-                    className="rounded-md p-1.5 text-black/40 outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:text-white/40 dark:data-[hovered]:bg-white/10"
+                    onPress={() => onOpenChange(false)}
+                    className="rounded-md p-1.5 text-[var(--color-text-subtle)] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]"
                   >
-                    &#10005;
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
                   </AriaButton>
                 </div>
               </div>
 
-              {/* Scrollable Preview Content */}
+              {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-6 py-6">
-                {/* Customer-facing document preview */}
                 <div className="mx-auto max-w-2xl space-y-6">
 
-                  {/* Seller Info */}
+                  {/* Seller */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-lg font-bold">هايبر كوت للتجارة</p>
-                      <p className="text-sm font-medium">HyperQuote Trading Co.</p>
-                      <p className="mt-1 text-xs text-black/50 dark:text-white/50">
+                      <p className="text-lg font-bold">HyperQuote Trading Co.</p>
+                      <p className="text-[13px] font-medium text-[var(--color-text-muted)]">
                         CR: 12345 | TRN: 100-234-567
                       </p>
-                      <p className="text-xs text-black/50 dark:text-white/50">
-                        Cairo, Egypt
-                      </p>
+                      <p className="text-[11px] text-[var(--color-text-subtle)]">Cairo, Egypt</p>
                     </div>
-                    <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-black/10 bg-black/3 text-xs text-black/30 dark:border-white/10 dark:bg-white/5 dark:text-white/30">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-black/[0.06] text-[10px] text-[var(--color-text-subtle)] dark:border-white/[0.06]">
                       Logo
                     </div>
                   </div>
 
-                  {/* Buyer Info */}
-                  <div className="rounded-lg border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <p className="text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">Bill To</p>
-                    <p className="mt-1 text-sm font-semibold">{customerName}</p>
-                    <p className="text-xs text-black/50 dark:text-white/50">TRN: Customer TRN</p>
-                    <p className="text-xs text-black/50 dark:text-white/50">Contact: Primary Contact</p>
+                  {/* Buyer */}
+                  <div className="border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Bill To</p>
+                    <p className="mt-1 text-[14px] font-semibold">{customerName}</p>
                   </div>
 
-                  {/* Quote Metadata */}
-                  <div className="grid grid-cols-3 gap-4">
+                  {/* Metadata */}
+                  <div className="flex gap-8">
                     <div>
-                      <p className="text-xs text-black/40 dark:text-white/40">Reference</p>
-                      <p className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums">{quoteNumber}</p>
+                      <p className="text-[10px] text-[var(--color-text-subtle)]">Reference</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums">{quoteNumber}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-black/40 dark:text-white/40">Date</p>
-                      <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">{dateFmt.format(today)}</p>
+                      <p className="text-[10px] text-[var(--color-text-subtle)]">Date</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums">{dateFmt.format(todayDate)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-black/40 dark:text-white/40">Valid Until</p>
-                      <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">{dateFmt.format(expiryDate)}</p>
+                      <p className="text-[10px] text-[var(--color-text-subtle)]">Valid Until</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums">{dateFmt.format(expiryDate)}</p>
                     </div>
                   </div>
 
                   {/* Cover Note */}
                   {coverNote && (
-                    <div className="rounded-lg border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                      <p className="text-xs font-medium text-black/40 dark:text-white/40">Note</p>
-                      <p className="mt-1 text-sm">{coverNote}</p>
-                    </div>
+                    <p className="text-[13px] text-[var(--color-text-muted)] italic">{coverNote}</p>
                   )}
 
-                  {/* Line Items Table -- CUSTOMER FACING: NO cost, NO margin columns */}
+                  {/* Line Items -- customer facing: NO cost, NO margin */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm" role="grid">
+                    <table className="w-full text-[13px]" role="grid">
                       <thead>
-                        <tr className="border-b border-black/10 dark:border-white/10">
-                          <th className="pb-2 pe-4 text-start text-xs font-medium text-black/40 dark:text-white/40">#</th>
-                          <th className="pb-2 pe-4 text-start text-xs font-medium text-black/40 dark:text-white/40">Product</th>
+                        <tr className="border-b border-black/[0.08] dark:border-white/[0.08]">
+                          <th className="pb-2 pe-4 text-start text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">#</th>
+                          <th className="pb-2 pe-4 text-start text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Product</th>
                           {showSpecDetails && (
-                            <th className="pb-2 pe-4 text-start text-xs font-medium text-black/40 dark:text-white/40">Specification</th>
+                            <th className="pb-2 pe-4 text-start text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Spec</th>
                           )}
-                          <th className="pb-2 pe-4 text-end text-xs font-medium text-black/40 dark:text-white/40">Qty</th>
-                          <th className="pb-2 pe-4 text-end text-xs font-medium text-black/40 dark:text-white/40">Unit</th>
-                          <th className="pb-2 pe-4 text-end text-xs font-medium text-black/40 dark:text-white/40">Unit Price</th>
-                          <th className="pb-2 text-end text-xs font-medium text-black/40 dark:text-white/40">Total</th>
+                          <th className="pb-2 pe-4 text-end text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Qty</th>
+                          <th className="pb-2 pe-4 text-end text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Unit Price</th>
+                          <th className="pb-2 text-end text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(lineItems ?? []).map((item, idx) => (
-                          <tr
-                            key={item.id}
-                            className="border-b border-black/5 dark:border-white/5"
-                          >
-                            <td className="py-2 pe-4 font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/40 dark:text-white/40">
+                          <tr key={item.id} className="h-10">
+                            <td className="pe-4 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
                               {idx + 1}
                             </td>
-                            <td className="py-2 pe-4">{item.productName}</td>
+                            <td className="pe-4">{item.productName}</td>
                             {showSpecDetails && (
-                              <td className="py-2 pe-4 text-xs text-black/60 dark:text-white/60">
+                              <td className="pe-4 text-[11px] text-[var(--color-text-muted)]">
                                 {item.specification}
                               </td>
                             )}
-                            <td className="py-2 pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                              {item.quantity.toLocaleString(locale)}
+                            <td className="pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
+                              {item.quantity.toLocaleString(locale)} {item.unit}
                             </td>
-                            <td className="py-2 pe-4 text-end text-xs text-black/50 dark:text-white/50">
-                              {item.unit}
-                            </td>
-                            <td className="py-2 pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
+                            <td className="pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
                               {fmt.format(item.sellPrice)}
                             </td>
-                            <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] font-medium tabular-nums">
+                            <td className="text-end font-[family-name:var(--font-geist-mono)] font-medium tabular-nums">
                               {fmt.format(item.lineTotal)}
                             </td>
                           </tr>
@@ -213,80 +189,65 @@ export function QuotePreviewModal({
                     </table>
                   </div>
 
-                  {/* Delivery Line */}
-                  <div className="rounded-lg border border-black/10 bg-black/[0.02] px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
-                    <p className="text-xs font-medium text-black/40 dark:text-white/40">Delivery</p>
-                    <p className="mt-1 text-sm">Greater Cairo area -- DAP (Delivered at Place)</p>
-                  </div>
-
-                  {/* Totals -- Customer Facing */}
-                  <div className="ms-auto w-64 space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-black/50 dark:text-white/50">Subtotal</span>
-                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                        {fmt.format(subtotal)}
-                      </span>
+                  {/* Totals */}
+                  <div className="ms-auto w-56 space-y-1.5">
+                    <div className="flex justify-between text-[12px]">
+                      <span className="text-[var(--color-text-muted)]">Subtotal</span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{fmt.format(subtotal)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-black/50 dark:text-white/50">VAT (14%)</span>
-                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                        {fmt.format(vatAmount)}
-                      </span>
+                    <div className="flex justify-between text-[12px]">
+                      <span className="text-[var(--color-text-muted)]">VAT (14%)</span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{fmt.format(vatAmount)}</span>
                     </div>
-                    <div className="flex justify-between border-t border-black/10 pt-1 text-sm font-semibold dark:border-white/10">
-                      <span>Grand Total</span>
-                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                        {fmt.format(grandTotal)}
-                      </span>
+                    <div className="flex justify-between border-t border-black/[0.08] pt-1.5 text-[14px] font-semibold dark:border-white/[0.08]">
+                      <span>Total</span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{fmt.format(grandTotal)}</span>
                     </div>
                   </div>
 
                   {/* Payment Terms */}
                   {paymentTerms && (
-                    <div>
-                      <p className="text-xs font-medium text-black/40 dark:text-white/40">Payment Terms</p>
-                      <p className="mt-1 text-sm">{paymentTerms}</p>
+                    <div className="text-[12px]">
+                      <span className="text-[var(--color-text-subtle)]">Payment: </span>
+                      <span className="font-medium">{paymentTerms}</span>
                     </div>
                   )}
 
-                  {/* Price Disclaimer */}
-                  <p className="text-xs italic text-black/40 dark:text-white/40">
+                  {/* Disclaimer */}
+                  <p className="text-[10px] italic text-[var(--color-text-subtle)]">
                     Prices valid for {validityDays} days. Subject to supplier cost changes for volatile materials.
                   </p>
 
-                  {/* Digital Stamp Placeholder */}
-                  <div className="flex items-center justify-between border-t border-black/10 pt-4 dark:border-white/10">
+                  {/* Signature */}
+                  <div className="flex items-end justify-between border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
                     <div>
-                      <p className="text-xs text-black/40 dark:text-white/40">Authorized Signature</p>
-                      <div className="mt-2 h-12 w-32 border-b border-black/20 dark:border-white/20" />
+                      <p className="text-[10px] text-[var(--color-text-subtle)]">Authorized Signature</p>
+                      <div className="mt-2 h-10 w-28 border-b border-black/[0.15] dark:border-white/[0.15]" />
                     </div>
-                    <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-black/20 text-[8px] text-black/30 dark:border-white/20 dark:text-white/30">
-                      ختم الشركة
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-black/[0.12] text-[8px] text-[var(--color-text-subtle)] dark:border-white/[0.12]">
+                      Company Stamp
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 border-t border-black/10 px-6 py-4 dark:border-white/10">
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 border-t border-black/[0.06] px-6 py-3 dark:border-white/[0.06]">
                 <AriaButton
-                  onPress={close}
-                  className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:border-white/10 dark:data-[hovered]:bg-white/10"
+                  onPress={() => onOpenChange(false)}
+                  className="rounded-lg border border-black/[0.06] px-4 py-2 text-[13px] font-medium outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:border-white/[0.06] dark:data-[hovered]:bg-white/[0.06]"
                 >
                   Close
                 </AriaButton>
                 <AriaButton
-                  className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white outline-none data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+                  className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
                   onPress={() => {
-                    // Phase 28: actual PDF download
                     console.log('Download PDF -- Phase 28')
                   }}
                 >
                   Download PDF
                 </AriaButton>
               </div>
-            </>
-          )}
         </Dialog>
       </Modal>
     </ModalOverlay>

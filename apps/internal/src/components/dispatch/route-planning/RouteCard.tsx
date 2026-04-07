@@ -1,6 +1,6 @@
 /**
- * Individual route card with driver info, capacity bar, and draggable stops.
- * Uses React Aria useDragAndDrop with GridList for stop reordering and cross-route DnD.
+ * Expandable route detail — compact header, stop sequence as numbered list.
+ * Capacity bar, DnD stop reordering via React Aria GridList.
  */
 import { useMemo } from 'react'
 import { GridList, GridListItem, useDragAndDrop } from 'react-aria-components'
@@ -36,11 +36,9 @@ export function RouteCard({
   onInsert,
   allStops,
 }: RouteCardProps) {
-  // Pre-compute constraint violations for each stop
   const violationsMap = useMemo(() => {
     const map = new Map<string, ConstraintViolation[]>()
     if (!driver || !vehicle) return map
-
     const routeDate = new Date(route.date)
     for (const stop of route.stops) {
       const violations = validateAllConstraints(stop, driver, vehicle, routeDate)
@@ -64,20 +62,13 @@ export function RouteCard({
       const keys = [...e.keys]
       const targetKey = String(e.target.key)
       const currentStops = [...route.stops]
-
-      // Find moved items
       const movedIds = new Set(keys.map(String))
       const moved = currentStops.filter((s) => movedIds.has(s.id))
       const remaining = currentStops.filter((s) => !movedIds.has(s.id))
-
-      // Find target index in remaining
       let targetIdx = remaining.findIndex((s) => s.id === targetKey)
       if (e.target.dropPosition === 'after') targetIdx += 1
       if (targetIdx < 0) targetIdx = remaining.length
-
       remaining.splice(targetIdx, 0, ...moved)
-
-      // Update sequence numbers
       const resequenced = remaining.map((s, i) => ({ ...s, sequence: i + 1 }))
       onReorder(route.id, resequenced)
     },
@@ -90,9 +81,7 @@ export function RouteCard({
               onInsert(route.id, stop, e.target.dropPosition === 'after'
                 ? route.stops.findIndex((s) => s.id === String(e.target.key)) + 1
                 : route.stops.findIndex((s) => s.id === String(e.target.key)))
-            } catch {
-              // Invalid data -- ignore
-            }
+            } catch { /* ignore */ }
           })
         }
       }
@@ -104,9 +93,7 @@ export function RouteCard({
             try {
               const stop = JSON.parse(json) as RouteStop
               onInsert(route.id, stop, route.stops.length)
-            } catch {
-              // Invalid data -- ignore
-            }
+            } catch { /* ignore */ }
           })
         }
       }
@@ -120,38 +107,37 @@ export function RouteCard({
       role="button"
       tabIndex={0}
       onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onSelect()
-      }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect() }}
       className={`rounded-xl border p-3 transition-colors ${
         selected
-          ? 'border-[#2563EB] bg-[#2563EB]/5'
-          : 'border-[var(--color-border)] bg-[var(--color-card)]/50 hover:bg-[var(--color-card)]/80'
+          ? 'border-[#2563EB]/40 bg-[#2563EB]/[0.04]'
+          : 'border-black/[0.06] hover:bg-black/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.02]'
       }`}
     >
-      {/* Header: driver + vehicle */}
+      {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <div className="min-w-0">
-          <h4 className="truncate text-sm font-semibold">
-            {driver?.name ?? 'Unassigned'}
-          </h4>
-          <p className="text-xs text-black/50 dark:text-white/50">
-            {vehicle?.plateNumber ?? ''} &middot; {vehicle?.type ?? ''}
+          <h4 className="truncate text-sm font-medium">{driver?.name ?? 'Unassigned'}</h4>
+          <p className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
+            {vehicle?.plateNumber ?? ''}
           </p>
         </div>
-        <span className="shrink-0 rounded bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs tabular-nums dark:bg-white/5">
-          {route.stops.length} stops
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/50 dark:text-white/50">
+            {route.stops.length}
+          </span>
+          <span className="text-[11px] text-black/30 dark:text-white/30">stops</span>
+        </div>
       </div>
 
-      {/* Capacity bar */}
+      {/* Capacity */}
       {vehicle && (
         <div className="mb-2">
           <CapacityBar currentKg={totalWeight} capacityKg={vehicle.capacityKg} />
         </div>
       )}
 
-      {/* Draggable stop list */}
+      {/* Stop list */}
       <GridList
         aria-label={`${driver?.name ?? 'Route'} stops`}
         items={route.stops.map((s) => ({ ...s, key: s.id }))}
@@ -161,34 +147,31 @@ export function RouteCard({
             Drop stops here
           </div>
         )}
-        className="space-y-1.5"
+        className="space-y-1"
       >
         {(item) => (
           <GridListItem
             key={item.id}
             id={item.id}
             textValue={item.customerName}
-            className="outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded-lg"
+            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
           >
-            <StopItem
-              stop={item}
-              violations={violationsMap.get(item.id) ?? []}
-            />
+            <StopItem stop={item} violations={violationsMap.get(item.id) ?? []} />
           </GridListItem>
         )}
       </GridList>
 
       {/* Route summary */}
-      <div className="mt-2 flex items-center gap-3 border-t border-[var(--color-border)] pt-2 text-xs text-black/50 dark:text-white/50">
+      <div className="mt-2 flex items-center gap-3 border-t border-black/[0.04] pt-2 text-[11px] text-black/40 dark:border-white/[0.04] dark:text-white/40">
         <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
           {route.totalDistance} km
         </span>
         <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
           {route.estimatedDuration} min
         </span>
-        <span className={`ms-auto text-xs font-medium ${
+        <span className={`ms-auto text-[11px] font-medium ${
           route.status === 'draft'
-            ? 'text-black/40 dark:text-white/40'
+            ? 'text-black/30 dark:text-white/30'
             : route.status === 'in_progress'
               ? 'text-[#2563EB]'
               : 'text-green-600 dark:text-green-400'

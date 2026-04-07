@@ -1,12 +1,8 @@
 /**
- * MapLibre GL map with GPS pins, clusters, route lines, geofence circles.
- * MUST be wrapped in ClientOnly at the call site (not inside this component).
- *
- * - Data-driven circle layer for vehicle pins (color by status, size by zoom)
- * - Supercluster-based clustering with numbered circles
- * - Route lines: solid completed, dashed remaining
- * - Geofence circles around delivery sites (200m radius)
- * - Click cluster -> zoom to expand, click pin -> show VehiclePopup
+ * MapLibre GL map — the core radar display.
+ * Data-driven circles for vehicles, Supercluster clustering,
+ * route lines (solid completed, dashed remaining), geofence circles.
+ * MUST be wrapped in ClientOnly at call site.
  */
 import { useCallback, useMemo, useRef } from 'react'
 import Map, { Source, Layer, Popup } from 'react-map-gl/maplibre'
@@ -17,14 +13,11 @@ import { useDispatchStore } from '../../../stores/dispatch'
 import type { GPSPosition, DeliveryRoute, Driver } from '../../../types/dispatch'
 import { VehiclePopup } from './VehiclePopup'
 
-// ─── Map Style ──────────────────────────────────────────
-
 const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
   : 'https://demotiles.maplibre.org/style.json'
 
-// ─── Status Colors ──────────────────────────────────────
-
+// Semantic status colors — for DATA only
 const STATUS_COLORS: Record<string, string> = {
   loading: '#EAB308',
   transit: '#22C55E',
@@ -33,8 +26,6 @@ const STATUS_COLORS: Record<string, string> = {
   problem: '#EF4444',
   offline: '#9CA3AF',
 }
-
-// ─── Route Colors ───────────────────────────────────────
 
 const ROUTE_COLORS = ['#2563EB', '#8B5CF6', '#EC4899', '#F97316', '#14B8A6']
 
@@ -56,7 +47,7 @@ const vehicleCircleLayer: CircleLayerSpecification = {
       'problem', STATUS_COLORS.problem,
       STATUS_COLORS.offline,
     ],
-    'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 6, 14, 12],
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 5, 14, 10],
     'circle-stroke-color': '#FFFFFF',
     'circle-stroke-width': 2,
   },
@@ -68,11 +59,11 @@ const clusterCircleLayer: CircleLayerSpecification = {
   source: 'vehicles',
   filter: ['has', 'point_count'],
   paint: {
-    'circle-color': '#2563EB',
-    'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 10, 30],
+    'circle-color': '#000000',
+    'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 10, 28],
     'circle-stroke-color': '#FFFFFF',
     'circle-stroke-width': 2,
-    'circle-opacity': 0.85,
+    'circle-opacity': 0.8,
   },
 }
 
@@ -84,7 +75,7 @@ const clusterCountLayer: SymbolLayerSpecification = {
   layout: {
     'text-field': '{point_count_abbreviated}',
     'text-font': ['Open Sans Bold'],
-    'text-size': 13,
+    'text-size': 12,
   },
   paint: {
     'text-color': '#FFFFFF',
@@ -123,7 +114,6 @@ function buildVehicleGeoJSON(positions: Map<string, GPSPosition>): GeoJSON.Featu
   }
 }
 
-/** Split route stops into completed and remaining LineStrings */
 function buildRouteGeoJSON(route: DeliveryRoute): {
   completed: GeoJSON.Feature<GeoJSON.LineString>
   remaining: GeoJSON.Feature<GeoJSON.LineString>
@@ -134,8 +124,6 @@ function buildRouteGeoJSON(route: DeliveryRoute): {
   const remainingStops = route.stops.filter(
     (s) => s.status !== 'delivered' && s.status !== 'arrived',
   )
-
-  // Include the last completed stop as first point of remaining for continuity
   const lastCompleted = completedStops[completedStops.length - 1]
   const remainingWithBridge = lastCompleted
     ? [lastCompleted, ...remainingStops]
@@ -161,10 +149,9 @@ function buildRouteGeoJSON(route: DeliveryRoute): {
   }
 }
 
-/** Build geofence circles as GeoJSON polygon approximations (200m radius) */
 function buildGeofenceGeoJSON(routes: DeliveryRoute[]): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = []
-  const RADIUS_DEG = 200 / 111320 // ~200m in degrees
+  const RADIUS_DEG = 200 / 111320
 
   for (const route of routes) {
     for (const stop of route.stops) {
@@ -201,11 +188,9 @@ export function VehicleMap({
   const mapViewport = useDispatchStore((s) => s.mapViewport)
   const setMapViewport = useDispatchStore((s) => s.setMapViewport)
 
-  // Vehicle GeoJSON source data with clustering
   const vehicleGeoJSON = useMemo(() => buildVehicleGeoJSON(positions), [positions])
   const geofenceGeoJSON = useMemo(() => buildGeofenceGeoJSON(routes), [routes])
 
-  // Route lines data
   const routeLines = useMemo(
     () =>
       routes
@@ -231,7 +216,6 @@ export function VehicleMap({
 
   const onClick = useCallback(
     (evt: MapLayerMouseEvent) => {
-      // Check cluster click first
       const clusterFeature = evt.features?.find((f) => f.layer?.id === 'cluster-circles')
       if (clusterFeature && mapRef.current) {
         const clusterId = clusterFeature.properties?.cluster_id
@@ -246,7 +230,6 @@ export function VehicleMap({
         return
       }
 
-      // Check vehicle pin click
       const vehicleFeature = evt.features?.find((f) => f.layer?.id === 'vehicle-circles')
       if (vehicleFeature) {
         const driverId = vehicleFeature.properties?.driverId
@@ -257,13 +240,11 @@ export function VehicleMap({
         }
       }
 
-      // Click on empty area clears selection
       onSelectVehicle(null)
     },
     [positions, onSelectVehicle],
   )
 
-  // Find driver info for selected vehicle popup
   const selectedDriver = selectedVehicle
     ? drivers.find((d) => d.id === selectedVehicle.driverId)
     : null
@@ -294,7 +275,7 @@ export function VehicleMap({
           type="fill"
           paint={{
             'fill-color': '#2563EB',
-            'fill-opacity': 0.08,
+            'fill-opacity': 0.06,
           }}
         />
         <Layer
@@ -303,7 +284,7 @@ export function VehicleMap({
           paint={{
             'line-color': '#2563EB',
             'line-width': 1,
-            'line-opacity': 0.25,
+            'line-opacity': 0.2,
             'line-dasharray': [3, 3],
           }}
         />
@@ -312,31 +293,29 @@ export function VehicleMap({
       {/* Route lines */}
       {routeLines.map((rl: (typeof routeLines)[number]) => {
         const isHighlighted = highlightedRouteId === rl.id
-        const opacity = highlightedRouteId && !isHighlighted ? 0.15 : 1
+        const opacity = highlightedRouteId && !isHighlighted ? 0.12 : 1
 
         return (
           <span key={rl.id}>
-            {/* Completed portion: solid */}
             <Source id={`route-completed-${rl.id}`} type="geojson" data={rl.completed}>
               <Layer
                 id={`route-completed-${rl.id}`}
                 type="line"
                 paint={{
                   'line-color': rl.color,
-                  'line-width': isHighlighted ? 4 : 3,
+                  'line-width': isHighlighted ? 4 : 2.5,
                   'line-opacity': opacity,
                 }}
               />
             </Source>
-            {/* Remaining portion: dashed */}
             <Source id={`route-remaining-${rl.id}`} type="geojson" data={rl.remaining}>
               <Layer
                 id={`route-remaining-${rl.id}`}
                 type="line"
                 paint={{
                   'line-color': rl.color,
-                  'line-width': isHighlighted ? 4 : 3,
-                  'line-opacity': opacity * 0.5,
+                  'line-width': isHighlighted ? 4 : 2.5,
+                  'line-opacity': opacity * 0.4,
                   'line-dasharray': [2, 2],
                 }}
               />
@@ -345,7 +324,7 @@ export function VehicleMap({
         )
       })}
 
-      {/* Vehicle pins with clustering */}
+      {/* Vehicle pins */}
       <Source
         id="vehicles"
         type="geojson"
@@ -359,7 +338,7 @@ export function VehicleMap({
         <Layer {...clusterCountLayer} />
       </Source>
 
-      {/* Vehicle popup */}
+      {/* Minimal popup */}
       {selectedVehicle && selectedDriver && (
         <Popup
           latitude={selectedVehicle.lat}
@@ -368,7 +347,7 @@ export function VehicleMap({
           onClose={() => onSelectVehicle(null)}
           closeOnClick={false}
           offset={16}
-          className="!p-0 [&_.maplibregl-popup-content]:!p-0 [&_.maplibregl-popup-content]:!bg-transparent [&_.maplibregl-popup-content]:!shadow-none"
+          className="!p-0 [&_.maplibregl-popup-content]:!bg-transparent [&_.maplibregl-popup-content]:!p-0 [&_.maplibregl-popup-content]:!shadow-none"
         >
           <VehiclePopup
             position={selectedVehicle}

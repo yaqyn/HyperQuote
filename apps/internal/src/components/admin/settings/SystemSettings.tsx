@@ -6,8 +6,10 @@ import { getSystemConfig, updateSystemConfig } from '../../../lib/server/admin'
 import type { SystemSetting, SettingCategory } from '../../../types/admin'
 
 /**
- * System settings grouped by category in collapsible sections.
- * Each section has its own save button. Inline editing for values.
+ * SystemSettings — "The Config"
+ * Key-value pairs in sections. Each setting: label + current value + edit button.
+ * Toggle settings as inline switches.
+ * Grouped by category with uppercase section headers.
  */
 
 const CATEGORY_ORDER: SettingCategory[] = [
@@ -34,9 +36,6 @@ const CATEGORY_LABELS: Record<SettingCategory, { key: string; fallback: string }
 
 export function SystemSettings() {
   const { t } = useTranslation('admin')
-  const [expandedCategories, setExpandedCategories] = useState<Set<SettingCategory>>(
-    new Set(CATEGORY_ORDER),
-  )
   const [editedValues, setEditedValues] = useState<Record<string, string>>({})
   const [savedCategories, setSavedCategories] = useState<Set<string>>(new Set())
 
@@ -45,15 +44,6 @@ export function SystemSettings() {
     queryFn: () => getSystemConfig(),
     staleTime: 60_000,
   })
-
-  const toggleCategory = (cat: SettingCategory) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }
 
   const groupedSettings = (settings ?? []).reduce(
     (acc, s) => {
@@ -66,7 +56,7 @@ export function SystemSettings() {
   )
 
   const handleEdit = (key: string, value: string) => {
-    setEditedValues((prev) => ({ ...prev, [key]: value }))
+    setEditedValues((prev: Record<string, string>) => ({ ...prev, [key]: value }))
   }
 
   const handleSave = async (category: string) => {
@@ -74,12 +64,12 @@ export function SystemSettings() {
     for (const setting of categorySettings) {
       const newValue = editedValues[setting.key]
       if (newValue !== undefined && newValue !== setting.value) {
-        await updateSystemConfig({ data: { key: setting.key, value: newValue } })
+        await updateSystemConfig({ data: { key: setting.key, value: newValue } } as any)
       }
     }
-    setSavedCategories((prev) => new Set([...prev, category]))
+    setSavedCategories((prev: Set<string>) => new Set([...prev, category]))
     setTimeout(() => {
-      setSavedCategories((prev) => {
+      setSavedCategories((prev: Set<string>) => {
         const next = new Set(prev)
         next.delete(category)
         return next
@@ -88,63 +78,54 @@ export function SystemSettings() {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold">{t('settings.title', 'System Settings')}</h2>
+    <div className="p-5 space-y-4">
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
+        {t('settings.title', 'Configuration')}
+      </span>
 
       <div className="space-y-3">
         {CATEGORY_ORDER.map((cat) => {
           const catSettings = groupedSettings[cat]
           if (!catSettings?.length) return null
-          const isExpanded = expandedCategories.has(cat)
           const label = CATEGORY_LABELS[cat]
 
           return (
             <div
               key={cat}
-              className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden"
+              className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden"
             >
               {/* Category header */}
-              <button
-                type="button"
-                onClick={() => toggleCategory(cat)}
-                className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
-              >
-                <h3 className="text-sm font-semibold">{t(label.key, label.fallback)}</h3>
-                <svg
-                  className={`w-4 h-4 text-black/40 dark:text-white/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-              </button>
+              <div className="px-4 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
+                  {t(label.key, label.fallback)}
+                </span>
+              </div>
 
               {/* Settings list */}
-              {isExpanded && (
-                <div className="px-4 pb-4 space-y-3">
-                  {catSettings.map((setting) => (
-                    <SettingRow
-                      key={setting.key}
-                      setting={setting}
-                      editedValue={editedValues[setting.key]}
-                      onEdit={(val) => handleEdit(setting.key, val)}
-                    />
-                  ))}
-                  <div className="flex justify-end pt-2">
-                    <Button
-                      onPress={() => handleSave(cat)}
-                      className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 cursor-pointer outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-                    >
-                      {savedCategories.has(cat)
-                        ? t('settings.saved', 'Saved')
-                        : t('settings.save', 'Save')}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+                {catSettings.map((setting) => (
+                  <SettingRow
+                    key={setting.key}
+                    setting={setting}
+                    editedValue={editedValues[setting.key]}
+                    onEdit={(val) => handleEdit(setting.key, val)}
+                  />
+                ))}
+              </div>
+
+              {/* Save */}
+              <div className="flex justify-end px-4 py-2 border-t border-black/[0.04] dark:border-white/[0.04]">
+                <Button
+                  onPress={() => handleSave(cat)}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-medium cursor-pointer outline-none transition-colors ${
+                    savedCategories.has(cat)
+                      ? 'bg-green-600 text-white'
+                      : 'bg-[#2563EB] text-white hover:bg-[#2563EB]/90'
+                  } data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50`}
+                >
+                  {savedCategories.has(cat) ? t('settings.saved', 'Saved') : t('settings.save', 'Save')}
+                </Button>
+              </div>
             </div>
           )
         })}
@@ -152,6 +133,8 @@ export function SystemSettings() {
     </div>
   )
 }
+
+// ─── Setting Row ─────────────────────────────────────────
 
 function SettingRow({
   setting,
@@ -166,18 +149,18 @@ function SettingRow({
 
   if (setting.type === 'boolean') {
     return (
-      <div className="flex items-center justify-between py-1">
-        <div>
-          <div className="text-sm">{setting.description}</div>
-          <div className="text-xs text-black/40 dark:text-white/40">{setting.key}</div>
+      <div className="flex items-center justify-between px-4 py-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs">{setting.description}</div>
+          <div className="text-[10px] text-black/20 dark:text-white/20 font-[family-name:var(--font-geist-mono)]">{setting.key}</div>
         </div>
         <Switch
           isSelected={currentValue === 'true'}
           onChange={(val) => onEdit(String(val))}
-          className="group flex items-center cursor-pointer"
+          className="group flex items-center cursor-pointer shrink-0"
         >
-          <div className="w-9 h-5 rounded-full transition-colors bg-black/20 group-data-[selected]:bg-[#2563EB] dark:bg-white/20">
-            <div className="w-4 h-4 mt-0.5 ms-0.5 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-4 rtl:group-data-[selected]:-translate-x-4" />
+          <div className="w-8 h-[18px] rounded-full transition-colors bg-black/15 group-data-[selected]:bg-[#2563EB] dark:bg-white/15">
+            <div className="w-3.5 h-3.5 mt-[2px] ms-[2px] rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-3.5 rtl:group-data-[selected]:-translate-x-3.5" />
           </div>
         </Switch>
       </div>
@@ -185,18 +168,18 @@ function SettingRow({
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 py-1">
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5">
       <div className="min-w-0 flex-1">
-        <div className="text-sm">{setting.description}</div>
-        <div className="text-xs text-black/40 dark:text-white/40">{setting.key}</div>
+        <div className="text-xs">{setting.description}</div>
+        <div className="text-[10px] text-black/20 dark:text-white/20 font-[family-name:var(--font-geist-mono)]">{setting.key}</div>
       </div>
       <TextField
         value={currentValue}
         onChange={onEdit}
-        className="w-48 shrink-0"
+        className="w-44 shrink-0"
       >
         <Input
-          className={`w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-3 py-1.5 text-sm outline-none data-[focused]:ring-2 data-[focused]:ring-[#2563EB]/50 ${
+          className={`w-full rounded border border-black/8 dark:border-white/8 bg-transparent px-2.5 py-1 text-xs outline-none data-[focused]:border-black/20 dark:data-[focused]:border-white/20 ${
             setting.type === 'number' ? 'font-[family-name:var(--font-geist-mono)] tabular-nums' : ''
           }`}
         />

@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import type { CreditProfile } from '../../../types/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
-import { UtilizationBar } from '../shared/UtilizationBar'
 
 interface CreditProfileCardProps {
   profile: CreditProfile
@@ -11,33 +10,49 @@ interface CreditProfileCardProps {
   onReview?: () => void
 }
 
-const TIER_COLORS: Record<number, string> = {
-  1: 'bg-green-500/20 text-green-700 dark:text-green-400',
-  2: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
-  3: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
-  4: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
-  5: 'bg-red-500/20 text-red-700 dark:text-red-400',
-}
-
-const TIER_LABELS: Record<number, string> = {
-  1: 'New',
-  2: 'Developing',
-  3: 'Established',
-  4: 'Strategic',
-  5: 'Flagged',
-}
-
 function getScoreColor(score: number): string {
   if (score >= 80) return 'text-green-600 dark:text-green-400'
-  if (score >= 50) return 'text-yellow-600 dark:text-yellow-400'
+  if (score >= 50) return 'text-black/60 dark:text-white/60'
   return 'text-red-600 dark:text-red-400'
 }
 
+/** Mock sparkline data for payment behavior */
+const SPARKLINE_DATA = [85, 88, 92, 78, 90, 95, 88, 92, 96, 94, 90, 97]
+
+function PaymentSparkline({ score }: { score: number }) {
+  const w = 80
+  const h = 20
+  const data = SPARKLINE_DATA
+  const max = 100
+  const min = 60
+  const range = max - min
+
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - ((v - min) / range) * h
+    return `${x},${y}`
+  }).join(' ')
+
+  const color = score >= 80 ? '#22c55e' : score >= 50 ? '#eab308' : '#ef4444'
+
+  return (
+    <svg width={w} height={h} className="block">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 /**
- * Full credit profile card for a customer.
- * Header: name, tier badge, status badge.
- * Credit limit in Geist Mono 20px, full-width utilization bar.
- * Stats grid 2x3, quick actions.
+ * "The Risk Desk" — Customer credit snapshot.
+ * Limit (large mono) + used (progress bar) + available + risk score (large mono, colored).
+ * Payment behavior as sparkline.
  */
 export function CreditProfileCard({
   profile,
@@ -46,141 +61,179 @@ export function CreditProfileCard({
   onReview,
 }: CreditProfileCardProps) {
   const { t } = useTranslation('finance')
-  const tierColor = TIER_COLORS[profile.tier] ?? TIER_COLORS[3]
-  const tierLabel = TIER_LABELS[profile.tier] ?? 'Unknown'
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold">{profile.customerName}</h3>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tierColor}`}>
-            {t(`credit.tier${profile.tier}`, `Tier ${profile.tier} - ${tierLabel}`)}
+    <div className="space-y-0">
+      {/* ─── Header ────────────────────────────────────── */}
+      <div className="flex items-start justify-between pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div>
+          <div className="text-sm font-medium text-black/80 dark:text-white/80">
+            {profile.customerName}
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25">
+              Tier {profile.tier}
+            </span>
+            <span className={`size-1.5 rounded-full ${profile.isOnHold ? 'bg-red-500' : 'bg-green-500'}`} />
+            <span className="text-[10px] text-black/30 dark:text-white/30">
+              {profile.isOnHold
+                ? t('credit.statusOnHold', 'On Hold')
+                : t('credit.statusActive', 'Active')}
+            </span>
+          </div>
+        </div>
+
+        {/* Risk score — large mono, colored */}
+        <div className="text-end">
+          <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+            {t('credit.paymentScore', 'Score')}
+          </div>
+          <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-medium ${getScoreColor(profile.paymentScore)}`}>
+            {profile.paymentScore}
           </span>
         </div>
-        <span
-          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            profile.isOnHold
-              ? 'bg-red-500/20 text-red-700 dark:text-red-400'
-              : 'bg-green-500/20 text-green-700 dark:text-green-400'
-          }`}
-        >
-          {profile.isOnHold
-            ? t('credit.statusOnHold', 'On Hold')
-            : t('credit.statusActive', 'Active')}
-        </span>
       </div>
 
-      {/* Credit Limit */}
-      <div>
-        <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-          {t('credit.creditLimit', 'Credit Limit')}
+      {/* ─── Credit limit + utilization bar ─────────────── */}
+      <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="flex items-end justify-between mb-2">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+              {t('credit.creditLimit', 'Credit Limit')}
+            </div>
+            <CurrencyCell amount={profile.creditLimit} className="text-xl" />
+          </div>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/25 dark:text-white/25">
+            {Math.round(profile.utilizationPct)}% used
+          </span>
         </div>
-        <div className="text-xl">
-          <CurrencyCell amount={profile.creditLimit} className="text-xl" />
-        </div>
-      </div>
 
-      {/* Utilization Bar */}
-      <div>
-        <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-          {t('credit.utilization', 'Utilization')}
+        {/* Full-width utilization bar */}
+        <div className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              profile.utilizationPct > 100
+                ? 'bg-red-500 animate-pulse'
+                : profile.utilizationPct > 80
+                  ? 'bg-red-500/70'
+                  : profile.utilizationPct > 60
+                    ? 'bg-yellow-500'
+                    : 'bg-green-500'
+            }`}
+            style={{ width: `${Math.min(profile.utilizationPct, 100)}%` }}
+          />
         </div>
-        <UtilizationBar percentage={profile.utilizationPct} />
+
         {profile.utilizationPct > 100 && (
-          <div className="text-xs text-red-600 dark:text-red-400 font-medium mt-1">
-            {t('credit.overLimit', 'OVER LIMIT')}
+          <div className="text-[10px] text-red-600 dark:text-red-400 font-medium mt-1 tracking-wider uppercase">
+            {t('credit.overLimit', 'Over Limit')}
           </div>
         )}
       </div>
 
-      {/* Stats Grid 2x3 */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.availableCredit', 'Available Credit')}
+      {/* ─── Stats grid ────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-0 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <StatCell
+          label={t('credit.availableCredit', 'Available')}
+          value={<CurrencyCell amount={profile.availableCredit} className="text-xs" />}
+        />
+        <StatCell
+          label={t('credit.overdueAmount', 'Overdue')}
+          value={
+            <CurrencyCell
+              amount={profile.overdueAmount}
+              className={`text-xs ${profile.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+            />
+          }
+        />
+        <StatCell
+          label={t('credit.avgDaysToPay', 'Avg Days')}
+          value={
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
+              {profile.avgDaysToPay}
+            </span>
+          }
+        />
+        <StatCell
+          label={t('credit.bouncedCheques', 'Bounced (12mo)')}
+          value={
+            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${profile.bouncedCheques12mo > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+              {profile.bouncedCheques12mo}
+            </span>
+          }
+          className="mt-3"
+        />
+        <StatCell
+          label={t('credit.lastPayment', 'Last Payment')}
+          value={
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/50 dark:text-white/50">
+              {profile.lastPaymentDate || '--'}
+            </span>
+          }
+          className="mt-3"
+        />
+        <div className="mt-3 px-4">
+          <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-1">
+            {t('credit.paymentBehavior', 'Behavior')}
           </div>
-          <CurrencyCell amount={profile.availableCredit} className="text-sm" />
-        </div>
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.overdueAmount', 'Overdue Amount')}
-          </div>
-          <CurrencyCell
-            amount={profile.overdueAmount}
-            className={`text-sm ${profile.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
-          />
-        </div>
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.paymentScore', 'Payment Score')}
-          </div>
-          <span
-            className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${getScoreColor(profile.paymentScore)}`}
-          >
-            {profile.paymentScore}/100
-          </span>
-        </div>
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.avgDaysToPay', 'Avg Days to Pay')}
-          </div>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-            {profile.avgDaysToPay}
-          </span>
-        </div>
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.bouncedCheques', 'Bounced Cheques (12mo)')}
-          </div>
-          <span
-            className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${profile.bouncedCheques12mo > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
-          >
-            {profile.bouncedCheques12mo}
-          </span>
-        </div>
-        <div>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-0.5">
-            {t('credit.lastPayment', 'Last Payment')}
-          </div>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-            {profile.lastPaymentDate}
-          </span>
+          <PaymentSparkline score={profile.paymentScore} />
         </div>
       </div>
 
-      {/* New customer defaults */}
+      {/* New customer note */}
       {profile.tier === 1 && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-blue-700 dark:text-blue-400">
-          {t(
-            'credit.newCustomerDefaults',
-            'New customer defaults: 50% advance + 50% COD by certified bank cheque',
-          )}
+        <div className="py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex items-center gap-2 text-[11px] text-[#2563EB]/60">
+            <span className="size-1 rounded-full bg-[#2563EB]" />
+            {t(
+              'credit.newCustomerDefaults',
+              'New customer: 50% advance + 50% COD by certified bank cheque',
+            )}
+          </div>
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* ─── Actions ───────────────────────────────────── */}
+      <div className="flex items-center gap-2 pt-4">
         <Button
           onPress={onHoldOrders}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 hover:bg-black/5 dark:hover:bg-white/5 pressed:bg-black/10 dark:pressed:bg-white/10 transition-colors"
+          className="rounded-md border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.03] pressed:bg-black/[0.06] dark:pressed:bg-white/[0.06] transition-colors"
         >
           {t('credit.holdOrders', 'Hold Orders')}
         </Button>
         <Button
           onPress={onAdjustLimit}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 hover:bg-black/5 dark:hover:bg-white/5 pressed:bg-black/10 dark:pressed:bg-white/10 transition-colors"
+          className="rounded-md border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.03] pressed:bg-black/[0.06] dark:pressed:bg-white/[0.06] transition-colors"
         >
           {t('credit.adjustLimit', 'Adjust Limit')}
         </Button>
+        <div className="flex-1" />
         <Button
           onPress={onReview}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#2563EB] text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
+          className="rounded-md bg-[#2563EB] text-white px-3 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
         >
           {t('credit.review', 'Review')}
         </Button>
       </div>
+    </div>
+  )
+}
+
+function StatCell({
+  label,
+  value,
+  className = '',
+}: {
+  label: string
+  value: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`px-4 ${className}`}>
+      <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+        {label}
+      </div>
+      {value}
     </div>
   )
 }

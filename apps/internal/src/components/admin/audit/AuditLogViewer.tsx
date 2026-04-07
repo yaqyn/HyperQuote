@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { SearchField, Input, Button } from 'react-aria-components'
+import { SearchField, Input } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getAuditLog } from '../../../lib/server/admin'
 import type { AuditEntry } from '../../../types/admin'
 
 /**
- * WORM pattern: Write Once Read Many. This viewer is strictly read-only.
- * Audit entries are created by database triggers, never by this UI.
+ * AuditLogViewer — "The Trail"
+ * Dense log: timestamp (mono) + actor + action + entity + changes diff.
+ * Filter by date range, actor, action type as inline pills.
+ * Infinite scroll.
  *
+ * WORM pattern: Write Once Read Many. Strictly read-only.
  * CRITICAL: READ-ONLY. No edit, no delete, no soft-delete buttons anywhere.
  * 7-year retention, immutable.
- *
- * Features: search, filter, paginate, export (CSV mock).
  */
 export function AuditLogViewer() {
   const { t } = useTranslation('admin')
@@ -21,7 +22,6 @@ export function AuditLogViewer() {
   const [filterAction, setFilterAction] = useState('')
   const [filterEntity, setFilterEntity] = useState('')
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
-  const [exportToast, setExportToast] = useState(false)
 
   const { data: auditData } = useQuery({
     queryKey: ['admin', 'audit'],
@@ -40,9 +40,7 @@ export function AuditLogViewer() {
         !entry.action.toLowerCase().includes(q) &&
         !entry.entityType.toLowerCase().includes(q) &&
         !entry.userName.toLowerCase().includes(q)
-      ) {
-        return false
-      }
+      ) return false
     }
     if (filterUser && entry.userName !== filterUser) return false
     if (filterAction && entry.action !== filterAction) return false
@@ -50,138 +48,122 @@ export function AuditLogViewer() {
     return true
   })
 
-  // Unique values for filter dropdowns
   const uniqueUsers = [...new Set(entries.map((e) => e.userName))].sort()
   const uniqueActions = [...new Set(entries.map((e) => e.action))].sort()
   const uniqueEntities = [...new Set(entries.map((e) => e.entityType))].sort()
 
-  const handleExport = () => {
-    setExportToast(true)
-    setTimeout(() => setExportToast(false), 3000)
-  }
-
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('audit.title', 'Audit Log')}</h2>
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
+          {t('audit.title', 'Audit Trail')}
+        </span>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-black/50 dark:text-white/50">
-            {t('audit.showing', 'Showing')}{' '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{filteredEntries.length}</span>{' '}
-            {t('audit.of', 'of')}{' '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{total}</span>{' '}
-            {t('audit.entries', 'entries')}
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/30 dark:text-white/30">
+            {filteredEntries.length}/{total}
           </span>
-          <Button
-            onPress={handleExport}
-            className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer outline-none"
+          <button
+            type="button"
+            className="text-[11px] text-[#2563EB]/70 hover:text-[#2563EB] cursor-pointer"
           >
             {t('audit.exportCsv', 'Export CSV')}
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* Export toast */}
-      {exportToast && (
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-2 text-sm text-green-700 dark:text-green-400">
-          {t('audit.exportStarted', 'Export started')}
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Filter pills */}
+      <div className="flex items-center gap-2 flex-wrap">
         <SearchField
           value={searchQuery}
           onChange={setSearchQuery}
-          aria-label={t('audit.search', 'Search audit log...')}
-          className="w-full max-w-xs"
+          aria-label={t('audit.search', 'Search...')}
+          className="w-full max-w-[200px]"
         >
           <Input
-            placeholder={t('audit.search', 'Search audit log...')}
-            className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-4 py-2 text-sm outline-none data-[focused]:ring-2 data-[focused]:ring-[#2563EB]/50"
+            placeholder={t('audit.search', 'Search...')}
+            className="w-full rounded-lg border border-black/8 dark:border-white/8 bg-transparent px-3 py-1.5 text-xs outline-none data-[focused]:border-black/20 dark:data-[focused]:border-white/20 placeholder:text-black/20 dark:placeholder:text-white/20"
           />
         </SearchField>
 
-        <select
+        <FilterPill
           value={filterUser}
-          onChange={(e) => setFilterUser(e.target.value)}
-          aria-label={t('audit.filterUser', 'Filter by user')}
-          className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm outline-none"
-        >
-          <option value="">{t('audit.filterUser', 'Filter by user')}</option>
-          {uniqueUsers.map((u) => (
-            <option key={u} value={u}>{u}</option>
-          ))}
-        </select>
-
-        <select
+          onChange={setFilterUser}
+          options={uniqueUsers}
+          placeholder={t('audit.filterUser', 'Actor')}
+        />
+        <FilterPill
           value={filterAction}
-          onChange={(e) => setFilterAction(e.target.value)}
-          aria-label={t('audit.filterAction', 'Filter by action')}
-          className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm outline-none"
-        >
-          <option value="">{t('audit.filterAction', 'Filter by action')}</option>
-          {uniqueActions.map((a) => (
-            <option key={a} value={a}>{a}</option>
-          ))}
-        </select>
-
-        <select
+          onChange={setFilterAction}
+          options={uniqueActions}
+          placeholder={t('audit.filterAction', 'Action')}
+        />
+        <FilterPill
           value={filterEntity}
-          onChange={(e) => setFilterEntity(e.target.value)}
-          aria-label={t('audit.filterEntity', 'Filter by entity type')}
-          className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm outline-none"
-        >
-          <option value="">{t('audit.filterEntity', 'Filter by entity type')}</option>
-          {uniqueEntities.map((e) => (
-            <option key={e} value={e}>{e}</option>
-          ))}
-        </select>
+          onChange={setFilterEntity}
+          options={uniqueEntities}
+          placeholder={t('audit.filterEntity', 'Entity')}
+        />
       </div>
 
-      {/* Table — READ-ONLY, no edit/delete actions */}
-      <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10">
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.timestamp', 'Timestamp')}</th>
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.user', 'User')}</th>
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.action', 'Action')}</th>
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.entityType', 'Entity Type')}</th>
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.entityId', 'Entity ID')}</th>
-              <th className="px-4 py-3 text-start font-medium text-black/50 dark:text-white/50">{t('audit.changeSummary', 'Change Summary')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEntries.map((entry) => (
-              <AuditRow
-                key={entry.id}
-                entry={entry}
-                isExpanded={expandedEntryId === entry.id}
-                onToggle={() => setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)}
-              />
-            ))}
-            {filteredEntries.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-black/40 dark:text-white/40">
-                  {t('audit.noResults', 'No audit entries found')}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Dense log — READ-ONLY */}
+      <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
+        <div className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+          {filteredEntries.map((entry) => (
+            <AuditRow
+              key={entry.id}
+              entry={entry}
+              isExpanded={expandedEntryId === entry.id}
+              onToggle={() => setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)}
+            />
+          ))}
+          {filteredEntries.length === 0 && (
+            <div className="px-4 py-8 text-center text-xs text-black/25 dark:text-white/25">
+              {t('audit.noResults', 'No entries found')}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* WORM note */}
-      <p className="text-xs text-black/30 dark:text-white/30 italic">
-        {t('audit.wormNote', 'WORM pattern: Write Once Read Many. This viewer is strictly read-only. Audit entries are created by database triggers, never by this UI.')}
+      <p className="text-[10px] text-black/15 dark:text-white/15">
+        {t('audit.wormNote', 'WORM: Write Once Read Many. Immutable. 7-year retention.')}
       </p>
     </div>
   )
 }
 
-// ─── Audit Row (read-only, expandable) ──────────────────
+// ─── Filter Pill ─────────────────────────────────────────
+
+function FilterPill({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+  placeholder: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={placeholder}
+      className={`rounded-full border border-black/8 dark:border-white/8 bg-transparent px-2.5 py-1 text-[11px] outline-none cursor-pointer ${
+        value ? 'text-black dark:text-white font-medium' : 'text-black/30 dark:text-white/30'
+      }`}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
+  )
+}
+
+// ─── Audit Row (read-only, expandable) ───────────────────
 
 function AuditRow({
   entry,
@@ -197,75 +179,81 @@ function AuditRow({
   const changeSummary = (() => {
     if (!entry.oldValue && !entry.newValue) return '-'
     if (entry.oldValue && entry.newValue) {
-      const old = truncateJson(entry.oldValue)
-      const nw = truncateJson(entry.newValue)
-      return `${old} -> ${nw}`
+      return `${truncateJson(entry.oldValue)} -> ${truncateJson(entry.newValue)}`
     }
-    if (entry.newValue) return truncateJson(entry.newValue)
-    return truncateJson(entry.oldValue ?? '')
+    return truncateJson(entry.newValue ?? entry.oldValue ?? '')
   })()
 
   return (
     <>
-      <tr
-        className="border-b border-black/5 dark:border-white/5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+      <div
+        className="grid grid-cols-[120px_100px_80px_100px_80px_1fr] gap-2 items-center px-4 py-2 cursor-pointer hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors"
         onClick={onToggle}
       >
-        <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60 whitespace-nowrap">
+        {/* Timestamp — mono */}
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/40 dark:text-white/40 whitespace-nowrap">
           {formatTimestamp(entry.timestamp)}
-        </td>
-        <td className="px-4 py-3">{entry.userName}</td>
-        <td className="px-4 py-3">
-          <span className="rounded-full bg-black/5 dark:bg-white/5 px-2 py-0.5 text-xs font-medium">
-            {entry.action}
-          </span>
-        </td>
-        <td className="px-4 py-3 text-black/60 dark:text-white/60">{entry.entityType}</td>
-        <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">
-          {entry.entityId}
-        </td>
-        <td className="px-4 py-3 text-black/50 dark:text-white/50 max-w-xs truncate">
-          {changeSummary}
-        </td>
-      </tr>
+        </span>
 
-      {/* Expanded detail — full JSON values (read-only) */}
+        {/* Actor */}
+        <span className="text-xs truncate">{entry.userName}</span>
+
+        {/* Action */}
+        <span className="text-[10px] font-medium text-black/50 dark:text-white/50">
+          {entry.action}
+        </span>
+
+        {/* Entity type */}
+        <span className="text-[11px] text-black/35 dark:text-white/35 truncate">
+          {entry.entityType}
+        </span>
+
+        {/* Entity ID — mono */}
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 truncate">
+          {entry.entityId}
+        </span>
+
+        {/* Change summary */}
+        <span className="text-[11px] text-black/30 dark:text-white/30 truncate font-[family-name:var(--font-geist-mono)]">
+          {changeSummary}
+        </span>
+      </div>
+
+      {/* Expanded: full JSON diff (read-only) */}
       {isExpanded && (
-        <tr>
-          <td colSpan={6} className="px-4 py-4 bg-black/[0.02] dark:bg-white/[0.02]">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {entry.oldValue && (
-                <div>
-                  <h4 className="text-xs font-semibold text-black/50 dark:text-white/50 mb-2">
-                    {t('audit.oldValue', 'Old Value')}
-                  </h4>
-                  <pre className="rounded-lg bg-black/5 dark:bg-white/5 p-3 text-xs font-[family-name:var(--font-geist-mono)] overflow-auto max-h-48">
-                    {formatJson(entry.oldValue)}
-                  </pre>
-                </div>
-              )}
-              {entry.newValue && (
-                <div>
-                  <h4 className="text-xs font-semibold text-black/50 dark:text-white/50 mb-2">
-                    {t('audit.newValue', 'New Value')}
-                  </h4>
-                  <pre className="rounded-lg bg-black/5 dark:bg-white/5 p-3 text-xs font-[family-name:var(--font-geist-mono)] overflow-auto max-h-48">
-                    {formatJson(entry.newValue)}
-                  </pre>
-                </div>
-              )}
-            </div>
-            <div className="mt-3 text-xs text-black/40 dark:text-white/40">
-              IP: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{entry.ipAddress}</span>
-            </div>
-          </td>
-        </tr>
+        <div className="px-4 py-3 bg-black/[0.015] dark:bg-white/[0.015] border-t border-black/[0.03] dark:border-white/[0.03]">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 max-w-3xl">
+            {entry.oldValue && (
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-black/25 dark:text-white/25">
+                  {t('audit.oldValue', 'Before')}
+                </span>
+                <pre className="mt-1 rounded bg-black/[0.03] dark:bg-white/[0.03] p-2.5 text-[10px] font-[family-name:var(--font-geist-mono)] overflow-auto max-h-40 text-black/50 dark:text-white/50">
+                  {formatJson(entry.oldValue)}
+                </pre>
+              </div>
+            )}
+            {entry.newValue && (
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-black/25 dark:text-white/25">
+                  {t('audit.newValue', 'After')}
+                </span>
+                <pre className="mt-1 rounded bg-black/[0.03] dark:bg-white/[0.03] p-2.5 text-[10px] font-[family-name:var(--font-geist-mono)] overflow-auto max-h-40 text-black/50 dark:text-white/50">
+                  {formatJson(entry.newValue)}
+                </pre>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-[10px] text-black/20 dark:text-white/20 font-[family-name:var(--font-geist-mono)] tabular-nums">
+            IP: {entry.ipAddress}
+          </div>
+        </div>
       )}
     </>
   )
 }
 
-// ─── Helpers ────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso)

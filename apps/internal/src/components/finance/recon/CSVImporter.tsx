@@ -66,8 +66,8 @@ function detectColumnMapping(headers: string[]): ColumnMapping | null {
 }
 
 /**
- * CSV bank statement import with drag-and-drop, preview, and column mapping.
- * Handles various Egyptian bank CSV formats.
+ * "The Matcher" — CSV import with drag-drop, preview table, column mapper.
+ * Clean, professional, handles Egyptian bank CSV formats.
  */
 export function CSVImporter({ onImportComplete }: CSVImporterProps) {
   const { t } = useTranslation('finance')
@@ -165,28 +165,28 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
   }, [selectedBank, parsedRows, onImportComplete])
 
   return (
-    <div className="space-y-6">
-      {/* Bank Account Selector */}
+    <div className="space-y-5">
+      {/* ─── Bank Account Selector ──────────────────────── */}
       <div>
         <Select
           selectedKey={selectedBank}
           onSelectionChange={(key) => setSelectedBank(key as string)}
           className="flex flex-col gap-1"
         >
-          <Label className="text-sm text-black/60 dark:text-white/60">
+          <Label className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
             {t('recon.bankAccount', 'Bank Account')}
           </Label>
-          <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-2 text-sm text-start">
+          <Button className="flex items-center justify-between rounded-md border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-xs text-start">
             <SelectValue className="flex-1" placeholder={t('recon.selectBank', 'Select bank account...')} />
-            <span className="ms-2 text-black/40 dark:text-white/40">&#9662;</span>
+            <span className="ms-2 text-black/20 dark:text-white/20 text-[10px]">&#9662;</span>
           </Button>
-          <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-xl shadow-lg">
+          <Popover className="w-[--trigger-width] rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-xl shadow-lg">
             <ListBox className="p-1 outline-none">
               {MOCK_BANK_ACCOUNTS.map((account) => (
                 <ListBoxItem
                   key={account.id}
                   id={account.id}
-                  className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10"
+                  className="rounded px-3 py-2 text-xs cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.06]"
                 >
                   {account.name}
                 </ListBoxItem>
@@ -196,27 +196,28 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
         </Select>
       </div>
 
-      {/* Drag and Drop Zone */}
+      {/* ─── Drag and Drop Zone ─────────────────────────── */}
       {!csvData && (
         <div
-          onDragOver={(e) => {
-            e.preventDefault()
-            setIsDragOver(true)
-          }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors ${
+          className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-12 transition-colors ${
             isDragOver
-              ? 'border-[#2563EB] bg-[#2563EB]/5'
-              : 'border-black/20 dark:border-white/20 hover:border-black/40 dark:hover:border-white/40'
+              ? 'border-[#2563EB]/40 bg-[#2563EB]/[0.02]'
+              : 'border-black/[0.08] dark:border-white/[0.08] hover:border-black/[0.15] dark:hover:border-white/[0.15]'
           }`}
         >
-          <div className="text-4xl mb-3 text-black/30 dark:text-white/30">&#128196;</div>
-          <p className="text-sm text-black/60 dark:text-white/60 mb-2">
+          <div className="text-black/10 dark:text-white/10 mb-2">
+            <svg className="size-8" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12H9.75m.75-9H8.25m0 0-.375.375M8.25 3.375v1.5" />
+            </svg>
+          </div>
+          <p className="text-xs text-black/30 dark:text-white/30 mb-3">
             {t('recon.dropCSV', 'Drop CSV bank statement here')}
           </p>
-          <label className="cursor-pointer rounded-lg bg-[#2563EB] px-4 py-2 text-sm text-white font-medium hover:bg-[#2563EB]/90 transition-colors">
-            {t('recon.browseFiles', 'Browse Files')}
+          <label className="cursor-pointer rounded-md bg-[#2563EB] px-3 py-1.5 text-xs text-white font-medium hover:bg-[#2563EB]/90 transition-colors">
+            {t('recon.browseFiles', 'Browse')}
             <input
               type="file"
               accept=".csv"
@@ -227,28 +228,28 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
         </div>
       )}
 
-      {/* CSV Preview + Column Mapping */}
+      {/* ─── CSV Preview + Column Mapping ───────────────── */}
       {csvData && !importResult && (
         <div className="space-y-4">
-          {/* Column mapping (if auto-detect didn't match perfectly) */}
+          {/* Column mapping (if auto-detect failed) */}
           {!mapping && (
-            <div className="rounded-xl border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 p-4">
-              <p className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-3">
-                {t('recon.mapColumns', 'Column headers not recognized. Please map columns manually:')}
+            <div className="rounded-md border border-yellow-500/20 bg-yellow-500/[0.03] px-4 py-3">
+              <p className="text-xs text-black/50 dark:text-white/50 mb-3">
+                {t('recon.mapColumns', 'Headers not recognized. Map columns manually:')}
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {EXPECTED_HEADERS.map((field) => (
                   <div key={field}>
-                    <label className="block text-xs text-black/60 dark:text-white/60 mb-1 capitalize">{field}</label>
+                    <label className="block text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-1">
+                      {field}
+                    </label>
                     <select
                       onChange={(e) => handleMappingChange(field as keyof ColumnMapping, Number(e.target.value))}
-                      className="w-full rounded border border-black/10 dark:border-white/10 bg-white dark:bg-black px-2 py-1 text-sm"
+                      className="w-full rounded border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-2 py-1 text-xs outline-none"
                     >
                       <option value="">--</option>
                       {csvData.headers.map((h, i) => (
-                        <option key={`${field}-${h}`} value={i}>
-                          {h}
-                        </option>
+                        <option key={`${field}-${h}`} value={i}>{h}</option>
                       ))}
                     </select>
                   </div>
@@ -257,53 +258,59 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
             </div>
           )}
 
-          {/* Preview table (first 5 rows) */}
+          {/* Preview table */}
           <div>
-            <h4 className="text-sm font-medium mb-2 text-black/70 dark:text-white/70">
-              {t('recon.preview', 'Preview')} ({parsedRows.length} {t('recon.rows', 'rows')})
-            </h4>
-            <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-black/10 dark:border-white/10 bg-black/3 dark:bg-white/3">
-                    <th className="px-3 py-2 text-start font-medium text-black/60 dark:text-white/60">{t('recon.date', 'Date')}</th>
-                    <th className="px-3 py-2 text-start font-medium text-black/60 dark:text-white/60">{t('recon.description', 'Description')}</th>
-                    <th className="px-3 py-2 text-end font-medium text-black/60 dark:text-white/60">{t('recon.amount', 'Amount')}</th>
-                    <th className="px-3 py-2 text-start font-medium text-black/60 dark:text-white/60">{t('recon.reference', 'Reference')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsedRows.slice(0, 5).map((row, i) => (
-                    <tr key={`preview-${row.date}-${row.amount}-${i}`} className="border-b border-black/5 dark:border-white/5">
-                      <td className="px-3 py-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{row.date}</td>
-                      <td className="px-3 py-2 max-w-[200px] truncate">{row.description}</td>
-                      <td className="px-3 py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                        {new Intl.NumberFormat('en-EG', { minimumFractionDigits: 2 }).format(row.amount)}
-                      </td>
-                      <td className="px-3 py-2">{row.reference}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20">
+                {t('recon.preview', 'Preview')}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/15 dark:text-white/15">
+                {parsedRows.length} {t('recon.rows', 'rows')}
+              </span>
+            </div>
+
+            <div className="border border-black/[0.06] dark:border-white/[0.06] rounded-lg overflow-hidden">
+              {/* Header */}
+              <div className="grid grid-cols-[90px_1fr_100px_120px] gap-0 px-3 py-1.5 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <div>{t('recon.date', 'Date')}</div>
+                <div>{t('recon.description', 'Description')}</div>
+                <div className="text-end">{t('recon.amount', 'Amount')}</div>
+                <div>{t('recon.reference', 'Reference')}</div>
+              </div>
+              {parsedRows.slice(0, 5).map((row, i) => (
+                <div
+                  key={`preview-${row.date}-${row.amount}-${i}`}
+                  className="grid grid-cols-[90px_1fr_100px_120px] gap-0 px-3 py-2 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0"
+                >
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+                    {row.date}
+                  </span>
+                  <span className="text-xs text-black/50 dark:text-white/50 truncate pe-3">
+                    {row.description}
+                  </span>
+                  <span className="text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/60 dark:text-white/60">
+                    {new Intl.NumberFormat('en-EG', { minimumFractionDigits: 2 }).format(row.amount)}
+                  </span>
+                  <span className="text-xs text-black/30 dark:text-white/30 truncate">
+                    {row.reference}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Import Button */}
-          <div className="flex items-center gap-3">
+          {/* Import button */}
+          <div className="flex items-center gap-2">
             <Button
               onPress={handleImport}
               isDisabled={!selectedBank || parsedRows.length === 0 || isImporting}
-              className="rounded-lg bg-[#2563EB] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-40 transition-colors"
+              className="rounded-md bg-[#2563EB] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-40 transition-colors"
             >
               {isImporting ? t('recon.importing', 'Importing...') : t('recon.importAndMatch', 'Import & Auto-Match')}
             </Button>
             <Button
-              onPress={() => {
-                setCsvData(null)
-                setMapping(null)
-                setParsedRows([])
-              }}
-              className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2.5 text-sm text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              onPress={() => { setCsvData(null); setMapping(null); setParsedRows([]) }}
+              className="rounded-md px-3 py-1.5 text-xs text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white transition-colors"
             >
               {t('recon.cancel', 'Cancel')}
             </Button>
@@ -311,16 +318,17 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
         </div>
       )}
 
-      {/* Import Result Summary */}
+      {/* ─── Import Result ──────────────────────────────── */}
       {importResult && (
-        <div className="rounded-xl border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-4">
-          <p className="text-sm font-medium text-green-800 dark:text-green-300">
-            {t('recon.importSummary', 'Import Complete')}
-          </p>
-          <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-            {t('recon.imported', 'Imported')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium">{importResult.transactionCount}</span>{' '}
-            {t('recon.transactions', 'transactions')} | {t('recon.autoMatched', 'Auto-matched')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium">{importResult.autoMatchedCount}</span> | {t('recon.unmatched', 'Unmatched')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium">{importResult.unmatchedCount}</span>
-          </p>
+        <div className="flex items-center gap-4 py-3 px-4 rounded-md border border-green-500/15 bg-green-500/[0.03]">
+          <span className="size-2 rounded-full bg-green-500" />
+          <div className="text-xs text-black/50 dark:text-white/50">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">{importResult.transactionCount}</span> imported
+            <span className="mx-2 text-black/15 dark:text-white/15">|</span>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-green-600 dark:text-green-400">{importResult.autoMatchedCount}</span> matched
+            <span className="mx-2 text-black/15 dark:text-white/15">|</span>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-red-600 dark:text-red-400">{importResult.unmatchedCount}</span> unmatched
+          </div>
         </div>
       )}
     </div>

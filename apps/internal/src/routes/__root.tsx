@@ -46,7 +46,7 @@ function RootComponent() {
   )
 
   return (
-    <html lang="ar" dir="rtl" data-theme="light">
+    <html lang="en" dir="ltr" data-theme="light">
       <head>
         <HeadContent />
         <script
@@ -58,7 +58,7 @@ function RootComponent() {
       </head>
       <body className="bg-[var(--color-surface)] text-[var(--color-text)] font-[var(--font-inter)]">
         <QueryClientProvider client={queryClient}>
-          <I18nProvider locale="ar">
+          <I18nProvider locale="en">
             <Outlet />
           </I18nProvider>
         </QueryClientProvider>

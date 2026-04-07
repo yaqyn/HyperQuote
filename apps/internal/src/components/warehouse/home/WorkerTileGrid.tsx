@@ -1,17 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from 'react-aria-components'
-import {
-  Package,
-  ArrowDownToLine,
-  PackageSearch,
-  Truck,
-  ClipboardCheck,
-  ArrowLeftRight,
-  Search,
-  RotateCcw,
-  AlertTriangle,
-} from 'lucide-react'
 import { useWarehouseStore } from '../../../stores/warehouse'
 import { getWarehouseDashboard } from '../../../lib/server/warehouse-dashboard'
 import type { WarehouseTab, WarehouseDashboard } from '../../../types/warehouse'
@@ -19,7 +8,6 @@ import type { WarehouseTab, WarehouseDashboard } from '../../../types/warehouse'
 interface TileDef {
   key: string
   tab: WarehouseTab
-  icon: React.ComponentType<{ size?: number; className?: string }>
   labelKey: string
   fallback: string
   badgeField: keyof WarehouseDashboard
@@ -27,25 +15,17 @@ interface TileDef {
 }
 
 const TILES: TileDef[] = [
-  { key: '1-Receive', tab: 'receiving', icon: Package, labelKey: 'warehouse.tiles.receive', fallback: 'Receive', badgeField: 'pendingReceiving', shortcut: 1 },
-  { key: '2-Putaway', tab: 'putaway', icon: ArrowDownToLine, labelKey: 'warehouse.tiles.putaway', fallback: 'Putaway', badgeField: 'pendingPutaway', shortcut: 2 },
-  { key: '3-Pick', tab: 'picking', icon: PackageSearch, labelKey: 'warehouse.tiles.pick', fallback: 'Pick', badgeField: 'pendingPicking', shortcut: 3 },
-  { key: '4-Load', tab: 'staging', icon: Truck, labelKey: 'warehouse.tiles.load', fallback: 'Load', badgeField: 'pendingLoading', shortcut: 4 },
-  { key: '5-Count', tab: 'count', icon: ClipboardCheck, labelKey: 'warehouse.tiles.count', fallback: 'Count', badgeField: 'pendingCounts', shortcut: 5 },
-  { key: '6-Transfer', tab: 'lookup', icon: ArrowLeftRight, labelKey: 'warehouse.tiles.transfer', fallback: 'Transfer', badgeField: 'pendingTransfers', shortcut: 6 },
-  { key: '7-Lookup', tab: 'lookup', icon: Search, labelKey: 'warehouse.tiles.lookup', fallback: 'Lookup', badgeField: 'pendingTransfers', shortcut: 7 },
-  { key: '8-Returns', tab: 'receiving', icon: RotateCcw, labelKey: 'warehouse.tiles.returns', fallback: 'Returns', badgeField: 'pendingReturns', shortcut: 8 },
-  { key: '9-Alerts', tab: 'home', icon: AlertTriangle, labelKey: 'warehouse.tiles.alerts', fallback: 'Alerts', badgeField: 'criticalAlerts', shortcut: 9 },
+  { key: '1-Inbound', tab: 'inbound', labelKey: 'warehouse.tiles.inbound', fallback: 'Inbound', badgeField: 'pendingReceiving', shortcut: 1 },
+  { key: '2-Outbound', tab: 'outbound', labelKey: 'warehouse.tiles.outbound', fallback: 'Outbound', badgeField: 'pendingPicking', shortcut: 2 },
+  { key: '3-Inventory', tab: 'inventory', labelKey: 'warehouse.tiles.inventory', fallback: 'Inventory', badgeField: 'pendingCounts', shortcut: 3 },
 ]
 
-function getBadgeColor(count: number, field: keyof WarehouseDashboard): string {
-  // Red = urgent/overdue, yellow = due today, green = ahead of schedule
-  if (field === 'criticalAlerts' && count > 0) return 'bg-red-500 text-white'
-  if (count > 5) return 'bg-red-500 text-white'
-  if (count > 0) return 'bg-yellow-500 text-black'
-  return 'bg-green-500 text-white'
-}
-
+/**
+ * Worker Tile Grid — large touch tiles (min 80px height).
+ * Each tile: action name + count badge. Tapping navigates to that workflow.
+ * NO icons — just the name and number. Warehouse workers need words, not icons.
+ * Glove-friendly: generous padding, high contrast.
+ */
 export function WorkerTileGrid() {
   const { t } = useTranslation('internal')
   const setActiveTab = useWarehouseStore((s) => s.setActiveTab)
@@ -57,36 +37,30 @@ export function WorkerTileGrid() {
   })
 
   return (
-    <div className="grid grid-cols-3 gap-3 p-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-5">
       {TILES.map((tile) => {
-        const Icon = tile.icon
         const count = dashboard ? (dashboard[tile.badgeField] as number) : 0
 
         return (
           <Button
             key={tile.key}
             onPress={() => setActiveTab(tile.tab)}
-            className="relative flex flex-col items-center justify-center gap-2 min-h-[64px] rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 cursor-pointer transition-all hover:border-[#2563EB]/40 hover:bg-[#2563EB]/5 pressed:scale-[0.98] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="relative flex items-center justify-between min-h-[80px] rounded-lg border border-black/10 dark:border-white/10 px-5 py-4 cursor-pointer transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] pressed:bg-black/[0.05] dark:pressed:bg-white/[0.05] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
           >
-            {/* Shortcut number in corner */}
-            <span className="absolute top-1.5 end-2 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/30 dark:text-white/30">
-              {tile.shortcut}
-            </span>
-
-            <Icon size={24} className="text-black/70 dark:text-white/70" />
-
-            <span className="text-xs font-medium text-black/70 dark:text-white/70">
+            {/* Action name */}
+            <span className="text-base font-semibold text-black/80 dark:text-white/80">
               {t(tile.labelKey, tile.fallback)}
             </span>
 
-            {/* Badge count */}
-            {count > 0 && (
-              <span
-                className={`absolute top-1.5 start-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 rounded-full px-1.5 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums font-semibold ${getBadgeColor(count, tile.badgeField)}`}
-              >
-                {count}
-              </span>
-            )}
+            {/* Count — huge mono number */}
+            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold ${count > 0 ? 'text-black/90 dark:text-white/90' : 'text-black/15 dark:text-white/15'}`}>
+              {count}
+            </span>
+
+            {/* Shortcut hint */}
+            <span className="absolute top-2 end-2 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/15 dark:text-white/15">
+              {tile.shortcut}
+            </span>
           </Button>
         )
       })}

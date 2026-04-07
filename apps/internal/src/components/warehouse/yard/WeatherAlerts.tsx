@@ -6,18 +6,12 @@ interface WeatherAlertsProps {
   alerts: WeatherAlert[]
 }
 
-const ALERT_ICONS: Record<WeatherAlert['type'], string> = {
-  khamsin: '🌪️',
-  rain: '🌧️',
-  wind: '💨',
-  heat: '🌡️',
-}
-
 /**
- * Weather alert bar at top of yard view.
- * Khamsin-specific: auto-pause outdoor ops above 30 km/h wind,
+ * "The Gate" — Compact inline weather banner.
+ * Icon + temp + condition. Only shows if weather affects operations.
+ * Khamsin-specific: auto-pause outdoor ops above 30 km/h,
  * block sheet material deliveries when sheetDeliveryBlocked.
- * Dismissible per alert (local state only — server alerts always return).
+ * Dismissible per alert (local state only).
  */
 export function WeatherAlerts({ alerts }: WeatherAlertsProps) {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -33,91 +27,115 @@ export function WeatherAlerts({ alerts }: WeatherAlertsProps) {
   return (
     <div className="flex flex-col gap-2">
       {visibleAlerts.map((alert) => (
-        <AlertCard key={alert.id} alert={alert} onDismiss={() => dismiss(alert.id)} />
+        <AlertBanner key={alert.id} alert={alert} onDismiss={() => dismiss(alert.id)} />
       ))}
     </div>
   )
 }
 
-// ─── Alert Card ──────────────────────────────────────────
+// ─── Alert Banner (compact inline) ──────────────────────────
 
-interface AlertCardProps {
-  alert: WeatherAlert
-  onDismiss: () => void
-}
-
-function AlertCard({ alert, onDismiss }: AlertCardProps) {
+function AlertBanner({ alert, onDismiss }: { alert: WeatherAlert; onDismiss: () => void }) {
   const isCritical = alert.severity === 'critical'
-  const borderColor = isCritical ? 'border-red-300' : 'border-amber-300'
-  const bgColor = isCritical ? 'bg-red-50' : 'bg-amber-50'
-  const textColor = isCritical ? 'text-red-800' : 'text-amber-800'
+
+  const style = isCritical
+    ? { border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.04)', color: '#b91c1c' }
+    : { border: '1px solid rgba(234, 179, 8, 0.2)', background: 'rgba(234, 179, 8, 0.04)', color: '#a16207' }
 
   return (
-    <div className={`flex items-start gap-3 rounded-lg border ${borderColor} ${bgColor} px-4 py-3`}>
+    <div
+      className="flex items-center gap-3 rounded-xl px-4 py-3"
+      style={style}
+    >
       {/* Type icon */}
-      <span className="mt-0.5 text-lg" aria-hidden="true">
-        {ALERT_ICONS[alert.type]}
-      </span>
+      <WeatherIcon type={alert.type} />
 
-      <div className="flex-1">
-        {/* Severity badge + message */}
+      {/* Content */}
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${
-              isCritical
-                ? 'bg-red-200 text-red-900'
-                : 'bg-amber-200 text-amber-900'
-            }`}
+            className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+            style={{
+              background: isCritical ? 'rgba(239, 68, 68, 0.08)' : 'rgba(234, 179, 8, 0.08)',
+            }}
           >
             {alert.severity}
           </span>
-          <span className={`text-sm font-semibold ${textColor}`}>{alert.message}</span>
+          <span className="text-sm font-bold truncate">{alert.message}</span>
         </div>
 
-        {/* Khamsin-specific behaviors */}
-        <div className="mt-1 flex flex-col gap-0.5">
-          {/* Wind speed */}
+        {/* Khamsin-specific data */}
+        <div className="flex items-center gap-4 mt-1">
           {alert.windSpeedKmh > 0 && (
-            <span className={`text-xs ${textColor}`}>
-              Wind:{' '}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+            <span className="text-xs">
+              Wind{' '}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-bold">
                 {alert.windSpeedKmh}
               </span>{' '}
               km/h
             </span>
           )}
 
-          {/* Auto-pause outdoor operations above 30 km/h */}
           {alert.windSpeedKmh > 30 && (
-            <span className="text-xs font-semibold text-red-700">
-              Outdoor operations paused
+            <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
+              Outdoor ops paused
             </span>
           )}
 
-          {/* Sheet delivery blocked */}
           {alert.sheetDeliveryBlocked && (
-            <span className="text-xs font-semibold text-red-700">
-              Sheet material deliveries blocked
+            <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
+              Sheet deliveries blocked
             </span>
           )}
-
-          {/* Recommendation */}
-          <span className={`mt-1 text-xs ${textColor} opacity-80`}>
-            {alert.recommendation}
-          </span>
         </div>
+
+        {alert.recommendation && (
+          <p className="text-[10px] mt-1 opacity-70">{alert.recommendation}</p>
+        )}
       </div>
 
       {/* Dismiss */}
       <Button
         onPress={onDismiss}
-        className={`shrink-0 rounded p-1 text-sm cursor-pointer ${textColor} opacity-60 hover:opacity-100`}
+        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg opacity-50 hover:opacity-100 cursor-pointer"
         aria-label="Dismiss alert"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </Button>
     </div>
   )
+}
+
+// ─── Weather Icon (SVG, no emoji) ───────────────────────────
+
+function WeatherIcon({ type }: { type: WeatherAlert['type'] }) {
+  const iconMap: Record<WeatherAlert['type'], React.ReactNode> = {
+    khamsin: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 10C5 7 8 4 12 6C16 8 14 13 10 12C6 11 8 7 12 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+    rain: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M6 14L5 17M10 14L9 17M14 14L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M4 11C4 8.79 5.79 7 8 7C8.34 5.27 9.93 4 12 4C14.21 4 16 5.79 16 8C17.1 8 18 8.9 18 10C18 11.1 17.1 12 16 12H4C2.9 12 2 11.1 2 10C2 8.9 2.9 8 4 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    wind: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 8H13C14.1 8 15 7.1 15 6C15 4.9 14.1 4 13 4C12.5 4 12 4.2 11.7 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M3 12H15C16.1 12 17 12.9 17 14C17 15.1 16.1 16 15 16C14.5 16 14 15.8 13.7 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+    heat: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2V4M10 16V18M4 10H2M18 10H16M5.64 5.64L4.22 4.22M15.78 15.78L14.36 14.36M14.36 5.64L15.78 4.22M4.22 15.78L5.64 14.36" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  }
+
+  return <span className="shrink-0">{iconMap[type]}</span>
 }

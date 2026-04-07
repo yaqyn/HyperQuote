@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import { motion, AnimatePresence } from 'motion/react'
-import { StepIndicator } from '../shared/StepIndicator'
 
 interface GatedStepProps {
   stepNumber: number
@@ -16,10 +15,10 @@ interface GatedStepProps {
 }
 
 /**
- * Reusable gated step component for multi-step warehouse workflows.
- * Active: renders children + Next button (disabled when !canAdvance).
- * Completed: green checkmark + collapsed summary.
- * Inactive: grayed out, locked icon.
+ * Sequential gate component — must complete current step before next unlocks.
+ * Active: full content + Next button.
+ * Completed: checkmark + collapsed title.
+ * Locked: lock icon, muted. Visual lock on future steps, checkmark on completed.
  */
 export function GatedStep({
   stepNumber,
@@ -34,51 +33,47 @@ export function GatedStep({
 }: GatedStepProps) {
   return (
     <div
-      className={`rounded-xl border p-4 transition-colors ${
+      className={`rounded-xl border transition-all ${
         isActive
           ? 'border-[#2563EB] bg-white'
           : isCompleted
-            ? 'border-green-200 bg-green-50/50'
-            : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-60'
+            ? 'border-green-200 bg-white'
+            : 'border-[var(--color-border)] bg-white opacity-50'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3">
+      {/* ─── Header ──────────────────────────────────────── */}
+      <div className="flex items-center gap-3 p-4">
         {/* Step icon */}
         <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
             isCompleted
-              ? 'bg-green-100 text-green-700'
+              ? 'text-green-600'
               : isActive
                 ? 'bg-[#2563EB] text-white'
-                : 'bg-[var(--color-border)] text-[var(--color-text-secondary)]'
+                : 'border border-[var(--color-border)] text-[var(--color-text-secondary)]'
           }`}
+          style={isCompleted ? { background: 'rgba(22, 163, 74, 0.08)' } : undefined}
         >
           {isCompleted ? (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3 8.5L6.5 12L13 4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : !isActive ? (
+            /* Lock icon */
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="4" y="1" width="6" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
               <path d="M3 6H11V12C11 12.5523 10.5523 13 10 13H4C3.44772 13 3 12.5523 3 12V6Z" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           ) : (
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-bold">
               {stepNumber}
             </span>
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h3
-            className={`text-sm font-semibold ${
+            className={`text-sm font-bold ${
               isActive
                 ? 'text-[var(--color-text-primary)]'
                 : isCompleted
@@ -89,43 +84,50 @@ export function GatedStep({
             {title}
           </h3>
           {description && !isActive && (
-            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)] truncate">
               {description}
             </p>
           )}
         </div>
+
+        {/* Step counter (compact) */}
+        {isActive && (
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-secondary)]">
+            {stepNumber}/{totalSteps}
+          </span>
+        )}
       </div>
 
-      {/* Active step content */}
+      {/* ─── Active Step Content ─────────────────────────── */}
       <AnimatePresence mode="wait">
         {isActive && (
           <motion.div
             key={`step-${stepNumber}-content`}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
             transition={{
               type: 'spring',
               stiffness: 200,
               damping: 20,
             }}
-            className="mt-4"
+            className="overflow-hidden"
           >
-            <StepIndicator current={stepNumber} total={totalSteps} />
+            <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-4">
+              <div>{children}</div>
 
-            <div className="mt-4">{children}</div>
-
-            <Button
-              onPress={onAdvance}
-              isDisabled={!canAdvance}
-              className={`mt-4 h-12 min-h-[48px] w-full rounded-lg px-6 text-sm font-medium transition-colors cursor-pointer ${
-                canAdvance
-                  ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
-                  : 'bg-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'
-              }`}
-            >
-              Next
-            </Button>
+              <Button
+                onPress={onAdvance}
+                isDisabled={!canAdvance}
+                className={`mt-5 h-14 min-h-[48px] w-full rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer ${
+                  canAdvance
+                    ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
+                    : 'border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'
+                }`}
+              >
+                Next
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

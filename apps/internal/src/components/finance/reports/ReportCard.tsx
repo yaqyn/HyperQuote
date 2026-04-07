@@ -4,7 +4,7 @@ import { Button } from 'react-aria-components'
 interface ReportCardProps {
   name: string
   description: string
-  icon: string
+  keyMetric?: string
   lastGenerated: string | null
   onGenerate: () => void
   onExportCSV: () => void
@@ -14,13 +14,14 @@ interface ReportCardProps {
 }
 
 /**
- * Individual report card with glass panel, actions, and last-generated timestamp.
- * Used in ReportsDashboard grid.
+ * "The Brief" — Mini document preview card.
+ * Title, period selector as pills, 2-3 key numbers, generate/download buttons.
+ * Clean, typographic, no icons.
  */
 export function ReportCard({
   name,
   description,
-  icon,
+  keyMetric,
   lastGenerated,
   onGenerate,
   onExportCSV,
@@ -36,56 +37,57 @@ export function ReportCard({
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className={`rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 flex flex-col gap-3 ${
-        onClick ? 'cursor-pointer hover:border-[#2563EB]/30 hover:bg-[#2563EB]/3 transition-colors' : ''
+      className={`flex flex-col justify-between p-5 border-e border-b border-black/[0.04] dark:border-white/[0.04] min-h-[140px] ${
+        onClick ? 'cursor-pointer hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors' : ''
       }`}
     >
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <span className="text-2xl">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-black/90 dark:text-white/90 truncate">{name}</h4>
-          <p className="text-xs text-black/50 dark:text-white/50 mt-0.5 line-clamp-2">{description}</p>
+      {/* Top: title + description */}
+      <div>
+        <div className="text-xs font-medium text-black/70 dark:text-white/70 mb-0.5">
+          {name}
+        </div>
+        <div className="text-[10px] text-black/25 dark:text-white/25 leading-relaxed line-clamp-2">
+          {description}
         </div>
       </div>
 
-      {/* Last generated */}
-      <div className="text-xs text-black/40 dark:text-white/40">
-        {lastGenerated ? (
-          <>
-            {t('reports.lastGenerated', 'Last generated')}: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{lastGenerated}</span>
-          </>
-        ) : (
-          t('reports.neverGenerated', 'Never generated')
-        )}
-      </div>
+      {/* Middle: key metric */}
+      {keyMetric && (
+        <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-black/50 dark:text-white/50 my-2">
+          {keyMetric}
+        </div>
+      )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
-        <Button
-          onPress={onGenerate}
-          className="rounded-md bg-[#2563EB] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#2563EB]/90 transition-colors"
-        >
-          {t('reports.generate', 'Generate')}
-        </Button>
-        <Button
-          onPress={onExportCSV}
-          className="rounded-md border border-black/10 dark:border-white/10 px-2.5 py-1 text-xs text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-        >
-          CSV
-        </Button>
-        <Button
-          onPress={onExportPDF}
-          className="rounded-md border border-black/10 dark:border-white/10 px-2.5 py-1 text-xs text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-        >
-          PDF
-        </Button>
-        <Button
-          onPress={onEmail}
-          className="rounded-md border border-black/10 dark:border-white/10 px-2.5 py-1 text-xs text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-        >
-          {t('reports.email', 'Email')}
-        </Button>
+      {/* Bottom: last generated + actions */}
+      <div className="flex items-center justify-between mt-auto pt-2">
+        <span className="text-[9px] text-black/15 dark:text-white/15">
+          {lastGenerated ? (
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{lastGenerated}</span>
+          ) : (
+            t('reports.neverGenerated', 'Never')
+          )}
+        </span>
+
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            onPress={onGenerate}
+            className="rounded px-2 py-0.5 text-[10px] font-medium text-[#2563EB] bg-[#2563EB]/[0.06] hover:bg-[#2563EB]/[0.12] transition-colors"
+          >
+            {t('reports.generate', 'Generate')}
+          </Button>
+          <Button
+            onPress={onExportCSV}
+            className="rounded px-1.5 py-0.5 text-[10px] text-black/25 dark:text-white/25 hover:text-black/50 dark:hover:text-white/50 transition-colors"
+          >
+            CSV
+          </Button>
+          <Button
+            onPress={onExportPDF}
+            className="rounded px-1.5 py-0.5 text-[10px] text-black/25 dark:text-white/25 hover:text-black/50 dark:hover:text-white/50 transition-colors"
+          >
+            PDF
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -6,11 +6,11 @@ interface ResponseStatusBadgeProps {
 }
 
 const STATUS_STYLES: Record<InquiryStatus, string> = {
-  sent: 'bg-black/10 text-black/60 dark:bg-white/10 dark:text-white/60',
-  opened: 'bg-[#2563EB]/10 text-[#2563EB]',
-  responded: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  overdue: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  closed: 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40',
+  sent: 'text-[var(--color-text-subtle)]',
+  opened: 'text-[var(--color-primary)]',
+  responded: 'text-[var(--color-text)]',
+  overdue: 'text-[var(--color-text)] font-semibold',
+  closed: 'text-[var(--color-text-subtle)]',
 }
 
 export function ResponseStatusBadge({ status }: ResponseStatusBadgeProps) {
@@ -18,7 +18,7 @@ export function ResponseStatusBadge({ status }: ResponseStatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
+      className={`inline-flex items-center text-[11px] font-medium uppercase tracking-wider ${STATUS_STYLES[status]}`}
     >
       {t(`procurement.status.${status}`)}
     </span>

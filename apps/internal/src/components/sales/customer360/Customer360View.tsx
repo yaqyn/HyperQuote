@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
+import { AnimatePresence, motion } from 'motion/react'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
 import { CustomerHeader } from './CustomerHeader'
 import { OverviewTab } from './OverviewTab'
@@ -39,16 +40,16 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
   // Root query for header data
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
   })
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-4 animate-pulse">
-        <div className="h-24 rounded-xl bg-black/5 dark:bg-white/5" />
-        <div className="h-8 rounded bg-black/5 dark:bg-white/5 w-2/3" />
-        <div className="h-64 rounded-xl bg-black/5 dark:bg-white/5" />
+      <div className="p-6 space-y-6 animate-pulse">
+        <div className="h-20 rounded-none bg-black/[0.03] dark:bg-white/[0.03]" />
+        <div className="h-6 rounded-none bg-black/[0.03] dark:bg-white/[0.03] w-1/2" />
+        <div className="h-64 rounded-none bg-black/[0.03] dark:bg-white/[0.03]" />
       </div>
     )
   }
@@ -57,66 +58,93 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Fixed Header */}
-      <div className="shrink-0 p-4 pb-0">
+      {/* Full-width header — no card wrapper */}
+      <div className="shrink-0 px-6 pt-6 pb-4">
         <CustomerHeader
           customer={data.customer}
           accountManager={data.customer.assignedSalesRep}
+          healthScore={data.healthScore}
+          financials={data.financials}
+          orders={data.orders}
+          quotes={data.quotes}
         />
       </div>
 
-      {/* Tabbed Content */}
+      {/* Vertical sidebar tabs + content */}
       <Tabs
         selectedKey={selectedTab}
         onSelectionChange={(key) => setSelectedTab(key as TabKey)}
-        className="flex-1 flex flex-col min-h-0"
+        orientation="vertical"
+        className="flex-1 flex min-h-0"
       >
+        {/* Left sidebar navigation */}
         <TabList
           aria-label={t('sales.customer360.tabs')}
-          className="flex overflow-x-auto border-b border-black/10 dark:border-white/10 px-4 gap-1 shrink-0"
+          className="w-[160px] shrink-0 flex flex-col py-2 border-e border-black/[0.06] dark:border-white/[0.06]"
         >
           {TAB_KEYS.map((key) => (
             <Tab
               key={key}
               id={key}
-              className="shrink-0 cursor-pointer whitespace-nowrap px-3 py-2.5 text-sm font-medium text-black/60 dark:text-white/60 outline-none transition-colors
-                data-[selected]:text-[#2563EB] data-[selected]:border-b-2 data-[selected]:border-[#2563EB]
-                data-[hovered]:text-black/80 dark:data-[hovered]:text-white/80
-                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-1 rounded-t"
+              className="relative cursor-pointer text-start px-5 py-2 text-[13px] outline-none transition-colors
+                text-black/40 dark:text-white/40
+                data-[selected]:text-[var(--color-text)] data-[selected]:font-semibold dark:data-[selected]:text-white
+                data-[hovered]:bg-black/[0.02] dark:data-[hovered]:bg-white/[0.03]
+                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 data-[focus-visible]:ring-inset"
             >
+              {/* Active indicator dot */}
+              <span
+                className="absolute start-0 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full bg-[#2563EB] opacity-0 transition-opacity
+                  [[data-selected]_&]:opacity-100"
+              />
               {t(`sales.customer360.tabNames.${key}`)}
             </Tab>
           ))}
         </TabList>
 
+        {/* Tab content area */}
         <div className="flex-1 overflow-auto">
-          <TabPanel id="overview" className="h-full outline-none">
-            <OverviewTab customerId={customerId} enabled={selectedTab === 'overview'} />
-          </TabPanel>
-          <TabPanel id="contacts" className="h-full outline-none">
-            <ContactsTab customerId={customerId} enabled={selectedTab === 'contacts'} />
-          </TabPanel>
-          <TabPanel id="quotes" className="h-full outline-none">
-            <QuotesTab customerId={customerId} enabled={selectedTab === 'quotes'} />
-          </TabPanel>
-          <TabPanel id="orders" className="h-full outline-none">
-            <OrdersTab customerId={customerId} enabled={selectedTab === 'orders'} />
-          </TabPanel>
-          <TabPanel id="financials" className="h-full outline-none">
-            <FinancialsTab customerId={customerId} enabled={selectedTab === 'financials'} />
-          </TabPanel>
-          <TabPanel id="projects" className="h-full outline-none">
-            <ProjectsTab customerId={customerId} enabled={selectedTab === 'projects'} />
-          </TabPanel>
-          <TabPanel id="communications" className="h-full outline-none">
-            <CommunicationsTab customerId={customerId} enabled={selectedTab === 'communications'} />
-          </TabPanel>
-          <TabPanel id="documents" className="h-full outline-none">
-            <DocumentsTab customerId={customerId} enabled={selectedTab === 'documents'} />
-          </TabPanel>
-          <TabPanel id="notes" className="h-full outline-none">
-            <NotesTab customerId={customerId} enabled={selectedTab === 'notes'} />
-          </TabPanel>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedTab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{
+                enter: { type: 'spring', stiffness: 200, damping: 20 },
+                exit: { duration: 0.2, ease: 'easeIn' },
+              }}
+              className="h-full"
+            >
+              <TabPanel id="overview" className="h-full outline-none">
+                <OverviewTab customerId={customerId} enabled={selectedTab === 'overview'} />
+              </TabPanel>
+              <TabPanel id="contacts" className="h-full outline-none">
+                <ContactsTab customerId={customerId} enabled={selectedTab === 'contacts'} />
+              </TabPanel>
+              <TabPanel id="quotes" className="h-full outline-none">
+                <QuotesTab customerId={customerId} enabled={selectedTab === 'quotes'} />
+              </TabPanel>
+              <TabPanel id="orders" className="h-full outline-none">
+                <OrdersTab customerId={customerId} enabled={selectedTab === 'orders'} />
+              </TabPanel>
+              <TabPanel id="financials" className="h-full outline-none">
+                <FinancialsTab customerId={customerId} enabled={selectedTab === 'financials'} />
+              </TabPanel>
+              <TabPanel id="projects" className="h-full outline-none">
+                <ProjectsTab customerId={customerId} enabled={selectedTab === 'projects'} />
+              </TabPanel>
+              <TabPanel id="communications" className="h-full outline-none">
+                <CommunicationsTab customerId={customerId} enabled={selectedTab === 'communications'} />
+              </TabPanel>
+              <TabPanel id="documents" className="h-full outline-none">
+                <DocumentsTab customerId={customerId} enabled={selectedTab === 'documents'} />
+              </TabPanel>
+              <TabPanel id="notes" className="h-full outline-none">
+                <NotesTab customerId={customerId} enabled={selectedTab === 'notes'} />
+              </TabPanel>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </Tabs>
     </div>

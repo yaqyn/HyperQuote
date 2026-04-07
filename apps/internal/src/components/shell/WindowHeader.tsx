@@ -17,19 +17,19 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
   const Icon = mod.icon
 
   return (
-    <div className="flex items-center justify-between h-14 px-6 border-b border-[var(--color-border)]/50">
-      <div className="flex items-center gap-2">
-        <Icon size={20} className="text-[var(--color-text-muted)]" />
-        <span className="text-base font-semibold text-[var(--color-text)]">
+    <div className="flex items-center justify-between h-12 px-5 shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]">
+      <div className="flex items-center gap-2.5">
+        <Icon size={18} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+        <span className="text-sm font-semibold text-[var(--color-text)]">
           {t(mod.labelKey)}
         </span>
       </div>
       <Button
         onPress={onClose}
-        aria-label={t('window.close')}
-        className="flex items-center justify-center w-11 h-11 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+        aria-label="Close"
+        className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-150 cursor-pointer"
       >
-        <X size={20} />
+        <X size={16} strokeWidth={1.5} />
       </Button>
     </div>
   )

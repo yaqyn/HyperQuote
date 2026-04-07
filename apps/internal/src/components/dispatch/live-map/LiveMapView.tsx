@@ -1,12 +1,11 @@
 /**
- * Root live map view: collapsible sidebar + full-screen VehicleMap.
- * Loads initial data from server functions, subscribes to GPS broadcast.
- * ClientOnly wraps the map to prevent SSR crashes.
+ * The Radar — full-screen live map with floating controls.
+ * Map fills entire content area. Driver sidebar slides from right.
+ * Glass pill controls float on top of the map.
  */
 import { useState, useCallback, useEffect } from 'react'
-import { ClientOnly } from '@tanstack/react-start'
+import { ClientOnly } from '../../../lib/client-only'
 import { Button } from 'react-aria-components'
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useDispatchStore } from '../../../stores/dispatch'
 import { useGPSBroadcast } from '../../../hooks/useGPSBroadcast'
@@ -18,18 +17,16 @@ import type { GPSPosition, DeliveryRoute, Driver } from '../../../types/dispatch
 
 export function LiveMapView() {
   const { t } = useTranslation('dispatch')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const selectedDriverId = useDispatchStore((s) => s.selectedDriverId)
   const setSelectedDriverId = useDispatchStore((s) => s.setSelectedDriverId)
   const setMapViewport = useDispatchStore((s) => s.setMapViewport)
 
-  // Server data
   const [initialPositions, setInitialPositions] = useState<GPSPosition[]>([])
   const [routes, setRoutes] = useState<DeliveryRoute[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load initial data
   useEffect(() => {
     let cancelled = false
 
@@ -42,7 +39,6 @@ export function LiveMapView() {
         if (cancelled) return
         setInitialPositions(posData)
         setRoutes(boardData.routes)
-        // Extract drivers from routes + board data
         setDrivers(
           boardData.routes
             .filter((r) => r.driverId)
@@ -61,20 +57,19 @@ export function LiveMapView() {
             })),
         )
       } catch {
-        // Silently handle -- dev mode may not have server
+        // Dev mode may not have server
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
-    // Also fetch driver list for better data
     async function loadDrivers() {
       try {
         const { getDriverList } = await import('../../../lib/server/dispatch')
         const driverList = await getDriverList()
         if (!cancelled) setDrivers(driverList)
       } catch {
-        // Fall back to route-derived drivers above
+        // Fall back to route-derived drivers
       }
     }
 
@@ -83,14 +78,11 @@ export function LiveMapView() {
     return () => { cancelled = true }
   }, [])
 
-  // GPS broadcast (null supabase = dev simulation mode)
   const positions = useGPSBroadcast(null, initialPositions)
 
-  // Selected vehicle
   const [selectedVehicle, setSelectedVehicle] = useState<GPSPosition | null>(null)
   const [highlightedRouteId, setHighlightedRouteId] = useState<string | null>(null)
 
-  // When sidebar driver clicked, zoom to that driver
   const handleSelectDriver = useCallback(
     (driverId: string) => {
       setSelectedDriverId(driverId)
@@ -105,7 +97,6 @@ export function LiveMapView() {
     [positions, routes, setSelectedDriverId, setMapViewport],
   )
 
-  // Sync selectedDriverId from store to highlight
   useEffect(() => {
     if (selectedDriverId) {
       const driverRoute = routes.find((r: DeliveryRoute) => r.driverId === selectedDriverId)
@@ -131,35 +122,25 @@ export function LiveMapView() {
   )
 
   return (
-    <div className="flex h-full relative">
-      {/* Collapsible Sidebar */}
-      <DriverSidebar
-        collapsed={sidebarCollapsed}
-        drivers={drivers}
-        routes={routes}
-        positions={positions}
-        selectedDriverId={selectedDriverId}
-        onSelectDriver={handleSelectDriver}
-      />
-
-      {/* Map Area */}
+    <div className="relative flex h-full">
+      {/* Full-bleed map */}
       <div className="flex-1 relative">
-        {/* Sidebar toggle */}
-        <div className="absolute top-3 start-3 z-10">
+        {/* Floating sidebar toggle — glass pill */}
+        <div className="absolute top-3 end-3 z-10 flex gap-2">
           <Button
-            aria-label={sidebarCollapsed ? t('openSidebar', 'Open sidebar') : t('closeSidebar', 'Close sidebar')}
-            onPress={() => setSidebarCollapsed((c: boolean) => !c)}
-            className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors"
+            aria-label={sidebarOpen ? t('closeSidebar', 'Close sidebar') : t('openSidebar', 'Open sidebar')}
+            onPress={() => setSidebarOpen((c: boolean) => !c)}
+            className="flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/90 px-3 text-xs font-medium text-black/60 shadow-sm backdrop-blur-xl transition-colors hover:text-black dark:border-white/[0.08] dark:bg-black/90 dark:text-white/60 dark:hover:text-white"
           >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
-            ) : (
-              <PanelLeftClose className="w-4 h-4" />
-            )}
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+              {drivers.length}
+            </span>
           </Button>
         </div>
 
-        {/* Map */}
         <ClientOnly fallback={<MapSkeleton className="h-full" />}>
           {() =>
             loading ? (
@@ -177,6 +158,16 @@ export function LiveMapView() {
           }
         </ClientOnly>
       </div>
+
+      {/* Right-side driver sidebar — slides in */}
+      <DriverSidebar
+        open={sidebarOpen}
+        drivers={drivers}
+        routes={routes}
+        positions={positions}
+        selectedDriverId={selectedDriverId}
+        onSelectDriver={handleSelectDriver}
+      />
     </div>
   )
 }

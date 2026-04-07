@@ -1,19 +1,27 @@
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
+import { motion, AnimatePresence } from 'motion/react'
 import { useShortcut } from '../../hooks/useShortcut'
 import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import { useInternalStore } from '../../stores/internal'
 import { useFinanceStore } from '../../stores/finance'
 import type { FinanceTab } from '../../types/finance'
 
+const SHORTCUTS = [
+  { keys: 'G R', action: 'Go to Receivables' },
+  { keys: 'G P', action: 'Go to Payables' },
+  { keys: 'G B', action: 'Go to Bank Recon' },
+  { keys: 'N', action: 'Record New Payment' },
+  { keys: '?', action: 'Toggle this help' },
+]
+
 /**
  * Finance-specific keyboard shortcuts.
  * Only active when finance module is open.
  *
- * G then I - Go to Invoicing
- * G then A - Go to AR
- * G then P - Go to AP
- * G then C - Go to Credit
+ * G then R - Go to Receivables
+ * G then P - Go to Payables
+ * G then B - Go to Bank Recon
  * N - Record New Payment
  * ? - Show shortcuts help
  */
@@ -30,77 +38,75 @@ export function FinanceShortcuts() {
   // G prefix for Go-to shortcuts
   useShortcut('g', () => setGPrefix(true), { enabled: isActive })
 
-  useShortcut('i', () => {
+  useShortcut('r', () => {
     if (gPrefix) {
-      setActiveTab('invoicing')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  useShortcut('a', () => {
-    if (gPrefix) {
-      setActiveTab('ar')
+      setActiveTab('receivables')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
 
   useShortcut('p', () => {
     if (gPrefix) {
-      setActiveTab('ap')
+      setActiveTab('payables')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
 
-  useShortcut('c', () => {
+  useShortcut('b', () => {
     if (gPrefix) {
-      setActiveTab('credit')
+      setActiveTab('recon')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
 
-  // N - Record New Payment
+  // N - Record New Payment (jumps to payables tab)
   useShortcut('n', () => {
-    setActiveTab('payments')
+    setActiveTab('payables')
     setPaymentFlowStep('select_method')
   }, { enabled: isActive && !gPrefix })
 
   // ? - Show shortcuts help
   useShortcut('?', () => {
-    setShowHelp((prev) => !prev)
+    setShowHelp((prev: boolean) => !prev)
   }, { enabled: isActive })
 
-  if (!showHelp) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
-          <Button
-            onPress={() => setShowHelp(false)}
-            className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
+    <AnimatePresence>
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="w-full max-w-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-5 shadow-2xl"
           >
-            Close
-          </Button>
-        </div>
-        <div className="flex flex-col gap-2">
-          {[
-            { keys: 'G I', action: 'Go to Invoicing' },
-            { keys: 'G A', action: 'Go to AR' },
-            { keys: 'G P', action: 'Go to AP' },
-            { keys: 'G C', action: 'Go to Credit' },
-            { keys: 'N', action: 'Record New Payment' },
-            { keys: '?', action: 'Toggle this help' },
-          ].map((shortcut) => (
-            <div key={shortcut.keys} className="flex items-center justify-between">
-              <span className="text-sm text-black/60 dark:text-white/60">{shortcut.action}</span>
-              <kbd className="rounded border border-black/10 bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:border-white/10 dark:bg-white/5">
-                {shortcut.keys}
-              </kbd>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs uppercase tracking-wider text-black/40 dark:text-white/40">
+                Keyboard Shortcuts
+              </h3>
+              <Button
+                onPress={() => setShowHelp(false)}
+                className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
+              >
+                Close
+              </Button>
             </div>
-          ))}
+            <div className="flex flex-col gap-2">
+              {SHORTCUTS.map((shortcut) => (
+                <div key={shortcut.keys} className="flex items-center justify-between">
+                  <span className="text-sm text-black/60 dark:text-white/60">
+                    {shortcut.action}
+                  </span>
+                  <kbd className="font-[family-name:var(--font-geist-mono)] text-xs text-black/50 dark:text-white/50">
+                    {shortcut.keys}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   )
 }

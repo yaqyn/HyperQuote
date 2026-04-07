@@ -1,10 +1,15 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ARAgingBucket, ARAgingRow } from '../../../types/finance'
+import { Button } from 'react-aria-components'
+import type { ARAgingBucket, ARAgingRow, InvoiceDispute } from '../../../types/finance'
 import { ARKPIStrip } from './ARKPIStrip'
 import { ARAgingTable } from './ARAgingTable'
 import { ARDrillDown } from './ARDrillDown'
 import { ARFilters } from './ARFilters'
+import { CurrencyCell } from '../shared/CurrencyCell'
+import { AgingBadge } from '../shared/AgingBadge'
+import { DisputeList } from '../disputes/DisputeList'
+import { useFinanceStore } from '../../../stores/finance'
 
 interface DrillDownState {
   customerId: string
@@ -58,14 +63,23 @@ const MOCK_ROWS: ARAgingRow[] = [
   },
 ]
 
+const AGING_SEGMENTS: { bucket: ARAgingBucket; field: keyof Pick<ARAgingRow, 'current' | 'days30' | 'days60' | 'days90' | 'days90plus'>; color: string }[] = [
+  { bucket: 'current', field: 'current', color: 'bg-green-500' },
+  { bucket: '1-30', field: 'days30', color: 'bg-yellow-500' },
+  { bucket: '31-60', field: 'days60', color: 'bg-orange-500' },
+  { bucket: '61-90', field: 'days90', color: 'bg-red-400' },
+  { bucket: '90+', field: 'days90plus', color: 'bg-red-600' },
+]
+
 /**
- * AR Dashboard combining KPI strip, filters, and aging table.
- * When drillDown state is set (from cell click), renders ARDrillDown instead of table.
- * Breadcrumb navigation: "AR Dashboard > 61-90 Days > [Customer Name]"
+ * AR Dashboard — "The Collections Desk"
+ * Hero number + aging waterfall bar + KPI strip + filters + grouped list.
  */
 export function ARDashboard() {
   const { t } = useTranslation('finance')
   const [drillDown, setDrillDown] = useState<DrillDownState | null>(null)
+  const [showDisputes, setShowDisputes] = useState(false)
+  const setSelectedDisputeId = useFinanceStore((s) => s.setSelectedDisputeId)
 
   const handleCellClick = useCallback(
     (customerId: string, bucket: ARAgingBucket) => {
@@ -83,7 +97,20 @@ export function ARDashboard() {
 
   const handleKPIClick = useCallback((_metric: string) => {
     // KPI card click could pre-filter the table
-    // For now, just scroll to table
+  }, [])
+
+  // Compute aging totals for waterfall bar
+  const agingTotals = useMemo(() => {
+    const totals = { current: 0, days30: 0, days60: 0, days90: 0, days90plus: 0, total: 0 }
+    for (const row of MOCK_ROWS) {
+      totals.current += row.current
+      totals.days30 += row.days30
+      totals.days60 += row.days60
+      totals.days90 += row.days90
+      totals.days90plus += row.days90plus
+      totals.total += row.total
+    }
+    return totals
   }, [])
 
   // Bucket label for breadcrumb
@@ -99,25 +126,68 @@ export function ARDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex flex-col gap-5 p-6">
       {/* Breadcrumb */}
-      <nav className="text-xs text-black/50 dark:text-white/50 flex items-center gap-1">
+      <nav className="text-xs text-black/40 dark:text-white/40 flex items-center gap-1.5">
         <button
           type="button"
           onClick={handleBack}
-          className={drillDown ? 'hover:text-[#2563EB] cursor-pointer' : 'font-medium text-black dark:text-white'}
+          className={drillDown ? 'hover:text-[#2563EB] cursor-pointer transition-colors' : 'text-black dark:text-white font-medium'}
         >
-          {t('ar.breadcrumb.dashboard', 'AR Dashboard')}
+          {t('ar.breadcrumb.dashboard', 'Collections Desk')}
         </button>
         {drillDown && (
           <>
-            <span>&gt;</span>
-            <span className="font-medium text-black dark:text-white">
-              {bucketLabel(drillDown.bucket)} &gt; {drillDown.customerName}
+            <span className="text-black/15 dark:text-white/15">/</span>
+            <span className="text-black dark:text-white font-medium">
+              {bucketLabel(drillDown.bucket)} / {drillDown.customerName}
             </span>
           </>
         )}
       </nav>
+
+      {/* Hero: Total outstanding + aging waterfall */}
+      <div>
+        {/* Hero number */}
+        <div className="mb-3">
+          <div className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+            {t('ar.hero.totalOutstanding', 'Total Outstanding')}
+          </div>
+          <CurrencyCell amount={agingTotals.total} className="text-5xl font-light" />
+        </div>
+
+        {/* Aging waterfall bar — proportional horizontal segments */}
+        <div className="flex h-2 rounded-full overflow-hidden gap-px">
+          {AGING_SEGMENTS.map((seg) => {
+            const value = agingTotals[seg.field]
+            const pct = agingTotals.total > 0 ? (value / agingTotals.total) * 100 : 0
+            if (pct === 0) return null
+            return (
+              <div
+                key={seg.bucket}
+                className={`${seg.color} transition-all duration-300 cursor-pointer hover:opacity-80`}
+                style={{ width: `${pct}%` }}
+                title={`${seg.bucket}: ${pct.toFixed(1)}%`}
+              />
+            )
+          })}
+        </div>
+
+        {/* Aging legend */}
+        <div className="flex items-center gap-4 mt-2">
+          {AGING_SEGMENTS.map((seg) => {
+            const value = agingTotals[seg.field]
+            if (value === 0) return null
+            return (
+              <div key={seg.bucket} className="flex items-center gap-1.5">
+                <span className={`size-2 rounded-full ${seg.color}`} />
+                <AgingBadge bucket={seg.bucket} />
+                <CurrencyCell amount={value} className="text-xs text-black/50 dark:text-white/50" />
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
       {/* KPI Strip */}
       <ARKPIStrip {...MOCK_KPI} onCardClick={handleKPIClick} />
@@ -133,10 +203,36 @@ export function ARDashboard() {
           onBack={handleBack}
         />
       ) : (
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
+        <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
           <ARAgingTable rows={MOCK_ROWS} onCellClick={handleCellClick} />
         </div>
       )}
+
+      {/* Disputes section */}
+      <div>
+        <Button
+          onPress={() => setShowDisputes((prev) => !prev)}
+          className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 cursor-pointer hover:text-black/60 dark:hover:text-white/60 transition-colors outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 rounded-md px-1 py-0.5"
+        >
+          <svg
+            className={`size-3 transition-transform ${showDisputes ? 'rotate-90' : ''}`}
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {t('ar.disputes', 'Disputed Invoices')}
+        </Button>
+        {showDisputes && (
+          <div className="mt-3">
+            <DisputeList
+              onSelectDispute={setSelectedDisputeId}
+              onCreateDispute={() => {}}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

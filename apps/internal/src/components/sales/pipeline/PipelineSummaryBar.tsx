@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { motion, AnimatePresence } from 'motion/react'
 import type { PipelineDeal, PipelineStage } from '../../../types/sales'
 
 interface PipelineSummaryBarProps {
@@ -20,6 +21,30 @@ const WIN_PROBABILITY_BY_STAGE: Record<string, number> = {
   lost_expired: 0,
 }
 
+function Metric({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value: string
+  color?: string
+}) {
+  return (
+    <div className="flex flex-col items-start">
+      <span
+        className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-semibold leading-none tracking-tight text-black dark:text-white"
+        style={color ? { color } : undefined}
+      >
+        {value}
+      </span>
+      <span className="mt-1 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
+        {label}
+      </span>
+    </div>
+  )
+}
+
 export function PipelineSummaryBar({ stages, deals, target = 50_000_000 }: PipelineSummaryBarProps) {
   const { t } = useTranslation('internal')
   const [expanded, setExpanded] = useState(false)
@@ -34,8 +59,10 @@ export function PipelineSummaryBar({ stages, deals, target = 50_000_000 }: Pipel
     0,
   )
 
-  const gap = target - weightedForecast
-  const gapIsPositive = gap > 0
+  // Win rate
+  const wonDeals = deals.filter((d) => d.stage === 'won').length
+  const closedDeals = deals.filter((d) => d.stage === 'won' || d.stage === 'lost_expired').length
+  const winRate = closedDeals > 0 ? Math.round((wonDeals / closedDeals) * 100) : 0
 
   // Conversion rates per stage
   const stageOrder = [
@@ -62,120 +89,96 @@ export function PipelineSummaryBar({ stages, deals, target = 50_000_000 }: Pipel
     return { stage: stageId, avgDays }
   })
 
-  const formatValue = (value: number) =>
-    new Intl.NumberFormat('en-EG', {
-      style: 'currency',
-      currency: 'EGP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)
+  const formatCompact = (value: number) => {
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
+    return String(value)
+  }
 
   return (
-    <div className="border-b border-black/10 dark:border-white/10">
-      {/* Main metrics strip */}
-      <div className="flex items-center gap-6 px-4 py-3">
-        <div className="flex flex-col">
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.pipeline.totalPipeline', 'Total Pipeline')}
-          </span>
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold">
-            {formatValue(totalPipeline)}
-          </span>
-        </div>
+    <div className="px-6 pt-5 pb-2">
+      {/* 4 large numbers in a row -- pure typography hierarchy, no cards, no borders */}
+      <div className="flex items-end gap-12">
+        <Metric
+          label={t('sales.pipeline.totalPipeline', 'Total Pipeline')}
+          value={formatCompact(totalPipeline)}
+        />
+        <Metric
+          label={t('sales.pipeline.weightedForecast', 'Weighted Forecast')}
+          value={formatCompact(Math.round(weightedForecast))}
+        />
+        <Metric
+          label={t('sales.pipeline.activeDeals', 'Active Deals')}
+          value={String(activeDeals.length)}
+        />
+        <Metric
+          label={t('sales.pipeline.winRate', 'Win Rate')}
+          value={`${winRate}%`}
+        />
 
-        <div className="h-8 w-px bg-black/10 dark:bg-white/10" />
-
-        <div className="flex flex-col">
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.pipeline.weightedForecast', 'Weighted Forecast')}
-          </span>
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold">
-            {formatValue(Math.round(weightedForecast))}
-          </span>
-        </div>
-
-        <div className="h-8 w-px bg-black/10 dark:bg-white/10" />
-
-        <div className="flex flex-col">
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.pipeline.target', 'Target')}
-          </span>
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold">
-            {formatValue(target)}
-          </span>
-        </div>
-
-        <div className="h-8 w-px bg-black/10 dark:bg-white/10" />
-
-        <div className="flex flex-col">
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.pipeline.gap', 'Gap')}
-          </span>
-          <span
-            className={`font-[family-name:var(--font-geist-mono)] text-sm font-semibold ${
-              gapIsPositive ? 'text-red-600' : 'text-green-600'
-            }`}
-          >
-            {gapIsPositive ? '-' : '+'}
-            {formatValue(Math.abs(gap))}
-          </span>
-        </div>
-
-        <div className="ms-auto">
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-[#2563EB] hover:underline"
-          >
-            {expanded
-              ? t('sales.pipeline.hideAnalytics', 'Hide Analytics')
-              : t('sales.pipeline.showAnalytics', 'Show Analytics')}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="ms-auto text-[10px] uppercase tracking-wider font-medium text-[#2563EB] hover:text-[#2563EB]/70"
+        >
+          {expanded
+            ? t('sales.pipeline.hideAnalytics', 'Hide')
+            : t('sales.pipeline.showAnalytics', 'Analytics')}
+        </button>
       </div>
 
-      {/* Collapsible analytics panel */}
-      {expanded && (
-        <div className="border-t border-black/5 px-4 py-3 dark:border-white/5">
-          <div className="grid grid-cols-2 gap-6">
-            {/* Conversion rates */}
-            <div>
-              <h4 className="mb-2 text-xs font-medium text-black/50 dark:text-white/50">
-                {t('sales.pipeline.conversionRates', 'Conversion Rates')}
-              </h4>
-              <div className="space-y-1">
-                {conversionRates.map((cr) => (
-                  <div key={cr.from} className="flex items-center justify-between text-xs">
-                    <span className="text-black/60 dark:text-white/60">
-                      {cr.from.replace('_', ' ')} &rarr; {cr.to.replace('_', ' ')}
-                    </span>
-                    <span className="font-[family-name:var(--font-geist-mono)]">{cr.rate}%</span>
-                  </div>
-                ))}
+      {/* Collapsible analytics */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mt-5 grid grid-cols-2 gap-12">
+              {/* Conversion rates */}
+              <div>
+                <h4 className="mb-3 text-[10px] uppercase tracking-wider font-medium text-black/30 dark:text-white/30">
+                  {t('sales.pipeline.conversionRates', 'Conversion Rates')}
+                </h4>
+                <div className="space-y-2">
+                  {conversionRates.map((cr) => (
+                    <div key={cr.from} className="flex items-center justify-between">
+                      <span className="text-[12px] text-black/35 dark:text-white/35">
+                        {cr.from.replace('_', ' ')} → {cr.to.replace('_', ' ')}
+                      </span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-black dark:text-white">
+                        {cr.rate}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Avg time per stage */}
-            <div>
-              <h4 className="mb-2 text-xs font-medium text-black/50 dark:text-white/50">
-                {t('sales.pipeline.avgTimePerStage', 'Avg Time per Stage')}
-              </h4>
-              <div className="space-y-1">
-                {avgTimePerStage.map((s) => (
-                  <div key={s.stage} className="flex items-center justify-between text-xs">
-                    <span className="text-black/60 dark:text-white/60">
-                      {s.stage.replace('_', ' ')}
-                    </span>
-                    <span className="font-[family-name:var(--font-geist-mono)]">
-                      {s.avgDays}d
-                    </span>
-                  </div>
-                ))}
+              {/* Avg time per stage */}
+              <div>
+                <h4 className="mb-3 text-[10px] uppercase tracking-wider font-medium text-black/30 dark:text-white/30">
+                  {t('sales.pipeline.avgTimePerStage', 'Avg Time per Stage')}
+                </h4>
+                <div className="space-y-2">
+                  {avgTimePerStage.map((s) => (
+                    <div key={s.stage} className="flex items-center justify-between">
+                      <span className="text-[12px] text-black/35 dark:text-white/35">
+                        {s.stage.replace('_', ' ')}
+                      </span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-black dark:text-white">
+                        {s.avgDays}d
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

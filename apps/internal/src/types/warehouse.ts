@@ -4,14 +4,13 @@
 // ─── Status Unions ────────────────────────────────────────
 
 export type WarehouseTab =
-  | 'home'
-  | 'receiving'
-  | 'putaway'
-  | 'picking'
-  | 'staging'
-  | 'count'
-  | 'lookup'
+  | 'inbound'
+  | 'outbound'
+  | 'inventory'
   | 'yard'
+
+export type InboundView = 'list' | 'receiving' | 'putaway'
+export type OutboundView = 'queue' | 'picking' | 'staging'
 
 export type DeliveryStatus =
   | 'scheduled'

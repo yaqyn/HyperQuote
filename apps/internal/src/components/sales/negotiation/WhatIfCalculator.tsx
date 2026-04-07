@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Slider, SliderTrack, SliderThumb, SliderOutput } from 'react-aria-components'
+import { AnimatePresence, motion } from 'motion/react'
 import type { QuoteItem } from '../../../types/sales'
 
-// ─── Mock Data ───────────────────────────────────────────────
+// ─── Mock Data ──────────────────────────────────────────────
 
 function getMockLineItems(): QuoteItem[] {
   return [
@@ -52,19 +53,18 @@ function getMockLineItems(): QuoteItem[] {
   ]
 }
 
-// ─── Calculation Helpers ─────────────────────────────────────
+// ─── Calculation ────────────────────────────────────────────
 
 function recalculateItem(
   item: QuoteItem,
   newMargin: number,
 ): { sellPrice: number; lineTotal: number } {
-  const sellPrice =
-    Math.round(item.supplierCost * (1 + newMargin / 100) * 100) / 100
+  const sellPrice = Math.round(item.supplierCost * (1 + newMargin / 100) * 100) / 100
   const lineTotal = Math.round(sellPrice * item.quantity * 100) / 100
   return { sellPrice, lineTotal }
 }
 
-// ─── Component ───────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────
 
 interface WhatIfCalculatorProps {
   quoteId: string
@@ -78,7 +78,6 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
   const [perItemMargins, setPerItemMargins] = useState<Record<string, number>>({})
   const [showPerItem, setShowPerItem] = useState(false)
 
-  // Current quote totals (before what-if)
   const currentSubtotal = useMemo(
     () => baseItems.reduce((sum, item) => sum + item.lineTotal, 0),
     [baseItems],
@@ -86,7 +85,6 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
   const currentVat = Math.round(currentSubtotal * 14) / 100
   const currentTotal = currentSubtotal + currentVat
 
-  // What-if recalculation
   const whatIfResults = useMemo(() => {
     return baseItems.map((item) => {
       const margin = perItemMargins[item.id] ?? blanketMargin
@@ -102,8 +100,7 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
     0,
   )
   const newProfit = newSubtotal - totalCost
-  const newBlendedMargin =
-    totalCost > 0 ? ((newSubtotal - totalCost) / totalCost) * 100 : 0
+  const newBlendedMargin = totalCost > 0 ? ((newSubtotal - totalCost) / totalCost) * 100 : 0
   const diffFromCurrent = newTotal - currentTotal
 
   function handlePerItemMarginChange(itemId: string, margin: number) {
@@ -111,21 +108,22 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-        <h3 className="text-sm font-semibold">
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="border-b border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
+        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">
           {t('sales.negotiation.whatIfCalculator', 'What-If Calculator')}
         </h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
-        {/* Blanket Margin Slider */}
-        <div className="space-y-2">
+      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        {/* Blanket Margin */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
               {t('sales.negotiation.blanketMargin', 'Blanket Margin')}
-            </label>
-            <span className="font-mono text-sm font-semibold">
+            </span>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
               {blanketMargin}%
             </span>
           </div>
@@ -134,7 +132,6 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
             value={blanketMargin}
             onChange={(val: number) => {
               setBlanketMargin(val)
-              // Reset per-item overrides when blanket changes
               setPerItemMargins({})
             }}
             minValue={0}
@@ -143,16 +140,15 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
             className="w-full"
           >
             <SliderOutput className="sr-only" />
-            <SliderTrack className="relative w-full h-2 bg-black/10 dark:bg-white/10 rounded-full">
+            <SliderTrack className="relative h-1 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.06]">
               <div
-                className="absolute h-full bg-[#2563EB] rounded-full"
+                className="absolute h-full rounded-full bg-[var(--color-primary)]"
                 style={{ width: `${(blanketMargin / 50) * 100}%` }}
               />
-              <SliderThumb className="w-5 h-5 bg-white border-2 border-[#2563EB] rounded-full shadow-sm top-1/2 cursor-grab focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30" />
+              <SliderThumb className="top-1/2 size-4 cursor-grab rounded-full border-2 border-[var(--color-primary)] bg-white shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 dark:bg-[var(--color-surface)]" />
             </SliderTrack>
           </Slider>
 
-          {/* Exact entry */}
           <input
             type="number"
             value={blanketMargin}
@@ -166,116 +162,130 @@ export function WhatIfCalculator({ quoteId, onApplyMargins }: WhatIfCalculatorPr
             min={0}
             max={50}
             step={0.5}
-            className="w-full font-mono text-sm bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 text-center"
+            className="w-full rounded-lg border border-black/[0.06] bg-transparent px-3 py-1.5 text-center font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.06]"
           />
         </div>
 
-        {/* Results Summary */}
-        <div className="space-y-2 bg-black/[0.02] dark:bg-white/[0.02] rounded-lg p-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-black/60 dark:text-white/60">
+        {/* Results */}
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <span className="text-[13px] text-[var(--color-text-muted)]">
               {t('sales.negotiation.newTotal', 'New Total')}
             </span>
-            <span className="font-mono font-semibold">
+            <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
               EGP {newTotal.toLocaleString('en-EG')}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-black/60 dark:text-white/60">
-              {t('sales.negotiation.newProfit', 'New Profit')}
+
+          <div className="flex justify-between">
+            <span className="text-[13px] text-[var(--color-text-muted)]">
+              {t('sales.negotiation.newProfit', 'Profit')}
             </span>
-            <span className="font-mono font-semibold">
+            <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
               EGP {newProfit.toLocaleString('en-EG')}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-black/60 dark:text-white/60">
+
+          <div className="flex justify-between">
+            <span className="text-[13px] text-[var(--color-text-muted)]">
               {t('sales.negotiation.blendedMargin', 'Blended Margin')}
             </span>
-            <span className="font-mono font-semibold">
+            <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
               {newBlendedMargin.toFixed(1)}%
             </span>
           </div>
-          <div className="flex justify-between text-sm border-t border-black/10 dark:border-white/10 pt-2 mt-2">
-            <span className="text-black/60 dark:text-white/60">
-              {t('sales.negotiation.vsCurrent', 'vs Current')}
-            </span>
-            <span
-              className={[
-                'font-mono font-semibold',
-                diffFromCurrent > 0
-                  ? 'text-green-600 dark:text-green-400'
-                  : diffFromCurrent < 0
-                    ? 'text-red-600 dark:text-red-400'
-                    : '',
-              ].join(' ')}
-            >
-              {diffFromCurrent >= 0 ? '+' : ''}EGP{' '}
-              {diffFromCurrent.toLocaleString('en-EG')}
-            </span>
+
+          <div className="border-t border-black/[0.04] pt-3 dark:border-white/[0.04]">
+            <div className="flex justify-between">
+              <span className="text-[13px] text-[var(--color-text-muted)]">
+                {t('sales.negotiation.vsCurrent', 'vs Current')}
+              </span>
+              <span
+                className={[
+                  'font-[family-name:var(--font-geist-mono)] text-[13px] font-bold tabular-nums',
+                  diffFromCurrent > 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : diffFromCurrent < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-[var(--color-text)]',
+                ].join(' ')}
+              >
+                {diffFromCurrent >= 0 ? '+' : ''}EGP {diffFromCurrent.toLocaleString('en-EG')}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Per-Item Adjustments */}
+        {/* Per-Item Adjustments (collapsed) */}
         <div>
           <button
             type="button"
             onClick={() => setShowPerItem(!showPerItem)}
-            className="text-xs text-[#2563EB] hover:underline"
+            className="text-[11px] text-[var(--color-primary)] transition-colors hover:underline"
           >
             {showPerItem
               ? t('sales.negotiation.hidePerItem', 'Hide per-item adjustments')
               : t('sales.negotiation.showPerItem', 'Per-item adjustments')}
           </button>
 
-          {showPerItem && (
-            <div className="mt-3 space-y-3">
-              {whatIfResults.map(({ item, margin, sellPrice, lineTotal }) => (
-                <div
-                  key={item.id}
-                  className="border border-black/10 dark:border-white/10 rounded-lg p-3 space-y-2"
-                >
-                  <div className="text-xs font-medium truncate">
-                    {item.productName}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={perItemMargins[item.id] ?? blanketMargin}
-                      onChange={(e) => {
-                        const val = Number.parseFloat(e.target.value)
-                        if (!Number.isNaN(val) && val >= 0 && val <= 50) {
-                          handlePerItemMarginChange(item.id, val)
-                        }
-                      }}
-                      min={0}
-                      max={50}
-                      step={0.5}
-                      className="w-20 font-mono text-xs bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded px-2 py-1 text-center"
-                    />
-                    <span className="text-xs text-black/40 dark:text-white/40">
-                      %
-                    </span>
-                    <span className="flex-1 text-end font-mono text-xs">
-                      EGP {sellPrice.toLocaleString('en-EG')}
-                    </span>
-                  </div>
-                  <div className="text-end font-mono text-[11px] text-black/40 dark:text-white/40">
-                    Line: EGP {lineTotal.toLocaleString('en-EG')}
-                  </div>
+          <AnimatePresence>
+            {showPerItem && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 space-y-2">
+                  {whatIfResults.map(({ item, margin, sellPrice, lineTotal }) => (
+                    <div
+                      key={item.id}
+                      className="space-y-1.5 rounded-lg border border-black/[0.04] p-3 dark:border-white/[0.04]"
+                    >
+                      <div className="truncate text-[11px] font-medium text-[var(--color-text)]">
+                        {item.productName}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={perItemMargins[item.id] ?? blanketMargin}
+                          onChange={(e) => {
+                            const val = Number.parseFloat(e.target.value)
+                            if (!Number.isNaN(val) && val >= 0 && val <= 50) {
+                              handlePerItemMarginChange(item.id, val)
+                            }
+                          }}
+                          min={0}
+                          max={50}
+                          step={0.5}
+                          className="w-16 rounded-md border border-black/[0.06] bg-transparent px-2 py-1 text-center font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] dark:border-white/[0.06]"
+                        />
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">%</span>
+                        <div className="flex-1 text-end">
+                          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)]">
+                            {sellPrice.toLocaleString('en-EG')}
+                          </span>
+                          <span className="ms-2 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+                            ({lineTotal.toLocaleString('en-EG')})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Apply Button */}
-      <div className="px-4 py-3 border-t border-black/10 dark:border-white/10">
+      {/* Apply */}
+      <div className="border-t border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
         <button
           type="button"
           onClick={onApplyMargins}
-          className="w-full px-4 py-2 text-sm font-medium bg-[#2563EB] text-white rounded-lg hover:bg-[#2563EB]/90 transition-colors"
+          className="w-full rounded-full bg-[var(--color-primary)] py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90"
         >
           {t('sales.negotiation.applyMargins', 'Apply These Margins')}
         </button>

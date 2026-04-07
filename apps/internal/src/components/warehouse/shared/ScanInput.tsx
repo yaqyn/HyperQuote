@@ -11,12 +11,10 @@ interface ScanInputProps {
 }
 
 /**
- * Barcode scan + manual entry component.
- * Detects rapid keystroke bursts (<100ms between chars + Enter) from hardware
- * scanner keyboard wedge devices vs normal manual typing.
- *
- * Green flash + vibrate(200) on match.
- * Red flash + vibrate([100,50,100]) on mismatch.
+ * Barcode scan + manual entry.
+ * Detects rapid keystroke bursts from hardware scanner wedge devices.
+ * Green flash + vibrate on match. Red flash + vibrate pattern on mismatch.
+ * Large variant = 80px height for warehouse use.
  */
 export function ScanInput({
   label,
@@ -75,20 +73,11 @@ export function ScanInput({
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
         e.preventDefault()
-        // Check if this was a scanner burst: all keystrokes within 100ms window
-        const timestamps = keystrokeTimestamps.current
-        const isScannerBurst =
-          timestamps.length > 2 &&
-          timestamps[timestamps.length - 1] - timestamps[0] < 100 * timestamps.length
-
-        // Whether scanner burst or manual entry, submit on Enter
         handleSubmit(value)
         return
       }
 
-      // Track keystroke timing for scanner detection
       keystrokeTimestamps.current.push(Date.now())
-      // Keep only last 50 timestamps
       if (keystrokeTimestamps.current.length > 50) {
         keystrokeTimestamps.current = keystrokeTimestamps.current.slice(-50)
       }
@@ -96,13 +85,14 @@ export function ScanInput({
     [value, handleSubmit],
   )
 
-  const heightClass = size === 'large' ? 'h-16' : 'h-12'
+  const heightClass = size === 'large' ? 'h-20' : 'h-14'
+  const textClass = size === 'large' ? 'text-xl' : 'text-base'
 
   const flashClass =
     flash === 'green'
-      ? 'ring-2 ring-green-500 bg-green-50'
+      ? 'ring-2 ring-green-500 bg-green-500/5'
       : flash === 'red'
-        ? 'ring-2 ring-red-500 bg-red-50'
+        ? 'ring-2 ring-red-500 bg-red-500/5'
         : ''
 
   return (
@@ -112,15 +102,33 @@ export function ScanInput({
       autoFocus={autoFocus}
       className="flex flex-col gap-1"
     >
-      <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+      <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
         {label}
       </Label>
-      <Input
-        ref={inputRef}
-        onKeyDown={handleKeyDown}
-        className={`${heightClass} rounded-lg border border-[var(--color-border)] px-3 text-base font-mono transition-all ${flashClass}`}
-        placeholder={expectedValue ? `Scan or type: ${expectedValue}` : 'Scan barcode or type value...'}
-      />
+      <div className="relative">
+        {/* Barcode icon */}
+        <svg
+          className="absolute start-3 top-1/2 -translate-y-1/2 text-black/25 dark:text-white/25"
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          aria-hidden="true"
+        >
+          <rect x="2" y="4" width="2" height="12" fill="currentColor" />
+          <rect x="5" y="4" width="1" height="12" fill="currentColor" />
+          <rect x="7" y="4" width="3" height="12" fill="currentColor" />
+          <rect x="11" y="4" width="1" height="12" fill="currentColor" />
+          <rect x="13" y="4" width="2" height="12" fill="currentColor" />
+          <rect x="16" y="4" width="2" height="12" fill="currentColor" />
+        </svg>
+        <Input
+          ref={inputRef}
+          onKeyDown={handleKeyDown}
+          className={`${heightClass} ${textClass} w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent ps-10 pe-3 font-[family-name:var(--font-geist-mono)] tabular-nums transition-all outline-none focus:border-[#2563EB] ${flashClass}`}
+          placeholder={expectedValue ? `Scan: ${expectedValue}` : 'Scan barcode...'}
+        />
+      </div>
     </TextField>
   )
 }

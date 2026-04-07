@@ -106,7 +106,7 @@ function buildStreamChunks(response: string): AGUIChunk[] {
 // ─── Server Functions ───────────────────────────────────
 
 export const askAI = createServerFn({ method: 'POST' })
-  .validator((input: { messages: AIMessage[]; role?: string }) => input)
+  .inputValidator((input: { messages: AIMessage[]; role?: string }) => input)
   .handler(async ({ data }): Promise<AGUIChunk[]> => {
     const lastMsg = data.messages[data.messages.length - 1]
     const content = lastMsg?.content ?? ''
@@ -115,7 +115,7 @@ export const askAI = createServerFn({ method: 'POST' })
   })
 
 export const getAISuggestions = createServerFn({ method: 'GET' })
-  .validator((input: { role?: string }) => input)
+  .inputValidator((input: { role?: string }) => input)
   .handler(async ({ data }): Promise<{ suggestions: string[] }> => {
     const role = data.role ?? 'management'
     const suggestions = ROLE_SUGGESTIONS[role] ?? ROLE_SUGGESTIONS.management!

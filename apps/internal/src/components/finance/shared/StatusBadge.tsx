@@ -5,13 +5,24 @@ interface StatusBadgeProps {
 
 type BadgeColor = 'blue' | 'green' | 'yellow' | 'orange' | 'red' | 'gray'
 
-const COLOR_STYLES: Record<BadgeColor, string> = {
-  blue: 'bg-[#2563EB]/10 text-[#2563EB]',
-  green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  gray: 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60',
+/** Tiny dot color per semantic meaning */
+const DOT_COLORS: Record<BadgeColor, string> = {
+  blue: 'bg-[#2563EB]',
+  green: 'bg-green-500',
+  yellow: 'bg-yellow-500',
+  orange: 'bg-orange-500',
+  red: 'bg-red-500',
+  gray: 'bg-black/30 dark:bg-white/30',
+}
+
+/** Text color per semantic meaning */
+const TEXT_COLORS: Record<BadgeColor, string> = {
+  blue: 'text-[#2563EB]',
+  green: 'text-green-700 dark:text-green-400',
+  yellow: 'text-yellow-700 dark:text-yellow-400',
+  orange: 'text-orange-700 dark:text-orange-400',
+  red: 'text-red-700 dark:text-red-400',
+  gray: 'text-black/50 dark:text-white/50',
 }
 
 const INVOICE_STATUS_MAP: Record<string, BadgeColor> = {
@@ -75,7 +86,7 @@ function getColor(status: string, variant?: string): BadgeColor {
 }
 
 /**
- * Generic finance status badge.
+ * Tiny dot + text label. No background pill.
  * Maps status strings to semantic colors based on variant context.
  */
 export function StatusBadge({ status, variant }: StatusBadgeProps) {
@@ -83,9 +94,8 @@ export function StatusBadge({ status, variant }: StatusBadgeProps) {
   const label = status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${COLOR_STYLES[color]}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${TEXT_COLORS[color]}`}>
+      <span className={`size-1.5 rounded-full ${DOT_COLORS[color]}`} />
       {label}
     </span>
   )

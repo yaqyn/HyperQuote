@@ -1,26 +1,13 @@
 /**
- * Driver performance scorecard — spatial glass cards.
- * On-time rate, POD compliance, damage rate, avg deliveries/day, avg duration.
- * Geist Mono for all numbers. Arabic-Indic numerals when locale is Arabic.
+ * 6 metrics in 2x3 grid — large mono numbers + labels.
+ * Delivery success rate, on-time %, avg rating, trips today/week/month.
+ * Arabic-Indic numerals when locale is Arabic.
  */
 import { useTranslation } from 'react-i18next'
 import type { DriverPerformance } from '../../../types/dispatch'
 
 interface PerformanceMetricsProps {
   performance: DriverPerformance | null
-}
-
-function getThresholdColor(value: number, thresholds: { green: number; yellow: number }, inverse = false): string {
-  if (inverse) {
-    // Lower is better (damage rate)
-    if (value < thresholds.yellow) return 'text-green-600 dark:text-green-400'
-    if (value < thresholds.green) return 'text-amber-600 dark:text-amber-400'
-    return 'text-red-600 dark:text-red-400'
-  }
-  // Higher is better
-  if (value >= thresholds.green) return 'text-green-600 dark:text-green-400'
-  if (value >= thresholds.yellow) return 'text-amber-600 dark:text-amber-400'
-  return 'text-red-600 dark:text-red-400'
 }
 
 function formatNumber(value: number, locale: string, decimals = 1): string {
@@ -30,17 +17,28 @@ function formatNumber(value: number, locale: string, decimals = 1): string {
   return value.toFixed(decimals)
 }
 
+function getColor(value: number, thresholds: { green: number; yellow: number }, inverse = false): string {
+  if (inverse) {
+    if (value < thresholds.yellow) return 'text-green-600 dark:text-green-400'
+    if (value < thresholds.green) return 'text-amber-600 dark:text-amber-400'
+    return 'text-red-600 dark:text-red-400'
+  }
+  if (value >= thresholds.green) return 'text-green-600 dark:text-green-400'
+  if (value >= thresholds.yellow) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
 export function PerformanceMetrics({ performance }: PerformanceMetricsProps) {
   const { t, i18n } = useTranslation('dispatch')
   const locale = i18n.language
 
   if (!performance) {
     return (
-      <div className="flex flex-col gap-3">
-        <h4 className="text-sm font-semibold text-black/80 dark:text-white/80">
-          {t('driver.performance.title', 'Performance Scorecard')}
+      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <h4 className="text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          {t('driver.performance.title', 'Performance')}
         </h4>
-        <p className="text-sm text-black/40 dark:text-white/40">
+        <p className="mt-2 text-sm text-black/30 dark:text-white/30">
           {t('driver.performance.noData', 'No performance data available')}
         </p>
       </div>
@@ -49,31 +47,31 @@ export function PerformanceMetrics({ performance }: PerformanceMetricsProps) {
 
   const metrics = [
     {
-      label: t('driver.performance.onTimeRate', 'On-Time Rate'),
+      label: t('driver.performance.onTimeRate', 'On-Time'),
       value: performance.onTimeRate,
       suffix: '%',
-      color: getThresholdColor(performance.onTimeRate, { green: 95, yellow: 90 }),
+      color: getColor(performance.onTimeRate, { green: 95, yellow: 90 }),
     },
     {
-      label: t('driver.performance.podCompliance', 'POD Compliance'),
+      label: t('driver.performance.podCompliance', 'POD Rate'),
       value: performance.podComplianceRate,
       suffix: '%',
-      color: getThresholdColor(performance.podComplianceRate, { green: 98, yellow: 95 }),
+      color: getColor(performance.podComplianceRate, { green: 98, yellow: 95 }),
     },
     {
-      label: t('driver.performance.damageRate', 'Damage Rate'),
+      label: t('driver.performance.damageRate', 'Damage'),
       value: performance.damageRate,
       suffix: '%',
-      color: getThresholdColor(performance.damageRate, { green: 5, yellow: 2 }, true),
+      color: getColor(performance.damageRate, { green: 5, yellow: 2 }, true),
     },
     {
-      label: t('driver.performance.avgDeliveries', 'Avg Deliveries/Day'),
+      label: t('driver.performance.avgDeliveries', 'Avg/Day'),
       value: performance.avgDeliveriesPerDay,
       suffix: '',
       color: '',
     },
     {
-      label: t('driver.performance.avgDuration', 'Avg Duration'),
+      label: t('driver.performance.avgDuration', 'Avg Time'),
       value: performance.avgDeliveryDuration,
       suffix: t('driver.performance.min', 'min'),
       color: '',
@@ -81,28 +79,23 @@ export function PerformanceMetrics({ performance }: PerformanceMetricsProps) {
   ]
 
   return (
-    <div className="flex flex-col gap-3">
-      <h4 className="text-sm font-semibold text-black/80 dark:text-white/80">
-        {t('driver.performance.title', 'Performance Scorecard')}
+    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+      <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+        {t('driver.performance.title', 'Performance')}
       </h4>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-3"
-          >
-            <span className="text-xs text-black/50 dark:text-white/50 block mb-1">
-              {metric.label}
-            </span>
-            <span
-              className={`text-xl font-[family-name:var(--font-geist-mono)] tabular-nums ${metric.color}`}
+      <div className="grid grid-cols-3 gap-4 lg:grid-cols-5">
+        {metrics.map((m) => (
+          <div key={m.label}>
+            <div
+              className={`font-[family-name:var(--font-geist-mono)] text-2xl tabular-nums leading-none ${m.color}`}
             >
-              {formatNumber(metric.value, locale)}
-              {metric.suffix && (
-                <span className="text-sm ms-0.5">{metric.suffix}</span>
+              {formatNumber(m.value, locale)}
+              {m.suffix && (
+                <span className="text-xs">{m.suffix}</span>
               )}
-            </span>
+            </div>
+            <div className="mt-1 text-[11px] text-black/40 dark:text-white/40">{m.label}</div>
           </div>
         ))}
       </div>

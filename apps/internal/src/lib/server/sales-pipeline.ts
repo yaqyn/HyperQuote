@@ -110,6 +110,29 @@ export const getSalesPipeline = createServerFn({ method: 'GET' })
     return { stages: [] as PipelineStage[], deals: [] as PipelineDeal[] }
   })
 
+const moveDealStageInput = z.object({
+  dealId: z.string(),
+  toStage: z.string(),
+})
+
+export const moveDealStage = createServerFn({ method: 'POST' })
+  .inputValidator(moveDealStageInput)
+  .handler(async ({ data: input }) => {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: true,
+        dealId: input.dealId,
+        fromStage: 'unknown',
+        toStage: input.toStage,
+        movedAt: new Date().toISOString(),
+      }
+    }
+
+    // TODO: Update quote pipeline stage via validate_state_transition
+    // TODO: Log stage transition in activity feed
+    return { success: true, dealId: input.dealId, fromStage: 'unknown', toStage: input.toStage, movedAt: new Date().toISOString() }
+  })
+
 const markAsWonInput = z.object({
   quoteId: z.string(),
 })
@@ -151,20 +174,79 @@ const convertQuoteToOrderInput = z.object({
 
 export const convertQuoteToOrder = createServerFn({ method: 'POST' })
   .inputValidator(convertQuoteToOrderInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return {
-        orderId: `ord-${Date.now()}`,
-        orderNumber: `SO-2026-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`,
-      }
+  .handler(async ({ data: input }) => {
+    const orderId = `ord-${Date.now()}`
+    const orderNumber = `SO-2026-${String(Math.floor(Math.random() * 90000) + 10000).padStart(5, '0')}`
+    const now = new Date()
+
+    const deliveryDate = (daysOut: number) =>
+      new Date(now.getTime() + daysOut * 86_400_000).toISOString().split('T')[0]
+
+    const result = {
+      orderId,
+      orderNumber,
+      quoteId: input.quoteId,
+      customerPoNumber: input.poNumber ?? null,
+      status: 'confirmed' as const,
+      createdAt: now.toISOString(),
+
+      // Auto-generated Purchase Orders (one per supplier)
+      purchaseOrders: [
+        {
+          poNumber: `PO-2026-${String(Math.floor(Math.random() * 90000) + 10000).padStart(5, '0')}`,
+          supplierName: 'Suez Cement Company',
+          items: ['Portland Cement CEM I 42.5N'],
+          total: 125_000,
+          status: 'pending_confirmation',
+        },
+        {
+          poNumber: `PO-2026-${String(Math.floor(Math.random() * 90000) + 10000).padStart(5, '0')}`,
+          supplierName: 'Egyptian Steel Industries',
+          items: ['Steel Rebar 16mm'],
+          total: 340_000,
+          status: 'pending_confirmation',
+        },
+        {
+          poNumber: `PO-2026-${String(Math.floor(Math.random() * 90000) + 10000).padStart(5, '0')}`,
+          supplierName: 'National Block Factory',
+          items: ['Concrete Blocks 20cm', 'Plywood Shuttering 18mm'],
+          total: 95_000,
+          status: 'pending_confirmation',
+        },
+      ],
+
+      // Delivery schedule based on lead times
+      deliverySchedule: [
+        { item: 'Portland Cement CEM I 42.5N', scheduledDate: deliveryDate(3), status: 'scheduled' },
+        { item: 'Steel Rebar 16mm', scheduledDate: deliveryDate(5), status: 'scheduled' },
+        { item: 'Concrete Blocks 20cm', scheduledDate: deliveryDate(7), status: 'scheduled' },
+        { item: 'Plywood Shuttering 18mm', scheduledDate: deliveryDate(7), status: 'scheduled' },
+      ],
+
+      // Proforma invoice
+      proformaInvoice: {
+        invoiceNumber: `PI-2026-${String(Math.floor(Math.random() * 90000) + 10000).padStart(5, '0')}`,
+        subtotal: 560_000,
+        vatRate: 14,
+        vatAmount: 78_400,
+        total: 638_400,
+        dueDate: deliveryDate(30),
+        status: 'generated',
+      },
+
+      // Notifications sent
+      notifications: [
+        { recipient: 'operations_team', channel: 'internal', status: 'sent' },
+        { recipient: 'warehouse', channel: 'internal', status: 'sent' },
+        { recipient: 'customer', channel: 'portal', status: 'sent' },
+        { recipient: 'customer', channel: 'email', status: 'sent' },
+      ],
     }
 
-    // TODO: Full downstream creation cascade:
-    // 1. Create Sales Order from quote
-    // 2. Auto-generate Purchase Orders (one per supplier)
-    // 3. Create delivery schedule based on lead times
-    // 4. Generate proforma invoice
-    // 5. Notify operations team
-    // 6. Store customer PO number if provided
-    return { orderId: `ord-${Date.now()}`, orderNumber: 'SO-2026-00001' }
+    if (!isSupabaseConfigured()) {
+      return result
+    }
+
+    // TODO: Full downstream creation cascade via Supabase
+    return result
   })

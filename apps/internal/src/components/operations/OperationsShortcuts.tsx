@@ -7,10 +7,7 @@ import { useOperationsStore } from '../../stores/operations'
 import type { OperationsTab } from '../../types/operations'
 
 const TAB_BY_NUMBER: Record<string, OperationsTab> = {
-  '1': 'dashboard',
-  '2': 'kanban',
-  '3': 'order-detail',
-  '4': 'delivery-schedule',
+  '1': 'operations',
 }
 
 /**
@@ -57,27 +54,24 @@ export function OperationsShortcuts() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold tracking-tight">Keyboard Shortcuts</h3>
           <Button
             onPress={() => setShowHelp(false)}
-            className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
+            className="rounded-md px-2 py-1 text-[11px] text-black/50 dark:text-white/50 data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/5 outline-none"
           >
             Close
           </Button>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {[
-            { keys: '1', action: 'Dashboard' },
-            { keys: '2', action: 'Kanban' },
-            { keys: '3', action: 'Order Detail' },
-            { keys: '4', action: 'Delivery Schedule' },
+            { keys: '1', action: 'Operations' },
             { keys: 'Esc', action: 'Clear order selection' },
             { keys: '?', action: 'Toggle this help' },
           ].map((shortcut) => (
             <div key={shortcut.keys} className="flex items-center justify-between">
-              <span className="text-sm text-black/60 dark:text-white/60">{shortcut.action}</span>
-              <kbd className="rounded border border-black/10 bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:border-white/10 dark:bg-white/5">
+              <span className="text-[13px] text-black/50 dark:text-white/50">{shortcut.action}</span>
+              <kbd className="rounded border border-black/8 bg-black/[0.03] px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] text-black/60 dark:border-white/8 dark:bg-white/[0.03] dark:text-white/60">
                 {shortcut.keys}
               </kbd>
             </div>

@@ -1,39 +1,53 @@
+import { Button } from 'react-aria-components'
+import { ArrowLeft } from 'lucide-react'
 import { useOperationsStore } from '../../stores/operations'
 import { OperationsTabStrip } from './OperationsTabStrip'
 import { OperationsShortcuts } from './OperationsShortcuts'
-import { FulfillmentKanban } from './kanban/FulfillmentKanban'
 import { OrderDetailView } from './order-detail/OrderDetailView'
 import { OperationsDashboard } from './dashboard/OperationsDashboard'
 
 export function OperationsModule() {
   const activeTab = useOperationsStore((s) => s.activeTab)
   const selectedOrderId = useOperationsStore((s) => s.selectedOrderId)
+  const setSelectedOrderId = useOperationsStore((s) => s.setSelectedOrderId)
 
-  // If an order is selected on kanban, show detail view
-  if (selectedOrderId && activeTab === 'kanban') {
+  // Order detail drill-down from kanban within the operations tab
+  if (selectedOrderId && activeTab === 'operations') {
     return (
       <div className="flex flex-col h-full">
         <OperationsShortcuts />
-        <OperationsTabStrip />
-        <div className="flex-1 overflow-auto">
-          <OrderDetailView orderId={selectedOrderId} />
+        <div className="shrink-0 flex items-center justify-between pt-1 pb-2">
+          <OperationsTabStrip />
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className="px-5 pt-3">
+            <Button
+              onPress={() => setSelectedOrderId(null)}
+              className="flex items-center gap-1.5 text-sm text-black/50 dark:text-white/50 cursor-pointer hover:text-black dark:hover:text-white transition-colors outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 rounded-md px-1 py-0.5"
+            >
+              <ArrowLeft size={16} strokeWidth={1.5} />
+              Back to list
+            </Button>
+          </div>
+          <div className="px-5">
+            <OrderDetailView />
+          </div>
         </div>
       </div>
     )
   }
 
   const tabContent: Record<string, React.ReactNode> = {
-    dashboard: <OperationsDashboard />,
-    kanban: <FulfillmentKanban />,
-    'order-detail': <OrderDetailView />,
-    'delivery-schedule': <div className="flex items-center justify-center h-full text-sm text-black/40 dark:text-white/40">Delivery Schedule</div>,
+    operations: <OperationsDashboard />,
   }
 
   return (
     <div className="flex flex-col h-full">
       <OperationsShortcuts />
-      <OperationsTabStrip />
-      <div className="flex-1 overflow-auto">
+      <div className="shrink-0 flex items-center justify-between pt-1 pb-2">
+        <OperationsTabStrip />
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
         {tabContent[activeTab] ?? null}
       </div>
     </div>

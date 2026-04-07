@@ -10,6 +10,7 @@ import { KanbanBoard } from './KanbanBoard'
 // Lazy imports for list and funnel (loaded when needed)
 import { PipelineListView } from './PipelineListView'
 import { PipelineFunnel } from './PipelineFunnel'
+import { SalesCalendar } from '../calendar/SalesCalendar'
 
 type ValueRange = '<100K' | '100-500K' | '500K-1M' | '>1M'
 
@@ -25,6 +26,30 @@ const AGE_RANGES = [
   { label: '5-15 days', min: 5, max: 15 },
   { label: '>15 days', min: 15, max: 999 },
 ]
+
+function PillToggle({
+  isActive,
+  onToggle,
+  children,
+}: {
+  isActive: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <ToggleButton
+      isSelected={isActive}
+      onChange={onToggle}
+      className={`rounded-full px-3 py-1 text-[11px] font-medium tracking-wider transition-colors ${
+        isActive
+          ? 'bg-black text-white dark:bg-white dark:text-black'
+          : 'text-black/30 hover:bg-black/[0.04] hover:text-black/60 dark:text-white/30 dark:hover:bg-white/[0.04] dark:hover:text-white/60'
+      }`}
+    >
+      {children}
+    </ToggleButton>
+  )
+}
 
 export function PipelineView() {
   const { t } = useTranslation('internal')
@@ -57,7 +82,7 @@ export function PipelineView() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Summary bar */}
+      {/* Summary metrics strip */}
       {pipelineData && (
         <PipelineSummaryBar
           stages={pipelineData.stages}
@@ -66,60 +91,44 @@ export function PipelineView() {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-black/10 px-4 py-2 dark:border-white/10">
-        {/* View toggles */}
-        <div className="flex rounded-lg border border-black/10 dark:border-white/10">
-          {(['kanban', 'list', 'funnel'] as const).map((view) => (
-            <ToggleButton
+      <div className="flex flex-wrap items-center gap-3 px-6 py-3">
+        {/* View toggles — pill group with 1px gap */}
+        <div className="flex items-center gap-px rounded-full bg-black/[0.03] p-0.5 dark:bg-white/[0.03]">
+          {(['kanban', 'list', 'funnel', 'timeline'] as const).map((view) => (
+            <PillToggle
               key={view}
-              isSelected={pipelineView === view}
-              onChange={() => setPipelineView(view)}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                pipelineView === view
-                  ? 'bg-[#2563EB] text-white'
-                  : 'text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5'
-              } first:rounded-s-lg last:rounded-e-lg`}
+              isActive={pipelineView === view}
+              onToggle={() => setPipelineView(view)}
             >
               {view === 'kanban'
-                ? t('sales.pipeline.kanbanBoard', 'Kanban Board')
+                ? t('sales.pipeline.kanbanBoard', 'Board')
                 : view === 'list'
-                  ? t('sales.pipeline.listView', 'List View')
-                  : t('sales.pipeline.funnelChart', 'Funnel Chart')}
-            </ToggleButton>
+                  ? t('sales.pipeline.listView', 'List')
+                  : view === 'funnel'
+                    ? t('sales.pipeline.funnelChart', 'Funnel')
+                    : t('sales.pipeline.timeline', 'Timeline')}
+            </PillToggle>
           ))}
         </div>
 
         {/* Scope toggle */}
-        <div className="flex rounded-lg border border-black/10 dark:border-white/10">
-          <ToggleButton
-            isSelected={pipelineScope === 'my'}
-            onChange={() => setPipelineScope('my')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-s-lg ${
-              pipelineScope === 'my'
-                ? 'bg-[#2563EB] text-white'
-                : 'text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5'
-            }`}
+        <div className="flex items-center gap-px rounded-full bg-black/[0.03] p-0.5 dark:bg-white/[0.03]">
+          <PillToggle
+            isActive={pipelineScope === 'my'}
+            onToggle={() => setPipelineScope('my')}
           >
-            {t('sales.pipeline.myPipeline', 'My Pipeline')}
-          </ToggleButton>
-          <ToggleButton
-            isSelected={pipelineScope === 'team'}
-            onChange={() => setPipelineScope('team')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-e-lg ${
-              pipelineScope === 'team'
-                ? 'bg-[#2563EB] text-white'
-                : 'text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5'
-            }`}
+            {t('sales.pipeline.myPipeline', 'Mine')}
+          </PillToggle>
+          <PillToggle
+            isActive={pipelineScope === 'team'}
+            onToggle={() => setPipelineScope('team')}
           >
-            {t('sales.pipeline.teamPipeline', 'Team Pipeline')}
-          </ToggleButton>
+            {t('sales.pipeline.teamPipeline', 'Team')}
+          </PillToggle>
         </div>
 
-        <div className="h-6 w-px bg-black/10 dark:bg-white/10" />
-
-        {/* Filters */}
-        <div className="flex items-center gap-2">
-          {/* Customer search */}
+        {/* Filters — right-aligned, minimal chrome */}
+        <div className="flex items-center gap-3 ms-auto">
           <input
             type="text"
             value={customerSearch}
@@ -133,10 +142,9 @@ export function PipelineView() {
               }
             }}
             placeholder={t('sales.pipeline.searchCustomer', 'Search customer...')}
-            className="rounded-lg border border-black/10 bg-transparent px-3 py-1.5 text-xs outline-none focus:border-[#2563EB] dark:border-white/10"
+            className="w-44 border-b border-transparent bg-transparent text-[13px] text-black outline-none transition-colors placeholder:text-black/20 focus:border-black/10 dark:text-white dark:placeholder:text-white/20 dark:focus:border-white/10"
           />
 
-          {/* Value range select */}
           <select
             onChange={(e) => {
               const range = VALUE_RANGES[e.target.value as ValueRange]
@@ -147,7 +155,7 @@ export function PipelineView() {
                 setPipelineFilters(rest)
               }
             }}
-            className="rounded-lg border border-black/10 bg-transparent px-3 py-1.5 text-xs outline-none focus:border-[#2563EB] dark:border-white/10"
+            className="bg-transparent text-[11px] tracking-wider uppercase text-black/40 outline-none dark:text-white/40"
           >
             <option value="">{t('sales.pipeline.allValues', 'All Values')}</option>
             <option value="<100K">&lt; 100K</option>
@@ -156,7 +164,6 @@ export function PipelineView() {
             <option value=">1M">&gt; 1M</option>
           </select>
 
-          {/* Age range select */}
           <select
             onChange={(e) => {
               const idx = Number(e.target.value)
@@ -168,7 +175,7 @@ export function PipelineView() {
                 setPipelineFilters(rest)
               }
             }}
-            className="rounded-lg border border-black/10 bg-transparent px-3 py-1.5 text-xs outline-none focus:border-[#2563EB] dark:border-white/10"
+            className="bg-transparent text-[11px] tracking-wider uppercase text-black/40 outline-none dark:text-white/40"
           >
             <option value="">{t('sales.pipeline.allAges', 'All Ages')}</option>
             {AGE_RANGES.map((range, i) => (
@@ -177,36 +184,35 @@ export function PipelineView() {
               </option>
             ))}
           </select>
-        </div>
 
-        {/* Save filter set */}
-        <button
-          type="button"
-          onClick={() => {
-            const name = prompt(t('sales.pipeline.filterSetName', 'Filter set name:'))
-            if (name) {
-              useSalesStore.getState().saveFilterSet(name, pipelineFilters)
-            }
-          }}
-          className="text-xs text-[#2563EB] hover:underline"
-        >
-          {t('sales.pipeline.saveFilters', 'Save filter set')}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              const name = prompt(t('sales.pipeline.filterSetName', 'Filter set name:'))
+              if (name) {
+                useSalesStore.getState().saveFilterSet(name, pipelineFilters)
+              }
+            }}
+            className="text-[11px] font-medium text-[#2563EB] hover:text-[#2563EB]/70"
+          >
+            {t('sales.pipeline.saveFilters', 'Save')}
+          </button>
+        </div>
       </div>
 
       {/* Active filter pills */}
       {activeFilterKeys.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-1.5 px-6 pb-2">
           {activeFilterKeys.map(([key, value]) => (
             <span
               key={key}
-              className="inline-flex items-center gap-1 rounded-full bg-[#2563EB]/10 px-2.5 py-0.5 text-xs text-[#2563EB]"
+              className="inline-flex items-center gap-1 rounded-full bg-[#2563EB]/8 px-2.5 py-0.5 text-[10px] font-medium tracking-wider uppercase text-[#2563EB]"
             >
               {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
               <button
                 type="button"
                 onClick={() => removeFilter(key)}
-                className="ms-0.5 hover:text-[#2563EB]/70"
+                className="ms-0.5 opacity-40 hover:opacity-100"
               >
                 &times;
               </button>
@@ -222,6 +228,7 @@ export function PipelineView() {
         {pipelineView === 'funnel' && pipelineData && (
           <PipelineFunnel stages={pipelineData.stages} deals={pipelineData.deals} />
         )}
+        {pipelineView === 'timeline' && <SalesCalendar />}
       </div>
     </div>
   )

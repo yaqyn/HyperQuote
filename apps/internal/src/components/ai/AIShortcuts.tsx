@@ -5,7 +5,5 @@
  * No additional shortcuts needed for single-view module.
  */
 export function AIShortcuts() {
-  // Shortcuts are handled by the chat input (Enter) and
-  // the window system (Escape). No module-level shortcuts needed.
   return null
 }

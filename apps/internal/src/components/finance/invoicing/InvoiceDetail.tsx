@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { Button } from 'react-aria-components'
 import { getInvoiceDetail } from '../../../lib/server/finance-invoices'
 import { useFinanceStore } from '../../../stores/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
@@ -7,27 +8,29 @@ import { StatusBadge } from '../shared/StatusBadge'
 import { InvoiceActions } from './InvoiceActions'
 import type { ETASubmissionStatus } from '../../../types/finance'
 
-// ─── ETA Status Badge ───────────────────────────────────
-const ETA_COLORS: Record<ETASubmissionStatus, string> = {
-  pending: 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60',
-  submitted: 'bg-[#2563EB]/10 text-[#2563EB]',
-  accepted: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  error: 'bg-red-200 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-300',
+// ─── ETA inline indicator ──────────────────────────────
+const ETA_DOT: Record<ETASubmissionStatus, string> = {
+  pending: 'bg-black/20 dark:bg-white/20',
+  submitted: 'bg-[#2563EB]',
+  accepted: 'bg-green-500',
+  rejected: 'bg-red-500',
+  error: 'bg-red-500',
 }
 
-function ETABadge({ status }: { status: ETASubmissionStatus }) {
+function ETAIndicator({ status }: { status: ETASubmissionStatus }) {
   const label = status.charAt(0).toUpperCase() + status.slice(1)
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ETA_COLORS[status]}`}>
-      ETA: {label}
+    <span className="inline-flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50">
+      <span className={`size-1.5 rounded-full ${ETA_DOT[status]}`} />
+      ETA {label}
     </span>
   )
 }
 
 /**
- * Full invoice detail view with seller/buyer info, line items, VAT 14%, grand total, ETA status.
- * Shows back button, header badges, seller/buyer panels, line items table, totals, timeline, and actions.
+ * "The Document Press" — Invoice detail as an actual document.
+ * Clean header, seller/buyer, line items table, totals section.
+ * Action buttons as icon row at top via InvoiceActions.
  */
 export function InvoiceDetail() {
   const { t } = useTranslation('finance')
@@ -43,8 +46,10 @@ export function InvoiceDetail() {
 
   if (isLoading || !data?.invoice) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
-        Loading invoice...
+      <div className="flex items-center justify-center py-20">
+        <span className="text-xs tracking-widest uppercase text-black/30 dark:text-white/30">
+          Loading
+        </span>
       </div>
     )
   }
@@ -52,199 +57,264 @@ export function InvoiceDetail() {
   const invoice = data.invoice
 
   return (
-    <div className="p-6 space-y-6">
-      {/* ─── Back Button ────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={() => setSelectedInvoiceId(null)}
-        className="flex items-center gap-1 text-sm text-[#2563EB] hover:underline"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-        </svg>
-        {t('invoicing.backToList', 'Back to Invoices')}
-      </button>
-
-      {/* ─── Header ─────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">
-          {t('invoicing.invoice', 'Invoice')} #{' '}
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.number}</span>
-        </h2>
-        <StatusBadge status={invoice.status} />
-        <ETABadge status={invoice.etaStatus} />
+    <div className="max-w-4xl mx-auto">
+      {/* ─── Top bar: back + actions ────────────────────── */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <Button
+          onPress={() => setSelectedInvoiceId(null)}
+          className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+        >
+          {t('invoicing.backToList', 'Back')}
+        </Button>
+        <InvoiceActions invoice={invoice} />
       </div>
 
-      {/* ─── Seller & Buyer Info ────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Seller */}
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h3 className="text-xs text-black/50 dark:text-white/50 mb-2 font-medium uppercase tracking-wide">
-            {t('invoicing.seller', 'Seller')}
-          </h3>
-          <div className="space-y-1 text-sm">
-            <div className="font-semibold" dir="rtl" lang="ar">هايبركوت للتوريدات</div>
-            <div className="text-black/60 dark:text-white/60">HyperQuote Trading LLC</div>
-            <div className="text-black/40 dark:text-white/40">
-              CR: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">12345678</span>
+      {/* ─── Document ───────────────────────────────────── */}
+      <div className="px-8 py-8 space-y-8">
+        {/* Document header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/30 dark:text-white/30 mb-1">
+              {t('invoicing.taxInvoice', 'Tax Invoice')}
             </div>
-            <div className="text-black/40 dark:text-white/40">
-              TRN: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.sellerTRN}</span>
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl text-[#2563EB] font-medium">
+              {invoice.number}
             </div>
-            <div className="text-black/40 dark:text-white/40">Cairo, Egypt</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <StatusBadge status={invoice.status} />
+            <ETAIndicator status={invoice.etaStatus} />
+          </div>
+        </div>
+
+        {/* Dates row */}
+        <div className="flex items-center gap-8 text-xs">
+          <div>
+            <span className="text-black/30 dark:text-white/30 me-2">{t('invoicing.issued', 'Issued')}</span>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/70 dark:text-white/70">{invoice.issuedDate}</span>
+          </div>
+          <div>
+            <span className="text-black/30 dark:text-white/30 me-2">{t('invoicing.due', 'Due')}</span>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/70 dark:text-white/70">{invoice.dueDate}</span>
+          </div>
+        </div>
+
+        {/* ─── Seller / Buyer ───────────────────────────── */}
+        <div className="grid grid-cols-2 gap-12 py-6 border-y border-black/[0.06] dark:border-white/[0.06]">
+          {/* Seller */}
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+              {t('invoicing.from', 'From')}
+            </div>
+            <div className="text-sm font-medium text-black/80 dark:text-white/80" dir="rtl" lang="ar">
+              هايبركوت للتوريدات
+            </div>
+            <div className="text-xs text-black/40 dark:text-white/40 mt-0.5">HyperQuote Trading LLC</div>
+            <div className="text-xs text-black/30 dark:text-white/30 mt-2 space-y-0.5">
+              <div>
+                CR <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">12345678</span>
+              </div>
+              <div>
+                TRN <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.sellerTRN}</span>
+              </div>
+              <div>Cairo, Egypt</div>
+            </div>
             {invoice.digitalSignatureId && (
-              <div className="flex items-center gap-1 text-green-600 dark:text-green-400 mt-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <span className="text-xs">{t('invoicing.digitallySigned', 'Digitally Signed')}</span>
+              <div className="flex items-center gap-1 text-green-600 dark:text-green-400 mt-3 text-[10px] tracking-wider uppercase">
+                <span className="size-1.5 rounded-full bg-green-500" />
+                {t('invoicing.digitallySigned', 'Digitally Signed')}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Buyer */}
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h3 className="text-xs text-black/50 dark:text-white/50 mb-2 font-medium uppercase tracking-wide">
-            {t('invoicing.buyer', 'Buyer')}
-          </h3>
-          <div className="space-y-1 text-sm">
-            <div className="font-semibold">{invoice.customerName}</div>
-            <div className="text-black/40 dark:text-white/40">
-              TRN: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.buyerTRN}</span>
+          {/* Buyer */}
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+              {t('invoicing.to', 'To')}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Line Items Table ───────────────────────────── */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-                <th className="py-3 ps-4 font-medium text-start">{t('invoicing.productName', 'Product Name')}</th>
-                <th className="py-3 px-2 font-medium text-start">{t('invoicing.egsCode', 'EGS/GPC Code')}</th>
-                <th className="py-3 px-2 font-medium text-center">{t('invoicing.uom', 'UOM')}</th>
-                <th className="py-3 px-2 font-medium text-end">{t('invoicing.qty', 'Qty')}</th>
-                <th className="py-3 px-2 font-medium text-end">{t('invoicing.unitPrice', 'Unit Price')}</th>
-                <th className="py-3 px-2 font-medium text-end">{t('invoicing.lineTotal', 'Line Total')}</th>
-                <th className="py-3 px-2 pe-4 font-medium text-end">{t('invoicing.vatAmount', 'VAT')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items.map((item) => (
-                <tr key={item.id} className="border-b border-black/5 dark:border-white/5">
-                  <td className="py-3 ps-4">
-                    <div>{item.productName}</div>
-                    <div className="text-xs text-black/40 dark:text-white/40" dir="rtl" lang="ar">{item.productNameAr}</div>
-                  </td>
-                  <td className="py-3 px-2 font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">{item.egsCode}</td>
-                  <td className="py-3 px-2 text-center text-xs">{item.uom}</td>
-                  <td className="py-3 px-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{item.quantity.toLocaleString()}</td>
-                  <td className="py-3 px-2 text-end"><CurrencyCell amount={item.unitPrice} /></td>
-                  <td className="py-3 px-2 text-end"><CurrencyCell amount={item.lineTotal} /></td>
-                  <td className="py-3 px-2 pe-4 text-end"><CurrencyCell amount={item.vatAmount} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ─── Totals ─────────────────────────────────── */}
-        <div className="border-t border-black/10 dark:border-white/10 p-4">
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-8">
-              <span className="text-sm text-black/50 dark:text-white/50">{t('invoicing.subtotal', 'Subtotal')}</span>
-              <CurrencyCell amount={invoice.subtotal} className="text-sm" />
+            <div className="text-sm font-medium text-black/80 dark:text-white/80">
+              {invoice.customerName}
             </div>
-            <div className="flex items-center gap-8">
-              <span className="text-sm text-black/50 dark:text-white/50">{t('invoicing.vat14', 'VAT 14%')}</span>
-              <CurrencyCell amount={invoice.vatAmount} className="text-sm" />
-            </div>
-            <div className="flex items-center gap-8 pt-2 border-t border-black/10 dark:border-white/10">
-              <span className="text-sm font-semibold">{t('invoicing.grandTotal', 'Grand Total')}</span>
-              <CurrencyCell amount={invoice.grandTotal} className="text-base font-semibold" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Payment Terms & Bank Details ───────────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h3 className="text-xs text-black/50 dark:text-white/50 mb-2 font-medium uppercase tracking-wide">
-            {t('invoicing.paymentTerms', 'Payment Terms')}
-          </h3>
-          <div className="text-sm">
-            <div>Net 30 days from invoice date</div>
-            <div className="text-black/40 dark:text-white/40 mt-1">
-              {t('invoicing.issued', 'Issued')}: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.issuedDate}</span>
-            </div>
-            <div className="text-black/40 dark:text-white/40">
-              {t('invoicing.due', 'Due')}: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.dueDate}</span>
+            <div className="text-xs text-black/30 dark:text-white/30 mt-2">
+              TRN <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.buyerTRN}</span>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h3 className="text-xs text-black/50 dark:text-white/50 mb-2 font-medium uppercase tracking-wide">
-            {t('invoicing.bankDetails', 'Bank Details for Wire Transfer')}
-          </h3>
-          <div className="text-sm space-y-1">
-            <div>Bank: <span className="font-medium">Commercial International Bank (CIB)</span></div>
-            <div>Account: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">1234567890123</span></div>
-            <div>SWIFT: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">CIBEEGCX</span></div>
-            <div>IBAN: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">EG380002012345678901234567</span></div>
+        {/* ─── Line Items ───────────────────────────────── */}
+        <div>
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_100px_60px_80px_100px_100px_80px] gap-0 py-2 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <div>{t('invoicing.productName', 'Product')}</div>
+            <div>{t('invoicing.egsCode', 'EGS Code')}</div>
+            <div className="text-center">{t('invoicing.uom', 'UOM')}</div>
+            <div className="text-end">{t('invoicing.qty', 'Qty')}</div>
+            <div className="text-end">{t('invoicing.unitPrice', 'Unit Price')}</div>
+            <div className="text-end">{t('invoicing.lineTotal', 'Total')}</div>
+            <div className="text-end">{t('invoicing.vatAmount', 'VAT')}</div>
+          </div>
+
+          {/* Rows */}
+          {invoice.items.map((item) => (
+            <div
+              key={item.id}
+              className="grid grid-cols-[1fr_100px_60px_80px_100px_100px_80px] gap-0 py-2.5 border-b border-black/[0.03] dark:border-white/[0.03] items-baseline"
+            >
+              <div>
+                <div className="text-xs text-black/70 dark:text-white/70">{item.productName}</div>
+                <div className="text-[11px] text-black/30 dark:text-white/30" dir="rtl" lang="ar">
+                  {item.productNameAr}
+                </div>
+              </div>
+              <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/30 dark:text-white/30">
+                {item.egsCode}
+              </div>
+              <div className="text-center text-[11px] text-black/40 dark:text-white/40">
+                {item.uom}
+              </div>
+              <div className="text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/60 dark:text-white/60">
+                {item.quantity.toLocaleString()}
+              </div>
+              <div className="text-end">
+                <CurrencyCell amount={item.unitPrice} className="text-xs" />
+              </div>
+              <div className="text-end">
+                <CurrencyCell amount={item.lineTotal} className="text-xs" />
+              </div>
+              <div className="text-end">
+                <CurrencyCell amount={item.vatAmount} className="text-xs text-black/40 dark:text-white/40" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ─── Totals ───────────────────────────────────── */}
+        <div className="flex justify-end">
+          <div className="w-64 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-black/35 dark:text-white/35">{t('invoicing.subtotal', 'Subtotal')}</span>
+              <CurrencyCell amount={invoice.subtotal} className="text-xs" />
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-black/35 dark:text-white/35">{t('invoicing.vat14', 'VAT 14%')}</span>
+              <CurrencyCell amount={invoice.vatAmount} className="text-xs" />
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-black/[0.08] dark:border-white/[0.08]">
+              <span className="text-xs font-medium text-black/60 dark:text-white/60">
+                {t('invoicing.grandTotal', 'Grand Total')}
+              </span>
+              <CurrencyCell amount={invoice.grandTotal} className="text-sm font-medium" />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ─── Timeline ───────────────────────────────────── */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-        <h3 className="text-xs text-black/50 dark:text-white/50 mb-3 font-medium uppercase tracking-wide">
-          {t('invoicing.timeline', 'Timeline')}
-        </h3>
-        <div className="space-y-2">
-          <TimelineEvent
-            label={t('invoicing.created', 'Created')}
-            date={invoice.issuedDate}
-          />
-          {invoice.status !== 'draft' && (
-            <TimelineEvent
+        {/* ─── Payment Terms / Bank Details ──────────────── */}
+        <div className="grid grid-cols-2 gap-12 pt-6 border-t border-black/[0.06] dark:border-white/[0.06]">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+              {t('invoicing.paymentTerms', 'Payment Terms')}
+            </div>
+            <div className="text-xs text-black/60 dark:text-white/60">Net 30 days from invoice date</div>
+          </div>
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+              {t('invoicing.bankDetails', 'Bank Details')}
+            </div>
+            <div className="text-xs text-black/50 dark:text-white/50 space-y-0.5">
+              <div>Commercial International Bank (CIB)</div>
+              <div>
+                <span className="text-black/30 dark:text-white/30 me-1">Acct</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">1234567890123</span>
+              </div>
+              <div>
+                <span className="text-black/30 dark:text-white/30 me-1">SWIFT</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">CIBEEGCX</span>
+              </div>
+              <div>
+                <span className="text-black/30 dark:text-white/30 me-1">IBAN</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">EG380002012345678901234567</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Timeline ─────────────────────────────────── */}
+        <div className="pt-6 border-t border-black/[0.06] dark:border-white/[0.06]">
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-3">
+            {t('invoicing.timeline', 'Timeline')}
+          </div>
+          <div className="flex items-center gap-0">
+            <TimelineStep
+              label={t('invoicing.created', 'Created')}
+              date={invoice.issuedDate}
+              active
+            />
+            <TimelineConnector active={invoice.status !== 'draft'} />
+            <TimelineStep
               label={t('invoicing.sent', 'Sent')}
-              date={invoice.issuedDate}
+              date={invoice.status !== 'draft' ? invoice.issuedDate : undefined}
+              active={invoice.status !== 'draft'}
             />
-          )}
-          {(invoice.status === 'viewed' || invoice.status === 'partially_paid' || invoice.status === 'paid') && (
-            <TimelineEvent
+            <TimelineConnector
+              active={
+                invoice.status === 'viewed' ||
+                invoice.status === 'partially_paid' ||
+                invoice.status === 'paid'
+              }
+            />
+            <TimelineStep
               label={t('invoicing.viewed', 'Viewed')}
-              date={invoice.issuedDate}
+              date={
+                invoice.status === 'viewed' || invoice.status === 'partially_paid' || invoice.status === 'paid'
+                  ? invoice.issuedDate
+                  : undefined
+              }
+              active={
+                invoice.status === 'viewed' ||
+                invoice.status === 'partially_paid' ||
+                invoice.status === 'paid'
+              }
             />
-          )}
-          {invoice.status === 'paid' && (
-            <TimelineEvent
+            <TimelineConnector active={invoice.status === 'paid'} />
+            <TimelineStep
               label={t('invoicing.paid', 'Paid')}
-              date={invoice.dueDate}
+              date={invoice.status === 'paid' ? invoice.dueDate : undefined}
+              active={invoice.status === 'paid'}
             />
-          )}
+          </div>
         </div>
       </div>
-
-      {/* ─── Action Bar ─────────────────────────────────── */}
-      <InvoiceActions invoice={invoice} />
     </div>
   )
 }
 
-function TimelineEvent({ label, date }: { label: string; date: string }) {
+function TimelineStep({ label, date, active }: { label: string; date?: string; active: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-2 h-2 rounded-full bg-[#2563EB]" />
-      <span className="text-sm">{label}</span>
-      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
-        {date}
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className={`size-2 rounded-full ${
+          active ? 'bg-[#2563EB]' : 'bg-black/10 dark:bg-white/10'
+        }`}
+      />
+      <span className={`text-[10px] ${active ? 'text-black/60 dark:text-white/60' : 'text-black/20 dark:text-white/20'}`}>
+        {label}
       </span>
+      {date && (
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[9px] text-black/25 dark:text-white/25">
+          {date}
+        </span>
+      )}
     </div>
+  )
+}
+
+function TimelineConnector({ active }: { active: boolean }) {
+  return (
+    <div
+      className={`flex-1 h-px min-w-[24px] mx-1 ${
+        active ? 'bg-[#2563EB]/30' : 'bg-black/[0.06] dark:bg-white/[0.06]'
+      }`}
+      style={{ marginTop: '-16px' }}
+    />
   )
 }

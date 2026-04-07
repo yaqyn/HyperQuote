@@ -1,13 +1,6 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import {
-  Cell,
-  Column,
-  Row,
-  Table,
-  TableBody,
-  TableHeader,
-} from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
 
 interface OrdersTabProps {
@@ -17,10 +10,11 @@ interface OrdersTabProps {
 
 export function OrdersTab({ customerId, enabled }: OrdersTabProps) {
   const { t } = useTranslation('internal')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'orders', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
     enabled,
     select: (d) => d.orders,
@@ -30,76 +24,65 @@ export function OrdersTab({ customerId, enabled }: OrdersTabProps) {
   if (isLoading) return <TabSkeleton />
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
         {t('sales.customer360.orders.noOrders')}
       </div>
     )
   }
 
   return (
-    <div className="p-4">
-      <Table
-        aria-label={t('sales.customer360.orders.title')}
-        className="w-full"
-        selectionMode="none"
-      >
-        <TableHeader>
-          <Column isRowHeader className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.orders.orderNumber')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.orders.date')}
-          </Column>
-          <Column className="text-end text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.orders.total')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.orders.status')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.orders.delivery')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2">
-            {t('sales.customer360.orders.payment')}
-          </Column>
-        </TableHeader>
-        <TableBody>
-          {data.map((order) => (
-            <Row
-              key={order.id}
-              className="border-t border-black/5 dark:border-white/5 hover:bg-black/3 dark:hover:bg-white/3 cursor-pointer"
+    <div className="p-6">
+      {/* Order rows — same pattern as quotes: clean expandable list */}
+      <div className="space-y-0">
+        {data.map((order) => (
+          <div key={order.id}>
+            <button
+              type="button"
+              onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
+              className="w-full text-start flex items-center gap-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04] last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.02] transition-colors"
             >
-              <Cell className="py-2.5 pe-4 text-sm font-[family-name:var(--font-geist-mono)] font-medium text-[#2563EB]">
+              {/* Order number */}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-medium text-[#2563EB] w-[100px] shrink-0">
                 {order.orderNumber}
-              </Cell>
-              <Cell className="py-2.5 pe-4 text-sm font-[family-name:var(--font-geist-mono)] text-black/60 dark:text-white/60">
-                {new Date(order.createdAt).toLocaleDateString()}
-              </Cell>
-              <Cell className="py-2.5 pe-4 text-end text-sm font-[family-name:var(--font-geist-mono)] text-black dark:text-white">
-                {formatCurrency(order.total)}
-              </Cell>
-              <Cell className="py-2.5 pe-4">
-                <StatusPill label={order.status} />
-              </Cell>
-              <Cell className="py-2.5 pe-4">
-                <StatusPill label={order.deliveryStatus} />
-              </Cell>
-              <Cell className="py-2.5">
-                <StatusPill label={order.paymentStatus} />
-              </Cell>
-            </Row>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
+              </span>
 
-function StatusPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60 capitalize">
-      {label.replace(/_/g, ' ')}
-    </span>
+              {/* Date */}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40 w-[90px] shrink-0">
+                {new Date(order.createdAt).toLocaleDateString()}
+              </span>
+
+              {/* Total */}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text)] dark:text-white flex-1">
+                {formatCurrency(order.total)}
+              </span>
+
+              {/* Status pill */}
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 capitalize">
+                {order.status.replace(/_/g, ' ')}
+              </span>
+            </button>
+
+            {/* Expanded details */}
+            {expandedId === order.id && (
+              <div className="ps-[100px] py-3 flex gap-6 text-[11px] border-b border-black/[0.04] dark:border-white/[0.04]">
+                <div>
+                  <span className="text-black/30 dark:text-white/30">{t('sales.customer360.orders.delivery')}</span>
+                  <p className="text-[13px] text-[var(--color-text)] dark:text-white capitalize mt-0.5">
+                    {order.deliveryStatus.replace(/_/g, ' ')}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-black/30 dark:text-white/30">{t('sales.customer360.orders.payment')}</span>
+                  <p className="text-[13px] text-[var(--color-text)] dark:text-white capitalize mt-0.5">
+                    {order.paymentStatus.replace(/_/g, ' ')}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -114,9 +97,9 @@ function formatCurrency(amount: number): string {
 
 function TabSkeleton() {
   return (
-    <div className="p-4 space-y-3 animate-pulse">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-10 rounded bg-black/5 dark:bg-white/5" />
+    <div className="p-6 space-y-3 animate-pulse">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="h-10 rounded bg-black/[0.03] dark:bg-white/[0.03]" />
       ))}
     </div>
   )

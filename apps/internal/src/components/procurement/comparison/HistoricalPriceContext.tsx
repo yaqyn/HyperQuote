@@ -1,36 +1,25 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { getHistoricalPrices } from '../../../lib/server/procurement-comparison'
 import type { HistoricalPurchase } from '../../../types/procurement'
-
-const PERFORMANCE_STYLES: Record<HistoricalPurchase['deliveryPerformance'], string> = {
-  on_time: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800',
-  early: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-300 dark:border-yellow-800',
-  late: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800',
-}
-
-const PERFORMANCE_LABELS: Record<HistoricalPurchase['deliveryPerformance'], string> = {
-  on_time: 'On Time',
-  early: 'Early',
-  late: 'Late',
-}
 
 interface HistoricalPriceContextProps {
   productId: string
 }
 
+/**
+ * Inline mini sparkline + price history table.
+ * Rendered inside the expanded comparison row.
+ */
 export function HistoricalPriceContext({ productId }: HistoricalPriceContextProps) {
   const { i18n } = useTranslation()
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
-  const [expanded, setExpanded] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['historical-prices', productId],
     queryFn: () => getHistoricalPrices({ data: { productId, limit: 5 } }),
     staleTime: 60_000,
-    enabled: expanded,
   })
 
   const history = data?.history ?? []
@@ -38,59 +27,110 @@ export function HistoricalPriceContext({ productId }: HistoricalPriceContextProp
   const fmtPrice = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(n)
 
-  const fmtQty = (n: number) => new Intl.NumberFormat(locale).format(n)
-
   const fmtDate = (iso: string) =>
     new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(new Date(iso))
 
-  return (
-    <div className="mt-2">
-      <Button
-        onPress={() => setExpanded(!expanded)}
-        className="text-xs text-black/50 underline-offset-2 hover:underline dark:text-white/50"
-      >
-        {expanded ? 'Hide' : 'Show'} purchase history
-      </Button>
+  if (isLoading) {
+    return <div className="py-2 text-[11px] text-black/25 dark:text-white/25">Loading history...</div>
+  }
 
-      {expanded && (
-        <div className="mt-2 overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
-          {isLoading ? (
-            <div className="px-3 py-2 text-xs text-black/40 dark:text-white/40">Loading...</div>
-          ) : history.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-black/40 dark:text-white/40">No purchase history</div>
-          ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-black/5 bg-black/3 dark:border-white/5 dark:bg-white/3">
-                  <th className="px-3 py-1.5 text-start font-medium text-black/50 dark:text-white/50">Date</th>
-                  <th className="px-3 py-1.5 text-start font-medium text-black/50 dark:text-white/50">Supplier</th>
-                  <th className="px-3 py-1.5 text-end font-medium text-black/50 dark:text-white/50">Price</th>
-                  <th className="px-3 py-1.5 text-end font-medium text-black/50 dark:text-white/50">Qty</th>
-                  <th className="px-3 py-1.5 text-start font-medium text-black/50 dark:text-white/50">Delivery</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((h, i) => (
-                  <tr
-                    key={`${h.date}-${h.supplierId}`}
-                    className={i < history.length - 1 ? 'border-b border-black/5 dark:border-white/5' : ''}
-                  >
-                    <td className="px-3 py-1.5 font-mono">{fmtDate(h.date)}</td>
-                    <td className="px-3 py-1.5">{h.supplierName}</td>
-                    <td className="px-3 py-1.5 text-end font-mono">{fmtPrice(h.unitPrice)}</td>
-                    <td className="px-3 py-1.5 text-end font-mono">{fmtQty(h.quantity)}</td>
-                    <td className="px-3 py-1.5">
-                      <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${PERFORMANCE_STYLES[h.deliveryPerformance]}`}>
-                        {PERFORMANCE_LABELS[h.deliveryPerformance]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+  if (history.length === 0) {
+    return <div className="py-2 text-[11px] text-black/25 dark:text-white/25">No purchase history</div>
+  }
+
+  // Build sparkline points
+  const prices = history.map((h) => h.unitPrice)
+  const minP = Math.min(...prices)
+  const maxP = Math.max(...prices)
+  const range = maxP - minP || 1
+  const sparkW = 80
+  const sparkH = 20
+  const points = prices.map((p, i) => {
+    const x = (i / Math.max(prices.length - 1, 1)) * sparkW
+    const y = sparkH - ((p - minP) / range) * sparkH
+    return `${x},${y}`
+  })
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="pt-1"
+    >
+      <div className="flex items-start gap-6">
+        {/* Sparkline */}
+        <div className="pt-1">
+          <svg width={sparkW} height={sparkH} className="overflow-visible">
+            <polyline
+              points={points.join(' ')}
+              fill="none"
+              stroke="var(--color-black, #000)"
+              strokeOpacity={0.15}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {points.map((pt, i) => {
+              const [cx, cy] = pt.split(',').map(Number)
+              return (
+                <circle
+                  key={i}
+                  cx={cx}
+                  cy={cy}
+                  r={2}
+                  fill={i === prices.length - 1 ? '#2563EB' : 'var(--color-black, #000)'}
+                  fillOpacity={i === prices.length - 1 ? 1 : 0.2}
+                />
+              )
+            })}
+          </svg>
         </div>
-      )}
-    </div>
+
+        {/* History rows */}
+        <div className="flex-1 space-y-0.5">
+          {history.map((h) => (
+            <div
+              key={`${h.date}-${h.supplierId}`}
+              className="flex items-center gap-4 text-[11px]"
+            >
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/35 dark:text-white/35 w-14">
+                {fmtDate(h.date)}
+              </span>
+              <span className="text-black/50 dark:text-white/50 flex-1 truncate">
+                {h.supplierName}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/70 dark:text-white/70">
+                {fmtPrice(h.unitPrice)}
+              </span>
+              <DeliveryDot performance={h.deliveryPerformance} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function DeliveryDot({ performance }: { performance: HistoricalPurchase['deliveryPerformance'] }) {
+  const colors: Record<string, string> = {
+    on_time: 'bg-green-500',
+    early: 'bg-yellow-500',
+    late: 'bg-red-500',
+  }
+
+  const labels: Record<string, string> = {
+    on_time: 'On time',
+    early: 'Early',
+    late: 'Late',
+  }
+
+  return (
+    <span
+      className={`size-1.5 rounded-full ${colors[performance]}`}
+      title={labels[performance]}
+      aria-label={labels[performance]}
+    />
   )
 }

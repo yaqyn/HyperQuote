@@ -21,7 +21,12 @@
     "pendingLeave": "Pending Leave Requests",
     "attendanceToday": "Attendance Today",
     "clockedIn": "Clocked In",
-    "notClockedIn": "Not Clocked In"
+    "notClockedIn": "Not Clocked In",
+    "absent": "Absent",
+    "late": "Late",
+    "onLeave": "On Leave",
+    "present": "Present",
+    "todayRoster": "Today's Roster"
   },
   "employees": {
     "title": "Employee Directory",
@@ -59,7 +64,10 @@
     "contract": "Contract",
     "nationalIdCopy": "National ID Copy",
     "taxCard": "Tax Card",
-    "socialInsurance": "Social Insurance Card"
+    "socialInsurance": "Social Insurance Card",
+    "attendance": "Attendance",
+    "compliance": "Compliance",
+    "tenure": "Tenure"
   },
   "compliance": {
     "title": "Driver Compliance",
@@ -73,6 +81,12 @@
     "certifications": "Certifications",
     "status": "Status",
     "dispatchBlocked": "DISPATCH BLOCKED",
+    "blocked": "Blocked",
+    "clear": "Clear",
+    "expired": "Expired",
+    "expiring": "Expiring",
+    "matrix": "Compliance Matrix",
+    "total": "Total",
     "green": "Compliant",
     "yellow": "Expiring Soon",
     "red": "Non-Compliant",
@@ -102,6 +116,7 @@
     "approver": "Approver",
     "approve": "Approve",
     "reject": "Reject",
+    "balances": "Balances",
     "newRequest": "New Leave Request",
     "selectEmployee": "Select Employee",
     "selectType": "Select Type",
@@ -136,6 +151,8 @@
     "clockedIn": "Clocked In",
     "totalHours": "Total Hours",
     "overtimeHours": "Overtime Hours",
+    "lateCount": "Late Count",
+    "todayTimeline": "Today's Timeline",
     "employee": "Employee",
     "date": "Date",
     "clockIn": "Clock In",

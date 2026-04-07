@@ -5,12 +5,8 @@
 
 export type AdminTab =
   | 'users'
-  | 'permissions'
   | 'settings'
-  | 'margins'
-  | 'approvals'
-  | 'holidays'
-  | 'integrations'
+  | 'rules'
   | 'audit'
 
 // ─── Users & Roles ───────────────────────────────────────

@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Select, SelectValue, ListBox, ListBoxItem, Popover, Label, TextField, TextArea } from 'react-aria-components'
+import { Button, TextField, TextArea, Label, Dialog, Modal, ModalOverlay, Heading, Select, SelectValue, ListBox, ListBoxItem, Popover } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { StatusBadge } from '../shared/StatusBadge'
 import { resolveDispute } from '../../../lib/server/finance-disputes'
 import type { DisputeStatus, DisputeResolutionType } from '../../../types/finance'
@@ -10,7 +11,6 @@ interface DisputeDetailProps {
   onBack: () => void
 }
 
-// Resolution type -> customerFacingStatus mapping (mirrors server function)
 const RESOLUTION_TO_PORTAL_STATUS: Record<DisputeResolutionType, string> = {
   credit_note: 'credit_issued',
   price_adjustment: 'adjusted',
@@ -118,13 +118,13 @@ function getSLAInfo(deadline: string): { text: string; isUrgent: boolean; isOver
   if (diff <= 0) return { text: 'OVERDUE', isUrgent: true, isOverdue: true }
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  return { text: `${hours}h ${minutes}m remaining`, isUrgent: hours < 4, isOverdue: false }
+  return { text: `${hours}h ${minutes}m`, isUrgent: hours < 4, isOverdue: false }
 }
 
 /**
- * Single dispute detail view.
- * Status timeline, SLA countdown, resolve modal with 4 resolution types,
- * customer-facing portal status (FIN-09), ETA compliance notice.
+ * "The Case File" — Case file layout.
+ * Header with dispute info, vertical activity thread on left, details on right.
+ * Status progression as horizontal dot chain.
  */
 export function DisputeDetail({ disputeId, onBack }: DisputeDetailProps) {
   const { t } = useTranslation('finance')
@@ -136,8 +136,10 @@ export function DisputeDetail({ disputeId, onBack }: DisputeDetailProps) {
   const dispute = MOCK_DISPUTE_MAP[disputeId]
   if (!dispute) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
-        {t('disputes.notFound', 'Dispute not found')}
+      <div className="flex items-center justify-center py-20">
+        <span className="text-xs text-black/25 dark:text-white/25 tracking-wider uppercase">
+          {t('disputes.notFound', 'Not found')}
+        </span>
       </div>
     )
   }
@@ -162,142 +164,153 @@ export function DisputeDetail({ disputeId, onBack }: DisputeDetailProps) {
     }
   }
 
-  const statusTimeline: { status: string; timestamp: string | null; active: boolean }[] = [
-    { status: 'Open', timestamp: dispute.createdAt, active: true },
-    { status: 'Investigating', timestamp: dispute.status !== 'open' ? dispute.activityLog.find((l) => l.action.includes('Investigating'))?.timestamp ?? null : null, active: dispute.status !== 'open' },
-    { status: dispute.status === 'escalated' ? 'Escalated' : 'Resolved', timestamp: dispute.resolvedAt ?? dispute.activityLog[dispute.activityLog.length - 1]?.timestamp ?? null, active: dispute.status === 'resolved' || dispute.status === 'escalated' },
+  const statusSteps = [
+    { label: 'Open', active: true },
+    { label: 'Investigating', active: dispute.status !== 'open' },
+    { label: dispute.status === 'escalated' ? 'Escalated' : 'Resolved', active: dispute.status === 'resolved' || dispute.status === 'escalated' },
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Back button */}
-      <Button
-        onPress={onBack}
-        className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-1.5 text-sm text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-      >
-        {t('disputes.backToList', 'Back to Disputes')}
-      </Button>
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-black/90 dark:text-white/90">
-            {t('disputes.disputeLabel', 'Dispute')} <span className="font-[family-name:var(--font-geist-mono)]">{dispute.id}</span>
-          </h3>
-          <p className="text-sm text-black/60 dark:text-white/60 mt-1">
-            {t('disputes.linkedInvoice', 'Invoice')}: <span className="text-[#2563EB] font-[family-name:var(--font-geist-mono)] cursor-pointer">{dispute.invoiceNumber}</span>
-            {' \u2014 '}{dispute.customerName}
-          </p>
-        </div>
+    <div className="space-y-0">
+      {/* ─── Top bar ───────────────────────────────────── */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <Button
+          onPress={onBack}
+          className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+        >
+          {t('disputes.backToList', 'Back')}
+        </Button>
         <StatusBadge status={dispute.status} variant="dispute" />
       </div>
 
-      {/* ETA compliance notice */}
-      <div className="rounded-lg border border-[#2563EB]/20 bg-[#2563EB]/5 p-3">
-        <p className="text-xs text-[#2563EB]">
-          {t('disputes.etaNotice', 'E-invoices cannot be deleted. If customer rejected on ETA portal, a credit/debit note must be issued.')}
-        </p>
-      </div>
+      {/* ─── Case header ───────────────────────────────── */}
+      <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg text-[#2563EB] font-medium">
+              {dispute.id}
+            </span>
+            <div className="flex items-center gap-2 mt-1 text-xs text-black/40 dark:text-white/40">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[#2563EB]/60">
+                {dispute.invoiceNumber}
+              </span>
+              <span className="text-black/15 dark:text-white/15">/</span>
+              <span>{dispute.customerName}</span>
+            </div>
+          </div>
+          {/* SLA */}
+          <div className="text-end">
+            <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+              48h SLA
+            </div>
+            {sla.isOverdue ? (
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-medium text-red-600 dark:text-red-400 tracking-wider uppercase">
+                Overdue
+              </span>
+            ) : (
+              <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${sla.isUrgent ? 'text-red-600 dark:text-red-400 font-medium' : 'text-black/40 dark:text-white/40'}`}>
+                {sla.text}
+              </span>
+            )}
+          </div>
+        </div>
 
-      {/* Customer-facing portal status (FIN-09) */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
-            {t('disputes.portalStatus', 'Portal Status')}
-          </span>
-          <span className="inline-flex items-center rounded-full bg-[#2563EB]/10 text-[#2563EB] px-3 py-1 text-xs font-medium">
-            {PORTAL_STATUS_LABELS[dispute.customerFacingStatus] ?? dispute.customerFacingStatus}
-          </span>
-          <span className="text-xs text-black/40 dark:text-white/40">
-            ({t('disputes.portalStatusHint', 'This is what the customer sees in their portal')})
-          </span>
+        {/* Status dot chain */}
+        <div className="flex items-center gap-0 mt-4">
+          {statusSteps.map((step, i) => (
+            <div key={step.label} className="flex items-center">
+              <div className="flex items-center gap-1.5">
+                <span className={`size-2 rounded-full ${step.active ? 'bg-[#2563EB]' : 'bg-black/10 dark:bg-white/10'}`} />
+                <span className={`text-[10px] ${step.active ? 'text-black/60 dark:text-white/60' : 'text-black/20 dark:text-white/20'}`}>
+                  {step.label}
+                </span>
+              </div>
+              {i < statusSteps.length - 1 && (
+                <div className={`w-6 h-px mx-2 ${step.active ? 'bg-[#2563EB]/30' : 'bg-black/[0.06] dark:bg-white/[0.06]'}`} />
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Left: Dispute info */}
-        <div className="space-y-4">
-          {/* Status timeline */}
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-            <h4 className="text-sm font-medium mb-3 text-black/70 dark:text-white/70">{t('disputes.timeline', 'Timeline')}</h4>
-            <div className="flex items-center gap-2">
-              {statusTimeline.map((step, i) => (
-                <div key={step.status} className="flex items-center gap-2">
-                  <div className={`flex flex-col items-center ${step.active ? '' : 'opacity-30'}`}>
-                    <div className={`w-3 h-3 rounded-full ${step.active ? 'bg-[#2563EB]' : 'bg-black/20 dark:bg-white/20'}`} />
-                    <span className="text-[10px] mt-1 text-black/60 dark:text-white/60">{step.status}</span>
-                    {step.timestamp && (
-                      <span className="text-[9px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">
-                        {new Date(step.timestamp).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                  {i < statusTimeline.length - 1 && (
-                    <div className={`w-12 h-0.5 ${step.active ? 'bg-[#2563EB]' : 'bg-black/10 dark:bg-white/10'}`} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* ─── ETA compliance ────────────────────────────── */}
+      <div className="flex items-center gap-2 px-5 py-2 border-b border-black/[0.06] dark:border-white/[0.06] bg-[#2563EB]/[0.02]">
+        <span className="size-1 rounded-full bg-[#2563EB]" />
+        <span className="text-[10px] text-[#2563EB]/60">
+          {t('disputes.etaNotice', 'E-invoices cannot be deleted. Credit/debit note required for ETA rejections.')}
+        </span>
+      </div>
 
-          {/* Dispute details */}
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 space-y-3">
-            <h4 className="text-sm font-medium text-black/70 dark:text-white/70">{t('disputes.details', 'Details')}</h4>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+      {/* ─── Portal status ─────────────────────────────── */}
+      <div className="flex items-center gap-3 px-5 py-2 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <span className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20">
+          {t('disputes.portalStatus', 'Portal')}
+        </span>
+        <span className="text-[10px] text-black/50 dark:text-white/50 font-medium">
+          {PORTAL_STATUS_LABELS[dispute.customerFacingStatus] ?? dispute.customerFacingStatus}
+        </span>
+      </div>
+
+      {/* ─── Two-column layout ─────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-0">
+        {/* Left: details + actions */}
+        <div className="border-e border-black/[0.06] dark:border-white/[0.06]">
+          {/* Details */}
+          <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06] space-y-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-xs text-black/50 dark:text-white/50">{t('disputes.reason', 'Reason')}</span>
-                <p className="mt-0.5">{dispute.reason}</p>
+                <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                  {t('disputes.reason', 'Reason')}
+                </div>
+                <span className="text-xs text-black/60 dark:text-white/60">{dispute.reason}</span>
               </div>
               <div>
-                <span className="text-xs text-black/50 dark:text-white/50">{t('disputes.assignedTo', 'Assigned To')}</span>
-                <p className="mt-0.5">{dispute.assignedTo ?? '--'}</p>
+                <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                  {t('disputes.assignedTo', 'Assigned')}
+                </div>
+                <span className="text-xs text-black/60 dark:text-white/60">{dispute.assignedTo ?? '--'}</span>
               </div>
             </div>
             <div>
-              <span className="text-xs text-black/50 dark:text-white/50">{t('disputes.description', 'Description')}</span>
-              <p className="mt-0.5 text-sm">{dispute.description}</p>
+              <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                {t('disputes.description', 'Description')}
+              </div>
+              <p className="text-xs text-black/50 dark:text-white/50 leading-relaxed">{dispute.description}</p>
             </div>
             {dispute.evidenceUrls.length > 0 && (
               <div>
-                <span className="text-xs text-black/50 dark:text-white/50">{t('disputes.evidence', 'Evidence')}</span>
-                <div className="mt-1 flex flex-wrap gap-2">
+                <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-1">
+                  {t('disputes.evidence', 'Evidence')}
+                </div>
+                <div className="flex gap-2">
                   {dispute.evidenceUrls.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#2563EB] underline">
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-[#2563EB] hover:underline font-[family-name:var(--font-geist-mono)]"
+                    >
                       {url.split('/').pop()}
                     </a>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* SLA countdown */}
-            <div className="flex items-center gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-              <span className="text-xs text-black/50 dark:text-white/50">{t('disputes.sla48h', '48h SLA')}:</span>
-              {sla.isOverdue ? (
-                <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-400">
-                  OVERDUE
-                </span>
-              ) : (
-                <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${sla.isUrgent ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>
-                  {sla.text}
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Actions */}
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-            <h4 className="text-sm font-medium mb-3 text-black/70 dark:text-white/70">{t('disputes.actions', 'Actions')}</h4>
-            <div className="flex flex-wrap gap-2">
+          <div className="px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+            <div className="flex items-center gap-2">
               {dispute.status === 'open' && (
                 <>
-                  <Button className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 transition-colors">
+                  <Button className="rounded-md bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors">
                     {t('disputes.assign', 'Assign')}
                   </Button>
-                  <Button className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                  <Button className="rounded-md border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs text-black/50 dark:text-white/50 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
                     {t('disputes.investigate', 'Investigate')}
                   </Button>
-                  <Button className="rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  <Button className="rounded-md border border-red-500/20 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/[0.05] transition-colors">
                     {t('disputes.escalate', 'Escalate')}
                   </Button>
                 </>
@@ -306,11 +319,11 @@ export function DisputeDetail({ disputeId, onBack }: DisputeDetailProps) {
                 <>
                   <Button
                     onPress={() => setShowResolveModal(true)}
-                    className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 transition-colors"
+                    className="rounded-md bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
                   >
                     {t('disputes.resolve', 'Resolve')}
                   </Button>
-                  <Button className="rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  <Button className="rounded-md border border-red-500/20 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/[0.05] transition-colors">
                     {t('disputes.escalate', 'Escalate')}
                   </Button>
                 </>
@@ -319,106 +332,132 @@ export function DisputeDetail({ disputeId, onBack }: DisputeDetailProps) {
           </div>
         </div>
 
-        {/* Right: Activity log */}
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h4 className="text-sm font-medium mb-3 text-black/70 dark:text-white/70">{t('disputes.activityLog', 'Activity Log')}</h4>
-          <div className="space-y-3">
-            {dispute.activityLog.map((entry, i) => (
-              <div key={`${entry.timestamp}-${i}`} className="flex items-start gap-3 text-sm">
-                <div className="w-2 h-2 rounded-full bg-[#2563EB]/40 mt-1.5 shrink-0" />
-                <div>
-                  <p>{entry.action}</p>
-                  <p className="text-xs text-black/40 dark:text-white/40 mt-0.5">
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{new Date(entry.timestamp).toLocaleString()}</span>
-                    {' \u2014 '}{entry.user}
-                  </p>
+        {/* Right: activity thread */}
+        <div className="px-5 py-4">
+          <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-3">
+            {t('disputes.activityLog', 'Activity')}
+          </div>
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute start-[3px] top-1 bottom-1 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
+
+            <div className="space-y-4">
+              {dispute.activityLog.map((entry, i) => (
+                <div key={`${entry.timestamp}-${i}`} className="flex items-start gap-3 relative">
+                  <div className="size-[7px] rounded-full bg-[#2563EB]/30 mt-1 shrink-0 relative z-10" />
+                  <div className="min-w-0">
+                    <div className="text-xs text-black/60 dark:text-white/60">{entry.action}</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[9px] text-black/20 dark:text-white/20">
+                        {new Date(entry.timestamp).toLocaleDateString()}
+                      </span>
+                      <span className="text-[9px] text-black/15 dark:text-white/15">/</span>
+                      <span className="text-[9px] text-black/25 dark:text-white/25">{entry.user}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Resolve Modal */}
+      {/* ─── Resolve Modal ─────────────────────────────── */}
       {showResolveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 shadow-2xl">
-            <h3 className="text-base font-semibold mb-4">{t('disputes.resolveDispute', 'Resolve Dispute')}</h3>
+        <ModalOverlay
+          isDismissable
+          isOpen
+          onOpenChange={(open) => { if (!open) setShowResolveModal(false) }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        >
+          <Modal className="w-full max-w-md mx-4">
+            <Dialog className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-0 outline-none">
+              {({ close }) => (
+                <motion.div
+                  initial={{ scale: 0.97, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                >
+                  <div className="px-6 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+                    <Heading slot="title" className="text-sm font-medium">
+                      {t('disputes.resolveDispute', 'Resolve Dispute')}
+                    </Heading>
+                  </div>
 
-            {/* Resolution type */}
-            <div className="mb-4">
-              <Select
-                selectedKey={resolutionType}
-                onSelectionChange={(key) => setResolutionType(key as DisputeResolutionType)}
-                className="flex flex-col gap-1"
-              >
-                <Label className="text-sm text-black/60 dark:text-white/60">
-                  {t('disputes.resolutionType', 'Resolution Type')}
-                </Label>
-                <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm text-start">
-                  <SelectValue placeholder={t('disputes.selectResolution', 'Select resolution...')} />
-                  <span className="ms-2 text-black/40 dark:text-white/40">&#9662;</span>
-                </Button>
-                <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-xl shadow-lg">
-                  <ListBox className="p-1 outline-none">
-                    {(Object.entries(RESOLUTION_LABELS) as [DisputeResolutionType, string][]).map(([key, label]) => (
-                      <ListBoxItem
-                        key={key}
-                        id={key}
-                        className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10"
+                  <div className="px-6 py-5 space-y-4">
+                    {/* Resolution type pills */}
+                    <div>
+                      <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-2">
+                        {t('disputes.resolutionType', 'Resolution')}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Object.entries(RESOLUTION_LABELS) as [DisputeResolutionType, string][]).map(([key, label]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setResolutionType(key)}
+                            className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                              resolutionType === key
+                                ? 'bg-[#2563EB] text-white'
+                                : 'bg-black/[0.04] dark:bg-white/[0.04] text-black/40 dark:text-white/40 hover:bg-black/[0.08] dark:hover:bg-white/[0.08]'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Portal status preview */}
+                    {previewPortalStatus && (
+                      <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-[#2563EB]/[0.02] border border-[#2563EB]/10">
+                        <span className="size-1 rounded-full bg-[#2563EB]" />
+                        <span className="text-[10px] text-[#2563EB]/60">
+                          {t('disputes.portalStatusPreview', 'Portal will show')}:{' '}
+                          <span className="font-medium text-[#2563EB]/80">
+                            {PORTAL_STATUS_LABELS[previewPortalStatus] ?? previewPortalStatus}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    <TextField
+                      value={resolutionNotes}
+                      onChange={setResolutionNotes}
+                      className="flex flex-col gap-1"
+                    >
+                      <Label className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20">
+                        {t('disputes.resolutionNotes', 'Notes')}
+                      </Label>
+                      <TextArea
+                        className="w-full bg-transparent border border-black/[0.06] dark:border-white/[0.06] rounded-lg px-3 py-2 text-xs min-h-[60px] outline-none focus:border-[#2563EB]/30 transition-colors"
+                        placeholder={t('disputes.notesPlaceholder', 'Describe the resolution...')}
+                      />
+                    </TextField>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+                      <Button
+                        onPress={close}
+                        className="rounded-md px-4 py-1.5 text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
                       >
-                        {label}
-                      </ListBoxItem>
-                    ))}
-                  </ListBox>
-                </Popover>
-              </Select>
-            </div>
-
-            {/* Portal status preview */}
-            {previewPortalStatus && (
-              <div className="mb-4 rounded-lg border border-[#2563EB]/20 bg-[#2563EB]/5 p-3">
-                <span className="text-xs text-[#2563EB]">
-                  {t('disputes.portalStatusPreview', 'Portal will show')}: <span className="font-medium">{PORTAL_STATUS_LABELS[previewPortalStatus] ?? previewPortalStatus}</span>
-                </span>
-              </div>
-            )}
-
-            {/* Resolution notes */}
-            <div className="mb-4">
-              <TextField
-                value={resolutionNotes}
-                onChange={setResolutionNotes}
-                className="flex flex-col gap-1"
-              >
-                <Label className="text-sm text-black/60 dark:text-white/60">
-                  {t('disputes.resolutionNotes', 'Resolution Notes')}
-                </Label>
-                <TextArea
-                  className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm min-h-[80px] outline-none focus:border-[#2563EB]"
-                  placeholder={t('disputes.notesPlaceholder', 'Describe the resolution...')}
-                />
-              </TextField>
-            </div>
-
-            {/* Modal actions */}
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                onPress={() => setShowResolveModal(false)}
-                className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-              >
-                {t('disputes.cancel', 'Cancel')}
-              </Button>
-              <Button
-                onPress={handleResolve}
-                isDisabled={!resolutionType || !resolutionNotes || isResolving}
-                className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-40 transition-colors"
-              >
-                {isResolving ? t('disputes.resolving', 'Resolving...') : t('disputes.confirmResolve', 'Confirm Resolution')}
-              </Button>
-            </div>
-          </div>
-        </div>
+                        {t('disputes.cancel', 'Cancel')}
+                      </Button>
+                      <Button
+                        onPress={handleResolve}
+                        isDisabled={!resolutionType || !resolutionNotes || isResolving}
+                        className="rounded-md bg-[#2563EB] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-40 transition-colors"
+                      >
+                        {isResolving ? t('disputes.resolving', 'Resolving...') : t('disputes.confirmResolve', 'Confirm')}
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
       )}
     </div>
   )

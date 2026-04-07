@@ -11,7 +11,7 @@ import { useSalesStore } from '../../stores/sales'
  *
  * N        - New RFQ / New Quote
  * G then I - Go to RFQ Inbox
- * G then P - Go to Pipeline
+ * G then B - Toggle Board/List view
  * G then C - Go to Customer 360
  * /        - Focus search within Sales
  * ?        - Show shortcuts help
@@ -25,10 +25,10 @@ export function SalesShortcuts() {
 
   const isActive = activeModule === 'sales' && scope === 'panel'
 
-  // N - New RFQ / New Quote (navigate to quote builder)
+  // N - New RFQ / New Quote (navigate to RFQ inbox)
   useShortcut('n', () => {
     if (gPrefix) { setGPrefix(false); return }
-    setActiveTab('quote-builder')
+    setActiveTab('rfq-inbox')
   }, { enabled: isActive })
 
   // G prefix - start sequence
@@ -46,18 +46,20 @@ export function SalesShortcuts() {
     }
   }, { enabled: isActive && gPrefix })
 
-  // G then P - Go to Pipeline
-  useShortcut('p', () => {
+  // G then B - Toggle Board/List view in RFQ inbox
+  useShortcut('b', () => {
     if (gPrefix) {
-      setActiveTab('pipeline')
+      const store = useSalesStore.getState()
+      store.setRfqViewMode(store.rfqViewMode === 'list' ? 'board' : 'list')
+      setActiveTab('rfq-inbox')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
 
-  // G then C - Go to Customer 360
+  // G then C - Go to Customers
   useShortcut('c', () => {
     if (gPrefix) {
-      setActiveTab('customer-360')
+      setActiveTab('customers')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
@@ -95,7 +97,7 @@ export function SalesShortcuts() {
           {[
             { keys: 'N', action: 'New RFQ / New Quote' },
             { keys: 'G then I', action: 'Go to RFQ Inbox' },
-            { keys: 'G then P', action: 'Go to Pipeline' },
+            { keys: 'G then B', action: 'Toggle Board/List view' },
             { keys: 'G then C', action: 'Go to Customer 360' },
             { keys: '/', action: 'Focus search' },
             { keys: '?', action: 'Toggle this help' },

@@ -1,39 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'motion/react'
 import { getDriverCompliance } from '../../../lib/server/hr'
 import type { ComplianceStatus, DriverComplianceRecord } from '../../../types/hr'
 
-// ─── Glass panel wrapper ────────────────────────────────
-
-function GlassPanel({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={`rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
-const STATUS_BADGE: Record<ComplianceStatus, { className: string; dot: string }> = {
-  green: { className: 'bg-green-500/20 text-green-700 dark:text-green-300', dot: 'bg-green-500' },
-  yellow: { className: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-500' },
-  red: { className: 'bg-red-500/20 text-red-700 dark:text-red-300', dot: 'bg-red-500' },
-}
-
 /**
- * Driver compliance view.
- * Table per driver: license class, expiry dates, drug test, certifications, status, dispatch blocked.
- * Red = dispatch block. System automatically prevents assigning this driver to any route until resolved.
- * Blocking logic is in dispatch module (Phase 21). HR module only DISPLAYS the status.
- *
- * Alerts section at top: cards showing items expiring in 30 days (yellow) and expired (red).
+ * Driver Compliance — "The Checklist"
+ * Document matrix: employees down, documents across. Each cell: status dot (valid/expiring/expired/missing).
+ * Expiring items highlighted with yellow accent. Click to see document details.
  */
 export function DriverCompliance() {
   const { t } = useTranslation('hr')
@@ -46,7 +20,7 @@ export function DriverCompliance() {
 
   if (!records) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="p-5 text-center text-[var(--color-text-subtle)]">
         Loading...
       </div>
     )
@@ -55,180 +29,183 @@ export function DriverCompliance() {
   const expiring = records.filter((r) => r.complianceStatus === 'yellow')
   const expired = records.filter((r) => r.complianceStatus === 'red')
 
+  // Document columns for the matrix
+  const docColumns = [
+    { key: 'license', label: t('compliance.licenseExpiry', 'License') },
+    { key: 'medical', label: t('compliance.medicalExpiry', 'Medical') },
+    { key: 'drugTest', label: t('compliance.drugTest', 'Drug Test') },
+  ]
+
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-lg font-semibold">{t('compliance.title', 'Driver Compliance')}</h2>
-
-      {/* ─── Alerts Section ──────────────────────────────── */}
-      {(expiring.length > 0 || expired.length > 0) && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-black/70 dark:text-white/70">
-            {t('compliance.alerts', 'Compliance Alerts')}
-          </h3>
-
-          {expired.length > 0 && (
-            <GlassPanel className="border-red-500/30">
-              <h4 className="text-xs font-medium text-red-700 dark:text-red-300 mb-2">
-                {t('compliance.expiredItems', 'Expired Items')}
-              </h4>
-              <div className="space-y-2">
-                {expired.map((r) => (
-                  <AlertCard key={r.driverId} record={r} severity="red" t={t} />
-                ))}
-              </div>
-            </GlassPanel>
-          )}
-
-          {expiring.length > 0 && (
-            <GlassPanel className="border-yellow-500/30">
-              <h4 className="text-xs font-medium text-yellow-700 dark:text-yellow-300 mb-2">
-                {t('compliance.expiringItems', 'Items Expiring Within 30 Days')}
-              </h4>
-              <div className="space-y-2">
-                {expiring.map((r) => (
-                  <AlertCard key={r.driverId} record={r} severity="yellow" t={t} />
-                ))}
-              </div>
-            </GlassPanel>
-          )}
+    <div className="p-5 space-y-6">
+      {/* Stats strip */}
+      <div className="flex items-baseline gap-8 border-b border-[var(--color-border)] pb-5">
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
+            {t('compliance.total', 'Total Drivers')}
+          </div>
+          <div className="text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
+            {records.length}
+          </div>
         </div>
-      )}
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
+            {t('compliance.expiringItems', 'Expiring')}
+          </div>
+          <div className={`text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums ${expiring.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--color-text-subtle)]'}`}>
+            {expiring.length}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
+            {t('compliance.expiredItems', 'Expired')}
+          </div>
+          <div className={`text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums ${expired.length > 0 ? 'text-red-600 dark:text-red-400' : 'text-[var(--color-text-subtle)]'}`}>
+            {expired.length}
+          </div>
+        </div>
+      </div>
 
-      {/* ─── Compliance Table ────────────────────────────── */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.driverName', 'Driver Name')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.licenseClass', 'License Class')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.licenseExpiry', 'License Expiry')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.medicalExpiry', 'Medical Expiry')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.drugTest', 'Drug Test')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.certifications', 'Certifications')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('compliance.status', 'Status')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((record) => {
-              const badge = STATUS_BADGE[record.complianceStatus]
-              const isRed = record.complianceStatus === 'red'
+      {/* Document matrix */}
+      <div>
+        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+          {t('compliance.matrix', 'Compliance Matrix')}
+        </div>
 
-              return (
-                <tr
-                  key={record.driverId}
-                  className={`border-b border-black/5 dark:border-white/5 ${
-                    isRed ? 'bg-red-500/5' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3 font-medium">
-                    {record.driverName}
-                    {record.dispatchBlocked && (
-                      <span className="ms-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-500/20 text-red-700 dark:text-red-300 uppercase tracking-wider">
-                        {t('compliance.dispatchBlocked', 'DISPATCH BLOCKED')}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-black/60 dark:text-white/60">
-                    {t(`compliance.${record.licenseClass}`, record.licenseClass)}
-                  </td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                    {record.licenseExpiry}
-                  </td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                    {record.medicalExpiry}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-xs">
-                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                        {record.drugTestDate}
-                      </span>
-                      <span className={`ms-1.5 ${record.drugTestResult === 'pass' ? 'text-green-600 dark:text-green-400' : record.drugTestResult === 'fail' ? 'text-red-600 dark:text-red-400' : 'text-black/40 dark:text-white/40'}`}>
-                        {t(`compliance.${record.drugTestResult}`, record.drugTestResult)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {record.certifications.map((cert) => (
-                        <span key={cert.type} className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60">
-                          {cert.type}
-                          <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                            {cert.expiry}
-                          </span>
-                        </span>
-                      ))}
-                      {record.certifications.length === 0 && (
-                        <span className="text-xs text-black/30 dark:text-white/30">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                      {t(`compliance.${record.complianceStatus}`, record.complianceStatus)}
+        {/* Header row */}
+        <div className="flex items-center gap-0 border-b border-[var(--color-border)] pb-2 mb-1">
+          <div className="w-40 shrink-0 text-[11px] font-medium text-[var(--color-text-subtle)]">
+            {t('compliance.driverName', 'Driver')}
+          </div>
+          <div className="w-16 shrink-0 text-[11px] font-medium text-[var(--color-text-subtle)] text-center">
+            {t('compliance.licenseClass', 'Class')}
+          </div>
+          {docColumns.map((col) => (
+            <div key={col.key} className="w-24 shrink-0 text-[11px] font-medium text-[var(--color-text-subtle)] text-center">
+              {col.label}
+            </div>
+          ))}
+          {/* Certifications columns (dynamic) */}
+          <div className="flex-1 text-[11px] font-medium text-[var(--color-text-subtle)] ps-3">
+            {t('compliance.certifications', 'Certifications')}
+          </div>
+          <div className="w-20 shrink-0 text-[11px] font-medium text-[var(--color-text-subtle)] text-center">
+            {t('compliance.status', 'Status')}
+          </div>
+        </div>
+
+        {/* Driver rows */}
+        <div className="flex flex-col">
+          {records.map((record) => {
+            const isRed = record.complianceStatus === 'red'
+            const isYellow = record.complianceStatus === 'yellow'
+
+            return (
+              <motion.div
+                key={record.driverId}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
+                className={`flex items-center gap-0 py-2 border-b border-[var(--color-border)]/30 rounded-lg transition-colors
+                  hover:bg-black/[0.02] dark:hover:bg-white/[0.02]
+                  ${isYellow ? 'border-s-2 border-s-amber-500 ps-2' : isRed ? 'border-s-2 border-s-red-500 ps-2' : ''}`}
+              >
+                {/* Driver name */}
+                <div className="w-40 shrink-0">
+                  <span className="text-sm text-[var(--color-text)] truncate block">{record.driverName}</span>
+                  {record.dispatchBlocked && (
+                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">
+                      {t('compliance.dispatchBlocked', 'BLOCKED')}
                     </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                  )}
+                </div>
+
+                {/* License class */}
+                <div className="w-16 shrink-0 text-center">
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {t(`compliance.${record.licenseClass}`, record.licenseClass)}
+                  </span>
+                </div>
+
+                {/* License expiry dot + date */}
+                <div className="w-24 shrink-0 flex flex-col items-center gap-0.5">
+                  <span className={`w-2 h-2 rounded-full ${dateStatusDot(record.licenseExpiry)}`} />
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-subtle)]">
+                    {record.licenseExpiry}
+                  </span>
+                </div>
+
+                {/* Medical expiry dot + date */}
+                <div className="w-24 shrink-0 flex flex-col items-center gap-0.5">
+                  <span className={`w-2 h-2 rounded-full ${dateStatusDot(record.medicalExpiry)}`} />
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-subtle)]">
+                    {record.medicalExpiry}
+                  </span>
+                </div>
+
+                {/* Drug test dot + date */}
+                <div className="w-24 shrink-0 flex flex-col items-center gap-0.5">
+                  <span className={`w-2 h-2 rounded-full ${
+                    record.drugTestResult === 'pass' ? 'bg-green-500'
+                      : record.drugTestResult === 'fail' ? 'bg-red-500'
+                        : 'bg-black/10 dark:bg-white/10'
+                  }`} />
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-subtle)]">
+                    {record.drugTestDate}
+                  </span>
+                </div>
+
+                {/* Certifications */}
+                <div className="flex-1 flex flex-wrap gap-1 ps-3">
+                  {record.certifications.map((cert) => (
+                    <span key={cert.type} className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
+                      <span className={`w-1.5 h-1.5 rounded-full ${dateStatusDot(cert.expiry)}`} />
+                      {cert.type}
+                    </span>
+                  ))}
+                  {record.certifications.length === 0 && (
+                    <span className="text-[10px] text-[var(--color-text-subtle)]">-</span>
+                  )}
+                </div>
+
+                {/* Overall status */}
+                <div className="w-20 shrink-0 flex justify-center">
+                  <span className={`w-2.5 h-2.5 rounded-full ${overallDot(record.complianceStatus)}`} />
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-[11px] text-[var(--color-text-subtle)]">
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Valid</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Expiring (30d)</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Expired</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-black/10 dark:bg-white/10" /> Missing</span>
       </div>
     </div>
   )
 }
 
-// ─── Sub-components ─────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────
 
-function AlertCard({
-  record,
-  severity,
-  t,
-}: {
-  record: DriverComplianceRecord
-  severity: 'red' | 'yellow'
-  t: (key: string, fallback: string) => string
-}) {
-  const now = new Date()
+function dateStatusDot(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000
 
-  // Collect expiring/expired items
-  const items: Array<{ type: string; date: string }> = []
-  const licenseDate = new Date(record.licenseExpiry)
-  const medicalDate = new Date(record.medicalExpiry)
-  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+  if (date < now) return 'bg-red-500'
+  if (date - now < thirtyDays) return 'bg-amber-500'
+  return 'bg-green-500'
+}
 
-  if (severity === 'red') {
-    if (licenseDate.getTime() < now.getTime()) items.push({ type: 'License', date: record.licenseExpiry })
-    if (medicalDate.getTime() < now.getTime()) items.push({ type: 'Medical', date: record.medicalExpiry })
-    for (const cert of record.certifications) {
-      if (new Date(cert.expiry).getTime() < now.getTime()) items.push({ type: cert.type, date: cert.expiry })
-    }
-    if (record.drugTestResult === 'fail') items.push({ type: 'Drug Test', date: record.drugTestDate })
-  } else {
-    if (licenseDate.getTime() - now.getTime() < thirtyDaysMs && licenseDate.getTime() >= now.getTime())
-      items.push({ type: 'License', date: record.licenseExpiry })
-    if (medicalDate.getTime() - now.getTime() < thirtyDaysMs && medicalDate.getTime() >= now.getTime())
-      items.push({ type: 'Medical', date: record.medicalExpiry })
-    for (const cert of record.certifications) {
-      const certDate = new Date(cert.expiry)
-      if (certDate.getTime() - now.getTime() < thirtyDaysMs && certDate.getTime() >= now.getTime())
-        items.push({ type: cert.type, date: cert.expiry })
-    }
+function overallDot(status: ComplianceStatus): string {
+  const map: Record<ComplianceStatus, string> = {
+    green: 'bg-green-500',
+    yellow: 'bg-amber-500',
+    red: 'bg-red-500',
   }
-
-  if (items.length === 0) return null
-
-  return (
-    <div className="flex items-start gap-3 text-sm">
-      <span className="font-medium min-w-24">{record.driverName}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((item) => (
-          <span key={`${item.type}-${item.date}`} className="text-xs">
-            {item.type}{' '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{item.date}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  )
+  return map[status]
 }

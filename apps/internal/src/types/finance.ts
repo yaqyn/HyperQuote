@@ -4,16 +4,9 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type FinanceTab =
-  | 'home'
-  | 'invoicing'
-  | 'ar'
-  | 'ap'
-  | 'payments'
-  | 'pdc'
-  | 'credit'
+  | 'receivables'
+  | 'payables'
   | 'recon'
-  | 'reports'
-  | 'disputes'
 
 // ─── Status Unions ───────────────────────────────────────
 

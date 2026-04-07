@@ -1,26 +1,15 @@
-import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from 'react-aria-components'
-import { getRFQDetail, autoAssignRFQ, requestClarification } from '../../../lib/server/sales-rfq'
+import { ArrowRight } from 'lucide-react'
+import { getRFQDetail, autoAssignRFQ } from '../../../lib/server/sales-rfq'
 import { createQuote } from '../../../lib/server/sales-quotes'
 import { useSalesStore } from '../../../stores/sales'
-import { TierBadge } from '../shared/TierBadge'
 import type { RFQDetail } from '../../../types/sales'
 
-function formatEGP(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'EGP',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function formatPercent(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'percent',
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value / 100)
+function fmtEGP(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000) return `${Math.round(v / 1_000)}K`
+  return String(v)
 }
 
 interface RFQPreviewPaneProps {
@@ -28,10 +17,8 @@ interface RFQPreviewPaneProps {
 }
 
 export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
-  const { t, i18n } = useTranslation('internal')
-  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
   const queryClient = useQueryClient()
-  const setActiveTab = useSalesStore((s) => s.setActiveTab)
+  const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ['rfq-detail', rfqId],
@@ -56,15 +43,13 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
           validUntil: new Date(Date.now() + 14 * 86_400_000).toISOString(),
         },
       }),
-    onSuccess: () => {
-      setActiveTab('quote-builder')
-    },
+    onSuccess: () => setEditingRfqId(rfqId),
   })
 
   if (isLoading || !detail) {
     return (
       <div className="flex items-center justify-center w-full h-full">
-        <p className="text-sm text-black/40 dark:text-white/40">Loading...</p>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
       </div>
     )
   }
@@ -72,163 +57,125 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
   const rfq = detail as RFQDetail
 
   return (
-    <div className="flex flex-col w-full h-full overflow-auto">
-      {/* Customer Info */}
-      <div className="border-b border-black/10 dark:border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="text-base font-semibold truncate">{rfq.customerName}</h3>
-          <TierBadge tier={rfq.customerTier} />
-        </div>
-        {rfq.deliveryRequirements && (
-          <p className="text-xs text-black/50 dark:text-white/50 truncate">
-            {rfq.deliveryRequirements.address}
-          </p>
-        )}
-      </div>
-
-      {/* Delivery date urgency */}
-      <div className="border-b border-black/10 dark:border-white/10 px-4 py-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-black/50 dark:text-white/50">Delivery Requested</span>
-          <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums ${rfq.deliveryUrgency < 7 ? 'text-red-600' : rfq.deliveryUrgency < 14 ? 'text-yellow-600' : 'text-black/70 dark:text-white/70'}`}>
-            {rfq.deliveryUrgency}d
-          </span>
-        </div>
-      </div>
-
-      {/* Material breakdown */}
-      <div className="border-b border-black/10 dark:border-white/10 px-4 py-3">
-        <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
-          Materials ({rfq.items.length} items)
-        </h4>
-        <ul className="space-y-1.5">
-          {rfq.items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between text-sm">
-              <span className="truncate me-2">{item.productName}</span>
-              <span className="shrink-0 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                {new Intl.NumberFormat(locale).format(item.quantity)} {item.unit}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Customer history */}
-      <div className="border-b border-black/10 dark:border-white/10 px-4 py-3">
-        <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
-          Customer History
-        </h4>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Orders</span>
-            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums">{rfq.customer.orderCount}</p>
+    <div className="flex flex-col w-full h-full">
+      <div className="flex-1 min-h-0 overflow-y-auto" data-module-content>
+        {/* Hero section */}
+        <div className="px-8 pt-8 pb-6">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-[var(--color-text)] mb-1">
+                {rfq.customerName}
+              </h2>
+              <p className="text-[12px] text-[var(--color-text-subtle)]">
+                {rfq.deliveryRequirements?.address ?? 'No address'}
+              </p>
+            </div>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold px-2 py-1 rounded-md bg-black/[0.04] dark:bg-white/[0.06] text-[var(--color-text-muted)]">
+              {rfq.customerTier === 'new' ? 'NEW' : `TIER ${rfq.customerTier}`}
+            </span>
           </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Lifetime Value</span>
-            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-              {formatEGP(rfq.customer.lifetimeValue, locale)}
-            </p>
-          </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Avg Margin</span>
-            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {formatPercent(rfq.customer.avgMargin, locale)}
-            </p>
-          </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Payment</span>
-            <p className="text-sm capitalize">{rfq.customer.paymentHistory}</p>
-          </div>
-        </div>
-      </div>
 
-      {/* Similar past quotes (AI) */}
-      {rfq.similarQuotes && rfq.similarQuotes.length > 0 && (
-        <div className="border-b border-black/10 dark:border-white/10 px-4 py-3">
-          <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2 flex items-center gap-1">
-            <span>AI Suggestions</span>
-          </h4>
-          <ul className="space-y-1.5">
-            {rfq.similarQuotes.map((sq) => (
-              <li key={sq.id} className="flex items-center justify-between text-sm">
-                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
-                  {sq.quoteNumber}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
-                    {formatPercent(sq.marginPercent, locale)}
-                  </span>
-                  <span
-                    className={`text-xs font-medium ${sq.outcome === 'won' ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    {sq.outcome.toUpperCase()}
-                  </span>
-                </div>
-              </li>
+          {/* Metrics grid */}
+          <div className="grid grid-cols-4 gap-6">
+            {[
+              { value: `EGP ${fmtEGP(rfq.estimatedValue)}`, label: 'Value' },
+              { value: `${rfq.deliveryUrgency}d`, label: 'Delivery', alert: rfq.deliveryUrgency < 7 },
+              { value: `${rfq.customer.avgMargin.toFixed(1)}%`, label: 'Avg Margin' },
+              { value: String(rfq.customer.orderCount), label: 'Past Orders' },
+            ].map((m) => (
+              <div key={m.label}>
+                <p className={`font-[family-name:var(--font-geist-mono)] text-[16px] font-medium tabular-nums ${
+                  m.alert ? 'text-red-500' : 'text-[var(--color-text)]'
+                }`}>
+                  {m.value}
+                </p>
+                <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mt-0.5">
+                  {m.label}
+                </p>
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="mt-auto px-4 py-3 border-t border-black/10 dark:border-white/10 space-y-2">
-        <Button
-          className="w-full rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white outline-none
-            data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-2"
-          onPress={() => startQuoteMutation.mutate()}
-          isDisabled={startQuoteMutation.isPending}
-        >
-          Start Quote
-        </Button>
-
-        <div className="flex gap-2">
-          <Button
-            className="flex-1 rounded-lg border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-            onPress={() => {
-              // Opens full detail view -- placeholder navigation
-              setActiveTab('rfq-inbox')
-            }}
-          >
-            Open Full Detail
-          </Button>
-          {!rfq.assignedRep && (
-            <Button
-              className="flex-1 rounded-lg border border-[#2563EB]/20 bg-[#2563EB]/5 px-3 py-1.5 text-xs font-medium text-[#2563EB] outline-none
-                data-[hovered]:bg-[#2563EB]/10
-                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-              onPress={() => claimMutation.mutate()}
-              isDisabled={claimMutation.isPending}
-            >
-              Assign to Me
-            </Button>
-          )}
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            className="flex-1 rounded-lg border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-            onPress={() => {
-              // Opens assign-to dialog -- placeholder
-            }}
-          >
-            Assign to...
-          </Button>
-          <Button
-            className="flex-1 rounded-lg border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-            onPress={() => {
-              // Opens clarification form -- will be wired in Task 2
-            }}
-          >
-            Request Clarification
-          </Button>
+        {/* Materials */}
+        <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
+          <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
+            Materials · {rfq.items.length} items
+          </p>
+          <div className="grid grid-cols-1 gap-0">
+            {rfq.items.map((item, i) => (
+              <div
+                key={item.id}
+                className={`flex items-center justify-between py-2.5 ${
+                  i > 0 ? 'border-t border-black/[0.03] dark:border-white/[0.03]' : ''
+                }`}
+              >
+                <span className="text-[13px] text-[var(--color-text)]">
+                  {item.productName}
+                </span>
+                <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                  {new Intl.NumberFormat('en-EG').format(item.quantity)}
+                  <span className="text-[var(--color-text-subtle)] ml-1">{item.unit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Past quotes */}
+        {rfq.similarQuotes && rfq.similarQuotes.length > 0 && (
+          <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
+            <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
+              Past Quotes
+            </p>
+            <div className="grid grid-cols-1 gap-0">
+              {rfq.similarQuotes.map((sq, i) => (
+                <div
+                  key={sq.id}
+                  className={`flex items-center justify-between py-2.5 ${
+                    i > 0 ? 'border-t border-black/[0.03] dark:border-white/[0.03]' : ''
+                  }`}
+                >
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                    {sq.quoteNumber}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text)]">
+                      {sq.marginPercent.toFixed(1)}%
+                    </span>
+                    <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold uppercase ${
+                      sq.outcome === 'won' ? 'text-green-600' : 'text-red-500'
+                    }`}>
+                      {sq.outcome}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Customer snapshot */}
+        <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
+          <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
+            Customer
+          </p>
+          <div className="grid grid-cols-2 gap-y-3 gap-x-8">
+            <Row label="Lifetime Value" value={`EGP ${fmtEGP(rfq.customer.lifetimeValue)}`} />
+            <Row label="Payment History" value={rfq.customer.paymentHistory} />
+          </div>
         </div>
       </div>
+
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] text-[var(--color-text-subtle)] mb-0.5">{label}</p>
+      <p className="text-[13px] text-[var(--color-text)] capitalize">{value}</p>
     </div>
   )
 }

@@ -1,9 +1,10 @@
-import { useTranslation } from 'react-i18next'
+import { useMemo, useState } from 'react'
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
-import { Button } from 'react-aria-components'
+import { Plus } from 'lucide-react'
 import type { FreshnessIndicator, MarginThresholds } from '../../../types/sales'
 import { CostLookup } from './CostLookup'
 import { MarginGuardrails } from './MarginGuardrails'
+import { ProductSearchMenu, type CatalogProduct } from './ProductSearchMenu'
 
 export interface LineItemFormValues {
   id: string
@@ -11,7 +12,7 @@ export interface LineItemFormValues {
   specification: string
   quantity: number
   unit: string
-  supplierCost: number // buffered cost, NEVER raw supplier cost
+  supplierCost: number
   marginPercent: number
   sellPrice: number
   lineTotal: number
@@ -42,181 +43,175 @@ function getThresholdsForItem(
   _productName: string,
   thresholds: MarginThresholds[],
 ): MarginThresholds {
-  // In production, this maps product to category via product_categories table.
-  // For now, return first matching threshold or a sensible default.
   return thresholds[0] ?? { productCategory: 'default', target: 18, floor: 12, absoluteMin: 8 }
 }
 
 export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
-  const { t } = useTranslation('internal')
-  const { register, control, setValue } = useFormContext<QuoteFormValues>()
-  const { fields, append, remove } = useFieldArray({ control, name: 'lineItems' })
+  const { control, setValue } = useFormContext<QuoteFormValues>()
+  const { fields, append } = useFieldArray({ control, name: 'lineItems' })
+  const [searchOpen, setSearchOpen] = useState(false)
 
-  // useWatch for reactive margin calculations -- NEVER use watch()
-  const watchedItems = useWatch({ control, name: 'lineItems' })
-
-  const handleMarginChange = (index: number, newMargin: number) => {
-    const item = watchedItems?.[index]
-    if (!item) return
-    const cost = item.supplierCost
-    if (newMargin >= 100) return // prevent division by zero
-    const newSellPrice = Math.round((cost / (1 - newMargin / 100)) * 100) / 100
-    const newLineTotal = Math.round(newSellPrice * item.quantity * 100) / 100
-    setValue(`lineItems.${index}.sellPrice`, newSellPrice)
-    setValue(`lineItems.${index}.lineTotal`, newLineTotal)
-  }
-
-  const handleSellPriceChange = (index: number, newSellPrice: number) => {
-    const item = watchedItems?.[index]
-    if (!item) return
-    const cost = item.supplierCost
-    if (newSellPrice <= 0) return
-    const newMargin = Math.round((1 - cost / newSellPrice) * 10000) / 100
-    const newLineTotal = Math.round(newSellPrice * item.quantity * 100) / 100
-    setValue(`lineItems.${index}.marginPercent`, newMargin)
-    setValue(`lineItems.${index}.lineTotal`, newLineTotal)
-  }
-
-  const handleQuantityChange = (index: number, newQty: number) => {
-    const item = watchedItems?.[index]
-    if (!item) return
-    const newLineTotal = Math.round(item.sellPrice * newQty * 100) / 100
-    setValue(`lineItems.${index}.lineTotal`, newLineTotal)
-  }
-
-  const handleAddRow = () => {
+  const handleAddProduct = (product: CatalogProduct, quantity: number) => {
+    const thresholds = getThresholdsForItem(product.name, marginThresholds)
+    const margin = thresholds.target
+    const sellPrice = Math.round((product.supplierCost / (1 - margin / 100)) * 100) / 100
     append({
-      id: `new-${Date.now()}`,
-      productName: '',
-      specification: '',
-      quantity: 1,
-      unit: 'piece',
-      supplierCost: 0,
-      marginPercent: 18,
-      sellPrice: 0,
-      lineTotal: 0,
-      freshnessIndicator: 'missing' as FreshnessIndicator,
-      supplierName: '',
+      id: product.id,
+      productName: product.name,
+      specification: product.specification,
+      quantity,
+      unit: product.unit,
+      supplierCost: product.supplierCost,
+      marginPercent: margin,
+      sellPrice,
+      lineTotal: Math.round(sellPrice * quantity * 100) / 100,
+      freshnessIndicator: product.freshness as FreshnessIndicator,
+      supplierName: product.supplierName,
     })
   }
 
+  const watchedItems = useWatch({ control, name: 'lineItems' })
+
+  const pendingPricingCount = useMemo(
+    () => (watchedItems ?? []).filter((item) => !item.supplierCost || item.supplierCost === 0).length,
+    [watchedItems],
+  )
+
+  const handlePriceChange = (index: number, newPrice: number) => {
+    const item = watchedItems?.[index]
+    if (!item || !item.supplierCost) return
+
+    // Enforce minimum price floor (cost + absolute minimum margin)
+    const thresholds = getThresholdsForItem(item.productName, marginThresholds)
+    const minPrice = Math.round((item.supplierCost / (1 - thresholds.absoluteMin / 100)) * 100) / 100
+    const price = Math.max(newPrice, minPrice)
+
+    const newMargin = Math.round((1 - item.supplierCost / price) * 10000) / 100
+    const newTotal = Math.round(price * item.quantity * 100) / 100
+
+    setValue(`lineItems.${index}.sellPrice`, price)
+    setValue(`lineItems.${index}.marginPercent`, newMargin)
+    setValue(`lineItems.${index}.lineTotal`, newTotal)
+  }
+
+  const handleQtyChange = (index: number, newQty: number) => {
+    const item = watchedItems?.[index]
+    if (!item) return
+    const qty = Math.max(1, newQty)
+    setValue(`lineItems.${index}.quantity`, qty)
+    setValue(`lineItems.${index}.lineTotal`, Math.round(item.sellPrice * qty * 100) / 100)
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-black/70 dark:text-white/70">
-        {t('sales.quoteBuilder.steps.lineItems')}
-      </h3>
-      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
-        <table className="w-full text-sm" role="grid">
+    <div className="flex flex-col">
+      <div className="overflow-x-auto">
+        <table className="w-full" role="grid">
           <thead>
-            <tr className="border-b border-black/10 bg-black/3 dark:border-white/10 dark:bg-white/3">
-              <th className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">#</th>
-              <th className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">Material</th>
-              <th className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">Specification</th>
-              <th className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">Quantity</th>
-              <th className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">Unit</th>
-              <th className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">Internal Cost</th>
-              <th className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">Margin %</th>
-              <th className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">Sell Price</th>
-              <th className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">Line Total</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">Freshness</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">Margin</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">Actions</th>
+            <tr className="border-b border-black/[0.04] dark:border-white/[0.04]">
+              {['Material', 'Qty', 'Cost', 'Price', 'Margin', 'Total'].map((h) => (
+                <th
+                  key={h}
+                  className={`pb-2 px-3 text-[9px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)] ${
+                    h === 'Material' ? 'text-left' : 'text-right'
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {fields.map((field, index) => {
-              const watched = watchedItems?.[index]
-              const thresholds = getThresholdsForItem(watched?.productName ?? '', marginThresholds)
+              const item = watchedItems?.[index]
+              const thresholds = getThresholdsForItem(item?.productName ?? '', marginThresholds)
+              const hasCost = item?.supplierCost && item.supplierCost > 0
 
               return (
                 <tr
                   key={field.id}
-                  className="border-b border-black/5 transition-colors hover:bg-black/[0.02] dark:border-white/5 dark:hover:bg-white/[0.02]"
+                  className="border-b border-black/[0.02] dark:border-white/[0.02] hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-colors"
                 >
-                  <td className="px-3 py-2 font-[family-name:var(--font-geist-mono)] text-xs text-black/40 dark:text-white/40">
-                    {index + 1}
+                  {/* Material + Spec + Unit — read only */}
+                  <td className="py-3 px-3">
+                    <p className="text-[13px] text-[var(--color-text)]">
+                      {item?.productName}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">
+                      {item?.specification}
+                      {item?.unit && <span className="ml-1">· {item.unit}</span>}
+                    </p>
                   </td>
-                  <td className="px-3 py-2">
+
+                  {/* Qty — editable */}
+                  <td className="py-3 px-3 text-right">
                     <input
-                      {...register(`lineItems.${index}.productName`)}
-                      className="w-full bg-transparent text-sm outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
-                      placeholder="Material name"
+                      type="text"
+                      inputMode="numeric"
+                      value={item?.quantity ?? 1}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value.replace(/,/g, ''), 10)
+                        if (!isNaN(v)) handleQtyChange(index, v)
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-16 h-7 px-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] text-right font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/30 transition-shadow"
                     />
                   </td>
-                  <td className="px-3 py-2">
-                    <input
-                      {...register(`lineItems.${index}.specification`)}
-                      className="w-full bg-transparent text-sm outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
-                      placeholder="Spec"
-                    />
+
+                  {/* Cost + Freshness — read only */}
+                  <td className="py-3 px-3 text-right">
+                    {!hasCost ? (
+                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">Pending</span>
+                    ) : (
+                      <span className="flex items-center justify-end gap-1">
+                        <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                          {item!.supplierCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                        </span>
+                        <CostLookup freshness={item?.freshnessIndicator ?? 'missing'} />
+                      </span>
+                    )}
                   </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      {...register(`lineItems.${index}.quantity`, {
-                        valueAsNumber: true,
-                        onChange: (e) => handleQuantityChange(index, Number(e.target.value)),
-                      })}
-                      className="w-20 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums outline-none"
-                      min={1}
-                    />
+
+                  {/* Price — editable with floor enforcement */}
+                  <td className="py-3 px-3 text-right">
+                    {!hasCost ? (
+                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">—</span>
+                    ) : (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item?.sellPrice ?? 0}
+                        onChange={(e) => handlePriceChange(index, Number(e.target.value))}
+                        className="w-20 bg-transparent text-right font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none border-b border-transparent focus:border-[var(--color-primary)]/30 transition-colors"
+                      />
+                    )}
                   </td>
-                  <td className="px-3 py-2">
-                    <input
-                      {...register(`lineItems.${index}.unit`)}
-                      className="w-16 bg-transparent text-sm outline-none"
-                    />
+
+                  {/* Margin — calculated, read only */}
+                  <td className="py-3 px-3 text-right">
+                    {!hasCost ? (
+                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">—</span>
+                    ) : (
+                      <span className="flex items-center justify-end gap-1">
+                        <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                          {(item?.marginPercent ?? 0).toFixed(1)}%
+                        </span>
+                        <MarginGuardrails
+                          marginPercent={item?.marginPercent ?? 0}
+                          thresholds={thresholds}
+                        />
+                      </span>
+                    )}
                   </td>
-                  <td className="px-3 py-2 font-[family-name:var(--font-geist-mono)] text-end text-sm tabular-nums text-black/60 dark:text-white/60">
-                    {watched?.supplierCost?.toLocaleString('en-EG', { minimumFractionDigits: 2 }) ?? '0.00'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      step="0.5"
-                      {...register(`lineItems.${index}.marginPercent`, {
-                        valueAsNumber: true,
-                        onChange: (e) => handleMarginChange(index, Number(e.target.value)),
-                      })}
-                      className="w-16 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      {...register(`lineItems.${index}.sellPrice`, {
-                        valueAsNumber: true,
-                        onChange: (e) => handleSellPriceChange(index, Number(e.target.value)),
-                      })}
-                      className="w-24 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-2 font-[family-name:var(--font-geist-mono)] text-end text-sm tabular-nums font-medium">
-                    {watched?.lineTotal?.toLocaleString('en-EG', { minimumFractionDigits: 2 }) ?? '0.00'}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <CostLookup freshness={watched?.freshnessIndicator ?? 'missing'} />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <MarginGuardrails
-                      marginPercent={watched?.marginPercent ?? 0}
-                      thresholds={thresholds}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <Button
-                      className="rounded p-1 text-xs text-black/40 outline-none transition-colors
-                        data-[hovered]:bg-red-50 data-[hovered]:text-red-600
-                        data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                        dark:text-white/40 dark:data-[hovered]:bg-red-950/30 dark:data-[hovered]:text-red-400"
-                      onPress={() => remove(index)}
-                      aria-label={`Remove row ${index + 1}`}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    </Button>
+
+                  {/* Total — calculated, read only */}
+                  <td className="py-3 px-3 text-right">
+                    {!hasCost ? (
+                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">TBD</span>
+                    ) : (
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)]">
+                        {(item?.lineTotal ?? 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
                   </td>
                 </tr>
               )
@@ -225,40 +220,31 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
         </table>
       </div>
 
-      {/* Add row actions */}
-      <div className="flex items-center gap-2">
-        <Button
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-medium text-black/60 outline-none transition-colors
-            data-[hovered]:border-[#2563EB]/40 data-[hovered]:text-[#2563EB]
-            data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-            dark:border-white/20 dark:text-white/60 dark:data-[hovered]:border-[#2563EB]/40 dark:data-[hovered]:text-[#2563EB]"
-          onPress={handleAddRow}
-        >
-          + Add Line Item
-        </Button>
-        <Button
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-medium text-black/60 outline-none transition-colors
-            data-[hovered]:border-[#2563EB]/40 data-[hovered]:text-[#2563EB]
-            data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-            dark:border-white/20 dark:text-white/60 dark:data-[hovered]:border-[#2563EB]/40 dark:data-[hovered]:text-[#2563EB]"
-          onPress={() => {
-            // Placeholder: open catalog import dialog
-          }}
-        >
-          Import from Catalog
-        </Button>
-        <Button
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-medium text-black/60 outline-none transition-colors
-            data-[hovered]:border-[#2563EB]/40 data-[hovered]:text-[#2563EB]
-            data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-            dark:border-white/20 dark:text-white/60 dark:data-[hovered]:border-[#2563EB]/40 dark:data-[hovered]:text-[#2563EB]"
-          onPress={() => {
-            // Placeholder: open past quote picker
-          }}
-        >
-          Copy from Past Quote
-        </Button>
-      </div>
+      {/* Add item button */}
+      <button
+        type="button"
+        onClick={() => setSearchOpen(true)}
+        className="mt-3 self-start flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-primary)] outline-none transition-opacity hover:opacity-70 cursor-pointer"
+      >
+        <Plus size={14} strokeWidth={1.5} />
+        Add item
+      </button>
+
+      {/* Product search modal */}
+      <ProductSearchMenu
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onAddProduct={handleAddProduct}
+      />
+
+      {pendingPricingCount > 0 && (
+        <div className="mt-4 px-3 py-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+          <p className="text-[11px] text-yellow-700 dark:text-yellow-300">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">{pendingPricingCount}</span>
+            {' '}item{pendingPricingCount > 1 ? 's' : ''} pending pricing — customer will be notified when prices arrive
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -4,12 +4,8 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type HRTab =
-  | 'home'
-  | 'employees'
-  | 'compliance'
-  | 'leave'
-  | 'attendance'
-  | 'documents'
+  | 'people'
+  | 'time'
   | 'settings'
 
 // ─── Status Unions ───────────────────────────────────────

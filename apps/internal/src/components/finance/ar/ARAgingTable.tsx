@@ -22,14 +22,6 @@ const BUCKET_KEYS: { key: keyof ARAgingRow; bucket: ARAgingBucket; label: string
   { key: 'days90plus', bucket: '90+', label: '90+' },
 ]
 
-const CELL_BG: Record<ARAgingBucket, string> = {
-  current: 'bg-green-50 dark:bg-green-950/20',
-  '1-30': 'bg-yellow-50 dark:bg-yellow-950/20',
-  '31-60': 'bg-orange-50 dark:bg-orange-950/20',
-  '61-90': 'bg-red-50 dark:bg-red-950/20',
-  '90+': 'bg-red-100 dark:bg-red-950/40 font-bold',
-}
-
 function getWorstBucket(row: ARAgingRow): ARAgingBucket {
   if (row.days90plus > 0) return '90+'
   if (row.days90 > 0) return '61-90'
@@ -38,27 +30,27 @@ function getWorstBucket(row: ARAgingRow): ARAgingBucket {
   return 'current'
 }
 
-function getRowBg(bucket: ARAgingBucket): string {
+function getRowAccent(bucket: ARAgingBucket): string {
   const severity = getAgingSeverity(bucket)
   switch (severity) {
     case 'green':
     case 'yellow':
       return ''
     case 'orange':
-      return 'bg-yellow-50/30 dark:bg-yellow-950/10'
+      return 'border-s-2 border-orange-400'
     case 'red':
+      return 'border-s-2 border-red-400'
     case 'dark_red':
-      return 'bg-red-50/30 dark:bg-red-950/10'
+      return 'border-s-2 border-red-600'
   }
 }
 
 const PAGE_SIZE = 20
 
 /**
- * AR aging table with color-coded cells, sparklines, and drill-down.
- * Columns: Customer | Current | 1-30 | 31-60 | 61-90 | 90+ | Total | Sparkline
- * All amounts right-aligned in Geist Mono via CurrencyCell.
- * Each amount cell clickable -> drills into invoices for that customer+bucket.
+ * Grouped list by aging bucket. NOT a traditional table.
+ * Each customer: name + amount (mono) + days overdue + sparkline.
+ * Expandable cells drill into invoices for that customer+bucket.
  * Column header row shows aggregate totals per bucket.
  */
 export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
@@ -116,119 +108,121 @@ export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
     return agg
   }, [rows])
 
-  const sortIndicator = (field: SortField) =>
+  const sortIcon = (field: SortField) =>
     sortField === field ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ''
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm" role="grid">
-        <thead>
-          {/* Aggregate totals row */}
-          <tr className="border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
-            <th className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">
-              {t('ar.aging.totals', 'Totals')}
-            </th>
-            {BUCKET_KEYS.map((b) => (
-              <th key={b.key} className={`px-3 py-2 text-end ${CELL_BG[b.bucket]}`}>
-                <CurrencyCell amount={aggregates[b.key as keyof typeof aggregates] as number} className="text-xs font-semibold" />
-              </th>
-            ))}
-            <th className="px-3 py-2 text-end">
-              <CurrencyCell amount={aggregates.total} className="text-xs font-bold" />
-            </th>
-            <th className="px-3 py-2" />
-          </tr>
-          {/* Column headers */}
-          <tr className="border-b border-black/10 dark:border-white/10">
-            <th
-              className="px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer select-none"
-              onClick={() => toggleSort('customerName')}
-            >
-              {t('ar.aging.customer', 'Customer')}{sortIndicator('customerName')}
-            </th>
-            {BUCKET_KEYS.map((b) => (
-              <th key={b.key} className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">
-                <AgingBadge bucket={b.bucket} />
-              </th>
-            ))}
-            <th
-              className="px-3 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer select-none"
-              onClick={() => toggleSort('total')}
-            >
-              {t('ar.aging.total', 'Total')}{sortIndicator('total')}
-            </th>
-            <th className="px-3 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">
-              {t('ar.aging.trend', 'Trend')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {pageRows.map((row) => {
-            const worstBucket = getWorstBucket(row)
-            const rowBg = getRowBg(worstBucket)
+    <div>
+      {/* Aggregate totals strip */}
+      <div className="flex items-center gap-4 px-4 py-2.5 border-b border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02]">
+        <span className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 me-2">
+          {t('ar.aging.totals', 'Totals')}
+        </span>
+        {BUCKET_KEYS.map((b) => (
+          <div key={b.key} className="flex items-center gap-1.5">
+            <AgingBadge bucket={b.bucket} />
+            <CurrencyCell
+              amount={aggregates[b.key as keyof typeof aggregates] as number}
+              className="text-xs"
+            />
+          </div>
+        ))}
+        <div className="ms-auto flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+            {t('ar.aging.total', 'Total')}
+          </span>
+          <CurrencyCell amount={aggregates.total} className="text-xs font-semibold" />
+        </div>
+      </div>
 
-            return (
-              <tr
-                key={row.customerId}
-                className={`border-b border-black/5 dark:border-white/5 ${rowBg} hover:bg-[#2563EB]/5 transition-colors`}
-              >
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{row.customerName}</span>
-                    <span className="text-xs text-black/40 dark:text-white/40">
-                      {row.tierBadge}
-                    </span>
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_repeat(5,minmax(80px,auto))_100px_48px] items-center gap-0 px-4 py-2 border-b border-black/10 dark:border-white/10 text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+        <button type="button" className="text-start cursor-pointer select-none hover:text-black dark:hover:text-white" onClick={() => toggleSort('customerName')}>
+          {t('ar.aging.customer', 'Customer')}{sortIcon('customerName')}
+        </button>
+        {BUCKET_KEYS.map((b) => (
+          <span key={b.key} className="text-end">
+            <AgingBadge bucket={b.bucket} />
+          </span>
+        ))}
+        <button type="button" className="text-end cursor-pointer select-none hover:text-black dark:hover:text-white" onClick={() => toggleSort('total')}>
+          {t('ar.aging.total', 'Total')}{sortIcon('total')}
+        </button>
+        <span className="text-center">{t('ar.aging.trend', '6mo')}</span>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+        {pageRows.map((row) => {
+          const worstBucket = getWorstBucket(row)
+          const accent = getRowAccent(worstBucket)
+
+          return (
+            <div
+              key={row.customerId}
+              className={`grid grid-cols-[1fr_repeat(5,minmax(80px,auto))_100px_48px] items-center gap-0 px-4 py-2.5 hover:bg-[#2563EB]/[0.02] transition-colors ${accent}`}
+            >
+              {/* Customer */}
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-medium truncate">{row.customerName}</span>
+                  <span className="text-[10px] text-black/30 dark:text-white/30 shrink-0">
+                    {row.tierBadge}
+                  </span>
+                </div>
+                <div className="text-[11px] text-black/35 dark:text-white/35">
+                  {row.salesRep}
+                </div>
+              </div>
+
+              {/* Bucket amounts */}
+              {BUCKET_KEYS.map((b) => {
+                const amount = row[b.key] as number
+                return (
+                  <div key={b.key} className="text-end">
+                    {amount > 0 ? (
+                      <button
+                        type="button"
+                        className="hover:text-[#2563EB] cursor-pointer transition-colors"
+                        onClick={() => onCellClick(row.customerId, b.bucket)}
+                      >
+                        <CurrencyCell amount={amount} className="text-sm" />
+                      </button>
+                    ) : (
+                      <span className="text-black/15 dark:text-white/15 font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
+                        \u2014
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-black/40 dark:text-white/40">
-                    {row.salesRep}
-                  </div>
-                </td>
-                {BUCKET_KEYS.map((b) => {
-                  const amount = row[b.key] as number
-                  return (
-                    <td key={b.key} className={`px-3 py-2 text-end ${amount > 0 ? CELL_BG[b.bucket] : ''}`}>
-                      {amount > 0 ? (
-                        <button
-                          type="button"
-                          className="hover:underline cursor-pointer"
-                          onClick={() => onCellClick(row.customerId, b.bucket)}
-                        >
-                          <CurrencyCell amount={amount} />
-                        </button>
-                      ) : (
-                        <span className="text-black/20 dark:text-white/20 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                          -
-                        </span>
-                      )}
-                    </td>
-                  )
-                })}
-                <td className="px-3 py-2 text-end">
-                  <CurrencyCell amount={row.total} className="font-semibold" />
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <SparklineSVG data={row.sparklineData} />
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                )
+              })}
+
+              {/* Total */}
+              <div className="text-end">
+                <CurrencyCell amount={row.total} className="text-sm font-semibold" />
+              </div>
+
+              {/* Sparkline */}
+              <div className="flex justify-center">
+                <SparklineSVG data={row.sparklineData} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-3 py-2 text-xs text-black/50 dark:text-white/50">
-          <span>
-            {t('ar.aging.showing', 'Showing')} {page * PAGE_SIZE + 1}-
-            {Math.min((page + 1) * PAGE_SIZE, sorted.length)} {t('ar.aging.of', 'of')}{' '}
-            {sorted.length}
+        <div className="flex items-center justify-between px-4 py-2 text-xs text-black/40 dark:text-white/40 border-t border-black/5 dark:border-white/5">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+            {page * PAGE_SIZE + 1}\u2013{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
           </span>
           <div className="flex gap-1">
             <button
               type="button"
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
-              className="px-2 py-1 rounded border border-black/10 dark:border-white/10 disabled:opacity-30"
+              className="px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-20 transition-colors"
             >
               {t('ar.aging.prev', 'Prev')}
             </button>
@@ -236,7 +230,7 @@ export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
               type="button"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
-              className="px-2 py-1 rounded border border-black/10 dark:border-white/10 disabled:opacity-30"
+              className="px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-20 transition-colors"
             >
               {t('ar.aging.next', 'Next')}
             </button>

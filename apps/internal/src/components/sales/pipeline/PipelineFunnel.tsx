@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { motion } from 'motion/react'
 import type { PipelineDeal, PipelineStage, PipelineStageId } from '../../../types/sales'
 
 interface PipelineFunnelProps {
@@ -17,21 +18,21 @@ const FUNNEL_STAGE_ORDER: PipelineStageId[] = [
   'won',
 ]
 
-const formatValue = (value: number) =>
-  new Intl.NumberFormat('en-EG', {
+const formatValue = (value: number) => {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
+  return new Intl.NumberFormat('en-EG', {
     style: 'currency',
     currency: 'EGP',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value)
+}
 
-function getBarColor(index: number, total: number): string {
-  // Gradient from neutral (top) to blue (bottom/Won)
-  const ratio = index / (total - 1)
-  if (ratio < 0.3) return 'bg-black/10 dark:bg-white/10'
-  if (ratio < 0.6) return 'bg-[#2563EB]/20'
-  if (ratio < 0.85) return 'bg-[#2563EB]/40'
-  return 'bg-[#2563EB]/70'
+function getBarOpacity(index: number, total: number): number {
+  // Blue gradient: 100% opacity at top -> 15% at bottom (before won)
+  const ratio = 1 - index / (total - 1)
+  return Math.max(0.15, ratio)
 }
 
 export function PipelineFunnel({ stages, deals }: PipelineFunnelProps) {
@@ -59,81 +60,84 @@ export function PipelineFunnel({ stages, deals }: PipelineFunnelProps) {
     conversionRates.push(fromCount > 0 ? Math.round((toCount / fromCount) * 100) : 0)
   }
 
+  // Lost stage
+  const lostStage = stages.find((s) => s.id === 'lost_expired')
+
   return (
     <div className="flex h-full flex-col overflow-y-auto px-6 py-6">
-      <h3 className="mb-6 text-sm font-semibold">
-        {t('sales.pipeline.funnelChart', 'Funnel Chart')}
-      </h3>
-
-      <div className="mx-auto w-full max-w-2xl space-y-1">
+      <div className="mx-auto w-full max-w-3xl">
         {funnelStages.map((stage, index) => {
+          // Real funnel shape: bar width proportional to deal count, dramatic narrowing
           const widthPercent = maxCount > 0
-            ? Math.max(20, Math.round((stage.dealCount / maxCount) * 100))
-            : 20
+            ? Math.max(12, Math.round((stage.dealCount / maxCount) * 100))
+            : 12
+
+          const isWon = stage.id === 'won'
+          const opacity = getBarOpacity(index, funnelStages.length)
 
           return (
             <div key={stage.id}>
-              {/* Stage bar */}
-              <div className="flex items-center gap-4">
-                <div className="w-32 shrink-0 text-end">
-                  <span className="text-xs font-medium text-black/60 dark:text-white/60">
-                    {stage.name}
+              {/* Stage bar -- centered, actual narrowing funnel */}
+              <motion.div
+                initial={{ opacity: 0, scaleX: 0.8 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.2, delay: index * 0.03, ease: 'easeOut' }}
+                className="mx-auto flex items-center justify-between rounded-lg px-4 py-2.5"
+                style={{
+                  width: `${widthPercent}%`,
+                  backgroundColor: isWon
+                    ? 'rgba(34, 197, 94, 0.12)'
+                    : `rgba(37, 99, 235, ${opacity})`,
+                }}
+              >
+                <span className="text-[12px] font-medium text-white mix-blend-difference">
+                  {stage.name}
+                </span>
+                <div className="flex items-center gap-3">
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-semibold text-white mix-blend-difference">
+                    {stage.dealCount}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-white/60 mix-blend-difference">
+                    {formatValue(stage.totalValue)}
                   </span>
                 </div>
+              </motion.div>
 
-                <div className="flex-1">
-                  <div
-                    className={`flex items-center justify-between rounded-md px-3 py-2 transition-all ${getBarColor(index, funnelStages.length)}`}
-                    style={{ width: `${widthPercent}%` }}
-                  >
-                    <span className="font-[family-name:var(--font-geist-mono)] text-xs font-medium">
-                      {stage.dealCount} {t('sales.pipeline.deals', 'deals')}
-                    </span>
-                    <span className="font-[family-name:var(--font-geist-mono)] text-xs text-black/50 dark:text-white/50">
-                      {formatValue(stage.totalValue)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Conversion rate between stages */}
+              {/* Conversion connector between stages */}
               {index < funnelStages.length - 1 && (
-                <div className="flex items-center gap-4 py-0.5">
-                  <div className="w-32 shrink-0" />
-                  <div className="ps-4">
-                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] text-black/30 dark:text-white/30">
-                      {conversionRates[index]}% conversion
-                    </span>
-                  </div>
+                <div className="flex justify-center py-0.5">
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25">
+                    {conversionRates[index]}%
+                  </span>
                 </div>
               )}
             </div>
           )
         })}
-      </div>
 
-      {/* Lost/Expired summary */}
-      {(() => {
-        const lostStage = stages.find((s) => s.id === 'lost_expired')
-        if (!lostStage || lostStage.dealCount === 0) return null
-        return (
-          <div className="mx-auto mt-6 w-full max-w-2xl border-t border-black/10 pt-4 dark:border-white/10">
-            <div className="flex items-center gap-4">
-              <div className="w-32 shrink-0 text-end">
-                <span className="text-xs font-medium text-red-500">
-                  {lostStage.name}
-                </span>
-              </div>
-              <div>
-                <span className="font-[family-name:var(--font-geist-mono)] text-xs text-red-500">
-                  {lostStage.dealCount} {t('sales.pipeline.deals', 'deals')} &middot;{' '}
-                  {formatValue(lostStage.totalValue)}
-                </span>
-              </div>
+        {/* Lost/Expired -- barely visible bar at 10% opacity */}
+        {lostStage && lostStage.dealCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, delay: funnelStages.length * 0.03 }}
+            className="mx-auto mt-4 flex items-center justify-between rounded-lg bg-red-500/[0.06] px-4 py-2.5 dark:bg-red-500/[0.08]"
+            style={{ width: `${Math.max(12, Math.round((lostStage.dealCount / maxCount) * 100))}%` }}
+          >
+            <span className="text-[12px] font-medium text-red-500/60">
+              {lostStage.name}
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-semibold text-red-500/60">
+                {lostStage.dealCount}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-red-500/35">
+                {formatValue(lostStage.totalValue)}
+              </span>
             </div>
-          </div>
-        )
-      })()}
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }

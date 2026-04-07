@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Select, SelectValue, ListBox, ListBoxItem, Popover, Label } from 'react-aria-components'
+import { Button } from 'react-aria-components'
 import { StatusBadge } from '../shared/StatusBadge'
 import type { InvoiceDispute, DisputeStatus } from '../../../types/finance'
 
@@ -26,6 +26,12 @@ function getSLARemaining(deadline: string): { text: string; isUrgent: boolean; i
   }
 
   return { text: `${hours}h ${minutes}m`, isUrgent: false, isOverdue: false }
+}
+
+function getAge(createdAt: string): string {
+  const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'today'
+  return `${days}d`
 }
 
 const MOCK_DISPUTES: InvoiceDispute[] = [
@@ -93,9 +99,11 @@ const MOCK_DISPUTES: InvoiceDispute[] = [
   },
 ]
 
+const STATUS_OPTIONS = ['all', 'open', 'investigating', 'resolved', 'escalated'] as const
+
 /**
- * Invoice dispute list (Section 5.9 equivalent).
- * Table with dispute details, SLA countdown, status filtering.
+ * "The Case File" — Dispute list as compact case cards, NOT a table.
+ * Each dispute: case # (mono) + customer + type tag + age + status.
  */
 export function DisputeList({ onSelectDispute, onCreateDispute }: DisputeListProps) {
   const { t } = useTranslation('finance')
@@ -107,110 +115,118 @@ export function DisputeList({ onSelectDispute, onCreateDispute }: DisputeListPro
   }, [statusFilter])
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Select
-            selectedKey={statusFilter}
-            onSelectionChange={(key) => setStatusFilter(key as string)}
-            className="flex items-center gap-2"
-          >
-            <Label className="text-sm text-black/60 dark:text-white/60">{t('disputes.filter', 'Filter')}:</Label>
-            <Button className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-1.5 text-sm text-start min-w-[140px]">
-              <SelectValue />
-            </Button>
-            <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-xl shadow-lg">
-              <ListBox className="p-1 outline-none">
-                <ListBoxItem id="all" className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10">
-                  {t('disputes.all', 'All')}
-                </ListBoxItem>
-                <ListBoxItem id="open" className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10">
-                  {t('disputes.open', 'Open')}
-                </ListBoxItem>
-                <ListBoxItem id="investigating" className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10">
-                  {t('disputes.investigating', 'Investigating')}
-                </ListBoxItem>
-                <ListBoxItem id="resolved" className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10">
-                  {t('disputes.resolved', 'Resolved')}
-                </ListBoxItem>
-                <ListBoxItem id="escalated" className="rounded px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10">
-                  {t('disputes.escalated', 'Escalated')}
-                </ListBoxItem>
-              </ListBox>
-            </Popover>
-          </Select>
+    <div className="space-y-0">
+      {/* ─── Header ────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+        {/* Filter pills */}
+        <div className="flex items-center gap-1">
+          {STATUS_OPTIONS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+                statusFilter === s
+                  ? 'bg-black/[0.06] dark:bg-white/[0.06] text-black/70 dark:text-white/70 font-medium'
+                  : 'text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60'
+              }`}
+            >
+              {s === 'all' ? t('disputes.all', 'All') : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
         </div>
+
+        <div className="flex-1" />
+
         <Button
           onPress={onCreateDispute}
-          className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 transition-colors"
+          className="rounded-md bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
         >
-          {t('disputes.createDispute', 'Create Dispute')}
+          {t('disputes.createDispute', 'New Dispute')}
         </Button>
       </div>
 
-      {/* Dispute table */}
-      <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/3 dark:bg-white/3">
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.disputeNo', 'Dispute #')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.invoiceNo', 'Invoice #')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.customer', 'Customer')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.reason', 'Reason')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.status', 'Status')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.assignedTo', 'Assigned To')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.created', 'Created')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('disputes.slaDeadline', 'SLA Deadline')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((dispute) => {
-              const sla = getSLARemaining(dispute.slaDeadline)
-              return (
-                <tr
-                  key={dispute.id}
-                  onClick={() => onSelectDispute(dispute.id)}
-                  className="border-b border-black/5 dark:border-white/5 cursor-pointer hover:bg-[#2563EB]/3 transition-colors"
-                >
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] tabular-nums text-[#2563EB] font-medium">
-                    {dispute.id}
-                  </td>
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
+      {/* ─── Case cards ────────────────────────────────── */}
+      <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+        {filtered.map((dispute) => {
+          const sla = getSLARemaining(dispute.slaDeadline)
+
+          return (
+            <div
+              key={dispute.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectDispute(dispute.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onSelectDispute(dispute.id) }}
+              className={`px-5 py-3 cursor-pointer transition-colors ${
+                sla.isOverdue
+                  ? 'bg-red-500/[0.02] hover:bg-red-500/[0.05]'
+                  : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                {/* Left: case info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    {/* Case # — mono blue */}
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[#2563EB] font-medium">
+                      {dispute.id}
+                    </span>
+                    {/* Type tag */}
+                    <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.04] px-2 py-0.5 text-[10px] text-black/40 dark:text-white/40">
+                      {dispute.reason}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-black/60 dark:text-white/60">
+                    {dispute.customerName}
+                  </div>
+                  <div className="text-[11px] text-black/25 dark:text-white/25 mt-0.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
                     {dispute.invoiceNumber}
-                  </td>
-                  <td className="px-3 py-2.5">{dispute.customerName}</td>
-                  <td className="px-3 py-2.5 max-w-[160px] truncate">{dispute.reason}</td>
-                  <td className="px-3 py-2.5">
-                    <StatusBadge status={dispute.status} variant="dispute" />
-                  </td>
-                  <td className="px-3 py-2.5 text-black/60 dark:text-white/60">
-                    {dispute.assignedTo ?? '--'}
-                  </td>
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
-                    {new Date(dispute.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {sla.isOverdue ? (
-                      <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-400">
-                        OVERDUE
-                      </span>
-                    ) : (
-                      <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${sla.isUrgent ? 'text-red-600 dark:text-red-400 font-bold' : 'text-black/60 dark:text-white/60'}`}>
-                        {sla.text}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+
+                {/* Right: metadata */}
+                <div className="flex items-center gap-4 shrink-0">
+                  {/* Assigned */}
+                  {dispute.assignedTo && (
+                    <span className="text-[10px] text-black/25 dark:text-white/25">
+                      {dispute.assignedTo}
+                    </span>
+                  )}
+
+                  {/* SLA */}
+                  {sla.isOverdue ? (
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] font-medium text-red-600 dark:text-red-400 tracking-wider uppercase">
+                      Overdue
+                    </span>
+                  ) : (
+                    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] ${
+                      sla.isUrgent ? 'text-red-600 dark:text-red-400 font-medium' : 'text-black/25 dark:text-white/25'
+                    }`}>
+                      {sla.text}
+                    </span>
+                  )}
+
+                  {/* Age */}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20 min-w-[28px] text-end">
+                    {getAge(dispute.createdAt)}
+                  </span>
+
+                  {/* Status */}
+                  <StatusBadge status={dispute.status} variant="dispute" />
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-8 text-sm text-black/40 dark:text-white/40">
-          {t('disputes.noDisputes', 'No disputes found')}
+        <div className="flex items-center justify-center py-16">
+          <span className="text-xs text-black/25 dark:text-white/25 tracking-wider uppercase">
+            {t('disputes.noDisputes', 'No disputes')}
+          </span>
         </div>
       )}
     </div>

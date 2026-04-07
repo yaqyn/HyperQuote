@@ -39,7 +39,7 @@ export type HandoffStage =
   | 'driver'
   | 'finance'
 
-export type OperationsTab = 'dashboard' | 'kanban' | 'order-detail' | 'delivery-schedule'
+export type OperationsTab = 'operations'
 
 export type FulfillmentColor = 'green' | 'yellow' | 'red'
 

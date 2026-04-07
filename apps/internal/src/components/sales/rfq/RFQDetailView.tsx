@@ -43,6 +43,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
   const queryClient = useQueryClient()
   const setActiveTab = useSalesStore((s) => s.setActiveTab)
+  const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
 
   const [showClarification, setShowClarification] = useState(false)
   const [showDecline, setShowDecline] = useState(false)
@@ -65,7 +66,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
         },
       }),
     onSuccess: () => {
-      setActiveTab('quote-builder')
+      setEditingRfqId(rfqId)
     },
   })
 
@@ -83,7 +84,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
   if (isLoading || !detail) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-sm text-black/40 dark:text-white/40">Loading RFQ detail...</p>
+        <p className="text-[13px] text-[var(--color-text-subtle)]">Loading RFQ detail...</p>
       </div>
     )
   }
@@ -96,38 +97,40 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
       <div className="flex-1 overflow-auto">
         <div className="flex flex-col md:flex-row gap-0 h-full">
           {/* Left column (60%): Materials + Delivery + Attachments */}
-          <div className="w-full md:w-[60%] border-e border-black/10 dark:border-white/10 overflow-auto">
+          <div className="w-full md:w-[60%] border-e border-black/[0.06] dark:border-white/[0.06] overflow-auto">
             {/* Materials table */}
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-              <h3 className="text-sm font-semibold mb-3">Material Request</h3>
+            <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <h3 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-3">
+                Material Request
+              </h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-start text-sm" role="grid" aria-label="Material request items">
+                <table className="w-full text-start" role="grid" aria-label="Material request items">
                   <thead>
-                    <tr className="border-b border-black/10 dark:border-white/10">
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50 w-8">#</th>
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50">Name</th>
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50">Specification</th>
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50">Qty</th>
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50">Unit</th>
-                      <th className="px-2 py-1.5 text-start text-xs font-medium text-black/50 dark:text-white/50">Notes</th>
+                    <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider w-8">#</th>
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">Name</th>
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">Spec</th>
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">Qty</th>
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">Unit</th>
+                      <th className="px-2 py-1.5 text-start text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">Notes</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rfq.items.map((item, idx) => (
                       <tr
                         key={item.id}
-                        className="border-b border-black/5 dark:border-white/5"
+                        className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                       >
-                        <td className="px-2 py-2 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">
+                        <td className="px-2 py-2 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
                           {idx + 1}
                         </td>
-                        <td className="px-2 py-2 font-medium">{item.productName}</td>
-                        <td className="px-2 py-2 text-black/60 dark:text-white/60">{item.specification}</td>
-                        <td className="px-2 py-2 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                        <td className="px-2 py-2 text-[13px] font-medium text-[var(--color-text)]">{item.productName}</td>
+                        <td className="px-2 py-2 text-[13px] text-[var(--color-text-muted)]">{item.specification}</td>
+                        <td className="px-2 py-2 font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                           {new Intl.NumberFormat(locale).format(item.quantity)}
                         </td>
-                        <td className="px-2 py-2 text-black/60 dark:text-white/60">{item.unit}</td>
-                        <td className="px-2 py-2 text-black/50 dark:text-white/50 text-xs max-w-[200px] truncate">
+                        <td className="px-2 py-2 text-[13px] text-[var(--color-text-muted)]">{item.unit}</td>
+                        <td className="px-2 py-2 text-[11px] text-[var(--color-text-subtle)] max-w-[200px] truncate">
                           {item.customerDescription}
                         </td>
                       </tr>
@@ -138,27 +141,29 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
             </div>
 
             {/* Delivery requirements */}
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-              <h3 className="text-sm font-semibold mb-2">Delivery Requirements</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-start gap-2">
-                  <span className="text-black/40 dark:text-white/40 shrink-0">Address</span>
-                  <span>{rfq.deliveryRequirements.address}</span>
+            <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <h3 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
+                Delivery Requirements
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3">
+                  <span className="text-[11px] text-[var(--color-text-subtle)] shrink-0 w-16 pt-0.5">Address</span>
+                  <span className="text-[13px] text-[var(--color-text)]">{rfq.deliveryRequirements.address}</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-black/40 dark:text-white/40 shrink-0">Date</span>
-                  <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums ${rfq.deliveryUrgency < 7 ? 'text-red-600' : ''}`}>
+                <div className="flex items-start gap-3">
+                  <span className="text-[11px] text-[var(--color-text-subtle)] shrink-0 w-16 pt-0.5">Date</span>
+                  <span className={`font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums ${rfq.deliveryUrgency < 7 ? 'text-red-600' : 'text-[var(--color-text)]'}`}>
                     {new Date(rfq.deliveryRequirements.requestedDate).toLocaleDateString(locale)}
                   </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-black/40 dark:text-white/40 shrink-0">Type</span>
-                  <span>{rfq.deliveryRequirements.deliveryType}</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-[11px] text-[var(--color-text-subtle)] shrink-0 w-16 pt-0.5">Type</span>
+                  <span className="text-[13px] text-[var(--color-text)]">{rfq.deliveryRequirements.deliveryType}</span>
                 </div>
                 {rfq.deliveryRequirements.specialInstructions && (
-                  <div className="flex items-start gap-2">
-                    <span className="text-black/40 dark:text-white/40 shrink-0">Instructions</span>
-                    <span className="text-black/70 dark:text-white/70">{rfq.deliveryRequirements.specialInstructions}</span>
+                  <div className="flex items-start gap-3">
+                    <span className="text-[11px] text-[var(--color-text-subtle)] shrink-0 w-16 pt-0.5">Notes</span>
+                    <span className="text-[13px] text-[var(--color-text-muted)]">{rfq.deliveryRequirements.specialInstructions}</span>
                   </div>
                 )}
               </div>
@@ -167,19 +172,21 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
             {/* Attached files */}
             {rfq.attachments.length > 0 && (
               <div className="px-4 py-3">
-                <h3 className="text-sm font-semibold mb-2">Attached Files</h3>
-                <ul className="space-y-1.5">
+                <h3 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
+                  Attachments
+                </h3>
+                <ul className="space-y-1">
                   {rfq.attachments.map((att) => (
-                    <li key={att.id} className="flex items-center justify-between text-sm">
+                    <li key={att.id} className="flex items-center justify-between py-1">
                       <a
                         href={att.url}
-                        className="text-[#2563EB] hover:underline truncate"
+                        className="text-[13px] text-[var(--color-primary)] hover:underline truncate"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
                         {att.name}
                       </a>
-                      <span className="text-xs text-black/40 dark:text-white/40 font-[family-name:var(--font-geist-mono)] tabular-nums shrink-0 ms-2">
+                      <span className="text-[11px] text-[var(--color-text-subtle)] font-[family-name:var(--font-geist-mono)] tabular-nums shrink-0 ms-2">
                         {formatFileSize(att.size)}
                       </span>
                     </li>
@@ -191,56 +198,60 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* Right column (40%): Customer context */}
           <div className="w-full md:w-[40%] overflow-auto">
-            {/* Customer snapshot card */}
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
+            {/* Customer snapshot */}
+            <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-3">
-                <h3 className="text-sm font-semibold">{rfq.customer.name}</h3>
+                <h3 className="text-[15px] font-semibold text-[var(--color-text)]">{rfq.customer.name}</h3>
                 <TierBadge tier={rfq.customer.tier} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-black/40 dark:text-white/40 text-xs">Orders</span>
-                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums">{rfq.customer.orderCount}</p>
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Orders</span>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
+                    {rfq.customer.orderCount}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-black/40 dark:text-white/40 text-xs">Lifetime Value</span>
-                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Lifetime Value</span>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                     {formatEGP(rfq.customer.lifetimeValue, locale)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-black/40 dark:text-white/40 text-xs">Avg Margin</span>
-                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Avg Margin</span>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                     {formatPercent(rfq.customer.avgMargin, locale)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-black/40 dark:text-white/40 text-xs">Payment History</span>
-                  <p className="capitalize">{rfq.customer.paymentHistory}</p>
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Payment History</span>
+                  <p className="text-[13px] capitalize text-[var(--color-text)]">{rfq.customer.paymentHistory}</p>
                 </div>
               </div>
             </div>
 
             {/* Credit info */}
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-              <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">Credit</h4>
-              <div className="space-y-1 text-sm">
+            <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <h4 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
+                Credit
+              </h4>
+              <div className="space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-black/40 dark:text-white/40">Limit</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Limit</span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                     {formatEGP(rfq.customer.creditLimit, locale)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-black/40 dark:text-white/40">Exposure</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Exposure</span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                     {formatEGP(rfq.customer.currentExposure, locale)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-black/40 dark:text-white/40">Available</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+                  <span className="text-[11px] text-[var(--color-text-subtle)]">Available</span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums font-medium text-[var(--color-text)]">
                     {formatEGP(rfq.customer.availableCredit, locale)}
                   </span>
                 </div>
@@ -249,27 +260,29 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
             {/* Similar past quotes */}
             {rfq.similarQuotes && rfq.similarQuotes.length > 0 && (
-              <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-                <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
+              <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <h4 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
                   Similar Past Quotes
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {rfq.similarQuotes.map((sq) => (
                     <div
                       key={sq.id}
-                      className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-3 py-2"
+                      className="flex items-center justify-between rounded-lg bg-black/[0.02] dark:bg-white/[0.03] px-3 py-2"
                     >
                       <div>
-                        <p className="text-sm font-[family-name:var(--font-geist-mono)] tabular-nums">{sq.quoteNumber}</p>
-                        <p className="text-xs text-black/40 dark:text-white/40 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                        <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
+                          {sq.quoteNumber}
+                        </p>
+                        <p className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
                           {formatEGP(sq.value, locale)}
                         </p>
                       </div>
                       <div className="text-end">
-                        <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
+                        <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
                           {formatPercent(sq.marginPercent, locale)}
                         </p>
-                        <p className={`text-xs font-medium ${sq.outcome === 'won' ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={`text-[11px] font-medium ${sq.outcome === 'won' ? 'text-green-600' : 'text-red-600'}`}>
                           {sq.outcome.toUpperCase()}
                         </p>
                       </div>
@@ -282,23 +295,23 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
             {/* AI Insights */}
             {rfq.aiInsights && (
               <div className="px-4 py-3">
-                <h4 className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
+                <h4 className="text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
                   AI Insights
                 </h4>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-black/40 dark:text-white/40">Win Probability</span>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+                    <span className="text-[11px] text-[var(--color-text-subtle)]">Win Probability</span>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums font-medium text-[var(--color-text)]">
                       {formatPercent(rfq.aiInsights.winProbability, locale)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-black/40 dark:text-white/40">Recommended Margin</span>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+                    <span className="text-[11px] text-[var(--color-text-subtle)]">Recommended Margin</span>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums font-medium text-[var(--color-text)]">
                       {formatPercent(rfq.aiInsights.recommendedMargin, locale)}
                     </span>
                   </div>
-                  <p className="text-xs text-black/50 dark:text-white/50 leading-relaxed">
+                  <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed pt-1">
                     {rfq.aiInsights.behavioralPrediction}
                   </p>
                 </div>
@@ -310,14 +323,15 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
       {/* Inline note input */}
       {showNoteInput && (
-        <div className="border-t border-black/10 dark:border-white/10 px-4 py-2 flex gap-2">
+        <div className="border-t border-black/[0.06] dark:border-white/[0.06] px-4 py-2 flex gap-2">
           <input
             type="text"
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Add internal note..."
-            className="flex-1 rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-1.5 text-sm outline-none
-              focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/50"
+            className="flex-1 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] px-3 py-1.5 text-[13px] outline-none
+              focus:ring-1 focus:ring-[var(--color-primary)]/50
+              placeholder:text-[var(--color-text-subtle)]"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && noteText.trim()) {
                 addNoteMutation.mutate(noteText.trim())
@@ -330,8 +344,8 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
             autoFocus
           />
           <Button
-            className="rounded-md bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white outline-none
-              data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[11px] font-medium text-white outline-none
+              data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => {
               if (noteText.trim()) addNoteMutation.mutate(noteText.trim())
             }}
@@ -343,12 +357,12 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
       )}
 
       {/* Actions bar (bottom, sticky) */}
-      <div className="sticky bottom-0 border-t border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-sm px-4 py-3">
+      <div className="sticky bottom-0 border-t border-black/[0.06] dark:border-white/[0.06] bg-[var(--color-surface)]/95 dark:bg-black/95 backdrop-blur-sm px-4 py-3">
         <div className="flex flex-wrap gap-2">
           {/* 1. Start Quote (primary) */}
           <Button
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white outline-none
-              data-[hovered]:bg-[#2563EB]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-2"
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none
+              data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[focus-visible]:ring-offset-2"
             onPress={() => startQuoteMutation.mutate()}
             isDisabled={startQuoteMutation.isPending}
           >
@@ -357,9 +371,9 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 2. Request Clarification */}
           <Button
-            className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => setShowClarification(true)}
           >
             Request Clarification
@@ -367,9 +381,9 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 3. Decline RFQ */}
           <Button
-            className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => setShowDecline(true)}
           >
             Decline RFQ
@@ -377,9 +391,9 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 4. Assign to... */}
           <Button
-            className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => {
               // Reassign dropdown -- placeholder
             }}
@@ -389,9 +403,9 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 5. Add Note */}
           <Button
-            className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => setShowNoteInput(!showNoteInput)}
           >
             Add Note
@@ -400,8 +414,8 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
           {/* 6. Call Customer */}
           <a
             href={`tel:+20123456789`}
-            className="inline-flex items-center rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              hover:bg-black/5 dark:hover:bg-white/10"
+            className="inline-flex items-center rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              hover:bg-black/[0.08] dark:hover:bg-white/[0.1]"
             onClick={() => {
               // Log call activity
               addInternalNote({
@@ -418,11 +432,11 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 7. View Full Customer Profile */}
           <Button
-            className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-medium outline-none
-              data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
             onPress={() => {
-              setActiveTab('customer-360')
+              setActiveTab('customers')
             }}
           >
             View Full Customer Profile

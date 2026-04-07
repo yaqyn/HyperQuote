@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Dialog,
-  DialogTrigger,
   Modal,
   ModalOverlay,
   Heading,
@@ -12,6 +11,7 @@ import {
   Label,
   TextArea,
 } from 'react-aria-components'
+import { motion } from 'motion/react'
 import type { CreditProfile } from '../../../types/finance'
 import { updateCreditLimit } from '../../../lib/server/finance-credit'
 import { CurrencyCell } from '../shared/CurrencyCell'
@@ -22,8 +22,6 @@ interface CreditReviewModalProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
 }
-
-// ─── Mock Data ──────────────────────────────────────────
 
 /** 12-month payment history: % on-time per month */
 const PAYMENT_HISTORY = [
@@ -49,89 +47,60 @@ const ORDER_VOLUME = [
   { quarter: 'Q1 26', amount: 2_050_000 },
 ]
 
-/** 12-month payment history SVG bar chart */
+/** CSS-only bar chart for payment history */
 function PaymentHistoryChart() {
-  const barWidth = 24
-  const gap = 4
-  const maxHeight = 80
-  const chartWidth = PAYMENT_HISTORY.length * (barWidth + gap)
-
   return (
-    <svg width={chartWidth} height={maxHeight + 20} className="block">
-      {PAYMENT_HISTORY.map((m, i) => {
-        const barH = (m.pct / 100) * maxHeight
-        const x = i * (barWidth + gap)
-        const y = maxHeight - barH
+    <div className="flex items-end gap-px h-14">
+      {PAYMENT_HISTORY.map((m) => {
+        const height = `${((m.pct - 60) / 40) * 100}%`
         const isLate = m.pct < 90
         return (
-          <g key={m.month}>
-            <rect
-              x={x}
-              y={y}
-              width={barWidth}
-              height={barH}
-              rx={2}
-              className={isLate ? 'fill-red-500/70' : 'fill-green-500/70'}
-            />
-            <text
-              x={x + barWidth / 2}
-              y={maxHeight + 14}
-              textAnchor="middle"
-              className="fill-current text-black/40 dark:text-white/40"
-              style={{ fontSize: '8px', fontFamily: 'var(--font-geist-mono)' }}
-            >
-              {m.month.slice(0, 3)}
-            </text>
-          </g>
+          <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="w-full relative" style={{ height: '56px' }}>
+              <div
+                className={`absolute bottom-0 w-full rounded-sm ${isLate ? 'bg-red-500/50' : 'bg-green-500/40'}`}
+                style={{ height }}
+              />
+            </div>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[7px] text-black/20 dark:text-white/20">
+              {m.month.slice(0, 1)}
+            </span>
+          </div>
         )
       })}
-    </svg>
+    </div>
   )
 }
 
-/** Order volume trend SVG line chart */
+/** CSS-only line-like chart for order volume trend */
 function OrderVolumeTrend() {
-  const maxAmount = Math.max(...ORDER_VOLUME.map((q) => q.amount))
-  const chartWidth = 200
-  const chartHeight = 80
-  const padding = 10
-
-  const points = ORDER_VOLUME.map((q, i) => {
-    const x = padding + (i / (ORDER_VOLUME.length - 1)) * (chartWidth - padding * 2)
-    const y = chartHeight - padding - ((q.amount / maxAmount) * (chartHeight - padding * 2))
-    return { x, y, ...q }
-  })
-
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-
+  const max = Math.max(...ORDER_VOLUME.map((q) => q.amount))
   return (
-    <svg width={chartWidth} height={chartHeight + 20} className="block">
-      {/* Line */}
-      <path d={pathD} fill="none" stroke="#2563EB" strokeWidth={2} />
-      {/* Dots + labels */}
-      {points.map((p) => (
-        <g key={p.quarter}>
-          <circle cx={p.x} cy={p.y} r={3} className="fill-[#2563EB]" />
-          <text
-            x={p.x}
-            y={chartHeight + 14}
-            textAnchor="middle"
-            className="fill-current text-black/40 dark:text-white/40"
-            style={{ fontSize: '8px', fontFamily: 'var(--font-geist-mono)' }}
-          >
-            {p.quarter}
-          </text>
-        </g>
-      ))}
-    </svg>
+    <div className="flex items-end gap-3 h-14">
+      {ORDER_VOLUME.map((q) => {
+        const height = `${(q.amount / max) * 100}%`
+        return (
+          <div key={q.quarter} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="w-full relative" style={{ height: '56px' }}>
+              <div
+                className="absolute bottom-0 w-full rounded-sm bg-[#2563EB]/30"
+                style={{ height }}
+              />
+            </div>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[7px] text-black/20 dark:text-white/20">
+              {q.quarter}
+            </span>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
 /**
- * Credit limit review modal (React Aria Dialog).
- * Shows payment history chart, order volume trend, AI recommendation.
- * Actions: Approve Requested, Approve Different, Deny, Defer + Notes.
- * On approve: calls updateCreditLimit, shows CreditApprovalChain if needed.
+ * Credit review modal — clean form with limit adjustment,
+ * supporting data (payment history, order volume, AI recommendation),
+ * justification textarea, approval routing preview.
  */
 export function CreditReviewModal({ profile, isOpen, onOpenChange }: CreditReviewModalProps) {
   const { t } = useTranslation('finance')
@@ -144,10 +113,14 @@ export function CreditReviewModal({ profile, isOpen, onOpenChange }: CreditRevie
     approvalRequired: string | null
   } | null>(null)
 
-  // Mock: requested limit = current + 30%
   const requestedLimit = Math.round(profile.creditLimit * 1.3)
   const increasePercent = ((requestedLimit - profile.creditLimit) / profile.creditLimit) * 100
   const aiSuggestedLimit = Math.round(profile.creditLimit * 1.3)
+  const avgOnTime = Math.round(PAYMENT_HISTORY.reduce((s, m) => s + m.pct, 0) / PAYMENT_HISTORY.length)
+  const qoqGrowth = Math.round(
+    ((ORDER_VOLUME[ORDER_VOLUME.length - 1].amount - ORDER_VOLUME[ORDER_VOLUME.length - 2].amount) /
+      ORDER_VOLUME[ORDER_VOLUME.length - 2].amount) * 100,
+  )
 
   const handleApprove = async (amount: number) => {
     const result = await updateCreditLimit({
@@ -167,178 +140,184 @@ export function CreditReviewModal({ profile, isOpen, onOpenChange }: CreditRevie
       isDismissable
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
-      <Modal className="w-full max-w-3xl max-h-[90vh] overflow-auto rounded-2xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-2xl">
-        <Dialog className="p-6 outline-none">
+      <Modal className="w-full max-w-3xl max-h-[90vh] overflow-auto">
+        <Dialog className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-0 outline-none">
           {({ close }) => (
-            <div className="space-y-5">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <Heading slot="title" className="text-lg font-semibold">
-                  {t('credit.reviewTitle', 'Credit Review')} &mdash; {profile.customerName}
-                </Heading>
+            <motion.div
+              initial={{ scale: 0.97, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            >
+              {/* ─── Header ─────────────────────────────── */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <div>
+                  <Heading slot="title" className="text-sm font-medium">
+                    {t('credit.reviewTitle', 'Credit Review')}
+                  </Heading>
+                  <div className="text-xs text-black/30 dark:text-white/30 mt-0.5">
+                    {profile.customerName}
+                  </div>
+                </div>
                 <Button
                   onPress={close}
-                  className="text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white text-lg"
+                  className="text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white text-sm transition-colors"
                 >
                   &times;
                 </Button>
               </div>
 
-              {/* Current + Requested */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                    {t('credit.currentLimit', 'Current Limit')}
+              <div className="px-6 py-5 space-y-5">
+                {/* ─── Limits comparison ─────────────────── */}
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                      {t('credit.currentLimit', 'Current')}
+                    </div>
+                    <CurrencyCell amount={profile.creditLimit} className="text-sm" />
                   </div>
-                  <CurrencyCell amount={profile.creditLimit} className="text-base" />
-                </div>
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                    {t('credit.requestedLimit', 'Requested Limit')}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                      {t('credit.requestedLimit', 'Requested')}
+                    </div>
+                    <CurrencyCell amount={requestedLimit} className="text-sm" />
                   </div>
-                  <CurrencyCell amount={requestedLimit} className="text-base" />
-                </div>
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                    {t('credit.increasePercent', 'Increase')}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                      {t('credit.increasePercent', 'Increase')}
+                    </div>
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-[#2563EB]">
+                      +{Math.round(increasePercent)}%
+                    </span>
                   </div>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-base">
-                    +{Math.round(increasePercent)}%
-                  </span>
                 </div>
-              </div>
 
-              {/* Supporting Data: 2 columns */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* Left: Payment History */}
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-                    {t('credit.paymentHistory', '12-Month Payment History (% On-Time)')}
-                  </div>
-                  <div className="overflow-x-auto">
+                {/* ─── Supporting data ───────────────────── */}
+                <div className="grid grid-cols-2 gap-6 py-4 border-y border-black/[0.06] dark:border-white/[0.06]">
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-2">
+                      {t('credit.paymentHistory', 'Payment History (% On-Time)')}
+                    </div>
                     <PaymentHistoryChart />
                   </div>
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-2">
+                      {t('credit.orderVolumeTrend', 'Order Volume (QoQ)')}
+                    </div>
+                    <OrderVolumeTrend />
+                  </div>
                 </div>
 
-                {/* Right: Order Volume */}
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-                    {t('credit.orderVolumeTrend', 'Order Volume Trend (QoQ)')}
+                {/* ─── Exposure + overdue ────────────────── */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                      {t('credit.currentExposure', 'Exposure')}
+                    </div>
+                    <CurrencyCell amount={profile.currentExposure} className="text-xs" />
                   </div>
-                  <OrderVolumeTrend />
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-0.5">
+                      {t('credit.overdueHistory', 'Overdue')}
+                    </div>
+                    <CurrencyCell
+                      amount={profile.overdueAmount}
+                      className={`text-xs ${profile.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Current exposure + overdue */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                    {t('credit.currentExposure', 'Current Exposure')}
+                {/* ─── AI recommendation ────────────────── */}
+                <div className="py-3 px-4 rounded-md border border-[#2563EB]/10 bg-[#2563EB]/[0.02]">
+                  <div className="text-[10px] tracking-widest uppercase text-[#2563EB]/50 mb-1">
+                    {t('credit.aiRecommendation', 'AI Recommendation')}
                   </div>
-                  <CurrencyCell amount={profile.currentExposure} className="text-sm" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-black/70 dark:text-white/70">
+                      {t('credit.aiSuggest', 'Suggest')}
+                    </span>
+                    <CurrencyCell amount={aiSuggestedLimit} className="text-xs font-medium" />
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[#2563EB]">
+                      (+{Math.round(increasePercent)}%)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-black/30 dark:text-white/30 mt-1">
+                    {avgOnTime}% on-time rate, +{qoqGrowth}% QoQ growth, {profile.bouncedCheques12mo} bounced cheques
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                    {t('credit.overdueHistory', 'Overdue Amount')}
-                  </div>
-                  <CurrencyCell
-                    amount={profile.overdueAmount}
-                    className={`text-sm ${profile.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+
+                {/* ─── Approval chain preview ───────────── */}
+                {approvalResult?.approvalRequired && (
+                  <CreditApprovalChain
+                    increasePercent={increasePercent}
+                    newLimit={requestedLimit}
                   />
-                </div>
-              </div>
+                )}
 
-              {/* AI Recommendation (glass card) */}
-              <div className="rounded-xl border border-[#2563EB]/20 bg-[#2563EB]/5 backdrop-blur-sm p-4 space-y-2">
-                <div className="text-xs font-medium text-[#2563EB]">
-                  {t('credit.aiRecommendation', 'AI Recommendation')}
-                </div>
-                <div className="text-sm font-semibold">
-                  {t('credit.aiSuggest', 'Suggest')}{' '}
-                  <CurrencyCell amount={aiSuggestedLimit} className="text-sm font-semibold" />{' '}
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    (+{Math.round(increasePercent)}%)
-                  </span>
-                </div>
-                <div className="text-xs text-black/60 dark:text-white/60">
-                  {t(
-                    'credit.aiReasoning',
-                    `Based on: ${Math.round(PAYMENT_HISTORY.reduce((s, m) => s + m.pct, 0) / PAYMENT_HISTORY.length)}% on-time payment rate, ${Math.round(((ORDER_VOLUME[ORDER_VOLUME.length - 1].amount - ORDER_VOLUME[ORDER_VOLUME.length - 2].amount) / ORDER_VOLUME[ORDER_VOLUME.length - 2].amount) * 100)}% QoQ order growth, ${profile.bouncedCheques12mo} bounced cheques.`,
-                  )}
-                </div>
-              </div>
-
-              {/* Approval Chain (if result shows approval required) */}
-              {approvalResult?.approvalRequired && (
-                <CreditApprovalChain
-                  increasePercent={increasePercent}
-                  newLimit={requestedLimit}
-                />
-              )}
-
-              {/* Notes */}
-              <TextField className="space-y-1">
-                <Label className="text-xs text-black/50 dark:text-white/50">
-                  {t('credit.notes', 'Notes')}
-                </Label>
-                <TextArea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-3 py-2 text-sm outline-none focus:border-[#2563EB] transition-colors"
-                  placeholder={t('credit.notesPlaceholder', 'Add review notes...')}
-                />
-              </TextField>
-
-              {/* Custom amount input */}
-              {showCustomAmount && (
+                {/* ─── Notes ────────────────────────────── */}
                 <TextField className="space-y-1">
-                  <Label className="text-xs text-black/50 dark:text-white/50">
-                    {t('credit.customAmount', 'Custom Amount (EGP)')}
+                  <Label className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20">
+                    {t('credit.notes', 'Notes')}
                   </Label>
-                  <Input
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    type="number"
-                    className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-3 py-2 text-sm font-[family-name:var(--font-geist-mono)] tabular-nums outline-none focus:border-[#2563EB] transition-colors"
+                  <TextArea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    className="w-full bg-transparent border border-black/[0.06] dark:border-white/[0.06] rounded-lg px-3 py-2 text-xs outline-none focus:border-[#2563EB]/30 transition-colors"
+                    placeholder={t('credit.notesPlaceholder', 'Review notes...')}
                   />
                 </TextField>
-              )}
 
-              {/* Actions */}
-              <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-black/10 dark:border-white/10">
-                <Button
-                  onPress={() => handleApprove(requestedLimit)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#2563EB] text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
-                >
-                  {t('credit.approveRequested', 'Approve Requested Amount')}
-                </Button>
-                <Button
-                  onPress={() => {
-                    if (showCustomAmount && customAmount) {
-                      handleApprove(Number(customAmount))
-                    } else {
-                      setShowCustomAmount(true)
-                    }
-                  }}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 hover:bg-black/5 dark:hover:bg-white/5 pressed:bg-black/10 dark:pressed:bg-white/10 transition-colors"
-                >
-                  {t('credit.approveDifferent', 'Approve Different Amount')}
-                </Button>
-                <Button
-                  onPress={close}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/5 pressed:bg-red-500/10 transition-colors"
-                >
-                  {t('credit.deny', 'Deny')}
-                </Button>
-                <Button
-                  onPress={close}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                >
-                  {t('credit.defer', 'Defer')}
-                </Button>
+                {/* ─── Custom amount ────────────────────── */}
+                {showCustomAmount && (
+                  <TextField className="space-y-1">
+                    <Label className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20">
+                      {t('credit.customAmount', 'Custom Amount (EGP)')}
+                    </Label>
+                    <Input
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      type="number"
+                      className="w-full bg-transparent border border-black/[0.06] dark:border-white/[0.06] rounded-lg px-3 py-2 text-xs font-[family-name:var(--font-geist-mono)] tabular-nums outline-none focus:border-[#2563EB]/30 transition-colors"
+                    />
+                  </TextField>
+                )}
+
+                {/* ─── Actions ──────────────────────────── */}
+                <div className="flex items-center gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+                  <Button
+                    onPress={() => handleApprove(requestedLimit)}
+                    className="rounded-md bg-[#2563EB] text-white px-3 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
+                  >
+                    {t('credit.approveRequested', 'Approve Requested')}
+                  </Button>
+                  <Button
+                    onPress={() => {
+                      if (showCustomAmount && customAmount) {
+                        handleApprove(Number(customAmount))
+                      } else {
+                        setShowCustomAmount(true)
+                      }
+                    }}
+                    className="rounded-md border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+                  >
+                    {t('credit.approveDifferent', 'Different Amount')}
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    onPress={close}
+                    className="rounded-md border border-red-500/20 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/[0.05] transition-colors"
+                  >
+                    {t('credit.deny', 'Deny')}
+                  </Button>
+                  <Button
+                    onPress={close}
+                    className="rounded-md px-3 py-1.5 text-xs text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    {t('credit.defer', 'Defer')}
+                  </Button>
+                </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </Dialog>
       </Modal>

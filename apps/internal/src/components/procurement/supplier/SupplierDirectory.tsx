@@ -1,20 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SearchField, Input, Label, Select, SelectValue, Popover, ListBox, ListBoxItem, Button } from 'react-aria-components'
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SearchField, Input, Button } from 'react-aria-components'
+import { motion } from 'motion/react'
 import Fuse from 'fuse.js'
 import { getSupplierDirectory } from '../../../lib/server/procurement-suppliers'
-import type { SupplierScorecard, SupplierTier } from '../../../types/procurement'
+import type { SupplierScorecard } from '../../../types/procurement'
 import { SupplierTierBadge } from './SupplierTierBadge'
 import { PerformanceTrend } from './PerformanceTrend'
-import { SupplierScorecard as ScorecardView } from './SupplierScorecard'
-import { normalizeToStars } from './scorecard-utils'
-import { Star } from 'lucide-react'
+import { useProcurementStore } from '../../../stores/procurement'
 
 // ─── Constants ────────────────────────────────────────────
 
 const TIER_OPTIONS: { id: string; label: string }[] = [
-  { id: 'all', label: 'All Tiers' },
+  { id: 'all', label: 'All' },
   { id: 'preferred', label: 'Preferred' },
   { id: 'approved', label: 'Approved' },
   { id: 'conditional', label: 'Conditional' },
@@ -23,30 +21,13 @@ const TIER_OPTIONS: { id: string; label: string }[] = [
 
 const PAGE_SIZE = 20
 
-// ─── Mini Star Rating ─────────────────────────────────────
-
-function MiniStarRating({ score }: { score: number }) {
-  const stars = normalizeToStars(score)
-  return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${stars} out of 5`}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <Star
-          key={i}
-          className={`size-3 ${i < stars ? 'fill-[#2563EB] text-[#2563EB]' : 'fill-none text-black/20'}`}
-          aria-hidden="true"
-        />
-      ))}
-    </span>
-  )
-}
-
 // ─── Main Component ───────────────────────────────────────
 
 export function SupplierDirectory() {
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
+  const setSelectedSupplierId = useProcurementStore((s) => s.setSelectedSupplierId)
 
   const { data, isLoading } = useQuery({
     queryKey: ['supplier-directory', page],
@@ -67,28 +48,16 @@ export function SupplierDirectory() {
     if (!data?.suppliers) return []
     let results = data.suppliers
 
-    // Apply fuse.js search
     if (search && fuse) {
       results = fuse.search(search).map((r) => r.item)
     }
 
-    // Apply tier filter
     if (tierFilter !== 'all') {
       results = results.filter((s) => s.tier === tierFilter)
     }
 
     return results
   }, [data?.suppliers, search, tierFilter, fuse])
-
-  // If a supplier is selected, show scorecard detail view
-  if (selectedSupplierId) {
-    return (
-      <ScorecardView
-        supplierId={selectedSupplierId}
-        onBack={() => setSelectedSupplierId(null)}
-      />
-    )
-  }
 
   return (
     <div className="space-y-4 p-4">
@@ -101,121 +70,140 @@ export function SupplierDirectory() {
           aria-label="Search suppliers"
         >
           <div className="relative">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-black/40" aria-hidden="true" />
+            <svg
+              className="absolute start-3 top-1/2 -translate-y-1/2 size-3.5 text-black/25 dark:text-white/25"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M11 11L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
             <Input
               placeholder="Search suppliers..."
-              className="w-full rounded-lg border border-black/10 bg-white/60 py-2 ps-9 pe-3 text-sm text-black/80 placeholder:text-black/30 outline-none focus:border-[#2563EB]/30 focus:ring-1 focus:ring-[#2563EB]/20 backdrop-blur-sm"
+              className="w-full rounded-lg border border-black/[0.06] bg-transparent py-2 ps-9 pe-3 text-sm text-black/80 placeholder:text-black/20 outline-none focus:border-[#2563EB]/30 dark:border-white/[0.06] dark:text-white/80 dark:placeholder:text-white/20"
             />
           </div>
         </SearchField>
 
-        {/* Tier filter -- native select for simplicity, styled as pill */}
-        <select
-          value={tierFilter}
-          onChange={(e) => {
-            setTierFilter(e.target.value)
-            setPage(1)
-          }}
-          className="rounded-lg border border-black/10 bg-white/60 px-3 py-2 text-sm text-black/70 outline-none focus:border-[#2563EB]/30 backdrop-blur-sm"
-          aria-label="Filter by tier"
-        >
+        {/* Tier filter pills */}
+        <div className="flex items-center gap-0.5">
           {TIER_OPTIONS.map((opt) => (
-            <option key={opt.id} value={opt.id}>{opt.label}</option>
+            <Button
+              key={opt.id}
+              className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium outline-none transition-colors
+                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
+                ${tierFilter === opt.id
+                  ? 'bg-black/[0.06] text-black dark:bg-white/[0.08] dark:text-white'
+                  : 'text-black/30 dark:text-white/30 data-[hovered]:text-black/60 dark:data-[hovered]:text-white/60'
+                }`}
+              onPress={() => {
+                setTierFilter(opt.id)
+                setPage(1)
+              }}
+            >
+              {opt.label}
+            </Button>
           ))}
-        </select>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Card grid */}
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
-          <p className="text-sm text-black/40">Loading suppliers...</p>
+          <p className="text-sm text-black/25 dark:text-white/25">Loading...</p>
+        </div>
+      ) : filteredSuppliers.length === 0 ? (
+        <div className="flex items-center justify-center h-48">
+          <p className="text-sm text-black/25 dark:text-white/25">No suppliers found</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-black/5 bg-white/60 backdrop-blur-sm">
-          <table className="w-full text-sm" role="grid">
-            <thead>
-              <tr className="border-b border-black/5">
-                <th className="px-4 py-3 text-start text-xs font-medium text-black/40">Supplier</th>
-                <th className="px-4 py-3 text-start text-xs font-medium text-black/40">Tier</th>
-                <th className="px-4 py-3 text-end text-xs font-medium text-black/40">On-time %</th>
-                <th className="px-4 py-3 text-end text-xs font-medium text-black/40">Quality</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-black/40">Rating</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-black/40">Trend</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSuppliers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-black/40">
-                    No suppliers found
-                  </td>
-                </tr>
-              ) : (
-                filteredSuppliers.map((supplier) => (
-                  <tr
-                    key={supplier.supplierId}
-                    className="border-b border-black/5 last:border-0 cursor-pointer hover:bg-black/[0.02] transition-colors"
-                    onClick={() => setSelectedSupplierId(supplier.supplierId)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setSelectedSupplierId(supplier.supplierId)
-                      }
-                    }}
-                    tabIndex={0}
-                    role="row"
-                  >
-                    <td className="px-4 py-3 font-medium text-black/80">{supplier.supplierName}</td>
-                    <td className="px-4 py-3">
-                      <SupplierTierBadge tier={supplier.tier} />
-                    </td>
-                    <td className="px-4 py-3 text-end font-[family-name:var(--font-geist-mono)] text-black/80">
-                      {supplier.onTimeDeliveryRate}%
-                    </td>
-                    <td className="px-4 py-3 text-end font-[family-name:var(--font-geist-mono)] text-black/80">
-                      {(100 - supplier.qualityRejectionRate).toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <MiniStarRating score={supplier.overallScore} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <PerformanceTrend trend={supplier.trend} />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredSuppliers.map((supplier, i) => (
+            <motion.button
+              key={supplier.supplierId}
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.02 }}
+              className="group flex flex-col gap-3 rounded-xl p-4 text-start outline-none transition-colors
+                hover:bg-black/[0.02] dark:hover:bg-white/[0.02]
+                data-[focus-visible]:ring-2 data-[focus-visible]:ring-inset data-[focus-visible]:ring-[#2563EB]/50"
+              onClick={() => setSelectedSupplierId(supplier.supplierId)}
+            >
+              {/* Name + tier */}
+              <div>
+                <div className="text-sm font-semibold text-black/80 dark:text-white/80">
+                  {supplier.supplierName}
+                </div>
+                <div className="mt-1">
+                  <SupplierTierBadge tier={supplier.tier} />
+                </div>
+              </div>
+
+              {/* Key metrics row */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-black/25 dark:text-white/25">On-time</span>
+                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums text-black/70 dark:text-white/70">
+                    {supplier.onTimeDeliveryRate}%
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-black/25 dark:text-white/25">Quality</span>
+                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums text-black/70 dark:text-white/70">
+                    {(100 - supplier.qualityRejectionRate).toFixed(1)}%
+                  </div>
+                </div>
+                <div className="ms-auto">
+                  <PerformanceTrend trend={supplier.trend} />
+                </div>
+              </div>
+
+              {/* Score */}
+              <div className="flex items-center justify-between">
+                <span className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums text-black/80 dark:text-white/80">
+                  {supplier.overallScore}
+                </span>
+                <span className="text-[9px] text-black/20 dark:text-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                  View scorecard
+                </span>
+              </div>
+            </motion.button>
+          ))}
         </div>
       )}
 
       {/* Pagination */}
       {data && data.total > PAGE_SIZE && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-black/40">
-            Showing {((page - 1) * PAGE_SIZE) + 1}-{Math.min(page * PAGE_SIZE, data.total)} of{' '}
-            <span className="font-[family-name:var(--font-geist-mono)]">{data.total}</span>
+          <p className="text-[10px] text-black/25 dark:text-white/25">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+              {((page - 1) * PAGE_SIZE) + 1}-{Math.min(page * PAGE_SIZE, data.total)}
+            </span>
+            {' of '}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{data.total}</span>
           </p>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-lg border border-black/10 p-1.5 text-black/50 hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
+            <Button
+              onPress={() => setPage((p) => Math.max(1, p - 1))}
+              isDisabled={page <= 1}
+              className="rounded-md px-2 py-1 text-[10px] text-black/35 outline-none data-[hovered]:text-black/60 data-[disabled]:opacity-25 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:text-white/35 dark:data-[hovered]:text-white/60"
               aria-label="Previous page"
             >
-              <ChevronLeft className="size-4" />
-            </button>
-            <span className="px-2 text-xs font-[family-name:var(--font-geist-mono)] text-black/60">
+              Prev
+            </Button>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/40 dark:text-white/40 px-1">
               {page}
             </span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page * PAGE_SIZE >= data.total}
-              className="rounded-lg border border-black/10 p-1.5 text-black/50 hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
+            <Button
+              onPress={() => setPage((p) => p + 1)}
+              isDisabled={page * PAGE_SIZE >= data.total}
+              className="rounded-md px-2 py-1 text-[10px] text-black/35 outline-none data-[hovered]:text-black/60 data-[disabled]:opacity-25 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:text-white/35 dark:data-[hovered]:text-white/60"
               aria-label="Next page"
             >
-              <ChevronRight className="size-4" />
-            </button>
+              Next
+            </Button>
           </div>
         </div>
       )}

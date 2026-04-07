@@ -1,12 +1,4 @@
 import { useState, useMemo } from 'react'
-import {
-  Cell,
-  Column,
-  Row,
-  Table,
-  TableBody,
-  TableHeader,
-} from 'react-aria-components'
 import type { OrderLineItem } from '../../../types/operations'
 
 interface OrderLineItemsProps {
@@ -30,20 +22,6 @@ const STATUS_ORDER: Record<string, number> = {
   delivered: 9,
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  po_placed: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  'Pending PO': 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  'PO Sent': 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300',
-  confirmed: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300',
-  manufacturing: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300',
-  in_transit: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300',
-  at_warehouse: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-  shipped: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300',
-  received: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-  ready: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-  delivered: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-}
-
 function statusLabel(status: string): string {
   return status
     .replace(/_/g, ' ')
@@ -51,8 +29,9 @@ function statusLabel(status: string): string {
 }
 
 /**
- * Per-line-item status table using React Aria Table.
- * Sortable by status and ETA columns.
+ * Clean list — product + qty (mono) + unit price + line total.
+ * No heavy table borders. Subtle separators.
+ * Sortable by status and ETA.
  */
 export function OrderLineItems({ items }: OrderLineItemsProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
@@ -81,62 +60,60 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
   }
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 overflow-x-auto">
-      <h3 className="text-sm font-semibold mb-3">Line Items</h3>
+    <div>
+      <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-3 block">
+        Line Items
+      </span>
 
-      <Table aria-label="Order line items" className="w-full text-sm">
-        <TableHeader>
-          <Column isRowHeader className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            Item
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            Supplier
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            PO Number
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4 cursor-pointer select-none"
-            id="status"
+      {/* Header row */}
+      <div className="flex items-center gap-4 px-2 pb-2 text-[10px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+        <span className="flex-[2]">Product</span>
+        <span className="w-28 shrink-0">Supplier</span>
+        <span className="w-24 shrink-0 font-[family-name:var(--font-geist-mono)]">PO</span>
+        <button
+          type="button"
+          onClick={() => handleSort('status')}
+          className="w-20 shrink-0 inline-flex items-center gap-0.5 outline-none cursor-pointer"
+        >
+          Status {sortKey === 'status' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+        </button>
+        <span className="w-20 shrink-0">Qty</span>
+        <button
+          type="button"
+          onClick={() => handleSort('eta')}
+          className="w-16 shrink-0 inline-flex items-center gap-0.5 outline-none cursor-pointer"
+        >
+          ETA {sortKey === 'eta' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+        </button>
+      </div>
+
+      {/* Rows */}
+      <div className="flex flex-col">
+        {sorted.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-4 px-2 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] last:border-b-0"
           >
-            <button type="button" onClick={() => handleSort('status')} className="inline-flex items-center gap-1">
-              Status {sortKey === 'status' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
-            </button>
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            Quantity
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 cursor-pointer select-none"
-            id="eta"
-          >
-            <button type="button" onClick={() => handleSort('eta')} className="inline-flex items-center gap-1">
-              ETA {sortKey === 'eta' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
-            </button>
-          </Column>
-        </TableHeader>
-        <TableBody>
-          {sorted.map((item) => (
-            <Row key={item.id} className="border-t border-black/5 dark:border-white/5">
-              <Cell className="py-2.5 pe-4 font-medium">{item.productName}</Cell>
-              <Cell className="py-2.5 pe-4 text-black/70 dark:text-white/70">{item.supplier}</Cell>
-              <Cell className="py-2.5 pe-4 font-geist-mono text-[13px]">{item.poNumber}</Cell>
-              <Cell className="py-2.5 pe-4">
-                <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[item.status] ?? 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60'}`}>
-                  {statusLabel(item.status)}
-                </span>
-              </Cell>
-              <Cell className="py-2.5 pe-4 font-geist-mono text-[13px]">
-                {item.fulfilledQuantity} / {item.quantity}
-              </Cell>
-              <Cell className="py-2.5 font-geist-mono text-[13px]">
-                {new Date(item.eta).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Cell>
-            </Row>
-          ))}
-        </TableBody>
-      </Table>
+            <span className="flex-[2] text-[13px] font-medium truncate">{item.productName}</span>
+            <span className="w-28 shrink-0 text-[13px] text-black/50 dark:text-white/50 truncate">{item.supplier}</span>
+            <span className="w-24 shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] text-black/40 dark:text-white/40">{item.poNumber}</span>
+            <span className="w-20 shrink-0">
+              <span className="text-[11px] font-medium text-black/50 dark:text-white/50">
+                {statusLabel(item.status)}
+              </span>
+            </span>
+            <span className="w-20 shrink-0 font-[family-name:var(--font-geist-mono)] text-[13px]">
+              {item.fulfilledQuantity}/{item.quantity}
+            </span>
+            <span className="w-16 shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] text-black/40 dark:text-white/40">
+              {new Date(item.eta).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

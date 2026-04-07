@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import type { CreditProfile } from '../../../types/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
-import { UtilizationBar } from '../shared/UtilizationBar'
 import { CreditProfileCard } from './CreditProfileCard'
 import { CreditHoldPanel } from './CreditHoldPanel'
 
@@ -54,251 +53,282 @@ const MOCK_PROFILES: CreditProfile[] = [
   },
 ]
 
-const TIER_COLORS: Record<number, string> = {
-  1: 'bg-green-500/20 text-green-700 dark:text-green-400',
-  2: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
-  3: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
-  4: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
-  5: 'bg-red-500/20 text-red-700 dark:text-red-400',
+// ─── Risk matrix helpers ────────────────────────────────
+
+/** Map utilization % to a 0-100 x position */
+function toX(utilizationPct: number): number {
+  return Math.min(Math.max(utilizationPct, 0), 120) / 1.2
 }
 
-type FilterTier = 'all' | '1' | '2' | '3' | '4' | '5'
-type FilterHold = 'all' | 'on_hold' | 'active'
+/** Map inverse payment score to a 0-100 y position (higher = riskier = top) */
+function toY(paymentScore: number): number {
+  return 100 - paymentScore
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 80) return 'text-green-600 dark:text-green-400'
+  if (score >= 50) return 'text-black/50 dark:text-white/50'
+  return 'text-red-600 dark:text-red-400'
+}
+
+function getRiskDot(profile: CreditProfile): string {
+  if (profile.isOnHold) return 'bg-red-500'
+  if (profile.utilizationPct > 90 || profile.paymentScore < 50) return 'bg-red-500/70'
+  if (profile.utilizationPct > 70 || profile.paymentScore < 70) return 'bg-yellow-500'
+  return 'bg-green-500'
+}
+
 type SortField = 'customerName' | 'utilizationPct' | 'paymentScore' | 'creditLimit'
 
 /**
- * Credit management dashboard.
- * Summary cards at top, customer table with filters, detail view on row click.
+ * "The Risk Desk" — Credit management dashboard.
+ * Risk matrix at top (CSS grid scatter, NOT chart library), customer list below.
+ * Click to drill into CreditProfileCard.
  */
 export function CreditDashboard() {
   const { t } = useTranslation('finance')
 
   const [selectedProfile, setSelectedProfile] = useState<CreditProfile | null>(null)
   const [showHoldPanel, setShowHoldPanel] = useState(false)
-  const [filterTier, setFilterTier] = useState<FilterTier>('all')
-  const [filterHold, setFilterHold] = useState<FilterHold>('all')
-  const [sortField, setSortField] = useState<SortField>('customerName')
+  const [sortField, setSortField] = useState<SortField>('utilizationPct')
+  const [showOnHoldOnly, setShowOnHoldOnly] = useState(false)
 
-  // Compute summary stats
-  const totalCreditExtended = MOCK_PROFILES.reduce((sum, p) => sum + p.currentExposure, 0)
-  const totalCreditLimit = MOCK_PROFILES.reduce((sum, p) => sum + p.creditLimit, 0)
-  const totalUtilization = totalCreditLimit > 0 ? (totalCreditExtended / totalCreditLimit) * 100 : 0
-  const customersOnHold = MOCK_PROFILES.filter((p) => p.isOnHold).length
-  const avgPaymentScore =
-    MOCK_PROFILES.length > 0
-      ? Math.round(MOCK_PROFILES.reduce((sum, p) => sum + p.paymentScore, 0) / MOCK_PROFILES.length)
-      : 0
+  // Summary stats
+  const totalExposure = MOCK_PROFILES.reduce((sum, p) => sum + p.currentExposure, 0)
+  const totalLimit = MOCK_PROFILES.reduce((sum, p) => sum + p.creditLimit, 0)
+  const utilization = totalLimit > 0 ? (totalExposure / totalLimit) * 100 : 0
+  const onHoldCount = MOCK_PROFILES.filter((p) => p.isOnHold).length
+  const avgScore = MOCK_PROFILES.length > 0
+    ? Math.round(MOCK_PROFILES.reduce((sum, p) => sum + p.paymentScore, 0) / MOCK_PROFILES.length)
+    : 0
 
-  // Filter
-  const filtered = MOCK_PROFILES.filter((p) => {
-    if (filterTier !== 'all' && p.tier !== Number(filterTier)) return false
-    if (filterHold === 'on_hold' && !p.isOnHold) return false
-    if (filterHold === 'active' && p.isOnHold) return false
-    return true
-  })
-
-  // Sort
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sortField) {
-      case 'customerName':
-        return a.customerName.localeCompare(b.customerName)
-      case 'utilizationPct':
-        return b.utilizationPct - a.utilizationPct
-      case 'paymentScore':
-        return b.paymentScore - a.paymentScore
-      case 'creditLimit':
-        return b.creditLimit - a.creditLimit
-      default:
-        return 0
-    }
-  })
+  // Filter & sort
+  const filtered = useMemo(() => {
+    let list = showOnHoldOnly ? MOCK_PROFILES.filter((p) => p.isOnHold) : MOCK_PROFILES
+    return [...list].sort((a, b) => {
+      switch (sortField) {
+        case 'customerName': return a.customerName.localeCompare(b.customerName)
+        case 'utilizationPct': return b.utilizationPct - a.utilizationPct
+        case 'paymentScore': return a.paymentScore - b.paymentScore
+        case 'creditLimit': return b.creditLimit - a.creditLimit
+        default: return 0
+      }
+    })
+  }, [sortField, showOnHoldOnly])
 
   // Detail view
   if (selectedProfile) {
     return (
-      <div className="p-6 space-y-4">
-        <Button
-          onPress={() => {
-            setSelectedProfile(null)
-            setShowHoldPanel(false)
-          }}
-          className="text-xs text-[#2563EB] hover:underline mb-2"
-        >
-          {t('credit.backToList', '\u2190 Back to Credit Dashboard')}
-        </Button>
-
-        <CreditProfileCard
-          profile={selectedProfile}
-          onHoldOrders={() => setShowHoldPanel(true)}
-          onAdjustLimit={() => {
-            /* Opens CreditReviewModal - wired in Task 2 */
-          }}
-          onReview={() => {
-            /* Opens CreditReviewModal - wired in Task 2 */
-          }}
-        />
-
-        {showHoldPanel && (
-          <CreditHoldPanel
+      <div className="space-y-0">
+        <div className="flex items-center px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <Button
+            onPress={() => { setSelectedProfile(null); setShowHoldPanel(false) }}
+            className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
+          >
+            {t('credit.backToList', 'Back')}
+          </Button>
+        </div>
+        <div className="p-5 space-y-4">
+          <CreditProfileCard
             profile={selectedProfile}
-            onRelease={() => {
-              /* Release with approval */
-            }}
-            onReleaseOneTime={() => {
-              /* Release one-time */
-            }}
-            onEscalate={() => {
-              /* Escalate to CFO */
-            }}
+            onHoldOrders={() => setShowHoldPanel(true)}
+            onAdjustLimit={() => {}}
+            onReview={() => {}}
           />
-        )}
+          {showHoldPanel && (
+            <CreditHoldPanel
+              profile={selectedProfile}
+              onRelease={() => {}}
+              onReleaseOneTime={() => {}}
+              onEscalate={() => {}}
+            />
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('credit.totalCreditExtended', 'Total Credit Extended')}
+    <div className="space-y-0">
+      {/* ─── Summary strip ─────────────────────────────── */}
+      <div className="flex items-center gap-8 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div>
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
+            {t('credit.totalCreditExtended', 'Exposure')}
           </div>
-          <CurrencyCell amount={totalCreditExtended} className="text-lg" />
+          <CurrencyCell amount={totalExposure} className="text-sm" />
         </div>
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('credit.totalUtilization', 'Total Utilization')}
+        <div>
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
+            {t('credit.totalUtilization', 'Utilization')}
           </div>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
-            {Math.round(totalUtilization)}%
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
+            {Math.round(utilization)}%
           </span>
         </div>
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('credit.customersOnHold', 'Customers on Hold')}
+        <div>
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
+            {t('credit.customersOnHold', 'On Hold')}
           </div>
-          <span
-            className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-lg ${customersOnHold > 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+          <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${onHoldCount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+            {onHoldCount}
+          </span>
+        </div>
+        <div>
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
+            {t('credit.avgPaymentScore', 'Avg Score')}
+          </div>
+          <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${getScoreColor(avgScore)}`}>
+            {avgScore}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── Risk matrix (CSS grid scatter) ─────────────── */}
+      <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-2">
+          Risk Matrix
+        </div>
+        <div className="relative w-full h-40 border border-black/[0.04] dark:border-white/[0.04] rounded-lg bg-black/[0.01] dark:bg-white/[0.01]">
+          {/* Axis labels */}
+          <div className="absolute -bottom-4 inset-x-0 flex justify-between px-1">
+            <span className="text-[8px] text-black/15 dark:text-white/15">0%</span>
+            <span className="text-[8px] text-black/15 dark:text-white/15">Limit Usage</span>
+            <span className="text-[8px] text-black/15 dark:text-white/15">120%</span>
+          </div>
+          <div className="absolute -start-0.5 inset-y-0 flex flex-col justify-between py-1">
+            <span className="text-[8px] text-black/15 dark:text-white/15 -rotate-90 origin-center">High Risk</span>
+          </div>
+          {/* Quadrant lines */}
+          <div className="absolute inset-x-0 top-1/2 h-px bg-black/[0.04] dark:bg-white/[0.04]" />
+          <div className="absolute inset-y-0 start-1/2 w-px bg-black/[0.04] dark:bg-white/[0.04]" />
+
+          {/* Customer dots */}
+          {MOCK_PROFILES.map((p) => (
+            <button
+              key={p.customerId}
+              type="button"
+              onClick={() => setSelectedProfile(p)}
+              className="absolute group"
+              style={{
+                left: `${toX(p.utilizationPct)}%`,
+                top: `${toY(p.paymentScore)}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              <div className={`size-3 rounded-full ${getRiskDot(p)} transition-transform group-hover:scale-150`} />
+              <div className="absolute top-4 start-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-black/50 dark:text-white/50 bg-white/90 dark:bg-black/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-none">
+                {p.customerName}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Controls ──────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-5 py-2 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <button
+          type="button"
+          onClick={() => setShowOnHoldOnly(!showOnHoldOnly)}
+          className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${
+            showOnHoldOnly
+              ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+              : 'text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60'
+          }`}
+        >
+          On Hold Only
+        </button>
+
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-1">
+          {(['utilizationPct', 'paymentScore', 'creditLimit', 'customerName'] as SortField[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setSortField(f)}
+              className={`px-2 py-1 rounded text-[10px] transition-colors ${
+                sortField === f
+                  ? 'bg-black/[0.06] dark:bg-white/[0.06] text-black/70 dark:text-white/70'
+                  : 'text-black/25 dark:text-white/25 hover:text-black/50 dark:hover:text-white/50'
+              }`}
+            >
+              {f === 'utilizationPct' ? 'Util' : f === 'paymentScore' ? 'Score' : f === 'creditLimit' ? 'Limit' : 'Name'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Customer list ─────────────────────────────── */}
+      <div>
+        {/* Header */}
+        <div className="grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div>{t('credit.customerName', 'Customer')}</div>
+          <div className="text-center">{t('credit.tier', 'Tier')}</div>
+          <div className="text-end">{t('credit.creditLimit', 'Limit')}</div>
+          <div className="text-end">{t('credit.available', 'Available')}</div>
+          <div>{t('credit.utilization', 'Utilization')}</div>
+          <div className="text-end">{t('credit.score', 'Score')}</div>
+          <div className="text-center">{t('credit.status', 'Status')}</div>
+        </div>
+
+        {/* Rows */}
+        {filtered.map((profile) => (
+          <div
+            key={profile.customerId}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedProfile(profile)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setSelectedProfile(profile) }}
+            className={`grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] cursor-pointer transition-colors ${
+              profile.isOnHold
+                ? 'bg-red-500/[0.03] hover:bg-red-500/[0.06]'
+                : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+            }`}
           >
-            {customersOnHold}
-          </span>
-        </div>
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('credit.avgPaymentScore', 'Avg Payment Score')}
+            <span className="text-xs font-medium text-black/70 dark:text-white/70 truncate">
+              {profile.customerName}
+            </span>
+            <span className="text-center font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/30 dark:text-white/30">
+              {profile.tier}
+            </span>
+            <span className="text-end">
+              <CurrencyCell amount={profile.creditLimit} className="text-xs" />
+            </span>
+            <span className="text-end">
+              <CurrencyCell
+                amount={profile.availableCredit}
+                className={`text-xs ${profile.availableCredit < 0 ? 'text-red-600 dark:text-red-400' : ''}`}
+              />
+            </span>
+            {/* Inline utilization bar */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    profile.utilizationPct > 100
+                      ? 'bg-red-500 animate-pulse'
+                      : profile.utilizationPct > 80
+                        ? 'bg-red-500/70'
+                        : profile.utilizationPct > 60
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min(profile.utilizationPct, 100)}%` }}
+                />
+              </div>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 min-w-[28px] text-end">
+                {Math.round(profile.utilizationPct)}%
+              </span>
+            </div>
+            <span className={`text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${getScoreColor(profile.paymentScore)}`}>
+              {profile.paymentScore}
+            </span>
+            <div className="flex justify-center">
+              <span className={`size-1.5 rounded-full ${profile.isOnHold ? 'bg-red-500' : 'bg-green-500'}`} />
+            </div>
           </div>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
-            {avgPaymentScore}
-          </span>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <select
-          value={filterTier}
-          onChange={(e) => setFilterTier(e.target.value as FilterTier)}
-          className="text-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-2 py-1.5"
-        >
-          <option value="all">{t('credit.allTiers', 'All Tiers')}</option>
-          <option value="1">{t('credit.tier1', 'Tier 1 - New')}</option>
-          <option value="2">{t('credit.tier2', 'Tier 2 - Developing')}</option>
-          <option value="3">{t('credit.tier3', 'Tier 3 - Established')}</option>
-          <option value="4">{t('credit.tier4', 'Tier 4 - Strategic')}</option>
-          <option value="5">{t('credit.tier5', 'Tier 5 - Flagged')}</option>
-        </select>
-        <select
-          value={filterHold}
-          onChange={(e) => setFilterHold(e.target.value as FilterHold)}
-          className="text-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-2 py-1.5"
-        >
-          <option value="all">{t('credit.allStatuses', 'All Statuses')}</option>
-          <option value="on_hold">{t('credit.onHold', 'On Hold')}</option>
-          <option value="active">{t('credit.active', 'Active')}</option>
-        </select>
-        <select
-          value={sortField}
-          onChange={(e) => setSortField(e.target.value as SortField)}
-          className="text-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 px-2 py-1.5"
-        >
-          <option value="customerName">{t('credit.sortName', 'Sort: Name')}</option>
-          <option value="utilizationPct">{t('credit.sortUtilization', 'Sort: Utilization')}</option>
-          <option value="paymentScore">{t('credit.sortScore', 'Sort: Payment Score')}</option>
-          <option value="creditLimit">{t('credit.sortLimit', 'Sort: Credit Limit')}</option>
-        </select>
-      </div>
-
-      {/* Customer Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-              <th className="text-start py-2 pe-3 font-medium">
-                {t('credit.customerName', 'Customer Name')}
-              </th>
-              <th className="text-center py-2 pe-3 font-medium">{t('credit.tier', 'Tier')}</th>
-              <th className="text-end py-2 pe-3 font-medium">
-                {t('credit.creditLimit', 'Credit Limit')}
-              </th>
-              <th className="py-2 pe-3 font-medium min-w-[120px]">
-                {t('credit.utilization', 'Utilization')}
-              </th>
-              <th className="text-end py-2 pe-3 font-medium">
-                {t('credit.available', 'Available')}
-              </th>
-              <th className="text-center py-2 pe-3 font-medium">
-                {t('credit.score', 'Score')}
-              </th>
-              <th className="text-center py-2 font-medium">{t('credit.status', 'Status')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((profile) => (
-              <tr
-                key={profile.customerId}
-                onClick={() => setSelectedProfile(profile)}
-                className={`border-b border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors ${
-                  profile.isOnHold ? 'bg-red-500/5' : ''
-                }`}
-              >
-                <td className="py-2.5 pe-3 font-medium">{profile.customerName}</td>
-                <td className="py-2.5 pe-3 text-center">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${TIER_COLORS[profile.tier] ?? ''}`}
-                  >
-                    {profile.tier}
-                  </span>
-                </td>
-                <td className="py-2.5 pe-3 text-end">
-                  <CurrencyCell amount={profile.creditLimit} className="text-sm" />
-                </td>
-                <td className="py-2.5 pe-3">
-                  <UtilizationBar percentage={profile.utilizationPct} />
-                </td>
-                <td className="py-2.5 pe-3 text-end">
-                  <CurrencyCell amount={profile.availableCredit} className="text-sm" />
-                </td>
-                <td className="py-2.5 pe-3 text-center">
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {profile.paymentScore}
-                  </span>
-                </td>
-                <td className="py-2.5 text-center">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      profile.isOnHold
-                        ? 'bg-red-500/20 text-red-700 dark:text-red-400'
-                        : 'bg-green-500/20 text-green-700 dark:text-green-400'
-                    }`}
-                  >
-                    {profile.isOnHold ? t('credit.holdLabel', 'On Hold') : t('credit.activeLabel', 'Active')}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        ))}
       </div>
     </div>
   )

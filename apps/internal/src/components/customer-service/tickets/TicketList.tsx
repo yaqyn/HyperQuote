@@ -1,38 +1,29 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { Button } from 'react-aria-components'
+import { motion, AnimatePresence } from 'motion/react'
+import { MessageCircle } from 'lucide-react'
 import { getTicketQueue } from '../../../lib/server/customer-service'
 import { useCustomerServiceStore } from '../../../stores/customer-service'
 import { SLA_CONFIG } from '../../../types/customer-service'
 import type { TicketPriority, TicketStatus } from '../../../types/customer-service'
 
-const PRIORITY_BADGE: Record<TicketPriority, string> = {
-  critical: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  medium: 'bg-[#2563EB]/10 text-[#2563EB]',
-  low: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-}
-
-const STATUS_BADGE: Record<TicketStatus, string> = {
-  new: 'bg-[#2563EB]/10 text-[#2563EB]',
-  open: 'bg-[#2563EB]/10 text-[#2563EB]',
-  in_progress: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  awaiting_customer: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  awaiting_internal: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  awaiting_supplier: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  escalated: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  resolved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  closed: 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40',
-  reopened: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-}
+type FilterKey = 'all' | 'open' | 'waiting' | 'resolved'
+type ChannelFilter = 'all' | 'email' | 'whatsapp' | 'phone' | 'returns'
 
 /**
- * Ticket list — table view of all CS tickets.
- * Columns: #, Customer, Subject, Priority, Status, Assigned, SLA Countdown, Created.
- * Click row -> drill into TicketDetail.
+ * Ticket List — "The Inbox"
+ * Thread-preview list (like email). Each ticket: subject (bold) + customer name
+ * + preview of last message (truncated, muted) + timestamp (mono) + status dot.
+ * Unread tickets: blue left accent.
  */
 export function TicketList() {
   const { t } = useTranslation('customer-service')
   const setSelectedTicketId = useCustomerServiceStore((s) => s.setSelectedTicketId)
+  const channelFilter = useCustomerServiceStore((s) => s.channelFilter)
+  const setChannelFilter = useCustomerServiceStore((s) => s.setChannelFilter)
+  const [filter, setFilter] = useState<FilterKey>('all')
 
   const { data: tickets } = useQuery({
     queryKey: ['cs', 'tickets'],
@@ -42,92 +33,157 @@ export function TicketList() {
 
   if (!tickets) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="p-5 text-center text-[var(--color-text-subtle)]">
         Loading...
       </div>
     )
   }
 
-  return (
-    <div className="p-6">
-      <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
-        <table className="w-full text-sm" role="grid">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.number', '#')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.customer', 'Customer')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.subject', 'Subject')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.priority', 'Priority')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.status', 'Status')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.assignedTo', 'Assigned To')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.slaCountdown', 'SLA')}
-              </th>
-              <th className="px-4 py-3 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('tickets.created', 'Created')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map((ticket) => {
-              const sla = computeSLA(ticket.createdAt, ticket.priority, ticket.slaDeadline)
+  // Filter
+  const filtered = tickets.filter((ticket) => {
+    switch (filter) {
+      case 'open':
+        return ticket.status === 'new' || ticket.status === 'open' || ticket.status === 'in_progress'
+      case 'waiting':
+        return ticket.status === 'awaiting_customer' || ticket.status === 'awaiting_internal' || ticket.status === 'awaiting_supplier'
+      case 'resolved':
+        return ticket.status === 'resolved' || ticket.status === 'closed'
+      default:
+        return true
+    }
+  })
 
-              return (
-                <tr
-                  key={ticket.id}
-                  onClick={() => setSelectedTicketId(ticket.id)}
-                  className="border-b border-black/5 dark:border-white/5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
-                  role="row"
-                >
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
-                    {ticket.number}
-                  </td>
-                  <td className="px-4 py-3 text-sm">{ticket.customerName}</td>
-                  <td className="px-4 py-3 text-sm max-w-xs truncate">{ticket.subject}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_BADGE[ticket.priority]}`}>
-                      {t(`priority.${ticket.priority}`, ticket.priority)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[ticket.status]}`}>
-                      {t(`status.${statusToI18nKey(ticket.status)}`, ticket.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-black/60 dark:text-white/60">
-                    {ticket.assignedAgent ?? t('tickets.unassigned', 'Unassigned')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-medium ${sla.color}`}>
-                      {sla.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/50 dark:text-white/50">
+  const FILTERS: Array<{ key: FilterKey; label: string }> = [
+    { key: 'all', label: t('tickets.filterAll', 'All') },
+    { key: 'open', label: t('tickets.filterOpen', 'Open') },
+    { key: 'waiting', label: t('tickets.filterWaiting', 'Waiting') },
+    { key: 'resolved', label: t('tickets.filterResolved', 'Resolved') },
+  ]
+
+  return (
+    <div className="p-5 space-y-4">
+      {/* Filter pills */}
+      <div className="flex items-center gap-1">
+        {FILTERS.map((f) => (
+          <Button
+            key={f.key}
+            onPress={() => setFilter(f.key)}
+            className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none
+              ${filter === f.key
+                ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
+                : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
+              }`}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Channel filter pills */}
+      <div className="flex items-center gap-1">
+        {([
+          { key: 'all' as ChannelFilter, label: t('tickets.channelAll', 'All') },
+          { key: 'email' as ChannelFilter, label: t('tickets.channelEmail', 'Email') },
+          { key: 'whatsapp' as ChannelFilter, label: t('tickets.channelWhatsApp', 'WhatsApp') },
+          { key: 'phone' as ChannelFilter, label: t('tickets.channelPhone', 'Phone') },
+          { key: 'returns' as ChannelFilter, label: t('tickets.channelReturns', 'Returns') },
+        ]).map((ch) => (
+          <Button
+            key={ch.key}
+            onPress={() => setChannelFilter(ch.key)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium cursor-pointer transition-all duration-150 outline-none
+              ${channelFilter === ch.key
+                ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
+                : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
+              }`}
+          >
+            {ch.key === 'whatsapp' && <MessageCircle size={11} className="inline me-1 -mt-px" />}
+            {ch.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Thread list */}
+      <div className="flex flex-col">
+        <AnimatePresence mode="popLayout">
+          {filtered.map((ticket) => {
+            const isUnread = ticket.status === 'new' || ticket.status === 'open'
+            const sla = computeSLA(ticket.createdAt, ticket.priority, ticket.slaDeadline)
+
+            return (
+              <motion.button
+                key={ticket.id}
+                type="button"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                onClick={() => setSelectedTicketId(ticket.id)}
+                className={`group w-full text-start px-4 py-3 border-b border-[var(--color-border)]/50 cursor-pointer transition-colors
+                  hover:bg-black/[0.02] dark:hover:bg-white/[0.02]
+                  ${isUnread ? 'border-s-2 border-s-[var(--color-primary)] ps-3.5' : ''}`}
+              >
+                {/* Row 1: Subject + timestamp */}
+                <div className="flex items-baseline gap-3 mb-0.5">
+                  <span className={`text-sm flex-1 truncate ${isUnread ? 'font-semibold text-[var(--color-text)]' : 'font-medium text-[var(--color-text)]'}`}>
+                    {ticket.subject}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-subtle)] shrink-0">
                     {formatRelativeTime(ticket.createdAt)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                  </span>
+                </div>
+
+                {/* Row 2: Customer + ticket # + status dot + SLA */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--color-text-muted)] truncate">
+                    {ticket.customerName}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-subtle)]">
+                    {ticket.number}
+                  </span>
+                  <span className="flex-1" />
+
+                  {/* SLA */}
+                  <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] font-medium ${sla.color}`}>
+                    {sla.label}
+                  </span>
+
+                  {/* Priority dot */}
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${priorityDot(ticket.priority)}`} />
+                </div>
+
+                {/* Row 3: Preview text (muted) */}
+                <div className="mt-1 text-xs text-[var(--color-text-subtle)] truncate">
+                  {ticket.assignedAgent
+                    ? `${ticket.assignedAgent} — ${t(`status.${statusToI18nKey(ticket.status)}`, ticket.status)}`
+                    : t('tickets.unassigned', 'Unassigned')}
+                </div>
+              </motion.button>
+            )
+          })}
+        </AnimatePresence>
+
+        {filtered.length === 0 && (
+          <div className="py-12 text-center text-sm text-[var(--color-text-subtle)]">
+            {t('tickets.noTickets', 'No tickets match this filter')}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 // ─── Helpers ────────────────────────────────────────────
+
+function priorityDot(priority: TicketPriority): string {
+  const map: Record<TicketPriority, string> = {
+    critical: 'bg-red-500',
+    high: 'bg-amber-500',
+    medium: 'bg-[var(--color-primary)]',
+    low: 'bg-black/20 dark:bg-white/20',
+  }
+  return map[priority]
+}
 
 function statusToI18nKey(status: TicketStatus): string {
   const map: Record<TicketStatus, string> = {

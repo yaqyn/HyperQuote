@@ -20,7 +20,7 @@ import arReports from '../locales/ar/reports.json'
 import enReports from '../locales/en/reports.json'
 
 i18n.use(initReactI18next).init({
-  lng: 'ar',
+  lng: 'en',
   fallbackLng: 'en',
   defaultNS: 'internal',
   ns: ['internal', 'finance', 'dispatch', 'admin', 'hr', 'customer-service', 'ai', 'reports'],

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from 'react-aria-components'
 import { CurrencyCell } from '../shared/CurrencyCell'
 import { generateForm41 } from '../../../lib/server/finance-ap'
 
@@ -57,19 +58,21 @@ function getMockWithholding(): SupplierWithholding[] {
 }
 
 /**
- * Withholding tax tracking panel (Section 5.5).
- * Summary: total withheld YTD, current quarter balance, next remittance.
- * Per-supplier breakdown: gross, rate (1% goods / 5% services), withheld, net.
- * Form 41 quarterly generation.
+ * Withholding tax tracking panel.
+ * Dense layout: YTD total + quarter balance + next remittance at top.
+ * Per-supplier breakdown below. Form 41 quarterly generation.
+ * Clean, document-style — no cards, no borders on data rows.
  */
 export function WithholdingTaxSection() {
-  const { t } = useTranslation('finance')
+  const { t, i18n } = useTranslation('finance')
+  const isArabic = i18n.language === 'ar'
   const suppliers = getMockWithholding()
   const [selectedQuarter, setSelectedQuarter] = useState(1)
   const [form41Status, setForm41Status] = useState<'pending' | 'submitted' | 'generating'>('pending')
 
   const totalWithheld = suppliers.reduce((sum, s) => sum + s.withheldAmount, 0)
   const currentYear = new Date().getFullYear()
+  const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
 
   const handleGenerateForm41 = async () => {
     setForm41Status('generating')
@@ -86,129 +89,136 @@ export function WithholdingTaxSection() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="px-6">
-        <h3 className="text-sm font-semibold mb-3">
+    <div className="px-6 py-5">
+      {/* Header row with key metrics inline */}
+      <div className="flex items-baseline justify-between mb-4">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
           {t('ap.withholdingTax', 'Withholding Tax')}
         </h3>
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-3">
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('ap.totalWithheldYTD', 'Total Withheld YTD')}
-            </div>
-            <div className="text-lg">
-              <CurrencyCell amount={totalWithheld} />
-            </div>
-          </div>
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-3">
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('ap.currentQuarterBalance', 'Current Quarter Balance')}
-            </div>
-            <div className="text-lg">
-              <CurrencyCell amount={totalWithheld} />
-            </div>
-          </div>
-          <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-3">
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('ap.nextRemittance', 'Next Remittance')}
-            </div>
-            <div className="text-lg font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {t('ap.endOfQuarter', 'End of Q{{quarter}} {{year}}', {
-                quarter: Math.ceil((new Date().getMonth() + 1) / 3),
-                year: currentYear,
-              })}
-            </div>
-          </div>
+        <div className="flex items-center gap-6 text-xs text-black/40 dark:text-white/40">
+          <span className="text-[10px] font-[family-name:var(--font-geist-mono)]">
+            {t('ap.rates', 'Goods 1% | Services 5%')}
+          </span>
         </div>
+      </div>
 
-        {/* Rates label */}
-        <div className="rounded-lg border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] px-4 py-2 text-xs text-black/50 dark:text-white/50 mb-4">
-          <span className="font-medium">{t('ap.rates', 'Rates:')}</span>{' '}
-          {t('ap.ratesDetail', 'Goods: 1% | Services: 5%')} — {t('ap.perEgyptianTaxLaw', 'Per Egyptian tax law')}
+      {/* Three key metrics — horizontal, dense */}
+      <div className="flex items-start gap-8 mb-5 pb-5 border-b border-black/[0.04] dark:border-white/[0.04]">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-1">
+            {t('ap.totalWithheldYTD', 'Withheld YTD')}
+          </div>
+          <CurrencyCell amount={totalWithheld} className="text-lg font-semibold text-black dark:text-white" />
         </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-1">
+            {t('ap.currentQuarterBalance', 'Q' + currentQuarter + ' Balance')}
+          </div>
+          <CurrencyCell amount={totalWithheld} className="text-lg font-semibold text-black dark:text-white" />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-1">
+            {t('ap.nextRemittance', 'Next Remittance')}
+          </div>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold text-black dark:text-white">
+            {t('ap.endOfQuarter', 'End Q{{quarter}} {{year}}', {
+              quarter: currentQuarter,
+              year: currentYear,
+            })}
+          </span>
+        </div>
+      </div>
 
-        {/* Per-supplier breakdown */}
-        <table className="w-full text-sm mb-6">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-              <th className="py-2 pe-4 text-start font-medium">{t('ap.col.supplier', 'Supplier')}</th>
-              <th className="py-2 pe-4 text-end font-medium">{t('ap.col.grossAmount', 'Gross Amount')}</th>
-              <th className="py-2 pe-4 text-end font-medium">{t('ap.col.rate', 'Rate')}</th>
-              <th className="py-2 pe-4 text-end font-medium">{t('ap.col.withheld', 'Withheld')}</th>
-              <th className="py-2 pe-4 text-end font-medium">{t('ap.col.netPaid', 'Net Paid')}</th>
-              <th className="py-2 text-end font-medium">{t('ap.col.actions', 'Actions')}</th>
+      {/* Per-supplier breakdown — minimal table */}
+      <table className="w-full text-sm mb-5">
+        <thead>
+          <tr className="text-[11px] text-black/40 dark:text-white/40">
+            <th className="pb-2 pe-4 text-start font-medium">{t('ap.col.supplier', 'Supplier')}</th>
+            <th className="pb-2 pe-4 text-end font-medium">{t('ap.col.grossAmount', 'Gross')}</th>
+            <th className="pb-2 pe-4 text-end font-medium">{t('ap.col.rate', 'Rate')}</th>
+            <th className="pb-2 pe-4 text-end font-medium">{t('ap.col.withheld', 'Withheld')}</th>
+            <th className="pb-2 pe-4 text-end font-medium">{t('ap.col.netPaid', 'Net Paid')}</th>
+            <th className="pb-2 text-end font-medium w-24" />
+          </tr>
+        </thead>
+        <tbody>
+          {suppliers.map((s) => (
+            <tr key={s.supplierId} className="border-t border-black/[0.04] dark:border-white/[0.04]">
+              <td className="py-2.5 pe-4 text-black dark:text-white">{s.supplierName}</td>
+              <td className="py-2.5 pe-4 text-end text-black/60 dark:text-white/60">
+                <CurrencyCell amount={s.grossAmount} className="text-xs" />
+              </td>
+              <td className="py-2.5 pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+                {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(WITHHOLDING_RATES[s.type])}%
+                <span className="ms-1 text-[10px] text-black/25 dark:text-white/25">
+                  {s.type === 'goods' ? t('ap.goods', 'G') : t('ap.services', 'S')}
+                </span>
+              </td>
+              <td className="py-2.5 pe-4 text-end font-semibold text-black dark:text-white">
+                <CurrencyCell amount={s.withheldAmount} className="text-xs" />
+              </td>
+              <td className="py-2.5 pe-4 text-end text-black/50 dark:text-white/50">
+                <CurrencyCell amount={s.netPaid} className="text-xs" />
+              </td>
+              <td className="py-2.5 text-end">
+                <button
+                  type="button"
+                  onClick={() => handleGenerateCertificate(s.supplierId)}
+                  className="text-[10px] text-[#2563EB] hover:underline underline-offset-2"
+                >
+                  {t('ap.cert', 'Certificate')}
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {suppliers.map((s) => (
-              <tr key={s.supplierId} className="border-b border-black/5 dark:border-white/5">
-                <td className="py-3 pe-4">{s.supplierName}</td>
-                <td className="py-3 pe-4 text-end">
-                  <CurrencyCell amount={s.grossAmount} />
-                </td>
-                <td className="py-3 pe-4 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                  {WITHHOLDING_RATES[s.type]}% ({s.type === 'goods'
-                    ? t('ap.goods', 'Goods')
-                    : t('ap.services', 'Services')})
-                </td>
-                <td className="py-3 pe-4 text-end">
-                  <CurrencyCell amount={s.withheldAmount} />
-                </td>
-                <td className="py-3 pe-4 text-end">
-                  <CurrencyCell amount={s.netPaid} />
-                </td>
-                <td className="py-3 text-end">
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateCertificate(s.supplierId)}
-                    className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-1 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                  >
-                    {t('ap.generateCertificate', 'Generate Certificate')}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-black/10 dark:border-white/10 font-semibold text-black dark:text-white">
+            <td className="py-2.5 pe-4">{t('ap.total', 'Total')}</td>
+            <td className="py-2.5 pe-4 text-end">
+              <CurrencyCell amount={suppliers.reduce((s, r) => s + r.grossAmount, 0)} className="text-xs" />
+            </td>
+            <td className="py-2.5 pe-4" />
+            <td className="py-2.5 pe-4 text-end">
+              <CurrencyCell amount={totalWithheld} className="text-xs" />
+            </td>
+            <td className="py-2.5 pe-4 text-end">
+              <CurrencyCell amount={suppliers.reduce((s, r) => s + r.netPaid, 0)} className="text-xs" />
+            </td>
+            <td className="py-2.5" />
+          </tr>
+        </tfoot>
+      </table>
 
-        {/* Quarterly Form 41 */}
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-          <h4 className="text-sm font-semibold mb-3">
-            {t('ap.form41', 'Quarterly Form 41')}
-          </h4>
-          <div className="flex items-center gap-3">
-            <select
-              value={selectedQuarter}
-              onChange={(e) => setSelectedQuarter(Number(e.target.value))}
-              className="rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-1.5 text-sm backdrop-blur-sm"
-            >
-              <option value={1}>Q1 {currentYear}</option>
-              <option value={2}>Q2 {currentYear}</option>
-              <option value={3}>Q3 {currentYear}</option>
-              <option value={4}>Q4 {currentYear}</option>
-            </select>
-            <span className="text-xs text-black/50 dark:text-white/50">
-              {t('ap.form41Status', 'Status:')}{' '}
-              <span className={form41Status === 'submitted' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}>
-                {form41Status === 'submitted'
-                  ? t('ap.submitted', 'Submitted')
-                  : form41Status === 'generating'
-                    ? t('ap.generating', 'Generating...')
-                    : t('ap.pending', 'Pending')}
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={handleGenerateForm41}
-              disabled={form41Status === 'generating'}
-              className="rounded-lg bg-[#2563EB] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#2563EB]/90 transition-colors disabled:opacity-50"
-            >
-              {t('ap.generateForm41', 'Generate Form 41')}
-            </button>
-          </div>
-        </div>
+      {/* Quarterly Form 41 — inline, not a card */}
+      <div className="flex items-center gap-3 pt-4 border-t border-black/[0.04] dark:border-white/[0.04]">
+        <span className="text-xs font-medium text-black/60 dark:text-white/60">
+          {t('ap.form41', 'Form 41')}
+        </span>
+        <select
+          value={selectedQuarter}
+          onChange={(e) => setSelectedQuarter(Number(e.target.value))}
+          className="rounded-md border border-black/10 dark:border-white/10 bg-transparent px-2 py-1 text-xs text-black dark:text-white outline-none focus:border-[#2563EB]"
+        >
+          <option value={1}>Q1 {currentYear}</option>
+          <option value={2}>Q2 {currentYear}</option>
+          <option value={3}>Q3 {currentYear}</option>
+          <option value={4}>Q4 {currentYear}</option>
+        </select>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/30 dark:text-white/30">
+          {form41Status === 'submitted'
+            ? t('ap.submitted', 'Submitted')
+            : form41Status === 'generating'
+              ? t('ap.generating', 'Generating...')
+              : t('ap.pending', 'Pending')}
+        </span>
+        <Button
+          onPress={handleGenerateForm41}
+          isDisabled={form41Status === 'generating'}
+          className="rounded-md bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-30 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
+        >
+          {t('ap.generateForm41', 'Generate')}
+        </Button>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Button } from 'react-aria-components'
+import { Button, TooltipTrigger, Tooltip } from 'react-aria-components'
 import type { FreshnessIndicator } from '../../../types/sales'
 
 interface CostLookupProps {
@@ -7,69 +7,76 @@ interface CostLookupProps {
 
 const FRESHNESS_CONFIG: Record<
   FreshnessIndicator,
-  { dotClass: string; label: string; showVerify?: boolean }
+  { letter: string; dotClass: string; tooltipLabel: string; showVerify?: boolean }
 > = {
   fresh: {
-    dotClass: 'bg-green-500',
-    label: 'Live',
+    letter: 'F',
+    dotClass: 'text-green-600 dark:text-green-400',
+    tooltipLabel: 'Fresh -- updated < 24h ago',
   },
   aging: {
-    dotClass: 'bg-yellow-500',
-    label: 'Verify',
+    letter: 'A',
+    dotClass: 'text-yellow-600 dark:text-yellow-400',
+    tooltipLabel: 'Aging -- 1-3 days old, click to verify',
     showVerify: true,
   },
   stale: {
-    dotClass: 'bg-red-500',
-    label: 'Awaiting Procurement Input',
+    letter: 'S',
+    dotClass: 'text-red-600 dark:text-red-400',
+    tooltipLabel: 'Stale -- awaiting procurement input',
   },
   missing: {
-    dotClass: 'bg-black/20 dark:bg-white/20',
-    label: 'No Price Available',
+    letter: 'M',
+    dotClass: 'text-[var(--color-text-subtle)]',
+    tooltipLabel: 'Missing -- no price available',
   },
 }
 
 /**
- * Freshness indicator for supplier cost per line item (Step 3).
- * Fresh (<24h): green dot + "Live"
- * Aging (1-3 days): yellow dot + "Verify" button
- * Stale (>3 days): red dot + "Awaiting Procurement Input"
- * Missing: dash + "No Price Available"
- *
- * Dots are small colored circles (6px) -- data-semantic colors per three-color rule.
+ * Freshness indicator for supplier cost per line item.
+ * Single-letter indicator (F/A/S/M) with tooltip -- not a full badge.
+ * Aging costs show a clickable verify action.
  */
 export function CostLookup({ freshness }: CostLookupProps) {
   const config = FRESHNESS_CONFIG[freshness]
 
-  if (freshness === 'missing') {
+  if (config.showVerify) {
     return (
-      <span className="text-xs text-black/40 dark:text-white/40">
-        &mdash;
-      </span>
+      <TooltipTrigger delay={300}>
+        <Button
+          className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-medium outline-none ${config.dotClass}`}
+          onPress={() => {
+            // Placeholder: trigger price refresh from procurement
+          }}
+          aria-label="Verify cost freshness"
+        >
+          {config.letter}
+        </Button>
+        <Tooltip
+          className="rounded-md bg-black/90 px-2.5 py-1 text-[11px] text-white shadow-lg dark:bg-white/90 dark:text-black"
+          offset={4}
+        >
+          {config.tooltipLabel}
+        </Tooltip>
+      </TooltipTrigger>
     )
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <TooltipTrigger delay={300}>
       <span
-        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${config.dotClass}`}
-        aria-hidden="true"
-      />
-      {config.showVerify ? (
-        <Button
-          className="text-xs font-medium text-yellow-700 outline-none transition-colors
-            data-[hovered]:text-yellow-900 data-[focus-visible]:ring-1 data-[focus-visible]:ring-yellow-500/50
-            dark:text-yellow-400 dark:data-[hovered]:text-yellow-300"
-          onPress={() => {
-            // Placeholder: trigger price refresh from procurement
-          }}
-        >
-          {config.label}
-        </Button>
-      ) : (
-        <span className="text-xs text-black/50 dark:text-white/50">
-          {config.label}
-        </span>
-      )}
-    </div>
+        className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-medium ${config.dotClass}`}
+        role="img"
+        aria-label={config.tooltipLabel}
+      >
+        {config.letter}
+      </span>
+      <Tooltip
+        className="rounded-md bg-black/90 px-2.5 py-1 text-[11px] text-white shadow-lg dark:bg-white/90 dark:text-black"
+        offset={4}
+      >
+        {config.tooltipLabel}
+      </Tooltip>
+    </TooltipTrigger>
   )
 }

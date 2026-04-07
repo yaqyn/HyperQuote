@@ -1,32 +1,40 @@
 interface VarianceBadgeProps {
-  variancePercent: number
+  /** Raw signed number (e.g. +3, -2) OR percentage as decimal */
+  value: number
+  /** Display as percentage (multiply by 100) or as raw count */
+  mode?: 'percent' | 'count'
   tolerance?: number
 }
 
 /**
- * Shows variance with color coding.
- * Green = 0%, yellow = within tolerance (default 2%), red = exceeds.
- * Geist Mono for the percentage number.
+ * Signed variance number in Geist Mono.
+ * Green for positive, red for negative.
+ * No background — just colored text for data density.
  */
 export function VarianceBadge({
-  variancePercent,
+  value,
+  mode = 'percent',
   tolerance = 0.02,
 }: VarianceBadgeProps) {
-  const absVariance = Math.abs(variancePercent)
+  const absValue = Math.abs(value)
 
-  const { bgClass, textClass } =
-    absVariance === 0
-      ? { bgClass: 'bg-green-100', textClass: 'text-green-700' }
-      : absVariance <= tolerance
-        ? { bgClass: 'bg-yellow-100', textClass: 'text-yellow-700' }
-        : { bgClass: 'bg-red-100', textClass: 'text-red-700' }
+  const colorClass =
+    value === 0
+      ? 'text-black/40 dark:text-white/40'
+      : value > 0
+        ? 'text-green-600 dark:text-green-400'
+        : 'text-red-600 dark:text-red-400'
 
-  const sign = variancePercent > 0 ? '+' : variancePercent < 0 ? '-' : ''
-  const display = `${sign}${(absVariance * 100).toFixed(1)}%`
+  const sign = value > 0 ? '+' : ''
+
+  const display =
+    mode === 'percent'
+      ? `${sign}${(value * 100).toFixed(1)}%`
+      : `${sign}${value}`
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-[family-name:var(--font-geist-mono)] tabular-nums font-medium ${bgClass} ${textClass}`}
+      className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold ${colorClass}`}
     >
       {display}
     </span>

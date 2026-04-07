@@ -11,14 +11,6 @@ interface CreditHoldPanelProps {
   onEscalate?: () => void
 }
 
-const TRIGGER_ICONS: Record<CreditHoldType, string> = {
-  limit_exceeded: '\u26A0',
-  overdue_30: '\u23F0',
-  overdue_pct: '\u{1F4CA}',
-  bounced_cheque: '\u2716',
-  limit_expired: '\u{1F4C5}',
-}
-
 const TRIGGER_LABELS: Record<CreditHoldType, string> = {
   limit_exceeded: 'Credit limit exceeded',
   overdue_30: 'Invoice overdue >30 days',
@@ -27,18 +19,18 @@ const TRIGGER_LABELS: Record<CreditHoldType, string> = {
   limit_expired: 'Credit limit expired',
 }
 
-function getTriggerDescription(trigger: AutoHoldTrigger, profile: CreditProfile): string {
+function getTriggerDescription(trigger: AutoHoldTrigger): string {
   switch (trigger.type) {
     case 'limit_exceeded':
-      return `Exposure EGP ${trigger.currentValue.toLocaleString()} exceeds limit EGP ${trigger.threshold.toLocaleString()}`
+      return `EGP ${trigger.currentValue.toLocaleString()} / ${trigger.threshold.toLocaleString()}`
     case 'overdue_30':
-      return `Average ${trigger.currentValue} days to pay (threshold: ${trigger.threshold} days)`
+      return `${trigger.currentValue} days avg (max ${trigger.threshold})`
     case 'overdue_pct':
-      return `Overdue ${Math.round(trigger.currentValue)}% of credit limit (threshold: ${trigger.threshold}%)`
+      return `${Math.round(trigger.currentValue)}% of limit (max ${trigger.threshold}%)`
     case 'bounced_cheque':
-      return `${trigger.currentValue} bounced cheques in 12mo (threshold: ${trigger.threshold})`
+      return `${trigger.currentValue} bounced (max ${trigger.threshold})`
     case 'limit_expired':
-      return 'Credit limit has expired and needs renewal'
+      return 'Needs renewal'
     default:
       return ''
   }
@@ -52,10 +44,8 @@ const MOCK_CHANGE_HISTORY = [
 ]
 
 /**
- * Credit hold panel: shows all 5 auto-hold trigger types.
- * Uses shouldAutoHold from credit-scoring to evaluate triggers.
- * Actions: Release with Approval, Release One-Time, Escalate.
- * Shows credit limit change history table.
+ * Credit hold panel: alert banner + 5 auto-hold triggers + actions + history.
+ * Data-dense, professional, minimal color.
  */
 export function CreditHoldPanel({
   profile,
@@ -69,147 +59,121 @@ export function CreditHoldPanel({
   const triggeredCount = triggers.filter((tr) => tr.triggered).length
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-6 space-y-5">
-      <h3 className="text-base font-semibold">
-        {t('credit.holdPanel', 'Credit Hold Status')}
-      </h3>
-
-      {/* Hold banner */}
+    <div className="space-y-4">
+      {/* ─── Hold banner ───────────────────────────────── */}
       {hold && (
-        <div className="rounded-lg bg-red-500/15 border border-red-500/30 p-3 text-sm font-medium text-red-700 dark:text-red-400 text-center">
-          {t(
-            'credit.holdBanner',
-            'CUSTOMER ON CREDIT HOLD \u2014 New orders blocked',
-          )}
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-md border border-red-500/20 bg-red-500/[0.04]">
+          <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-xs font-medium text-red-700 dark:text-red-400 tracking-wider uppercase">
+            {t('credit.holdBanner', 'Credit Hold -- New orders blocked')}
+          </span>
         </div>
       )}
 
-      {/* Trigger list */}
-      <div className="space-y-2">
-        <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-          {t('credit.autoHoldTriggers', 'Auto-Hold Triggers')} ({triggeredCount}/5{' '}
-          {t('credit.triggered', 'triggered')})
+      {/* ─── Trigger list ──────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25">
+            {t('credit.autoHoldTriggers', 'Auto-Hold Triggers')}
+          </div>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
+            {triggeredCount}/5
+          </span>
         </div>
-        {triggers.map((trigger) => (
-          <div
-            key={trigger.type}
-            className={`flex items-start gap-3 p-3 rounded-lg border ${
-              trigger.triggered
-                ? 'border-red-500/30 bg-red-500/5'
-                : 'border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02]'
-            }`}
-          >
-            <span className="text-base shrink-0 mt-0.5">{TRIGGER_ICONS[trigger.type]}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">
+
+        <div className="space-y-1">
+          {triggers.map((trigger) => (
+            <div
+              key={trigger.type}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                trigger.triggered
+                  ? 'bg-red-500/[0.04] border border-red-500/10'
+                  : 'bg-black/[0.01] dark:bg-white/[0.01] border border-transparent'
+              }`}
+            >
+              {/* Status dot */}
+              <span className={`size-1.5 rounded-full shrink-0 ${trigger.triggered ? 'bg-red-500' : 'bg-green-500'}`} />
+
+              {/* Label + description */}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-black/60 dark:text-white/60">
                   {t(`credit.trigger.${trigger.type}`, TRIGGER_LABELS[trigger.type])}
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                    trigger.triggered
-                      ? 'bg-red-500/20 text-red-700 dark:text-red-400'
-                      : 'bg-green-500/20 text-green-700 dark:text-green-400'
-                  }`}
-                >
-                  {trigger.triggered ? t('credit.yes', 'Yes') : t('credit.no', 'No')}
-                </span>
+                </div>
+                <div className="text-[10px] text-black/25 dark:text-white/25 mt-0.5">
+                  {getTriggerDescription(trigger)}
+                </div>
               </div>
-              <div className="text-xs text-black/50 dark:text-white/50 mt-0.5">
-                {getTriggerDescription(trigger, profile)}
-              </div>
-              <div className="flex items-center gap-3 mt-1 text-xs">
-                <span className="text-black/40 dark:text-white/40">
-                  {t('credit.currentValue', 'Current')}:{' '}
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {trigger.type === 'overdue_pct'
-                      ? `${Math.round(trigger.currentValue)}%`
-                      : trigger.type === 'limit_exceeded'
-                        ? `EGP ${trigger.currentValue.toLocaleString()}`
-                        : trigger.currentValue}
-                  </span>
+
+              {/* Current / Threshold values */}
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/30 dark:text-white/30">
+                  {trigger.type === 'overdue_pct'
+                    ? `${Math.round(trigger.currentValue)}%`
+                    : trigger.type === 'limit_exceeded'
+                      ? `${(trigger.currentValue / 1000).toFixed(0)}k`
+                      : trigger.currentValue}
                 </span>
-                <span className="text-black/40 dark:text-white/40">
-                  {t('credit.threshold', 'Threshold')}:{' '}
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {trigger.type === 'overdue_pct'
-                      ? `${trigger.threshold}%`
-                      : trigger.type === 'limit_exceeded'
-                        ? `EGP ${trigger.threshold.toLocaleString()}`
-                        : trigger.threshold}
-                  </span>
+                <span className="text-[8px] text-black/15 dark:text-white/15">/</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
+                  {trigger.type === 'overdue_pct'
+                    ? `${trigger.threshold}%`
+                    : trigger.type === 'limit_exceeded'
+                      ? `${(trigger.threshold / 1000).toFixed(0)}k`
+                      : trigger.threshold}
                 </span>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Actions */}
+      {/* ─── Actions ───────────────────────────────────── */}
       {hold && (
-        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-black/10 dark:border-white/10">
+        <div className="flex items-center gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
           <Button
             onPress={onRelease}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#2563EB] text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
+            className="rounded-md bg-[#2563EB] text-white px-3 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
           >
             {t('credit.releaseWithApproval', 'Release with Approval')}
           </Button>
           <Button
             onPress={onReleaseOneTime}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 hover:bg-black/5 dark:hover:bg-white/5 pressed:bg-black/10 dark:pressed:bg-white/10 transition-colors"
+            className="rounded-md border border-black/[0.08] dark:border-white/[0.08] px-3 py-1.5 text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
           >
-            {t('credit.releaseOneTime', 'Release One-Time')}
+            {t('credit.releaseOneTime', 'One-Time Release')}
           </Button>
+          <div className="flex-1" />
           <Button
             onPress={onEscalate}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/5 pressed:bg-red-500/10 transition-colors"
+            className="rounded-md border border-red-500/20 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/[0.05] pressed:bg-red-500/[0.08] transition-colors"
           >
             {t('credit.escalate', 'Escalate')}
           </Button>
         </div>
       )}
 
-      {/* Credit Limit Change History */}
-      <div>
-        <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-          {t('credit.limitHistory', 'Credit Limit Change History')}
+      {/* ─── Limit change history ──────────────────────── */}
+      <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+        <div className="text-[10px] tracking-widest uppercase text-black/20 dark:text-white/20 mb-2">
+          {t('credit.limitHistory', 'Limit History')}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-black/10 dark:border-white/10 text-black/50 dark:text-white/50">
-                <th className="text-start py-1.5 pe-3 font-medium">{t('credit.date', 'Date')}</th>
-                <th className="text-end py-1.5 pe-3 font-medium">
-                  {t('credit.oldLimit', 'Old Limit')}
-                </th>
-                <th className="text-end py-1.5 pe-3 font-medium">
-                  {t('credit.newLimit', 'New Limit')}
-                </th>
-                <th className="text-start py-1.5 font-medium">
-                  {t('credit.approvedBy', 'Approved By')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_CHANGE_HISTORY.map((entry, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-black/5 dark:border-white/5 last:border-b-0"
-                >
-                  <td className="py-1.5 pe-3 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {entry.date}
-                  </td>
-                  <td className="py-1.5 pe-3 text-end">
-                    <CurrencyCell amount={entry.oldLimit} className="text-xs" />
-                  </td>
-                  <td className="py-1.5 pe-3 text-end">
-                    <CurrencyCell amount={entry.newLimit} className="text-xs" />
-                  </td>
-                  <td className="py-1.5">{entry.approvedBy}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-0">
+          {MOCK_CHANGE_HISTORY.map((entry, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 py-1.5 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0"
+            >
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/30 dark:text-white/30 min-w-[70px]">
+                {entry.date}
+              </span>
+              <CurrencyCell amount={entry.oldLimit} className="text-[11px] text-black/25 dark:text-white/25 min-w-[80px]" />
+              <span className="text-[10px] text-black/15 dark:text-white/15">&rarr;</span>
+              <CurrencyCell amount={entry.newLimit} className="text-[11px] min-w-[80px]" />
+              <span className="text-[10px] text-black/25 dark:text-white/25 flex-1 text-end truncate">
+                {entry.approvedBy}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

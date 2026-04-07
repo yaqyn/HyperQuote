@@ -25,10 +25,10 @@ export function ProcurementShortcuts() {
 
   const isActive = activeModule === 'procurement' && scope === 'panel'
 
-  // N - New Supplier Inquiry (navigate to inquiries tab)
+  // N - New Supplier Inquiry (navigate to sourcing tab)
   useShortcut('n', () => {
     if (gPrefix) { setGPrefix(false); return }
-    setActiveTab('inquiries')
+    setActiveTab('sourcing')
   }, { enabled: isActive })
 
   // G prefix - start sequence
@@ -38,10 +38,10 @@ export function ProcurementShortcuts() {
     setTimeout(() => setGPrefix(false), 1000)
   }, { enabled: isActive && !gPrefix })
 
-  // G then I - Go to Inquiries
+  // G then I - Go to Sourcing
   useShortcut('i', () => {
     if (gPrefix) {
-      setActiveTab('inquiries')
+      setActiveTab('sourcing')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
@@ -57,7 +57,7 @@ export function ProcurementShortcuts() {
   // G then S - Go to Supplier Directory
   useShortcut('s', () => {
     if (gPrefix) {
-      setActiveTab('directory')
+      setActiveTab('suppliers')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
@@ -79,32 +79,43 @@ export function ProcurementShortcuts() {
 
   if (!showHelp) return null
 
+  const shortcuts = [
+    { keys: 'N', action: 'New Supplier Inquiry' },
+    { keys: 'G I', action: 'Go to Sourcing' },
+    { keys: 'G P', action: 'Go to PO Management' },
+    { keys: 'G S', action: 'Go to Supplier Directory' },
+    { keys: '/', action: 'Focus search' },
+    { keys: '?', action: 'Toggle this help' },
+  ]
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold tracking-tight">Keyboard Shortcuts</h3>
           <Button
             onPress={() => setShowHelp(false)}
-            className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
+            className="rounded-md px-2 py-1 text-xs text-[var(--color-text-muted)] outline-none transition-colors
+              data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
           >
             Close
           </Button>
         </div>
-        <div className="flex flex-col gap-2">
-          {[
-            { keys: 'N', action: 'New Supplier Inquiry' },
-            { keys: 'G then I', action: 'Go to Inquiries' },
-            { keys: 'G then P', action: 'Go to PO Management' },
-            { keys: 'G then S', action: 'Go to Supplier Directory' },
-            { keys: '/', action: 'Focus search' },
-            { keys: '?', action: 'Toggle this help' },
-          ].map((shortcut) => (
+        <div className="flex flex-col gap-2.5">
+          {shortcuts.map((shortcut) => (
             <div key={shortcut.keys} className="flex items-center justify-between">
-              <span className="text-sm text-black/60 dark:text-white/60">{shortcut.action}</span>
-              <kbd className="rounded border border-black/10 bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:border-white/10 dark:bg-white/5">
-                {shortcut.keys}
-              </kbd>
+              <span className="text-[13px] text-[var(--color-text-muted)]">{shortcut.action}</span>
+              <div className="flex items-center gap-1">
+                {shortcut.keys.split(' ').map((k) => (
+                  <kbd
+                    key={k}
+                    className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-black/[0.08] bg-black/[0.03] px-1.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums dark:border-white/[0.08] dark:bg-white/[0.03]"
+                  >
+                    {k}
+                  </kbd>
+                ))}
+              </div>
             </div>
           ))}
         </div>

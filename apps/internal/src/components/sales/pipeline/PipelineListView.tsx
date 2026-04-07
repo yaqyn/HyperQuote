@@ -1,28 +1,18 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { motion } from 'motion/react'
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
-  flexRender,
-  createColumnHelper,
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  Row,
-  Cell,
-  Column,
-} from 'react-aria-components'
 import type { PipelineDeal, PipelineStageId } from '../../../types/sales'
 import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
-import { TierBadge } from '../shared/TierBadge'
 import { StageAdvancePanel } from './StageAdvancePanel'
 
 const STAGE_LABELS: Record<PipelineStageId, string> = {
@@ -37,22 +27,37 @@ const STAGE_LABELS: Record<PipelineStageId, string> = {
   lost_expired: 'Lost / Expired',
 }
 
-const STAGE_COLORS: Record<PipelineStageId, string> = {
-  rfq_received: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  reviewing: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  sourcing: 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60',
-  quoting: 'bg-[#2563EB]/10 text-[#2563EB]',
-  sent: 'bg-[#2563EB]/10 text-[#2563EB]',
-  negotiating: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
-  closing: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400',
-  won: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400',
-  lost_expired: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+function getStagePillStyle(stage: PipelineStageId): string {
+  switch (stage) {
+    case 'won':
+      return 'bg-green-500/10 text-green-600 dark:text-green-400'
+    case 'lost_expired':
+      return 'bg-red-500/10 text-red-500'
+    case 'negotiating':
+    case 'closing':
+      return 'bg-[#2563EB]/10 text-[#2563EB]'
+    default:
+      return 'bg-black/[0.05] text-black/50 dark:bg-white/[0.05] dark:text-white/50'
+  }
 }
 
 function getDaysColor(days: number): string {
-  if (days < 5) return 'text-green-600'
-  if (days <= 15) return 'text-yellow-600'
-  return 'text-red-600'
+  if (days < 5) return 'text-green-600 dark:text-green-400'
+  if (days <= 15) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
+function getStatusDotColor(color: PipelineDeal['color']): string {
+  switch (color) {
+    case 'green':
+      return 'bg-green-500'
+    case 'yellow':
+      return 'bg-yellow-500'
+    case 'red':
+      return 'bg-red-500'
+    default:
+      return 'bg-black/15 dark:bg-white/15'
+  }
 }
 
 const formatValue = (value: number) =>
@@ -63,14 +68,13 @@ const formatValue = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value)
 
-const columnHelper = createColumnHelper<PipelineDeal>()
-
 export function PipelineListView() {
   const { t } = useTranslation('internal')
   const pipelineFilters = useSalesStore((s) => s.pipelineFilters)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [selectedDeal, setSelectedDeal] = useState<PipelineDeal | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-pipeline', pipelineFilters],
@@ -78,95 +82,15 @@ export function PipelineListView() {
     staleTime: 30_000,
   })
 
-  const columns = [
-    columnHelper.accessor('stage', {
-      header: () => t('sales.pipeline.stage', 'Stage'),
-      cell: (info) => (
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[info.getValue()]}`}
-        >
-          {STAGE_LABELS[info.getValue()]}
-        </span>
-      ),
-    }),
-    columnHelper.accessor('customerName', {
-      header: () => t('sales.pipeline.customer', 'Customer'),
-      cell: (info) => (
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{info.getValue()}</span>
-          <TierBadge tier={info.row.original.customerTier} />
-        </div>
-      ),
-    }),
-    columnHelper.accessor('dealValue', {
-      header: () => t('sales.pipeline.dealValue', 'Deal Value'),
-      cell: (info) => (
-        <span className="font-[family-name:var(--font-geist-mono)] text-sm">
-          {formatValue(info.getValue())}
-        </span>
-      ),
-    }),
-    columnHelper.accessor('winProbability', {
-      header: () => t('sales.pipeline.winProb', 'Win %'),
-      cell: (info) => (
-        <span className="font-[family-name:var(--font-geist-mono)] text-sm">
-          {info.getValue()}%
-        </span>
-      ),
-    }),
-    columnHelper.accessor('daysInStage', {
-      header: () => t('sales.pipeline.daysInStage', 'Days'),
-      cell: (info) => (
-        <span
-          className={`font-[family-name:var(--font-geist-mono)] text-sm ${getDaysColor(info.getValue())}`}
-        >
-          {info.getValue()}d
-        </span>
-      ),
-    }),
-    columnHelper.accessor('assignedRep', {
-      header: () => t('sales.pipeline.rep', 'Rep'),
-      cell: (info) => <span className="text-sm">{info.getValue()}</span>,
-    }),
-    columnHelper.accessor('statusText', {
-      header: () => t('sales.pipeline.status', 'Status'),
-      cell: (info) => (
-        <span className="text-xs text-black/50 dark:text-white/50">{info.getValue()}</span>
-      ),
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: () => '',
-      cell: (info) => (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedDeal(info.row.original)
-            }}
-            className="text-xs text-[#2563EB] hover:underline"
-          >
-            {t('sales.pipeline.advance', 'Advance')}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedDeal(info.row.original)
-            }}
-            className="text-xs text-black/40 hover:underline dark:text-white/40"
-          >
-            {t('sales.pipeline.details', 'Details')}
-          </button>
-        </div>
-      ),
-    }),
-  ]
-
   const table = useReactTable({
     data: data?.deals ?? [],
-    columns,
+    columns: [
+      { accessorKey: 'customerName' },
+      { accessorKey: 'stage' },
+      { accessorKey: 'dealValue' },
+      { accessorKey: 'daysInStage' },
+      { accessorKey: 'assignedRep' },
+    ],
     state: { sorting, columnFilters },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -177,62 +101,103 @@ export function PipelineListView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center py-20">
+        <p className="text-[13px] text-black/25 dark:text-white/25">
           {t('common.loading', 'Loading...')}
         </p>
       </div>
     )
   }
 
+  const deals = table.getRowModel().rows.map((r) => r.original)
+
   return (
     <div className="flex h-full">
-      <div className="flex-1 overflow-auto px-4 py-3">
-        <Table aria-label={t('sales.pipeline.pipelineList', 'Pipeline List')} className="w-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) =>
-              headerGroup.headers.map((header) => (
-                <Column
-                  key={header.id}
-                  isRowHeader={header.index === 0}
-                  className="cursor-pointer px-3 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50"
-                >
-                  <button
-                    type="button"
-                    onClick={header.column.getToggleSortingHandler()}
-                    className="flex items-center gap-1"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getIsSorted() === 'asc'
-                      ? ' \u2191'
-                      : header.column.getIsSorted() === 'desc'
-                        ? ' \u2193'
-                        : ''}
-                  </button>
-                </Column>
-              )),
-            )}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row, rowIndex) => (
-              <Row
-                key={row.id}
-                onAction={() => setSelectedDeal(row.original)}
-                className={`cursor-pointer border-b border-black/5 hover:bg-black/3 dark:border-white/5 dark:hover:bg-white/3 ${
-                  rowIndex % 2 === 1 ? 'bg-black/[0.02] dark:bg-white/[0.02]' : ''
-                }`}
+      <div
+        className="flex-1 overflow-auto px-6 py-3"
+        role="list"
+        aria-label={t('sales.pipeline.pipelineList', 'Pipeline List')}
+      >
+        {/* Dense feed -- no table headers, no borders, no zebra */}
+        {deals.map((deal, index) => (
+          <motion.div
+            key={deal.id}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.12, delay: index * 0.03, ease: 'easeOut' }}
+            role="listitem"
+            tabIndex={0}
+            onClick={() => {
+              setSelectedDeal(deal)
+              setSelectedId(deal.id)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedDeal(deal)
+                setSelectedId(deal.id)
+              }
+            }}
+            className={`group/row flex cursor-pointer items-center gap-4 rounded px-3 py-2 transition-colors ${
+              selectedId === deal.id
+                ? 'border-s-2 border-s-[#2563EB] bg-[#2563EB]/[0.03]'
+                : 'border-s-2 border-s-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+            }`}
+          >
+            {/* Priority dot */}
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getStatusDotColor(deal.color)}`} />
+
+            {/* Customer name -- bold */}
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-black dark:text-white">
+              {deal.customerName}
+            </span>
+
+            {/* Stage pill -- tiny, filled */}
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wider ${getStagePillStyle(deal.stage)}`}
+            >
+              {STAGE_LABELS[deal.stage]}
+            </span>
+
+            {/* Value -- mono */}
+            <span className="w-28 shrink-0 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black dark:text-white">
+              {formatValue(deal.dealValue)}
+            </span>
+
+            {/* Days */}
+            <span
+              className={`w-10 shrink-0 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] ${getDaysColor(deal.daysInStage)}`}
+            >
+              {deal.daysInStage}d
+            </span>
+
+            {/* Assigned rep */}
+            <span className="w-24 shrink-0 truncate text-end text-[12px] text-black/35 dark:text-white/35">
+              {deal.assignedRep}
+            </span>
+
+            {/* Hover actions */}
+            <div className="flex w-16 shrink-0 items-center justify-end gap-2 opacity-0 transition-opacity group-hover/row:opacity-100">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedDeal(deal)
+                  setSelectedId(deal.id)
+                }}
+                className="text-[11px] font-medium text-[#2563EB]"
               >
-                {row.getVisibleCells().map((cell) => (
-                  <Cell key={cell.id} className="px-3 py-2.5">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </Cell>
-                ))}
-              </Row>
-            ))}
-          </TableBody>
-        </Table>
+                {t('sales.pipeline.advance', 'Advance')}
+              </button>
+            </div>
+          </motion.div>
+        ))}
+
+        {deals.length === 0 && (
+          <div className="py-20 text-center text-[13px] text-black/20 dark:text-white/20">
+            {t('sales.pipeline.noDeals', 'No deals')}
+          </div>
+        )}
       </div>
 
       {/* Side panel */}

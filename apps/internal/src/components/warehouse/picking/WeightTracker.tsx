@@ -4,9 +4,9 @@ interface WeightTrackerProps {
 }
 
 /**
- * Running weight vs truck capacity progress bar.
- * All numbers in Geist Mono. Color-coded: green <75%, yellow 75-90%, red >90%.
- * Blue fill bar using #2563EB.
+ * Live weight display — huge mono number + target + tolerance band as thin bar.
+ * Green when in range (<75%), amber 75-90%, red >90%.
+ * Airport-style: the number IS the UI.
  */
 export function WeightTracker({ currentWeightKg, maxCapacityKg }: WeightTrackerProps) {
   const percentLoaded = maxCapacityKg > 0
@@ -15,52 +15,54 @@ export function WeightTracker({ currentWeightKg, maxCapacityKg }: WeightTrackerP
 
   const colorClass =
     percentLoaded > 90
-      ? 'text-red-600'
+      ? 'text-red-600 dark:text-red-400'
       : percentLoaded > 75
-        ? 'text-yellow-600'
-        : 'text-green-600'
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-green-600 dark:text-green-400'
 
   const barColorClass =
     percentLoaded > 90
       ? 'bg-red-500'
       : percentLoaded > 75
-        ? 'bg-yellow-500'
+        ? 'bg-amber-500'
         : 'bg-[#2563EB]'
 
-  const displayCurrent = formatWeight(currentWeightKg)
-  const displayMax = formatWeight(maxCapacityKg)
-
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--color-border)] p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-          Load Weight
-        </span>
-        <span className={`font-mono text-sm font-semibold ${colorClass}`}>
+    <div className="flex flex-col gap-3 p-4">
+      {/* Huge weight number */}
+      <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline gap-2">
+          <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] font-bold leading-none ${colorClass}`}>
+            {formatWeight(currentWeightKg)}
+          </span>
+          <span className="text-sm text-black/30 dark:text-white/30">
+            / {formatWeight(maxCapacityKg)}
+          </span>
+        </div>
+        <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold ${colorClass}`}>
           {percentLoaded}%
         </span>
       </div>
-      <div className="h-2 w-full rounded-full bg-[var(--color-border)]">
+
+      {/* Thin capacity bar */}
+      <div className="h-1.5 w-full rounded-full bg-black/5 dark:bg-white/5">
         <div
           className={`h-full rounded-full transition-all duration-300 ${barColorClass}`}
           style={{ width: `${Math.min(percentLoaded, 100)}%` }}
         />
       </div>
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-[var(--color-text-primary)]">
-          {displayCurrent}
-        </span>
-        <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-          / {displayMax}
-        </span>
-      </div>
+
+      {/* Label */}
+      <span className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
+        Load Weight
+      </span>
     </div>
   )
 }
 
 function formatWeight(kg: number): string {
   if (kg >= 1000) {
-    return `${(kg / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}t`
+    return `${(kg / 1000).toFixed(1)}t`
   }
-  return `${kg.toLocaleString()} kg`
+  return `${kg.toLocaleString()}kg`
 }

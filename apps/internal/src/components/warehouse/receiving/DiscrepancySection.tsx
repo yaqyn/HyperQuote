@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Select, SelectValue, Button, Popover, ListBox, ListBoxItem, Label, TextArea, TextField } from 'react-aria-components'
-import { AlertTriangle } from 'lucide-react'
 import { PhotoCapture } from '../shared/PhotoCapture'
 import type { DiscrepancyReason } from '../../../types/warehouse'
 
@@ -27,8 +26,9 @@ const REASON_OPTIONS: Array<{ id: DiscrepancyReason; label: string }> = [
 ]
 
 /**
- * Discrepancy section — auto-populates when received != expected.
- * Shows variance quantity, reason code select, photo requirement, and notes.
+ * RED accent panel when quantities don't match.
+ * Expected vs Received side by side in large mono.
+ * Variance highlighted. Photo required.
  */
 export function DiscrepancySection({
   varianceQty,
@@ -60,21 +60,13 @@ export function DiscrepancySection({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <AlertTriangle size={16} className="text-red-500" />
-        <h4 className="text-sm font-semibold text-red-700 dark:text-red-400">
-          {t('warehouse.receiving.discrepancy', 'Discrepancy Detected')}
-        </h4>
-      </div>
-
-      {/* Variance quantity */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-black/60 dark:text-white/60">
-          {t('warehouse.receiving.variance', 'Variance')}:
+    <div className="flex flex-col gap-5 rounded-lg border-2 border-red-500/30 bg-red-500/[0.03] p-5">
+      {/* Header with huge variance number */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">
+          {t('warehouse.receiving.discrepancy', 'Discrepancy')}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold text-red-600">
+        <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold ${varianceQty > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
           {varianceQty > 0 ? '+' : ''}{numFmt.format(varianceQty)}
         </span>
       </div>
@@ -85,10 +77,10 @@ export function DiscrepancySection({
         onSelectionChange={handleReasonChange}
         className="flex flex-col gap-1"
       >
-        <Label className="text-sm font-medium text-black/60 dark:text-white/60">
+        <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
           {t('warehouse.receiving.reasonCode', 'Reason Code')} <span className="text-red-500">*</span>
         </Label>
-        <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm text-start cursor-pointer">
+        <Button className="flex h-14 items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm text-start cursor-pointer">
           <SelectValue placeholder={t('warehouse.receiving.selectReason', 'Select reason...')} />
         </Button>
         <Popover className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
@@ -97,7 +89,7 @@ export function DiscrepancySection({
               <ListBoxItem
                 key={opt.id}
                 id={opt.id}
-                className="rounded-md px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[selected]:font-semibold"
+                className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5"
               >
                 {t(`warehouse.receiving.reason.${opt.id}`, opt.label)}
               </ListBoxItem>
@@ -106,17 +98,12 @@ export function DiscrepancySection({
         </Popover>
       </Select>
 
-      {/* Photo requirement */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-red-600">
-          {t('warehouse.receiving.photoRequired', 'Photo required for discrepancies')}
-        </p>
-        <PhotoCapture
-          label={t('warehouse.receiving.discrepancyPhoto', 'Discrepancy Photo')}
-          required
-          onCapture={handlePhoto}
-        />
-      </div>
+      {/* Photo — required */}
+      <PhotoCapture
+        label={t('warehouse.receiving.discrepancyPhoto', 'Photo Evidence')}
+        required
+        onCapture={handlePhoto}
+      />
 
       {/* Note */}
       <TextField
@@ -124,11 +111,11 @@ export function DiscrepancySection({
         onChange={handleNoteChange}
         className="flex flex-col gap-1"
       >
-        <Label className="text-sm font-medium text-black/60 dark:text-white/60">
-          {t('warehouse.receiving.additionalNotes', 'Additional Notes')}
+        <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+          {t('warehouse.receiving.additionalNotes', 'Notes')}
         </Label>
         <TextArea
-          className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm min-h-[80px] resize-y"
+          className="rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-4 py-3 text-sm min-h-[80px] resize-y outline-none focus:border-[#2563EB]"
           placeholder={t('warehouse.receiving.notePlaceholder', 'Describe the discrepancy...')}
         />
       </TextField>

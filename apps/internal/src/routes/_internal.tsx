@@ -1,19 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Outlet, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { InternalCommandPalette } from '../components/command-palette/InternalCommandPalette'
-import { IconStrip } from '../components/shell/IconStrip'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
-import { NotificationBell } from '../components/shell/NotificationBell'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
+import { ToolsPanel } from '../components/tools/ToolsPanel'
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
 import { useInternalStore } from '../stores/internal'
 import { useNotificationStore } from '../stores/notifications'
 import { keyboardScopeStore } from '../stores/keyboard-scope'
 
 const getAuthSession = createServerFn({ method: 'GET' }).handler(async () => {
-  // Dev mode fallback: skip auth when Supabase is not configured
   if (!process.env.VITE_SUPABASE_URL) {
     return {
       session: null as any,
@@ -45,10 +42,9 @@ function InternalLayout() {
   const { auth } = Route.useRouteContext()
   const activeModule = useInternalStore((s) => s.activeModule)
   const setActiveModule = useInternalStore((s) => s.setActiveModule)
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   // Notification store
-  const unreadCount = useNotificationStore((s) => s.unreadCount)
   const isWindowOpen = useNotificationStore((s) => s.isWindowOpen)
   const toggleWindow = useNotificationStore((s) => s.toggleWindow)
   const closeWindow = useNotificationStore((s) => s.closeWindow)
@@ -59,17 +55,6 @@ function InternalLayout() {
     enabled: !!import.meta.env.VITE_SUPABASE_URL,
   })
 
-  // Mutual exclusivity: command palette closes module, module closes command palette
-  const handleToggleCommandPalette = useCallback(() => {
-    setCommandPaletteOpen((prev) => {
-      if (!prev) setActiveModule(null)
-      return !prev
-    })
-  }, [setActiveModule])
-
-  const handleCloseCommandPalette = useCallback(() => {
-    setCommandPaletteOpen(false)
-  }, [])
 
   // Focus/blur event delegation for keyboard scope
   useEffect(() => {
@@ -106,31 +91,30 @@ function InternalLayout() {
 
   return (
     <div id="main" className="relative h-dvh w-full overflow-hidden">
-      <IconStrip auth={auth} />
       <InternalShortcuts
         auth={auth}
-        commandPaletteOpen={commandPaletteOpen}
-        onToggleCommandPalette={handleToggleCommandPalette}
-        onCloseCommandPalette={handleCloseCommandPalette}
+        commandPaletteOpen={false}
+        onToggleCommandPalette={() => setToolsOpen((p) => !p)}
+        onCloseCommandPalette={() => setToolsOpen(false)}
       />
-
-      {/* Command palette */}
-      <InternalCommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={handleCloseCommandPalette}
-        auth={auth}
-      />
-
-      {/* Notification bell -- rendered ONLY here, NOT in _internal/index.tsx */}
-      <div className="fixed top-4 end-4 z-40">
-        <NotificationBell
-          hasUnread={unreadCount > 0}
-          onPress={toggleWindow}
-        />
-      </div>
 
       {/* Notifications window */}
       <NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
+
+      {/* Tools panel — right side, hover trigger */}
+      <ToolsPanel isOpen={toolsOpen} onClose={() => setToolsOpen(false)} />
+
+      {/* Left-edge hover trigger for tools */}
+      <div className="fixed top-0 left-0 bottom-0 z-40 w-2">
+        <button
+          type="button"
+          onClick={() => setToolsOpen(true)}
+          className="absolute top-1/2 -translate-y-1/2 left-0 w-6 h-12 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+          aria-label="Open tools"
+        >
+          <div className="w-1 h-8 rounded-full bg-black/15 dark:bg-white/15" />
+        </button>
+      </div>
 
       {/* Module window system */}
       {activeModule && (
@@ -141,7 +125,7 @@ function InternalLayout() {
         />
       )}
 
-      <main className="h-full ps-14 max-md:ps-0">
+      <main className="h-full">
         <Outlet />
       </main>
     </div>

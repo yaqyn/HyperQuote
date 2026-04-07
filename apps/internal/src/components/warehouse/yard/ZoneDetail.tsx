@@ -6,18 +6,16 @@ interface ZoneDetailProps {
   onClose: () => void
 }
 
-/** Capacity -> bar color (semantic DATA colors) */
 function getBarColor(capacityPercent: number): string {
-  if (capacityPercent > 80) return 'bg-red-500'
-  if (capacityPercent >= 60) return 'bg-amber-500'
-  return 'bg-green-500'
+  if (capacityPercent > 80) return '#ef4444'
+  if (capacityPercent >= 60) return '#eab308'
+  return '#22c55e'
 }
 
 /**
- * Side panel when zone tapped.
- * Shows zone name, capacity bar, inventory summary,
- * last activity, capacity usage. For aggregate bins:
- * "Estimated qty" note explaining measurement approach.
+ * "The Gate" — Zone detail panel.
+ * Vehicles in zone as compact list: plate # (mono) + type + arrival time + purpose + status dot.
+ * Zone name, capacity bar, inventory summary, last activity.
  */
 export function ZoneDetail({ zone, onClose }: ZoneDetailProps) {
   const isAggregate = zone.name.toLowerCase().includes('aggregate')
@@ -25,14 +23,14 @@ export function ZoneDetail({ zone, onClose }: ZoneDetailProps) {
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-[var(--color-border)] bg-white">
-      {/* Header */}
+      {/* ─── Header ──────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
-        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
           {zone.name}
         </h3>
         <Button
           onPress={onClose}
-          className="rounded p-1 text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text-primary)]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] cursor-pointer hover:bg-black/[0.02]"
           aria-label="Close zone detail"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -41,31 +39,36 @@ export function ZoneDetail({ zone, onClose }: ZoneDetailProps) {
         </Button>
       </div>
 
-      {/* Content */}
-      <div className="flex flex-col gap-4 overflow-auto p-4">
-        {/* Capacity bar */}
+      {/* ─── Content ─────────────────────────────────────── */}
+      <div className="flex flex-col gap-5 overflow-auto p-4">
+        {/* Capacity — large number + bar */}
         <div>
-          <div className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
-            <span>Capacity</span>
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-[var(--color-text-primary)]">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+              Capacity
+            </span>
+            <span
+              className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold"
+              style={{ color: barColor }}
+            >
               {zone.capacityPercent}%
             </span>
           </div>
           <div className="h-2 w-full rounded-full bg-[var(--color-border)]">
             <div
-              className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-              style={{ width: `${Math.min(zone.capacityPercent, 100)}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(zone.capacityPercent, 100)}%`, background: barColor }}
             />
           </div>
         </div>
 
         {/* Usage */}
-        <DetailRow label="Current Usage">
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+        <DetailRow label="Usage">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-bold">
             {zone.currentUsage}
           </span>
           <span className="text-[var(--color-text-secondary)]"> / </span>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-bold">
             {zone.maxCapacity}
           </span>
         </DetailRow>
@@ -75,16 +78,19 @@ export function ZoneDetail({ zone, onClose }: ZoneDetailProps) {
           <span>{zone.inventorySummary}</span>
         </DetailRow>
 
-        {/* Last activity (Geist Mono) */}
+        {/* Last activity */}
         <DetailRow label="Last Activity">
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
             {zone.lastActivity}
           </span>
         </DetailRow>
 
-        {/* Aggregate bin note */}
+        {/* Aggregate note */}
         {isAggregate && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <div
+            className="rounded-lg px-3 py-2 text-xs font-medium"
+            style={{ color: '#a16207', background: 'rgba(234, 179, 8, 0.06)' }}
+          >
             Estimated qty: last measurement + inflows - outflows
           </div>
         )}
@@ -98,8 +104,10 @@ export function ZoneDetail({ zone, onClose }: ZoneDetailProps) {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-0.5 text-xs text-[var(--color-text-secondary)]">{label}</div>
-      <div className="text-sm text-[var(--color-text-primary)]">{children}</div>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+        {label}
+      </span>
+      <div className="text-sm text-[var(--color-text-primary)] mt-0.5">{children}</div>
     </div>
   )
 }

@@ -28,12 +28,11 @@ export type StockFreshness = 'fresh' | 'aging' | 'stale' | 'suppressed'
 export type MatchStatus = 'matched' | 'partial_match' | 'mismatch' | 'pending'
 
 export type ProcurementTab =
-  | 'home'
-  | 'inquiries'
-  | 'comparison'
+  | 'sourcing'
   | 'po-management'
-  | 'directory'
-  | 'scorecard'
+  | 'suppliers'
+
+export type SourcingView = 'inquiry' | 'comparison'
 
 export type InquiryTemplate =
   | 'standard'

@@ -1,18 +1,9 @@
 import { useOperationsStore } from '../../../stores/operations'
-import { getFulfillmentColor } from '../../../types/operations'
 import type { FulfillmentOrder } from '../../../types/operations'
 
 interface FulfillmentCardProps {
   order: FulfillmentOrder
 }
-
-const formatValue = (value: number) =>
-  new Intl.NumberFormat('en-EG', {
-    style: 'currency',
-    currency: 'EGP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
 
 const formatETA = (eta: string) => {
   const date = new Date(eta)
@@ -23,14 +14,23 @@ const formatETA = (eta: string) => {
   return `${diffDays}d`
 }
 
+/**
+ * Compact card — order # (mono) + customer name on line 1,
+ * items count + deadline on line 2. Status dot. Hover reveals handoff info.
+ */
 export function FulfillmentCard({ order }: FulfillmentCardProps) {
   const setSelectedOrderId = useOperationsStore((s) => s.setSelectedOrderId)
-  const setActiveTab = useOperationsStore((s) => s.setActiveTab)
 
   const handleSelect = () => {
     setSelectedOrderId(order.id)
-    setActiveTab('order-detail')
   }
+
+  // Status dot color from fulfillment color
+  const dotColor = order.color === 'green'
+    ? 'bg-green-500'
+    : order.color === 'yellow'
+      ? 'bg-yellow-500'
+      : 'bg-red-500'
 
   return (
     <div
@@ -43,29 +43,26 @@ export function FulfillmentCard({ order }: FulfillmentCardProps) {
           handleSelect()
         }
       }}
-      className={`cursor-pointer rounded-lg border border-s-4 border-black/10 bg-white p-3 transition-shadow hover:shadow-md dark:border-white/10 dark:bg-black/40 ${getFulfillmentColor(order.color)}`}
+      className="cursor-pointer rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] px-3 py-2.5 transition-all
+        hover:border-black/10 dark:hover:border-white/10 hover:shadow-sm group"
     >
-      {/* Order number */}
-      <div className="mb-1 font-[family-name:var(--font-geist-mono)] text-xs font-medium text-black/60 dark:text-white/60">
-        {order.orderNumber}
-      </div>
-
-      {/* Customer name */}
-      <div className="mb-1 truncate text-sm font-medium">
-        {order.customerName}
-      </div>
-
-      {/* Total value */}
-      <div className="mb-2 font-[family-name:var(--font-geist-mono)] text-sm font-semibold">
-        {formatValue(order.totalValue)}
-      </div>
-
-      {/* Bottom row: item readiness + ETA */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-black/50 dark:text-white/50">
-          {order.readyItems} of {order.totalItems} items ready
+      {/* Line 1: status dot + order # + customer */}
+      <div className="flex items-center gap-2 mb-1">
+        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+        <span className="font-[family-name:var(--font-geist-mono)] text-[12px] text-black/50 dark:text-white/50 shrink-0">
+          {order.orderNumber}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-xs text-black/40 dark:text-white/40">
+        <span className="text-[13px] font-medium truncate">
+          {order.customerName}
+        </span>
+      </div>
+
+      {/* Line 2: items count + ETA */}
+      <div className="flex items-center justify-between ps-4">
+        <span className="text-[11px] text-black/35 dark:text-white/35">
+          {order.readyItems}/{order.totalItems} items
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/30 dark:text-white/30">
           {formatETA(order.eta)}
         </span>
       </div>

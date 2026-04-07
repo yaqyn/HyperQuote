@@ -1,28 +1,20 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Tab, TabList, Tabs, Button, TextField, Input } from 'react-aria-components'
+import { Button, TextField, Input } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { getWhatsAppInbox } from '../../../lib/server/customer-service'
-import type { WhatsAppConversation, AITriageTier } from '../../../types/customer-service'
-
-type FilterTab = 'all' | 'unread' | 'ai-resolved' | 'needs-human'
-
-const TIER_CONFIG: Record<AITriageTier, { label: string; color: string }> = {
-  0: { label: 'Tier 0 — Auto-resolved', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  1: { label: 'Tier 1 — AI Suggested', color: 'bg-[#2563EB]/10 text-[#2563EB]' },
-  2: { label: 'Tier 2 — Human Required', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
-}
+import type { AITriageTier } from '../../../types/customer-service'
 
 /**
- * WhatsApp Inbox — two-panel layout.
- * Left: conversation list with filter tabs.
- * Right: message thread with AI triage + customer context + quick actions.
- * No WhatsApp SDK imports — all mock data.
+ * WhatsApp Inbox — "The Chat"
+ * Two-panel: conversation list on left (like WhatsApp web), active chat on right.
+ * Conversation list: customer name + last message preview + timestamp + unread badge.
+ * Chat area: message bubbles, clean and minimal.
  */
 export function WhatsAppInbox() {
   const { t } = useTranslation('customer-service')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<FilterTab>('all')
   const [replyText, setReplyText] = useState('')
 
   const { data: conversations } = useQuery({
@@ -33,84 +25,56 @@ export function WhatsAppInbox() {
 
   if (!conversations) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="p-5 text-center text-[var(--color-text-subtle)]">
         Loading...
       </div>
     )
   }
-
-  // Apply filter
-  const filtered = conversations.filter((c) => {
-    switch (filter) {
-      case 'unread': return c.unread
-      case 'ai-resolved': return !c.unresolved && c.aiTier === 0
-      case 'needs-human': return c.aiTier === 2
-      default: return true
-    }
-  })
 
   const selected = selectedId
     ? conversations.find((c) => c.id === selectedId) ?? null
     : null
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
+    <div className="flex h-full">
       {/* Left panel: conversation list */}
-      <div className={`w-full md:w-1/3 border-e border-black/10 dark:border-white/10 flex flex-col ${selected ? 'hidden md:flex' : 'flex'}`}>
-        {/* Filter tabs */}
-        <Tabs
-          selectedKey={filter}
-          onSelectionChange={(key) => setFilter(key as FilterTab)}
-        >
-          <TabList
-            aria-label={t('whatsapp.conversations', 'Conversations')}
-            className="flex overflow-x-auto border-b border-black/10 dark:border-white/10 px-3 gap-1"
-          >
-            {([
-              { id: 'all', label: t('whatsapp.all', 'All') },
-              { id: 'unread', label: t('whatsapp.unread', 'Unread') },
-              { id: 'ai-resolved', label: t('whatsapp.aiResolved', 'AI Resolved') },
-              { id: 'needs-human', label: t('whatsapp.needsHuman', 'Needs Human') },
-            ] as const).map((tab) => (
-              <Tab
-                key={tab.id}
-                id={tab.id}
-                className="shrink-0 cursor-pointer whitespace-nowrap px-2.5 py-2 text-xs font-medium text-black/60 dark:text-white/60 outline-none transition-colors
-                  data-[selected]:text-[#2563EB] data-[selected]:border-b-2 data-[selected]:border-[#2563EB]
-                  data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 rounded-t"
-              >
-                {tab.label}
-              </Tab>
-            ))}
-          </TabList>
-        </Tabs>
-
+      <div className={`w-full md:w-80 lg:w-96 border-e border-[var(--color-border)] flex flex-col shrink-0 ${selected ? 'hidden md:flex' : 'flex'}`}>
         {/* Conversation list */}
-        <div className="flex-1 overflow-auto">
-          {filtered.map((conv) => (
+        <div className="flex-1 overflow-y-auto">
+          {conversations.map((conv) => (
             <button
               key={conv.id}
               type="button"
               onClick={() => setSelectedId(conv.id)}
-              className={`w-full text-start px-4 py-3 border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${
-                selectedId === conv.id ? 'bg-[#2563EB]/5' : ''
-              }`}
+              className={`w-full text-start px-4 py-3 border-b border-[var(--color-border)]/50 cursor-pointer transition-colors
+                hover:bg-black/[0.03] dark:hover:bg-white/[0.03]
+                ${selectedId === conv.id ? 'bg-black/[0.04] dark:bg-white/[0.04]' : ''}`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium truncate">{conv.customerName}</span>
-                <span className="text-xs text-black/40 dark:text-white/40 font-[family-name:var(--font-geist-mono)] tabular-nums shrink-0 ms-2">
-                  {formatTime(conv.timestamp)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {conv.unread && (
-                  <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0" />
-                )}
-                <span className="text-xs text-black/50 dark:text-white/50 truncate">
-                  {conv.lastMessage.length > 60
-                    ? `${conv.lastMessage.slice(0, 60)}...`
-                    : conv.lastMessage}
-                </span>
+              <div className="flex items-center gap-3">
+                {/* Initials */}
+                <div className="w-9 h-9 rounded-full bg-black/[0.05] dark:bg-white/[0.05] flex items-center justify-center text-sm font-semibold text-[var(--color-text-muted)] shrink-0">
+                  {conv.customerName.charAt(0)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className={`text-sm truncate ${conv.unread ? 'font-semibold text-[var(--color-text)]' : 'font-medium text-[var(--color-text)]'}`}>
+                      {conv.customerName}
+                    </span>
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-subtle)] shrink-0">
+                      {formatTime(conv.timestamp)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--color-text-subtle)] truncate flex-1">
+                      {conv.lastMessage.length > 50 ? `${conv.lastMessage.slice(0, 50)}...` : conv.lastMessage}
+                    </span>
+                    {conv.unread && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] shrink-0" />
+                    )}
+                  </div>
+                </div>
               </div>
             </button>
           ))}
@@ -118,118 +82,125 @@ export function WhatsAppInbox() {
       </div>
 
       {/* Right panel: message thread */}
-      <div className={`flex-1 flex flex-col ${!selected ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 ${!selected ? 'hidden md:flex' : 'flex'}`}>
         {!selected ? (
-          <div className="flex-1 flex items-center justify-center text-black/30 dark:text-white/30 text-sm">
+          <div className="flex-1 flex items-center justify-center text-[var(--color-text-subtle)] text-sm">
             {t('whatsapp.selectConversation', 'Select a conversation')}
           </div>
         ) : (
           <>
-            {/* Mobile back button */}
-            <div className="md:hidden border-b border-black/10 dark:border-white/10 px-4 py-2">
+            {/* Header */}
+            <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]">
+              {/* Mobile back */}
               <Button
                 onPress={() => setSelectedId(null)}
-                className="text-sm text-[#2563EB] cursor-pointer"
+                className="md:hidden text-[var(--color-primary)] text-sm cursor-pointer outline-none"
               >
-                &larr; {t('whatsapp.conversations', 'Conversations')}
+                &larr;
               </Button>
-            </div>
 
-            {/* AI Triage badge */}
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-              <div className="flex items-center gap-3">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${TIER_CONFIG[selected.aiTier].color}`}>
-                  {TIER_CONFIG[selected.aiTier].label}
-                </span>
-                <span className="text-sm font-medium">{selected.customerName}</span>
-                <span className="text-xs text-black/40 dark:text-white/40 font-[family-name:var(--font-geist-mono)]">
-                  {selected.customerPhone}
-                </span>
+              <div className="w-8 h-8 rounded-full bg-black/[0.05] dark:bg-white/[0.05] flex items-center justify-center text-sm font-semibold text-[var(--color-text-muted)]">
+                {selected.customerName.charAt(0)}
               </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-[var(--color-text)] truncate">{selected.customerName}</div>
+                <div className="text-xs text-[var(--color-text-subtle)] font-[family-name:var(--font-geist-mono)]">
+                  {selected.customerPhone}
+                </div>
+              </div>
+
+              {/* AI triage indicator */}
+              <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${tierStyle(selected.aiTier)}`}>
+                {tierLabel(selected.aiTier)}
+              </span>
             </div>
 
-            {/* Content area: messages + sidebar */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Messages */}
-              <div className="flex-1 flex flex-col overflow-auto">
-                <div className="flex-1 p-4 space-y-3 overflow-auto">
-                  {selected.messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`max-w-[80%] rounded-xl px-4 py-2.5 ${
-                        msg.sender === 'customer'
-                          ? 'bg-black/5 dark:bg-white/5 self-start'
-                          : msg.sender === 'ai'
-                            ? 'bg-[#2563EB]/10 self-end ms-auto'
-                            : 'bg-[#2563EB]/20 self-end ms-auto'
-                      }`}
-                    >
-                      <div className="text-xs text-black/40 dark:text-white/40 mb-1">
-                        {msg.sender === 'customer' ? selected.customerName : msg.sender === 'ai' ? 'AI' : 'Agent'}
-                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums ms-2">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+              {selected.messages.map((msg) => {
+                const isCustomer = msg.sender === 'customer'
+
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.12, ease: 'easeOut' }}
+                    className={`flex ${isCustomer ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${
+                      isCustomer
+                        ? 'bg-black/[0.04] dark:bg-white/[0.04]'
+                        : msg.sender === 'ai'
+                          ? 'bg-[var(--color-primary)]/8'
+                          : 'bg-[var(--color-primary)]/12'
+                    }`}>
+                      <p className="text-sm text-[var(--color-text)] leading-relaxed">{msg.content}</p>
+                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-[var(--color-text-subtle)]">
+                          {isCustomer ? '' : msg.sender === 'ai' ? 'AI' : 'Agent'}
+                        </span>
+                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-subtle)]">
                           {formatTime(msg.timestamp)}
                         </span>
                       </div>
-                      <div className="text-sm">{msg.content}</div>
                     </div>
-                  ))}
-                </div>
+                  </motion.div>
+                )
+              })}
+            </div>
 
-                {/* Reply input */}
-                <div className="border-t border-black/10 dark:border-white/10 p-4 flex gap-2">
-                  <TextField
-                    aria-label={t('whatsapp.typeMessage', 'Type a message...')}
-                    value={replyText}
-                    onChange={setReplyText}
-                    className="flex-1"
-                  >
-                    <Input
-                      placeholder={t('whatsapp.typeMessage', 'Type a message...')}
-                      className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#2563EB]/50"
-                    />
-                  </TextField>
-                  <Button
-                    onPress={() => {
-                      console.log('[CS] Send WhatsApp reply:', replyText)
-                      setReplyText('')
-                    }}
-                    className="shrink-0 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 cursor-pointer"
-                  >
-                    {t('whatsapp.send', 'Send')}
-                  </Button>
-                </div>
-              </div>
+            {/* Reply input */}
+            <div className="shrink-0 border-t border-[var(--color-border)] px-4 py-3 flex gap-2">
+              <TextField
+                aria-label={t('whatsapp.typeMessage', 'Type a message...')}
+                value={replyText}
+                onChange={setReplyText}
+                className="flex-1"
+              >
+                <Input
+                  placeholder={t('whatsapp.typeMessage', 'Type a message...')}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none
+                    focus:ring-1 focus:ring-[var(--color-primary)]/40"
+                />
+              </TextField>
+              <Button
+                onPress={() => {
+                  console.log('[CS] Send WhatsApp reply:', replyText)
+                  setReplyText('')
+                }}
+                className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none"
+              >
+                {t('whatsapp.send', 'Send')}
+              </Button>
+            </div>
 
-              {/* Customer context sidebar (hidden on mobile) */}
-              <div className="hidden lg:flex flex-col w-64 border-s border-black/10 dark:border-white/10 p-4 overflow-auto">
-                <h4 className="text-xs font-semibold text-black/50 dark:text-white/50 uppercase mb-3">
-                  {t('whatsapp.customerContext', 'Customer Context')}
-                </h4>
-                <div className="space-y-3">
-                  <ContextRow label={t('whatsapp.orders', 'Orders')} value={selected.orderCount} />
-                  <ContextRow label={t('whatsapp.openQuotes', 'Open Quotes')} value={selected.openQuotes} />
-                  <ContextRow label={t('whatsapp.outstandingInvoices', 'Outstanding Invoices')} value={selected.outstandingInvoices} />
-                </div>
+            {/* Quick actions bar (desktop) */}
+            <div className="hidden lg:flex shrink-0 border-t border-[var(--color-border)]/50 px-4 py-2 gap-2">
+              {[
+                { key: 'checkOrderStatus', label: t('whatsapp.checkOrderStatus', 'Check Order') },
+                { key: 'lookUpInvoice', label: t('whatsapp.lookUpInvoice', 'Look Up Invoice') },
+                { key: 'createTicket', label: t('whatsapp.createTicket', 'Create Ticket') },
+                { key: 'escalateAction', label: t('whatsapp.escalateAction', 'Escalate') },
+              ].map((action) => (
+                <Button
+                  key={action.key}
+                  onPress={() => console.log(`[CS] Quick action: ${action.key}`)}
+                  className="rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-muted)] cursor-pointer
+                    hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors outline-none"
+                >
+                  {action.label}
+                </Button>
+              ))}
 
-                <h4 className="text-xs font-semibold text-black/50 dark:text-white/50 uppercase mt-6 mb-3">
-                  {t('whatsapp.quickActions', 'Quick Actions')}
-                </h4>
-                <div className="flex flex-col gap-2">
-                  {[
-                    { key: 'checkOrderStatus', label: t('whatsapp.checkOrderStatus', 'Check Order Status') },
-                    { key: 'lookUpInvoice', label: t('whatsapp.lookUpInvoice', 'Look Up Invoice') },
-                    { key: 'createTicket', label: t('whatsapp.createTicket', 'Create Ticket') },
-                    { key: 'escalateAction', label: t('whatsapp.escalateAction', 'Escalate') },
-                  ].map((action) => (
-                    <Button
-                      key={action.key}
-                      onPress={() => console.log(`[CS] Quick action: ${action.key}`)}
-                      className="text-start rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-xs hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
+              <span className="flex-1" />
+
+              {/* Context stats */}
+              <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-subtle)]">
+                <span>Orders: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{selected.orderCount}</span></span>
+                <span>Quotes: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{selected.openQuotes}</span></span>
+                <span>Invoices: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{selected.outstandingInvoices}</span></span>
               </div>
             </div>
           </>
@@ -241,15 +212,22 @@ export function WhatsAppInbox() {
 
 // ─── Helpers ────────────────────────────────────────────
 
-function ContextRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-black/60 dark:text-white/60">{label}</span>
-      <span className="text-sm font-[family-name:var(--font-geist-mono)] tabular-nums">
-        {value}
-      </span>
-    </div>
-  )
+function tierLabel(tier: AITriageTier): string {
+  const map: Record<AITriageTier, string> = {
+    0: 'Auto',
+    1: 'AI Suggest',
+    2: 'Human',
+  }
+  return map[tier]
+}
+
+function tierStyle(tier: AITriageTier): string {
+  const map: Record<AITriageTier, string> = {
+    0: 'bg-green-500/10 text-green-700 dark:text-green-400',
+    1: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
+    2: 'bg-red-500/10 text-red-700 dark:text-red-400',
+  }
+  return map[tier]
 }
 
 function formatTime(iso: string): string {

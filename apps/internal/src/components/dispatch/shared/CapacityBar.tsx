@@ -1,5 +1,5 @@
 /**
- * Horizontal capacity bar for route weight visualization.
+ * Thin horizontal bar (4px) showing used/total capacity.
  * Green <70%, Yellow 70-90%, Red >90%.
  * Geist Mono percentage label.
  */
@@ -29,14 +29,14 @@ export function CapacityBar({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.06]">
         <div
           className={`h-full rounded-full transition-all duration-300 ${barColor}`}
           style={{ width: `${pct}%` }}
         />
       </div>
       <span
-        className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-medium ${textColor}`}
+        className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums font-medium ${textColor}`}
       >
         {rounded}%
       </span>

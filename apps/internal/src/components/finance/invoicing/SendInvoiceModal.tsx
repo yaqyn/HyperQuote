@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogTrigger, Modal, ModalOverlay, Heading } from 'react-aria-components'
+import { Dialog, Modal, ModalOverlay, Heading, Button } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { sendInvoice } from '../../../lib/server/finance-invoices'
 import type { Invoice } from '../../../types/finance'
 
@@ -12,16 +13,15 @@ interface SendInvoiceModalProps {
 type SendChannel = 'portal' | 'email' | 'whatsapp' | 'print'
 
 const CHANNELS: { id: SendChannel; label: string; defaultChecked: boolean }[] = [
-  { id: 'portal', label: 'Customer Portal', defaultChecked: true },
+  { id: 'portal', label: 'Portal', defaultChecked: true },
   { id: 'email', label: 'Email', defaultChecked: true },
   { id: 'whatsapp', label: 'WhatsApp', defaultChecked: false },
-  { id: 'print', label: 'Print & Mail', defaultChecked: false },
+  { id: 'print', label: 'Print', defaultChecked: false },
 ]
 
 /**
- * Multi-channel send modal (React Aria Dialog).
- * 4 checkboxes: Portal (default), Email (default), WhatsApp, Print & Mail.
- * Pre-filled message template, Send Now / Schedule buttons.
+ * Send invoice modal — recipient tags + channel pills + schedule option.
+ * Clean, minimal, professional.
  */
 export function SendInvoiceModal({ invoice, onClose }: SendInvoiceModalProps) {
   const { t } = useTranslation('finance')
@@ -66,90 +66,107 @@ export function SendInvoiceModal({ invoice, onClose }: SendInvoiceModalProps) {
       onOpenChange={(open) => { if (!open) onClose() }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
-      <Modal className="w-full max-w-lg mx-4">
-        <Dialog className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 outline-none">
+      <Modal className="w-full max-w-md mx-4">
+        <Dialog
+          className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-0 outline-none"
+        >
           {({ close }) => (
-            <>
-              <Heading slot="title" className="text-lg font-semibold mb-4">
-                {t('invoicing.sendInvoice', 'Send Invoice')} {invoice.number}
-              </Heading>
+            <motion.div
+              initial={{ scale: 0.97, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            >
+              {/* Header */}
+              <div className="px-6 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <Heading slot="title" className="text-sm font-medium">
+                  {t('invoicing.sendInvoice', 'Send Invoice')}
+                </Heading>
+                <div className="text-xs text-black/30 dark:text-white/30 mt-0.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  {invoice.number}
+                </div>
+              </div>
 
               {sent ? (
-                <div className="text-center py-8">
-                  <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  <div className="text-sm font-medium mb-1">{t('invoicing.invoiceSent', 'Invoice Sent!')}</div>
-                  <div className="text-xs text-black/40 dark:text-white/40">
-                    {t('invoicing.sentVia', 'Sent via')}: {Array.from(selected).join(', ')}
+                /* ─── Success ─────────────────────────────── */
+                <div className="px-6 py-10 text-center">
+                  <div className="size-8 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                    <span className="size-2 rounded-full bg-green-500" />
                   </div>
-                  <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40 mt-1">
+                  <div className="text-xs font-medium text-black/70 dark:text-white/70 mb-1">
+                    {t('invoicing.invoiceSent', 'Sent')}
+                  </div>
+                  <div className="text-[11px] text-black/30 dark:text-white/30 mt-1">
+                    {Array.from(selected).join(' + ')}
+                  </div>
+                  <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20 mt-1">
                     {new Date().toISOString().slice(0, 19).replace('T', ' ')}
                   </div>
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="mt-4 rounded-lg bg-[#2563EB] text-white px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/90 transition-colors"
+                  <Button
+                    onPress={close}
+                    className="mt-6 rounded-md bg-black/[0.04] dark:bg-white/[0.04] px-4 py-1.5 text-xs hover:bg-black/[0.08] dark:hover:bg-white/[0.08] transition-colors"
                   >
                     {t('invoicing.done', 'Done')}
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <>
-                  {/* Channel checkboxes */}
-                  <div className="space-y-3 mb-4">
-                    <div className="text-sm font-medium text-black/60 dark:text-white/60">
-                      {t('invoicing.sendChannels', 'Send via')}
+                <div className="px-6 py-5 space-y-5">
+                  {/* ─── Channel pills ──────────────────────── */}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+                      {t('invoicing.sendChannels', 'Channels')}
                     </div>
-                    {CHANNELS.map((channel) => (
-                      <label key={channel.id} className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(channel.id)}
-                          onChange={() => toggleChannel(channel.id)}
-                          className="rounded border-black/20 dark:border-white/20"
-                        />
-                        <span className="text-sm">{channel.label}</span>
-                      </label>
-                    ))}
+                    <div className="flex gap-1.5">
+                      {CHANNELS.map((channel) => (
+                        <button
+                          key={channel.id}
+                          type="button"
+                          onClick={() => toggleChannel(channel.id)}
+                          className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                            selected.has(channel.id)
+                              ? 'bg-[#2563EB] text-white'
+                              : 'bg-black/[0.04] dark:bg-white/[0.04] text-black/40 dark:text-white/40 hover:bg-black/[0.08] dark:hover:bg-white/[0.08]'
+                          }`}
+                        >
+                          {channel.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Message template */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium text-black/60 dark:text-white/60 mb-1 block">
+                  {/* ─── Message ─────────────────────────────── */}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
                       {t('invoicing.messageTemplate', 'Message')}
-                    </label>
+                    </div>
                     <textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      rows={6}
-                      className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm resize-none"
+                      rows={5}
+                      className="w-full bg-transparent border border-black/[0.06] dark:border-white/[0.06] rounded-lg px-3 py-2 text-xs text-black/60 dark:text-white/60 resize-none outline-none focus:border-[#2563EB]/30 transition-colors"
                     />
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  {/* ─── Actions ─────────────────────────────── */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+                    <Button
+                      onPress={close}
+                      className="rounded-md px-4 py-1.5 text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
                     >
                       {t('invoicing.cancel', 'Cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSendNow}
-                      disabled={isSending || selected.size === 0}
-                      className="rounded-lg bg-[#2563EB] text-white px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/90 transition-colors disabled:opacity-50"
+                    </Button>
+                    <Button
+                      onPress={handleSendNow}
+                      isDisabled={isSending || selected.size === 0}
+                      className="rounded-md bg-[#2563EB] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors disabled:opacity-40"
                     >
                       {isSending
                         ? t('invoicing.sending', 'Sending...')
                         : t('invoicing.sendNow', 'Send Now')}
-                    </button>
+                    </Button>
                   </div>
-                </>
+                </div>
               )}
-            </>
+            </motion.div>
           )}
         </Dialog>
       </Modal>

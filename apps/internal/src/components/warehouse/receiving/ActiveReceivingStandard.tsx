@@ -1,9 +1,8 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { useForm, useWatch, useFieldArray, Controller } from 'react-hook-form'
+import { useForm, useWatch, Controller } from 'react-hook-form'
 import { Button, Select, SelectValue, Popover, ListBox, ListBoxItem, Label, TextArea, TextField } from 'react-aria-components'
-import { ChevronDown, ChevronUp, Camera, StickyNote } from 'lucide-react'
 import { getReceivingDetail } from '../../../lib/server/warehouse-receiving'
 import { useWarehouseStore } from '../../../stores/warehouse'
 import { StepIndicator } from '../shared/StepIndicator'
@@ -28,12 +27,10 @@ const CONDITION_OPTIONS: Array<{ id: ItemCondition; label: string }> = [
 ]
 
 interface ReceivingFormData {
-  // Step 1: Truck info
   truckType: string
   licensePlate: string
   bolNumber: string
   driverName: string
-  // Step 2: Line items
   lines: Array<{
     lineId: string
     receivedQty: number
@@ -43,15 +40,15 @@ interface ReceivingFormData {
     note: string
     photoFiles: File[]
   }>
-  // Step 5: Completion
   signature: string
 }
 
 const STEPS = ['Truck Info', 'Line Items', 'Discrepancies', 'Quality Check', 'Completion'] as const
 
 /**
- * Standard receiving flow per spec section 4.3.
- * Step-by-step per PO: truck info -> per line item -> discrepancies -> quality -> signature.
+ * Standard receiving step-by-step flow.
+ * Current step highlighted. Large product name, large quantity input.
+ * Quality checklist inline with full-width Pass/Fail toggles.
  */
 export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardProps) {
   const { t } = useTranslation('internal')
@@ -81,7 +78,6 @@ export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardP
     },
   })
 
-  // Initialize lines when data loads
   useMemo(() => {
     if (receivingLines.length > 0) {
       const lineDefaults = receivingLines.map((line) => ({
@@ -117,24 +113,24 @@ export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardP
   })
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-5 p-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button
           onPress={handleBack}
-          className="text-sm text-[#2563EB] cursor-pointer hover:underline"
+          className="text-sm font-medium text-[#2563EB] cursor-pointer"
         >
           {currentStep === 0
             ? t('common.back', 'Back')
             : t('common.previous', 'Previous')}
         </Button>
-        <h2 className="text-sm font-semibold">
-          {t('warehouse.receiving.standardReceiving', 'Standard Receiving')}
+        <h2 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
+          {t('warehouse.receiving.standardReceiving', 'Receiving')}
         </h2>
-        <div className="w-16" /> {/* Spacer for alignment */}
+        <div className="w-16" />
       </div>
 
-      {/* Step indicator */}
+      {/* Step indicator — dots connected by line */}
       <StepIndicator current={currentStep + 1} total={STEPS.length} label="step" />
 
       {/* Step content */}
@@ -166,16 +162,14 @@ export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardP
         <CompletionStep control={control} onSubmit={onSubmit} />
       )}
 
-      {/* Navigation buttons */}
+      {/* Next button */}
       {currentStep < STEPS.length - 1 && (
-        <div className="flex justify-end pt-2">
-          <Button
-            onPress={handleNext}
-            className="rounded-lg bg-[#2563EB] px-6 py-2.5 text-sm font-medium text-white cursor-pointer hover:bg-[#2563EB]/90 transition-colors"
-          >
-            {t('common.next', 'Next')}
-          </Button>
-        </div>
+        <Button
+          onPress={handleNext}
+          className="flex h-14 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer transition-colors"
+        >
+          {t('common.next', 'Next')}
+        </Button>
       )}
     </div>
   )
@@ -187,8 +181,8 @@ function TruckInfoStep({ control }: { control: any }) {
   const { t } = useTranslation('internal')
 
   return (
-    <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">
+    <div className="flex flex-col gap-5">
+      <h3 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
         {t('warehouse.receiving.truckInfo', 'Truck Information')}
       </h3>
 
@@ -201,10 +195,10 @@ function TruckInfoStep({ control }: { control: any }) {
             onSelectionChange={(key) => field.onChange(key as string)}
             className="flex flex-col gap-1"
           >
-            <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+            <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
               {t('warehouse.receiving.truckType', 'Truck Type')}
             </Label>
-            <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm text-start cursor-pointer">
+            <Button className="flex h-14 items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm text-start cursor-pointer">
               <SelectValue />
             </Button>
             <Popover className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
@@ -213,7 +207,7 @@ function TruckInfoStep({ control }: { control: any }) {
                   <ListBoxItem
                     key={type}
                     id={type}
-                    className="rounded-md px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[selected]:font-semibold capitalize"
+                    className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm capitalize outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5 data-[selected]:font-semibold"
                   >
                     {type}
                   </ListBoxItem>
@@ -255,11 +249,11 @@ function TruckInfoStep({ control }: { control: any }) {
             onChange={field.onChange}
             className="flex flex-col gap-1"
           >
-            <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+            <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
               {t('warehouse.receiving.driverName', 'Driver Name')}
             </Label>
             <input
-              className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm"
+              className="h-14 rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-4 text-sm outline-none focus:border-[#2563EB] transition-colors"
               value={field.value}
               onChange={(e) => field.onChange(e.target.value)}
             />
@@ -287,7 +281,7 @@ function LineItemsStep({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">
+      <h3 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
         {t('warehouse.receiving.lineItems', 'Line Items')}
       </h3>
 
@@ -320,56 +314,65 @@ function LineItemCard({
 }) {
   const { t } = useTranslation('internal')
 
-  // Watch receivedQty for this line to compute real-time variance
   const receivedQty = useWatch({ control, name: `lines.${index}.receivedQty` }) ?? 0
   const variancePercent = line.expectedQty > 0
     ? (receivedQty - line.expectedQty) / line.expectedQty
     : 0
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden">
-      {/* Collapsed header */}
+    <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+      {/* Collapsed header — large touch target */}
       <Button
         onPress={onToggle}
-        className="flex w-full items-center justify-between p-3 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+        className="flex w-full items-center justify-between min-h-[64px] p-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
       >
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-black/80 dark:text-white/80">
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <span className="text-base font-medium text-black/90 dark:text-white/90 truncate">
             {line.materialName}
           </span>
-          <span className="text-xs text-black/50 dark:text-white/50">
+          <span className="text-xs text-black/40 dark:text-white/40">
             {line.specification}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-            {receivedQty}/{line.expectedQty}
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-black/80 dark:text-white/80">
+            {receivedQty}
+            <span className="text-black/30 dark:text-white/30">/{line.expectedQty}</span>
           </span>
-          {receivedQty > 0 && <VarianceBadge variancePercent={variancePercent} />}
-          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {receivedQty > 0 && <VarianceBadge value={variancePercent} />}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          >
+            <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
         </div>
       </Button>
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="flex flex-col gap-4 border-t border-black/5 dark:border-white/5 p-4">
-          {/* Expected quantity (read-only) */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-black/60 dark:text-white/60">
-              {t('warehouse.receiving.expected', 'Expected')}:
+        <div className="flex flex-col gap-5 border-t border-black/5 dark:border-white/5 p-5">
+          {/* Expected (read-only) */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-black/40 dark:text-white/40 uppercase tracking-wider">
+              {t('warehouse.receiving.expected', 'Expected')}
             </span>
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold text-black/70 dark:text-white/70">
               {line.expectedQty}
             </span>
           </div>
 
-          {/* Received quantity */}
+          {/* Received quantity — LARGE input */}
           <Controller
             name={`lines.${index}.receivedQty`}
             control={control}
             render={({ field }) => (
               <LargeNumberInput
-                label={t('warehouse.receiving.received', 'Received Quantity')}
+                label={t('warehouse.receiving.received', 'Received')}
                 value={field.value}
                 onChange={field.onChange}
                 minValue={0}
@@ -387,10 +390,10 @@ function LineItemCard({
                 onSelectionChange={(key) => field.onChange(key as ItemCondition)}
                 className="flex flex-col gap-1"
               >
-                <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
                   {t('warehouse.receiving.condition', 'Condition')}
                 </Label>
-                <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm text-start cursor-pointer">
+                <Button className="flex h-14 items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm text-start cursor-pointer">
                   <SelectValue />
                 </Button>
                 <Popover className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
@@ -399,7 +402,7 @@ function LineItemCard({
                       <ListBoxItem
                         key={opt.id}
                         id={opt.id}
-                        className="rounded-md px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[selected]:font-semibold"
+                        className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5 data-[selected]:font-semibold"
                       >
                         {t(`warehouse.receiving.condition.${opt.id}`, opt.label)}
                       </ListBoxItem>
@@ -410,40 +413,38 @@ function LineItemCard({
             )}
           />
 
-          {/* Lot / Heat number */}
+          {/* Lot/Heat scan */}
           <Controller
             name={`lines.${index}.lotNumber`}
             control={control}
             render={({ field }) => (
               <ScanInput
-                label={t('warehouse.receiving.lotNumber', 'Lot/Heat Number')}
+                label={t('warehouse.receiving.lotNumber', 'Lot / Heat Number')}
                 onScan={(value) => field.onChange(value)}
               />
             )}
           />
 
-          {/* Suggested putaway location */}
-          <div className="flex items-center justify-between rounded-lg bg-black/[0.02] dark:bg-white/[0.02] p-3">
+          {/* Suggested putaway */}
+          <div className="flex items-center justify-between rounded-lg bg-black/[0.02] dark:bg-white/[0.02] p-4">
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-black/50 dark:text-white/50">
-                {t('warehouse.receiving.suggestedLocation', 'Suggested Location')}
+              <span className="text-xs text-black/40 dark:text-white/40 uppercase tracking-wider">
+                {t('warehouse.receiving.suggestedLocation', 'Location')}
               </span>
-              <span className="text-sm font-medium font-[family-name:var(--font-geist-mono)]">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-base font-semibold text-[#2563EB]">
                 {line.suggestedLocation}
               </span>
             </div>
-            <Button className="text-xs text-[#2563EB] cursor-pointer hover:underline">
+            <Button className="text-xs font-medium text-[#2563EB] cursor-pointer">
               {t('warehouse.receiving.override', 'Override')}
             </Button>
           </div>
 
-          {/* Photo + Note buttons */}
-          <div className="flex gap-3">
-            <PhotoCapture
-              label={t('warehouse.receiving.photo', 'Photo')}
-              onCapture={() => {}}
-            />
-          </div>
+          {/* Photo */}
+          <PhotoCapture
+            label={t('warehouse.receiving.photo', 'Photo')}
+            onCapture={() => {}}
+          />
 
           {/* Note */}
           <Controller
@@ -455,11 +456,11 @@ function LineItemCard({
                 onChange={field.onChange}
                 className="flex flex-col gap-1"
               >
-                <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
                   {t('warehouse.receiving.note', 'Note')}
                 </Label>
                 <TextArea
-                  className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm min-h-[60px] resize-y"
+                  className="rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-4 py-3 text-sm min-h-[60px] resize-y outline-none focus:border-[#2563EB]"
                   placeholder={t('warehouse.receiving.notePlaceholder', 'Add notes...')}
                 />
               </TextField>
@@ -493,28 +494,30 @@ function DiscrepancyStep({
 
   if (discrepancies.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 gap-2">
-        <span className="text-green-600 text-2xl">&#10003;</span>
-        <p className="text-sm text-black/60 dark:text-white/60">
-          {t('warehouse.receiving.noDiscrepancies', 'No discrepancies found. All quantities match.')}
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <span className="text-3xl text-green-500">&#10003;</span>
+        <p className="text-sm text-black/40 dark:text-white/40">
+          {t('warehouse.receiving.noDiscrepancies', 'All quantities match')}
         </p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">
-        {t('warehouse.receiving.discrepancies', 'Discrepancies')}
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums ms-2 text-red-500">
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
+          {t('warehouse.receiving.discrepancies', 'Discrepancies')}
+        </h3>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-red-500">
           {discrepancies.length}
         </span>
-      </h3>
+      </div>
       {discrepancies.map((d) => (
         <div key={d.line.id} className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-black/70 dark:text-white/70">
+          <span className="text-sm font-medium text-black/70 dark:text-white/70">
             {d.line.materialName}
-          </p>
+          </span>
           <DiscrepancySection
             varianceQty={d.variance}
             onChange={() => {}}
@@ -570,14 +573,14 @@ function CompletionStep({
       <div className="flex gap-3">
         <Button
           onPress={onSubmit}
-          className="flex-1 rounded-lg bg-[#2563EB] py-3 text-sm font-medium text-white cursor-pointer hover:bg-[#2563EB]/90 transition-colors"
+          className="flex h-16 flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer transition-colors"
         >
           {t('warehouse.receiving.completeReceiving', 'Complete Receiving')}
         </Button>
         <Button
-          className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm font-medium text-red-600 cursor-pointer hover:bg-red-500/10 transition-colors"
+          className="flex h-16 items-center justify-center rounded-lg border-2 border-red-500/30 px-6 text-sm font-semibold text-red-600 dark:text-red-400 cursor-pointer transition-colors"
         >
-          {t('warehouse.receiving.rejectDelivery', 'Reject Delivery')}
+          {t('warehouse.receiving.rejectDelivery', 'Reject')}
         </Button>
       </div>
     </div>

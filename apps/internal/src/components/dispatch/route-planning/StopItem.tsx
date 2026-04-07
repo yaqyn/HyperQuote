@@ -1,7 +1,6 @@
 /**
- * Draggable stop item rendered inside a GridList Item.
- * Shows sequence, customer, address, weight, equipment, and constraint badges.
- * Red border if any error-severity violations.
+ * Each stop: sequence # + customer + address + delivery window + items count.
+ * Draggable for reordering. Red border on error violations.
  */
 import { GripVertical } from 'lucide-react'
 import type { ConstraintViolation, RouteStop } from '../../../types/dispatch'
@@ -12,56 +11,49 @@ interface StopItemProps {
   violations: ConstraintViolation[]
 }
 
-const EQUIPMENT_LABELS: Record<string, string> = {
-  moffett: 'Moffett',
-  boom: 'Boom',
-  crane: 'Crane',
-}
-
 export function StopItem({ stop, violations }: StopItemProps) {
   const hasErrors = violations.some((v) => v.severity === 'error')
 
   return (
     <div
-      className={`flex items-start gap-2 rounded-lg border bg-white/60 p-2 dark:bg-black/40 ${
+      className={`flex items-start gap-2 rounded-lg border p-2 ${
         hasErrors
-          ? 'border-red-400 dark:border-red-600'
-          : 'border-[var(--color-border)]'
+          ? 'border-red-300 dark:border-red-700'
+          : 'border-black/[0.06] dark:border-white/[0.06]'
       }`}
     >
       {/* Drag handle */}
-      <div className="mt-0.5 shrink-0 cursor-grab text-black/30 dark:text-white/30">
-        <GripVertical className="h-4 w-4" />
+      <div className="mt-0.5 shrink-0 cursor-grab text-black/20 dark:text-white/20">
+        <GripVertical className="h-3.5 w-3.5" />
       </div>
 
-      {/* Sequence number */}
-      <span className="mt-0.5 shrink-0 font-[family-name:var(--font-geist-mono)] text-xs font-semibold tabular-nums text-black/50 dark:text-white/50">
+      {/* Sequence */}
+      <span className="mt-0.5 shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold tabular-nums text-black/40 dark:text-white/40">
         {stop.sequence}
       </span>
 
-      {/* Stop details */}
+      {/* Details */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{stop.customerName}</span>
+          <span className="truncate text-[13px] font-medium">{stop.customerName}</span>
           {stop.equipmentNeeded !== 'none' && (
-            <span className="shrink-0 rounded bg-black/5 px-1.5 py-0.5 text-[10px] font-medium uppercase dark:bg-white/5">
-              {EQUIPMENT_LABELS[stop.equipmentNeeded] ?? stop.equipmentNeeded}
+            <span className="shrink-0 rounded bg-black/[0.05] px-1.5 py-0.5 text-[9px] font-medium uppercase dark:bg-white/[0.05]">
+              {stop.equipmentNeeded}
             </span>
           )}
         </div>
-        <p className="truncate text-xs text-black/50 dark:text-white/50">
+        <p className="truncate text-[11px] text-black/40 dark:text-white/40">
           {stop.address}
         </p>
-        <div className="mt-1 flex items-center gap-3 text-xs text-black/60 dark:text-white/60">
+        <div className="mt-1 flex items-center gap-3 text-[11px] text-black/50 dark:text-white/50">
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
             {stop.weight.toLocaleString()} kg
           </span>
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-            {stop.timeWindow.start}–{stop.timeWindow.end}
+            {stop.timeWindow.start}&ndash;{stop.timeWindow.end}
           </span>
         </div>
 
-        {/* Constraint badges */}
         {violations.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {violations.map((v, i) => (

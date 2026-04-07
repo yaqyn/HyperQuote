@@ -11,23 +11,19 @@ export function DisputeWorkflow() {
 
   if (selectedDisputeId) {
     return (
-      <div className="p-6">
-        <DisputeDetail
-          disputeId={selectedDisputeId}
-          onBack={() => setSelectedDisputeId(null)}
-        />
-      </div>
+      <DisputeDetail
+        disputeId={selectedDisputeId}
+        onBack={() => setSelectedDisputeId(null)}
+      />
     )
   }
 
   return (
-    <div className="p-6">
-      <DisputeList
-        onSelectDispute={setSelectedDisputeId}
-        onCreateDispute={() => {
-          // In production: opens creation form modal
-        }}
-      />
-    </div>
+    <DisputeList
+      onSelectDispute={setSelectedDisputeId}
+      onCreateDispute={() => {
+        // In production: opens creation form modal
+      }}
+    />
   )
 }

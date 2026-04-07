@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { Button } from 'react-aria-components'
-import { ChevronLeft } from 'lucide-react'
 import { useOperationsStore } from '../../../stores/operations'
 import { getOrderDetail } from '../../../lib/server/operations-orders'
 import { OrderProgressBar } from './OrderProgressBar'
@@ -11,7 +10,7 @@ import { CrossModuleHandoff } from './CrossModuleHandoff'
 import { OrderActions } from './OrderActions'
 
 /**
- * Main order detail layout -- fetches order data and composes all sub-components.
+ * Document-style layout. Header: order # (large mono) + customer + status flow dots + total.
  * Reads selectedOrderId from operations store.
  */
 export function OrderDetailView() {
@@ -30,8 +29,11 @@ export function OrderDetailView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+      <div className="flex flex-col gap-6 px-5 py-6">
+        <div className="h-10 w-48 animate-pulse rounded bg-black/5 dark:bg-white/5" />
+        <div className="h-6 w-96 animate-pulse rounded bg-black/[0.03] dark:bg-white/[0.03]" />
+        <div className="h-12 animate-pulse rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
+        <div className="h-48 animate-pulse rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
       </div>
     )
   }
@@ -40,7 +42,7 @@ export function OrderDetailView() {
 
   function handleBack() {
     setSelectedOrderId(null)
-    setActiveTab('kanban')
+    setActiveTab('operations')
   }
 
   // Format EGP value
@@ -61,50 +63,56 @@ export function OrderDetailView() {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
-    <div className="relative flex flex-col gap-6 pb-24">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button
-          className="rounded-lg p-1.5 outline-none data-[hovered]:bg-black/5 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:data-[hovered]:bg-white/10"
-          onPress={handleBack}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <h2 className="font-geist-mono text-lg font-semibold">{order.orderNumber}</h2>
-        <span className="rounded-full bg-[#2563EB]/10 px-2.5 py-0.5 text-xs font-medium text-[#2563EB]">
-          {statusLabel}
+    <div className="relative flex flex-col gap-8 px-5 py-6 pb-28">
+      {/* Header — order # large mono + back */}
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <Button
+              className="rounded-md p-1 outline-none data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
+                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 -ms-1"
+              onPress={handleBack}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-black/40 dark:text-white/40">
+                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Button>
+            <h2 className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tracking-tight">
+              {order.orderNumber}
+            </h2>
+            <span className="rounded-md bg-[#2563EB]/8 px-2 py-0.5 text-[11px] font-medium text-[#2563EB]">
+              {statusLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Total value — large mono */}
+        <span className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tracking-tight">
+          {formattedValue}
         </span>
       </div>
 
-      {/* Cross-module handoff (expandable) */}
-      <CrossModuleHandoff orderId={order.id} handoff={order.handoff} />
-
-      {/* Info strip */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Customer</span>
-            <p className="font-medium">{order.customerName}</p>
-          </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Quote Ref</span>
-            <p className="font-geist-mono font-medium">{order.quoteRef}</p>
-          </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Total Value</span>
-            <p className="font-geist-mono font-medium">{formattedValue}</p>
-          </div>
-          <div>
-            <span className="text-black/40 dark:text-white/40 text-xs">Created</span>
-            <p className="font-geist-mono font-medium">{formattedDate}</p>
-          </div>
+      {/* Info strip — horizontal key-value pairs */}
+      <div className="flex flex-wrap gap-x-10 gap-y-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-black/35 dark:text-white/35">Customer</span>
+          <span className="text-[14px] font-medium">{order.customerName}</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-black/35 dark:text-white/35">Quote Ref</span>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium">{order.quoteRef}</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-black/35 dark:text-white/35">Created</span>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium">{formattedDate}</span>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-        <OrderProgressBar items={order.items} />
-      </div>
+      <OrderProgressBar items={order.items} />
+
+      {/* Cross-module handoff */}
+      <CrossModuleHandoff orderId={order.id} handoff={order.handoff} />
 
       {/* Line items */}
       <OrderLineItems items={order.items} />

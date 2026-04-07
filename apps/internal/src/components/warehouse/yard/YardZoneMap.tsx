@@ -6,204 +6,93 @@ interface YardZoneMapProps {
   onZoneSelect: (zone: YardZone) => void
 }
 
+/** Capacity -> fill color (semantic DATA colors) */
+function getCapacityColor(capacityPercent: number): string {
+  if (capacityPercent > 80) return 'rgba(239, 68, 68, 0.08)'
+  if (capacityPercent >= 60) return 'rgba(234, 179, 8, 0.06)'
+  return 'rgba(22, 163, 94, 0.06)'
+}
+
+function getCapacityBarColor(capacityPercent: number): string {
+  if (capacityPercent > 80) return '#ef4444'
+  if (capacityPercent >= 60) return '#eab308'
+  return '#22c55e'
+}
+
 /**
- * Interactive SVG zone visualization per spec section 4.11.
- * Renders yard layout as 4 rows x 2 columns.
- * Zone fill color based on capacityPercent:
- *   green (#22C55E at 20%) for <60%
- *   yellow (#EAB308 at 20%) for 60-80%
- *   red (#EF4444 at 20%) for >80%
- * These are semantic DATA colors (allowed per locked decision).
- * Selected zone has blue (#2563EB) border highlight.
- * Aggregate bins styled differently for bulk storage.
+ * "The Gate" — CSS grid of zones (not a real map).
+ * Each zone: zone name + capacity bar + vehicle count.
+ * Zones colored by status (available=empty, occupied=blue tint, full=muted).
+ * Selected zone has blue border. Aggregate bins styled differently.
  */
 export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMapProps) {
-  // 4 rows x 2 columns grid layout
-  const COLS = 2
-  const ZONE_W = 280
-  const ZONE_H = 120
-  const GAP = 16
-  const PAD = 20
-  const rows = Math.ceil(zones.length / COLS)
-  const svgWidth = PAD * 2 + COLS * ZONE_W + (COLS - 1) * GAP
-  const svgHeight = PAD * 2 + rows * ZONE_H + (rows - 1) * GAP
-
   return (
-    <div className="w-full overflow-auto">
-      <svg
-        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        className="w-full"
-        style={{ maxHeight: '520px' }}
-        role="img"
-        aria-label="Yard zone map"
-      >
-        {zones.map((zone, i) => {
-          const col = i % COLS
-          const row = Math.floor(i / COLS)
-          const x = PAD + col * (ZONE_W + GAP)
-          const y = PAD + row * (ZONE_H + GAP)
-          const isSelected = zone.id === selectedZoneId
-          const isAggregate = zone.name.toLowerCase().includes('aggregate')
-
-          return (
-            <ZoneRect
-              key={zone.id}
-              zone={zone}
-              x={x}
-              y={y}
-              width={ZONE_W}
-              height={ZONE_H}
-              isSelected={isSelected}
-              isAggregate={isAggregate}
-              onSelect={() => onZoneSelect(zone)}
-            />
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-// ─── Zone Rect ───────────────────────────────────────────
-
-interface ZoneRectProps {
-  zone: YardZone
-  x: number
-  y: number
-  width: number
-  height: number
-  isSelected: boolean
-  isAggregate: boolean
-  onSelect: () => void
-}
-
-/** Capacity -> fill color mapping (semantic DATA colors) */
-function getCapacityColor(capacityPercent: number): string {
-  if (capacityPercent > 80) return 'rgba(239, 68, 68, 0.2)' // #EF4444 at 20%
-  if (capacityPercent >= 60) return 'rgba(234, 179, 8, 0.2)' // #EAB308 at 20%
-  return 'rgba(34, 197, 94, 0.2)' // #22C55E at 20%
-}
-
-function getCapacityStroke(capacityPercent: number): string {
-  if (capacityPercent > 80) return '#EF4444'
-  if (capacityPercent >= 60) return '#EAB308'
-  return '#22C55E'
-}
-
-function ZoneRect({
-  zone,
-  x,
-  y,
-  width,
-  height,
-  isSelected,
-  isAggregate,
-  onSelect,
-}: ZoneRectProps) {
-  const fill = getCapacityColor(zone.capacityPercent)
-  const stroke = isSelected ? '#2563EB' : getCapacityStroke(zone.capacityPercent)
-  const strokeWidth = isSelected ? 3 : 1.5
-
-  return (
-    <g
-      onClick={onSelect}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect() }}
-      role="button"
-      tabIndex={0}
-      aria-label={`${zone.name} — ${zone.capacityPercent}% capacity`}
-      style={{ cursor: 'pointer' }}
+    <div
+      className="grid gap-3"
+      style={{
+        gridTemplateColumns: `repeat(${Math.min(zones.length, 2)}, 1fr)`,
+      }}
     >
-      {/* Zone background */}
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={isAggregate ? 16 : 8}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-      />
+      {zones.map((zone) => {
+        const isSelected = zone.id === selectedZoneId
+        const isAggregate = zone.name.toLowerCase().includes('aggregate')
+        const barColor = getCapacityBarColor(zone.capacityPercent)
 
-      {/* Aggregate bin: diagonal hatch pattern overlay */}
-      {isAggregate && (
-        <>
-          <defs>
-            <pattern
-              id={`hatch-${zone.id}`}
-              patternUnits="userSpaceOnUse"
-              width="8"
-              height="8"
-              patternTransform="rotate(45)"
+        return (
+          <button
+            key={zone.id}
+            type="button"
+            onClick={() => onZoneSelect(zone)}
+            className={`flex flex-col gap-3 rounded-xl border-2 p-4 text-start transition-all active:scale-[0.98] min-h-[120px] ${
+              isSelected
+                ? 'border-[#2563EB]'
+                : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'
+            }`}
+            style={{
+              background: isSelected ? 'rgba(37, 99, 235, 0.04)' : getCapacityColor(zone.capacityPercent),
+            }}
+            aria-label={`${zone.name} -- ${zone.capacityPercent}% capacity`}
+          >
+            {/* Zone name */}
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                  {zone.name}
+                </p>
+                {isAggregate && (
+                  <span className="text-[9px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+                    Est. qty
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Capacity percentage — LARGE MONO */}
+            <p
+              className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold leading-tight"
+              style={{ color: barColor }}
             >
-              <line x1="0" y1="0" x2="0" y2="8" stroke={stroke} strokeWidth="0.5" opacity="0.3" />
-            </pattern>
-          </defs>
-          <rect
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            rx={16}
-            fill={`url(#hatch-${zone.id})`}
-          />
-        </>
-      )}
+              {zone.capacityPercent}%
+            </p>
 
-      {/* Zone name label */}
-      <text
-        x={x + width / 2}
-        y={y + height / 2 - 14}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="fill-[var(--color-text-primary)]"
-        fontSize="13"
-        fontWeight="600"
-      >
-        {zone.name}
-      </text>
-
-      {/* Capacity percentage (Geist Mono) */}
-      <text
-        x={x + width / 2}
-        y={y + height / 2 + 10}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="fill-[var(--color-text-primary)]"
-        fontSize="20"
-        fontWeight="700"
-        fontFamily="var(--font-geist-mono), ui-monospace, monospace"
-      >
-        {zone.capacityPercent}%
-      </text>
-
-      {/* Usage label */}
-      <text
-        x={x + width / 2}
-        y={y + height / 2 + 32}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="fill-[var(--color-text-secondary)]"
-        fontSize="11"
-        fontFamily="var(--font-geist-mono), ui-monospace, monospace"
-      >
-        {zone.currentUsage} / {zone.maxCapacity}
-      </text>
-
-      {/* Aggregate estimated qty note */}
-      {isAggregate && (
-        <text
-          x={x + width / 2}
-          y={y + height - 10}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="fill-[var(--color-text-secondary)]"
-          fontSize="9"
-          fontStyle="italic"
-        >
-          Estimated qty
-        </text>
-      )}
-    </g>
+            {/* Usage bar */}
+            <div>
+              <div className="h-1.5 w-full rounded-full bg-[var(--color-border)]">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(zone.capacityPercent, 100)}%`,
+                    background: barColor,
+                  }}
+                />
+              </div>
+              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-secondary)] mt-1">
+                {zone.currentUsage} / {zone.maxCapacity}
+              </p>
+            </div>
+          </button>
+        )
+      })}
+    </div>
   )
 }

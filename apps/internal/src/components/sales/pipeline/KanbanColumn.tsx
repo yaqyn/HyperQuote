@@ -15,13 +15,39 @@ interface KanbanColumnProps {
 
 const CRITICAL_STAGES: PipelineStageId[] = ['won', 'lost_expired']
 
-const formatValue = (value: number) =>
-  new Intl.NumberFormat('en-EG', {
-    style: 'currency',
-    currency: 'EGP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
+const formatValue = (value: number) => {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
+  return String(value)
+}
+
+function getColumnAccent(stageId: PipelineStageId): string {
+  // Won = green tint, lost = red tint, active pipeline stages = blue, others = muted
+  switch (stageId) {
+    case 'won':
+      return 'border-t-green-500/60'
+    case 'lost_expired':
+      return 'border-t-red-500/40'
+    case 'negotiating':
+    case 'closing':
+    case 'quoting':
+    case 'sent':
+      return 'border-t-[#2563EB]'
+    default:
+      return 'border-t-black/10 dark:border-t-white/10'
+  }
+}
+
+function getColumnBg(stageId: PipelineStageId): string {
+  switch (stageId) {
+    case 'won':
+      return 'bg-green-500/[0.02] dark:bg-green-500/[0.03]'
+    case 'lost_expired':
+      return 'bg-red-500/[0.02] dark:bg-red-500/[0.03]'
+    default:
+      return ''
+  }
+}
 
 export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanColumnProps) {
   const { t } = useTranslation('internal')
@@ -92,16 +118,21 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
   })
 
   return (
-    <div className="flex w-64 shrink-0 flex-col rounded-lg bg-black/3 dark:bg-white/3">
-      {/* Column header */}
-      <div className="flex items-center justify-between px-3 py-2">
-        <div>
-          <h3 className="text-xs font-semibold">{stage.name}</h3>
-          <div className="flex items-center gap-2 text-[10px] text-black/50 dark:text-white/50">
-            <span className="font-[family-name:var(--font-geist-mono)]">{stage.dealCount}</span>
-            <span>&middot;</span>
-            <span className="font-[family-name:var(--font-geist-mono)]">{formatValue(stage.totalValue)}</span>
-          </div>
+    <div
+      className={`flex w-52 shrink-0 flex-col border-t-2 ${getColumnAccent(stage.id)} ${getColumnBg(stage.id)}`}
+    >
+      {/* Column header: stage name (11px uppercase) + deal count (24px mono) + value below */}
+      <div className="px-3 pt-3 pb-2">
+        <span className="text-[11px] uppercase tracking-wider font-medium text-black/35 dark:text-white/35">
+          {stage.name}
+        </span>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[24px] font-semibold leading-none text-black dark:text-white">
+            {stage.dealCount}
+          </span>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/25 dark:text-white/25">
+            {formatValue(stage.totalValue)}
+          </span>
         </div>
       </div>
 
@@ -111,18 +142,18 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
         items={deals.map((d) => ({ ...d, key: d.id }))}
         dragAndDropHooks={dragAndDropHooks}
         renderEmptyState={() => (
-          <div className="px-3 py-4 text-center text-xs text-black/30 dark:text-white/30">
+          <div className="px-3 py-8 text-center text-[11px] text-black/12 dark:text-white/12">
             {t('sales.pipeline.noDeals', 'No deals')}
           </div>
         )}
-        className="flex-1 space-y-2 overflow-y-auto px-2 pb-2"
+        className="flex-1 space-y-0 overflow-y-auto px-1"
       >
         {(item) => (
           <GridListItem
             key={item.id}
             id={item.id}
             textValue={item.customerName}
-            className="outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded-lg"
+            className="outline-none focus-visible:ring-1 focus-visible:ring-[#2563EB] focus-visible:ring-offset-1"
           >
             <KanbanCard deal={item} onSelect={onSelectDeal} />
           </GridListItem>
@@ -140,19 +171,19 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
                 ? t('sales.pipeline.confirmWon', 'Confirm Won')
                 : t('sales.pipeline.confirmLost', 'Confirm Lost')
             }
-            className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-black/90"
+            className="w-full max-w-sm rounded-xl bg-white/95 p-5 shadow-2xl backdrop-blur-2xl dark:bg-black/95"
             onKeyDown={(e) => {
               // isKeyboardDismissDisabled -- do NOT close on Escape
               if (e.key === 'Escape') e.stopPropagation()
             }}
           >
-            <h3 className="mb-4 text-lg font-semibold">
+            <h3 className="mb-3 text-[15px] font-semibold text-black dark:text-white">
               {confirmDeal.toStage === 'won'
                 ? t('sales.pipeline.markAsWon', 'Mark as Won?')
                 : t('sales.pipeline.markAsLost', 'Mark as Lost?')}
             </h3>
 
-            <p className="mb-4 text-sm text-black/60 dark:text-white/60">
+            <p className="mb-4 text-[13px] text-black/45 dark:text-white/45">
               {confirmDeal.toStage === 'won'
                 ? t('sales.pipeline.wonDescription', 'This will convert the quote to an order and trigger downstream creation.')
                 : t('sales.pipeline.lostDescription', 'This will close the deal. Please provide a reason.')}
@@ -160,14 +191,14 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
 
             {confirmDeal.toStage === 'lost_expired' && (
               <div className="mb-4">
-                <label className="mb-1 block text-xs text-black/50 dark:text-white/50">
+                <label className="mb-1 block text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
                   {t('sales.pipeline.lossReason', 'Loss Reason')}
                 </label>
                 <input
                   type="text"
                   value={lossReason}
                   onChange={(e) => setLossReason(e.target.value)}
-                  className="w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#2563EB] dark:border-white/10"
+                  className="w-full rounded-lg bg-black/[0.04] px-3 py-2 text-[13px] text-black outline-none focus:ring-1 focus:ring-[#2563EB] dark:bg-white/[0.04] dark:text-white"
                   placeholder={t('sales.pipeline.lossReasonPlaceholder', 'e.g., Lost to competitor')}
                 />
               </div>
@@ -180,7 +211,7 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
                   setConfirmDeal(null)
                   setLossReason('')
                 }}
-                className="rounded-lg px-4 py-2 text-sm text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
+                className="rounded-full px-4 py-1.5 text-[13px] text-black/35 hover:text-black/60 dark:text-white/35 dark:hover:text-white/60"
               >
                 {t('common.cancel', 'Cancel')}
               </button>
@@ -188,7 +219,7 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
                 type="button"
                 onClick={confirmTransition}
                 disabled={wonMutation.isPending || lostMutation.isPending}
-                className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-50"
+                className="rounded-full bg-black px-4 py-1.5 text-[13px] font-medium text-white hover:bg-black/80 disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-white/80"
               >
                 {t('common.confirm', 'Confirm')}
               </button>

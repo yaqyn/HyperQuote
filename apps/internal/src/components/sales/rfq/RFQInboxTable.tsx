@@ -1,52 +1,37 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from '@tanstack/react-table'
 import { Button } from 'react-aria-components'
-import { getRFQQueue } from '../../../lib/server/sales-rfq'
-import { autoAssignRFQ } from '../../../lib/server/sales-rfq'
+import { motion, AnimatePresence } from 'motion/react'
+import { ArrowRight } from 'lucide-react'
+import { getRFQQueue, autoAssignRFQ } from '../../../lib/server/sales-rfq'
+import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 import type { RFQ } from '../../../types/sales'
-import { RFQPriorityBadge } from './RFQPriorityBadge'
-import { TierBadge } from '../shared/TierBadge'
-import { AgeTimer } from '../shared/AgeTimer'
-import { SLACountdown } from '../shared/SLACountdown'
 import { RFQPreviewPane } from './RFQPreviewPane'
-import { useState } from 'react'
 
-function StatusPill({ status }: { status: string }) {
-  const colorMap: Record<string, string> = {
-    submitted: 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20',
-    assigned: 'bg-black/5 text-black/60 border-black/10 dark:bg-white/10 dark:text-white/60 dark:border-white/10',
-    reviewing: 'bg-black/5 text-black/60 border-black/10 dark:bg-white/10 dark:text-white/60 dark:border-white/10',
-    awaiting_clarification: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-300 dark:border-yellow-800',
-    quoting: 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20',
-    quoted: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800',
-    declined: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800',
-    expired: 'bg-black/3 text-black/40 border-black/10 dark:bg-white/5 dark:text-white/40 dark:border-white/10',
-  }
+// ─── Stage filter config ────────────────────────────────
+const STAGE_FILTERS = [
+  { id: 'inbox' as const, label: 'Inbox' },
+  { id: 'in-progress' as const, label: 'Active' },
+  { id: 'sent' as const, label: 'Sent' },
+  { id: 'negotiating' as const, label: 'Counter' },
+  { id: 'closed' as const, label: 'Closed' },
+] as const
 
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${colorMap[status] ?? colorMap.submitted}`}>
-      {status.replace(/_/g, ' ')}
-    </span>
-  )
+const STAGE_STATUS_MAP: Record<string, string[]> = {
+  inbox: ['submitted', 'assigned'],
+  'in-progress': ['reviewing', 'quoting', 'awaiting_clarification'],
+  sent: ['quoted'],
+  negotiating: ['negotiating', 'countered'],
+  closed: ['won', 'lost', 'declined', 'expired'],
 }
 
-function formatEGP(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'EGP',
-    maximumFractionDigits: 0,
-  }).format(value)
+const STAGE_FILTER_FN: Record<string, (rfq: RFQ) => boolean> = {
+  inbox: (rfq) => STAGE_STATUS_MAP.inbox.includes(rfq.status),
+  'in-progress': (rfq) => STAGE_STATUS_MAP['in-progress'].includes(rfq.status),
+  sent: (rfq) => STAGE_STATUS_MAP.sent.includes(rfq.status),
+  negotiating: (rfq) => STAGE_STATUS_MAP.negotiating.includes(rfq.status),
+  closed: (rfq) => STAGE_STATUS_MAP.closed.includes(rfq.status),
 }
 
 const TAB_FILTERS: Record<string, (rfq: RFQ) => boolean> = {
@@ -57,24 +42,76 @@ const TAB_FILTERS: Record<string, (rfq: RFQ) => boolean> = {
   urgent: (rfq) => rfq.priorityScore > 75,
 }
 
-export function RFQInboxTable() {
-  const { t, i18n } = useTranslation('internal')
-  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
-  const queryClient = useQueryClient()
+// ─── Helpers ────────────────────────────────────────────
 
+function formatValue(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000) return `${Math.round(v / 1_000)}K`
+  return String(v)
+}
+
+function getAge(createdAt: string): string {
+  const ms = Date.now() - new Date(createdAt).getTime()
+  const hours = Math.floor(ms / 3_600_000)
+  if (hours < 1) return `${Math.floor(ms / 60_000)}m`
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
+}
+
+function getSlaRemaining(slaDeadline: string): { text: string; color: string } {
+  const ms = new Date(slaDeadline).getTime() - Date.now()
+  if (ms <= 0) return { text: 'OVERDUE', color: 'text-red-500 font-semibold' }
+  const totalMinutes = Math.floor(ms / 60_000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours >= 2) return { text: `${hours}h ${minutes}m`, color: 'text-green-600 dark:text-green-400' }
+  if (hours >= 1) return { text: `${hours}h ${minutes}m`, color: 'text-yellow-600 dark:text-yellow-400' }
+  return { text: `${minutes}m`, color: 'text-red-500' }
+}
+
+function getPriorityDot(score: number): string {
+  if (score > 75) return 'bg-red-500'
+  if (score > 50) return 'bg-yellow-500'
+  if (score > 25) return 'bg-[var(--color-primary)]'
+  return 'bg-black/10 dark:bg-white/10'
+}
+
+function getStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    submitted: 'New',
+    assigned: 'Assigned',
+    reviewing: 'Reviewing',
+    awaiting_clarification: 'Clarification',
+    quoting: 'Quoting',
+    quoted: 'Quoted',
+    declined: 'Declined',
+    expired: 'Expired',
+  }
+  return map[status] ?? status
+}
+
+// ─── Component ──────────────────────────────────────────
+
+export function RFQInboxTable() {
+  const queryClient = useQueryClient()
+  const rfqStageFilter = useSalesStore((s) => s.rfqStageFilter)
+  const setRfqStageFilter = useSalesStore((s) => s.setRfqStageFilter)
   const rfqInboxTab = useSalesStore((s) => s.rfqInboxTab)
   const setRfqInboxTab = useSalesStore((s) => s.setRfqInboxTab)
   const selectedRfqId = useSalesStore((s) => s.selectedRfqId)
   const setSelectedRfqId = useSalesStore((s) => s.setSelectedRfqId)
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: 'priorityScore', desc: true },
-  ])
-
   const { data, isLoading } = useQuery({
     queryKey: ['rfq-queue', {}],
     queryFn: () => getRFQQueue({ data: { page: 1, limit: 50 } }),
     staleTime: 30_000,
+  })
+
+  // Pipeline summary data
+  const { data: pipelineData } = useQuery({
+    queryKey: ['sales-pipeline-summary'],
+    queryFn: () => getSalesPipeline({ data: {} }),
+    staleTime: 60_000,
   })
 
   const claimMutation = useMutation({
@@ -85,243 +122,259 @@ export function RFQInboxTable() {
   })
 
   const rfqs = data?.rfqs ?? []
+
   const filteredRfqs = useMemo(() => {
-    const filterFn = TAB_FILTERS[rfqInboxTab] ?? TAB_FILTERS.all
-    return rfqs.filter(filterFn)
-  }, [rfqs, rfqInboxTab])
+    const stageFn = STAGE_FILTER_FN[rfqStageFilter] ?? (() => true)
+    const stageFiltered = rfqs.filter(stageFn)
+    if (rfqStageFilter === 'inbox') {
+      const subFn = TAB_FILTERS[rfqInboxTab] ?? TAB_FILTERS.all
+      return stageFiltered.filter(subFn).sort((a, b) => b.priorityScore - a.priorityScore)
+    }
+    return stageFiltered.sort((a, b) => b.priorityScore - a.priorityScore)
+  }, [rfqs, rfqStageFilter, rfqInboxTab])
 
-  const columns = useMemo<ColumnDef<RFQ, any>[]>(
-    () => [
-      {
-        id: 'priorityScore',
-        accessorKey: 'priorityScore',
-        header: () => <span className="text-xs">Priority</span>,
-        cell: ({ row }) => <RFQPriorityBadge score={row.original.priorityScore} />,
-        size: 60,
-      },
-      {
-        id: 'age',
-        accessorKey: 'createdAt',
-        header: () => <span className="text-xs">Age</span>,
-        cell: ({ row }) => <AgeTimer createdAt={row.original.createdAt} />,
-        size: 90,
-      },
-      {
-        id: 'customer',
-        accessorKey: 'customerName',
-        header: () => <span className="text-xs">Customer</span>,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium truncate">{row.original.customerName}</span>
-            <TierBadge tier={row.original.customerTier} />
-          </div>
-        ),
-        size: 200,
-      },
-      {
-        id: 'value',
-        accessorKey: 'estimatedValue',
-        header: () => <span className="text-xs">Value</span>,
-        cell: ({ row }) => (
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-            {formatEGP(row.original.estimatedValue, locale)}
-          </span>
-        ),
-        size: 120,
-      },
-      {
-        id: 'items',
-        accessorKey: 'lineItemCount',
-        header: () => <span className="text-xs">Items</span>,
-        cell: ({ row }) => (
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-            {row.original.lineItemCount}
-          </span>
-        ),
-        size: 60,
-      },
-      {
-        id: 'status',
-        accessorKey: 'status',
-        header: () => <span className="text-xs">Status</span>,
-        cell: ({ row }) => <StatusPill status={row.original.status} />,
-        size: 130,
-      },
-      {
-        id: 'assigned',
-        accessorKey: 'assignedRep',
-        header: () => <span className="text-xs">Assigned</span>,
-        cell: ({ row }) =>
-          row.original.assignedRep ? (
-            <span className="text-sm text-black/60 dark:text-white/60 truncate">
-              {row.original.assignedRep}
-            </span>
-          ) : (
-            <Button
-              className="rounded-md border border-[#2563EB]/20 bg-[#2563EB]/5 px-2 py-0.5 text-xs font-medium text-[#2563EB] outline-none
-                data-[hovered]:bg-[#2563EB]/10 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
-              onPress={() => claimMutation.mutate(row.original.id)}
-              isDisabled={claimMutation.isPending}
-            >
-              Assign to Me
-            </Button>
-          ),
-        size: 120,
-      },
-      {
-        id: 'sla',
-        accessorKey: 'slaDeadline',
-        header: () => <span className="text-xs">SLA</span>,
-        cell: ({ row }) => (
-          <SLACountdown deadline={row.original.slaDeadline} tier={row.original.customerTier} />
-        ),
-        size: 120,
-      },
-    ],
-    [locale, claimMutation],
-  )
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const stage of STAGE_FILTERS) {
+      const fn = STAGE_FILTER_FN[stage.id] ?? (() => true)
+      counts[stage.id] = rfqs.filter(fn).length
+    }
+    return counts
+  }, [rfqs])
 
-  const table = useReactTable({
-    data: filteredRfqs,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  })
+  // Pipeline summary numbers
+  const pipelineSummary = useMemo(() => {
+    const stages = pipelineData?.stages ?? []
+    const deals = pipelineData?.deals ?? []
+    const activeStages = stages.filter((s) => s.id !== 'won' && s.id !== 'lost_expired')
+    const totalPipeline = activeStages.reduce((sum, s) => sum + s.totalValue, 0)
+    const weightedForecast = deals
+      .filter((d) => d.stage !== 'won' && d.stage !== 'lost_expired')
+      .reduce((sum, d) => sum + d.dealValue * (d.winProbability / 100), 0)
+    const activeDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost_expired').length
+    const wonDeals = deals.filter((d) => d.stage === 'won').length
+    const totalClosed = deals.filter((d) => d.stage === 'won' || d.stage === 'lost_expired').length
+    const winRate = totalClosed > 0 ? Math.round((wonDeals / totalClosed) * 100) : 0
+    return { totalPipeline, weightedForecast, activeDeals, winRate }
+  }, [pipelineData])
 
-  // J/K keyboard navigation
-  const tableRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key !== 'j' && e.key !== 'k') return
       e.preventDefault()
-
-      const rows = table.getRowModel().rows
+      const rows = filteredRfqs
       if (rows.length === 0) return
-
-      const currentIndex = rows.findIndex((r) => r.original.id === selectedRfqId)
-
+      const currentIndex = rows.findIndex((r) => r.id === selectedRfqId)
       let nextIndex: number
       if (e.key === 'j') {
         nextIndex = currentIndex < rows.length - 1 ? currentIndex + 1 : 0
       } else {
         nextIndex = currentIndex > 0 ? currentIndex - 1 : rows.length - 1
       }
-
-      setSelectedRfqId(rows[nextIndex].original.id)
+      setSelectedRfqId(rows[nextIndex].id)
     },
-    [selectedRfqId, table, setSelectedRfqId],
+    [selectedRfqId, filteredRfqs, setSelectedRfqId],
   )
 
-  const tabs: { id: typeof rfqInboxTab; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'my', label: 'My RFQs' },
-    { id: 'unassigned', label: 'Unassigned' },
-    { id: 'needs-clarification', label: 'Needs Clarification' },
-    { id: 'urgent', label: 'Urgent' },
-  ]
+  const inboxSubTabs = useMemo(() => {
+    const stageFiltered = rfqs.filter(STAGE_FILTER_FN.inbox ?? (() => true))
+    return [
+      { id: 'all' as const, label: 'All', count: stageFiltered.length },
+      { id: 'unassigned' as const, label: 'Unassigned', count: stageFiltered.filter((r) => !r.assignedRep).length },
+      { id: 'urgent' as const, label: 'Urgent', count: stageFiltered.filter((r) => r.priorityScore > 75).length },
+      { id: 'needs-clarification' as const, label: 'Clarify', count: stageFiltered.filter((r) => r.status === 'awaiting_clarification').length },
+      { id: 'my' as const, label: 'Mine', count: stageFiltered.filter((r) => r.assignedRep !== null).length },
+    ]
+  }, [rfqs])
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-sm text-black/40 dark:text-white/40">Loading RFQs...</p>
+      <div className="flex items-center justify-center h-full">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
       </div>
     )
   }
 
   return (
     <div className="flex h-full">
-      {/* Left: Inbox list */}
-      <div className="flex flex-col min-w-0 w-full md:w-[55%]">
-        {/* Toolbar */}
-        <div className="flex items-center gap-1 border-b border-black/10 dark:border-white/10 px-4 py-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <Button
-              key={tab.id}
-              className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium outline-none transition-colors
-                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
-                ${
-                  rfqInboxTab === tab.id
-                    ? 'bg-[#2563EB] text-white'
-                    : 'text-black/60 dark:text-white/60 data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10'
-                }`}
-              onPress={() => setRfqInboxTab(tab.id)}
-            >
-              {tab.label}
-            </Button>
-          ))}
+      {/* Left panel — inbox list */}
+      <div
+        ref={listRef}
+        className="flex flex-col w-full md:w-[380px] md:shrink-0 md:border-r md:border-black/[0.04] md:dark:border-white/[0.04] focus:outline-none"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Header — stage filters + metrics unified */}
+        <div className="shrink-0 px-4 pt-3 pb-2 overflow-hidden">
+          {/* Stage filters as primary navigation */}
+          <div className="flex items-center justify-between mb-3">
+            {STAGE_FILTERS.map((stage) => {
+              const count = stageCounts[stage.id] ?? 0
+              const isActive = rfqStageFilter === stage.id
+              return (
+                <Button
+                  key={stage.id}
+                  onPress={() => setRfqStageFilter(stage.id)}
+                  className={`shrink-0 cursor-pointer outline-none transition-all duration-150 ${
+                    isActive
+                      ? 'text-[var(--color-text)]'
+                      : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]'
+                  }`}
+                >
+                  <span className={`text-[12px] font-medium ${isActive ? 'font-semibold' : ''}`}>
+                    {stage.label}
+                  </span>
+                  {count > 0 && (
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ml-1 opacity-40">
+                      {count}
+                    </span>
+                  )}
+                  {isActive && (
+                    <div className="mt-1 h-[2px] rounded-full bg-[var(--color-primary)]" />
+                  )}
+                </Button>
+              )
+            })}
+          </div>
+
+          {/* Metrics */}
+          <div className="flex items-center justify-between">
+            {[
+              { value: formatValue(pipelineSummary.totalPipeline), label: 'pipeline' },
+              { value: formatValue(pipelineSummary.weightedForecast), label: 'forecast' },
+              { value: String(pipelineSummary.activeDeals), label: 'deals' },
+              { value: `${pipelineSummary.winRate}%`, label: 'win rate' },
+            ].map((m) => (
+              <div key={m.label} className="text-center">
+                <p className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)]">
+                  {m.value}
+                </p>
+                <p className="text-[8px] uppercase tracking-widest text-[var(--color-text-subtle)]">
+                  {m.label}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Table */}
-        <div
-          ref={tableRef}
-          className="flex-1 overflow-auto focus:outline-none"
-          tabIndex={0}
-          onKeyDown={handleKeyDown}
-          role="grid"
-          aria-label="RFQ inbox"
-        >
-          <table className="w-full text-start">
-            <thead className="sticky top-0 z-10 bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-black/10 dark:border-white/10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-3 py-2 text-start font-medium text-black/50 dark:text-white/50"
-                      style={{ width: header.getSize() }}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`cursor-pointer border-b border-black/5 dark:border-white/5 transition-colors
-                    hover:bg-black/3 dark:hover:bg-white/5
-                    ${row.original.id === selectedRfqId ? 'bg-[#2563EB]/5' : ''}`}
-                  onClick={() => setSelectedRfqId(row.original.id)}
-                  aria-selected={row.original.id === selectedRfqId}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-2.5">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              {filteredRfqs.length === 0 && (
-                <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-black/40 dark:text-white/40">
-                    No RFQs found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        {/* RFQ list */}
+        <div className="flex-1 min-h-0 overflow-y-auto" data-module-content>
+          {filteredRfqs.length === 0 ? (
+            <div className="flex items-center justify-center h-40">
+              <p className="text-[13px] text-[var(--color-text-subtle)]">No RFQs match this filter</p>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {filteredRfqs.map((rfq) => {
+                const isSelected = rfq.id === selectedRfqId
+                const sla = getSlaRemaining(rfq.slaDeadline)
+                return (
+                  <button
+                    key={rfq.id}
+                    type="button"
+                    onClick={() => setSelectedRfqId(rfq.id)}
+                    className={`group w-full text-left px-4 py-2.5 cursor-pointer outline-none transition-colors ${
+                      isSelected
+                        ? 'bg-[var(--color-primary)]/[0.04]'
+                        : 'hover:bg-black/[0.015] dark:hover:bg-white/[0.015]'
+                    }`}
+                  >
+                    {/* Line 1: customer + value */}
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${getPriorityDot(rfq.priorityScore)}`} />
+                        <span className="text-[13px] font-medium text-[var(--color-text)] truncate">
+                          {rfq.customerName}
+                        </span>
+                      </div>
+                      <span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)] ml-2">
+                        {formatValue(rfq.estimatedValue)}
+                      </span>
+                    </div>
+                    {/* Line 2: meta */}
+                    <div className="flex items-center justify-between pl-[22px]">
+                      <span className="text-[10px] text-[var(--color-text-subtle)]">
+                        {rfq.lineItemCount} items · {getAge(rfq.createdAt)}
+                      </span>
+                      <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${sla.color}`}>
+                        {sla.text}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right: Preview pane (desktop only) */}
-      <div className="hidden md:flex md:w-[45%] border-s border-black/10 dark:border-white/10">
-        {selectedRfqId ? (
-          <RFQPreviewPane rfqId={selectedRfqId} />
-        ) : (
-          <div className="flex items-center justify-center w-full h-full">
-            <p className="text-sm text-black/30 dark:text-white/30">
-              Select an RFQ to preview
-            </p>
+      {/* Right panel — preview */}
+      <div className="hidden md:flex flex-col flex-1 min-w-0">
+        {/* Animated content */}
+        <div className="flex-1 min-h-0">
+          <AnimatePresence mode="wait">
+            {selectedRfqId ? (
+              <motion.div
+                key={selectedRfqId}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
+                className="w-full h-full"
+              >
+                <RFQPreviewPane rfqId={selectedRfqId} />
+              </motion.div>
+            ) : (
+              <div className="flex items-center justify-center w-full h-full">
+                <p className="text-[13px] text-[var(--color-text-subtle)]">Select an RFQ</p>
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Fixed action bar — outside animation */}
+        {selectedRfqId && (
+          <div className="shrink-0 px-8 py-4 border-t border-black/[0.04] dark:border-white/[0.04] flex items-center gap-3">
+            <Button
+              onPress={() => {
+                const store = useSalesStore.getState()
+                store.setEditingRfqId(selectedRfqId)
+              }}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[var(--color-primary)] text-white text-[13px] font-medium cursor-pointer outline-none hover:opacity-90 transition-opacity"
+            >
+              Start Quote
+              <ArrowRight size={14} strokeWidth={1.5} />
+            </Button>
+            <Button
+              onPress={() => claimMutation.mutate(selectedRfqId)}
+              className="px-4 py-2 rounded-lg text-[13px] font-medium text-[var(--color-text)] bg-black/[0.04] dark:bg-white/[0.06] cursor-pointer outline-none hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
+            >
+              Claim
+            </Button>
+            <div className="flex-1" />
+            <Button
+              onPress={() => {}}
+              className="px-4 py-2 rounded-lg text-[13px] text-[var(--color-text-subtle)] cursor-pointer outline-none hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all"
+            >
+              Decline
+            </Button>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)]">
+        {value}
+      </p>
+      <p className="text-[9px] text-[var(--color-text-subtle)] uppercase tracking-wider">
+        {label}
+      </p>
     </div>
   )
 }

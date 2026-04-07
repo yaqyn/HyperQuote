@@ -12,7 +12,8 @@
   },
   "prompts": {
     "title": "Suggested questions",
-    "subtitle": "Click any question to get started"
+    "subtitle": "Click any question to get started",
+    "more": "More suggestions by role"
   },
   "draft": {
     "badge": "Draft",

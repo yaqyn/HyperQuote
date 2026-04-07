@@ -3,10 +3,10 @@
 
 :root {
   --color-primary: #2563EB;
-  --color-text: #0F172A;
-  --color-text-muted: #64748B;
-  --color-text-subtle: #94A3B8;
-  --color-border: #E2E8F0;
+  --color-text: #111111;
+  --color-text-muted: #666666;
+  --color-text-subtle: #999999;
+  --color-border: #E5E5E5;
   --color-surface: #FFFFFF;
   --font-geist-mono: 'Geist Mono', monospace;
   --font-inter: 'Inter', sans-serif;
@@ -15,9 +15,54 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 [data-theme="dark"] {
-  --color-text: #F8FAFC;
-  --color-text-muted: #94A3B8;
-  --color-text-subtle: #64748B;
-  --color-border: #1E293B;
-  --color-surface: #09090B;
+  --color-text: #FFFFFF;
+  --color-text-muted: #888888;
+  --color-text-subtle: #555555;
+  --color-border: #222222;
+  --color-surface: #0A0A0A;
+}
+
+/* Custom scrollbar — minimal, auto-hiding */
+[data-module-content] {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s;
+}
+
+[data-module-content]:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+[data-module-content]:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+[data-module-content]::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-module-content]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-module-content]::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+
+[data-module-content]:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] [data-module-content]:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+[data-theme="dark"] [data-module-content]:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] [data-module-content]:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }

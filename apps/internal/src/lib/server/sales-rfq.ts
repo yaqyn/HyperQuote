@@ -276,16 +276,28 @@ const requestClarificationInput = z.object({
 
 export const requestClarification = createServerFn({ method: 'POST' })
   .inputValidator(requestClarificationInput)
-  .handler(async ({ data: _input }) => {
+  .handler(async ({ data: input }) => {
     if (!isSupabaseConfigured()) {
-      return { success: true }
+      const now = new Date().toISOString()
+      const followUpAt = new Date(Date.now() + 48 * 3_600_000).toISOString()
+      const archiveAt = new Date(Date.now() + 7 * 86_400_000).toISOString()
+      return {
+        success: true,
+        rfqId: input.rfqId,
+        status: 'awaiting_clarification' as const,
+        questionsCount: input.questions.length,
+        updatedAt: now,
+        scheduledFollowUp: followUpAt,
+        scheduledArchive: archiveAt,
+        notificationsSent: ['portal', 'email', 'whatsapp'],
+      }
     }
 
     // TODO: Update quote_requests.status to 'awaiting_clarification'
     // TODO: Create notification for customer (portal + email + WhatsApp)
     // TODO: Schedule auto-follow-up at 48h
     // TODO: Schedule archive at 7d with "No Response"
-    return { success: true }
+    return { success: true, rfqId: input.rfqId, status: 'awaiting_clarification' as const, questionsCount: input.questions.length, updatedAt: new Date().toISOString(), scheduledFollowUp: '', scheduledArchive: '', notificationsSent: [] as string[] }
   })
 
 const declineRFQInput = z.object({
@@ -296,14 +308,21 @@ const declineRFQInput = z.object({
 
 export const declineRFQ = createServerFn({ method: 'POST' })
   .inputValidator(declineRFQInput)
-  .handler(async ({ data: _input }) => {
+  .handler(async ({ data: input }) => {
     if (!isSupabaseConfigured()) {
-      return { success: true }
+      return {
+        success: true,
+        rfqId: input.rfqId,
+        status: 'declined' as const,
+        reason: input.reason,
+        note: input.note ?? null,
+        declinedAt: new Date().toISOString(),
+      }
     }
 
     // TODO: Update quote_requests.status to 'declined' via validate_state_transition
     // TODO: Log reason and optional note
-    return { success: true }
+    return { success: true, rfqId: input.rfqId, status: 'declined' as const, reason: input.reason, note: input.note ?? null, declinedAt: new Date().toISOString() }
   })
 
 const reassignRFQInput = z.object({
@@ -330,48 +349,128 @@ const autoAssignRFQInput = z.object({
 
 export const autoAssignRFQ = createServerFn({ method: 'POST' })
   .inputValidator(autoAssignRFQInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      // Mock: return a hardcoded rep assignment
-      return {
-        success: true,
-        assignedTo: 'Ahmed Hassan',
-        assignedToId: 'user-1',
-        assignmentReason: 'account_owner',
+  .handler(async ({ data: input }) => {
+    // ─── Mock Sales Reps ─────────────────────────────────────
+    const reps = [
+      { id: 'user-1', name: 'Ahmed Hassan', role: 'senior', activeRfqs: 7, specialization: ['cement', 'steel'], territories: ['cairo', 'giza'] },
+      { id: 'user-2', name: 'Fatma Nour', role: 'mid', activeRfqs: 4, specialization: ['blocks', 'finishing'], territories: ['alexandria', 'delta'] },
+      { id: 'user-3', name: 'Omar Khalil', role: 'mid', activeRfqs: 9, specialization: ['cement', 'blocks'], territories: ['cairo', 'suez'] },
+      { id: 'user-4', name: 'Sara Ibrahim', role: 'junior', activeRfqs: 3, specialization: ['plywood', 'finishing'], territories: ['giza', 'fayoum'] },
+      { id: 'user-5', name: 'Hassan El-Masry', role: 'senior', activeRfqs: 5, specialization: ['steel', 'roofing'], territories: ['cairo', 'helwan'] },
+    ]
+
+    // Mock account-owner mapping (customer name → rep id)
+    const accountOwners: Record<string, string> = {
+      'Al-Nour Construction': 'user-1',
+      'Pyramid Builders': 'user-1',
+      'Heliopolis Contractors': 'user-1',
+      'Cairo Steel Works': 'user-2',
+      'Giza Construction LLC': 'user-4',
+    }
+
+    const CAPACITY_THRESHOLD = 10
+    const VALUE_ESCALATION_THRESHOLD = 500_000
+
+    // Find the RFQ to get customer info
+    const queue = getMockRFQQueue()
+    const rfq = queue.rfqs.find((r) => r.id === input.rfqId)
+    const customerName = rfq?.customerName ?? ''
+    const estimatedValue = rfq?.estimatedValue ?? 0
+
+    type AssignmentReason = 'account_owner' | 'territory' | 'round_robin' | 'specialization' | 'value_escalation' | 'capacity_rebalance'
+
+    let assignedRep = reps[0]
+    let reason: AssignmentReason = 'round_robin'
+
+    // Step 1: Account owner check
+    const ownerId = accountOwners[customerName]
+    if (ownerId) {
+      const owner = reps.find((r) => r.id === ownerId)
+      if (owner && owner.activeRfqs < CAPACITY_THRESHOLD) {
+        assignedRep = owner
+        reason = 'account_owner'
       }
     }
 
-    // 6-step auto-assignment algorithm (CONTEXT.md Section 1.2):
-    // Must complete within 30 seconds.
+    // Step 2: Territory fallback (if no owner match)
+    if (reason !== 'account_owner') {
+      // Mock: derive territory from customer name heuristic
+      const territoryMap: Record<string, string> = {
+        Cairo: 'cairo', Giza: 'giza', Alexandria: 'alexandria',
+        Delta: 'delta', Suez: 'suez', Heliopolis: 'cairo',
+        Maadi: 'cairo', 'New Valley': 'fayoum',
+      }
+      const matchedTerritory = Object.entries(territoryMap).find(([keyword]) =>
+        customerName.includes(keyword),
+      )
+      if (matchedTerritory) {
+        const territoryRep = reps.find(
+          (r) => r.territories.includes(matchedTerritory[1]) && r.activeRfqs < CAPACITY_THRESHOLD,
+        )
+        if (territoryRep) {
+          assignedRep = territoryRep
+          reason = 'territory'
+        }
+      }
+    }
 
-    // Step 1: Account owner first
-    // TODO: Check customers.assigned_sales_rep for the RFQ's customer
-    // If owner exists and is available, assign to them.
-
-    // Step 2: Territory fallback if owner unavailable
-    // TODO: Check territory_assignments for the customer's region
-    // Assign to territory rep if account owner is unavailable.
-
-    // Step 3: Round-robin for unassigned (weighted by workload)
-    // TODO: Query active sales reps, count their open quotes
-    // Assign to rep with lowest active quote count.
+    // Step 3: Round-robin (lowest workload) if still no match
+    if (reason !== 'account_owner' && reason !== 'territory') {
+      const available = reps.filter((r) => r.activeRfqs < CAPACITY_THRESHOLD)
+      if (available.length > 0) {
+        assignedRep = available.reduce((min, r) => (r.activeRfqs < min.activeRfqs ? r : min))
+        reason = 'round_robin'
+      }
+    }
 
     // Step 4: Specialization override for specialty materials
-    // TODO: If RFQ contains specialty items (e.g., roofing, custom),
-    // override assignment to specialist rep for those categories.
+    // Check if the RFQ items contain specialty categories
+    if (rfq) {
+      const detail = getMockRFQDetail(input.rfqId)
+      const hasSpecialty = detail.items.some((item) =>
+        ['roofing', 'custom', 'plywood', 'finishing'].some((kw) =>
+          item.productName.toLowerCase().includes(kw),
+        ),
+      )
+      if (hasSpecialty) {
+        const specialist = reps.find(
+          (r) =>
+            r.specialization.some((s) => ['plywood', 'finishing', 'roofing'].includes(s)) &&
+            r.activeRfqs < CAPACITY_THRESHOLD,
+        )
+        if (specialist) {
+          assignedRep = specialist
+          reason = 'specialization'
+        }
+      }
+    }
 
-    // Step 5: Value-based escalation: >EGP 25M routes to senior sales + primary rep
-    // TODO: If estimated_value > 25_000_000, assign to senior sales
-    // AND keep primary rep as co-assignee.
+    // Step 5: Value-based escalation — high-value RFQs go to senior reps
+    if (estimatedValue > VALUE_ESCALATION_THRESHOLD) {
+      const seniorRep = reps.find(
+        (r) => r.role === 'senior' && r.activeRfqs < CAPACITY_THRESHOLD,
+      )
+      if (seniorRep) {
+        assignedRep = seniorRep
+        reason = 'value_escalation'
+      }
+    }
 
-    // Step 6: Capacity throttle: if rep has >X active quotes, next available rep
-    // TODO: Check if assigned rep exceeds capacity threshold
-    // If so, reassign to next available rep via round-robin.
+    // Step 6: Capacity throttle — if assigned rep is over threshold, find next available
+    if (assignedRep.activeRfqs >= CAPACITY_THRESHOLD) {
+      const available = reps
+        .filter((r) => r.activeRfqs < CAPACITY_THRESHOLD)
+        .sort((a, b) => a.activeRfqs - b.activeRfqs)
+      if (available.length > 0) {
+        assignedRep = available[0]
+        reason = 'capacity_rebalance'
+      }
+    }
 
     return {
       success: true,
-      assignedTo: 'Ahmed Hassan',
-      assignedToId: 'user-1',
-      assignmentReason: 'account_owner',
+      assignedTo: assignedRep.name,
+      assignedToId: assignedRep.id,
+      assignmentReason: reason,
     }
   })

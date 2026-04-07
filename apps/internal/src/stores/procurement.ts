@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ProcurementTab } from '../types/procurement'
+import type { ProcurementTab, SourcingView } from '../types/procurement'
 
 interface InquiryFilters {
   status?: string
@@ -33,12 +33,20 @@ interface ProcurementStore {
   // Directory
   directorySearch: string
   setDirectorySearch: (search: string) => void
+
+  // Supplier detail (scorecard drill-down)
+  selectedSupplierId: string | null
+  setSelectedSupplierId: (id: string | null) => void
+
+  // Sourcing view (inquiry list vs comparison matrix)
+  sourcingView: SourcingView
+  setSourcingView: (view: SourcingView) => void
 }
 
 export const useProcurementStore = create<ProcurementStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'home',
+    activeTab: 'sourcing',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Inquiry state
@@ -56,6 +64,14 @@ export const useProcurementStore = create<ProcurementStore>()(
     // Directory
     directorySearch: '',
     setDirectorySearch: (search) => set({ directorySearch: search }),
+
+    // Supplier detail (scorecard drill-down)
+    selectedSupplierId: null,
+    setSelectedSupplierId: (id) => set({ selectedSupplierId: id }),
+
+    // Sourcing view
+    sourcingView: 'inquiry',
+    setSourcingView: (view) => set({ sourcingView: view }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

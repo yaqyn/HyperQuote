@@ -11,11 +11,10 @@ import { useAdminStore } from '../../stores/admin'
  *
  * G then U - Users & Roles
  * G then S - System Settings
- * G then M - Margin Rules
+ * G then R - Rules (Margins + Approvals)
  * G then H - Holiday Calendar
  * G then L - Audit Log
- * G then P - Permissions
- * G then A - Approval Thresholds
+ * G then P - Permissions (via Users tab)
  * ? - Show shortcuts help
  */
 export function AdminShortcuts() {
@@ -27,99 +26,67 @@ export function AdminShortcuts() {
 
   const isActive = activeModule === 'admin' && scope === 'panel'
 
-  // G prefix for Go-to shortcuts
   useShortcut('g', () => setGPrefix(true), { enabled: isActive })
 
-  // G then U - Users
   useShortcut('u', () => {
+    if (gPrefix) { setActiveTab('users'); setGPrefix(false) }
+  }, { enabled: isActive && gPrefix })
+
+  useShortcut('s', () => {
+    if (gPrefix) { setActiveTab('settings'); setGPrefix(false) }
+  }, { enabled: isActive && gPrefix })
+
+  useShortcut('r', () => {
+    if (gPrefix) { setActiveTab('rules'); setGPrefix(false) }
+  }, { enabled: isActive && gPrefix })
+
+  useShortcut('l', () => {
+    if (gPrefix) { setActiveTab('audit'); setGPrefix(false) }
+  }, { enabled: isActive && gPrefix })
+
+  useShortcut('p', () => {
     if (gPrefix) {
+      // G P now opens permissions inline within Users tab
       setActiveTab('users')
       setGPrefix(false)
     }
   }, { enabled: isActive && gPrefix })
 
-  // G then S - Settings
-  useShortcut('s', () => {
-    if (gPrefix) {
-      setActiveTab('settings')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // G then M - Margins
-  useShortcut('m', () => {
-    if (gPrefix) {
-      setActiveTab('margins')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // G then H - Holidays
-  useShortcut('h', () => {
-    if (gPrefix) {
-      setActiveTab('holidays')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // G then L - Audit Log
-  useShortcut('l', () => {
-    if (gPrefix) {
-      setActiveTab('audit')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // G then P - Permissions
-  useShortcut('p', () => {
-    if (gPrefix) {
-      setActiveTab('permissions')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // G then A - Approvals
-  useShortcut('a', () => {
-    if (gPrefix) {
-      setActiveTab('approvals')
-      setGPrefix(false)
-    }
-  }, { enabled: isActive && gPrefix })
-
-  // ? - Show shortcuts help
   useShortcut('?', () => {
     setShowHelp((prev: boolean) => !prev)
   }, { enabled: isActive })
 
   if (!showHelp) return null
 
+  const shortcuts = [
+    { keys: 'G U', action: 'Users' },
+    { keys: 'G P', action: 'Permissions (Users tab)' },
+    { keys: 'G S', action: 'Settings' },
+    { keys: 'G R', action: 'Rules' },
+    { keys: 'G L', action: 'Audit Log' },
+    { keys: '?', action: 'Toggle help' },
+  ]
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/95 dark:bg-black/95 p-5 shadow-2xl backdrop-blur-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-black/40 dark:text-white/40">
+            Shortcuts
+          </span>
           <Button
             onPress={() => setShowHelp(false)}
-            className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
+            className="rounded-md px-2 py-0.5 text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white cursor-pointer outline-none"
           >
             Close
           </Button>
         </div>
-        <div className="flex flex-col gap-2">
-          {[
-            { keys: 'G U', action: 'Users & Roles' },
-            { keys: 'G P', action: 'Permissions' },
-            { keys: 'G S', action: 'System Settings' },
-            { keys: 'G M', action: 'Margin Rules' },
-            { keys: 'G A', action: 'Approval Thresholds' },
-            { keys: 'G H', action: 'Holiday Calendar' },
-            { keys: 'G L', action: 'Audit Log' },
-            { keys: '?', action: 'Toggle this help' },
-          ].map((shortcut) => (
-            <div key={shortcut.keys} className="flex items-center justify-between">
-              <span className="text-sm text-black/60 dark:text-white/60">{shortcut.action}</span>
-              <kbd className="rounded border border-black/10 bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:border-white/10 dark:bg-white/5">
-                {shortcut.keys}
+        <div className="flex flex-col gap-1.5">
+          {shortcuts.map((s) => (
+            <div key={s.keys} className="flex items-center justify-between py-0.5">
+              <span className="text-xs text-black/50 dark:text-white/50">{s.action}</span>
+              <kbd className="rounded border border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.03] px-1.5 py-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] text-black/60 dark:text-white/60">
+                {s.keys}
               </kbd>
             </div>
           ))}

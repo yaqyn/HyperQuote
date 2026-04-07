@@ -1,7 +1,6 @@
 /**
- * POD action buttons: Confirm, Flag Issue, Request Re-delivery, Reject.
- * All disabled until all checklist items are answered.
- * Calls server functions confirmDeliveryPOD / flagDeliveryIssue.
+ * Accept/Reject/Request Re-delivery as prominent buttons.
+ * All disabled until checklist is complete.
  */
 import { useState } from 'react'
 import { Button, DialogTrigger, Dialog, Modal, Heading, Select, SelectValue, Popover, ListBox, ListBoxItem, Label, TextArea } from 'react-aria-components'
@@ -30,7 +29,6 @@ export function PODActions({ deliveryId, checklist, onActionComplete }: PODActio
   const [loading, setLoading] = useState<string | null>(null)
   const [showFlagDialog, setShowFlagDialog] = useState(false)
 
-  // All 5 checklist items must have a value
   const allAnswered =
     checklist.photosOk !== undefined &&
     checklist.signatureOk !== undefined &&
@@ -70,59 +68,55 @@ export function PODActions({ deliveryId, checklist, onActionComplete }: PODActio
 
   return (
     <div className="flex flex-col gap-3">
-      <h4 className="text-sm font-semibold text-black/80 dark:text-white/80">
-        {t('pod.actions.title', 'Actions')}
-      </h4>
-
       {!allAnswered && (
-        <p className="text-xs text-black/50 dark:text-white/50">
+        <p className="text-xs text-black/40 dark:text-white/40">
           {t('pod.actions.completeChecklist', 'Complete all checklist items to enable actions')}
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {/* Confirm Delivery */}
+      <div className="flex gap-2">
+        {/* Accept */}
         <Button
           isDisabled={!allAnswered || loading !== null}
           onPress={handleConfirm}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-30 dark:bg-white dark:text-black"
         >
           {loading === 'confirm'
             ? t('pod.actions.confirming', 'Confirming...')
-            : t('pod.actions.confirm', 'Confirm Delivery')}
+            : t('pod.actions.confirm', 'Accept')}
         </Button>
 
-        {/* Flag Issue */}
+        {/* Flag */}
         <Button
           isDisabled={!allAnswered || loading !== null}
           onPress={() => setShowFlagDialog(true)}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg border border-black/[0.08] px-4 py-2.5 text-sm font-medium text-black/70 transition-colors hover:bg-black/[0.03] disabled:opacity-30 dark:border-white/[0.08] dark:text-white/70 dark:hover:bg-white/[0.03]"
         >
-          {t('pod.actions.flagIssue', 'Flag Issue')}
-        </Button>
-
-        {/* Request Re-delivery */}
-        <Button
-          isDisabled={!allAnswered || loading !== null}
-          onPress={handleRedelivery}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading === 'redelivery'
-            ? t('pod.actions.requesting', 'Requesting...')
-            : t('pod.actions.redelivery', 'Request Re-delivery')}
+          {t('pod.actions.flagIssue', 'Flag')}
         </Button>
 
         {/* Reject */}
         <Button
           isDisabled={!allAnswered || loading !== null}
           onPress={handleReject}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-black/70 dark:text-white/70 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-30 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
         >
           {loading === 'reject'
             ? t('pod.actions.rejecting', 'Rejecting...')
             : t('pod.actions.reject', 'Reject')}
         </Button>
       </div>
+
+      {/* Re-delivery */}
+      <Button
+        isDisabled={!allAnswered || loading !== null}
+        onPress={handleRedelivery}
+        className="w-full rounded-lg border border-black/[0.08] px-4 py-2 text-sm text-black/50 transition-colors hover:bg-black/[0.03] disabled:opacity-30 dark:border-white/[0.08] dark:text-white/50 dark:hover:bg-white/[0.03]"
+      >
+        {loading === 'redelivery'
+          ? t('pod.actions.requesting', 'Requesting...')
+          : t('pod.actions.redelivery', 'Request Re-delivery')}
+      </Button>
 
       {/* Flag Issue Dialog */}
       {showFlagDialog && (
@@ -136,8 +130,6 @@ export function PODActions({ deliveryId, checklist, onActionComplete }: PODActio
     </div>
   )
 }
-
-// ─── Flag Issue Dialog ──────────────────────────────────
 
 function FlagIssueDialog({
   deliveryId,
@@ -175,13 +167,12 @@ function FlagIssueDialog({
         isKeyboardDismissDisabled
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       >
-        <Dialog className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-6 shadow-xl outline-none">
-          <Heading slot="title" className="text-lg font-semibold mb-4">
+        <Dialog className="w-full max-w-md rounded-2xl border border-black/[0.08] bg-white/95 p-6 shadow-xl backdrop-blur-2xl outline-none dark:border-white/[0.08] dark:bg-black/95">
+          <Heading slot="title" className="mb-4 text-lg font-semibold">
             {t('pod.flagDialog.title', 'Flag Delivery Issue')}
           </Heading>
 
           <div className="flex flex-col gap-4">
-            {/* Issue type select */}
             <div className="flex flex-col gap-1">
               <Label className="text-sm text-black/60 dark:text-white/60">
                 {t('pod.flagDialog.issueType', 'Issue Type')}
@@ -191,19 +182,19 @@ function FlagIssueDialog({
                 onSelectionChange={(key) => setIssueType(key as DeliveryIssue['type'])}
                 className="flex flex-col gap-1"
               >
-                <Button className="flex items-center justify-between rounded-lg border border-black/20 dark:border-white/20 px-3 py-2 text-sm text-start">
+                <Button className="flex items-center justify-between rounded-lg border border-black/[0.12] px-3 py-2 text-sm text-start dark:border-white/[0.12]">
                   <SelectValue className="text-sm" />
-                  <svg className="w-4 h-4 text-black/40 dark:text-white/40" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg className="h-4 w-4 text-black/30 dark:text-white/30" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                   </svg>
                 </Button>
-                <Popover className="w-[var(--trigger-width)] rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
+                <Popover className="w-[var(--trigger-width)] rounded-lg border border-black/[0.08] bg-white shadow-lg dark:border-white/[0.08] dark:bg-black">
                   <ListBox className="p-1 outline-none">
                     {ISSUE_TYPES.map((type) => (
                       <ListBoxItem
                         key={type.value}
                         id={type.value}
-                        className="px-3 py-2 rounded-md text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5 outline-none"
+                        className="cursor-pointer rounded-md px-3 py-2 text-sm outline-none hover:bg-black/[0.04] data-[focused]:bg-black/[0.04] dark:hover:bg-white/[0.04] dark:data-[focused]:bg-white/[0.04]"
                       >
                         {t(`pod.issueType.${type.value}`, type.label)}
                       </ListBoxItem>
@@ -213,16 +204,14 @@ function FlagIssueDialog({
               </Select>
             </div>
 
-            {/* Auto-suggestion for quantity discrepancy */}
             {hasQuantityDiscrepancy && issueType === 'partial' && (
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 px-3 py-2">
-                <p className="text-xs text-amber-700 dark:text-amber-300">
+              <div className="rounded-lg bg-amber-50/60 px-3 py-2 dark:bg-amber-900/10">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
                   {t('pod.flagDialog.quantitySuggestion', 'Quantity discrepancy detected. Consider scheduling a re-delivery for remaining items.')}
                 </p>
               </div>
             )}
 
-            {/* Description */}
             <div className="flex flex-col gap-1">
               <Label className="text-sm text-black/60 dark:text-white/60">
                 {t('pod.flagDialog.description', 'Description')}
@@ -231,23 +220,22 @@ function FlagIssueDialog({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#2563EB] resize-none"
+                className="resize-none rounded-lg border border-black/[0.12] bg-transparent px-3 py-2 text-sm outline-none focus:border-[#2563EB] dark:border-white/[0.12]"
                 placeholder={t('pod.flagDialog.descriptionPlaceholder', 'Describe the issue...')}
               />
             </div>
 
-            {/* Dialog actions */}
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 onPress={onClose}
-                className="rounded-lg px-4 py-2 text-sm text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="rounded-lg px-4 py-2 text-sm text-black/50 transition-colors hover:bg-black/[0.04] dark:text-white/50 dark:hover:bg-white/[0.04]"
               >
                 {t('common.cancel', 'Cancel')}
               </Button>
               <Button
                 isDisabled={!issueType || !description.trim() || submitting}
                 onPress={handleSubmit}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-30 dark:bg-white dark:text-black"
               >
                 {submitting
                   ? t('pod.flagDialog.submitting', 'Submitting...')

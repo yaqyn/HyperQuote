@@ -1,11 +1,10 @@
 /**
- * POD review split-view: left panel (40%) = PODMiniMap, right panel (60%) = POD details.
- * Right panel: photos, signature, GPS/timestamp, item table, driver notes, duration.
- * Checklist and Actions at bottom.
+ * POD review split — evidence (photos/signature) on left, checklist on right.
+ * Photo gallery + delivery details side by side.
  */
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ClientOnly } from '@tanstack/react-start'
+import { ClientOnly } from '../../../lib/client-only'
 import { MapSkeleton } from '../shared/MapSkeleton'
 import { PODMiniMap } from './PODMiniMap'
 import { PODChecklist } from './PODChecklist'
@@ -20,7 +19,6 @@ interface PODReviewSplitProps {
   onActionComplete: () => void
 }
 
-/** Haversine distance in meters */
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000
   const toRad = (deg: number) => (deg * Math.PI) / 180
@@ -41,7 +39,6 @@ export function PODReviewSplit({
 }: PODReviewSplitProps) {
   const { t } = useTranslation('dispatch')
 
-  // Auto-populate checklist from POD data
   const gpsDistance = haversineMeters(pod.gpsLat, pod.gpsLng, stop.lat, stop.lng)
   const gpsOk = gpsDistance <= 500
 
@@ -61,8 +58,6 @@ export function PODReviewSplit({
   })
 
   const podTime = new Date(pod.timestamp)
-
-  // Build item comparison rows
   const allItems = new Set([...Object.keys(expectedQty), ...Object.keys(pod.deliveredQty)])
   const itemRows = Array.from(allItems).map((key) => {
     const expected = expectedQty[key] ?? 0
@@ -72,184 +67,160 @@ export function PODReviewSplit({
   })
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Back button */}
-      <div className="px-6 py-3 border-b border-black/10 dark:border-white/10">
+    <div className="flex h-full flex-col">
+      {/* Back */}
+      <div className="border-b border-black/[0.06] px-6 py-3 dark:border-white/[0.06]">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-sm text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
+          className="flex items-center gap-2 text-sm text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
         >
-          <svg className="w-4 h-4 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <svg className="h-4 w-4 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
           </svg>
           {t('pod.backToList', 'Back to delivery list')}
         </button>
       </div>
 
-      {/* Split layout */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-          {/* Left panel: Mini-map (40%) */}
-          <div className="lg:col-span-2">
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-              <ClientOnly fallback={<MapSkeleton className="h-[280px]" />}>
-                {() => (
-                  <PODMiniMap
-                    actualLat={pod.gpsLat}
-                    actualLng={pod.gpsLng}
-                    expectedLat={stop.lat}
-                    expectedLng={stop.lng}
-                  />
-                )}
-              </ClientOnly>
-              <div className="p-3 text-xs text-black/50 dark:text-white/50">
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#2563EB]" /> {t('pod.map.actual', 'Actual GPS')}
-                </span>
-                <span className="inline-flex items-center gap-1 ms-4">
-                  <span className="w-2 h-2 rounded-full bg-red-500" /> {t('pod.map.expected', 'Expected')}
-                </span>
-              </div>
-            </div>
+      {/* Split */}
+      <div className="flex min-h-0 flex-1 overflow-auto">
+        {/* Left: evidence */}
+        <div className="w-2/5 shrink-0 overflow-y-auto border-e border-black/[0.06] p-6 dark:border-white/[0.06]">
+          {/* Mini map */}
+          <div className="mb-4 overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
+            <ClientOnly fallback={<MapSkeleton className="h-[220px]" />}>
+              {() => (
+                <PODMiniMap
+                  actualLat={pod.gpsLat}
+                  actualLng={pod.gpsLng}
+                  expectedLat={stop.lat}
+                  expectedLng={stop.lng}
+                />
+              )}
+            </ClientOnly>
           </div>
 
-          {/* Right panel: POD details (60%) */}
-          <div className="lg:col-span-3 flex flex-col gap-5">
-            {/* Photo thumbnails */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <h4 className="text-sm font-semibold mb-3">{t('pod.photos', 'Photos')}</h4>
-              {pod.photos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {pod.photos.map((url, i) => (
-                    <div
-                      key={i}
-                      className="aspect-square rounded-lg bg-black/5 dark:bg-white/5 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#2563EB] transition-shadow"
-                    >
-                      <img
-                        src={url}
-                        alt={`${t('pod.photo', 'Delivery photo')} ${i + 1}`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-black/40 dark:text-white/40">
-                  {t('pod.noPhotos', 'No photos available')}
-                </p>
-              )}
-            </div>
-
-            {/* Signature */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <h4 className="text-sm font-semibold mb-3">{t('pod.signature', 'Signature')}</h4>
-              {pod.signatureUrl ? (
-                <div className="w-48 h-24 rounded-lg bg-white dark:bg-white/10 border border-black/10 dark:border-white/10 overflow-hidden">
+          {/* Photos */}
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+            {t('pod.photos', 'Photos')}
+          </h4>
+          {pod.photos.length > 0 ? (
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              {pod.photos.map((url, i) => (
+                <div
+                  key={i}
+                  className="aspect-square overflow-hidden rounded-lg bg-black/[0.04] dark:bg-white/[0.04]"
+                >
                   <img
-                    src={pod.signatureUrl}
-                    alt={t('pod.digitalSignature', 'Digital signature')}
-                    className="w-full h-full object-contain"
+                    src={url}
+                    alt={`${t('pod.photo', 'Delivery photo')} ${i + 1}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
                   />
                 </div>
-              ) : (
-                <p className="text-sm text-red-500">
-                  {t('pod.noSignature', 'No signature captured')}
-                </p>
-              )}
+              ))}
             </div>
+          ) : (
+            <p className="mb-4 text-sm text-black/30 dark:text-white/30">
+              {t('pod.noPhotos', 'No photos available')}
+            </p>
+          )}
 
-            {/* GPS + Timestamp + Duration */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <span className="text-xs text-black/50 dark:text-white/50 block mb-1">{t('pod.gpsCoords', 'GPS Coordinates')}</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-                    {pod.gpsLat.toFixed(4)}, {pod.gpsLng.toFixed(4)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-xs text-black/50 dark:text-white/50 block mb-1">{t('pod.timestamp', 'Timestamp')}</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-                    {podTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-xs text-black/50 dark:text-white/50 block mb-1">{t('pod.duration', 'Duration')}</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-                    {pod.durationMinutes} {t('pod.min', 'min')}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Item table */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <h4 className="text-sm font-semibold mb-3">{t('pod.items', 'Items')}</h4>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-black/10 dark:border-white/10">
-                    <th className="py-2 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('pod.item', 'Item')}</th>
-                    <th className="py-2 text-end text-xs text-black/50 dark:text-white/50 font-medium">{t('pod.expected', 'Expected')}</th>
-                    <th className="py-2 text-end text-xs text-black/50 dark:text-white/50 font-medium">{t('pod.delivered', 'Delivered')}</th>
-                    <th className="py-2 text-end text-xs text-black/50 dark:text-white/50 font-medium">{t('pod.status', 'Status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemRows.map((row) => (
-                    <tr
-                      key={row.key}
-                      className={`border-b border-black/5 dark:border-white/5 ${row.status !== 'match' ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}
-                    >
-                      <td className="py-2">{row.key}</td>
-                      <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{row.expected}</td>
-                      <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{row.delivered}</td>
-                      <td className="py-2 text-end">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            row.status === 'match'
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                              : row.status === 'short'
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                          }`}
-                        >
-                          {row.status === 'match'
-                            ? t('pod.match', 'Match')
-                            : row.status === 'short'
-                              ? t('pod.short', 'Short')
-                              : t('pod.over', 'Over')}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Driver notes */}
-            {pod.driverNotes && (
-              <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-                <h4 className="text-sm font-semibold mb-2">{t('pod.driverNotes', 'Driver Notes')}</h4>
-                <p className="text-sm text-black/70 dark:text-white/70">{pod.driverNotes}</p>
-              </div>
-            )}
-
-            {/* Checklist */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <PODChecklist checklist={checklist} onChange={setChecklist} />
-            </div>
-
-            {/* Actions */}
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4">
-              <PODActions
-                deliveryId={pod.deliveryId}
-                checklist={checklist}
-                onActionComplete={onActionComplete}
+          {/* Signature */}
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+            {t('pod.signature', 'Signature')}
+          </h4>
+          {pod.signatureUrl ? (
+            <div className="mb-4 h-20 w-40 overflow-hidden rounded-lg border border-black/[0.06] bg-white dark:border-white/[0.06] dark:bg-white/10">
+              <img
+                src={pod.signatureUrl}
+                alt={t('pod.digitalSignature', 'Digital signature')}
+                className="h-full w-full object-contain"
               />
             </div>
+          ) : (
+            <p className="mb-4 text-sm text-red-500">{t('pod.noSignature', 'No signature captured')}</p>
+          )}
+
+          {/* Driver notes */}
+          {pod.driverNotes && (
+            <>
+              <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+                {t('pod.driverNotes', 'Driver Notes')}
+              </h4>
+              <p className="text-sm text-black/60 dark:text-white/60">{pod.driverNotes}</p>
+            </>
+          )}
+        </div>
+
+        {/* Right: checklist + data */}
+        <div className="min-w-0 flex-1 overflow-y-auto p-6">
+          {/* GPS + Timestamp + Duration */}
+          <div className="mb-4 flex gap-6">
+            <div>
+              <span className="text-[11px] text-black/40 dark:text-white/40">{t('pod.gpsCoords', 'GPS')}</span>
+              <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
+                {pod.gpsLat.toFixed(4)}, {pod.gpsLng.toFixed(4)}
+              </p>
+            </div>
+            <div>
+              <span className="text-[11px] text-black/40 dark:text-white/40">{t('pod.timestamp', 'Time')}</span>
+              <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
+                {podTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <div>
+              <span className="text-[11px] text-black/40 dark:text-white/40">{t('pod.duration', 'Duration')}</span>
+              <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
+                {pod.durationMinutes} {t('pod.min', 'min')}
+              </p>
+            </div>
           </div>
+
+          {/* Item table */}
+          <div className="mb-6 rounded-xl border border-black/[0.06] p-4 dark:border-white/[0.06]">
+            <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+              {t('pod.items', 'Items')}
+            </h4>
+            <div className="flex flex-col">
+              {itemRows.map((row) => (
+                <div
+                  key={row.key}
+                  className={`flex items-center gap-3 border-b border-black/[0.04] py-2 last:border-0 dark:border-white/[0.04] ${
+                    row.status !== 'match' ? 'bg-red-50/30 dark:bg-red-900/5' : ''
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 text-sm">{row.key}</span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums text-black/50 dark:text-white/50">
+                    {row.expected}
+                  </span>
+                  <svg className="h-3 w-3 text-black/20 dark:text-white/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                  </svg>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums font-medium">
+                    {row.delivered}
+                  </span>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      row.status === 'match' ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div className="mb-4">
+            <PODChecklist checklist={checklist} onChange={setChecklist} />
+          </div>
+
+          {/* Actions */}
+          <PODActions
+            deliveryId={pod.deliveryId}
+            checklist={checklist}
+            onActionComplete={onActionComplete}
+          />
         </div>
       </div>
     </div>

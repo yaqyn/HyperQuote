@@ -4,11 +4,8 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type DispatchTab =
-  | 'home'
-  | 'route-planning'
-  | 'live-map'
-  | 'driver-management'
-  | 'delivery-log'
+  | 'map'
+  | 'deliveries'
 
 // ─── Status Unions ───────────────────────────────────────
 

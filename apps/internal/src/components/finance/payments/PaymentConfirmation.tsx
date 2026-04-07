@@ -33,7 +33,7 @@ function getMockConfirmationData(method: PaymentMethod | undefined) {
     case 'lc':
       return { ...base, reference: 'LC-2025-001', label: 'LC Number' }
     case 'cash':
-      return { ...base, reference: 'RCP-2025-0042', label: 'Receipt Number', receivedBy: 'Ahmed Hassan' }
+      return { ...base, reference: 'RCP-2025-0042', label: 'Receipt Number' }
     default:
       return { ...base, reference: '-', label: 'Reference' }
   }
@@ -47,9 +47,9 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
 }
 
 /**
- * Step 4: Payment confirmation.
- * Shows summary card with method, amount, reference, allocated invoices.
- * Confirm calls recordPayment server function. On success: shows receipt link, resets flow.
+ * Payment confirmation — summary with all details.
+ * Big "Confirm" button, cancel as text link.
+ * On success: receipt link + done.
  */
 export function PaymentConfirmation() {
   const { t } = useTranslation('finance')
@@ -90,38 +90,35 @@ export function PaymentConfirmation() {
 
   if (isSuccess) {
     return (
-      <div className="p-6 flex flex-col items-center gap-6">
-        {/* Success state */}
-        <div className="flex size-16 items-center justify-center rounded-full bg-green-500/10">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-8 text-green-600">
+      <div className="p-6 flex flex-col items-center gap-5 py-16">
+        <div className="size-10 rounded-full bg-green-500/10 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-5 text-green-600">
             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
 
         <div className="text-center">
-          <h2 className="text-lg font-semibold mb-1">
-            {t('payments.paymentRecorded', 'Payment Recorded Successfully')}
+          <h2 className="text-sm font-semibold text-black dark:text-white mb-1">
+            {t('payments.paymentRecorded', 'Payment Recorded')}
           </h2>
-          <p className="text-sm text-black/50 dark:text-white/50">
-            {t('payments.receiptGenerated', 'Payment receipt generated')}
-          </p>
           {paymentId && (
-            <p className="text-xs font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40 mt-1">
-              ID: {paymentId}
+            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/30 dark:text-white/30">
+              {paymentId}
             </p>
           )}
         </div>
 
-        <div className="flex gap-3">
-          <Button
-            onPress={() => {/* PDF view deferred */}}
-            className="rounded-lg border border-[#2563EB]/30 text-[#2563EB] px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/5 pressed:bg-[#2563EB]/10 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {/* PDF view deferred */}}
+            className="text-xs text-[#2563EB] hover:underline underline-offset-2"
           >
-            {t('payments.viewReceiptPDF', 'View Receipt PDF')}
-          </Button>
+            {t('payments.viewReceiptPDF', 'View Receipt')}
+          </button>
           <Button
             onPress={handleDone}
-            className="rounded-lg bg-black dark:bg-white text-white dark:text-black px-6 py-2 text-sm font-medium hover:opacity-90 pressed:opacity-80 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+            className="rounded-md bg-black dark:bg-white text-white dark:text-black px-5 py-2 text-xs font-medium hover:opacity-90 pressed:opacity-80 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-opacity"
           >
             {t('payments.done', 'Done')}
           </Button>
@@ -131,120 +128,95 @@ export function PaymentConfirmation() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-lg font-semibold">
+    <div className="p-6 flex flex-col gap-5">
+      <h2 className="text-sm font-semibold text-black dark:text-white">
         {t('payments.confirmPayment', 'Confirm Payment')}
       </h2>
 
-      {/* Summary card */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('payments.method', 'Payment Method')}
-            </div>
-            <div className="font-medium">
-              {paymentFlow.method ? METHOD_LABELS[paymentFlow.method] : '-'}
-            </div>
+      {/* Summary — document-style key-value pairs */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3 py-4 border-t border-b border-black/[0.04] dark:border-white/[0.04]">
+        <SummaryRow
+          label={t('payments.method', 'Method')}
+          value={paymentFlow.method ? METHOD_LABELS[paymentFlow.method] : '-'}
+        />
+        <SummaryRow
+          label={data.label}
+          value={data.reference}
+          mono
+        />
+        <SummaryRow
+          label={t('payments.date', 'Date')}
+          value={data.date}
+          mono
+        />
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-0.5">
+            {t('payments.amount', 'Amount')}
           </div>
-          <div>
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('payments.amount', 'Amount')}
-            </div>
-            <CurrencyCell amount={data.amount} className="text-lg font-semibold" />
-          </div>
-          <div>
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {data.label}
-            </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {data.reference}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-              {t('payments.date', 'Date')}
-            </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {data.date}
-            </div>
-          </div>
-          {/* Cash-specific: Received by */}
-          {paymentFlow.method === 'cash' && 'receivedBy' in data && (
-            <div className="col-span-2">
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('payments.receivedBy', 'Received By')}
-              </div>
-              <div className="font-medium">{data.receivedBy}</div>
-            </div>
-          )}
+          <CurrencyCell amount={data.amount} className="text-lg font-semibold text-black dark:text-white" />
         </div>
       </div>
 
-      {/* Allocated invoices */}
+      {/* Allocated invoices — minimal list */}
       <div>
-        <h3 className="text-sm font-medium mb-3">
-          {t('payments.allocatedInvoices', 'Allocated Invoices')}
-        </h3>
-        <div className="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-                <th className="p-3 text-start font-medium text-black/50 dark:text-white/50">
-                  {t('payments.invoiceNumber', 'Invoice #')}
-                </th>
-                <th className="p-3 text-end font-medium text-black/50 dark:text-white/50">
-                  {t('payments.amount', 'Amount')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.allocations.map((alloc) => (
-                <tr key={alloc.invoiceNumber} className="border-b border-black/5 dark:border-white/5">
-                  <td className="p-3 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {alloc.invoiceNumber}
-                  </td>
-                  <td className="p-3 text-end">
-                    <CurrencyCell amount={alloc.amount} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-                <td className="p-3 font-medium">
-                  {t('payments.totalApplied', 'Total Applied')}
-                </td>
-                <td className="p-3 text-end">
-                  <CurrencyCell amount={data.totalApplied} className="font-semibold" />
-                </td>
-              </tr>
-              {data.remaining > 0 && (
-                <tr>
-                  <td className="p-3 text-yellow-600 font-medium">
-                    {t('payments.remaining', 'Remaining')}
-                  </td>
-                  <td className="p-3 text-end">
-                    <CurrencyCell amount={data.remaining} className="font-semibold text-yellow-600" />
-                  </td>
-                </tr>
-              )}
-            </tfoot>
-          </table>
+        <div className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+          {t('payments.allocatedInvoices', 'Allocations')}
         </div>
+        {data.allocations.map((alloc) => (
+          <div key={alloc.invoiceNumber} className="flex items-center justify-between py-2 border-b border-black/[0.03] dark:border-white/[0.03]">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black dark:text-white">
+              {alloc.invoiceNumber}
+            </span>
+            <CurrencyCell amount={alloc.amount} className="text-xs" />
+          </div>
+        ))}
+        <div className="flex items-center justify-between py-2">
+          <span className="text-xs font-medium text-black dark:text-white">
+            {t('payments.totalApplied', 'Total')}
+          </span>
+          <CurrencyCell amount={data.totalApplied} className="text-xs font-semibold text-black dark:text-white" />
+        </div>
+        {data.remaining > 0 && (
+          <div className="flex items-center justify-between py-2">
+            <span className="text-xs text-yellow-600">
+              {t('payments.remaining', 'Remaining')}
+            </span>
+            <CurrencyCell amount={data.remaining} className="text-xs text-yellow-600" />
+          </div>
+        )}
       </div>
 
-      {/* Confirm button */}
-      <div className="flex justify-end">
+      {/* Confirm — big button + cancel as text */}
+      <div className="flex items-center justify-end gap-4 pt-4">
+        <button
+          type="button"
+          onClick={resetPaymentFlow}
+          className="text-xs text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 transition-colors"
+        >
+          {t('common.cancel', 'Cancel')}
+        </button>
         <Button
           onPress={handleConfirm}
           isDisabled={isSubmitting}
-          className="rounded-lg bg-[#2563EB] text-white px-6 py-2.5 text-sm font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+          className="rounded-md bg-[#2563EB] text-white px-8 py-2.5 text-sm font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
         >
           {isSubmitting
             ? t('payments.processing', 'Processing...')
-            : t('payments.confirmPaymentBtn', 'Confirm Payment')}
+            : t('payments.confirmPaymentBtn', 'Confirm')}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function SummaryRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-0.5">
+        {label}
+      </div>
+      <div className={`text-sm text-black dark:text-white ${mono ? 'font-[family-name:var(--font-geist-mono)] tabular-nums' : 'font-medium'}`}>
+        {value}
       </div>
     </div>
   )

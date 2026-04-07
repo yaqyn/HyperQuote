@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFinanceStore } from '../../../stores/finance'
+import type { ARAgingBucket } from '../../../types/finance'
 
 interface SavedView {
   name: string
@@ -15,22 +16,18 @@ interface SavedView {
 
 const TIER_OPTIONS = ['1', '2', '3', '4', '5']
 const SALES_REP_OPTIONS = ['Ahmed Mostafa', 'Mohamed Ibrahim', 'Youssef Hassan', 'Sara Ahmed']
-const GROUP_BY_OPTIONS: { value: 'customer' | 'region' | 'salesperson'; label: string }[] = [
-  { value: 'customer', label: 'Customer' },
-  { value: 'region', label: 'Region' },
-  { value: 'salesperson', label: 'Salesperson' },
-]
-const SORT_OPTIONS = [
-  { value: 'total', label: 'Total Outstanding' },
-  { value: 'oldest', label: 'Oldest Invoice' },
-  { value: 'risk', label: 'Highest Risk' },
+
+const AGING_PILLS: { value: ARAgingBucket; label: string }[] = [
+  { value: 'current', label: 'Current' },
+  { value: '1-30', label: '1-30' },
+  { value: '31-60', label: '31-60' },
+  { value: '61-90', label: '61-90' },
+  { value: '90+', label: '90+' },
 ]
 
 /**
- * Comprehensive filter bar for AR aging view.
- * Supports: tier, sales rep, date range, amount range, group by.
- * Active filters shown as removable pills.
- * Reads/writes arFilters from useFinanceStore.
+ * Compact inline filter row for AR.
+ * Date range as pills, customer search as borderless input, aging bucket as pill toggles.
  */
 export function ARFilters() {
   const { t } = useTranslation('finance')
@@ -39,14 +36,17 @@ export function ARFilters() {
   const clearARFilters = useFinanceStore((s) => s.clearARFilters)
 
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
-  const [sortBy, setSortBy] = useState('total')
+  const [search, setSearch] = useState('')
+  const [activeBucket, setActiveBucket] = useState<ARAgingBucket | null>(null)
 
   const hasActiveFilters =
     arFilters.tier != null ||
     arFilters.salesRep != null ||
     arFilters.dateRange != null ||
     arFilters.amountRange != null ||
-    arFilters.groupBy != null
+    arFilters.groupBy != null ||
+    activeBucket != null ||
+    search !== ''
 
   const handleSaveView = useCallback(() => {
     const name = prompt(t('ar.filters.saveViewName', 'Enter view name:'))
@@ -65,6 +65,14 @@ export function ARFilters() {
 
   const removeFilter = useCallback(
     (key: string) => {
+      if (key === 'bucket') {
+        setActiveBucket(null)
+        return
+      }
+      if (key === 'search') {
+        setSearch('')
+        return
+      }
       setARFilters({ [key]: undefined })
     },
     [setARFilters],
@@ -72,241 +80,147 @@ export function ARFilters() {
 
   // Active filter pills
   const activePills: { key: string; label: string }[] = []
+  if (activeBucket) activePills.push({ key: 'bucket', label: activeBucket === 'current' ? 'Current' : `${activeBucket} days` })
+  if (search) activePills.push({ key: 'search', label: `"${search}"` })
   if (arFilters.tier) activePills.push({ key: 'tier', label: `Tier ${arFilters.tier}` })
   if (arFilters.salesRep) activePills.push({ key: 'salesRep', label: arFilters.salesRep })
   if (arFilters.dateRange)
     activePills.push({
       key: 'dateRange',
-      label: `${arFilters.dateRange.start} - ${arFilters.dateRange.end}`,
+      label: `${arFilters.dateRange.start} \u2013 ${arFilters.dateRange.end}`,
     })
   if (arFilters.amountRange)
     activePills.push({
       key: 'amountRange',
-      label: `EGP ${arFilters.amountRange.min?.toLocaleString() ?? '0'} - ${arFilters.amountRange.max?.toLocaleString() ?? '...'}`,
+      label: `EGP ${arFilters.amountRange.min?.toLocaleString() ?? '0'} \u2013 ${arFilters.amountRange.max?.toLocaleString() ?? '\u2026'}`,
     })
-  if (arFilters.groupBy) activePills.push({ key: 'groupBy', label: `Group: ${arFilters.groupBy}` })
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm">
-      {/* Filter controls row */}
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-        {/* Tier dropdown */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.tier', 'Tier')}
-          </label>
-          <select
-            value={arFilters.tier ?? ''}
-            onChange={(e) => setARFilters({ tier: e.target.value || undefined })}
-            className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent"
-          >
-            <option value="">{t('ar.filters.all', 'All')}</option>
-            {TIER_OPTIONS.map((tier) => (
-              <option key={tier} value={tier}>
-                {t('ar.filters.tierN', 'Tier {{n}}', { n: tier })}
-              </option>
-            ))}
-          </select>
+    <div className="flex flex-col gap-2">
+      {/* Main filter row */}
+      <div className="flex items-center gap-3">
+        {/* Customer search — borderless */}
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('ar.filters.searchCustomer', 'Search customer\u2026')}
+          className="w-48 bg-transparent border-b border-black/10 dark:border-white/10 px-0 py-1.5 text-sm outline-none placeholder:text-black/30 dark:placeholder:text-white/30 focus:border-[#2563EB] transition-colors"
+        />
+
+        {/* Aging bucket pills */}
+        <div className="flex gap-1">
+          {AGING_PILLS.map((pill) => (
+            <button
+              key={pill.value}
+              type="button"
+              onClick={() => setActiveBucket(activeBucket === pill.value ? null : pill.value)}
+              className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs px-2.5 py-1 rounded-full transition-colors ${
+                activeBucket === pill.value
+                  ? 'bg-black text-white dark:bg-white dark:text-black'
+                  : 'text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
         </div>
 
-        {/* Sales rep dropdown */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.salesRep', 'Sales Rep')}
-          </label>
-          <select
-            value={arFilters.salesRep ?? ''}
-            onChange={(e) => setARFilters({ salesRep: e.target.value || undefined })}
-            className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent"
-          >
-            <option value="">{t('ar.filters.all', 'All')}</option>
-            {SALES_REP_OPTIONS.map((rep) => (
-              <option key={rep} value={rep}>
-                {rep}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Tier */}
+        <select
+          value={arFilters.tier ?? ''}
+          onChange={(e) => setARFilters({ tier: e.target.value || undefined })}
+          className="text-xs bg-transparent border-b border-black/10 dark:border-white/10 py-1 outline-none cursor-pointer"
+        >
+          <option value="">{t('ar.filters.allTiers', 'All tiers')}</option>
+          {TIER_OPTIONS.map((tier) => (
+            <option key={tier} value={tier}>
+              Tier {tier}
+            </option>
+          ))}
+        </select>
 
-        {/* Date range */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.dateRange', 'Date Range')}
-          </label>
-          <input
-            type="date"
-            value={arFilters.dateRange?.start ?? ''}
-            onChange={(e) =>
-              setARFilters({
-                dateRange: {
-                  start: e.target.value,
-                  end: arFilters.dateRange?.end ?? '',
-                },
-              })
-            }
-            className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent font-[family-name:var(--font-geist-mono)] tabular-nums"
-          />
-          <span className="text-xs text-black/30 dark:text-white/30">-</span>
-          <input
-            type="date"
-            value={arFilters.dateRange?.end ?? ''}
-            onChange={(e) =>
-              setARFilters({
-                dateRange: {
-                  start: arFilters.dateRange?.start ?? '',
-                  end: e.target.value,
-                },
-              })
-            }
-            className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent font-[family-name:var(--font-geist-mono)] tabular-nums"
-          />
-        </div>
-
-        {/* Amount range */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.amount', 'Amount')}
-          </label>
-          <input
-            type="number"
-            placeholder={t('ar.filters.min', 'Min')}
-            value={arFilters.amountRange?.min ?? ''}
-            onChange={(e) =>
-              setARFilters({
-                amountRange: {
-                  min: e.target.value ? Number(e.target.value) : 0,
-                  max: arFilters.amountRange?.max ?? 0,
-                },
-              })
-            }
-            className="w-24 text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent font-[family-name:var(--font-geist-mono)] tabular-nums"
-          />
-          <span className="text-xs text-black/30 dark:text-white/30">-</span>
-          <input
-            type="number"
-            placeholder={t('ar.filters.max', 'Max')}
-            value={arFilters.amountRange?.max ?? ''}
-            onChange={(e) =>
-              setARFilters({
-                amountRange: {
-                  min: arFilters.amountRange?.min ?? 0,
-                  max: e.target.value ? Number(e.target.value) : 0,
-                },
-              })
-            }
-            className="w-24 text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent font-[family-name:var(--font-geist-mono)] tabular-nums"
-          />
-        </div>
-
-        {/* Group by */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.groupBy', 'Group')}
-          </label>
-          <div className="flex gap-1">
-            {GROUP_BY_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() =>
-                  setARFilters({
-                    groupBy: arFilters.groupBy === opt.value ? undefined : opt.value,
-                  })
-                }
-                className={`text-xs px-2 py-1 rounded border transition-colors ${
-                  arFilters.groupBy === opt.value
-                    ? 'bg-[#2563EB] text-white border-[#2563EB]'
-                    : 'border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
-                }`}
-              >
-                {t(`ar.filters.group.${opt.value}`, opt.label)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sort by */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-black/50 dark:text-white/50">
-            {t('ar.filters.sortBy', 'Sort')}
-          </label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {t(`ar.filters.sort.${opt.value}`, opt.label)}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Sales rep */}
+        <select
+          value={arFilters.salesRep ?? ''}
+          onChange={(e) => setARFilters({ salesRep: e.target.value || undefined })}
+          className="text-xs bg-transparent border-b border-black/10 dark:border-white/10 py-1 outline-none cursor-pointer"
+        >
+          <option value="">{t('ar.filters.allReps', 'All reps')}</option>
+          {SALES_REP_OPTIONS.map((rep) => (
+            <option key={rep} value={rep}>
+              {rep}
+            </option>
+          ))}
+        </select>
 
         {/* Saved views */}
         {savedViews.length > 0 && (
-          <div className="flex items-center gap-1">
-            <label className="text-xs text-black/50 dark:text-white/50">
+          <select
+            onChange={(e) => {
+              const view = savedViews.find((v) => v.name === e.target.value)
+              if (view) handleLoadView(view)
+            }}
+            className="text-xs bg-transparent border-b border-black/10 dark:border-white/10 py-1 outline-none cursor-pointer"
+            defaultValue=""
+          >
+            <option value="" disabled>
               {t('ar.filters.savedViews', 'Views')}
-            </label>
-            <select
-              onChange={(e) => {
-                const view = savedViews.find((v) => v.name === e.target.value)
-                if (view) handleLoadView(view)
-              }}
-              className="text-sm border border-black/10 dark:border-white/10 rounded px-2 py-1 bg-transparent"
-              defaultValue=""
-            >
-              <option value="" disabled>
-                {t('ar.filters.selectView', 'Select...')}
+            </option>
+            {savedViews.map((view) => (
+              <option key={view.name} value={view.name}>
+                {view.name}
               </option>
-              {savedViews.map((view) => (
-                <option key={view.name} value={view.name}>
-                  {view.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            ))}
+          </select>
         )}
 
-        {/* Save current */}
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={handleSaveView}
-            className="text-xs text-[#2563EB] hover:underline"
-          >
-            {t('ar.filters.saveView', 'Save view')}
-          </button>
-        )}
+        {/* Actions */}
+        <div className="ms-auto flex items-center gap-3">
+          {hasActiveFilters && (
+            <>
+              <button
+                type="button"
+                onClick={handleSaveView}
+                className="text-xs text-[#2563EB] hover:underline"
+              >
+                {t('ar.filters.saveView', 'Save view')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearARFilters()
+                  setActiveBucket(null)
+                  setSearch('')
+                }}
+                className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+              >
+                {t('ar.filters.clearAll', 'Clear')}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Active filter pills */}
       {activePills.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
+        <div className="flex items-center gap-1.5">
           {activePills.map((pill) => (
             <span
               key={pill.key}
-              className="inline-flex items-center gap-1 rounded-full bg-[#2563EB]/10 text-[#2563EB] px-2 py-0.5 text-xs"
+              className="inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/10 px-2 py-0.5 text-xs text-black/60 dark:text-white/60"
             >
               {pill.label}
               <button
                 type="button"
                 onClick={() => removeFilter(pill.key)}
-                className="hover:text-[#2563EB]/70 font-bold"
+                className="hover:text-black dark:hover:text-white"
                 aria-label={t('ar.filters.removeFilter', 'Remove filter')}
               >
-                x
+                \u00d7
               </button>
             </span>
           ))}
-          <button
-            type="button"
-            onClick={clearARFilters}
-            className="text-xs text-black/40 dark:text-white/40 hover:text-[#2563EB]"
-          >
-            {t('ar.filters.clearAll', 'Clear all filters')}
-          </button>
         </div>
       )}
     </div>

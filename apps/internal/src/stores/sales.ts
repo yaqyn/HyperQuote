@@ -2,25 +2,21 @@ import { create } from 'zustand'
 import type { PipelineFilters } from '../types/sales'
 
 type SalesTab =
-  | 'home'
   | 'rfq-inbox'
-  | 'quote-builder'
-  | 'pipeline'
-  | 'customer-360'
-  | 'contacts'
-  | 'calendar'
-  | 'reports'
+  | 'customers'
 
-type PipelineView = 'kanban' | 'list' | 'funnel'
+type PipelineView = 'kanban' | 'list' | 'funnel' | 'timeline'
 type PipelineScope = 'my' | 'team'
+type RfqStageFilter = 'inbox' | 'in-progress' | 'sent' | 'negotiating' | 'closed'
 type RfqInboxTab = 'all' | 'my' | 'unassigned' | 'needs-clarification' | 'urgent'
+type RfqViewMode = 'list' | 'board'
 
 interface SalesStore {
   // Tab navigation
   activeTab: SalesTab
   setActiveTab: (tab: SalesTab) => void
 
-  // Pipeline
+  // Pipeline (used within RFQ inbox board view)
   pipelineView: PipelineView
   pipelineScope: PipelineScope
   pipelineFilters: PipelineFilters
@@ -32,10 +28,16 @@ interface SalesStore {
   deleteFilterSet: (name: string) => void
 
   // RFQ Inbox
+  rfqStageFilter: RfqStageFilter
   rfqInboxTab: RfqInboxTab
+  rfqViewMode: RfqViewMode
   selectedRfqId: string | null
+  editingRfqId: string | null
+  setRfqStageFilter: (stage: RfqStageFilter) => void
   setRfqInboxTab: (tab: RfqInboxTab) => void
+  setRfqViewMode: (mode: RfqViewMode) => void
   setSelectedRfqId: (id: string | null) => void
+  setEditingRfqId: (id: string | null) => void
 
   // Customer 360
   selectedCustomerId: string | null
@@ -45,10 +47,10 @@ interface SalesStore {
 export const useSalesStore = create<SalesStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'home',
+    activeTab: 'rfq-inbox',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
-    // Pipeline
+    // Pipeline (used within RFQ inbox board view)
     pipelineView: 'kanban',
     pipelineScope: 'my',
     pipelineFilters: {},
@@ -67,10 +69,16 @@ export const useSalesStore = create<SalesStore>()(
       }),
 
     // RFQ Inbox
+    rfqStageFilter: 'inbox',
     rfqInboxTab: 'all',
+    rfqViewMode: 'list',
     selectedRfqId: null,
+    editingRfqId: null,
+    setRfqStageFilter: (stage) => set({ rfqStageFilter: stage }),
     setRfqInboxTab: (tab) => set({ rfqInboxTab: tab }),
+    setRfqViewMode: (mode) => set({ rfqViewMode: mode }),
     setSelectedRfqId: (id) => set({ selectedRfqId: id }),
+    setEditingRfqId: (id) => set({ editingRfqId: id }),
 
     // Customer 360
     selectedCustomerId: null,

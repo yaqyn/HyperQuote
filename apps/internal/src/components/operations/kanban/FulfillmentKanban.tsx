@@ -47,10 +47,16 @@ export function FulfillmentKanban() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-black/40 dark:text-white/40">
-          {t('common.loading', 'Loading...')}
-        </p>
+      <div className="flex h-full flex-col">
+        <div className="h-10 shrink-0" />
+        <div className="flex flex-1 gap-3 overflow-x-auto px-5 py-3">
+          {FULFILLMENT_COLUMNS.map((col) => (
+            <div key={col.stage} className="flex min-w-[220px] flex-1 flex-col gap-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-black/5 dark:bg-white/5" />
+              <div className="flex-1 animate-pulse rounded-lg bg-black/[0.02] dark:bg-white/[0.02]" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -58,7 +64,7 @@ export function FulfillmentKanban() {
   if (error || !data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-red-500">
+        <p className="text-[13px] text-red-500">
           {t('common.error', 'Error loading board data')}
         </p>
       </div>
@@ -84,7 +90,7 @@ export function FulfillmentKanban() {
   return (
     <div className="flex h-full flex-col">
       <KanbanFilters />
-      <div className="flex flex-1 gap-4 overflow-x-auto px-4 py-3">
+      <div className="flex flex-1 gap-3 overflow-x-auto px-5 py-3">
         {FULFILLMENT_COLUMNS.map((col) => {
           const columnOrders = filteredOrders.filter((o) => o.stage === col.stage)
           const count = data.statusCounts[col.stage] ?? 0

@@ -1,3 +1,4 @@
+import { motion } from 'motion/react'
 import { useOperationsStore } from '../../../stores/operations'
 
 // Mock stuck orders for bottleneck detail view
@@ -49,7 +50,6 @@ function formatTimeInStage(ms: number): string {
 export function BottleneckStageDetail() {
   const selectedBottleneckStage = useOperationsStore((s) => s.selectedBottleneckStage)
   const setSelectedOrderId = useOperationsStore((s) => s.setSelectedOrderId)
-  const setActiveTab = useOperationsStore((s) => s.setActiveTab)
 
   if (!selectedBottleneckStage) return null
 
@@ -57,21 +57,42 @@ export function BottleneckStageDetail() {
 
   const handleRowClick = (orderId: string) => {
     setSelectedOrderId(orderId)
-    setActiveTab('order-detail')
   }
 
+  const stageLabel = selectedBottleneckStage.replace(/\b\w/g, (c) => c.toUpperCase())
+
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-      <h3 className="text-base font-semibold mb-3 capitalize">
-        {selectedBottleneckStage} — Stuck Orders
-      </h3>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
+      {/* Section label */}
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          {stageLabel} — Stuck Orders
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/30 dark:text-white/30">
+          {orders.length}
+        </span>
+      </div>
 
       {orders.length === 0 ? (
-        <p className="text-sm text-black/40 dark:text-white/40 text-center py-6">
+        <p className="text-[13px] text-black/30 dark:text-white/30 py-6">
           No stuck orders in this stage
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
+          {/* Header row */}
+          <div className="flex items-center gap-4 px-3 pb-2 text-[10px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+            <span className="w-28 shrink-0">Order</span>
+            <span className="w-40 shrink-0">Customer</span>
+            <span className="w-16 shrink-0">Waiting</span>
+            <span className="flex-1">Reason</span>
+            <span className="w-24 shrink-0 text-end">Assigned</span>
+          </div>
+
           {orders.map((order) => {
             const exceeds24h = order.timeInStageMs > 24 * 3_600_000
             return (
@@ -79,25 +100,27 @@ export function BottleneckStageDetail() {
                 key={order.id}
                 type="button"
                 onClick={() => handleRowClick(order.id)}
-                className="flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-start w-full"
+                className="flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors text-start w-full outline-none
+                  hover:bg-black/[0.03] dark:hover:bg-white/[0.03]
+                  focus-visible:ring-2 focus-visible:ring-[#2563EB]/40"
               >
-                <span className="font-geist-mono text-sm w-32 shrink-0">
+                <span className="font-[family-name:var(--font-geist-mono)] text-[13px] w-28 shrink-0">
                   {order.orderNumber}
                 </span>
-                <span className="text-sm font-medium w-40 shrink-0 truncate">
+                <span className="text-[13px] font-medium w-40 shrink-0 truncate">
                   {order.customerName}
                 </span>
                 <span
-                  className={`font-geist-mono text-sm w-20 shrink-0 ${
-                    exceeds24h ? 'text-red-600' : ''
+                  className={`font-[family-name:var(--font-geist-mono)] text-[13px] w-16 shrink-0 ${
+                    exceeds24h ? 'text-red-600' : 'text-black/50 dark:text-white/50'
                   }`}
                 >
                   {formatTimeInStage(order.timeInStageMs)}
                 </span>
-                <span className="text-[13px] font-normal text-black/50 dark:text-white/50 flex-1 truncate">
+                <span className="text-[13px] text-black/40 dark:text-white/40 flex-1 truncate">
                   {order.reason}
                 </span>
-                <span className="text-[13px] font-normal text-black/50 dark:text-white/50 w-28 shrink-0 truncate text-end">
+                <span className="text-[13px] text-black/40 dark:text-white/40 w-24 shrink-0 truncate text-end">
                   {order.assignedTo}
                 </span>
               </button>
@@ -105,6 +128,6 @@ export function BottleneckStageDetail() {
           })}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

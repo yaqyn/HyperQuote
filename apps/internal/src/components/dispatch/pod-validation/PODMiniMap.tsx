@@ -1,7 +1,8 @@
 /**
- * Small MapLibre instance showing GPS delivery location vs expected address.
- * Own map ref per RESEARCH.md anti-pattern (NOT shared with live map).
- * MUST be wrapped in ClientOnly at the call site.
+ * Small map showing delivery location pin + expected address.
+ * Dashed line between actual and expected GPS.
+ * Distance label floating at bottom.
+ * MUST be wrapped in ClientOnly at call site.
  */
 import { useRef, useCallback } from 'react'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
@@ -9,10 +10,8 @@ import type { MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface PODMiniMapProps {
-  /** Actual GPS delivery location */
   actualLat: number
   actualLng: number
-  /** Expected delivery address location */
   expectedLat: number
   expectedLng: number
 }
@@ -21,13 +20,7 @@ const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
   : 'https://demotiles.maplibre.org/style.json'
 
-/** Haversine distance in meters */
-function haversineMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000
   const toRad = (deg: number) => (deg * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
@@ -38,12 +31,7 @@ function haversineMeters(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-export function PODMiniMap({
-  actualLat,
-  actualLng,
-  expectedLat,
-  expectedLng,
-}: PODMiniMapProps) {
+export function PODMiniMap({ actualLat, actualLng, expectedLat, expectedLng }: PODMiniMapProps) {
   const mapRef = useRef<MapRef>(null)
   const distance = haversineMeters(actualLat, actualLng, expectedLat, expectedLng)
   const withinThreshold = distance <= 500
@@ -67,14 +55,8 @@ export function PODMiniMap({
     if (mapRef.current) {
       mapRef.current.fitBounds(
         [
-          [
-            Math.min(actualLng, expectedLng) - 0.005,
-            Math.min(actualLat, expectedLat) - 0.005,
-          ],
-          [
-            Math.max(actualLng, expectedLng) + 0.005,
-            Math.max(actualLat, expectedLat) + 0.005,
-          ],
+          [Math.min(actualLng, expectedLng) - 0.005, Math.min(actualLat, expectedLat) - 0.005],
+          [Math.max(actualLng, expectedLng) + 0.005, Math.max(actualLat, expectedLat) + 0.005],
         ],
         { padding: 40, duration: 0 },
       )
@@ -82,20 +64,15 @@ export function PODMiniMap({
   }, [actualLat, actualLng, expectedLat, expectedLng])
 
   return (
-    <div className="relative rounded-xl overflow-hidden" style={{ height: 280 }}>
+    <div className="relative" style={{ height: 220 }}>
       <Map
         ref={mapRef}
-        initialViewState={{
-          latitude: centerLat,
-          longitude: centerLng,
-          zoom: 14,
-        }}
+        initialViewState={{ latitude: centerLat, longitude: centerLng, zoom: 14 }}
         mapStyle={MAP_STYLE}
         onLoad={onMapLoad}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
       >
-        {/* Dashed line between actual and expected */}
         <Source id="pod-line" type="geojson" data={lineGeoJSON}>
           <Layer
             id="pod-line-layer"
@@ -108,34 +85,25 @@ export function PODMiniMap({
           />
         </Source>
 
-        {/* Actual GPS pin (blue) */}
+        {/* Actual GPS — blue dot */}
         <Marker latitude={actualLat} longitude={actualLng} anchor="center">
-          <div className="w-4 h-4 rounded-full bg-[#2563EB] border-2 border-white shadow-md" />
+          <div className="h-3.5 w-3.5 rounded-full border-2 border-white bg-[#2563EB] shadow-md" />
         </Marker>
 
-        {/* Expected address pin (red) */}
-        <Marker latitude={expectedLat} longitude={expectedLng} anchor="bottom">
-          <div className="flex flex-col items-center">
-            <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-md" />
-            <div className="w-0.5 h-2 bg-red-500" />
-          </div>
+        {/* Expected — outlined dot */}
+        <Marker latitude={expectedLat} longitude={expectedLng} anchor="center">
+          <div className="h-3.5 w-3.5 rounded-full border-2 border-black/40 bg-white shadow-md dark:border-white/40 dark:bg-black" />
         </Marker>
       </Map>
 
       {/* Distance label */}
-      <div className="absolute bottom-3 start-3 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg flex items-center gap-2">
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-medium">
+      <div className="absolute bottom-3 start-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm dark:bg-black/90">
+        <span className="font-[family-name:var(--font-geist-mono)] text-xs font-medium tabular-nums">
           {Math.round(distance)}m
         </span>
-        {withinThreshold ? (
-          <svg className="w-4 h-4 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4 text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-          </svg>
-        )}
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${withinThreshold ? 'bg-green-500' : 'bg-red-500'}`}
+        />
       </div>
     </div>
   )

@@ -4,8 +4,10 @@ import { getDashboardData } from '../../../lib/server/reports'
 import { useReportsStore } from '../../../stores/reports'
 
 /**
- * Sales dashboard: pipeline value, conversion rate, response time, win rate,
- * revenue MTD vs target (progress bar), top 10 deals table.
+ * Sales — "The Front Page"
+ * Hero metric: Pipeline Value. Supporting: conversion rate, avg response time, win rate.
+ * Chart: Revenue vs Target progress bar.
+ * Table: Top 10 deals.
  */
 export function SalesDashboard() {
   const { t } = useTranslation('reports')
@@ -19,8 +21,8 @@ export function SalesDashboard() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
-        {t('loading', 'Loading...')}
+      <div className="flex items-center justify-center h-64">
+        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
@@ -30,98 +32,99 @@ export function SalesDashboard() {
   const revenueMTD = typeof revenueKpi?.value === 'number' ? revenueKpi.value : 0
   const revenueTarget = typeof targetKpi?.value === 'number' ? targetKpi.value : 1
   const progressPct = Math.round((revenueMTD / revenueTarget) * 100)
+  const heroKpi = data.kpis.find((k) => k.label !== 'Revenue Target') ?? data.kpis[0]
+  const supportingKpis = data.kpis.filter((k) => k !== heroKpi && k.label !== 'Revenue Target')
 
   return (
-    <div className="p-6 space-y-6">
-      {/* ─── KPI Strip ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {data.kpis.filter((k) => k.label !== 'Revenue Target').map((kpi) => (
-          <div
-            key={kpi.label}
-            className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5"
-          >
-            <div className="text-xs text-black/50 dark:text-white/50 mb-1">
+    <div className="p-5 space-y-6 max-w-4xl">
+      {/* Hero metric */}
+      {heroKpi && (
+        <div>
+          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+            {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
+          </div>
+          <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] leading-none font-light">
+            {formatKpiValue(heroKpi.value, heroKpi.unit)}
+          </div>
+          {heroKpi.trend !== undefined && heroKpi.trendDirection && (
+            <TrendIndicator trend={heroKpi.trend} direction={heroKpi.trendDirection} />
+          )}
+        </div>
+      )}
+
+      {/* Supporting metrics */}
+      <div className="flex items-start gap-8">
+        {supportingKpis.slice(0, 3).map((kpi) => (
+          <div key={kpi.label}>
+            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl">
-              {typeof kpi.value === 'number' && kpi.unit === 'EGP'
-                ? new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(kpi.value)
-                : typeof kpi.value === 'number' && kpi.unit === '%'
-                  ? `${kpi.value}%`
-                  : kpi.value}
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
+              {formatKpiValue(kpi.value, kpi.unit)}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
-              <div className={`text-xs mt-1 font-[family-name:var(--font-geist-mono)] tabular-nums ${
-                kpi.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' :
-                kpi.trendDirection === 'down' ? 'text-red-600 dark:text-red-400' :
-                'text-black/40 dark:text-white/40'
-              }`}>
-                {kpi.trendDirection === 'up' ? '+' : ''}{kpi.trend}%
-              </div>
+              <TrendIndicator trend={kpi.trend} direction={kpi.trendDirection} />
             )}
           </div>
         ))}
       </div>
 
-      {/* ─── Revenue Progress ───────────────────────────── */}
-      <div className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">{t('kpi.revenue_vs_target', 'Revenue vs Target')}</span>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
+      {/* Revenue vs Target — CSS bar */}
+      <div>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30">
+            {t('kpi.revenue_vs_target', 'Revenue vs Target')}
+          </span>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
             {progressPct}%
           </span>
         </div>
-        <div className="h-3 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+        <div className="h-1.5 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
           <div
-            className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
+            className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
             style={{ width: `${Math.min(progressPct, 100)}%` }}
           />
         </div>
-        <div className="flex items-center justify-between mt-1 text-xs text-black/40 dark:text-white/40">
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-            {new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(revenueMTD)}
-          </span>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-            {new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(revenueTarget)}
-          </span>
+        <div className="flex justify-between mt-1 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/20 dark:text-white/20">
+          <span>{formatCurrency(revenueMTD)}</span>
+          <span>{formatCurrency(revenueTarget)}</span>
         </div>
       </div>
 
-      {/* ─── Top 10 Deals Table ─────────────────────────── */}
-      <div className="backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-2xl border border-black/5 dark:border-white/10 p-5">
-        <h3 className="text-sm font-semibold mb-3">{t('sales.top_deals', 'Top 10 Deals')}</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* Top Deals Table */}
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+          {t('sales.top_deals', 'Top Deals')}
+        </div>
+        <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="text-xs text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
-                <th className="pb-2 ps-2 font-medium text-start">{t('table.customer', 'Customer')}</th>
-                <th className="pb-2 font-medium text-start">{t('table.deal', 'Deal')}</th>
-                <th className="pb-2 font-medium text-end">{t('table.value', 'Value')}</th>
-                <th className="pb-2 font-medium text-start">{t('table.stage', 'Stage')}</th>
-                <th className="pb-2 pe-2 font-medium text-start">{t('table.rep', 'Rep')}</th>
+              <tr className="border-b border-black/6 dark:border-white/6 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
+                <th className="py-2 ps-3 font-medium text-start">{t('table.customer', 'Customer')}</th>
+                <th className="py-2 font-medium text-start">{t('table.deal', 'Deal')}</th>
+                <th className="py-2 font-medium text-end">{t('table.value', 'Value')}</th>
+                <th className="py-2 font-medium text-start">{t('table.stage', 'Stage')}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t('table.rep', 'Rep')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
               {(data.tableData ?? []).map((row) => (
-                <tr
-                  key={row.id as string}
-                  className="border-b border-black/5 dark:border-white/5"
-                >
-                  <td className="py-2 ps-2">{row.customer as string}</td>
-                  <td className="py-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{row.deal as string}</td>
+                <tr key={row.id as string}>
+                  <td className="py-2 ps-3">{row.customer as string}</td>
+                  <td className="py-2 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">{row.deal as string}</td>
                   <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(row.value as number)}
+                    {formatCurrency(row.value as number)}
                   </td>
                   <td className="py-2">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      row.stage === 'Won' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                      row.stage === 'Negotiation' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
-                      'bg-[#2563EB]/10 text-[#2563EB]'
+                    <span className={`text-[10px] font-medium ${
+                      row.stage === 'Won' ? 'text-green-600 dark:text-green-400' :
+                      row.stage === 'Negotiation' ? 'text-amber-600 dark:text-amber-400' :
+                      'text-[#2563EB]'
                     }`}>
                       {row.stage as string}
                     </span>
                   </td>
-                  <td className="py-2 pe-2">{row.rep as string}</td>
+                  <td className="py-2 pe-3 text-black/40 dark:text-white/40">{row.rep as string}</td>
                 </tr>
               ))}
             </tbody>
@@ -130,4 +133,28 @@ export function SalesDashboard() {
       </div>
     </div>
   )
+}
+
+// ─── Shared helpers ──────────────────────────────────────
+
+function TrendIndicator({ trend, direction }: { trend: number; direction: 'up' | 'down' | 'flat' }) {
+  const arrow = direction === 'up' ? '\u2191' : direction === 'down' ? '\u2193' : '\u2192'
+  const color = direction === 'up' ? 'text-green-600 dark:text-green-400' :
+                direction === 'down' ? 'text-red-600 dark:text-red-400' :
+                'text-black/30 dark:text-white/30'
+  return (
+    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] ${color}`}>
+      {arrow} {direction === 'up' ? '+' : ''}{trend}%
+    </span>
+  )
+}
+
+function formatKpiValue(value: number | string, unit?: string): string {
+  if (typeof value === 'number' && unit === 'EGP') return formatCurrency(value)
+  if (typeof value === 'number' && unit === '%') return `${value}%`
+  return String(value)
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(value)
 }

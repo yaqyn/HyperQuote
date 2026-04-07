@@ -41,9 +41,8 @@ const SKIP_REASONS = [
 ] as const
 
 /**
- * Pick exception handling dialog.
- * Short Pick, Skip Item, Substitute — each with specific inputs.
- * isKeyboardDismissDisabled per locked decision.
+ * Pick exception dialog — Short Pick, Skip, Substitute.
+ * Large touch targets throughout. isKeyboardDismissDisabled per spec.
  */
 export function PickExceptions({
   type,
@@ -53,9 +52,9 @@ export function PickExceptions({
   onCancel,
 }: PickExceptionsProps) {
   return (
-    <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
-      <Modal className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl" isKeyboardDismissDisabled>
-        <Dialog className="outline-none flex flex-col gap-4">
+    <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center">
+      <Modal className="w-full max-w-md rounded-t-2xl bg-white dark:bg-black p-6 shadow-2xl sm:rounded-2xl border border-black/10 dark:border-white/10" isKeyboardDismissDisabled>
+        <Dialog className="outline-none flex flex-col gap-5">
           {type === 'short_pick' && (
             <ShortPickForm
               availableQty={availableQty}
@@ -79,8 +78,6 @@ export function PickExceptions({
   )
 }
 
-// ─── Short Pick ──────────────────────────────────────────
-
 function ShortPickForm({
   availableQty,
   onConfirm,
@@ -94,40 +91,34 @@ function ShortPickForm({
 
   return (
     <>
-      <Heading slot="title" className="text-lg font-semibold text-[var(--color-text-primary)]">
+      <Heading slot="title" className="text-lg font-semibold text-black/90 dark:text-white/90">
         Short Pick
       </Heading>
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        Available quantity at this location:{' '}
-        <span className="font-mono font-semibold text-[var(--color-text-primary)]">
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-black/50 dark:text-white/50">Available:</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-black/90 dark:text-white/90">
           {availableQty}
         </span>
-      </p>
-      <p className="text-xs text-[var(--color-text-secondary)]">
-        Pick what is available. System will redirect to the next location with the same product.
+      </div>
+      <p className="text-xs text-black/40 dark:text-white/40">
+        Pick what is available. System will redirect to next location.
       </p>
       <TextField value={note} onChange={setNote}>
-        <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
-          Reason Note
+        <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+          Note
         </Label>
-        <Input className="h-12 min-h-[48px] w-full rounded-lg border border-[var(--color-border)] px-3 text-sm" />
+        <Input className="h-14 w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-4 text-sm outline-none focus:border-[#2563EB]" />
       </TextField>
-      <div className="flex gap-3 mt-2">
+      <div className="flex gap-3">
         <AriaButton
           onPress={onCancel}
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-secondary)]"
+          className="flex h-14 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-sm font-medium text-black/60 dark:text-white/60 cursor-pointer"
         >
           Cancel
         </AriaButton>
         <AriaButton
-          onPress={() =>
-            onConfirm({
-              type: 'short_pick',
-              pickedQty: availableQty,
-              note,
-            })
-          }
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-medium text-white"
+          onPress={() => onConfirm({ type: 'short_pick', pickedQty: availableQty, note })}
+          className="flex h-14 flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer"
         >
           Confirm Short Pick
         </AriaButton>
@@ -135,8 +126,6 @@ function ShortPickForm({
     </>
   )
 }
-
-// ─── Skip Item ───────────────────────────────────────────
 
 function SkipForm({
   onConfirm,
@@ -149,32 +138,32 @@ function SkipForm({
 
   return (
     <>
-      <Heading slot="title" className="text-lg font-semibold text-[var(--color-text-primary)]">
+      <Heading slot="title" className="text-lg font-semibold text-black/90 dark:text-white/90">
         Skip Item
       </Heading>
-      <p className="text-xs text-[var(--color-text-secondary)]">
+      <p className="text-xs text-black/40 dark:text-white/40">
         Item will be queued for re-pick later.
       </p>
       <Select
         selectedKey={reason}
         onSelectionChange={(key) => setReason(key as string)}
       >
-        <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+        <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
           Reason (required)
         </Label>
-        <AriaButton className="flex h-12 min-h-[48px] w-full items-center justify-between rounded-lg border border-[var(--color-border)] px-3 text-sm">
+        <AriaButton className="flex h-14 w-full items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm cursor-pointer">
           <SelectValue />
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M3.5 5.25L7 8.75L10.5 5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </AriaButton>
-        <Popover className="w-[--trigger-width] rounded-lg border border-[var(--color-border)] bg-white shadow-lg">
+        <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
           <ListBox className="p-1 outline-none">
             {SKIP_REASONS.map((r) => (
               <ListBoxItem
                 key={r.id}
                 id={r.id}
-                className="flex h-10 min-h-[48px] cursor-pointer items-center rounded-md px-3 text-sm hover:bg-[var(--color-bg-hover)] outline-none data-[focused]:bg-[var(--color-bg-hover)]"
+                className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5"
               >
                 {r.label}
               </ListBoxItem>
@@ -182,17 +171,17 @@ function SkipForm({
           </ListBox>
         </Popover>
       </Select>
-      <div className="flex gap-3 mt-2">
+      <div className="flex gap-3">
         <AriaButton
           onPress={onCancel}
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-secondary)]"
+          className="flex h-14 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-sm font-medium text-black/60 dark:text-white/60 cursor-pointer"
         >
           Cancel
         </AriaButton>
         <AriaButton
           onPress={() => onConfirm({ type: 'skip', reason: reason ?? '' })}
           isDisabled={!reason}
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-medium text-white disabled:opacity-40"
+          className="flex h-14 flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer disabled:opacity-30"
         >
           Confirm Skip
         </AriaButton>
@@ -200,8 +189,6 @@ function SkipForm({
     </>
   )
 }
-
-// ─── Substitute ──────────────────────────────────────────
 
 function SubstituteForm({
   substitutes,
@@ -219,12 +206,12 @@ function SubstituteForm({
 
   return (
     <>
-      <Heading slot="title" className="text-lg font-semibold text-[var(--color-text-primary)]">
+      <Heading slot="title" className="text-lg font-semibold text-black/90 dark:text-white/90">
         Substitute Product
       </Heading>
 
       {substitutes.length === 0 ? (
-        <p className="text-sm text-[var(--color-text-secondary)]">
+        <p className="text-sm text-black/50 dark:text-white/50">
           No substitutes available for this product.
         </p>
       ) : (
@@ -236,22 +223,22 @@ function SubstituteForm({
               setScannedBarcode(null)
             }}
           >
-            <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+            <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
               Select Substitute
             </Label>
-            <AriaButton className="flex h-12 min-h-[48px] w-full items-center justify-between rounded-lg border border-[var(--color-border)] px-3 text-sm">
+            <AriaButton className="flex h-14 w-full items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm cursor-pointer">
               <SelectValue />
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                 <path d="M3.5 5.25L7 8.75L10.5 5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </AriaButton>
-            <Popover className="w-[--trigger-width] rounded-lg border border-[var(--color-border)] bg-white shadow-lg">
+            <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
               <ListBox className="p-1 outline-none">
                 {substitutes.map((sub) => (
                   <ListBoxItem
                     key={sub.id}
                     id={sub.id}
-                    className="flex h-10 min-h-[48px] cursor-pointer items-center rounded-md px-3 text-sm hover:bg-[var(--color-bg-hover)] outline-none data-[focused]:bg-[var(--color-bg-hover)]"
+                    className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5"
                   >
                     {sub.name} ({sub.sku})
                   </ListBoxItem>
@@ -265,15 +252,16 @@ function SubstituteForm({
               label="Scan substitute barcode"
               expectedValue={selected.barcode}
               onScan={(value) => setScannedBarcode(value)}
+              size="large"
             />
           )}
         </>
       )}
 
-      <div className="flex gap-3 mt-2">
+      <div className="flex gap-3">
         <AriaButton
           onPress={onCancel}
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-secondary)]"
+          className="flex h-14 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-sm font-medium text-black/60 dark:text-white/60 cursor-pointer"
         >
           Cancel
         </AriaButton>
@@ -286,7 +274,7 @@ function SubstituteForm({
             })
           }
           isDisabled={!selectedId || !scannedBarcode}
-          className="flex h-12 min-h-[48px] flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-medium text-white disabled:opacity-40"
+          className="flex h-14 flex-1 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer disabled:opacity-30"
         >
           Confirm Substitute
         </AriaButton>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Button } from 'react-aria-components'
+import { ArrowLeft } from 'lucide-react'
 import { useSalesStore } from '../../stores/sales'
 import { SalesTabStrip } from './SalesTabStrip'
 import { RFQInboxTable } from './rfq/RFQInboxTable'
@@ -7,45 +8,36 @@ import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { Customer360View } from './customer360/Customer360View'
 import { AddCustomerDialog } from './AddCustomerDialog'
-import { PipelineView } from './pipeline/PipelineView'
-import { SalesHomeView } from './home/SalesHomeView'
-import { SalesCalendar } from './calendar/SalesCalendar'
 import { SalesContacts } from './contacts/SalesContacts'
-import { SalesReports } from './reports/SalesReports'
 import { SalesShortcuts } from './SalesShortcuts'
 
-function TabPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <p className="text-sm text-black/40 dark:text-white/40">{label}</p>
-    </div>
-  )
-}
-
 export function SalesModule() {
-  const { t } = useTranslation('internal')
   const activeTab = useSalesStore((s) => s.activeTab)
   const selectedCustomerId = useSalesStore((s) => s.selectedCustomerId)
+  const setSelectedCustomerId = useSalesStore((s) => s.setSelectedCustomerId)
+  const editingRfqId = useSalesStore((s) => s.editingRfqId)
+  const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
+  const setActiveTab = useSalesStore((s) => s.setActiveTab)
   const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(null)
-  const [previousTab, setPreviousTab] = useState(activeTab)
 
-  // When a quote is in negotiation, render the negotiation view instead of tab content
+  // Negotiation overlay
   if (negotiatingQuoteId) {
     return (
       <div className="flex flex-col h-full">
-        <SalesTabStrip />
-        <div className="flex-1 overflow-hidden">
+        <div className="shrink-0 pt-1 pb-2">
+          <SalesTabStrip />
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
           <NegotiationView
             quoteId={negotiatingQuoteId}
-            onBack={() => {
-              setNegotiatingQuoteId(null)
-            }}
+            onBack={() => setNegotiatingQuoteId(null)}
             onReviseQuote={() => {
               setNegotiatingQuoteId(null)
-              useSalesStore.getState().setActiveTab('quote-builder')
+              setActiveTab('rfq-inbox')
             }}
             onMarkAsWon={() => {
-              // ConvertToOrderDialog will be opened from NegotiationView Task 2
+              setNegotiatingQuoteId(null)
+              setActiveTab('rfq-inbox')
             }}
           />
         </div>
@@ -53,28 +45,78 @@ export function SalesModule() {
     )
   }
 
+  // RFQ tab: inbox list → click → quote builder inline
+  const rfqContent = editingRfqId ? (
+    <div className="flex flex-col h-full">
+      <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
+        <Button
+          onPress={() => setEditingRfqId(null)}
+          aria-label="Back to RFQ list"
+          className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer outline-none transition-colors"
+        >
+          <ArrowLeft size={16} strokeWidth={1.5} />
+          Back to RFQs
+        </Button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+        <QuoteBuilderView rfqId={editingRfqId} />
+      </div>
+    </div>
+  ) : (
+    <RFQInboxTable />
+  )
+
+  // Customers tab: contacts list → click → customer 360 inline
+  const customersContent = selectedCustomerId ? (
+    <div className="flex flex-col h-full">
+      <div className="shrink-0 flex items-center justify-between px-5 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
+        <Button
+          onPress={() => setSelectedCustomerId(null)}
+          aria-label="Back to customers"
+          className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer outline-none transition-colors"
+        >
+          <ArrowLeft size={16} strokeWidth={1.5} />
+          Back to Customers
+        </Button>
+        <AddCustomerDialog />
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+        <Customer360View customerId={selectedCustomerId} />
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-col h-full">
+      <div className="shrink-0 flex items-center justify-between px-5 py-2">
+        <div />
+        <AddCustomerDialog />
+      </div>
+      <div className="flex-1 min-h-0">
+        <SalesContacts />
+      </div>
+    </div>
+  )
+
   const tabContent: Record<string, React.ReactNode> = {
-    home: <SalesHomeView />,
-    'rfq-inbox': <RFQInboxTable />,
-    'quote-builder': <QuoteBuilderView rfqId="rfq-001" />,
-    pipeline: <PipelineView />,
-    'customer-360': <Customer360View customerId={selectedCustomerId ?? 'cust-001'} />,
-    contacts: <SalesContacts />,
-    calendar: <SalesCalendar />,
-    reports: <SalesReports />,
+    'rfq-inbox': rfqContent,
+    customers: customersContent,
   }
 
   return (
     <div className="flex flex-col h-full">
       <SalesShortcuts />
-      <div className="flex items-center justify-between">
+
+      {/* Tab bar */}
+      <div className="shrink-0 pt-1 pb-2">
         <SalesTabStrip />
-        <div className="shrink-0 pe-4">
-          <AddCustomerDialog />
-        </div>
       </div>
-      <div className="flex-1 overflow-auto">
-        {tabContent[activeTab] ?? <TabPlaceholder label="Unknown tab" />}
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+        {tabContent[activeTab] ?? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-[var(--color-text-subtle)]">Coming soon</p>
+          </div>
+        )}
       </div>
     </div>
   )

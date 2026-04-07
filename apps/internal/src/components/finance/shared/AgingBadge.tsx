@@ -5,12 +5,12 @@ interface AgingBadgeProps {
   bucket: ARAgingBucket
 }
 
-const SEVERITY_STYLES: Record<ReturnType<typeof getAgingSeverity>, string> = {
-  green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  dark_red: 'bg-red-200 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-300',
+const SEVERITY_COLORS: Record<ReturnType<typeof getAgingSeverity>, string> = {
+  green: 'text-green-600 dark:text-green-400',
+  yellow: 'text-yellow-600 dark:text-yellow-400',
+  orange: 'text-orange-600 dark:text-orange-400',
+  red: 'text-red-600 dark:text-red-400',
+  dark_red: 'text-red-700 dark:text-red-300 font-bold',
 }
 
 const BUCKET_LABELS: Record<ARAgingBucket, string> = {
@@ -22,15 +22,15 @@ const BUCKET_LABELS: Record<ARAgingBucket, string> = {
 }
 
 /**
- * Color-coded badge for AR/AP aging buckets.
- * Maps bucket to severity color per finance spec.
+ * Colored text label for AR/AP aging buckets.
+ * No background pill — text color only as data indicator.
  */
 export function AgingBadge({ bucket }: AgingBadgeProps) {
   const severity = getAgingSeverity(bucket)
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-[family-name:var(--font-geist-mono)] tabular-nums ${SEVERITY_STYLES[severity]}`}
+      className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-medium ${SEVERITY_COLORS[severity]}`}
     >
       {BUCKET_LABELS[bucket]}
     </span>

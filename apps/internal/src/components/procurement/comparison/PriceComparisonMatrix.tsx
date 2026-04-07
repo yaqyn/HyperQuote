@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { comparePricing } from '../../../lib/server/procurement-comparison'
 import type { PriceComparison, SplitSource } from '../../../types/procurement'
 import { ComparisonRow } from './ComparisonRow'
@@ -36,16 +37,25 @@ export function PriceComparisonMatrix({ items, onCreatePO }: PriceComparisonMatr
     .map((q) => q.data?.comparisons ?? [])
     .flat()
 
+  // Collect all unique supplier names for column headers
+  const allSuppliers = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const comp of comparisons) {
+      for (const s of comp.suppliers) {
+        if (!map.has(s.supplierId)) map.set(s.supplierId, s.supplierName)
+      }
+    }
+    return Array.from(map, ([id, name]) => ({ id, name }))
+  }, [comparisons])
+
   // Calculate total cost from selections
   const totalCost = useMemo(() => {
     let total = 0
     for (const comp of comparisons) {
       const splitSource = splits[comp.productId]
       if (splitSource) {
-        // Split sourcing: sum of (qty * price) per allocation
         total += splitSource.allocations.reduce((s, a) => s + a.quantity * a.unitPrice, 0)
       } else {
-        // Single supplier
         const selectedId = selections[comp.productId]
         const supplier = comp.suppliers.find((s) => s.supplierId === selectedId)
         if (supplier) {
@@ -64,7 +74,6 @@ export function PriceComparisonMatrix({ items, onCreatePO }: PriceComparisonMatr
 
   function handleSelectSupplier(productId: string, supplierId: string) {
     setSelections((prev) => ({ ...prev, [productId]: supplierId }))
-    // Clear any split for this product when single supplier selected
     setSplits((prev) => {
       const next = { ...prev }
       delete next[productId]
@@ -74,7 +83,6 @@ export function PriceComparisonMatrix({ items, onCreatePO }: PriceComparisonMatr
 
   function handleSplitSource(split: SplitSource) {
     setSplits((prev) => ({ ...prev, [split.productId]: split }))
-    // Clear single selection when split is configured
     setSelections((prev) => {
       const next = { ...prev }
       delete next[split.productId]
@@ -88,51 +96,87 @@ export function PriceComparisonMatrix({ items, onCreatePO }: PriceComparisonMatr
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-black/40 dark:text-white/40">Loading supplier comparisons...</div>
+      <div className="flex items-center justify-center py-16">
+        <div className="text-sm text-black/30 dark:text-white/30">Loading comparisons...</div>
       </div>
     )
   }
 
   if (comparisons.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-black/40 dark:text-white/40">No supplier responses to compare</div>
+      <div className="flex items-center justify-center py-16">
+        <div className="text-sm text-black/30 dark:text-white/30">No supplier responses to compare</div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {/* Comparison rows */}
-      {comparisons.map((comp) => (
-        <ComparisonRow
-          key={comp.productId}
-          comparison={comp}
-          selectedSupplierId={selections[comp.productId] ?? null}
-          onSelectSupplier={(sid) => handleSelectSupplier(comp.productId, sid)}
-          onSplitSource={handleSplitSource}
-        />
-      ))}
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      className="flex flex-col gap-px"
+    >
+      {/* Spreadsheet grid */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[640px]">
+          {/* Column headers: empty cell + supplier names */}
+          <div className="flex items-end gap-px pb-3">
+            {/* Product column header */}
+            <div className="w-48 shrink-0 pe-4">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+                Product
+              </span>
+            </div>
+            {/* Supplier column headers */}
+            {allSuppliers.map((s) => (
+              <div key={s.id} className="flex-1 min-w-[120px] px-2 text-center">
+                <span className="text-[11px] font-medium text-black/50 dark:text-white/50 leading-tight">
+                  {s.name}
+                </span>
+              </div>
+            ))}
+            {/* Split column */}
+            <div className="w-16 shrink-0" />
+          </div>
+
+          {/* Product rows */}
+          {comparisons.map((comp) => (
+            <ComparisonRow
+              key={comp.productId}
+              comparison={comp}
+              allSuppliers={allSuppliers}
+              selectedSupplierId={selections[comp.productId] ?? null}
+              onSelectSupplier={(sid) => handleSelectSupplier(comp.productId, sid)}
+              onSplitSource={handleSplitSource}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between rounded-xl border border-black/10 bg-white/80 px-6 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-black/80">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.15 }}
+        className="mt-4 flex items-center justify-between rounded-xl bg-white/60 px-6 py-4 backdrop-blur-xl dark:bg-white/[0.04]"
+      >
         <div>
-          <div className="text-xs text-black/50 dark:text-white/50">
-            Total Cost ({selectedCount}/{comparisons.length} items selected)
+          <div className="text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">
+            Total ({selectedCount}/{comparisons.length})
           </div>
-          <div className="mt-1 font-mono text-xl font-semibold text-black dark:text-white">
+          <div className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-xl font-semibold tabular-nums text-black dark:text-white">
             {totalCost > 0 ? fmtPrice(totalCost) : '--'}
           </div>
         </div>
         <Button
           onPress={handleCreatePO}
           isDisabled={!allSelected}
-          className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white outline-none transition-opacity data-[disabled]:opacity-30 data-[hovered]:opacity-90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-2"
         >
-          Create PO(s) from Selection
+          Create PO(s)
         </Button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

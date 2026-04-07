@@ -10,6 +10,7 @@
     "sales": "Sales",
     "procurement": "Procurement",
     "orders": "Orders",
+    "operations": "Operations",
     "warehouse": "Warehouse",
     "finance": "Finance",
     "dispatch": "Dispatch",
@@ -31,6 +32,12 @@
   "commandPalette": {
     "placeholder": "Search commands, entities, actions...",
     "noResults": "No results found",
+    "label": "Command Palette",
+    "modules": "Modules",
+    "entities": "Entities",
+    "actions": "Actions",
+    "recent": "Recent",
+    "results": "Results",
     "categories": {
       "modules": "Modules",
       "entities": "Entities",
@@ -45,6 +52,18 @@
     "yesterday": "Yesterday",
     "older": "Older",
     "empty": "No notifications"
+  },
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "error": "Error",
+    "loading": "Loading...",
+    "next": "Next",
+    "previous": "Previous",
+    "submitting": "Submitting...",
+    "updating": "Updating..."
   },
   "bell": {
     "label": "Notifications"
@@ -140,10 +159,54 @@
       "scope": {
         "my": "My Pipeline",
         "team": "Team Pipeline"
-      }
+      },
+      "activeDeals": "Active Deals",
+      "addNote": "Add Note",
+      "advance": "Advance",
+      "advanceTo": "Advance To",
+      "allAges": "All Ages",
+      "allValues": "All Values",
+      "assignedRep": "Assigned Rep",
+      "avgTimePerStage": "Avg Time Per Stage",
+      "confirmLost": "Confirm Lost",
+      "confirmWon": "Confirm Won",
+      "conversionRates": "Conversion Rates",
+      "convertNow": "Convert Now",
+      "convertToOrder": "Convert to Order",
+      "currentStage": "Current Stage",
+      "customerPO": "Customer PO",
+      "daysInStage": "Days in Stage",
+      "dealDetails": "Deal Details",
+      "editDeal": "Edit Deal",
+      "filterSetName": "Filter Set Name",
+      "funnelChart": "Funnel Chart",
+      "hideAnalytics": "Hide Analytics",
+      "kanbanBoard": "Kanban Board",
+      "listView": "List View",
+      "lossReason": "Loss Reason",
+      "lossReasonPlaceholder": "Enter reason for loss...",
+      "lostDescription": "This deal has been marked as lost",
+      "markAsLost": "Mark as Lost",
+      "markAsLostTitle": "Mark Deal as Lost",
+      "markAsWon": "Mark as Won",
+      "myPipeline": "My Pipeline",
+      "noDeals": "No deals found",
+      "pipelineList": "Pipeline List",
+      "saveFilters": "Save Filters",
+      "searchCustomer": "Search customer...",
+      "showAnalytics": "Show Analytics",
+      "status": "Status",
+      "teamPipeline": "Team Pipeline",
+      "totalPipeline": "Total Pipeline",
+      "viewCustomer360": "View Customer 360",
+      "weightedForecast": "Weighted Forecast",
+      "winProbability": "Win Probability",
+      "winRate": "Win Rate",
+      "wonDescription": "This deal has been won"
     },
     "customer360": {
-      "tabs": {
+      "tabs": "Customer Details",
+      "tabNames": {
         "overview": "Overview",
         "contacts": "Contacts",
         "quotes": "Quotes",
@@ -154,22 +217,194 @@
         "documents": "Documents",
         "notes": "Notes"
       },
-      "healthScore": {
-        "label": "Health Score",
+      "unclaimed": "Unclaimed",
+      "accountManager": "Account Manager",
+      "since": "Customer since",
+      "header": {
+        "totalOrders": "Total Orders",
+        "lifetimeValue": "Lifetime Value",
+        "avgMargin": "Avg Margin",
+        "creditAvailable": "Credit Available",
+        "healthScore": "Health Score",
+        "daysSinceLastOrder": "Days Since Last Order"
+      },
+      "health": {
+        "title": "Health Score",
         "good": "Healthy",
-        "warning": "Needs Attention",
-        "critical": "At Risk"
+        "fair": "Needs Attention",
+        "poor": "At Risk"
+      },
+      "overview": {
+        "companyName": "Company",
+        "contactName": "Primary Contact",
+        "phone": "Phone",
+        "email": "Email",
+        "address": "Address",
+        "creditLimit": "Credit Limit",
+        "currentExposure": "Current Exposure",
+        "available": "Available",
+        "avgDaysToPay": "Avg Days to Pay",
+        "orders12mo": "Orders (12mo)",
+        "revenue12mo": "Revenue (12mo)",
+        "openQuotes": "Open Quotes",
+        "winRate": "Win Rate",
+        "keyContacts": "Key Contacts",
+        "recentActivity": "Recent Activity"
+      },
+      "contacts": {
+        "noContacts": "No contacts found",
+        "addContact": "Add Contact"
+      },
+      "quotes": {
+        "noQuotes": "No quotes found",
+        "winRate": "Win Rate",
+        "won": "Won",
+        "lost": "Lost",
+        "pending": "Pending",
+        "all": "All",
+        "filterStatus": "Filter by status"
+      },
+      "orders": {
+        "noOrders": "No orders found",
+        "delivery": "Delivery",
+        "payment": "Payment"
+      },
+      "financials": {
+        "arAging": "AR Aging",
+        "current": "Current",
+        "noAR": "No outstanding receivables",
+        "paymentHistory": "Payment History",
+        "avgDaysToPay": "Avg Days to Pay",
+        "creditHistory": "Credit Limit History"
+      },
+      "projects": {
+        "noProjects": "No active projects",
+        "aiCrossSell": "Cross-sell Opportunity"
+      },
+      "communications": {
+        "noCommunications": "No communications logged",
+        "search": "Search communications",
+        "searchPlaceholder": "Search by keyword..."
+      },
+      "documents": {
+        "noDocuments": "No documents",
+        "dragDrop": "Drag & drop files here or",
+        "browse": "browse",
+        "download": "Download"
+      },
+      "notes": {
+        "noNotes": "No notes yet",
+        "addNote": "Add a note",
+        "placeholder": "Write a note...",
+        "save": "Save",
+        "tags": {
+          "general": "General",
+          "quote-related": "Quote",
+          "order-related": "Order"
+        }
       }
+    },
+    "calendar": {
+      "addEvent": "Add Event",
+      "today": "Today"
+    },
+    "contacts": {
+      "empty": "No contacts found",
+      "noResults": "No results",
+      "search": "Search contacts"
+    },
+    "credit": {
+      "available": "Available",
+      "exposure": "Exposure",
+      "limit": "Credit Limit",
+      "requestIncrease": "Request Increase"
     },
     "negotiation": {
       "actions": {
         "reviseQuote": "Revise Quote",
         "acceptCounter": "Accept Counter",
         "markWon": "Mark as Won",
-        "markLost": "Mark as Lost"
+        "markLost": "Mark as Lost",
+        "markAsWon": "Mark as Won",
+        "markAsLost": "Mark as Lost"
       },
-      "versionLabel": "Version {{value}}"
+      "versionLabel": "Version {{value}}",
+      "addNote": "Add Note",
+      "addNotePlaceholder": "Add a note...",
+      "applyMargins": "Apply Margins",
+      "backToPipeline": "Back to Pipeline",
+      "blanketMargin": "Blanket Margin",
+      "blendedMargin": "Blended Margin",
+      "comparison": "Comparison",
+      "competitorName": "Competitor Name",
+      "competitorPlaceholder": "Enter competitor name...",
+      "confirmLost": "Confirm Lost",
+      "convert": {
+        "advanceHint": "Request an advance payment before delivery",
+        "confirmOrder": "Confirm Order",
+        "convertNow": "Convert Now",
+        "createPOs": "Create Purchase Orders",
+        "createSO": "Create Sales Order",
+        "delivery": "Delivery",
+        "notify": "Notify",
+        "phoneConfirmed": "Phone Confirmed",
+        "phoneDesc": "Customer confirmed via phone call",
+        "poHint": "Enter the customer's PO number if available",
+        "poNumber": "PO Number",
+        "proforma": "Proforma",
+        "requestAdvance": "Request Advance",
+        "standard": "Standard",
+        "standardDesc": "Standard order conversion",
+        "title": "Convert to Order",
+        "whatHappens": "What happens next"
+      },
+      "hidePerItem": "Hide Per Item",
+      "lossReason": "Loss Reason",
+      "markAsLost": "Mark as Lost",
+      "newProfit": "New Profit",
+      "newTotal": "New Total",
+      "notes": "Notes",
+      "showPerItem": "Show Per Item",
+      "subtotal": "Subtotal",
+      "thread": "Thread",
+      "total": "Total",
+      "vat14": "VAT (14%)",
+      "versionTimeline": "Version Timeline",
+      "vsCurrent": "vs Current",
+      "whatIfCalculator": "What-If Calculator"
     },
+    "addCustomer": {
+      "button": "Add Customer",
+      "title": "Add New Customer",
+      "phone": "Phone Number",
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Enter a valid Egyptian phone number",
+      "phoneDuplicate": "A customer with this phone already exists: {{name}}",
+      "companyName": "Company Name",
+      "companyRequired": "Company name is required",
+      "companyDuplicate": "A similar company name already exists: {{name}}",
+      "contactName": "Contact Name",
+      "contactRequired": "Contact name is required",
+      "deliveryAddress": "Delivery Address",
+      "projectName": "Project Name",
+      "notes": "Notes",
+      "optional": "Optional fields",
+      "cancel": "Cancel",
+      "create": "Create Customer",
+      "creating": "Creating..."
+    },
+    "reports": {
+      "avgOrder": "Avg Order",
+      "conversionRates": "Conversion Rates",
+      "exportCSV": "Export CSV",
+      "forecast": "Forecast",
+      "marginByCustomer": "Margin by Customer",
+      "orders": "Orders",
+      "pipelineByStage": "Pipeline by Stage",
+      "revenueByProduct": "Revenue by Product",
+      "totalRevenue": "Total Revenue"
+    },
+    "top_deals": "Top Deals",
     "general": {
       "slaTimer": "SLA Timer",
       "ageTimer": "Age",
@@ -282,5 +517,88 @@
       "rejected": "Rejected",
       "cancelled": "Cancelled"
     }
-  }
+  },
+  "warehouse": {
+    "kpi": {
+      "inventoryAccuracy": "Inventory Accuracy",
+      "pickAccuracy": "Pick Accuracy",
+      "onTimeShipment": "On-Time Shipment",
+      "receivingCycleTime": "Receiving Cycle Time",
+      "tasksToday": "Tasks Today",
+      "workersActive": "Workers Active"
+    },
+    "alerts": {
+      "title": "Alerts",
+      "lowStockDesc": "Low stock items need attention",
+      "expiringDesc": "Items expiring soon",
+      "varianceDesc": "Inventory variance detected"
+    },
+    "receiving": {
+      "title": "Receiving",
+      "additionalNotes": "Additional Notes",
+      "bolNumber": "BOL Number",
+      "bulkReceiving": "Bulk Receiving",
+      "completeReceiving": "Complete Receiving",
+      "completeRequired": "Complete all required fields",
+      "condition": "Condition",
+      "confirmReceipt": "Confirm Receipt",
+      "contaminationCheck": "Contamination Check",
+      "discrepancies": "Discrepancies",
+      "discrepancy": "Discrepancy",
+      "discrepancyPhoto": "Discrepancy Photo",
+      "driverName": "Driver Name",
+      "dumpLocation": "Dump Location",
+      "expected": "Expected",
+      "filterStatus": "Filter by Status",
+      "grossWeight": "Gross Weight",
+      "licensePlate": "License Plate",
+      "lineItems": "Line Items",
+      "lotNumber": "Lot Number",
+      "materialVerified": "Material Verified",
+      "netWeight": "Net Weight",
+      "noDeliveries": "No deliveries",
+      "noDiscrepancies": "No discrepancies",
+      "note": "Note",
+      "notePlaceholder": "Enter a note...",
+      "override": "Override",
+      "photo": "Photo",
+      "previouslyReceived": "Previously Received",
+      "qualityChecklist": "Quality Checklist",
+      "qualityChecks": "Quality Checks",
+      "reasonCode": "Reason Code",
+      "received": "Received",
+      "rejectDelivery": "Reject Delivery",
+      "remaining": "Remaining",
+      "selectReason": "Select Reason",
+      "selectZone": "Select Zone",
+      "signature": "Signature",
+      "standardReceiving": "Standard Receiving",
+      "suggestedLocation": "Suggested Location",
+      "tareWeight": "Tare Weight",
+      "thisLoad": "This Load",
+      "truckInfo": "Truck Info",
+      "truckType": "Truck Type",
+      "unscheduled": "Unscheduled",
+      "weighTicket": "Weigh Ticket"
+    }
+  },
+  "operations": {
+    "kanban": {
+      "confirmMove": "Confirm Move",
+      "confirmMoveTitle": "Confirm Stage Change",
+      "noOrders": "No orders",
+      "notes": "Notes",
+      "notesPlaceholder": "Add notes..."
+    },
+    "filters": {
+      "clearAll": "Clear All",
+      "customer": "Customer",
+      "customerPlaceholder": "Search customer..."
+    }
+  },
+  "blocked": "Blocked",
+  "deal": "Deal",
+  "eta": "ETA",
+  "granted": "Granted",
+  "status": "Status"
 }

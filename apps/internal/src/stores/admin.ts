@@ -12,6 +12,10 @@ interface AdminStore {
 
   selectedRoleId: string | null
   setSelectedRoleId: (id: string | null) => void
+
+  // Users → Permissions master-detail
+  editingRoleId: string | null
+  setEditingRoleId: (id: string | null) => void
 }
 
 export const useAdminStore = create<AdminStore>()(
@@ -26,6 +30,10 @@ export const useAdminStore = create<AdminStore>()(
 
     selectedRoleId: null,
     setSelectedRoleId: (id) => set({ selectedRoleId: id }),
+
+    // Users → Permissions master-detail
+    editingRoleId: null,
+    setEditingRoleId: (id) => set({ editingRoleId: id }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

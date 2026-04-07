@@ -1,8 +1,6 @@
 /**
- * Driver list table with filters, search, sort, and compliance badges.
- * Filter by type: All/Internal/Contracted/On-Demand/Blocked.
- * React Aria SearchField for name search.
- * Blocked drivers have muted row style.
+ * Dense driver list — each row: name + status dot + vehicle plate (mono) + compliance indicator.
+ * Search at top. Filters as pills.
  */
 import { useState, useMemo } from 'react'
 import { SearchField, Input, Label } from 'react-aria-components'
@@ -11,203 +9,135 @@ import type { Driver, ComplianceStatus as ComplianceStatusType } from '../../../
 
 interface DriverListProps {
   drivers: Driver[]
+  selectedDriverId: string | null
   onSelectDriver: (driverId: string) => void
 }
 
 type FilterKey = 'all' | 'INTERNAL' | 'CONTRACTED' | 'ON_DEMAND' | 'blocked'
-type SortKey = 'name' | 'compliance' | 'type'
 
-const TYPE_BADGES: Record<string, { label: string; className: string }> = {
-  INTERNAL: { label: 'Internal', className: 'bg-[#2563EB]/10 text-[#2563EB]' },
-  CONTRACTED: { label: 'Contracted', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' },
-  ON_DEMAND: { label: 'On-Demand', className: 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60' },
+const COMPLIANCE_DOTS: Record<ComplianceStatusType, string> = {
+  valid: 'bg-green-500',
+  expiring: 'bg-amber-500',
+  expired: 'bg-red-500',
+  blocked: 'bg-red-500',
 }
 
-const COMPLIANCE_BADGES: Record<ComplianceStatusType, { label: string; className: string; dot: string }> = {
-  valid: { label: 'Valid', className: 'text-green-700 dark:text-green-300', dot: 'bg-green-500' },
-  expiring: { label: 'Expiring', className: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
-  expired: { label: 'Expired', className: 'text-red-700 dark:text-red-300', dot: 'bg-red-500' },
-  blocked: { label: 'Blocked', className: 'text-red-700 dark:text-red-300', dot: '' },
-}
-
-const COMPLIANCE_ORDER: Record<ComplianceStatusType, number> = {
-  blocked: 0,
-  expired: 1,
-  expiring: 2,
-  valid: 3,
-}
-
-export function DriverList({ drivers, onSelectDriver }: DriverListProps) {
+export function DriverList({ drivers, selectedDriverId, onSelectDriver }: DriverListProps) {
   const { t } = useTranslation('dispatch')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<SortKey>('name')
 
   const filtered = useMemo(() => {
     let result = drivers
 
-    // Filter by type/blocked
     if (filter === 'blocked') {
       result = result.filter((d) => d.complianceStatus === 'expired' || d.complianceStatus === 'blocked')
     } else if (filter !== 'all') {
       result = result.filter((d) => d.type === filter)
     }
 
-    // Search by name
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       result = result.filter((d) => d.name.toLowerCase().includes(q))
     }
 
-    // Sort
-    result = [...result].sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name)
-      if (sortBy === 'type') return a.type.localeCompare(b.type)
-      if (sortBy === 'compliance') {
-        return (COMPLIANCE_ORDER[a.complianceStatus] ?? 3) - (COMPLIANCE_ORDER[b.complianceStatus] ?? 3)
-      }
-      return 0
+    // Expired/blocked float to top, then by name
+    return [...result].sort((a, b) => {
+      const aBlocked = a.complianceStatus === 'expired' || a.complianceStatus === 'blocked' ? 0 : 1
+      const bBlocked = b.complianceStatus === 'expired' || b.complianceStatus === 'blocked' ? 0 : 1
+      if (aBlocked !== bBlocked) return aBlocked - bBlocked
+      return a.name.localeCompare(b.name)
     })
+  }, [drivers, filter, search])
 
-    return result
-  }, [drivers, filter, search, sortBy])
-
-  const FILTER_BUTTONS: Array<{ key: FilterKey; label: string }> = [
+  const FILTERS: Array<{ key: FilterKey; label: string }> = [
     { key: 'all', label: t('driver.filter.all', 'All') },
     { key: 'INTERNAL', label: t('driver.filter.internal', 'Internal') },
-    { key: 'CONTRACTED', label: t('driver.filter.contracted', 'Contracted') },
+    { key: 'CONTRACTED', label: t('driver.filter.contracted', 'Contract') },
     { key: 'ON_DEMAND', label: t('driver.filter.onDemand', 'On-Demand') },
     { key: 'blocked', label: t('driver.filter.blocked', 'Blocked') },
   ]
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Filters + Search */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2 flex-wrap">
-          {FILTER_BUTTONS.map((btn) => (
-            <button
-              key={btn.key}
-              type="button"
-              onClick={() => setFilter(btn.key)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                filter === btn.key
-                  ? 'bg-[#2563EB] text-white'
-                  : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-
+    <div className="flex flex-col">
+      {/* Search */}
+      <div className="p-3">
         <SearchField
           value={search}
           onChange={setSearch}
-          className="flex items-center gap-2"
+          className="w-full"
           aria-label={t('driver.search', 'Search drivers')}
         >
           <Label className="sr-only">{t('driver.search', 'Search drivers')}</Label>
           <Input
             placeholder={t('driver.searchPlaceholder', 'Search by name...')}
-            className="rounded-lg border border-black/20 dark:border-white/20 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#2563EB] w-48"
+            className="w-full rounded-lg border border-black/[0.08] bg-black/[0.03] px-3 py-1.5 text-sm outline-none placeholder:text-black/30 focus:ring-1 focus:ring-[#2563EB] dark:border-white/[0.08] dark:bg-white/[0.03] dark:placeholder:text-white/30"
           />
         </SearchField>
       </div>
 
-      {/* Sort controls */}
-      <div className="flex gap-2 text-xs text-black/50 dark:text-white/50">
-        <span>{t('driver.sortBy', 'Sort by')}:</span>
-        {(['name', 'compliance', 'type'] as SortKey[]).map((key) => (
+      {/* Filter pills */}
+      <div className="flex gap-1 px-3 pb-2">
+        {FILTERS.map((f) => (
           <button
-            key={key}
+            key={f.key}
             type="button"
-            onClick={() => setSortBy(key)}
-            className={`transition-colors ${sortBy === key ? 'text-[#2563EB] font-medium' : 'hover:text-black dark:hover:text-white'}`}
+            onClick={() => setFilter(f.key)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              filter === f.key
+                ? 'bg-black text-white dark:bg-white dark:text-black'
+                : 'text-black/40 hover:text-black/60 dark:text-white/40 dark:hover:text-white/60'
+            }`}
           >
-            {t(`driver.sort.${key}`, key)}
+            {f.label}
           </button>
         ))}
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.name', 'Name')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.type', 'Type')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.vehicle', 'Vehicle')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.compliance', 'Compliance')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.activeRoute', 'Active Route')}</th>
-              <th className="px-4 py-3 text-start text-xs text-black/50 dark:text-white/50 font-medium">{t('driver.col.availability', 'Availability')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((driver: Driver) => {
-              const isBlocked = driver.complianceStatus === 'expired' || driver.complianceStatus === 'blocked'
-              const badge = TYPE_BADGES[driver.type] ?? TYPE_BADGES.INTERNAL!
-              const compliance = COMPLIANCE_BADGES[driver.complianceStatus] ?? COMPLIANCE_BADGES.valid
+      {/* Driver rows */}
+      <div className="flex-1 overflow-y-auto">
+        {filtered.map((driver: Driver) => {
+          const isBlocked = driver.complianceStatus === 'expired' || driver.complianceStatus === 'blocked'
+          const isSelected = driver.id === selectedDriverId
 
-              return (
-                <tr
-                  key={driver.id}
-                  onClick={() => onSelectDriver(driver.id)}
-                  className={`border-b border-black/5 dark:border-white/5 cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] ${
-                    isBlocked ? 'opacity-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3 font-medium">{driver.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
-                      {t(`driver.type.${driver.type}`, badge.label)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-black/60 dark:text-white/60">
-                    {driver.vehicleId ?? '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    {isBlocked ? (
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
-                        {t('driver.compliance.blocked', 'Blocked')}
-                      </span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${compliance.className}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${compliance.dot}`} />
-                        {t(`driver.compliance.${driver.complianceStatus}`, compliance.label)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {driver.activeRouteId ? (
-                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[#2563EB]">
-                        {driver.activeRouteId}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-green-600 dark:text-green-400">
-                        {t('driver.available', 'Available')}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full w-2 h-2 ${
-                        driver.available ? 'bg-green-500' : 'bg-black/20 dark:bg-white/20'
-                      }`}
-                    />
-                  </td>
-                </tr>
-              )
-            })}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-black/40 dark:text-white/40">
-                  {t('driver.noDrivers', 'No drivers found')}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          return (
+            <button
+              key={driver.id}
+              type="button"
+              onClick={() => onSelectDriver(driver.id)}
+              className={`flex w-full items-center gap-3 border-b border-black/[0.04] px-4 py-3 text-start transition-colors dark:border-white/[0.04] ${
+                isSelected
+                  ? 'bg-[#2563EB]/[0.06]'
+                  : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+              } ${isBlocked ? 'opacity-50' : ''}`}
+            >
+              {/* Initials circle */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-xs font-semibold text-black/60 dark:bg-white/[0.06] dark:text-white/60">
+                {driver.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+              </div>
+
+              {/* Name + plate */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-black dark:text-white">
+                  {driver.name}
+                </p>
+                <p className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
+                  {driver.vehicleId ?? t('driver.noVehicle', 'Unassigned')}
+                </p>
+              </div>
+
+              {/* Compliance dot */}
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${COMPLIANCE_DOTS[driver.complianceStatus] ?? 'bg-black/20'}`}
+              />
+            </button>
+          )
+        })}
+        {filtered.length === 0 && (
+          <p className="py-8 text-center text-sm text-black/30 dark:text-white/30">
+            {t('driver.noDrivers', 'No drivers found')}
+          </p>
+        )}
       </div>
     </div>
   )

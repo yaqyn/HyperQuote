@@ -2,29 +2,33 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button, ToggleButton } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { AnimatePresence, motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { getActivityFeed } from '../../../lib/server/sales-activity'
 
-type CalendarView = 'week' | 'day' | 'month'
+type CalendarView = 'day' | 'week' | 'month'
 
 interface CalendarEvent {
   id: string
   title: string
   date: Date
+  hour?: number
   type: 'customer_meeting' | 'site_visit' | 'quote_deadline' | 'overdue_followup' | 'internal_meeting'
   entityId: string | null
   entityUrl: string | null
 }
 
-const EVENT_COLORS: Record<CalendarEvent['type'], { bg: string; text: string; label: string }> = {
-  customer_meeting: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', label: 'Customer Meeting' },
-  site_visit: { bg: 'bg-green-500/15', text: 'text-green-600 dark:text-green-400', label: 'Site Visit' },
-  quote_deadline: { bg: 'bg-orange-500/15', text: 'text-orange-600 dark:text-orange-400', label: 'Quote Deadline' },
-  overdue_followup: { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400', label: 'Overdue Follow-up' },
-  internal_meeting: { bg: 'bg-purple-500/15', text: 'text-purple-600 dark:text-purple-400', label: 'Internal Meeting' },
+// Semantic dot colors for DATA only -- not UI chrome
+const EVENT_DOT: Record<CalendarEvent['type'], { color: string; label: string }> = {
+  customer_meeting: { color: 'bg-blue-500', label: 'Customer Meeting' },
+  site_visit: { color: 'bg-green-500', label: 'Site Visit' },
+  quote_deadline: { color: 'bg-orange-500', label: 'Quote Deadline' },
+  overdue_followup: { color: 'bg-red-500', label: 'Overdue Follow-up' },
+  internal_meeting: { color: 'bg-purple-500', label: 'Internal Meeting' },
 }
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const HOURS = Array.from({ length: 13 }, (_, i) => i + 7) // 7AM - 7PM
 
 function getWeekDates(date: Date): Date[] {
   const start = new Date(date)
@@ -47,7 +51,6 @@ function getMonthDates(date: Date): Date[] {
   const startOffset = firstDay.getDay()
   const start = new Date(firstDay)
   start.setDate(start.getDate() - startOffset)
-  // 6 weeks grid
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(start)
     d.setDate(d.getDate() + i)
@@ -55,13 +58,232 @@ function getMonthDates(date: Date): Date[] {
   })
 }
 
+function formatHour(h: number): string {
+  if (h === 0) return '12 AM'
+  if (h < 12) return `${h} AM`
+  if (h === 12) return '12 PM'
+  return `${h - 12} PM`
+}
+
+// ─── Hover Tooltip ──────────────────────────────────────────
+
+function EventTooltip({ event }: { event: CalendarEvent }) {
+  const dot = EVENT_DOT[event.type]
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="pointer-events-none absolute start-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-xl border border-black/[0.06] bg-white/90 p-3 shadow-lg backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
+    >
+      <div className="flex items-start gap-2">
+        <span className={`mt-1 size-2 shrink-0 rounded-full ${dot.color}`} />
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium text-[var(--color-text)]">{event.title}</p>
+          <p className="mt-0.5 text-[11px] text-[var(--color-text-subtle)]">{dot.label}</p>
+          {event.hour != null && (
+            <p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
+              {formatHour(event.hour)}
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Event Dot (hover to reveal) ────────────────────────────
+
+function EventDot({ event }: { event: CalendarEvent }) {
+  const [hovered, setHovered] = useState(false)
+  const dot = EVENT_DOT[event.type]
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        type="button"
+        onClick={() => event.entityUrl && (window.location.href = event.entityUrl)}
+        className={`size-2.5 rounded-full transition-transform ${dot.color} ${event.entityUrl ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
+        aria-label={event.title}
+      />
+      <AnimatePresence>
+        {hovered && <EventTooltip event={event} />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Day View — Vertical Timeline ───────────────────────────
+
+function DayView({ events, date }: { events: CalendarEvent[]; date: Date }) {
+  const dayEvents = events.filter((e) => isSameDay(e.date, date))
+
+  return (
+    <div className="relative">
+      {HOURS.map((hour) => {
+        const hourEvents = dayEvents.filter((e) => (e.hour ?? e.date.getHours()) === hour)
+        return (
+          <div key={hour} className="flex min-h-[48px] border-b border-black/[0.03] dark:border-white/[0.03]">
+            {/* Time marker */}
+            <div className="w-16 shrink-0 py-2 pe-3 text-end">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                {formatHour(hour)}
+              </span>
+            </div>
+            {/* Event bars */}
+            <div className="flex flex-1 flex-col gap-1 py-1.5 ps-3">
+              {hourEvents.map((event) => {
+                const dot = EVENT_DOT[event.type]
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => event.entityUrl && (window.location.href = event.entityUrl)}
+                    className={`group flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${event.entityUrl ? 'cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03]' : 'cursor-default'}`}
+                  >
+                    <span className={`size-2 shrink-0 rounded-full ${dot.color}`} />
+                    <span className="truncate text-[13px] text-[var(--color-text)]">
+                      {event.title}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Week View — Dot Clusters ───────────────────────────────
+
+function WeekView({ events, currentDate }: { events: CalendarEvent[]; currentDate: Date }) {
+  const today = new Date()
+  const weekDates = getWeekDates(currentDate)
+
+  return (
+    <div className="grid grid-cols-7">
+      {weekDates.map((date) => {
+        const dayEvents = events.filter((e) => isSameDay(e.date, date))
+        const isToday = isSameDay(date, today)
+
+        return (
+          <div
+            key={date.toISOString()}
+            className={[
+              'flex min-h-[140px] flex-col border-e border-b border-black/[0.04] p-3 dark:border-white/[0.04]',
+              isToday ? 'border-s-2 border-s-[var(--color-primary)]' : '',
+            ].join(' ')}
+          >
+            {/* Day header */}
+            <div className="mb-2 flex items-center gap-1.5">
+              <span className="text-[11px] text-[var(--color-text-subtle)]">
+                {DAYS_OF_WEEK[date.getDay()]}
+              </span>
+              <span
+                className={[
+                  'font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums',
+                  isToday
+                    ? 'flex size-6 items-center justify-center rounded-full bg-[var(--color-primary)] font-semibold text-white'
+                    : 'text-[var(--color-text-muted)]',
+                ].join(' ')}
+              >
+                {date.getDate()}
+              </span>
+            </div>
+
+            {/* Dot cluster */}
+            <div className="flex flex-wrap gap-1.5">
+              {dayEvents.map((event) => (
+                <EventDot key={event.id} event={event} />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Month View — Minimal Grid with Dots ────────────────────
+
+function MonthView({ events, currentDate }: { events: CalendarEvent[]; currentDate: Date }) {
+  const today = new Date()
+  const monthDates = getMonthDates(currentDate)
+
+  return (
+    <div>
+      {/* Day names */}
+      <div className="grid grid-cols-7">
+        {DAYS_OF_WEEK.map((day) => (
+          <div key={day} className="py-2 text-center text-[11px] font-medium text-[var(--color-text-subtle)]">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Date grid */}
+      <div className="grid grid-cols-7 border-t border-black/[0.04] dark:border-white/[0.04]">
+        {monthDates.map((date) => {
+          const isCurrentMonth = date.getMonth() === currentDate.getMonth()
+          const isToday = isSameDay(date, today)
+          const dayEvents = events.filter((e) => isSameDay(e.date, date))
+
+          return (
+            <div
+              key={date.toISOString()}
+              className={[
+                'flex min-h-[72px] flex-col items-center border-b border-e border-black/[0.04] py-2 dark:border-white/[0.04]',
+                !isCurrentMonth ? 'opacity-20' : '',
+              ].join(' ')}
+            >
+              {/* Day number */}
+              <span
+                className={[
+                  'font-[family-name:var(--font-geist-mono)] tabular-nums',
+                  isToday
+                    ? 'flex size-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[15px] font-bold text-white'
+                    : 'text-[13px] text-[var(--color-text-muted)]',
+                ].join(' ')}
+              >
+                {date.getDate()}
+              </span>
+
+              {/* Event dots -- no text, just dots */}
+              {dayEvents.length > 0 && (
+                <div className="mt-1.5 flex gap-1">
+                  {dayEvents.slice(0, 4).map((event) => (
+                    <EventDot key={event.id} event={event} />
+                  ))}
+                  {dayEvents.length > 4 && (
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+                      +{dayEvents.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ─────────────────────────────────────────
+
 export function SalesCalendar() {
   const { t } = useTranslation('internal')
   const [view, setView] = useState<CalendarView>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const today = new Date()
 
-  // Fetch activity events and map to calendar events
   const { data } = useQuery({
     queryKey: ['sales-activity-calendar'],
     queryFn: () => getActivityFeed({ data: { page: 1, limit: 50 } }),
@@ -86,20 +308,20 @@ export function SalesCalendar() {
         id: activity.id,
         title: activity.description.slice(0, 60),
         date,
+        hour: date.getHours(),
         type,
         entityId: activity.entityId,
         entityUrl: activity.actionUrl,
       })
     }
 
-    // Add some mock future events
     const addDays = (d: number) => new Date(Date.now() + d * 86_400_000)
     mapped.push(
-      { id: 'cal-1', title: 'Al-Nour Construction -- quarterly review', date: addDays(1), type: 'customer_meeting', entityId: 'cust-001', entityUrl: null },
-      { id: 'cal-2', title: 'Heliopolis site inspection', date: addDays(2), type: 'site_visit', entityId: 'cust-007', entityUrl: null },
-      { id: 'cal-3', title: 'QT-2026-00520 expires', date: addDays(3), type: 'quote_deadline', entityId: 'qt-108', entityUrl: null },
-      { id: 'cal-4', title: 'Follow up Maadi Engineering', date: addDays(-1), type: 'overdue_followup', entityId: 'cust-008', entityUrl: null },
-      { id: 'cal-5', title: 'Sales team standup', date: addDays(1), type: 'internal_meeting', entityId: null, entityUrl: null },
+      { id: 'cal-1', title: 'Al-Nour Construction -- quarterly review', date: addDays(1), hour: 10, type: 'customer_meeting', entityId: 'cust-001', entityUrl: null },
+      { id: 'cal-2', title: 'Heliopolis site inspection', date: addDays(2), hour: 14, type: 'site_visit', entityId: 'cust-007', entityUrl: null },
+      { id: 'cal-3', title: 'QT-2026-00520 expires', date: addDays(3), hour: 17, type: 'quote_deadline', entityId: 'qt-108', entityUrl: null },
+      { id: 'cal-4', title: 'Follow up Maadi Engineering', date: addDays(-1), hour: 9, type: 'overdue_followup', entityId: 'cust-008', entityUrl: null },
+      { id: 'cal-5', title: 'Sales team standup', date: addDays(1), hour: 9, type: 'internal_meeting', entityId: null, entityUrl: null },
     )
 
     return mapped
@@ -117,70 +339,55 @@ export function SalesCalendar() {
     const opts: Intl.DateTimeFormatOptions =
       view === 'day'
         ? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }
-        : view === 'week'
-          ? { month: 'long', year: 'numeric' }
-          : { month: 'long', year: 'numeric' }
+        : { month: 'long', year: 'numeric' }
     return currentDate.toLocaleDateString('en-US', opts)
   }
 
-  const getEventsForDate = (date: Date) => events.filter((e) => isSameDay(e.date, date))
-
-  const renderEvent = (event: CalendarEvent) => {
-    const colors = EVENT_COLORS[event.type]
-    return (
-      <button
-        key={event.id}
-        type="button"
-        onClick={() => event.entityUrl && (window.location.href = event.entityUrl)}
-        className={`w-full truncate rounded px-1.5 py-0.5 text-start text-[11px] leading-tight ${colors.bg} ${colors.text} ${event.entityUrl ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-        title={event.title}
-      >
-        {event.title}
-      </button>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">{formatHeader()}</h2>
-          <div className="flex gap-1">
+      <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-[15px] font-semibold text-[var(--color-text)]">{formatHeader()}</h2>
+
+          <div className="flex items-center gap-1">
             <Button
               onPress={() => navigate(-1)}
-              className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/5"
+              className="rounded-lg p-1.5 text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]"
             >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               onPress={() => navigate(1)}
-              className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/5"
+              className="rounded-lg p-1.5 text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]"
             >
               <ChevronRight className="size-4" />
             </Button>
-            <Button
-              onPress={() => setCurrentDate(new Date())}
-              className="rounded-md px-2 py-1 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5"
-            >
-              {t('sales.calendar.today', 'Today')}
-            </Button>
           </div>
+
+          {/* Today pill */}
+          <Button
+            onPress={() => setCurrentDate(new Date())}
+            className="rounded-full border border-black/[0.08] px-3 py-1 text-[11px] font-medium text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.04]"
+          >
+            {t('sales.calendar.today', 'Today')}
+          </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex rounded-lg border border-black/10 dark:border-white/10">
-            {(['week', 'day', 'month'] as CalendarView[]).map((v) => (
+        <div className="flex items-center gap-3">
+          {/* View toggle -- pill group */}
+          <div className="flex rounded-full bg-black/[0.04] p-0.5 dark:bg-white/[0.06]">
+            {(['day', 'week', 'month'] as CalendarView[]).map((v) => (
               <ToggleButton
                 key={v}
                 isSelected={view === v}
                 onChange={() => setView(v)}
-                className={`px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                className={[
+                  'rounded-full px-3.5 py-1 text-[11px] font-medium capitalize outline-none transition-colors',
                   view === v
-                    ? 'bg-[#2563EB] text-white'
-                    : 'text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5'
-                }`}
+                    ? 'bg-[var(--color-text)] text-white dark:bg-white dark:text-black'
+                    : 'text-[var(--color-text-subtle)] data-[hovered]:text-[var(--color-text-muted)]',
+                ].join(' ')}
               >
                 {v}
               </ToggleButton>
@@ -191,120 +398,38 @@ export function SalesCalendar() {
             onPress={() => {
               // Placeholder: open add event form
             }}
-            className="flex items-center gap-1 rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90"
+            className="flex items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3.5 py-1.5 text-[11px] font-medium text-white outline-none transition-colors data-[hovered]:bg-[var(--color-primary)]/90"
           >
-            <Plus className="size-3.5" />
+            <Plus className="size-3" />
             {t('sales.calendar.addEvent', 'Add Event')}
           </Button>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3">
-        {Object.entries(EVENT_COLORS).map(([type, colors]) => (
+      <div className="flex gap-5 border-b border-black/[0.04] px-5 pb-3 dark:border-white/[0.04]">
+        {Object.entries(EVENT_DOT).map(([type, config]) => (
           <div key={type} className="flex items-center gap-1.5">
-            <div className={`size-2.5 rounded-full ${colors.bg} ${colors.text}`} />
-            <span className="text-xs text-black/50 dark:text-white/50">{colors.label}</span>
+            <span className={`size-2 rounded-full ${config.color}`} />
+            <span className="text-[11px] text-[var(--color-text-subtle)]">{config.label}</span>
           </div>
         ))}
       </div>
 
-      {/* Calendar grid */}
-      {view === 'day' && (
-        <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-          <div className="flex flex-col gap-2">
-            {getEventsForDate(currentDate).length === 0 ? (
-              <p className="py-8 text-center text-sm text-black/30 dark:text-white/30">
-                {t('sales.calendar.noEvents', 'No events for this day')}
-              </p>
-            ) : (
-              getEventsForDate(currentDate).map(renderEvent)
-            )}
-          </div>
-        </div>
-      )}
-
-      {view === 'week' && (
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-black/10 bg-black/10 dark:border-white/10 dark:bg-white/10">
-          {getWeekDates(currentDate).map((date) => (
-            <div
-              key={date.toISOString()}
-              className={`flex min-h-[120px] flex-col bg-white p-2 dark:bg-black ${
-                isSameDay(date, today)
-                  ? 'ring-2 ring-inset ring-[#2563EB]/40'
-                  : ''
-              }`}
-            >
-              <div className="mb-1 flex items-center gap-1">
-                <span className="text-xs text-black/40 dark:text-white/40">
-                  {DAYS_OF_WEEK[date.getDay()]}
-                </span>
-                <span
-                  className={`font-[family-name:var(--font-geist-mono)] text-xs tabular-nums ${
-                    isSameDay(date, today)
-                      ? 'rounded-full bg-[#2563EB] px-1.5 text-white'
-                      : 'text-black/70 dark:text-white/70'
-                  }`}
-                >
-                  {date.getDate()}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {getEventsForDate(date).slice(0, 3).map(renderEvent)}
-                {getEventsForDate(date).length > 3 && (
-                  <span className="text-[10px] text-black/40 dark:text-white/40">
-                    +{getEventsForDate(date).length - 3} more
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {view === 'month' && (
-        <div>
-          {/* Day names header */}
-          <div className="grid grid-cols-7 gap-px mb-px">
-            {DAYS_OF_WEEK.map((day) => (
-              <div key={day} className="py-1 text-center text-xs font-medium text-black/40 dark:text-white/40">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-black/10 bg-black/10 dark:border-white/10 dark:bg-white/10">
-            {getMonthDates(currentDate).map((date) => {
-              const isCurrentMonth = date.getMonth() === currentDate.getMonth()
-              return (
-                <div
-                  key={date.toISOString()}
-                  className={`flex min-h-[80px] flex-col bg-white p-1.5 dark:bg-black ${
-                    !isCurrentMonth ? 'opacity-30' : ''
-                  } ${isSameDay(date, today) ? 'ring-2 ring-inset ring-[#2563EB]/40' : ''}`}
-                >
-                  <span
-                    className={`mb-0.5 font-[family-name:var(--font-geist-mono)] text-xs tabular-nums ${
-                      isSameDay(date, today)
-                        ? 'rounded-full bg-[#2563EB] px-1 text-white'
-                        : 'text-black/60 dark:text-white/60'
-                    }`}
-                  >
-                    {date.getDate()}
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    {getEventsForDate(date).slice(0, 2).map(renderEvent)}
-                    {getEventsForDate(date).length > 2 && (
-                      <span className="text-[10px] text-black/40 dark:text-white/40">
-                        +{getEventsForDate(date).length - 2}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {/* View content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={view}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          {view === 'day' && <DayView events={events} date={currentDate} />}
+          {view === 'week' && <WeekView events={events} currentDate={currentDate} />}
+          {view === 'month' && <MonthView events={events} currentDate={currentDate} />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   )
 }

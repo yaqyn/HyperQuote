@@ -1,19 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Button } from 'react-aria-components'
-import { useTranslation } from 'react-i18next'
 import { getRFQQueue } from '../../../lib/server/sales-rfq'
 import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 
-interface UrgentCard {
+interface MetricCard {
   label: string
   count: number
-  critical: boolean
+  urgent: boolean
   onPress: () => void
 }
 
 export function UrgentSection() {
-  const { t } = useTranslation('internal')
   const setActiveTab = useSalesStore((s) => s.setActiveTab)
   const setRfqInboxTab = useSalesStore((s) => s.setRfqInboxTab)
 
@@ -30,61 +28,61 @@ export function UrgentSection() {
   })
 
   const unassignedCount = rfqData?.rfqs.filter((r) => !r.assignedRep).length ?? 0
-
-  // Quotes expiring this week: deals in 'sent' stage with daysInStage > 7
   const expiringQuotes = pipelineData?.deals.filter(
     (d) => d.stage === 'sent' && d.daysInStage > 7,
   ).length ?? 0
-
-  // Overdue follow-ups: deals with red color (at risk)
   const overdueFollowups = pipelineData?.deals.filter(
     (d) => d.color === 'red',
   ).length ?? 0
 
-  const cards: UrgentCard[] = [
+  const cards: MetricCard[] = [
     {
-      label: t('sales.home.rfqsAwaiting', 'RFQs Awaiting Response'),
+      label: 'RFQs Awaiting Response',
       count: unassignedCount,
-      critical: unassignedCount > 0,
+      urgent: unassignedCount > 0,
       onPress: () => {
         setActiveTab('rfq-inbox')
         setRfqInboxTab('unassigned')
       },
     },
     {
-      label: t('sales.home.quotesExpiring', 'Quotes Expiring This Week'),
+      label: 'Quotes Expiring This Week',
       count: expiringQuotes,
-      critical: expiringQuotes > 0,
+      urgent: expiringQuotes > 0,
       onPress: () => {
-        setActiveTab('pipeline')
+        setActiveTab('rfq-inbox')
+        useSalesStore.getState().setRfqStageFilter('sent')
       },
     },
     {
-      label: t('sales.home.overdueFollowups', 'Overdue Follow-ups'),
+      label: 'Overdue Follow-ups',
       count: overdueFollowups,
-      critical: overdueFollowups > 0,
+      urgent: overdueFollowups > 0,
       onPress: () => {
-        setActiveTab('pipeline')
+        setActiveTab('rfq-inbox')
+        useSalesStore.getState().setRfqStageFilter('negotiating')
       },
     },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-3 gap-3">
       {cards.map((card) => (
         <Button
           key={card.label}
           onPress={card.onPress}
-          className={`flex flex-col items-start gap-1 rounded-xl border px-4 py-3 text-start transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${
-            card.critical
-              ? 'border-red-500/40 bg-red-500/5'
-              : 'border-black/10 dark:border-white/10'
-          }`}
+          className="group flex flex-col items-start gap-2 rounded-xl px-4 py-4 text-start cursor-pointer outline-none transition-all duration-150 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.05] dark:hover:bg-white/[0.05] pressed:scale-[0.98]"
         >
-          <span className="font-[family-name:var(--font-geist-mono)] text-2xl font-semibold tabular-nums">
+          <span
+            className={`font-[family-name:var(--font-geist-mono)] text-3xl font-semibold tabular-nums leading-none ${
+              card.urgent && card.count > 0
+                ? 'text-[var(--color-primary)]'
+                : 'text-[var(--color-text)]'
+            }`}
+          >
             {card.count}
           </span>
-          <span className="text-sm text-black/60 dark:text-white/60">
+          <span className="text-xs text-[var(--color-text-muted)] leading-snug">
             {card.label}
           </span>
         </Button>

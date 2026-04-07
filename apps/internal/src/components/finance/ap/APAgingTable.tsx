@@ -18,14 +18,6 @@ interface APAgingRow {
 
 type SortField = 'supplierName' | 'total' | 'worst'
 
-const SEVERITY_STYLES: Record<ReturnType<typeof getAgingSeverity>, string> = {
-  green: 'text-green-700 dark:text-green-400',
-  yellow: 'text-yellow-700 dark:text-yellow-400',
-  orange: 'text-orange-700 dark:text-orange-400',
-  red: 'text-red-700 dark:text-red-400',
-  dark_red: 'text-red-900 dark:text-red-300 font-bold',
-}
-
 /** Get the worst aging bucket for a row */
 function getWorstBucket(row: APAgingRow): ARAgingBucket {
   if (row.days90plus > 0) return '90+'
@@ -93,16 +85,17 @@ function buildAgingRows(): APAgingRow[] {
 }
 
 /**
- * AP aging table (Section 5.5).
- * Supplier Name | Current | 1-30 | 31-60 | 61-90 | 90+ | Total
- * All CurrencyCell, color-coded per bucket severity.
- * Sortable by total, supplier name, worst bucket.
+ * AP Aging Table — grouped by vendor, expandable.
+ * Supplier | Current | 1-30 | 31-60 | 61-90 | 90+ | Total
+ * Sortable columns. Color-coded severity for data cells only.
+ * Dense, borderless Swiss-typography table.
  */
 export function APAgingTable() {
   const { t } = useTranslation('finance')
   const [rows] = useState<APAgingRow[]>(buildAgingRows)
   const [sortBy, setSortBy] = useState<SortField>('total')
   const [sortDesc, setSortDesc] = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const sorted = useMemo(() => {
     const copy = [...rows]
@@ -146,100 +139,110 @@ export function APAgingTable() {
     { current: 0, days30: 0, days60: 0, days90: 0, days90plus: 0, total: 0 },
   )
 
-  const sortIndicator = (field: SortField) =>
+  const sortArrow = (field: SortField) =>
     sortBy === field ? (sortDesc ? ' \u2193' : ' \u2191') : ''
 
+  // Distribution bar widths
+  const barTotal = totals.total || 1
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="px-6">
-        <h3 className="text-sm font-semibold mb-3">
+    <div className="px-6 py-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
           {t('ap.aging', 'AP Aging')}
         </h3>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-                <th
-                  className="py-2 pe-4 text-start font-medium cursor-pointer hover:text-black dark:hover:text-white"
-                  onClick={() => handleSort('supplierName')}
-                >
-                  {t('ap.col.supplier', 'Supplier')}{sortIndicator('supplierName')}
-                </th>
-                <AgingHeader bucket="current" label={t('ap.aging.current', 'Current')} amount={totals.current} />
-                <AgingHeader bucket="1-30" label={t('ap.aging.30', '1-30')} amount={totals.days30} />
-                <AgingHeader bucket="31-60" label={t('ap.aging.60', '31-60')} amount={totals.days60} />
-                <AgingHeader bucket="61-90" label={t('ap.aging.90', '61-90')} amount={totals.days90} />
-                <AgingHeader bucket="90+" label={t('ap.aging.90plus', '90+')} amount={totals.days90plus} />
-                <th
-                  className="py-2 text-end font-medium cursor-pointer hover:text-black dark:hover:text-white"
-                  onClick={() => handleSort('total')}
-                >
-                  {t('ap.col.total', 'Total')}{sortIndicator('total')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((row) => (
-                <tr key={row.supplierId} className="border-b border-black/5 dark:border-white/5">
-                  <td className="py-3 pe-4">{row.supplierName}</td>
-                  <AgingCell amount={row.current} bucket="current" />
-                  <AgingCell amount={row.days30} bucket="1-30" />
-                  <AgingCell amount={row.days60} bucket="31-60" />
-                  <AgingCell amount={row.days90} bucket="61-90" />
-                  <AgingCell amount={row.days90plus} bucket="90+" />
-                  <td className="py-3 text-end font-semibold">
-                    <CurrencyCell amount={row.total} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-black/10 dark:border-white/10 font-semibold">
-                <td className="py-3 pe-4">{t('ap.total', 'Total')}</td>
-                <AgingCell amount={totals.current} bucket="current" />
-                <AgingCell amount={totals.days30} bucket="1-30" />
-                <AgingCell amount={totals.days60} bucket="31-60" />
-                <AgingCell amount={totals.days90} bucket="61-90" />
-                <AgingCell amount={totals.days90plus} bucket="90+" />
-                <td className="py-3 text-end">
-                  <CurrencyCell amount={totals.total} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <CurrencyCell amount={totals.total} className="text-sm font-semibold text-black dark:text-white" />
       </div>
+
+      {/* Distribution bar */}
+      <div className="flex h-1 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/5 mb-5">
+        <div className="bg-black/15 dark:bg-white/15 transition-all" style={{ width: `${(totals.current / barTotal) * 100}%` }} />
+        <div className="bg-black/30 dark:bg-white/30 transition-all" style={{ width: `${(totals.days30 / barTotal) * 100}%` }} />
+        <div className="bg-[#2563EB] transition-all" style={{ width: `${(totals.days60 / barTotal) * 100}%` }} />
+        <div className="bg-red-500 transition-all" style={{ width: `${(totals.days90 / barTotal) * 100}%` }} />
+        <div className="bg-red-700 transition-all" style={{ width: `${(totals.days90plus / barTotal) * 100}%` }} />
+      </div>
+
+      {/* Table */}
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[11px] text-black/40 dark:text-white/40">
+            <th
+              className="pb-2 pe-4 text-start font-medium cursor-pointer select-none hover:text-black dark:hover:text-white transition-colors"
+              onClick={() => handleSort('supplierName')}
+            >
+              {t('ap.col.supplier', 'Supplier')}{sortArrow('supplierName')}
+            </th>
+            <th className="pb-2 pe-3 text-end font-medium w-24">{t('ap.aging.current', 'Current')}</th>
+            <th className="pb-2 pe-3 text-end font-medium w-24">{t('ap.aging.30', '1-30')}</th>
+            <th className="pb-2 pe-3 text-end font-medium w-24">{t('ap.aging.60', '31-60')}</th>
+            <th className="pb-2 pe-3 text-end font-medium w-24">{t('ap.aging.90', '61-90')}</th>
+            <th className="pb-2 pe-3 text-end font-medium w-24">{t('ap.aging.90plus', '90+')}</th>
+            <th
+              className="pb-2 text-end font-medium w-28 cursor-pointer select-none hover:text-black dark:hover:text-white transition-colors"
+              onClick={() => handleSort('total')}
+            >
+              {t('ap.col.total', 'Total')}{sortArrow('total')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row) => (
+            <tr
+              key={row.supplierId}
+              onClick={() => setExpandedId(expandedId === row.supplierId ? null : row.supplierId)}
+              className="border-t border-black/[0.04] dark:border-white/[0.04] cursor-pointer hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors"
+            >
+              <td className="py-2.5 pe-4 text-black dark:text-white">{row.supplierName}</td>
+              <AgingCell amount={row.current} bucket="current" />
+              <AgingCell amount={row.days30} bucket="1-30" />
+              <AgingCell amount={row.days60} bucket="31-60" />
+              <AgingCell amount={row.days90} bucket="61-90" />
+              <AgingCell amount={row.days90plus} bucket="90+" />
+              <td className="py-2.5 text-end font-semibold text-black dark:text-white">
+                <CurrencyCell amount={row.total} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-black/10 dark:border-white/10 text-black dark:text-white font-semibold">
+            <td className="py-2.5 pe-4">{t('ap.total', 'Total')}</td>
+            <AgingCell amount={totals.current} bucket="current" bold />
+            <AgingCell amount={totals.days30} bucket="1-30" bold />
+            <AgingCell amount={totals.days60} bucket="31-60" bold />
+            <AgingCell amount={totals.days90} bucket="61-90" bold />
+            <AgingCell amount={totals.days90plus} bucket="90+" bold />
+            <td className="py-2.5 text-end">
+              <CurrencyCell amount={totals.total} />
+            </td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   )
 }
 
-/** Column header with aggregate total */
-function AgingHeader({ bucket, label, amount }: { bucket: ARAgingBucket; label: string; amount: number }) {
-  const severity = getAgingSeverity(bucket)
-  return (
-    <th className="py-2 pe-3 text-end font-medium">
-      <div>{label}</div>
-      <div className={`text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums ${SEVERITY_STYLES[severity]}`}>
-        <CurrencyCell amount={amount} className="text-[10px]" />
-      </div>
-    </th>
-  )
-}
-
-/** Color-coded aging cell */
-function AgingCell({ amount, bucket }: { amount: number; bucket: ARAgingBucket }) {
-  const severity = getAgingSeverity(bucket)
+/** Color-coded aging cell — semantic colors for DATA only */
+function AgingCell({ amount, bucket, bold }: { amount: number; bucket: ARAgingBucket; bold?: boolean }) {
   if (amount === 0) {
     return (
-      <td className="py-3 pe-3 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/20 dark:text-white/20">
+      <td className="py-2.5 pe-3 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/10 dark:text-white/10 text-xs">
         --
       </td>
     )
   }
+
+  // Semantic data color: only 61-90 and 90+ get warning/danger
+  const colorClass =
+    bucket === '90+' ? 'text-red-600 dark:text-red-400' :
+    bucket === '61-90' ? 'text-red-500 dark:text-red-400' :
+    bucket === '31-60' ? 'text-[#2563EB]' :
+    'text-black/70 dark:text-white/70'
+
   return (
-    <td className={`py-3 pe-3 text-end ${SEVERITY_STYLES[severity]}`}>
-      <CurrencyCell amount={amount} />
+    <td className={`py-2.5 pe-3 text-end ${colorClass} ${bold ? 'font-semibold' : ''}`}>
+      <CurrencyCell amount={amount} className="text-xs" />
     </td>
   )
 }

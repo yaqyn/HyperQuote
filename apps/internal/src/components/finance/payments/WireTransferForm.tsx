@@ -15,6 +15,7 @@ import {
 } from 'react-aria-components'
 import { useFinanceStore } from '../../../stores/finance'
 import { autoMatchPayment } from '../../../lib/finance/matching'
+import { CurrencyCell } from '../shared/CurrencyCell'
 import type { Invoice } from '../../../types/finance'
 
 // Mock invoices for auto-matching (will be replaced by server query)
@@ -45,8 +46,9 @@ interface WireTransferData {
 }
 
 /**
- * Step 2 for Wire Transfer: captures bank reference, amount, date, receiving bank.
- * Auto-suggests matching invoices via autoMatchPayment from matching.ts.
+ * Wire Transfer form — clean inline layout.
+ * Bank details auto-populated from vendor. Reference number prominent.
+ * Auto-suggests matching invoices via autoMatchPayment.
  */
 export function WireTransferForm() {
   const { t } = useTranslation('finance')
@@ -75,9 +77,9 @@ export function WireTransferForm() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-lg font-semibold">
-        {t('payments.wireTransfer', 'Wire Transfer Details')}
+    <div className="p-6 flex flex-col gap-5">
+      <h2 className="text-sm font-semibold text-black dark:text-white">
+        {t('payments.wireTransfer', 'Wire Transfer')}
       </h2>
 
       <div className="grid grid-cols-2 gap-4">
@@ -86,11 +88,11 @@ export function WireTransferForm() {
           onChange={(v) => setFormData((prev) => ({ ...prev, bankReference: v }))}
           isRequired
         >
-          <Label className="text-xs text-black/50 dark:text-white/50 mb-1 block">
-            {t('payments.bankReference', 'Bank Reference Number')}
+          <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1.5 block">
+            {t('payments.bankReference', 'Bank Reference')}
           </Label>
-          <Input className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-2 text-sm outline-none focus:border-[#2563EB]" />
-          <FieldError className="text-xs text-red-600 mt-1" />
+          <Input className="w-full rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm font-[family-name:var(--font-geist-mono)] text-black dark:text-white outline-none focus:border-[#2563EB] transition-colors" />
+          <FieldError className="text-[10px] text-red-500 mt-1" />
         </TextField>
 
         <NumberField
@@ -100,45 +102,45 @@ export function WireTransferForm() {
           formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
           isRequired
         >
-          <Label className="text-xs text-black/50 dark:text-white/50 mb-1 block">
-            {t('payments.amountReceived', 'Amount Received')}
+          <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1.5 block">
+            {t('payments.amountReceived', 'Amount')}
           </Label>
-          <Group className="flex items-center rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-2 focus-within:border-[#2563EB]">
-            <span className="text-xs text-black/50 dark:text-white/50 me-2">EGP</span>
-            <Input className="w-full bg-transparent text-sm font-[family-name:var(--font-geist-mono)] tabular-nums outline-none" />
+          <Group className="flex items-center rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 focus-within:border-[#2563EB] transition-colors">
+            <span className="text-[10px] text-black/30 dark:text-white/30 me-2 font-[family-name:var(--font-geist-mono)]">EGP</span>
+            <Input className="w-full bg-transparent text-sm font-[family-name:var(--font-geist-mono)] tabular-nums text-black dark:text-white outline-none" />
           </Group>
-          <FieldError className="text-xs text-red-600 mt-1" />
+          <FieldError className="text-[10px] text-red-500 mt-1" />
         </NumberField>
 
         <DatePicker
           value={formData.date}
           onChange={(v) => setFormData((prev) => ({ ...prev, date: v }))}
         >
-          <Label className="text-xs text-black/50 dark:text-white/50 mb-1 block">
-            {t('payments.dateReceived', 'Date Received')}
+          <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1.5 block">
+            {t('payments.dateReceived', 'Date')}
           </Label>
-          <Group className="flex items-center rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-2 focus-within:border-[#2563EB]">
-            <DateInput className="flex gap-0.5 text-sm font-[family-name:var(--font-geist-mono)]">
+          <Group className="flex items-center rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 focus-within:border-[#2563EB] transition-colors">
+            <DateInput className="flex gap-0.5 text-sm font-[family-name:var(--font-geist-mono)] text-black dark:text-white">
               {(segment) => (
                 <DateSegment
                   segment={segment}
-                  className="rounded px-0.5 focus:bg-[#2563EB]/10 focus:outline-none"
+                  className="rounded px-0.5 focus:bg-[#2563EB]/10 focus:outline-none tabular-nums"
                 />
               )}
             </DateInput>
           </Group>
-          <FieldError className="text-xs text-red-600 mt-1" />
+          <FieldError className="text-[10px] text-red-500 mt-1" />
         </DatePicker>
 
         <TextField
           value={formData.receivingBank}
           onChange={(v) => setFormData((prev) => ({ ...prev, receivingBank: v }))}
         >
-          <Label className="text-xs text-black/50 dark:text-white/50 mb-1 block">
-            {t('payments.receivingBank', 'Receiving Bank Account')}
+          <Label className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1.5 block">
+            {t('payments.receivingBank', 'Receiving Bank')}
           </Label>
-          <Input className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm px-3 py-2 text-sm outline-none focus:border-[#2563EB]" />
-          <FieldError className="text-xs text-red-600 mt-1" />
+          <Input className="w-full rounded-md border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm text-black dark:text-white outline-none focus:border-[#2563EB] transition-colors" />
+          <FieldError className="text-[10px] text-red-500 mt-1" />
         </TextField>
       </div>
 
@@ -146,7 +148,7 @@ export function WireTransferForm() {
       <div className="flex items-center gap-3">
         <Button
           onPress={handleMatch}
-          className="rounded-lg bg-[#2563EB] text-white px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+          className="rounded-md border border-[#2563EB]/20 text-[#2563EB] px-3 py-1.5 text-xs font-medium hover:bg-[#2563EB]/5 pressed:bg-[#2563EB]/10 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
         >
           {t('payments.matchToInvoice', 'Match to Invoice')}
         </Button>
@@ -154,37 +156,43 @@ export function WireTransferForm() {
 
       {/* Match Results */}
       {matchResult && (
-        <div className={`rounded-xl border p-4 ${matchResult.confidence >= 80 ? 'border-green-500/30 bg-green-500/5' : matchResult.confidence > 0 ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-black/10 dark:border-white/10'}`}>
+        <div className={`rounded-md border px-4 py-3 ${
+          matchResult.confidence >= 80
+            ? 'border-green-500/20 bg-green-500/[0.03]'
+            : matchResult.confidence > 0
+              ? 'border-black/5 dark:border-white/5'
+              : 'border-black/5 dark:border-white/5'
+        }`}>
           {matchResult.matched.length > 0 ? (
             <>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-2">
-                {t('payments.matchFound', 'Match found')} ({matchResult.confidence}% {t('payments.confidence', 'confidence')})
+              <div className="text-[10px] text-black/40 dark:text-white/40 mb-2 font-[family-name:var(--font-geist-mono)]">
+                {t('payments.matchFound', 'Match')} ({matchResult.confidence}%)
               </div>
               {matchResult.matched.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium">{inv.number}</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-                    EGP {new Intl.NumberFormat('en-EG').format(inv.grandTotal)}
+                <div key={inv.id} className="flex items-center justify-between py-1">
+                  <span className="text-xs font-[family-name:var(--font-geist-mono)] tabular-nums text-black dark:text-white">
+                    {inv.number}
                   </span>
+                  <CurrencyCell amount={inv.grandTotal} className="text-xs" />
                 </div>
               ))}
             </>
           ) : (
-            <div className="text-sm text-black/50 dark:text-white/50">
-              {t('payments.noMatch', 'No exact match found. Proceed to manual allocation.')}
+            <div className="text-xs text-black/30 dark:text-white/30">
+              {t('payments.noMatch', 'No match found. Proceed to manual allocation.')}
             </div>
           )}
         </div>
       )}
 
       {/* Submit */}
-      <div className="flex justify-end">
+      <div className="flex justify-end mt-auto pt-4">
         <Button
           onPress={handleSubmit}
           isDisabled={!formData.amount || !formData.bankReference}
-          className="rounded-lg bg-black dark:bg-white text-white dark:text-black px-6 py-2 text-sm font-medium hover:opacity-90 pressed:opacity-80 disabled:opacity-30 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+          className="rounded-md bg-black dark:bg-white text-white dark:text-black px-5 py-2 text-xs font-medium hover:opacity-90 pressed:opacity-80 disabled:opacity-20 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-opacity"
         >
-          {t('payments.next', 'Next: Allocate to Invoices')}
+          {t('payments.next', 'Next: Allocate')}
         </Button>
       </div>
     </div>

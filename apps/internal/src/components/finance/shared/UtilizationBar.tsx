@@ -14,9 +14,9 @@ function getBarColor(pct: number): string {
 }
 
 /**
- * Credit utilization gradient bar.
- * Color gradient: 0-60% green, 60-80% yellow, 80-95% orange, 95-100% red, >100% pulsing red.
- * Label shows percentage in Geist Mono.
+ * Thin horizontal bar (4px height), colored by utilization %.
+ * 0-60% green, 60-80% yellow, 80-95% orange, 95-100% red, >100% pulsing red.
+ * Label in Geist Mono.
  */
 export function UtilizationBar({ percentage, showLabel = true }: UtilizationBarProps) {
   const barWidth = Math.min(percentage, 100)
@@ -25,7 +25,7 @@ export function UtilizationBar({ percentage, showLabel = true }: UtilizationBarP
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+      <div className="flex-1 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
         {isOverLimit ? (
           <motion.div
             className={`h-full rounded-full ${colorClass}`}
@@ -41,7 +41,7 @@ export function UtilizationBar({ percentage, showLabel = true }: UtilizationBarP
         )}
       </div>
       {showLabel && (
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs min-w-[3rem] text-end">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/50 dark:text-white/50 min-w-[3rem] text-end">
           {percentage}%
         </span>
       )}

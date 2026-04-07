@@ -1,4 +1,3 @@
-import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { useForm, useWatch, Controller } from 'react-hook-form'
@@ -30,9 +29,9 @@ const YARD_ZONES = [
 ]
 
 /**
- * Bulk/weight-based receiving per spec section 4.4.
- * Gross/tare/net weight calculation with running PO totals.
- * All numbers use Geist Mono.
+ * Bulk/weight-based receiving — same multi-line layout but scan-to-fill.
+ * Gross/tare/net weight with huge mono numbers.
+ * Running PO totals. Large font table.
  */
 export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
   const { t, i18n } = useTranslation('internal')
@@ -58,12 +57,10 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
     },
   })
 
-  // Reactive net weight using useWatch
   const grossWeight = useWatch({ control, name: 'grossWeight' }) ?? 0
   const tareWeight = useWatch({ control, name: 'tareWeight' }) ?? 0
   const netWeight = calculateNetWeight(grossWeight, tareWeight)
 
-  // Running totals
   const previouslyReceived = bulkState?.previouslyReceived ?? 0
   const poTotal = bulkState?.poTotal ?? 0
   const remaining = poTotal - previouslyReceived - netWeight
@@ -75,86 +72,84 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
   })
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-6 p-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button
           onPress={() => setSelectedReceivingId(null)}
-          className="text-sm text-[#2563EB] cursor-pointer hover:underline"
+          className="text-sm font-medium text-[#2563EB] cursor-pointer"
         >
           {t('common.back', 'Back')}
         </Button>
-        <h2 className="text-sm font-semibold">
+        <h2 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
           {t('warehouse.receiving.bulkReceiving', 'Bulk Receiving')}
         </h2>
         <div className="w-16" />
       </div>
 
-      {/* PO quantity */}
-      <div className="rounded-lg bg-black/[0.02] dark:bg-white/[0.02] p-3">
-        <span className="text-xs text-black/50 dark:text-white/50">
-          {t('warehouse.receiving.poQuantity', 'PO Quantity')}
+      {/* PO total — big number */}
+      <div className="flex items-baseline gap-3">
+        <span className="text-xs text-black/40 dark:text-white/40 uppercase tracking-wider">PO Total</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-black/90 dark:text-white/90">
+          {numFmt.format(poTotal)}
         </span>
-        <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold">
-          {numFmt.format(poTotal)} {unit}
-        </div>
+        <span className="text-sm text-black/30 dark:text-white/30">{unit}</span>
       </div>
 
       {/* Weight inputs */}
-      <div className="flex flex-col gap-4">
-        <Controller
-          name="grossWeight"
-          control={control}
-          render={({ field }) => (
-            <LargeNumberInput
-              label={t('warehouse.receiving.grossWeight', 'Gross Weight')}
-              value={field.value}
-              onChange={field.onChange}
-              minValue={0}
-              unit={unit}
-            />
-          )}
-        />
+      <Controller
+        name="grossWeight"
+        control={control}
+        render={({ field }) => (
+          <LargeNumberInput
+            label={t('warehouse.receiving.grossWeight', 'Gross Weight')}
+            value={field.value}
+            onChange={field.onChange}
+            minValue={0}
+            unit={unit}
+          />
+        )}
+      />
 
-        <Controller
-          name="tareWeight"
-          control={control}
-          render={({ field }) => (
-            <LargeNumberInput
-              label={t('warehouse.receiving.tareWeight', 'Tare Weight')}
-              value={field.value}
-              onChange={field.onChange}
-              minValue={0}
-              unit={unit}
-            />
-          )}
-        />
+      <Controller
+        name="tareWeight"
+        control={control}
+        render={({ field }) => (
+          <LargeNumberInput
+            label={t('warehouse.receiving.tareWeight', 'Tare Weight')}
+            value={field.value}
+            onChange={field.onChange}
+            minValue={0}
+            unit={unit}
+          />
+        )}
+      />
 
-        {/* Auto-calculated net weight */}
-        <div className="rounded-lg border border-[#2563EB]/20 bg-[#2563EB]/5 p-4">
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('warehouse.receiving.netWeight', 'Net Weight')}
-          </span>
-          <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-[#2563EB]">
-            {numFmt.format(netWeight)} {unit}
-          </div>
-        </div>
+      {/* Net weight — HERO number */}
+      <div className="flex flex-col items-center gap-1 py-4">
+        <span className="text-xs text-black/40 dark:text-white/40 uppercase tracking-wider">
+          {t('warehouse.receiving.netWeight', 'Net Weight')}
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] font-bold text-[#2563EB] leading-none">
+          {numFmt.format(netWeight)}
+        </span>
+        <span className="text-sm text-black/30 dark:text-white/30">{unit}</span>
       </div>
 
-      {/* Running PO total */}
-      <div className="grid grid-cols-3 gap-3">
-        <RunningTotalCard
-          label={t('warehouse.receiving.previouslyReceived', 'Previously Received')}
+      {/* Running totals — 3 columns, no borders, just numbers */}
+      <div className="grid grid-cols-3 gap-4">
+        <RunningTotal
+          label={t('warehouse.receiving.previouslyReceived', 'Previously')}
           value={numFmt.format(previouslyReceived)}
           unit={unit}
         />
-        <RunningTotalCard
+        <RunningTotal
           label={t('warehouse.receiving.thisLoad', 'This Load')}
           value={numFmt.format(netWeight)}
           unit={unit}
           highlight
         />
-        <RunningTotalCard
+        <RunningTotal
           label={t('warehouse.receiving.remaining', 'Remaining')}
           value={numFmt.format(Math.max(0, remaining))}
           unit={unit}
@@ -162,11 +157,11 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
         />
       </div>
 
-      {/* Quality checks */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">
+      {/* Quality checks — full-width pressable rows */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider mb-2">
           {t('warehouse.receiving.qualityChecks', 'Quality Checks')}
-        </h3>
+        </span>
 
         <Controller
           name="contaminationCheck"
@@ -175,11 +170,11 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
             <Checkbox
               isSelected={field.value}
               onChange={field.onChange}
-              className="group flex items-center gap-3 cursor-pointer"
+              className="group flex items-center gap-4 min-h-[56px] px-4 rounded-lg border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors data-[selected]:bg-green-500/5 data-[selected]:border-green-500/20"
             >
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-black/20 dark:border-white/20 transition-colors group-data-[selected]:bg-[#2563EB] group-data-[selected]:border-[#2563EB]">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 border-black/15 dark:border-white/15 transition-colors group-data-[selected]:bg-[#2563EB] group-data-[selected]:border-[#2563EB]">
                 <svg
-                  className="h-3.5 w-3.5 text-white opacity-0 group-data-[selected]:opacity-100 transition-opacity"
+                  className="h-4 w-4 text-white opacity-0 group-data-[selected]:opacity-100 transition-opacity"
                   viewBox="0 0 14 14"
                   fill="none"
                 >
@@ -200,11 +195,11 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
             <Checkbox
               isSelected={field.value}
               onChange={field.onChange}
-              className="group flex items-center gap-3 cursor-pointer"
+              className="group flex items-center gap-4 min-h-[56px] px-4 rounded-lg border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors data-[selected]:bg-green-500/5 data-[selected]:border-green-500/20"
             >
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-black/20 dark:border-white/20 transition-colors group-data-[selected]:bg-[#2563EB] group-data-[selected]:border-[#2563EB]">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 border-black/15 dark:border-white/15 transition-colors group-data-[selected]:bg-[#2563EB] group-data-[selected]:border-[#2563EB]">
                 <svg
-                  className="h-3.5 w-3.5 text-white opacity-0 group-data-[selected]:opacity-100 transition-opacity"
+                  className="h-4 w-4 text-white opacity-0 group-data-[selected]:opacity-100 transition-opacity"
                   viewBox="0 0 14 14"
                   fill="none"
                 >
@@ -229,10 +224,10 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
             onSelectionChange={(key) => field.onChange(key as string)}
             className="flex flex-col gap-1"
           >
-            <Label className="text-sm font-medium text-[var(--color-text-secondary)]">
+            <Label className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
               {t('warehouse.receiving.dumpLocation', 'Dump Location')}
             </Label>
-            <Button className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm text-start cursor-pointer">
+            <Button className="flex h-14 items-center justify-between rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm text-start cursor-pointer">
               <SelectValue placeholder={t('warehouse.receiving.selectZone', 'Select yard zone...')} />
             </Button>
             <Popover className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
@@ -241,7 +236,7 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
                   <ListBoxItem
                     key={zone.id}
                     id={zone.id}
-                    className="rounded-md px-3 py-2 text-sm cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[selected]:font-semibold"
+                    className="flex h-12 cursor-pointer items-center rounded-md px-4 text-sm outline-none data-[focused]:bg-black/5 dark:data-[focused]:bg-white/5 data-[selected]:font-semibold"
                   >
                     {zone.label}
                   </ListBoxItem>
@@ -254,14 +249,14 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
 
       {/* Weigh ticket photo */}
       <PhotoCapture
-        label={t('warehouse.receiving.weighTicket', 'Weigh Ticket Scan/Photo')}
+        label={t('warehouse.receiving.weighTicket', 'Weigh Ticket')}
         onCapture={() => {}}
       />
 
-      {/* Confirm button */}
+      {/* Confirm */}
       <Button
         onPress={() => onSubmit()}
-        className="w-full rounded-lg bg-[#2563EB] py-3 text-sm font-medium text-white cursor-pointer hover:bg-[#2563EB]/90 transition-colors"
+        className="flex h-16 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer transition-colors"
       >
         {t('warehouse.receiving.confirmReceipt', 'Confirm Receipt')}
       </Button>
@@ -269,7 +264,7 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
   )
 }
 
-function RunningTotalCard({
+function RunningTotal({
   label,
   value,
   unit,
@@ -282,26 +277,21 @@ function RunningTotalCard({
   highlight?: boolean
   warning?: boolean
 }) {
-  const borderClass = highlight
-    ? 'border-[#2563EB]/20'
-    : warning
-      ? 'border-red-500/20'
-      : 'border-black/5 dark:border-white/5'
-  const bgClass = highlight
-    ? 'bg-[#2563EB]/5'
-    : warning
-      ? 'bg-red-500/5'
-      : 'bg-white/40 dark:bg-black/40'
+  const valueColor = warning
+    ? 'text-red-600 dark:text-red-400'
+    : highlight
+      ? 'text-[#2563EB]'
+      : 'text-black/80 dark:text-white/80'
 
   return (
-    <div className={`flex flex-col gap-1 rounded-lg border ${borderClass} ${bgClass} p-3`}>
-      <span className="text-[10px] font-medium text-black/50 dark:text-white/50 truncate">
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-medium text-black/40 dark:text-white/40 uppercase tracking-wider truncate">
         {label}
       </span>
-      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold">
+      <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold ${valueColor}`}>
         {value}
       </span>
-      <span className="text-[10px] text-black/40 dark:text-white/40">{unit}</span>
+      <span className="text-[10px] text-black/25 dark:text-white/25">{unit}</span>
     </div>
   )
 }

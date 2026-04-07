@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getFinanceDashboard } from '../../../lib/server/finance-dashboard'
@@ -5,30 +6,8 @@ import { useFinanceStore } from '../../../stores/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
 import { AgingBadge } from '../shared/AgingBadge'
 import { UtilizationBar } from '../shared/UtilizationBar'
+import { StatusBadge } from '../shared/StatusBadge'
 import type { ARAgingBucket, PaymentMethod } from '../../../types/finance'
-
-// ─── Glass panel wrapper ────────────────────────────────
-function GlassPanel({
-  children,
-  className = '',
-  onClick,
-}: {
-  children: React.ReactNode
-  className?: string
-  onClick?: () => void
-}) {
-  return (
-    <div
-      className={`rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm p-4 ${onClick ? 'cursor-pointer hover:border-[#2563EB]/30 transition-colors' : ''} ${className}`}
-      onClick={onClick}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick() } : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
-      {children}
-    </div>
-  )
-}
 
 // ─── Mock auto-generated invoices from delivery ─────────
 const AUTO_GENERATED_INVOICES = [
@@ -56,13 +35,6 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Cash',
 }
 
-const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
-  wire: 'bg-[#2563EB]/10 text-[#2563EB]',
-  cheque: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  lc: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cash: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-}
-
 // ─── Aging bucket config ────────────────────────────────
 const AGING_BUCKETS: { key: string; bucket: ARAgingBucket; field: 'current' | 'days30' | 'days60' | 'days90' | 'days90plus' }[] = [
   { key: 'current', bucket: 'current', field: 'current' },
@@ -72,10 +44,24 @@ const AGING_BUCKETS: { key: string; bucket: ARAgingBucket; field: 'current' | 'd
   { key: '90+', bucket: '90+', field: 'days90plus' },
 ]
 
+// ─── Mock 7-day cash flow forecast ──────────────────────
+const CASH_FLOW_FORECAST = [
+  { day: 'Mon', inflow: 1_200_000, outflow: 800_000 },
+  { day: 'Tue', inflow: 950_000, outflow: 1_100_000 },
+  { day: 'Wed', inflow: 1_400_000, outflow: 600_000 },
+  { day: 'Thu', inflow: 800_000, outflow: 900_000 },
+  { day: 'Sun', inflow: 1_600_000, outflow: 750_000 },
+  { day: 'Mon', inflow: 1_100_000, outflow: 1_300_000 },
+  { day: 'Tue', inflow: 900_000, outflow: 700_000 },
+]
+
 /**
- * Finance home dashboard view.
- * Key metrics, AR aging summary, expected payments, payment method breakdown,
- * auto-generated invoices from delivery, credit utilization, and AP summary.
+ * "The Morning Brief" — single-page financial summary.
+ * NOT a dashboard with cards. Reads like a financial brief.
+ *
+ * Top: Cash position as ONE hero number. Below: AR | AP | Net — three numbers.
+ * Middle: Today's action items as a compact list.
+ * Bottom: Cash flow forecast as CSS-only area chart.
  */
 export function FinanceHome() {
   const { t } = useTranslation('finance')
@@ -88,231 +74,243 @@ export function FinanceHome() {
     staleTime: 30_000,
   })
 
+  // Cash flow chart calculations
+  const chartData = useMemo(() => {
+    const netValues = CASH_FLOW_FORECAST.map((d) => d.inflow - d.outflow)
+    const cumulative: number[] = []
+    let running = dashboard?.cashPosition ?? 0
+    for (const net of netValues) {
+      running += net
+      cumulative.push(running)
+    }
+    const min = Math.min(...cumulative)
+    const max = Math.max(...cumulative)
+    const range = max - min || 1
+    return { cumulative, min, max, range }
+  }, [dashboard?.cashPosition])
+
   if (!dashboard) {
     return (
-      <div className="p-6 text-center text-black/40 dark:text-white/40">
+      <div className="flex-1 flex items-center justify-center text-sm text-black/30 dark:text-white/30">
         Loading...
       </div>
     )
   }
 
-  const navigateToAR = () => setActiveTab('ar')
-  const navigateToAP = () => setActiveTab('ap')
+  const navigateToAR = () => setActiveTab('receivables')
+  const navigateToAP = () => setActiveTab('payables')
   const navigateToInvoice = (invoiceId: string) => {
     setSelectedInvoiceId(invoiceId)
-    setActiveTab('invoicing')
+    setActiveTab('receivables')
   }
 
+  const netPosition = dashboard.outstandingAR - (dashboard.apDueThisWeek + dashboard.overdueAP)
+
+  // Action items — payments due, invoices to send, cheques maturing
+  const draftInvoices = AUTO_GENERATED_INVOICES.filter((inv) => inv.status === 'draft')
+  const overduePayments = EXPECTED_PAYMENTS.filter((p) => p.dueDate <= '2026-04-07')
+
   return (
-    <div className="p-6 space-y-6">
-      {/* ─── Top Row: 4 Key Metrics ───────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <GlassPanel>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('dashboard.revenueMTD', 'Revenue MTD')}
-          </div>
-          <div className="text-2xl">
-            <CurrencyCell amount={dashboard.revenueMTD} />
-          </div>
-        </GlassPanel>
+    <div className="p-6 max-w-5xl">
+      {/* ─── Hero: Cash Position ─────────────────────────── */}
+      <section className="mb-8">
+        <div className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+          {t('dashboard.cashPosition', 'Cash Position')}
+        </div>
+        <CurrencyCell amount={dashboard.cashPosition} className="text-5xl font-light" />
 
-        <GlassPanel onClick={navigateToAR}>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('dashboard.outstandingAR', 'Outstanding AR')}
-          </div>
-          <div className="text-2xl">
-            <CurrencyCell amount={dashboard.outstandingAR} />
-          </div>
-        </GlassPanel>
+        {/* AR | AP | Net — three numbers in a row */}
+        <div className="flex items-center gap-6 mt-4">
+          <button type="button" onClick={navigateToAR} className="group cursor-pointer text-start">
+            <div className="text-[11px] uppercase tracking-wider text-black/35 dark:text-white/35 mb-0.5">
+              {t('dashboard.outstandingAR', 'AR')}
+            </div>
+            <CurrencyCell
+              amount={dashboard.outstandingAR}
+              className="text-lg group-hover:text-[#2563EB] transition-colors"
+              subtle
+            />
+          </button>
 
-        <GlassPanel onClick={navigateToAR}>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('dashboard.overdueAR', 'Overdue AR')}
-          </div>
-          <div className={`text-2xl ${dashboard.overdueAR > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
-            <CurrencyCell amount={dashboard.overdueAR} />
-          </div>
-        </GlassPanel>
+          <span className="text-black/10 dark:text-white/10 text-lg select-none">/</span>
 
-        <GlassPanel>
-          <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-            {t('dashboard.cashPosition', 'Cash Position')}
-          </div>
-          <div className="text-2xl">
-            <CurrencyCell amount={dashboard.cashPosition} />
-          </div>
-        </GlassPanel>
-      </div>
+          <button type="button" onClick={navigateToAP} className="group cursor-pointer text-start">
+            <div className="text-[11px] uppercase tracking-wider text-black/35 dark:text-white/35 mb-0.5">
+              {t('dashboard.apSummary', 'AP')}
+            </div>
+            <CurrencyCell
+              amount={dashboard.apDueThisWeek + dashboard.overdueAP}
+              className="text-lg group-hover:text-[#2563EB] transition-colors"
+              subtle
+            />
+          </button>
 
-      {/* ─── Three-Column Grid: Aging, Payments, Breakdown ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Column 1: AR Aging Summary */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-3">
-            {t('dashboard.arAgingSummary', 'AR Aging Summary')}
-          </h3>
-          <div className="space-y-2">
-            {AGING_BUCKETS.map((row) => (
-              <div key={row.key} className="flex items-center justify-between">
-                <AgingBadge bucket={row.bucket} />
-                <CurrencyCell amount={dashboard.arAging[row.field]} className="text-sm" />
-              </div>
-            ))}
-          </div>
-        </GlassPanel>
+          <span className="text-black/10 dark:text-white/10 text-lg select-none">/</span>
 
-        {/* Column 2: Expected Payments This Week */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-3">
-            {t('dashboard.expectedPayments', 'Expected Payments This Week')}
-          </h3>
-          <div className="space-y-3">
-            {EXPECTED_PAYMENTS.map((payment) => (
-              <div key={payment.customer} className="flex items-center justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{payment.customer}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PAYMENT_METHOD_COLORS[payment.method]}`}>
-                      {PAYMENT_METHOD_LABELS[payment.method]}
-                    </span>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
-                      {payment.dueDate}
-                    </span>
-                  </div>
-                </div>
-                <CurrencyCell amount={payment.amount} className="text-sm" />
-              </div>
-            ))}
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-black/35 dark:text-white/35 mb-0.5">
+              {t('dashboard.netPosition', 'Net')}
+            </div>
+            <CurrencyCell
+              amount={netPosition}
+              className={`text-lg ${netPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}
+              subtle
+            />
           </div>
-        </GlassPanel>
+        </div>
+      </section>
 
-        {/* Column 3: Payment Method Breakdown */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-3">
-            {t('dashboard.paymentBreakdown', 'Payment Method Breakdown')}
-          </h3>
-          <div className="space-y-3">
-            {(['wire', 'cheque', 'lc'] as const).map((method) => {
-              const pct = dashboard.paymentMethodBreakdown[method]
+      {/* ─── Action Items ────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+          {t('dashboard.actionItems', 'Today')}
+        </h2>
+        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04] rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+          {/* Overdue payments due */}
+          {overduePayments.map((payment) => (
+            <div key={payment.customer} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="size-1.5 rounded-full bg-red-500 shrink-0" />
+              <span className="text-sm flex-1 min-w-0 truncate">
+                {t('dashboard.paymentDue', 'Payment due')}: {payment.customer}
+              </span>
+              <span className="text-[11px] text-black/35 dark:text-white/35 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                {PAYMENT_METHOD_LABELS[payment.method]}
+              </span>
+              <CurrencyCell amount={payment.amount} className="text-sm" />
+              <span className="text-[11px] text-black/30 dark:text-white/30 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                {payment.dueDate}
+              </span>
+            </div>
+          ))}
+
+          {/* Draft invoices needing review */}
+          {draftInvoices.map((inv) => (
+            <button
+              key={inv.id}
+              type="button"
+              onClick={() => navigateToInvoice(inv.id)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start"
+            >
+              <span className="size-1.5 rounded-full bg-yellow-500 shrink-0" />
+              <span className="text-sm flex-1 min-w-0 truncate">
+                {t('dashboard.reviewInvoice', 'Review invoice')}: {inv.number}
+              </span>
+              <span className="text-[11px] text-black/35 dark:text-white/35">{inv.customer}</span>
+              <CurrencyCell amount={inv.amount} className="text-sm" />
+            </button>
+          ))}
+
+          {/* Overdue AR alert */}
+          {dashboard.overdueAR > 0 && (
+            <button
+              type="button"
+              onClick={navigateToAR}
+              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start"
+            >
+              <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
+              <span className="text-sm flex-1">
+                {t('dashboard.overdueARAlert', 'Overdue receivables need attention')}
+              </span>
+              <CurrencyCell amount={dashboard.overdueAR} className="text-sm text-red-600" />
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ─── AR Aging + Expected Payments — side by side ── */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* AR Aging compact */}
+        <div>
+          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+            {t('dashboard.arAgingSummary', 'Aging')}
+          </h2>
+          <div className="space-y-1.5">
+            {AGING_BUCKETS.map((row) => {
+              const amount = dashboard.arAging[row.field]
+              const pct = dashboard.outstandingAR > 0 ? (amount / dashboard.outstandingAR) * 100 : 0
               return (
-                <div key={method}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm">{PAYMENT_METHOD_LABELS[method]}</span>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm">
-                      {pct}%
-                    </span>
+                <div key={row.key} className="flex items-center gap-3">
+                  <div className="w-12">
+                    <AgingBadge bucket={row.bucket} />
                   </div>
-                  <div className="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+                  <div className="flex-1 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-[#2563EB] transition-all duration-300"
+                      className="h-full rounded-full bg-black/20 dark:bg-white/20 transition-all duration-300"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
+                  <CurrencyCell amount={amount} className="text-sm w-28 text-end" />
                 </div>
               )
             })}
           </div>
-        </GlassPanel>
-      </div>
-
-      {/* ─── Auto-Generated Invoices from Delivery ────────── */}
-      <GlassPanel>
-        <div className="flex items-center gap-2 mb-4">
-          <svg
-            className="w-5 h-5 text-[#2563EB]"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0H21M3.375 14.25h17.25M21 12.75V6.375c0-.621-.504-1.125-1.125-1.125H4.125C3.504 5.25 3 5.754 3 6.375v8.25" />
-          </svg>
-          <h3 className="text-sm font-semibold">
-            {t('dashboard.autoGeneratedInvoices', 'Auto-Generated from Delivery')}
-          </h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-start text-xs text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
-                <th className="pb-2 ps-2 font-medium text-start">{t('dashboard.invoiceNumber', 'Invoice #')}</th>
-                <th className="pb-2 font-medium text-start">{t('dashboard.orderNumber', 'Order #')}</th>
-                <th className="pb-2 font-medium text-start">{t('dashboard.customer', 'Customer')}</th>
-                <th className="pb-2 font-medium text-start">{t('dashboard.deliveryDate', 'Delivery Date')}</th>
-                <th className="pb-2 font-medium text-end">{t('dashboard.amount', 'Amount')}</th>
-                <th className="pb-2 pe-2 font-medium text-center">{t('dashboard.status', 'Status')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {AUTO_GENERATED_INVOICES.map((inv) => (
-                <tr
-                  key={inv.id}
-                  className="border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                  onClick={() => navigateToInvoice(inv.id)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') navigateToInvoice(inv.id) }}
-                  tabIndex={0}
-                  role="button"
-                >
-                  <td className="py-2 ps-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.number}</td>
-                  <td className="py-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.orderId}</td>
-                  <td className="py-2">{inv.customer}</td>
-                  <td className="py-2 font-[family-name:var(--font-geist-mono)] tabular-nums">{inv.deliveryDate}</td>
-                  <td className="py-2 text-end"><CurrencyCell amount={inv.amount} /></td>
-                  <td className="py-2 pe-2 text-center">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${inv.status === 'draft' ? 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60' : 'bg-[#2563EB]/10 text-[#2563EB]'}`}>
-                      {inv.status === 'draft' ? 'Draft' : 'Sent'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </GlassPanel>
 
-      {/* ─── Bottom Row: Credit Utilization + AP Summary ──── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Customer Credit Utilization */}
-        <GlassPanel>
-          <h3 className="text-sm font-semibold mb-3">
-            {t('dashboard.creditUtilization', 'Customer Credit Utilization')}
-          </h3>
-          <div className="space-y-3">
-            {dashboard.topCreditUtilization.map((customer) => (
-              <div key={customer.customerId}>
-                <div className="text-sm mb-1">{customer.customerName}</div>
-                <UtilizationBar percentage={customer.utilizationPct} />
+        {/* Expected Payments */}
+        <div>
+          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+            {t('dashboard.expectedPayments', 'Expected This Week')}
+          </h2>
+          <div className="space-y-1.5">
+            {EXPECTED_PAYMENTS.map((payment) => (
+              <div key={payment.customer} className="flex items-center gap-3">
+                <span className="text-sm flex-1 min-w-0 truncate">{payment.customer}</span>
+                <span className="text-[10px] text-black/30 dark:text-white/30 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  {payment.dueDate}
+                </span>
+                <span className="text-[10px] text-black/30 dark:text-white/30 w-12 text-end">
+                  {PAYMENT_METHOD_LABELS[payment.method]}
+                </span>
+                <CurrencyCell amount={payment.amount} className="text-sm w-28 text-end" />
               </div>
             ))}
           </div>
-        </GlassPanel>
+        </div>
+      </section>
 
-        {/* AP Summary */}
-        <GlassPanel onClick={navigateToAP}>
-          <h3 className="text-sm font-semibold mb-3">
-            {t('dashboard.apSummary', 'Accounts Payable')}
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('dashboard.apDueThisWeek', 'AP Due This Week')}
+      {/* ─── Cash Flow Forecast — CSS area chart ─────────── */}
+      <section className="mb-8">
+        <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+          {t('dashboard.cashFlowForecast', '7-Day Cash Flow Forecast')}
+        </h2>
+        <div className="h-24 flex items-end gap-px">
+          {CASH_FLOW_FORECAST.map((day, i) => {
+            const cumValue = chartData.cumulative[i]
+            const normalizedHeight = ((cumValue - chartData.min) / chartData.range) * 100
+            const net = day.inflow - day.outflow
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end h-20">
+                  <div
+                    className={`w-full rounded-t transition-all duration-300 ${net >= 0 ? 'bg-[#2563EB]/20' : 'bg-red-500/20'}`}
+                    style={{ height: `${Math.max(normalizedHeight, 4)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-black/30 dark:text-white/30">{day.day}</span>
               </div>
-              <div className="text-lg">
-                <CurrencyCell amount={dashboard.apDueThisWeek} />
+            )
+          })}
+        </div>
+      </section>
+
+      {/* ─── Credit Utilization ──────────────────────────── */}
+      {dashboard.topCreditUtilization.length > 0 && (
+        <section>
+          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+            {t('dashboard.creditUtilization', 'Credit Utilization')}
+          </h2>
+          <div className="space-y-2">
+            {dashboard.topCreditUtilization.map((customer) => (
+              <div key={customer.customerId} className="flex items-center gap-3">
+                <span className="text-sm w-48 truncate">{customer.customerName}</span>
+                <div className="flex-1">
+                  <UtilizationBar percentage={customer.utilizationPct} />
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-black/50 dark:text-white/50 mb-1">
-                {t('dashboard.overdueAP', 'Overdue AP')}
-              </div>
-              <div className={`text-lg ${dashboard.overdueAP > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
-                <CurrencyCell amount={dashboard.overdueAP} />
-              </div>
-            </div>
+            ))}
           </div>
-        </GlassPanel>
-      </div>
+        </section>
+      )}
     </div>
   )
 }

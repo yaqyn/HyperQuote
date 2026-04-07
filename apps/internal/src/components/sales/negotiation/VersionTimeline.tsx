@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { QuoteVersion } from '../../../types/sales'
 
-// ─── Mock Version Chain ──────────────────────────────────────
+// ─── Mock Version Chain ─────────────────────────────────────
 
 function getMockVersionChain(quoteId: string): QuoteVersion[] {
-  // Simulate traversing previous_version_id chain
   return [
     {
       id: `${quoteId}-v1`,
@@ -40,13 +39,7 @@ function getMockVersionChain(quoteId: string): QuoteVersion[] {
   ]
 }
 
-function getVersionLabel(index: number, total: number): string {
-  if (index === 0) return 'Original'
-  if (index === total - 1) return 'Current'
-  return 'Revised'
-}
-
-// ─── Component ───────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────
 
 interface VersionTimelineProps {
   quoteId: string
@@ -63,14 +56,18 @@ export function VersionTimeline({
   const [versions] = useState(() => getMockVersionChain(quoteId))
 
   return (
-    <div className="flex items-center gap-3 overflow-x-auto px-4 py-3 border-b border-black/10 dark:border-white/10">
-      <span className="text-xs text-black/50 dark:text-white/50 shrink-0">
+    <div className="flex w-full flex-col py-4 ps-6 pe-4">
+      <span className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
         {t('sales.negotiation.versionTimeline', 'Version Timeline')}
       </span>
-      <div className="flex items-center gap-2">
+
+      <div className="relative flex flex-col">
+        {/* Vertical connecting line */}
+        <div className="absolute start-[5px] top-2 bottom-2 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
+
         {versions.map((version, idx) => {
           const isSelected = selectedVersions.includes(version.id)
-          const label = getVersionLabel(idx, versions.length)
+          const isLast = idx === versions.length - 1
 
           return (
             <button
@@ -78,28 +75,42 @@ export function VersionTimeline({
               type="button"
               onClick={() => onSelectVersion(version.id)}
               className={[
-                'flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors',
-                'hover:bg-black/5 dark:hover:bg-white/5',
-                isSelected
-                  ? 'border-b-2 border-[#2563EB] bg-black/5 dark:bg-white/5'
-                  : 'border-b-2 border-transparent',
+                'relative flex items-start gap-3 rounded-lg py-2.5 ps-0 pe-3 text-start transition-colors',
+                'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]',
               ].join(' ')}
             >
-              <span className="font-mono text-sm font-semibold">
-                v{version.version}
-              </span>
-              <span className="text-[11px] text-black/50 dark:text-white/50">
-                {label}
-              </span>
-              <span className="font-mono text-[11px] text-black/40 dark:text-white/40">
-                {new Date(version.createdAt).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                })}
-              </span>
-              <span className="font-mono text-xs">
-                EGP {version.total.toLocaleString('en-EG')}
-              </span>
+              {/* Dot on the line */}
+              <div className="relative z-10 mt-1 flex size-[11px] shrink-0 items-center justify-center">
+                <span
+                  className={[
+                    'block rounded-full transition-all',
+                    isSelected
+                      ? 'size-[11px] bg-[var(--color-primary)]'
+                      : 'size-[7px] bg-black/[0.15] dark:bg-white/[0.15]',
+                  ].join(' ')}
+                />
+              </div>
+
+              {/* Content */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+                    v{version.version}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                    {new Date(version.createdAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                  {version.changes}
+                </p>
+                <span className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                  EGP {version.total.toLocaleString('en-EG')}
+                </span>
+              </div>
             </button>
           )
         })}

@@ -29,6 +29,18 @@ interface DispatchStore {
   // Route planning date (default: tomorrow ISO)
   routePlanningDate: string
   setRoutePlanningDate: (date: string) => void
+
+  // Map mode toggle (planning vs live tracking)
+  mapMode: 'planning' | 'live'
+  setMapMode: (mode: 'planning' | 'live') => void
+
+  // Delivery detail drill-down (POD review)
+  reviewingDeliveryId: string | null
+  setReviewingDeliveryId: (id: string | null) => void
+
+  // Roster sidebar in map view
+  rosterSidebarOpen: boolean
+  setRosterSidebarOpen: (open: boolean) => void
 }
 
 function getTomorrowISO(): string {
@@ -47,7 +59,7 @@ const CAIRO_VIEWPORT: MapViewport = {
 export const useDispatchStore = create<DispatchStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'home',
+    activeTab: 'map',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Entity selection
@@ -67,6 +79,18 @@ export const useDispatchStore = create<DispatchStore>()(
     // Route planning date
     routePlanningDate: getTomorrowISO(),
     setRoutePlanningDate: (date) => set({ routePlanningDate: date }),
+
+    // Map mode toggle
+    mapMode: 'planning',
+    setMapMode: (mode) => set({ mapMode: mode }),
+
+    // Delivery detail drill-down (POD review)
+    reviewingDeliveryId: null,
+    setReviewingDeliveryId: (id) => set({ reviewingDeliveryId: id }),
+
+    // Roster sidebar in map view
+    rosterSidebarOpen: false,
+    setRosterSidebarOpen: (open) => set({ rosterSidebarOpen: open }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

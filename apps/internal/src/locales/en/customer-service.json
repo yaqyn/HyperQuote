@@ -16,7 +16,11 @@
     "atRisk": "At Risk",
     "breached": "Breached",
     "byPriority": "By Priority",
-    "oldestAge": "Oldest"
+    "oldestAge": "Oldest",
+    "allClear": "All Clear",
+    "avgResponse": "Avg Response",
+    "priorityQueue": "Priority Queue",
+    "resolutionRate": "Resolution Rate"
   },
   "tickets": {
     "title": "Tickets",
@@ -42,7 +46,18 @@
     "respond": "Respond",
     "escalate": "Escalate",
     "unassigned": "Unassigned",
-    "breached": "SLA Breached"
+    "breached": "SLA Breached",
+    "channelAll": "All Channels",
+    "channelEmail": "Email",
+    "channelPhone": "Phone",
+    "channelWhatsApp": "WhatsApp",
+    "filterAll": "All",
+    "filterOpen": "Open",
+    "filterResolved": "Resolved",
+    "filterWaiting": "Waiting",
+    "noTickets": "No tickets found",
+    "replyPlaceholder": "Type a reply...",
+    "send": "Send"
   },
   "whatsapp": {
     "title": "WhatsApp Inbox",
@@ -75,6 +90,7 @@
     "tier": "Tier",
     "resolution": "Resolution",
     "photos": "Photos",
+    "noCases": "No cases found",
     "newClaim": "New Damage Claim",
     "newRma": "New RMA",
     "claimId": "Claim ID",

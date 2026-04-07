@@ -1,30 +1,42 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button } from 'react-aria-components'
+import { Button, ToggleButton } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { Download, Mail } from 'lucide-react'
+import { motion } from 'motion/react'
 import { getSalesAnalytics } from '../../../lib/server/sales-activity'
 import type { SalesAnalytics } from '../../../types/sales'
 
 type Period = 'week' | 'month' | 'quarter' | 'year'
 
-// ─── CSS-based bar chart (no chart library) ─────────────────
+// ─── Formatters ─────────────────────────────────────────────
 
-function BarChart({ items, maxValue }: { items: { label: string; value: number }[]; maxValue: number }) {
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
+  return String(value)
+}
+
+// ─── Revenue by Product — Horizontal Bars ───────────────────
+
+function RevenueByProduct({ items }: { items: { label: string; value: number }[] }) {
+  const maxValue = items.reduce((max, item) => Math.max(max, item.value), 0)
+
   return (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-2">
-          <span className="w-32 shrink-0 truncate text-xs text-black/60 dark:text-white/60">
+    <div className="flex flex-col gap-3">
+      {items.map((item, i) => (
+        <div key={item.label} className="flex items-center gap-3">
+          <span className="w-36 shrink-0 truncate text-[13px] text-[var(--color-text)]">
             {item.label}
           </span>
           <div className="flex-1">
-            <div
-              className="h-5 rounded bg-[#2563EB]/20"
-              style={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%` }}
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%` }}
+              transition={{ duration: 0.6, delay: i * 0.08, ease: 'easeOut' }}
+              className="h-6 rounded-md bg-[var(--color-primary)]/12"
             />
           </div>
-          <span className="w-20 shrink-0 text-end font-[family-name:var(--font-geist-mono)] text-xs tabular-nums">
+          <span className="w-20 shrink-0 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)]">
             {formatCurrency(item.value)}
           </span>
         </div>
@@ -33,71 +45,30 @@ function BarChart({ items, maxValue }: { items: { label: string; value: number }
   )
 }
 
-function HorizontalStackedBar({ segments }: { segments: { label: string; value: number; count: number }[] }) {
-  const total = segments.reduce((sum, s) => sum + s.value, 0)
-  const colors = [
-    'bg-[#2563EB]', 'bg-[#2563EB]/80', 'bg-[#2563EB]/60',
-    'bg-[#2563EB]/40', 'bg-[#2563EB]/30', 'bg-[#2563EB]/20', 'bg-[#2563EB]/10',
-  ]
-  return (
-    <div>
-      <div className="flex h-8 overflow-hidden rounded-lg">
-        {segments.map((seg, i) => {
-          const pct = total > 0 ? (seg.value / total) * 100 : 0
-          if (pct < 1) return null
-          return (
-            <div
-              key={seg.label}
-              className={`${colors[i % colors.length]} flex items-center justify-center`}
-              style={{ width: `${pct}%` }}
-              title={`${seg.label}: ${formatCurrency(seg.value)} (${seg.count} deals)`}
-            >
-              {pct > 8 && (
-                <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-white mix-blend-difference">
-                  {seg.count}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-3">
-        {segments.map((seg, i) => (
-          <div key={seg.label} className="flex items-center gap-1">
-            <div className={`size-2 rounded-full ${colors[i % colors.length]}`} />
-            <span className="text-[11px] text-black/50 dark:text-white/50">{seg.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+// ─── Margin by Customer — Ranked List with Bars ─────────────
 
-function ConversionFunnel({ rates }: { rates: SalesAnalytics['conversionRates'] }) {
+function MarginByCustomer({ customers }: { customers: SalesAnalytics['topCustomers'] }) {
+  // Mock margin data per customer
+  const MARGINS = [19.2, 17.8, 15.5, 21.3, 16.0]
+
   return (
-    <div className="flex flex-col gap-1">
-      {rates.map((r, i) => {
-        const width = Math.max(20, r.rate)
+    <div className="flex flex-col gap-2.5">
+      {customers.map((c, i) => {
+        const margin = MARGINS[i] ?? 18
         return (
-          <div key={r.fromStage} className="flex items-center gap-2">
-            <span className="w-24 shrink-0 truncate text-xs text-black/60 dark:text-white/60">
-              {r.fromStage}
+          <div key={c.name} className="flex items-center gap-3">
+            <span className="w-40 shrink-0 truncate text-[13px] text-[var(--color-text)]">
+              {c.name}
             </span>
-            <div className="flex-1 flex justify-center">
+            <div className="flex-1">
               <div
-                className="h-6 rounded bg-[#2563EB]/20 flex items-center justify-center"
-                style={{ width: `${width}%` }}
-              >
-                <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums">
-                  {r.rate}%
-                </span>
-              </div>
+                className="h-4 rounded bg-[var(--color-text)]/8 dark:bg-white/[0.08]"
+                style={{ width: `${margin * 4}%` }}
+              />
             </div>
-            {i < rates.length - 1 && (
-              <span className="w-16 shrink-0 text-end text-xs text-black/30 dark:text-white/30">
-                {r.toStage}
-              </span>
-            )}
+            <span className="w-14 shrink-0 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+              {margin.toFixed(1)}%
+            </span>
           </div>
         )
       })}
@@ -105,13 +76,73 @@ function ConversionFunnel({ rates }: { rates: SalesAnalytics['conversionRates'] 
   )
 }
 
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
-  return String(value)
+// ─── Pipeline — Funnel Bars ─────────────────────────────────
+
+function PipelineFunnel({ stages }: { stages: SalesAnalytics['pipelineByStage'] }) {
+  const maxValue = stages.reduce((max, s) => Math.max(max, s.value), 0)
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {stages.map((stage, i) => {
+        const widthPct = maxValue > 0 ? Math.max(15, (stage.value / maxValue) * 100) : 15
+        return (
+          <div key={stage.stage} className="flex w-full items-center gap-3">
+            <span className="w-24 shrink-0 text-end text-[11px] text-[var(--color-text-subtle)]">
+              {stage.stage}
+            </span>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${widthPct}%` }}
+              transition={{ duration: 0.5, delay: i * 0.06 }}
+              className="flex h-7 items-center justify-center rounded-md bg-[var(--color-primary)]"
+              style={{ opacity: 1 - i * 0.1 }}
+            >
+              <span className="font-[family-name:var(--font-geist-mono)] text-[11px] font-medium tabular-nums text-white">
+                {stage.count}
+              </span>
+            </motion.div>
+            <span className="w-16 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
+              {formatCurrency(stage.value)}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
-// ─── CSV Export ─────────────────────────────────────────────
+// ─── Conversion Rates — Big Mono Numbers ────────────────────
+
+function ConversionRates({ rates }: { rates: SalesAnalytics['conversionRates'] }) {
+  return (
+    <div className="flex flex-col items-center gap-0">
+      {rates.map((r, i) => (
+        <div key={r.fromStage} className="flex flex-col items-center">
+          <div className="text-center">
+            <span className="text-[11px] text-[var(--color-text-subtle)]">{r.fromStage}</span>
+          </div>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-bold tabular-nums text-[var(--color-text)]">
+            {r.rate}%
+          </span>
+          {i < rates.length - 1 && (
+            <svg width="12" height="20" viewBox="0 0 12 20" className="my-1 text-[var(--color-text-subtle)]">
+              <path d="M6 0L6 14M2 10L6 16L10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </div>
+      ))}
+      {rates.length > 0 && (
+        <div className="text-center">
+          <span className="text-[11px] text-[var(--color-text-subtle)]">
+            {rates[rates.length - 1].toStage}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── CSV Export ──────────────────────────────────────────────
 
 function generateCSV(analytics: SalesAnalytics): string {
   const lines: string[] = []
@@ -177,199 +208,146 @@ export function SalesReports() {
     return analytics.topProducts.map((p) => ({ label: p.name, value: p.revenue }))
   }, [analytics])
 
-  const maxRevenue = useMemo(() => {
-    return revenueBarItems.reduce((max, item) => Math.max(max, item.value), 0)
-  }, [revenueBarItems])
-
-  const pipelineSegments = useMemo(() => {
+  const pipelineStages = useMemo(() => {
     if (!analytics) return []
-    return analytics.pipelineByStage.map((s) => ({
-      label: s.stage,
-      value: s.value,
-      count: s.count,
-    }))
+    return analytics.pipelineByStage
   }, [analytics])
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-xl bg-black/5 dark:bg-white/5" />
-        ))}
+      <div className="flex flex-col gap-6 p-6">
+        <div className="h-24 animate-pulse rounded-xl bg-black/[0.03] dark:bg-white/[0.03]" />
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-black/[0.03] dark:bg-white/[0.03]" />
+          ))}
+        </div>
       </div>
     )
   }
 
   if (!analytics) return null
 
+  // Trend indicator (mock — would come from comparing periods)
+  const revenueTrend = analytics.revenue > 0 ? 'up' : 'flat'
+
+  // Weighted pipeline forecast
+  const weightedPipeline = analytics.pipelineByStage.reduce((sum, s) => {
+    const weights: Record<string, number> = {
+      'RFQ Received': 0.2, Reviewing: 0.3, Sourcing: 0.4,
+      Quoting: 0.5, Sent: 0.6, Negotiating: 0.7, Closing: 0.85,
+    }
+    return sum + s.value * (weights[s.stage] ?? 0.5)
+  }, 0)
+
   return (
-    <div className="flex flex-col gap-6 p-4">
-      {/* Header with filters and export */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">
-          {t('sales.reports.title', 'Sales Reports')}
-        </h2>
-        <div className="flex items-center gap-2">
-          {/* Period filter */}
-          <div className="flex rounded-lg border border-black/10 dark:border-white/10">
-            {(['week', 'month', 'quarter', 'year'] as Period[]).map((p) => (
-              <Button
-                key={p}
-                onPress={() => setPeriod(p)}
-                className={`px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                  period === p
-                    ? 'bg-[#2563EB] text-white'
-                    : 'text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5'
-                }`}
-              >
-                {p}
-              </Button>
-            ))}
-          </div>
+    <div className="flex flex-col gap-8 p-6">
+      {/* Top bar: period selector + export */}
+      <div className="flex items-center justify-between">
+        {/* Period pill toggle */}
+        <div className="flex rounded-full bg-black/[0.04] p-0.5 dark:bg-white/[0.06]">
+          {(['week', 'month', 'quarter', 'year'] as Period[]).map((p) => (
+            <ToggleButton
+              key={p}
+              isSelected={period === p}
+              onChange={() => setPeriod(p)}
+              className={[
+                'rounded-full px-3.5 py-1 text-[11px] font-medium capitalize outline-none transition-colors',
+                period === p
+                  ? 'bg-[var(--color-text)] text-white dark:bg-white dark:text-black'
+                  : 'text-[var(--color-text-subtle)] data-[hovered]:text-[var(--color-text-muted)]',
+              ].join(' ')}
+            >
+              {p}
+            </ToggleButton>
+          ))}
+        </div>
 
-          <Button
-            onPress={handleExportCSV}
-            className="flex items-center gap-1 rounded-lg border border-black/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-          >
-            <Download className="size-3.5" />
-            {t('sales.reports.exportCSV', 'Export CSV')}
-          </Button>
+        {/* CSV export — small text link */}
+        <button
+          type="button"
+          onClick={handleExportCSV}
+          className="text-[11px] text-[var(--color-text-subtle)] underline-offset-2 transition-colors hover:text-[var(--color-text-muted)] hover:underline"
+        >
+          {t('sales.reports.exportCSV', 'Export CSV')}
+        </button>
+      </div>
 
-          <Button
-            onPress={() => {
-              // Placeholder: Email report (Phase 28)
-            }}
-            className="flex items-center gap-1 rounded-lg border border-black/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-          >
-            <Mail className="size-3.5" />
-            {t('sales.reports.emailReport', 'Email Report')}
-          </Button>
+      {/* Hero metric */}
+      <div className="flex flex-col items-start">
+        <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-subtle)]">
+          {t('sales.reports.totalRevenue', 'Total Revenue')}
+        </span>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="font-[family-name:var(--font-geist-mono)] text-[48px] font-bold leading-none tabular-nums text-[var(--color-text)]">
+            EGP {formatCurrency(analytics.revenue)}
+          </span>
+          {revenueTrend === 'up' && (
+            <span className="text-[13px] text-green-600 dark:text-green-400">↑</span>
+          )}
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-          <span className="text-xs text-black/40 dark:text-white/40">
-            {t('sales.reports.totalRevenue', 'Total Revenue')}
-          </span>
-          <p className="font-[family-name:var(--font-geist-mono)] text-2xl font-semibold tabular-nums">
-            EGP {formatCurrency(analytics.revenue)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-          <span className="text-xs text-black/40 dark:text-white/40">
+      {/* Supporting metrics row */}
+      <div className="flex gap-8">
+        <div>
+          <span className="text-[11px] text-[var(--color-text-subtle)]">
             {t('sales.reports.orders', 'Orders')}
           </span>
-          <p className="font-[family-name:var(--font-geist-mono)] text-2xl font-semibold tabular-nums">
+          <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
             {analytics.orderCount}
           </p>
         </div>
-        <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-          <span className="text-xs text-black/40 dark:text-white/40">
-            {t('sales.reports.avgOrder', 'Avg Order Value')}
+        <div>
+          <span className="text-[11px] text-[var(--color-text-subtle)]">
+            {t('sales.reports.avgOrder', 'Avg Order')}
           </span>
-          <p className="font-[family-name:var(--font-geist-mono)] text-2xl font-semibold tabular-nums">
+          <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
             EGP {formatCurrency(analytics.avgOrderValue)}
+          </p>
+        </div>
+        <div>
+          <span className="text-[11px] text-[var(--color-text-subtle)]">
+            {t('sales.reports.forecast', 'Forecast')}
+          </span>
+          <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
+            EGP {formatCurrency(weightedPipeline)}
           </p>
         </div>
       </div>
 
-      {/* Revenue by product (bar chart) */}
-      <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h3 className="mb-3 text-sm font-medium text-black/60 dark:text-white/60">
-          {t('sales.reports.revenueByProduct', 'Revenue by Product')}
-        </h3>
-        <BarChart items={revenueBarItems} maxValue={maxRevenue} />
-      </div>
-
-      {/* Margin by customer */}
-      <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h3 className="mb-3 text-sm font-medium text-black/60 dark:text-white/60">
-          {t('sales.reports.marginByCustomer', 'Margin by Customer')}
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-black/5 dark:border-white/5">
-                <th className="py-1.5 text-start text-xs font-medium text-black/40 dark:text-white/40">Customer</th>
-                <th className="py-1.5 text-end text-xs font-medium text-black/40 dark:text-white/40">Revenue</th>
-                <th className="py-1.5 text-end text-xs font-medium text-black/40 dark:text-white/40">Orders</th>
-                <th className="py-1.5 text-end text-xs font-medium text-black/40 dark:text-white/40">Margin %</th>
-                <th className="py-1.5 text-end text-xs font-medium text-black/40 dark:text-white/40">Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analytics.topCustomers.map((c, i) => {
-                // Mock margin data per customer
-                const margin = [19.2, 17.8, 15.5, 21.3, 16.0][i] ?? 18
-                const profit = Math.round(c.revenue * (margin / 100))
-                return (
-                  <tr key={c.name} className="border-b border-black/[0.03] dark:border-white/[0.03]">
-                    <td className="py-2 text-sm">{c.name}</td>
-                    <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-                      EGP {formatCurrency(c.revenue)}
-                    </td>
-                    <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-                      {c.orderCount}
-                    </td>
-                    <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-                      {margin.toFixed(1)}%
-                    </td>
-                    <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-                      EGP {formatCurrency(profit)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      {/* Two-column editorial layout */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Revenue by Product */}
+        <div>
+          <h3 className="mb-4 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+            {t('sales.reports.revenueByProduct', 'Revenue by Product')}
+          </h3>
+          <RevenueByProduct items={revenueBarItems} />
         </div>
-      </div>
 
-      {/* Pipeline by stage (stacked bar) */}
-      <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h3 className="mb-3 text-sm font-medium text-black/60 dark:text-white/60">
-          {t('sales.reports.pipelineByStage', 'Pipeline by Stage')}
-        </h3>
-        <HorizontalStackedBar segments={pipelineSegments} />
-      </div>
+        {/* Margin by Customer */}
+        <div>
+          <h3 className="mb-4 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+            {t('sales.reports.marginByCustomer', 'Margin by Customer')}
+          </h3>
+          <MarginByCustomer customers={analytics.topCustomers} />
+        </div>
 
-      {/* Conversion rates (funnel) */}
-      <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h3 className="mb-3 text-sm font-medium text-black/60 dark:text-white/60">
-          {t('sales.reports.conversionRates', 'Conversion Rates')}
-        </h3>
-        <ConversionFunnel rates={analytics.conversionRates} />
-      </div>
+        {/* Pipeline Funnel */}
+        <div>
+          <h3 className="mb-4 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+            {t('sales.reports.pipelineByStage', 'Pipeline by Stage')}
+          </h3>
+          <PipelineFunnel stages={pipelineStages} />
+        </div>
 
-      {/* Forecast (weighted pipeline vs actual) */}
-      <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h3 className="mb-3 text-sm font-medium text-black/60 dark:text-white/60">
-          {t('sales.reports.forecast', 'Forecast')}
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-xs text-black/40 dark:text-white/40">Weighted Pipeline</span>
-            <p className="font-[family-name:var(--font-geist-mono)] text-xl font-semibold tabular-nums">
-              EGP {formatCurrency(
-                analytics.pipelineByStage.reduce((sum, s) => {
-                  // Simplified weight: later stages higher probability
-                  const weights: Record<string, number> = {
-                    'RFQ Received': 0.2, Reviewing: 0.3, Sourcing: 0.4,
-                    Quoting: 0.5, Sent: 0.6, Negotiating: 0.7, Closing: 0.85,
-                  }
-                  return sum + s.value * (weights[s.stage] ?? 0.5)
-                }, 0),
-              )}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs text-black/40 dark:text-white/40">Actual Revenue</span>
-            <p className="font-[family-name:var(--font-geist-mono)] text-xl font-semibold tabular-nums">
-              EGP {formatCurrency(analytics.revenue)}
-            </p>
-          </div>
+        {/* Conversion Rates */}
+        <div>
+          <h3 className="mb-4 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+            {t('sales.reports.conversionRates', 'Conversion Rates')}
+          </h3>
+          <ConversionRates rates={analytics.conversionRates} />
         </div>
       </div>
     </div>

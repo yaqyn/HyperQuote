@@ -9,11 +9,11 @@ interface CommunicationsTabProps {
   enabled: boolean
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  call: '\u{1F4DE}',
-  email: '\u{2709}\u{FE0F}',
-  meeting: '\u{1F91D}',
-  whatsapp: '\u{1F4AC}',
+const TYPE_LABELS: Record<string, string> = {
+  call: 'C',
+  email: 'E',
+  meeting: 'M',
+  whatsapp: 'W',
 }
 
 export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProps) {
@@ -22,7 +22,7 @@ export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProp
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'communications', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
     enabled,
     select: (d) => d.communications,
@@ -32,7 +32,7 @@ export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProp
   if (isLoading) return <TabSkeleton />
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
         {t('sales.customer360.communications.noCommunications')}
       </div>
     )
@@ -47,7 +47,7 @@ export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProp
     : data
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-6 space-y-4">
       {/* Search */}
       <TextField
         value={search}
@@ -57,36 +57,46 @@ export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProp
         <Label className="sr-only">{t('sales.customer360.communications.search')}</Label>
         <Input
           placeholder={t('sales.customer360.communications.searchPlaceholder')}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/40 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+          className="w-full px-3 py-2 text-[13px] rounded-lg bg-black/[0.02] dark:bg-white/[0.03] border-none text-[var(--color-text)] dark:text-white placeholder:text-black/20 dark:placeholder:text-white/20 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
         />
       </TextField>
 
-      {/* Timeline */}
-      <div className="space-y-3">
+      {/* Chat-log style entries */}
+      <div className="space-y-2">
         {filtered.map((comm) => (
           <div
             key={comm.id}
-            className="flex items-start gap-3 p-3 rounded-lg border border-black/5 dark:border-white/5 bg-white/40 dark:bg-black/30"
+            className="flex items-start gap-3 p-3 rounded-lg hover:bg-black/[0.01] dark:hover:bg-white/[0.02] transition-colors"
           >
-            <span className="text-sm w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 shrink-0">
-              {TYPE_ICONS[comm.type] ?? '\u{1F4CB}'}
-            </span>
+            {/* Type icon — letter in circle */}
+            <div className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0">
+              <span className="text-[10px] font-semibold text-black/40 dark:text-white/40">
+                {TYPE_LABELS[comm.type] ?? 'N'}
+              </span>
+            </div>
+
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-xs font-medium text-black/50 dark:text-white/50 capitalize">
-                  {comm.type}
+              {/* Summary */}
+              <p className="text-[13px] text-[var(--color-text)] dark:text-white/80 leading-snug">
+                {comm.summary}
+              </p>
+
+              {/* Contact + date */}
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] text-black/30 dark:text-white/30">
+                  {comm.contactName}
                 </span>
-                <span className="text-xs font-[family-name:var(--font-geist-mono)] text-black/40 dark:text-white/40">
+                <span className="text-[11px] text-black/15 dark:text-white/15">&middot;</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/25 dark:text-white/25">
                   {new Date(comm.date).toLocaleDateString()}
                 </span>
               </div>
-              <p className="text-sm text-black/80 dark:text-white/80">
-                {comm.summary}
-              </p>
-              <p className="text-xs text-black/40 dark:text-white/40 mt-1">
-                {comm.contactName}
-              </p>
             </div>
+
+            {/* Type label */}
+            <span className="text-[10px] font-medium uppercase tracking-wider text-black/20 dark:text-white/20 shrink-0">
+              {comm.type}
+            </span>
           </div>
         ))}
       </div>
@@ -96,9 +106,10 @@ export function CommunicationsTab({ customerId, enabled }: CommunicationsTabProp
 
 function TabSkeleton() {
   return (
-    <div className="p-4 space-y-3 animate-pulse">
+    <div className="p-6 space-y-2 animate-pulse">
+      <div className="h-9 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-20 rounded-lg bg-black/5 dark:bg-white/5" />
+        <div key={i} className="h-16 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]" />
       ))}
     </div>
   )

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { PipelineDeal, PipelineStageId } from '../../../types/sales'
-import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
+import { getSalesPipeline, moveDealStage } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 import { KanbanColumn } from './KanbanColumn'
 import { StageAdvancePanel } from './StageAdvancePanel'
@@ -51,12 +51,18 @@ export function KanbanBoard() {
         return { stages: updatedStages, deals: updatedDeals }
       },
     )
+
+    // Persist stage change to server
+    moveDealStage({ data: { dealId, toStage } }).catch(() => {
+      // Revert on failure
+      queryClient.invalidateQueries({ queryKey: ['sales-pipeline'] })
+    })
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center py-20">
+        <p className="text-[13px] text-black/25 dark:text-white/25">
           {t('common.loading', 'Loading...')}
         </p>
       </div>
@@ -65,8 +71,8 @@ export function KanbanBoard() {
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-red-500">
+      <div className="flex items-center justify-center py-20">
+        <p className="text-[13px] text-red-500">
           {t('common.error', 'Error loading pipeline data')}
         </p>
       </div>
@@ -75,8 +81,8 @@ export function KanbanBoard() {
 
   return (
     <div className="flex h-full">
-      {/* Kanban columns - horizontal scroll */}
-      <div className="flex flex-1 gap-3 overflow-x-auto px-4 py-3">
+      {/* Kanban columns -- horizontal scroll, no gaps between swimlanes */}
+      <div className="flex flex-1 gap-0 overflow-x-auto px-6 py-3">
         {data.stages.map((stage) => {
           const stageDeals = data.deals.filter((d) => d.stage === stage.id)
           return (

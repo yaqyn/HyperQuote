@@ -1,14 +1,7 @@
 /**
- * Left panel of route planning view.
- * Top: UnassignedPool for unassigned deliveries.
- * Below: list of RouteCards, one per driver route.
+ * Left panel — compact routes with unassigned pool at top.
  */
-import type {
-  DeliveryRoute,
-  Driver,
-  RouteStop,
-  Vehicle,
-} from '../../../types/dispatch'
+import type { DeliveryRoute, Driver, RouteStop, Vehicle } from '../../../types/dispatch'
 import { RouteCard } from './RouteCard'
 import { UnassignedPool } from './UnassignedPool'
 
@@ -33,19 +26,13 @@ export function RouteList({
   onReorder,
   onInsert,
 }: RouteListProps) {
-  // Flatten all stops for DnD cross-reference
-  const allStops = [
-    ...unassigned,
-    ...routes.flatMap((r) => r.stops),
-  ]
+  const allStops = [...unassigned, ...routes.flatMap((r) => r.stops)]
 
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
-      {/* Unassigned deliveries */}
+    <div className="flex h-full flex-col gap-2 p-3">
       <UnassignedPool stops={unassigned} />
 
-      {/* Driver routes */}
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
         {routes.map((route) => {
           const driver = drivers.find((d) => d.id === route.driverId)
           const vehicle = vehicles.find((v) => v.id === route.vehicleId)

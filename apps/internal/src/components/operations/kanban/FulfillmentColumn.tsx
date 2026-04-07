@@ -12,6 +12,10 @@ interface FulfillmentColumnProps {
   onDrop: (order: FulfillmentOrder, toStage: FulfillmentStage) => void
 }
 
+/**
+ * Stage name as 10px uppercase + order count (mono) + thin top accent line
+ * (blue for active/has orders, muted for idle/empty).
+ */
 export function FulfillmentColumn({
   stage,
   label,
@@ -21,6 +25,7 @@ export function FulfillmentColumn({
   onDrop,
 }: FulfillmentColumnProps) {
   const { t } = useTranslation('internal')
+  const hasOrders = orders.length > 0
 
   const { dragAndDropHooks } = useDragAndDrop({
     acceptedDragTypes: ['fulfillment-order'],
@@ -60,11 +65,18 @@ export function FulfillmentColumn({
   })
 
   return (
-    <div className="flex min-w-[240px] flex-1 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]/50 p-3">
+    <div className="flex min-w-[220px] flex-1 flex-col">
+      {/* Thin accent line at top */}
+      <div className={`h-0.5 rounded-full mb-3 ${
+        hasOrders ? 'bg-[#2563EB]' : 'bg-black/8 dark:bg-white/8'
+      }`} />
+
       {/* Column header */}
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-medium">{label}</h3>
-        <span className="rounded-full bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:bg-white/5">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          {label}
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/30 dark:text-white/30">
           {count}
         </span>
       </div>
@@ -75,7 +87,7 @@ export function FulfillmentColumn({
         items={orders.map((o) => ({ ...o, key: o.id }))}
         dragAndDropHooks={dragAndDropHooks}
         renderEmptyState={() => (
-          <div className="px-3 py-4 text-center text-xs text-black/30 dark:text-white/30">
+          <div className="px-3 py-6 text-center text-[11px] text-black/20 dark:text-white/20">
             {t('operations.kanban.noOrders', 'No orders')}
           </div>
         )}
@@ -86,7 +98,7 @@ export function FulfillmentColumn({
             key={item.id}
             id={item.id}
             textValue={item.customerName}
-            className="outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded-lg"
+            className="outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 rounded-lg"
           >
             <FulfillmentCard order={item} />
           </GridListItem>

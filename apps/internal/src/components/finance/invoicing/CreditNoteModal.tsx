@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, Modal, ModalOverlay, Heading } from 'react-aria-components'
+import { Dialog, Modal, ModalOverlay, Heading, Button } from 'react-aria-components'
+import { motion } from 'motion/react'
 import { createCreditNote } from '../../../lib/server/finance-invoices'
 import { CurrencyCell } from '../shared/CurrencyCell'
-import type { Invoice, InvoiceItem } from '../../../types/finance'
+import type { Invoice } from '../../../types/finance'
 
 interface CreditNoteModalProps {
   invoice: Invoice
@@ -17,12 +18,11 @@ const CREDIT_NOTE_REASONS = [
   { value: 'other', label: 'Other' },
 ]
 
-const APPROVAL_THRESHOLD = 50_000 // EGP — configurable
+const APPROVAL_THRESHOLD = 50_000
 
 /**
- * Credit note generation modal (React Aria Dialog).
- * Linked to original invoice. Reason dropdown, selectable line items,
- * auto-calculated amount with manual override, approval indicator.
+ * Credit note modal — clean form with reason pills, adjustable line items,
+ * auto-calculated amount with manual override. Approval indicator for large amounts.
  */
 export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
   const { t } = useTranslation('finance')
@@ -32,7 +32,6 @@ export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  // Auto-calculate amount from selected lines (lineTotal + vatAmount)
   const autoAmount = useMemo(() => {
     return invoice.items
       .filter((item) => selectedLines.has(item.id))
@@ -40,6 +39,7 @@ export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
   }, [invoice.items, selectedLines])
 
   const effectiveAmount = manualAmount ?? autoAmount
+  const needsApproval = effectiveAmount > APPROVAL_THRESHOLD
 
   const toggleLine = (itemId: string) => {
     setSelectedLines((prev) => {
@@ -48,11 +48,8 @@ export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
       else next.add(itemId)
       return next
     })
-    // Reset manual override when selection changes
     setManualAmount(null)
   }
-
-  const needsApproval = effectiveAmount > APPROVAL_THRESHOLD
 
   const handleSubmit = async () => {
     if (!reason || effectiveAmount <= 0) return
@@ -83,154 +80,175 @@ export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <Dialog className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 outline-none">
+        <Dialog
+          className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-0 outline-none"
+        >
           {({ close }) => (
-            <>
-              <Heading slot="title" className="text-lg font-semibold mb-1">
-                {t('invoicing.issueCreditNote', 'Issue Credit Note')}
-              </Heading>
-              <div className="text-sm text-black/50 dark:text-white/50 mb-4">
-                {t('invoicing.linkedToInvoice', 'Linked to Invoice')} #{' '}
-                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{invoice.number}</span>
+            <motion.div
+              initial={{ scale: 0.97, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            >
+              {/* Header */}
+              <div className="px-6 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <Heading slot="title" className="text-sm font-medium">
+                  {t('invoicing.issueCreditNote', 'Credit Note')}
+                </Heading>
+                <div className="text-xs text-black/30 dark:text-white/30 mt-0.5">
+                  {t('invoicing.linkedToInvoice', 'Against')}{' '}
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[#2563EB]">
+                    {invoice.number}
+                  </span>
+                </div>
               </div>
 
               {submitted ? (
-                <div className="text-center py-8">
-                  <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  <div className="text-sm font-medium mb-1">
+                /* ─── Success state ─────────────────────────── */
+                <div className="px-6 py-10 text-center">
+                  <div className="size-8 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                    <span className="size-2 rounded-full bg-green-500" />
+                  </div>
+                  <div className="text-xs font-medium text-black/70 dark:text-white/70 mb-1">
                     {needsApproval
-                      ? t('invoicing.creditNoteSubmittedForApproval', 'Credit Note Submitted for Approval')
+                      ? t('invoicing.creditNoteSubmittedForApproval', 'Submitted for Approval')
                       : t('invoicing.creditNoteCreated', 'Credit Note Created')}
                   </div>
-                  <div className="text-lg mt-2">
-                    <CurrencyCell amount={effectiveAmount} />
+                  <div className="mt-2">
+                    <CurrencyCell amount={effectiveAmount} className="text-lg" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="mt-4 rounded-lg bg-[#2563EB] text-white px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/90 transition-colors"
+                  <Button
+                    onPress={close}
+                    className="mt-6 rounded-md bg-black/[0.04] dark:bg-white/[0.04] px-4 py-1.5 text-xs hover:bg-black/[0.08] dark:hover:bg-white/[0.08] transition-colors"
                   >
                     {t('invoicing.done', 'Done')}
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <>
-                  {/* Reason dropdown */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium text-black/60 dark:text-white/60 mb-1 block">
+                <div className="px-6 py-5 space-y-5">
+                  {/* ─── Reason pills ───────────────────────── */}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
                       {t('invoicing.reason', 'Reason')}
-                    </label>
-                    <select
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-2 text-sm"
-                    >
-                      <option value="">{t('invoicing.selectReason', 'Select reason...')}</option>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
                       {CREDIT_NOTE_REASONS.map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
+                        <button
+                          key={r.value}
+                          type="button"
+                          onClick={() => setReason(r.value)}
+                          className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                            reason === r.value
+                              ? 'bg-[#2563EB] text-white'
+                              : 'bg-black/[0.04] dark:bg-white/[0.04] text-black/50 dark:text-white/50 hover:bg-black/[0.08] dark:hover:bg-white/[0.08]'
+                          }`}
+                        >
+                          {r.label}
+                        </button>
                       ))}
-                    </select>
-                  </div>
-
-                  {/* Selectable line items */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium text-black/60 dark:text-white/60 mb-2 block">
-                      {t('invoicing.selectLines', 'Select Lines')}
-                    </label>
-                    <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-black/10 dark:border-white/10 text-xs text-black/50 dark:text-white/50">
-                            <th className="py-2 ps-3 w-8" />
-                            <th className="py-2 px-2 font-medium text-start">{t('invoicing.product', 'Product')}</th>
-                            <th className="py-2 px-2 font-medium text-end">{t('invoicing.qty', 'Qty')}</th>
-                            <th className="py-2 px-2 font-medium text-end">{t('invoicing.lineTotal', 'Line Total')}</th>
-                            <th className="py-2 px-2 pe-3 font-medium text-end">{t('invoicing.vatAmount', 'VAT')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoice.items.map((item) => (
-                            <tr
-                              key={item.id}
-                              className={`border-b border-black/5 dark:border-white/5 cursor-pointer transition-colors ${selectedLines.has(item.id) ? 'bg-[#2563EB]/5' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                              onClick={() => toggleLine(item.id)}
-                            >
-                              <td className="py-2 ps-3">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedLines.has(item.id)}
-                                  onChange={() => toggleLine(item.id)}
-                                  className="rounded border-black/20 dark:border-white/20"
-                                />
-                              </td>
-                              <td className="py-2 px-2">{item.productName}</td>
-                              <td className="py-2 px-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{item.quantity}</td>
-                              <td className="py-2 px-2 text-end"><CurrencyCell amount={item.lineTotal} /></td>
-                              <td className="py-2 px-2 pe-3 text-end"><CurrencyCell amount={item.vatAmount} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
 
-                  {/* Amount (auto-calculated / manual override) */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium text-black/60 dark:text-white/60 mb-1 block">
-                      {t('invoicing.creditAmount', 'Credit Note Amount')}
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <div className="text-lg">
-                        <CurrencyCell amount={effectiveAmount} />
+                  {/* ─── Selectable line items ──────────────── */}
+                  <div>
+                    <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-2">
+                      {t('invoicing.selectLines', 'Line Items')}
+                    </div>
+                    <div className="border border-black/[0.06] dark:border-white/[0.06] rounded-lg overflow-hidden">
+                      {/* Header */}
+                      <div className="grid grid-cols-[24px_1fr_60px_90px_70px] gap-0 px-3 py-1.5 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.04] dark:border-white/[0.04]">
+                        <div />
+                        <div>{t('invoicing.product', 'Product')}</div>
+                        <div className="text-end">{t('invoicing.qty', 'Qty')}</div>
+                        <div className="text-end">{t('invoicing.lineTotal', 'Total')}</div>
+                        <div className="text-end">{t('invoicing.vatAmount', 'VAT')}</div>
                       </div>
-                      <input
-                        type="number"
-                        value={manualAmount ?? ''}
-                        onChange={(e) => setManualAmount(e.target.value ? Number(e.target.value) : null)}
-                        placeholder={t('invoicing.manualOverride', 'Manual override...')}
-                        className="flex-1 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-3 py-1.5 text-sm font-[family-name:var(--font-geist-mono)] tabular-nums"
-                      />
+                      {invoice.items.map((item) => (
+                        <div
+                          key={item.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleLine(item.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleLine(item.id) }}
+                          className={`grid grid-cols-[24px_1fr_60px_90px_70px] gap-0 px-3 py-2 items-center cursor-pointer transition-colors border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${
+                            selectedLines.has(item.id)
+                              ? 'bg-[#2563EB]/[0.04]'
+                              : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+                          }`}
+                        >
+                          <div>
+                            <input
+                              type="checkbox"
+                              checked={selectedLines.has(item.id)}
+                              onChange={() => toggleLine(item.id)}
+                              className="rounded border-black/15 dark:border-white/15 size-3"
+                            />
+                          </div>
+                          <div className="text-xs text-black/60 dark:text-white/60 truncate">{item.productName}</div>
+                          <div className="text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+                            {item.quantity}
+                          </div>
+                          <div className="text-end">
+                            <CurrencyCell amount={item.lineTotal} className="text-xs" />
+                          </div>
+                          <div className="text-end">
+                            <CurrencyCell amount={item.vatAmount} className="text-xs text-black/30 dark:text-white/30" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Approval indicator */}
+                  {/* ─── Amount ──────────────────────────────── */}
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] tracking-widest uppercase text-black/25 dark:text-white/25 mb-1">
+                        {t('invoicing.creditAmount', 'Credit Amount')}
+                      </div>
+                      <CurrencyCell amount={effectiveAmount} className="text-lg" />
+                    </div>
+                    <input
+                      type="number"
+                      value={manualAmount ?? ''}
+                      onChange={(e) => setManualAmount(e.target.value ? Number(e.target.value) : null)}
+                      placeholder={t('invoicing.manualOverride', 'Override...')}
+                      className="w-36 bg-transparent border-b border-black/10 dark:border-white/10 px-0 py-1 text-xs font-[family-name:var(--font-geist-mono)] tabular-nums outline-none placeholder:text-black/20 dark:placeholder:text-white/20 focus:border-[#2563EB] transition-colors text-end"
+                    />
+                  </div>
+
+                  {/* ─── Approval indicator ──────────────────── */}
                   {needsApproval && (
-                    <div className="mb-4 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-4 py-3">
-                      <div className="flex items-center gap-2 text-sm text-orange-800 dark:text-orange-300">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                        </svg>
-                        {t('invoicing.approvalRequired', 'Approval required for credit notes exceeding')} EGP{' '}
-                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{APPROVAL_THRESHOLD.toLocaleString()}</span>
-                      </div>
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.06]">
+                      <span className="size-1.5 rounded-full bg-yellow-500" />
+                      <span className="text-[11px] text-black/50 dark:text-white/50">
+                        {t('invoicing.approvalRequired', 'Approval required for amounts exceeding')} EGP{' '}
+                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                          {APPROVAL_THRESHOLD.toLocaleString()}
+                        </span>
+                      </span>
                     </div>
                   )}
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  {/* ─── Actions ─────────────────────────────── */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+                    <Button
+                      onPress={close}
+                      className="rounded-md px-4 py-1.5 text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
                     >
                       {t('invoicing.cancel', 'Cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || !reason || effectiveAmount <= 0}
-                      className="rounded-lg bg-[#2563EB] text-white px-4 py-2 text-sm font-medium hover:bg-[#2563EB]/90 transition-colors disabled:opacity-50"
+                    </Button>
+                    <Button
+                      onPress={handleSubmit}
+                      isDisabled={isSubmitting || !reason || effectiveAmount <= 0}
+                      className="rounded-md bg-[#2563EB] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors disabled:opacity-40"
                     >
                       {isSubmitting
                         ? t('invoicing.submitting', 'Submitting...')
-                        : t('invoicing.submitCreditNote', 'Submit Credit Note')}
-                    </button>
+                        : t('invoicing.submitCreditNote', 'Submit')}
+                    </Button>
                   </div>
-                </>
+                </div>
               )}
-            </>
+            </motion.div>
           )}
         </Dialog>
       </Modal>

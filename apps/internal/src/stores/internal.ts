@@ -13,6 +13,12 @@ interface InternalStore {
   setActiveModule: (module: string | null) => void
   saveWindowState: (module: string, state: Partial<WindowState>) => void
   getWindowState: (module: string) => WindowState | undefined
+
+  // Sidebar quick-switch (Ctrl+K)
+  sidebarOpen: boolean
+  sidebarFocusIndex: number
+  setSidebarOpen: (open: boolean) => void
+  setSidebarFocusIndex: (index: number) => void
 }
 
 export const useInternalStore = create<InternalStore>()(
@@ -21,6 +27,12 @@ export const useInternalStore = create<InternalStore>()(
     windowStates: {},
 
     setActiveModule: (module) => set({ activeModule: module }),
+
+    // Sidebar quick-switch
+    sidebarOpen: false,
+    sidebarFocusIndex: -1,
+    setSidebarOpen: (open) => set({ sidebarOpen: open, sidebarFocusIndex: open ? 0 : -1 }),
+    setSidebarFocusIndex: (index) => set({ sidebarFocusIndex: index }),
 
     saveWindowState: (module, partial) =>
       set((s) => ({

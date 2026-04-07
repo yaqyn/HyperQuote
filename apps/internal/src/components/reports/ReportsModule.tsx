@@ -13,9 +13,10 @@ import { exportReport } from '../../lib/server/reports'
 import type { DateRange, ExportFormat } from '../../types/reports'
 
 /**
- * Root reports module component.
- * Phase 1 = pre-built dashboards only. No drag-and-drop Report Builder. That's Phase 2.
- * 7 role-specific dashboards, date range filter, CSV/PDF export.
+ * Reports — "The Newspaper"
+ * Editorial data journalism. Each department gets a dashboard that tells a story.
+ * Phase 1 = pre-built dashboards only. No drag-and-drop Report Builder.
+ * 7 role-specific dashboards, period selector pills, text-link export.
  */
 export function ReportsModule() {
   const { t } = useTranslation('reports')
@@ -28,15 +29,14 @@ export function ReportsModule() {
     const result = await exportReport({
       data: { role: activeTab, format, filters },
     })
-    // In production, this would trigger a download
     window.open(result.url, '_blank')
   }
 
-  const dateRangeOptions: { key: DateRange; label: string }[] = [
-    { key: 'mtd', label: t('filters.mtd', 'MTD') },
-    { key: 'qtd', label: t('filters.qtd', 'QTD') },
-    { key: 'ytd', label: t('filters.ytd', 'YTD') },
-    { key: 'custom', label: t('filters.custom', 'Custom') },
+  const periods: { key: DateRange; label: string }[] = [
+    { key: 'mtd', label: t('filters.mtd', 'Day') },
+    { key: 'qtd', label: t('filters.qtd', 'Week') },
+    { key: 'ytd', label: t('filters.ytd', 'Month') },
+    { key: 'custom', label: t('filters.custom', 'Quarter') },
   ]
 
   const renderDashboard = () => {
@@ -57,52 +57,46 @@ export function ReportsModule() {
       <ReportsShortcuts />
       <ReportsTabStrip />
 
-      {/* ─── Filter Bar ───────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-black/5 dark:border-white/5">
-        {/* Date Range Buttons */}
-        <div className="flex items-center gap-1 rounded-lg border border-black/10 dark:border-white/10 p-0.5">
-          {dateRangeOptions.map((opt) => (
+      {/* Period selector + export */}
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04]">
+        {/* Period pills */}
+        <div className="flex items-center gap-1">
+          {periods.map((p) => (
             <button
-              key={opt.key}
+              key={p.key}
               type="button"
-              onClick={() => setDateRange(opt.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                dateRange === opt.key
-                  ? 'bg-[#2563EB] text-white'
-                  : 'text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white'
+              onClick={() => setDateRange(p.key)}
+              className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                dateRange === p.key
+                  ? 'bg-black text-white dark:bg-white dark:text-black'
+                  : 'text-black/35 dark:text-white/35 hover:text-black/60 dark:hover:text-white/60'
               }`}
             >
-              {opt.label}
+              {p.label}
             </button>
           ))}
         </div>
 
-        <div className="flex-1" />
-
-        {/* Export Buttons */}
-        <button
-          type="button"
-          onClick={() => handleExport('csv')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:border-black/20 dark:hover:border-white/20 transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          {t('export.csv', 'CSV')}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-black/10 dark:border-white/10 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:border-black/20 dark:hover:border-white/20 transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          {t('export.pdf', 'PDF')}
-        </button>
+        {/* Export as text links */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleExport('csv')}
+            className="text-[11px] text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          >
+            {t('export.csv', 'Export CSV')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExport('pdf')}
+            className="text-[11px] text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          >
+            {t('export.pdf', 'Export PDF')}
+          </button>
+        </div>
       </div>
 
-      {/* ─── Dashboard Content ────────────────────────────── */}
+      {/* Dashboard */}
       <div className="flex-1 overflow-auto">
         {renderDashboard()}
       </div>

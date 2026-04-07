@@ -1,18 +1,13 @@
 /**
- * Root route planning view with split pane layout.
- * Left: RouteList with DnD stops. Right: RoutePlanningMap (ClientOnly).
- * Top bar: date picker, auto-optimize, publish routes.
+ * The Planner — split: route list on left, map on right.
+ * Top bar: date picker + optimize + publish.
  */
 import { useState, useEffect, useCallback } from 'react'
-import { ClientOnly } from '@tanstack/react-start'
+import { Button } from 'react-aria-components'
+import { ClientOnly } from '../../../lib/client-only'
 import { useDispatchStore } from '../../../stores/dispatch'
 import { getDispatchBoard, getDriverList } from '../../../lib/server/dispatch'
-import type {
-  DeliveryRoute,
-  Driver,
-  RouteStop,
-  Vehicle,
-} from '../../../types/dispatch'
+import type { DeliveryRoute, Driver, RouteStop, Vehicle } from '../../../types/dispatch'
 import { SplitPane } from './SplitPane'
 import { RouteList } from './RouteList'
 import { RoutePlanningMap } from './RoutePlanningMap'
@@ -21,17 +16,15 @@ import { PublishButton } from './PublishButton'
 import { MapSkeleton } from '../shared/MapSkeleton'
 
 export function RoutePlanningView() {
-  const { routePlanningDate, setRoutePlanningDate, selectedRouteId, setSelectedRouteId } =
+  const { routePlanningDate, setRoutePlanningDate, selectedRouteId, setSelectedRouteId, mapMode, setMapMode } =
     useDispatchStore()
 
-  // Local state for routes and unassigned
   const [routes, setRoutes] = useState<DeliveryRoute[]>([])
   const [unassigned, setUnassigned] = useState<RouteStop[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load data from server
   useEffect(() => {
     let cancelled = false
 
@@ -47,11 +40,9 @@ export function RoutePlanningView() {
         setRoutes(board.routes)
         setDrivers(driverList)
 
-        // Extract vehicles from routes (mock -- in production, fetch separately)
         const vehicleMap = new Map<string, Vehicle>()
         for (const route of board.routes) {
           if (route.vehicleId && !vehicleMap.has(route.vehicleId)) {
-            // Find matching driver to get vehicle info
             const driver = driverList.find((d) => d.id === route.driverId)
             if (driver) {
               vehicleMap.set(route.vehicleId, {
@@ -68,34 +59,26 @@ export function RoutePlanningView() {
         }
         setVehicles([...vehicleMap.values()])
 
-        // Select first route by default
         if (board.routes.length > 0 && !selectedRouteId) {
           setSelectedRouteId(board.routes[0]!.id)
         }
       } catch {
-        // Server error -- keep empty state
+        // Server error
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
     load()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [routePlanningDate, selectedRouteId, setSelectedRouteId])
 
-  // Reorder stops within a route
   const handleReorder = useCallback(
     (routeId: string, reorderedStops: RouteStop[]) => {
       setRoutes((prev: DeliveryRoute[]) =>
         prev.map((r: DeliveryRoute) =>
           r.id === routeId
-            ? {
-                ...r,
-                stops: reorderedStops,
-                totalWeight: reorderedStops.reduce((s: number, st: RouteStop) => s + st.weight, 0),
-              }
+            ? { ...r, stops: reorderedStops, totalWeight: reorderedStops.reduce((s: number, st: RouteStop) => s + st.weight, 0) }
             : r,
         ),
       )
@@ -103,38 +86,26 @@ export function RoutePlanningView() {
     [],
   )
 
-  // Insert stop from another route or unassigned pool
   const handleInsert = useCallback(
     (targetRouteId: string, stop: RouteStop, index: number) => {
       setRoutes((prev: DeliveryRoute[]) => {
-        // Remove stop from its current route
         const updated = prev.map((r: DeliveryRoute) => ({
           ...r,
           stops: r.stops.filter((s: RouteStop) => s.id !== stop.id),
         }))
-
-        // Add to target route at index
         return updated.map((r: DeliveryRoute) => {
           if (r.id !== targetRouteId) return r
           const newStops = [...r.stops]
           newStops.splice(index, 0, { ...stop, sequence: index + 1 })
-          // Re-sequence
           const resequenced = newStops.map((s: RouteStop, i: number) => ({ ...s, sequence: i + 1 }))
-          return {
-            ...r,
-            stops: resequenced,
-            totalWeight: resequenced.reduce((sum: number, s: RouteStop) => sum + s.weight, 0),
-          }
+          return { ...r, stops: resequenced, totalWeight: resequenced.reduce((sum: number, s: RouteStop) => sum + s.weight, 0) }
         })
       })
-
-      // Also remove from unassigned pool if it was there
       setUnassigned((prev: RouteStop[]) => prev.filter((s: RouteStop) => s.id !== stop.id))
     },
     [],
   )
 
-  // Update routes after optimization
   const handleOptimized = useCallback(
     (routeId: string, optimizedStops: RouteStop[]) => {
       setRoutes((prev: DeliveryRoute[]) =>
@@ -157,24 +128,43 @@ export function RoutePlanningView() {
   return (
     <div className="flex h-full flex-col">
       {/* Top bar */}
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2">
+      <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-2 dark:border-white/[0.06]">
+        {/* Planning / Live toggle */}
+        <div className="flex items-center rounded-full bg-black/[0.04] p-0.5 dark:bg-white/[0.04]">
+          <Button
+            onPress={() => setMapMode('planning')}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium outline-none transition-all cursor-pointer
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
+              ${mapMode === 'planning'
+                ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
+                : 'text-black/40 dark:text-white/40'
+              }`}
+          >
+            Planning
+          </Button>
+          <Button
+            onPress={() => setMapMode('live')}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium outline-none transition-all cursor-pointer
+              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
+              ${mapMode === 'live'
+                ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
+                : 'text-black/40 dark:text-white/40'
+              }`}
+          >
+            Live
+          </Button>
+        </div>
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-black/60 dark:text-white/60">Date</span>
+          <span className="text-black/40 dark:text-white/40">Date</span>
           <input
             type="date"
             value={routePlanningDate}
             onChange={(e) => setRoutePlanningDate(e.target.value)}
-            className="rounded-lg border border-[var(--color-border)] bg-transparent px-2 py-1 font-[family-name:var(--font-geist-mono)] text-sm tabular-nums"
+            className="rounded-lg border border-black/[0.08] bg-transparent px-2 py-1 font-[family-name:var(--font-geist-mono)] text-sm tabular-nums dark:border-white/[0.08]"
           />
         </label>
-
         <div className="flex-1" />
-
-        <OptimizeButton
-          selectedRoute={selectedRoute ?? null}
-          onOptimized={handleOptimized}
-        />
-
+        <OptimizeButton selectedRoute={selectedRoute ?? null} onOptimized={handleOptimized} />
         <PublishButton routes={routes} />
       </div>
 
@@ -205,7 +195,6 @@ export function RoutePlanningView() {
                   unassigned={unassigned}
                   selectedRouteId={selectedRouteId}
                   onStopClick={(stopId) => {
-                    // Find which route this stop belongs to
                     for (const route of routes) {
                       if (route.stops.some((s: RouteStop) => s.id === stopId)) {
                         setSelectedRouteId(route.id)

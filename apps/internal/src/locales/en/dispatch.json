@@ -7,6 +7,10 @@
     "deliveryLog": "Delivery Log",
     "reports": "Reports"
   },
+  "common": {
+    "cancel": "Cancel",
+    "loading": "Loading..."
+  },
   "home": {
     "title": "Dispatch",
     "activeRoutes": "Active Routes",
@@ -15,7 +19,29 @@
     "completedToday": "Completed Today",
     "issuesReported": "Issues Reported",
     "avgDeliveryTime": "Avg. Delivery Time",
-    "onTimeRate": "On-Time Rate"
+    "onTimeRate": "On-Time Rate",
+    "activeDrivers": "Active Drivers",
+    "alerts": "Alerts",
+    "atSite": "At Site",
+    "available": "Available",
+    "completed": "Completed",
+    "delayedDeliveries": "Delayed Deliveries",
+    "deliveriesToday": "Deliveries Today",
+    "driverIssues": "Driver Issues",
+    "failed": "Failed",
+    "failedDeliveries": "Failed Deliveries",
+    "inProgress": "In Progress",
+    "inTransit": "In Transit",
+    "khamsinAdvisory": "Khamsin Advisory",
+    "khamsinWarning": "Khamsin Warning",
+    "loading": "Loading...",
+    "noAlerts": "No alerts",
+    "offline": "Offline",
+    "onTime": "On Time",
+    "pending": "Pending",
+    "todayDeliveries": "Today's Deliveries",
+    "wind": "Wind",
+    "windSpeed": "Wind Speed"
   },
   "routePlanning": {
     "title": "Route Planning",
@@ -67,6 +93,54 @@
     "avgDeliveries": "Avg. Deliveries/Day",
     "avgDuration": "Avg. Duration"
   },
+  "driver": {
+    "compliance": {
+      "BLOCKED": "BLOCKED",
+      "daysShort": "days",
+      "expired": "Expired",
+      "title": "Compliance"
+    },
+    "contracted": {
+      "invoicing": "Invoicing",
+      "title": "Contracted Driver",
+      "upToDate": "Up to Date",
+      "withholdingNote": "Subject to withholding tax"
+    },
+    "filter": {
+      "all": "All",
+      "blocked": "Blocked",
+      "contracted": "Contracted",
+      "internal": "Internal",
+      "onDemand": "On-Demand"
+    },
+    "noDrivers": "No drivers found",
+    "noVehicle": "Unassigned",
+    "onDemand": {
+      "claims": "Claims",
+      "payouts": "Payouts",
+      "title": "On-Demand Driver"
+    },
+    "performance": {
+      "avgDeliveries": "Avg/Day",
+      "avgDuration": "Avg Time",
+      "damageRate": "Damage",
+      "min": "min",
+      "noData": "No performance data available",
+      "onTimeRate": "On-Time",
+      "podCompliance": "POD Rate",
+      "title": "Performance"
+    },
+    "recentDeliveries": "Recent Deliveries",
+    "search": "Search",
+    "searchPlaceholder": "Search drivers...",
+    "selectPrompt": "Select a driver to view details",
+    "vehicle": "Vehicle",
+    "type": {
+      "internal": "Internal",
+      "contracted": "Contracted",
+      "on_demand": "On-Demand"
+    }
+  },
   "deliveryLog": {
     "title": "Delivery Log",
     "deliveryId": "Delivery ID",
@@ -78,7 +152,29 @@
     "pod": "Proof of Delivery",
     "issues": "Issues",
     "noIssues": "No issues",
-    "viewPod": "View POD"
+    "viewPod": "View POD",
+    "col": {
+      "customer": "Customer",
+      "date": "Date",
+      "driver": "Driver",
+      "duration": "Time",
+      "order": "Order #",
+      "status": "Status"
+    },
+    "filter": {
+      "all": "All",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "inProgress": "In Progress",
+      "needsReview": "Needs Review",
+      "pending": "Pending"
+    },
+    "nextPage": "Next page",
+    "noDeliveries": "No deliveries to display",
+    "of": "of",
+    "prevPage": "Previous page",
+    "search": "Search deliveries",
+    "searchPlaceholder": "Order, customer, or driver..."
   },
   "pod": {
     "title": "Proof of Delivery",
@@ -93,7 +189,52 @@
     "signatureOk": "Signature collected",
     "quantitiesOk": "Quantities verified",
     "gpsOk": "GPS confirmed",
-    "noDamage": "No damage reported"
+    "noDamage": "No damage reported",
+    "backToList": "Back to delivery list",
+    "checklist": {
+      "title": "Validation Checklist"
+    },
+    "digitalSignature": "Digital signature",
+    "filter": {
+      "all": "All",
+      "confirmed": "Confirmed",
+      "flagged": "Flagged",
+      "needsReview": "Needs Review"
+    },
+    "flagDialog": {
+      "description": "Description",
+      "descriptionPlaceholder": "Describe the issue...",
+      "issueType": "Issue Type",
+      "quantitySuggestion": "Quantity discrepancy detected. Consider scheduling a re-delivery for remaining items.",
+      "submit": "Submit Issue",
+      "submitting": "Submitting...",
+      "title": "Flag Delivery Issue"
+    },
+    "gpsCoords": "GPS",
+    "items": "Items",
+    "min": "min",
+    "noDeliveries": "No deliveries to display",
+    "noPhotos": "No photos available",
+    "noSignature": "No signature captured",
+    "photo": "Delivery photo",
+    "timestamp": "Time",
+    "actions": {
+      "completeChecklist": "Complete all checklist items to enable actions",
+      "confirm": "Accept",
+      "confirming": "Confirming...",
+      "flagIssue": "Flag",
+      "redelivery": "Request Re-delivery",
+      "reject": "Reject",
+      "rejecting": "Rejecting...",
+      "requesting": "Requesting..."
+    },
+    "issueType": {
+      "partial_delivery": "Partial Delivery",
+      "damage": "Damage",
+      "wrong_items": "Wrong Items",
+      "quantity_mismatch": "Quantity Mismatch",
+      "other": "Other"
+    }
   },
   "constraints": {
     "cairoBan": "Cairo truck ban: Heavy vehicles (5+ tons) blocked 6AM-midnight in Greater Cairo",
@@ -113,5 +254,17 @@
     "customerUnavailable": "Customer Unavailable",
     "accessDenied": "Access Denied",
     "other": "Other"
-  }
+  },
+  "callDriver": "Call Driver",
+  "closeSidebar": "Close Sidebar",
+  "customer": "Customer",
+  "date": "Date",
+  "details": "Details",
+  "driverSidebar": "Driver Sidebar",
+  "message": "Message",
+  "noDriversFound": "No drivers found",
+  "openSidebar": "Open Sidebar",
+  "searchDrivers": "Search Drivers",
+  "searchPlaceholder": "Search...",
+  "status": "Status"
 }

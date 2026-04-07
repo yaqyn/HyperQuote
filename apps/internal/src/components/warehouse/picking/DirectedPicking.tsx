@@ -18,10 +18,10 @@ interface DirectedPickingProps {
 }
 
 /**
- * Step-by-step directed picking with FEFO enforcement.
+ * Step-by-step directed picking — "The Route".
+ * Current item LARGE AND CENTERED: product name (18px), location code (24px mono bold blue), quantity (32px mono).
  * Two-scan verification per step (location + product).
- * Exception handling: short pick, skip, substitute.
- * Per spec section 4.7.
+ * FEFO enforcement. Exception handling.
  */
 export function DirectedPicking({
   orderId,
@@ -77,14 +77,12 @@ export function DirectedPicking({
     (qty: number, lotNumber: string, stepId: string) => {
       const newLines = [...pickedLines, { stepId, pickedQty: qty, lotNumber }]
       setPickedLines(newLines)
-      // Estimate weight per step proportionally
       const step = steps.find((s) => s.id === stepId)
       if (step) {
-        setCumulativeWeightKg((prev) => prev + qty * 10) // Rough estimate per unit
+        setCumulativeWeightKg((prev) => prev + qty * 10)
       }
 
       if (isLastStep) {
-        // Submit all lines
         confirmMutation.mutate()
       } else {
         setCurrentStepIndex((prev) => prev + 1)
@@ -97,11 +95,9 @@ export function DirectedPicking({
   const handleConfirmPick = useCallback(() => {
     if (!currentStep) return
 
-    // FEFO enforcement: strict — block if newer lot when older available
     if (currentStep.fefoEnforced) {
       const validation = validateFEFOPick(
         currentStep.lotNumber,
-        // In production, available lots come from server; here use current step as the directed lot
         [
           {
             lotNumber: currentStep.lotNumber,
@@ -136,7 +132,6 @@ export function DirectedPicking({
       if (result.type === 'short_pick') {
         advanceStep(result.pickedQty ?? 0, currentStep.lotNumber, currentStep.id)
       } else if (result.type === 'skip') {
-        // Skip: advance without adding to picked lines
         if (isLastStep) {
           confirmMutation.mutate()
         } else {
@@ -156,18 +151,16 @@ export function DirectedPicking({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[#2563EB]" />
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-black/10 dark:border-white/10 border-t-[#2563EB]" />
       </div>
     )
   }
 
   if (!currentStep) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-base font-medium text-[var(--color-text-primary)]">
-          No pick steps available
-        </p>
+      <div className="flex items-center justify-center py-20">
+        <p className="text-sm text-black/40 dark:text-white/40">No pick steps available</p>
       </div>
     )
   }
@@ -175,114 +168,90 @@ export function DirectedPicking({
   const canConfirm = locationScanConfirmed && productScanConfirmed
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header with back button */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] min-h-[48px] min-w-[48px]"
+    <div className="flex flex-col gap-5 p-5">
+      {/* Header: back + step indicator */}
+      <div className="flex items-center gap-4">
+        <AriaButton
+          onPress={onBack}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
           aria-label="Back to pick queue"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        </button>
+        </AriaButton>
         <div className="flex-1">
           <StepIndicator
             current={currentStep.stepNumber}
             total={currentStep.totalSteps}
+            label="task"
           />
         </div>
       </div>
 
-      {/* Navigate direction */}
-      <section className="rounded-lg border border-[var(--color-border)] bg-[#2563EB]/5 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#2563EB] mb-1">
-          Go To
-        </p>
-        <p className="text-base font-semibold text-[var(--color-text-primary)]">
+      {/* HERO: Location code — the biggest thing on screen */}
+      <div className="flex flex-col items-center gap-1 py-4">
+        <span className="text-xs font-medium text-[#2563EB] uppercase tracking-wider">Go To</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[24px] font-bold text-[#2563EB] text-center">
           {currentStep.locationPath}
-        </p>
-      </section>
+        </span>
+      </div>
 
-      {/* Product info */}
-      <section className="rounded-lg border border-[var(--color-border)] p-4 flex flex-col gap-2">
-        <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+      {/* Product info — centered, large */}
+      <div className="flex flex-col items-center gap-3 py-2">
+        <span className="text-lg font-semibold text-black/90 dark:text-white/90 text-center">
           {currentStep.productName}
-        </h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-[var(--color-text-secondary)]">SKU</span>
-            <p className="font-mono text-sm text-[var(--color-text-primary)]">
-              {currentStep.sku}
-            </p>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-secondary)]">Lot</span>
-            <p className="font-mono font-medium text-[var(--color-text-primary)]">
-              {currentStep.lotNumber}
-            </p>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-secondary)]">Quantity</span>
-            <p className="font-mono text-lg font-semibold text-[var(--color-text-primary)]">
-              {currentStep.quantityToPick}
-            </p>
-          </div>
-          {currentStep.fefoEnforced && currentStep.expiryDate && (
-            <div>
-              <span className="text-[var(--color-text-secondary)]">FEFO</span>
-              <p className="text-sm font-medium text-amber-600">
-                Oldest lot — expires{' '}
-                <span className="font-mono">
-                  {new Date(currentStep.expiryDate).toLocaleDateString()}
-                </span>
-              </p>
-            </div>
-          )}
+        </span>
+        {/* Quantity to pick — the second-biggest number */}
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold text-black/90 dark:text-white/90">
+          {currentStep.quantityToPick}
+        </span>
+        <div className="flex items-center gap-4 text-sm text-black/40 dark:text-white/40">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+            SKU {currentStep.sku}
+          </span>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+            Lot {currentStep.lotNumber}
+          </span>
         </div>
-      </section>
+        {currentStep.fefoEnforced && currentStep.expiryDate && (
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+            FEFO — expires{' '}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+              {new Date(currentStep.expiryDate).toLocaleDateString()}
+            </span>
+          </span>
+        )}
+      </div>
 
       {/* Two-scan verification */}
-      <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <ScanInput
-            label="Scan location barcode"
+            label="1. Scan Location"
             expectedValue={currentStep.locationPath}
             onScan={() => setLocationScanConfirmed(true)}
             autoFocus
             size="large"
           />
           {locationScanConfirmed && (
-            <p className="text-xs text-green-600 font-medium">Location confirmed</p>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">Location confirmed</span>
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
-          {locationScanConfirmed ? (
-            <ScanInput
-              label="Scan product barcode"
-              expectedValue={currentStep.sku}
-              onScan={() => setProductScanConfirmed(true)}
-              autoFocus
-              size="large"
-            />
-          ) : (
-            <div className="opacity-40 pointer-events-none">
-              <ScanInput
-                label="Scan product barcode"
-                expectedValue={currentStep.sku}
-                onScan={() => {}}
-                size="large"
-              />
-            </div>
-          )}
+        <div className={locationScanConfirmed ? '' : 'opacity-30 pointer-events-none'}>
+          <ScanInput
+            label="2. Scan Product"
+            expectedValue={currentStep.sku}
+            onScan={() => setProductScanConfirmed(true)}
+            autoFocus={locationScanConfirmed}
+            size="large"
+          />
           {productScanConfirmed && (
-            <p className="text-xs text-green-600 font-medium">Product confirmed</p>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400 mt-1">Product confirmed</span>
           )}
         </div>
-      </section>
+      </div>
 
       {/* Quantity entry */}
       <LargeNumberInput
@@ -295,60 +264,59 @@ export function DirectedPicking({
 
       {/* FEFO error */}
       {fefoError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3">
-          <p className="text-sm font-medium text-red-700">{fefoError}</p>
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">{fefoError}</p>
         </div>
       )}
 
-      {/* Exception buttons */}
+      {/* Exception buttons — large touch targets */}
       <div className="flex gap-2">
         <AriaButton
           onPress={() => setExceptionType('short_pick')}
-          className="flex h-10 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-secondary)]"
+          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
           Short Pick
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('skip')}
-          className="flex h-10 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-secondary)]"
+          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
-          Skip Item
+          Skip
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('substitute')}
-          className="flex h-10 min-h-[48px] flex-1 items-center justify-center rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-secondary)]"
+          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
           Substitute
         </AriaButton>
       </div>
 
-      {/* Confirm Pick */}
-      <button
-        type="button"
-        onClick={handleConfirmPick}
-        disabled={!canConfirm || confirmMutation.isPending}
-        className="flex h-14 min-h-[48px] items-center justify-center rounded-lg bg-[#2563EB] text-base font-semibold text-white transition-colors disabled:opacity-40 hover:bg-[#1d4ed8]"
+      {/* Confirm Pick — biggest button */}
+      <AriaButton
+        onPress={handleConfirmPick}
+        isDisabled={!canConfirm || confirmMutation.isPending}
+        className="flex h-16 items-center justify-center rounded-lg bg-[#2563EB] text-base font-semibold text-white cursor-pointer disabled:opacity-30 transition-colors"
       >
         {confirmMutation.isPending
           ? 'Confirming...'
           : isLastStep
             ? 'Complete Order'
             : 'Confirm Pick'}
-      </button>
+      </AriaButton>
 
       {confirmMutation.isError && (
-        <p className="text-sm text-red-600 text-center">
-          Failed to confirm pick. Please try again.
+        <p className="text-sm text-red-600 dark:text-red-400 text-center">
+          Failed to confirm pick. Try again.
         </p>
       )}
 
-      {/* Weight Tracker — always visible at bottom */}
+      {/* Weight tracker */}
       <WeightTracker
         currentWeightKg={cumulativeWeightKg}
         maxCapacityKg={maxCapacityKg}
       />
 
-      {/* Exception Dialog */}
+      {/* Exception dialog */}
       {exceptionType && (
         <PickExceptions
           type={exceptionType}

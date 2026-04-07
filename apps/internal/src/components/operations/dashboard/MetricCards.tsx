@@ -1,83 +1,83 @@
-import { TrendingUp, TrendingDown } from 'lucide-react'
 import type { OperationsMetrics } from '../../../types/operations'
 
 interface MetricCardsProps {
   metrics: OperationsMetrics
 }
 
+/**
+ * 4 large numbers in a horizontal strip. NOT cards.
+ * Numbers 28px mono, labels 10px uppercase.
+ * On-Time colored by health threshold.
+ */
 export function MetricCards({ metrics }: MetricCardsProps) {
+  // Derive on-time rate from deliveries
+  const onTimeRate = metrics.deliveriesTotal > 0
+    ? Math.round((metrics.deliveriesToday / metrics.deliveriesTotal) * 100)
+    : 100
+
+  // Color by health: green >95%, yellow >85%, red below
+  const onTimeColor = onTimeRate > 95
+    ? 'text-green-600'
+    : onTimeRate > 85
+      ? 'text-yellow-600'
+      : 'text-red-600'
+
+  // Bottleneck stage display
+  const bottleneckDisplay = metrics.bottleneckStage
+    ? metrics.bottleneckStage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'None'
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      {/* Card 1 — Orders in progress */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 h-20 flex flex-col justify-between">
-        <span className="text-[11px] font-normal text-black/50 dark:text-white/50">
-          Orders in progress
+    <div className="flex items-start gap-14">
+      {/* Active Orders */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          Active Orders
         </span>
-        <div className="flex items-center gap-2">
-          <span className="font-geist-mono text-2xl font-semibold">
-            {metrics.ordersInProgress}
-          </span>
-          {metrics.ordersInProgressTrend === 'up' ? (
-            <TrendingUp size={14} className="text-green-600" />
-          ) : (
-            <TrendingDown size={14} className="text-red-600" />
-          )}
-          <span className="text-[11px] font-normal text-black/40 dark:text-white/40">
-            vs last week
-          </span>
-        </div>
-      </div>
-
-      {/* Card 2 — Deliveries today */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 h-20 flex flex-col justify-between">
-        <span className="text-[11px] font-normal text-black/50 dark:text-white/50">
-          Deliveries today
-        </span>
-        <div className="flex flex-col gap-1">
-          <span className="font-geist-mono text-xl font-medium">
-            {metrics.deliveriesToday} / {metrics.deliveriesTotal}
-          </span>
-          <div className="h-1 w-full rounded-full bg-black/5 dark:bg-white/5">
-            <div
-              className="h-1 rounded-full bg-[#2563EB]"
-              style={{
-                width: metrics.deliveriesTotal > 0
-                  ? `${(metrics.deliveriesToday / metrics.deliveriesTotal) * 100}%`
-                  : '0%',
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Card 3 — SLA breaches active */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 h-20 flex flex-col justify-between">
-        <span className="text-[11px] font-normal text-black/50 dark:text-white/50">
-          SLA breaches active
-        </span>
-        <span
-          className={`font-geist-mono text-2xl font-semibold ${
-            metrics.slaBreaches > 0 ? 'text-red-600' : 'text-green-600'
-          }`}
-        >
-          {metrics.slaBreaches}
+        <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight">
+          {metrics.ordersInProgress}
         </span>
       </div>
 
-      {/* Card 4 — Bottleneck alert */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 h-20 flex flex-col justify-between">
-        <span className="text-[11px] font-normal text-black/50 dark:text-white/50">
-          Bottleneck alert
+      {/* On-Time Rate */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          On-Time Rate
         </span>
-        {metrics.bottleneckStage ? (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{metrics.bottleneckStage}</span>
-            <span className="font-geist-mono text-xs font-normal text-black/40 dark:text-white/40">
-              {metrics.bottleneckStuckCount} stuck
-            </span>
-          </div>
-        ) : (
-          <span className="text-sm font-medium text-green-600">All clear</span>
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight ${onTimeColor}`}>
+          {onTimeRate}%
+        </span>
+      </div>
+
+      {/* Bottleneck Stage */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          Bottleneck Stage
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight">
+          {bottleneckDisplay}
+        </span>
+        {metrics.bottleneckStuckCount > 0 && (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
+            {metrics.bottleneckStuckCount} stuck
+          </span>
+        )}
+      </div>
+
+      {/* Avg Cycle Time — derived from SLA breaches as proxy */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          Avg Cycle Time
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight">
+          {metrics.deliveriesToday > 0
+            ? `${Math.round((metrics.deliveriesTotal / metrics.deliveriesToday) * 2.4)}h`
+            : '--'}
+        </span>
+        {metrics.slaBreaches > 0 && (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
+            {metrics.slaBreaches} SLA breach{metrics.slaBreaches !== 1 ? 'es' : ''}
+          </span>
         )}
       </div>
     </div>

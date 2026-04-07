@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { motion } from 'motion/react'
 import type { ARAgingBucket } from '../../../types/finance'
 import { useFinanceStore } from '../../../stores/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
@@ -68,9 +69,9 @@ const BUCKET_LABELS: Record<ARAgingBucket, string> = {
 }
 
 /**
- * Filtered invoice list after aging cell click.
- * Shows invoices for a specific customer+bucket combination.
- * Click invoice row -> navigates to InvoiceDetail (sets selectedInvoiceId in store).
+ * Slide-in panel showing customer AR detail.
+ * Invoice list, payment history, aging breakdown.
+ * Click invoice row -> navigates to InvoiceDetail.
  */
 export function ARDrillDown({ customerId, bucket, onBack }: ARDrillDownProps) {
   const { t } = useTranslation('finance')
@@ -78,115 +79,109 @@ export function ARDrillDown({ customerId, bucket, onBack }: ARDrillDownProps) {
   const setActiveTab = useFinanceStore((s) => s.setActiveTab)
 
   const invoices = getMockDrillDownInvoices(customerId, bucket)
+  const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0)
 
   const handleInvoiceClick = (invoiceId: string) => {
     setSelectedInvoiceId(invoiceId)
-    setActiveTab('invoicing')
+    setActiveTab('receivables')
   }
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-sm overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-black/10 dark:border-white/10">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-black/5 dark:border-white/5">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="text-[#2563EB] hover:underline text-sm"
+            className="text-xs text-black/40 dark:text-white/40 hover:text-[#2563EB] transition-colors"
           >
-            {t('ar.drillDown.backToAR', 'Back to AR Dashboard')}
+            \u2190 {t('ar.drillDown.backToAR', 'Back')}
           </button>
-          <span className="text-black/30 dark:text-white/30">/</span>
+          <span className="text-black/15 dark:text-white/15">/</span>
           <span className="text-sm font-medium">{BUCKET_LABELS[bucket]}</span>
         </div>
-        <span className="text-xs text-black/50 dark:text-white/50 font-[family-name:var(--font-geist-mono)] tabular-nums">
-          {invoices.length} {t('ar.drillDown.invoices', 'invoices')}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+            {invoices.length} {t('ar.drillDown.invoices', 'invoices')}
+          </span>
+          <CurrencyCell amount={totalAmount} className="text-sm font-semibold" />
+        </div>
       </div>
 
-      {/* Invoice table */}
+      {/* Invoice list */}
       {invoices.length > 0 ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
-              <th className="px-4 py-2 text-start text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.invoiceNumber', 'Invoice #')}
-              </th>
-              <th className="px-4 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.amount', 'Amount')}
-              </th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.issueDate', 'Issue Date')}
-              </th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.dueDate', 'Due Date')}
-              </th>
-              <th className="px-4 py-2 text-end text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.daysOverdue', 'Days Overdue')}
-              </th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.status', 'Status')}
-              </th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-black/50 dark:text-white/50">
-                {t('ar.drillDown.communications', 'Comms')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map((inv) => (
-              <tr
-                key={inv.id}
-                className="border-b border-black/5 dark:border-white/5 hover:bg-[#2563EB]/5 cursor-pointer transition-colors"
-                onClick={() => handleInvoiceClick(inv.id)}
-              >
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">
-                      {inv.number}
-                    </span>
-                    {inv.hasDispute && (
-                      <StatusBadge status="disputed" variant="invoice" />
-                    )}
+        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+          {invoices.map((inv) => (
+            <button
+              key={inv.id}
+              type="button"
+              className="w-full flex items-center gap-4 px-4 py-3 text-start hover:bg-[#2563EB]/[0.02] cursor-pointer transition-colors"
+              onClick={() => handleInvoiceClick(inv.id)}
+            >
+              {/* Invoice number + dispute flag */}
+              <div className="w-36 shrink-0">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-medium">
+                  {inv.number}
+                </span>
+                {inv.hasDispute && (
+                  <div className="mt-0.5">
+                    <StatusBadge status="disputed" variant="invoice" />
                   </div>
-                </td>
-                <td className="px-4 py-2 text-end">
-                  <CurrencyCell amount={inv.amount} />
-                </td>
-                <td className="px-4 py-2 text-center font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                  {inv.issueDate}
-                </td>
-                <td className="px-4 py-2 text-center font-[family-name:var(--font-geist-mono)] tabular-nums text-black/60 dark:text-white/60">
-                  {inv.dueDate}
-                </td>
-                <td className="px-4 py-2 text-end">
-                  <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums ${inv.daysOverdue > 30 ? 'text-red-600 font-semibold' : 'text-black/60 dark:text-white/60'}`}>
-                    {inv.daysOverdue}
+                )}
+              </div>
+
+              {/* Amount */}
+              <div className="w-28 shrink-0 text-end">
+                <CurrencyCell amount={inv.amount} className="text-sm" />
+              </div>
+
+              {/* Dates */}
+              <div className="flex-1 flex items-center gap-4 text-xs font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">
+                <span>{inv.issueDate}</span>
+                <span className="text-black/15 dark:text-white/15">\u2192</span>
+                <span>{inv.dueDate}</span>
+              </div>
+
+              {/* Days overdue */}
+              <div className="w-16 text-end">
+                <span
+                  className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-sm ${
+                    inv.daysOverdue > 30 ? 'text-red-600 font-semibold' : 'text-black/50 dark:text-white/50'
+                  }`}
+                >
+                  {inv.daysOverdue}d
+                </span>
+              </div>
+
+              {/* Status */}
+              <div className="w-24 text-end">
+                <StatusBadge status={inv.status} variant="invoice" />
+              </div>
+
+              {/* Last communication */}
+              <div className="w-28 text-end text-[11px] text-black/30 dark:text-white/30">
+                {inv.lastReminder ? (
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                    {inv.lastReminder}
                   </span>
-                </td>
-                <td className="px-4 py-2 text-center">
-                  <StatusBadge status={inv.status} variant="invoice" />
-                </td>
-                <td className="px-4 py-2 text-center text-xs text-black/40 dark:text-white/40">
-                  {inv.lastReminder ? (
-                    <div>
-                      <div>{t('ar.drillDown.lastSent', 'Sent')}: {inv.lastReminder}</div>
-                      {inv.nextReminder && (
-                        <div>{t('ar.drillDown.nextScheduled', 'Next')}: {inv.nextReminder}</div>
-                      )}
-                    </div>
-                  ) : (
-                    <span>-</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                ) : (
+                  <span>\u2014</span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
       ) : (
-        <div className="p-8 text-center text-black/40 dark:text-white/40">
+        <div className="py-12 text-center text-sm text-black/30 dark:text-white/30">
           {t('ar.drillDown.noInvoices', 'No invoices in this aging bucket')}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

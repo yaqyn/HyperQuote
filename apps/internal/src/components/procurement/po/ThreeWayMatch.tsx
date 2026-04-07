@@ -5,64 +5,14 @@ interface ThreeWayMatchProps {
   match: ThreeWayMatchResult
 }
 
-const MATCH_CONFIG: Record<MatchStatus, { icon: React.ReactNode; color: string; label: string }> = {
-  matched: {
-    icon: (
-      <svg className="h-4 w-4 text-green-600 dark:text-green-400" viewBox="0 0 16 16" fill="none">
-        <path d="M4 8L7 11L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    color: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800',
-    label: 'Matched',
-  },
-  partial_match: {
-    icon: (
-      <svg className="h-4 w-4 text-yellow-600 dark:text-yellow-400" viewBox="0 0 16 16" fill="none">
-        <path d="M8 4V9M8 11.5V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    color: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800',
-    label: 'Partial Match',
-  },
-  mismatch: {
-    icon: (
-      <svg className="h-4 w-4 text-red-600 dark:text-red-400" viewBox="0 0 16 16" fill="none">
-        <path d="M5 5L11 11M11 5L5 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    color: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800',
-    label: 'Mismatch',
-  },
-  pending: {
-    icon: (
-      <svg className="h-4 w-4 text-black/30 dark:text-white/30" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8 5V8.5L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    color: 'bg-black/3 border-black/10 dark:bg-white/5 dark:border-white/10',
-    label: 'Pending',
-  },
-}
-
-function MatchStatusBadge({ status }: { status: MatchStatus }) {
-  const config = MATCH_CONFIG[status]
-  return (
-    <div className={`flex items-center gap-1.5 rounded-md border px-2 py-1 ${config.color}`}>
-      {config.icon}
-      <span className="text-xs font-medium">{config.label}</span>
-    </div>
-  )
-}
-
 function formatVariance(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }
 
 /**
  * Three-way match display (READ-ONLY per Pitfall 5).
- * 3-column comparison: PO | Receipt | Invoice
- * Status indicators: green (matched), yellow (partial), red (mismatch), gray (pending)
+ * Side-by-side comparison: PO | Receipt | Invoice
+ * Matched = subtle green bg, mismatched = subtle yellow bg.
  */
 export function ThreeWayMatch({ match }: ThreeWayMatchProps) {
   const { t } = useTranslation('internal')
@@ -74,36 +24,86 @@ export function ThreeWayMatch({ match }: ThreeWayMatchProps) {
   ]
 
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+    <section>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold">Three-Way Match</h4>
-        <MatchStatusBadge status={match.overall} />
+        <h4 className="text-[11px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+          Three-Way Match
+        </h4>
+        <OverallBadge status={match.overall} />
       </div>
 
-      {/* Comparison rows */}
-      <div className="space-y-2">
+      {/* Comparison cards */}
+      <div className="grid grid-cols-3 gap-2">
         {comparisons.map((comp) => (
           <div
             key={comp.label}
-            className="flex items-center justify-between rounded-md bg-black/[0.02] dark:bg-white/[0.02] px-3 py-2"
+            className={`
+              rounded-xl p-3 transition-colors
+              ${comp.status === 'matched'
+                ? 'bg-green-500/[0.04]'
+                : comp.status === 'mismatch'
+                  ? 'bg-yellow-500/[0.06]'
+                  : 'bg-black/[0.015] dark:bg-white/[0.015]'
+              }
+            `}
           >
-            <span className="text-xs text-black/60 dark:text-white/60">{comp.label}</span>
-            <div className="flex items-center gap-3">
-              <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/50 dark:text-white/50">
+            <div className="text-[10px] text-black/35 dark:text-white/35">{comp.label}</div>
+            <div className="mt-1.5 flex items-center justify-between">
+              <span className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums text-black/70 dark:text-white/70">
                 {formatVariance(comp.variance)}
               </span>
-              <MatchStatusBadge status={comp.status} />
+              <StatusDot status={comp.status} />
             </div>
           </div>
         ))}
       </div>
 
       {/* Tolerance thresholds */}
-      <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-black/40 dark:text-white/40">
-        <span>Price: 0-5%</span>
-        <span>Qty: 0-2%</span>
-        <span>Tax: 0%</span>
+      <div className="mt-2 flex gap-4 text-[9px] text-black/20 dark:text-white/20">
+        <span>Price tolerance: 0-5%</span>
+        <span>Qty tolerance: 0-2%</span>
+        <span>Tax tolerance: 0%</span>
       </div>
-    </div>
+    </section>
+  )
+}
+
+function OverallBadge({ status }: { status: MatchStatus }) {
+  const config: Record<MatchStatus, { label: string; color: string }> = {
+    matched: { label: 'Matched', color: 'text-green-600/70' },
+    partial_match: { label: 'Partial', color: 'text-yellow-600/70' },
+    mismatch: { label: 'Mismatch', color: 'text-red-600/70' },
+    pending: { label: 'Pending', color: 'text-black/30 dark:text-white/30' },
+  }
+
+  const c = config[status]
+  return (
+    <span className={`text-[10px] font-medium ${c.color}`}>
+      {c.label}
+    </span>
+  )
+}
+
+function StatusDot({ status }: { status: MatchStatus }) {
+  const colors: Record<MatchStatus, string> = {
+    matched: 'bg-green-500',
+    partial_match: 'bg-yellow-500',
+    mismatch: 'bg-red-500',
+    pending: 'bg-black/15 dark:bg-white/15',
+  }
+
+  const labels: Record<MatchStatus, string> = {
+    matched: 'Matched',
+    partial_match: 'Partial match',
+    mismatch: 'Mismatch',
+    pending: 'Pending',
+  }
+
+  return (
+    <span
+      className={`size-1.5 rounded-full ${colors[status]}`}
+      title={labels[status]}
+      aria-label={labels[status]}
+    />
   )
 }

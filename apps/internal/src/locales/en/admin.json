@@ -1,5 +1,6 @@
 {
   "tabs": {
+    "admin": "Admin",
     "users": "Users & Roles",
     "permissions": "Permissions",
     "settings": "System Settings",
@@ -13,6 +14,7 @@
     "title": "User Management",
     "searchPlaceholder": "Search by name or email...",
     "addUser": "Add User",
+    "editPermissions": "Edit Permissions",
     "name": "Name",
     "email": "Email",
     "roles": "Roles",
@@ -100,7 +102,8 @@
     "returnCredit": "Return/Credit Note",
     "inventoryAdjustment": "Inventory Adjustment",
     "edit": "Edit",
-    "save": "Save"
+    "save": "Save",
+    "addRule": "Add Rule"
   },
   "holidays": {
     "title": "Holiday Calendar",
@@ -111,6 +114,7 @@
     "pendingConfirmation": "Pending confirmation",
     "islamic": "Islamic",
     "fixed": "Fixed",
+    "addHoliday": "Add Holiday",
     "confirmDate": "Confirm Date",
     "calendarView": "Calendar View",
     "listView": "List View",

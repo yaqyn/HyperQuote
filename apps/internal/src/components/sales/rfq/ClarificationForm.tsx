@@ -83,40 +83,43 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
       <Modal className="w-full max-w-lg mx-4">
         <Dialog
           isKeyboardDismissDisabled
-          className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-2xl outline-none"
+          className="rounded-xl bg-[var(--color-surface)]/95 dark:bg-black/95 backdrop-blur-2xl shadow-2xl outline-none"
         >
           {({ close }) => (
             <div className="p-6">
-              <Heading slot="title" className="text-lg font-semibold mb-4">
+              <Heading slot="title" className="text-[15px] font-semibold text-[var(--color-text)] mb-1">
                 Request Clarification
               </Heading>
 
-              <p className="text-sm text-black/60 dark:text-white/60 mb-4">
+              <p className="text-[13px] text-[var(--color-text-muted)] mb-4">
                 Select the issues that need clarification. The customer will receive a notification via portal, email, and WhatsApp.
               </p>
 
               {/* Question type checkboxes */}
-              <div className="space-y-2 mb-4">
+              <div className="space-y-1.5 mb-4">
                 {QUESTION_TYPES.map(({ type, label }) => (
                   <label
                     key={type}
-                    className="flex items-start gap-3 cursor-pointer rounded-lg border border-black/10 dark:border-white/10 px-3 py-2.5 transition-colors
-                      hover:bg-black/3 dark:hover:bg-white/5"
+                    className={`flex items-start gap-3 cursor-pointer rounded-lg px-3 py-2.5 transition-colors
+                      ${selectedTypes.has(type)
+                        ? 'bg-[var(--color-primary)]/[0.06]'
+                        : 'bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]'
+                      }`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedTypes.has(type)}
                       onChange={() => toggleType(type)}
-                      className="mt-0.5 h-4 w-4 rounded border-black/30 text-[#2563EB] accent-[#2563EB]"
+                      className="mt-0.5 h-4 w-4 rounded accent-[var(--color-primary)]"
                     />
-                    <span className="text-sm">{label}</span>
+                    <span className="text-[13px] text-[var(--color-text)]">{label}</span>
                   </label>
                 ))}
               </div>
 
               {/* Free text */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-1.5">
+                <label className="block text-[11px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider mb-1.5">
                   Additional Questions
                 </label>
                 <textarea
@@ -124,18 +127,18 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
                   onChange={(e) => setFreeText(e.target.value)}
                   placeholder="Any additional questions or details needed..."
                   rows={3}
-                  className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm outline-none
-                    focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/50
-                    placeholder:text-black/30 dark:placeholder:text-white/30"
+                  className="w-full rounded-lg bg-black/[0.03] dark:bg-white/[0.04] px-3 py-2 text-[13px] outline-none
+                    focus:ring-1 focus:ring-[var(--color-primary)]/50
+                    placeholder:text-[var(--color-text-subtle)]"
                 />
               </div>
 
               {/* Actions */}
               <div className="flex justify-end gap-2">
                 <Button
-                  className="rounded-lg border border-black/10 dark:border-white/10 px-4 py-2 text-sm font-medium outline-none
-                    data-[hovered]:bg-black/5 dark:data-[hovered]:bg-white/10
-                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+                  className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
+                    data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
+                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
                   onPress={() => {
                     setSelectedTypes(new Set())
                     setFreeText('')
@@ -145,9 +148,9 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
                   Cancel
                 </Button>
                 <Button
-                  className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white outline-none
-                    data-[hovered]:bg-[#2563EB]/90
-                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 data-[focus-visible]:ring-offset-2
+                  className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none
+                    data-[hovered]:bg-[var(--color-primary)]/90
+                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[focus-visible]:ring-offset-2
                     data-[disabled]:opacity-50"
                   onPress={() => mutation.mutate()}
                   isDisabled={!canSubmit || mutation.isPending}

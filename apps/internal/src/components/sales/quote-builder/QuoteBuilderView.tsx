@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
+import { motion } from 'motion/react'
 import { QuoteBuilderHeader } from './QuoteBuilderHeader'
 import { LineItemsTable } from './LineItemsTable'
 import { MarginControlPanel } from './MarginControlPanel'
@@ -20,20 +21,38 @@ interface QuoteBuilderViewProps {
   rfqId: string
 }
 
-// Sections for the 10-step single-page surface
-function SectionHeader({ step, title }: { step: number; title: string }) {
+/**
+ * Document section -- flows naturally, no step numbers.
+ * Large title + optional description text.
+ */
+function DocumentSection({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex items-center gap-2 pb-2 pt-4">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/5 font-[family-name:var(--font-geist-mono)] text-[10px] font-medium text-black/50 dark:bg-white/10 dark:text-white/50">
-        {step}
-      </span>
-      <span className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      className="pt-8 first:pt-4"
+    >
+      <h2 className="text-[16px] font-semibold text-[var(--color-text)]">
         {title}
-      </span>
-    </div>
+      </h2>
+      {description && (
+        <p className="mt-0.5 text-[12px] text-[var(--color-text-subtle)]">
+          {description}
+        </p>
+      )}
+      <div className="mt-4">{children}</div>
+    </motion.section>
   )
 }
-
 
 export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
   const { t } = useTranslation('internal')
@@ -80,7 +99,6 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         setMarginThresholds(data.marginThresholds)
         setCustomerCredit(data.customerCredit)
 
-        // Pre-populate line items from suggested products
         if (data.suggestedProducts && data.suggestedProducts.length > 0) {
           const getTargetMargin = (category?: string) => {
             const threshold = data.marginThresholds.find(t => t.productCategory === category)
@@ -144,7 +162,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
     }
   }, [handleAutoSave])
 
-  // Compute totals from watched items (useWatch, NOT watch — React 19 requirement)
+  // Compute totals from watched items (useWatch, NOT watch)
   const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
   const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
   const vatAmount = Math.round(subtotal * 14) / 100
@@ -152,7 +170,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Fixed header */}
+      {/* Minimal top bar */}
       <QuoteBuilderHeader
         quoteNumber={quoteNumber}
         version={version}
@@ -162,92 +180,98 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         rfqReference={rfqReference}
         lastSavedAt={lastSavedAt}
         onSaveDraft={handleAutoSave}
-        onPreviewPdf={() => {
-          setPreviewOpen(true)
-        }}
-        onRequestApproval={() => {
-          setStatus('pending_approval')
-        }}
-        onSendToCustomer={() => {
-          setStatus('sent')
-        }}
+        onPreviewPdf={() => setPreviewOpen(true)}
+        onRequestApproval={() => setStatus('pending_approval')}
+        onSendToCustomer={() => setStatus('sent')}
       />
 
-      {/* Single-page scrollable surface with sidebar */}
+      {/* Document + Sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Main content: 10 steps stacked vertically */}
-        <div className="flex-1 overflow-y-auto px-6 pb-8">
+        {/* Main document -- continuous vertical scroll */}
+        <div className="flex-1 overflow-y-auto px-8 pb-16">
           <FormProvider {...methods}>
-            {/* Step 1: Initialize */}
-            <SectionHeader step={1} title={t('sales.quoteBuilder.steps.initialize')} />
-            {customerCredit && (
-              <CreditStatusBanner
-                creditLimit={customerCredit.creditLimit}
-                currentExposure={customerCredit.currentExposure}
-                availableCredit={customerCredit.availableCredit}
-              />
-            )}
-
-            {/* Step 2: Line Items */}
-            <SectionHeader step={2} title={t('sales.quoteBuilder.steps.lineItems')} />
-            <LineItemsTable marginThresholds={marginThresholds} />
-
-            {/* Step 3: Cost Lookup -- indicators rendered inline in LineItemsTable */}
-            <SectionHeader step={3} title={t('sales.quoteBuilder.steps.costLookup')} />
-            <p className="text-xs text-black/40 dark:text-white/40">
-              Cost freshness indicators are shown inline in the table above.
-            </p>
-
-            {/* Step 4: Pricing -- margin guardrails rendered inline in LineItemsTable */}
-            <SectionHeader step={4} title={t('sales.quoteBuilder.steps.pricing')} />
-            <p className="text-xs text-black/40 dark:text-white/40">
-              Margin guardrails are shown inline in the table above. Use the sidebar control panel to adjust blanket margins.
-            </p>
-
-            {/* Totals row */}
-            <div className="mt-4 flex justify-end gap-6 border-t border-black/10 pt-3 dark:border-white/10">
-              <div className="text-end">
-                <p className="text-xs text-black/40 dark:text-white/40">Subtotal</p>
-                <p className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums">
-                  EGP {subtotal.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="text-end">
-                <p className="text-xs text-black/40 dark:text-white/40">VAT (14%)</p>
-                <p className="font-[family-name:var(--font-geist-mono)] text-sm tabular-nums">
-                  EGP {vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="text-end">
-                <p className="text-xs text-black/40 dark:text-white/40">Total</p>
-                <p className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold tabular-nums">
-                  EGP {total.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
+            {/* Customer context */}
+            <div className="flex items-center gap-4 border-b border-black/[0.06] pb-4 pt-5 dark:border-white/[0.06]">
+              <span className="text-[15px] font-semibold">{customerName}</span>
+              <span className="rounded-full border border-black/[0.08] px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] font-medium tabular-nums dark:border-white/[0.08]">
+                Tier {customerTier}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                RFQ {rfqReference}
+              </span>
             </div>
 
-            {/* Step 5: Delivery Terms */}
-            <SectionHeader step={5} title={t('sales.quoteBuilder.steps.delivery')} />
-            <DeliveryTerms
-              deliveryAddress="Cairo, Egypt"
-              totalWeightTons={12}
-              leadTimeDays={3}
-            />
+            {/* Credit banner */}
+            {customerCredit && (
+              <div className="pt-4">
+                <CreditStatusBanner
+                  creditLimit={customerCredit.creditLimit}
+                  currentExposure={customerCredit.currentExposure}
+                  availableCredit={customerCredit.availableCredit}
+                />
+              </div>
+            )}
 
-            {/* Step 6: Payment Terms */}
-            <SectionHeader step={6} title={t('sales.quoteBuilder.steps.payment')} />
-            <PaymentTerms
-              customerCredit={customerCredit}
-              isNewCustomer={customerTier === 'new'}
-            />
+            {/* Line Items */}
+            <DocumentSection
+              title="Materials"
+              description="Add line items, adjust pricing and margins inline."
+            >
+              <LineItemsTable marginThresholds={marginThresholds} />
 
-            {/* Step 7: Validity Period */}
-            <SectionHeader step={7} title={t('sales.quoteBuilder.steps.validity')} />
-            <ValidityPeriod />
+              {/* Totals */}
+              <div className="mt-6 flex justify-end gap-8 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
+                <div className="text-end">
+                  <p className="text-[11px] text-[var(--color-text-subtle)]">Subtotal</p>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums">
+                    EGP {subtotal.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="text-end">
+                  <p className="text-[11px] text-[var(--color-text-subtle)]">VAT 14%</p>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text-muted)]">
+                    EGP {vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="text-end">
+                  <p className="text-[11px] text-[var(--color-text-subtle)]">Total</p>
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums">
+                    EGP {total.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+            </DocumentSection>
 
-            {/* Step 8: Approval -- rendered as component */}
-            <SectionHeader step={8} title={t('sales.quoteBuilder.steps.approval')} />
-            <div id="approval-section">
+            {/* Delivery */}
+            <DocumentSection
+              title="Delivery"
+              description="Set delivery date, window, and special instructions."
+            >
+              <DeliveryTerms
+                deliveryAddress="Cairo, Egypt"
+                totalWeightTons={12}
+                leadTimeDays={3}
+              />
+            </DocumentSection>
+
+            {/* Payment */}
+            <DocumentSection title="Payment">
+              <PaymentTerms
+                customerCredit={customerCredit}
+                isNewCustomer={customerTier === 'new'}
+              />
+            </DocumentSection>
+
+            {/* Validity */}
+            <DocumentSection
+              title="Validity"
+              description="How long this quote remains valid."
+            >
+              <ValidityPeriod />
+            </DocumentSection>
+
+            {/* Approval */}
+            <DocumentSection title="Approval">
               <ApprovalWorkflow
                 quoteId={quoteId ?? 'new'}
                 marginPercent={subtotal > 0 ? Math.round((1 - (watchedItems ?? []).reduce((s, i) => s + i.supplierCost * i.quantity, 0) / subtotal) * 10000) / 100 : 0}
@@ -257,22 +281,9 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                 status={status === 'pending_approval' ? 'pending_approval' : status === 'approved' ? 'approved' : 'draft'}
                 onStatusChange={(newStatus) => setStatus(newStatus as QuoteStatus)}
               />
-            </div>
+            </DocumentSection>
 
-            {/* Step 9: Preview */}
-            <SectionHeader step={9} title={t('sales.quoteBuilder.steps.preview')} />
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/3 dark:border-white/10 dark:hover:bg-white/5"
-              >
-                Open Preview
-              </button>
-              <p className="text-xs text-black/40 dark:text-white/40">
-                Preview the customer-facing quote before sending.
-              </p>
-            </div>
+            {/* Preview */}
             <QuotePreviewModal
               quoteNumber={quoteNumber}
               version={version}
@@ -282,19 +293,20 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
               onOpenChange={setPreviewOpen}
             />
 
-            {/* Step 10: Send */}
-            <SectionHeader step={10} title={t('sales.quoteBuilder.steps.send')} />
-            <SendQuote
-              quoteId={quoteId ?? 'new'}
-              quoteNumber={quoteNumber}
-              customerName={customerName}
-              onSent={() => setStatus('sent')}
-            />
+            {/* Send */}
+            <DocumentSection title="Send Quote">
+              <SendQuote
+                quoteId={quoteId ?? 'new'}
+                quoteNumber={quoteNumber}
+                customerName={customerName}
+                onSent={() => setStatus('sent')}
+              />
+            </DocumentSection>
           </FormProvider>
         </div>
 
-        {/* Right sidebar: Margin Control Panel (30% width on desktop) */}
-        <div className="hidden w-[30%] min-w-[280px] max-w-[360px] border-s border-black/10 p-4 lg:block dark:border-white/10">
+        {/* Floating sidebar -- margin control */}
+        <div className="hidden w-[35%] min-w-[280px] max-w-[380px] overflow-y-auto border-s border-black/[0.06] p-6 lg:block dark:border-white/[0.06]">
           <MarginControlPanel
             lineItems={watchedItems ?? []}
             marginThresholds={marginThresholds}

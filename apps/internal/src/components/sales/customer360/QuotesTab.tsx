@@ -2,12 +2,6 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
-  Cell,
-  Column,
-  Row,
-  Table,
-  TableBody,
-  TableHeader,
   Button,
   Select,
   SelectValue,
@@ -28,10 +22,11 @@ type StatusFilter = 'all' | 'won' | 'lost' | 'pending' | 'draft' | 'sent'
 export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
   const { t } = useTranslation('internal')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'quotes', customerId],
-    queryFn: () => getCustomer360({ customerId }),
+    queryFn: () => getCustomer360({ data: { customerId } }),
     staleTime: 120_000,
     enabled,
     select: (d) => d.quotes,
@@ -41,7 +36,7 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
   if (isLoading) return <TabSkeleton />
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-black/40 dark:text-white/40">
+      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
         {t('sales.customer360.quotes.noQuotes')}
       </div>
     )
@@ -61,27 +56,27 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
   const winRate = data.length > 0 ? Math.round((wonCount / data.length) * 100) : 0
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Win/Loss Summary */}
+    <div className="p-6 space-y-5">
+      {/* Win/Loss Summary + Filter */}
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-black/50 dark:text-white/50">
+          <span className="text-[11px] text-black/35 dark:text-white/35">
             {t('sales.customer360.quotes.winRate')}
           </span>
-          <span className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold text-black dark:text-white">
+          <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)] dark:text-white">
             {winRate}%
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#22c55e]" />
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.customer360.quotes.won')}: {wonCount}
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
+          <span className="text-[11px] text-black/35 dark:text-white/35">
+            {t('sales.customer360.quotes.won')}: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{wonCount}</span>
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
-          <span className="text-xs text-black/50 dark:text-white/50">
-            {t('sales.customer360.quotes.lost')}: {lostCount}
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
+          <span className="text-[11px] text-black/35 dark:text-white/35">
+            {t('sales.customer360.quotes.lost')}: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{lostCount}</span>
           </span>
         </div>
 
@@ -92,21 +87,21 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
             aria-label={t('sales.customer360.quotes.filterStatus')}
           >
             <Label className="sr-only">{t('sales.customer360.quotes.filterStatus')}</Label>
-            <Button className="flex items-center gap-2 px-3 py-1.5 text-xs border border-black/10 dark:border-white/10 rounded-lg text-black/60 dark:text-white/60 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50">
+            <Button className="flex items-center gap-2 px-3 py-1.5 text-[11px] border border-black/[0.06] dark:border-white/[0.06] rounded-lg text-black/50 dark:text-white/50 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40">
               <SelectValue />
             </Button>
-            <Popover className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg p-1">
+            <Popover className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[var(--color-surface)] shadow-lg p-1">
               <ListBox className="outline-none">
-                <ListBoxItem id="all" className="px-3 py-1.5 text-xs rounded cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[focused]:text-[#2563EB]">
+                <ListBoxItem id="all" className="px-3 py-1.5 text-[11px] rounded-md cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.08] data-[focused]:text-[#2563EB]">
                   {t('sales.customer360.quotes.all')}
                 </ListBoxItem>
-                <ListBoxItem id="won" className="px-3 py-1.5 text-xs rounded cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[focused]:text-[#2563EB]">
+                <ListBoxItem id="won" className="px-3 py-1.5 text-[11px] rounded-md cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.08] data-[focused]:text-[#2563EB]">
                   {t('sales.customer360.quotes.won')}
                 </ListBoxItem>
-                <ListBoxItem id="lost" className="px-3 py-1.5 text-xs rounded cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[focused]:text-[#2563EB]">
+                <ListBoxItem id="lost" className="px-3 py-1.5 text-[11px] rounded-md cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.08] data-[focused]:text-[#2563EB]">
                   {t('sales.customer360.quotes.lost')}
                 </ListBoxItem>
-                <ListBoxItem id="pending" className="px-3 py-1.5 text-xs rounded cursor-pointer outline-none data-[focused]:bg-[#2563EB]/10 data-[focused]:text-[#2563EB]">
+                <ListBoxItem id="pending" className="px-3 py-1.5 text-[11px] rounded-md cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.08] data-[focused]:text-[#2563EB]">
                   {t('sales.customer360.quotes.pending')}
                 </ListBoxItem>
               </ListBox>
@@ -115,80 +110,54 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
         </div>
       </div>
 
-      {/* Quotes Table */}
-      <Table
-        aria-label={t('sales.customer360.quotes.title')}
-        className="w-full"
-        selectionMode="none"
-      >
-        <TableHeader>
-          <Column isRowHeader className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.quotes.quoteNumber')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.quotes.date')}
-          </Column>
-          <Column className="text-end text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.quotes.value')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2 pe-4">
-            {t('sales.customer360.quotes.status')}
-          </Column>
-          <Column className="text-start text-xs font-medium text-black/50 dark:text-white/50 pb-2">
-            {t('sales.customer360.quotes.outcome')}
-          </Column>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((quote) => (
-            <Row
-              key={quote.id}
-              className="border-t border-black/5 dark:border-white/5 hover:bg-black/3 dark:hover:bg-white/3"
-            >
-              <Cell className="py-2.5 pe-4 text-sm font-[family-name:var(--font-geist-mono)] font-medium text-[#2563EB]">
-                {quote.quoteNumber}
-              </Cell>
-              <Cell className="py-2.5 pe-4 text-sm font-[family-name:var(--font-geist-mono)] text-black/60 dark:text-white/60">
-                {new Date(quote.createdAt).toLocaleDateString()}
-              </Cell>
-              <Cell className="py-2.5 pe-4 text-end text-sm font-[family-name:var(--font-geist-mono)] text-black dark:text-white">
-                {formatCurrency(quote.total)}
-              </Cell>
-              <Cell className="py-2.5 pe-4">
-                <StatusPill status={quote.status} />
-              </Cell>
-              <Cell className="py-2.5">
-                <OutcomeBadge outcome={quote.outcome} />
-              </Cell>
-            </Row>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
+      {/* Quote rows — clean list, expandable */}
+      <div className="space-y-0">
+        {filtered.map((quote) => (
+          <button
+            key={quote.id}
+            type="button"
+            onClick={() => setExpandedId(expandedId === quote.id ? null : quote.id)}
+            className="w-full text-start flex items-center gap-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04] last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.02] transition-colors"
+          >
+            {/* Quote number */}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-medium text-[#2563EB] w-[100px] shrink-0">
+              {quote.quoteNumber}
+            </span>
 
-function StatusPill({ status }: { status: string }) {
-  return (
-    <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60 capitalize">
-      {status.replace(/_/g, ' ')}
-    </span>
+            {/* Date */}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40 w-[90px] shrink-0">
+              {new Date(quote.createdAt).toLocaleDateString()}
+            </span>
+
+            {/* Total */}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text)] dark:text-white flex-1">
+              {formatCurrency(quote.total)}
+            </span>
+
+            {/* Status pill */}
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 capitalize">
+              {quote.status.replace(/_/g, ' ')}
+            </span>
+
+            {/* Outcome */}
+            <OutcomeBadge outcome={quote.outcome} />
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
 function OutcomeBadge({ outcome }: { outcome: string | null }) {
   if (!outcome || outcome === 'pending') {
-    return (
-      <span className="text-xs text-black/40 dark:text-white/40">—</span>
-    )
+    return <span className="w-[50px] text-end text-[11px] text-black/20 dark:text-white/20">&mdash;</span>
   }
 
   const isWon = outcome === 'won'
   return (
     <span
-      className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${
-        isWon
-          ? 'bg-[#22c55e]/10 text-[#22c55e]'
-          : 'bg-[#ef4444]/10 text-[#ef4444]'
+      className={`w-[50px] text-end text-[11px] font-medium ${
+        isWon ? 'text-[#22c55e]' : 'text-[#ef4444]'
       }`}
     >
       {outcome.toUpperCase()}
@@ -207,9 +176,9 @@ function formatCurrency(amount: number): string {
 
 function TabSkeleton() {
   return (
-    <div className="p-4 space-y-3 animate-pulse">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-10 rounded bg-black/5 dark:bg-white/5" />
+    <div className="p-6 space-y-3 animate-pulse">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-10 rounded bg-black/[0.03] dark:bg-white/[0.03]" />
       ))}
     </div>
   )

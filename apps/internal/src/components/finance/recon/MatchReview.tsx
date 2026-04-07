@@ -10,7 +10,6 @@ interface MatchReviewProps {
   onBack: () => void
 }
 
-// Mock reconciliation data
 const MOCK_TRANSACTIONS: BankTransaction[] = [
   { id: 'txn-001', date: '2026-04-01', description: 'Wire transfer - ACME Corp', amount: 247500, reference: 'INV-2026-0342', bankAccountId: 'ba-001', reconStatus: 'matched', matchedPaymentId: 'pay-001' },
   { id: 'txn-002', date: '2026-04-01', description: 'Cheque deposit 445566', amount: 185000, reference: 'CHQ-445566', bankAccountId: 'ba-001', reconStatus: 'matched', matchedPaymentId: 'pay-002' },
@@ -24,39 +23,24 @@ const MOCK_TRANSACTIONS: BankTransaction[] = [
 
 function getConfidence(status: ReconStatus): number {
   switch (status) {
-    case 'matched':
-      return 97
-    case 'partially_matched':
-      return 78
-    case 'unmatched':
-      return 0
-    case 'exception':
-      return 0
-    default:
-      return 0
+    case 'matched': return 97
+    case 'partially_matched': return 78
+    case 'unmatched': return 0
+    case 'exception': return 0
+    default: return 0
   }
 }
 
 function getConfidenceColor(confidence: number): string {
   if (confidence >= 95) return 'text-green-600 dark:text-green-400'
   if (confidence >= 70) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
-}
-
-function getRowBg(status: ReconStatus): string {
-  switch (status) {
-    case 'unmatched':
-      return 'bg-red-50/50 dark:bg-red-900/10'
-    case 'exception':
-      return 'bg-orange-50/50 dark:bg-orange-900/10'
-    default:
-      return ''
-  }
+  return 'text-black/20 dark:text-white/20'
 }
 
 /**
- * Review matched/unmatched bank reconciliation items.
- * Shows confidence scores, allows manual override, bulk apply.
+ * "The Matcher" — Side-by-side match review.
+ * Auto-matched shown muted, unmatched highlighted. Inline accept/reject.
+ * Summary footer with match counts.
  */
 export function MatchReview({ onApplyAll, onBack }: MatchReviewProps) {
   const { t } = useTranslation('finance')
@@ -87,118 +71,135 @@ export function MatchReview({ onApplyAll, onBack }: MatchReviewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header actions */}
+      {/* ─── Header actions ────────────────────────────── */}
       <div className="flex items-center justify-between">
         <Button
           onPress={onBack}
-          className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-1.5 text-sm text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
         >
-          {t('recon.backToImport', 'Back to Import')}
+          {t('recon.backToImport', 'Back')}
         </Button>
         <Button
           onPress={onApplyAll}
-          className="rounded-lg bg-[#2563EB] px-5 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 transition-colors"
+          className="rounded-md bg-[#2563EB] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors"
         >
-          {t('recon.applyAllMatches', 'Apply All Matches')}
+          {t('recon.applyAllMatches', 'Apply All')}
         </Button>
       </div>
 
-      {/* Transactions table */}
-      <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-black/10 dark:border-white/10 bg-black/3 dark:bg-white/3">
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('recon.date', 'Date')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('recon.description', 'Description')}</th>
-              <th className="px-3 py-2.5 text-end font-medium text-black/60 dark:text-white/60">{t('recon.bankAmount', 'Bank Amount')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('recon.reference', 'Reference')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('recon.status', 'Status')}</th>
-              <th className="px-3 py-2.5 text-start font-medium text-black/60 dark:text-white/60">{t('recon.matchedTo', 'Matched To')}</th>
-              <th className="px-3 py-2.5 text-end font-medium text-black/60 dark:text-white/60">{t('recon.confidence', 'Confidence')}</th>
-              <th className="px-3 py-2.5 text-end font-medium text-black/60 dark:text-white/60">{t('recon.actions', 'Actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => {
-              const confidence = getConfidence(tx.reconStatus)
-              return (
-                <tr
-                  key={tx.id}
-                  className={`border-b border-black/5 dark:border-white/5 ${getRowBg(tx.reconStatus)}`}
-                >
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] tabular-nums whitespace-nowrap">
-                    {tx.date}
-                  </td>
-                  <td className="px-3 py-2.5 max-w-[200px] truncate">{tx.description}</td>
-                  <td className="px-3 py-2.5 text-end">
-                    <CurrencyCell amount={tx.amount} />
-                  </td>
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] text-xs">{tx.reference}</td>
-                  <td className="px-3 py-2.5">
-                    <StatusBadge status={tx.reconStatus} variant="recon" />
-                  </td>
-                  <td className="px-3 py-2.5 font-[family-name:var(--font-geist-mono)] text-xs">
-                    {tx.matchedPaymentId ?? '--'}
-                  </td>
-                  <td className="px-3 py-2.5 text-end">
-                    {confidence > 0 ? (
-                      <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums font-medium ${getConfidenceColor(confidence)}`}>
-                        {confidence}%
-                      </span>
-                    ) : (
-                      <span className="text-black/30 dark:text-white/30">--</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-end">
-                    {tx.reconStatus === 'matched' && (
-                      <Button className="rounded px-2 py-1 text-xs text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
-                        {t('recon.confirm', 'Confirm')}
-                      </Button>
-                    )}
-                    {tx.reconStatus === 'partially_matched' && (
-                      <Button className="rounded px-2 py-1 text-xs text-[#2563EB] bg-[#2563EB]/10 hover:bg-[#2563EB]/20 transition-colors">
-                        {t('recon.override', 'Override')}
-                      </Button>
-                    )}
-                    {tx.reconStatus === 'unmatched' && (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button className="rounded px-2 py-1 text-xs text-[#2563EB] bg-[#2563EB]/10 hover:bg-[#2563EB]/20 transition-colors">
-                          {t('recon.createPayment', 'Create Payment')}
-                        </Button>
-                        <Button
-                          onPress={() => handleIgnore(tx.id)}
-                          className="rounded px-2 py-1 text-xs text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                        >
-                          {t('recon.ignore', 'Ignore')}
-                        </Button>
-                        <Button
-                          onPress={() => handleFlagException(tx.id)}
-                          className="rounded px-2 py-1 text-xs text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
-                        >
-                          {t('recon.flagException', 'Flag')}
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* ─── Transaction rows ──────────────────────────── */}
+      <div className="border border-black/[0.06] dark:border-white/[0.06] rounded-lg overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[80px_1fr_100px_90px_70px_60px_auto] items-center gap-0 px-3 py-1.5 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div>{t('recon.date', 'Date')}</div>
+          <div>{t('recon.description', 'Description')}</div>
+          <div className="text-end">{t('recon.bankAmount', 'Amount')}</div>
+          <div>{t('recon.reference', 'Ref')}</div>
+          <div className="text-center">{t('recon.status', 'Status')}</div>
+          <div className="text-end">{t('recon.confidence', 'Conf')}</div>
+          <div className="text-end min-w-[120px]">{t('recon.actions', 'Actions')}</div>
+        </div>
+
+        {transactions.map((tx) => {
+          const confidence = getConfidence(tx.reconStatus)
+          const isMuted = tx.reconStatus === 'matched'
+          const isHighlighted = tx.reconStatus === 'unmatched'
+          const isException = tx.reconStatus === 'exception'
+
+          return (
+            <div
+              key={tx.id}
+              className={`grid grid-cols-[80px_1fr_100px_90px_70px_60px_auto] items-center gap-0 px-3 py-2 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 transition-colors ${
+                isHighlighted
+                  ? 'bg-red-500/[0.02]'
+                  : isException
+                    ? 'bg-yellow-500/[0.02]'
+                    : isMuted
+                      ? 'opacity-50'
+                      : ''
+              }`}
+            >
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+                {tx.date}
+              </span>
+              <span className="text-xs text-black/60 dark:text-white/60 truncate pe-2">
+                {tx.description}
+              </span>
+              <span className="text-end">
+                <CurrencyCell amount={tx.amount} className="text-xs" />
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] text-[10px] text-black/25 dark:text-white/25 truncate">
+                {tx.reference || '--'}
+              </span>
+              <div className="text-center">
+                <StatusBadge status={tx.reconStatus} variant="recon" />
+              </div>
+              <span className="text-end">
+                {confidence > 0 ? (
+                  <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] font-medium ${getConfidenceColor(confidence)}`}>
+                    {confidence}%
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-black/10 dark:text-white/10">--</span>
+                )}
+              </span>
+              <div className="flex items-center justify-end gap-1 min-w-[120px]">
+                {tx.reconStatus === 'matched' && (
+                  <Button className="rounded px-2 py-0.5 text-[10px] text-green-700 dark:text-green-400 bg-green-500/[0.08] hover:bg-green-500/[0.15] transition-colors">
+                    {t('recon.confirm', 'Confirm')}
+                  </Button>
+                )}
+                {tx.reconStatus === 'partially_matched' && (
+                  <Button className="rounded px-2 py-0.5 text-[10px] text-[#2563EB] bg-[#2563EB]/[0.06] hover:bg-[#2563EB]/[0.12] transition-colors">
+                    {t('recon.override', 'Override')}
+                  </Button>
+                )}
+                {tx.reconStatus === 'unmatched' && (
+                  <>
+                    <Button className="rounded px-2 py-0.5 text-[10px] text-[#2563EB] bg-[#2563EB]/[0.06] hover:bg-[#2563EB]/[0.12] transition-colors">
+                      {t('recon.createPayment', 'Create')}
+                    </Button>
+                    <Button
+                      onPress={() => handleIgnore(tx.id)}
+                      className="rounded px-2 py-0.5 text-[10px] text-black/30 dark:text-white/30 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                    >
+                      {t('recon.ignore', 'Ignore')}
+                    </Button>
+                    <Button
+                      onPress={() => handleFlagException(tx.id)}
+                      className="rounded px-2 py-0.5 text-[10px] text-yellow-700 dark:text-yellow-400 bg-yellow-500/[0.08] hover:bg-yellow-500/[0.15] transition-colors"
+                    >
+                      {t('recon.flagException', 'Flag')}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Summary footer */}
-      <div className="flex items-center gap-6 rounded-lg border border-black/10 dark:border-white/10 bg-black/3 dark:bg-white/3 px-4 py-3 text-sm">
+      {/* ─── Summary footer ────────────────────────────── */}
+      <div className="flex items-center gap-6 text-xs text-black/40 dark:text-white/40">
         <span>
-          {t('recon.matchedLabel', 'Matched')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium text-green-600 dark:text-green-400">{summary.matchedCount}</span>{' '}
-          (<CurrencyCell amount={summary.matchedAmount} />)
+          Matched{' '}
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-green-600 dark:text-green-400">
+            {summary.matchedCount}
+          </span>
+          {' '}(<CurrencyCell amount={summary.matchedAmount} className="text-xs" />)
         </span>
         <span>
-          {t('recon.unmatchedLabel', 'Unmatched')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium text-red-600 dark:text-red-400">{summary.unmatchedCount}</span>{' '}
-          (<CurrencyCell amount={summary.unmatchedAmount} />)
+          Unmatched{' '}
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-red-600 dark:text-red-400">
+            {summary.unmatchedCount}
+          </span>
+          {' '}(<CurrencyCell amount={summary.unmatchedAmount} className="text-xs" />)
         </span>
         <span>
-          {t('recon.exceptionsLabel', 'Exceptions')}: <span className="font-[family-name:var(--font-geist-mono)] font-medium text-orange-600 dark:text-orange-400">{summary.exceptionCount}</span>
+          Exceptions{' '}
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium text-yellow-600 dark:text-yellow-400">
+            {summary.exceptionCount}
+          </span>
         </span>
       </div>
     </div>

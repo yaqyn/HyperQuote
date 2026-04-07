@@ -3,14 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { useChat, stream } from '@tanstack/ai-react'
 import type { UIMessage } from '@tanstack/ai-react'
 import type { StreamChunk } from '@tanstack/ai'
+import { ArrowUp } from 'lucide-react'
+import { Button } from 'react-aria-components'
 import { askAI } from '../../../lib/server/ai-assistant'
 import { useAIStore } from '../../../stores/ai'
 import { AIMessageBubble } from './AIMessageBubble'
-import { SuggestedPrompts } from './SuggestedPrompts'
 
-/**
- * Extract text content from a UIMessage.
- */
 function extractContent(msg: UIMessage): string {
   if (msg.parts && msg.parts.length > 0) {
     return msg.parts
@@ -21,21 +19,19 @@ function extractContent(msg: UIMessage): string {
   return ''
 }
 
-/**
- * Convert array of StreamChunks to AsyncIterable.
- */
-async function* arrayToAsyncIterable(
-  chunks: StreamChunk[],
-): AsyncIterable<StreamChunk> {
+async function* arrayToAsyncIterable(chunks: StreamChunk[]): AsyncIterable<StreamChunk> {
   for (const chunk of chunks) {
     yield chunk
   }
 }
 
-/**
- * AI Chat Interface — follows portal usePortalChat pattern.
- * Uses @tanstack/ai-react useChat + stream() with askAI server function.
- */
+const SUGGESTIONS = [
+  'Show open quotes for customer X',
+  'Best rebar pricing this month?',
+  'Orders at risk of missing delivery?',
+  'AR aging over 90 days?',
+]
+
 export function AIChatInterface() {
   const { t } = useTranslation('ai')
   const [inputValue, setInputValue] = useState('')
@@ -52,14 +48,9 @@ export function AIChatInterface() {
           content: extractContent(m),
           timestamp: new Date().toISOString(),
         }))
-
-        const chunks = await askAI({
-          data: { messages: simpleMessages },
-        })
-
+        const chunks = await askAI({ data: { messages: simpleMessages } })
         yield* arrayToAsyncIterable(chunks as StreamChunk[])
-      } catch (err) {
-        console.error('[ai-chat] stream error:', err)
+      } catch {
         yield { type: 'RUN_STARTED' as const, timestamp: Date.now(), runId: crypto.randomUUID() }
         yield { type: 'TEXT_MESSAGE_START' as const, timestamp: Date.now(), messageId: crypto.randomUUID(), role: 'assistant' as const }
         yield { type: 'TEXT_MESSAGE_CONTENT' as const, timestamp: Date.now(), messageId: crypto.randomUUID(), delta: 'Something went wrong. Please try again.' }
@@ -67,18 +58,13 @@ export function AIChatInterface() {
         yield { type: 'RUN_FINISHED' as const, timestamp: Date.now(), runId: crypto.randomUUID(), finishReason: 'stop' as const }
       }
     }),
-    onError: (err) => {
-      console.error('[ai-chat]', err)
-      setIsStreaming(false)
-    },
+    onError: () => setIsStreaming(false),
   })
 
-  // Sync streaming state
   useEffect(() => {
     setIsStreaming(chat.isLoading)
   }, [chat.isLoading, setIsStreaming])
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chat.messages])
@@ -88,6 +74,7 @@ export function AIChatInterface() {
     if (!text || chat.isLoading) return
     chat.sendMessage(text)
     setInputValue('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
   }, [inputValue, chat.isLoading, chat.sendMessage])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -97,23 +84,55 @@ export function AIChatInterface() {
     }
   }
 
-  const handleSuggestedPrompt = useCallback((prompt: string) => {
-    chat.sendMessage(prompt)
-  }, [chat.sendMessage])
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }
 
   const hasMessages = chat.messages.length > 0
 
   return (
     <div className="flex flex-col h-full">
-      {/* ─── Message Thread ─────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {!hasMessages && (
-          <div className="flex items-center justify-center h-full">
-            <SuggestedPrompts onSelect={handleSuggestedPrompt} />
+      {/* Messages or empty state */}
+      <div className="flex-1 overflow-y-auto" data-module-content>
+        {!hasMessages ? (
+          <div className="flex flex-col items-center justify-center h-full px-5">
+            {/* Logo */}
+            <img
+              src="/brand/logos/LyonBlack.svg"
+              alt="Lyon"
+              className="h-32 mb-4 dark:hidden opacity-80"
+            />
+            <img
+              src="/brand/logos/LyonWhite.svg"
+              alt="Lyon"
+              className="h-32 mb-4 hidden dark:block opacity-80"
+            />
+            <p className="text-lg font-semibold text-[var(--color-text)] mb-0.5">
+              Lyon AI
+            </p>
+            <p className="text-[12px] text-[var(--color-text-subtle)] mb-8">
+              Ask, Lyon.
+            </p>
+
+            {/* Suggestions as pills */}
+            <div className="flex flex-col gap-2 w-full max-w-[300px]">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => chat.sendMessage(s)}
+                  className="text-left px-4 py-2.5 rounded-xl text-[13px] text-[var(--color-text-muted)] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-[var(--color-text)] transition-all cursor-pointer"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-        {hasMessages && (
-          <div className="max-w-3xl mx-auto space-y-4">
+        ) : (
+          <div className="px-4 py-4 space-y-4">
             {chat.messages.map((msg: UIMessage, idx: number) => (
               <AIMessageBubble
                 key={msg.id}
@@ -126,12 +145,11 @@ export function AIChatInterface() {
                 isStreaming={chat.isLoading && idx === chat.messages.length - 1 && msg.role === 'assistant'}
               />
             ))}
-            {/* Typing indicator */}
             {chat.isLoading && chat.messages[chat.messages.length - 1]?.role === 'user' && (
-              <div className="flex items-center gap-1 ps-1 py-2">
-                <span className="w-2 h-2 rounded-full bg-black/30 dark:bg-white/30 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-black/30 dark:bg-white/30 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-black/30 dark:bg-white/30 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-center gap-1.5 py-2 px-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]/40 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -139,32 +157,30 @@ export function AIChatInterface() {
         )}
       </div>
 
-      {/* ─── Input Bar ──────────────────────────────────── */}
-      <div className="border-t border-black/5 dark:border-white/5 px-6 py-3">
-        <div className="max-w-3xl mx-auto flex items-end gap-2">
-          <div className="flex-1 backdrop-blur-sm bg-white/60 dark:bg-black/60 rounded-xl border border-black/10 dark:border-white/10 px-4 py-2.5">
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t('chat.placeholder', 'Ask me anything...')}
-              rows={1}
-              className="w-full resize-none bg-transparent outline-none text-sm placeholder:text-black/30 dark:placeholder:text-white/30"
-              style={{ maxHeight: '120px' }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || chat.isLoading}
-            className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-[#2563EB] text-white disabled:opacity-40 transition-opacity"
-            aria-label={t('chat.send', 'Send')}
+      {/* Input — Claude.ai style: rounded container with send button */}
+      <div className="shrink-0 px-4 pb-4 pt-2">
+        <div className="flex items-end gap-2 rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.015] dark:bg-white/[0.02] px-4 py-3 focus-within:border-[var(--color-primary)]/30 transition-colors">
+          <textarea
+            ref={inputRef}
+            value={inputValue}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="Message Lyon..."
+            rows={1}
+            className="flex-1 resize-none bg-transparent text-[13px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 leading-relaxed appearance-none overflow-hidden"
+            style={{ maxHeight: '100px' }}
+          />
+          <Button
+            onPress={handleSend}
+            isDisabled={!inputValue.trim() || chat.isLoading}
+            className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full cursor-pointer outline-none transition-all ${
+              inputValue.trim()
+                ? 'bg-[var(--color-text)] text-[var(--color-surface)]'
+                : 'bg-black/[0.06] dark:bg-white/[0.06] text-[var(--color-text-subtle)]'
+            }`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-            </svg>
-          </button>
+            <ArrowUp size={14} strokeWidth={2} />
+          </Button>
         </div>
       </div>
     </div>

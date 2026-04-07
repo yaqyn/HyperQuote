@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { QuoteItem } from '../../../types/sales'
 
-// ─── Mock Data ───────────────────────────────────────────────
+// ─── Mock Data ──────────────────────────────────────────────
 
 function getMockVersionItems(versionId: string): {
   version: number
@@ -10,7 +10,6 @@ function getMockVersionItems(versionId: string): {
   vatAmount: number
   total: number
 } {
-  // Simulate two different versions for comparison
   if (versionId.endsWith('-v1') || versionId.endsWith('-v2')) {
     const items: QuoteItem[] = [
       {
@@ -61,7 +60,6 @@ function getMockVersionItems(versionId: string): {
     return { version: versionId.endsWith('-v1') ? 1 : 2, items, subtotal, vatAmount, total: subtotal + vatAmount }
   }
 
-  // Current version with adjusted prices
   const items: QuoteItem[] = [
     {
       id: 'qi-1',
@@ -111,22 +109,26 @@ function getMockVersionItems(versionId: string): {
   return { version: 3, items, subtotal, vatAmount, total: subtotal + vatAmount }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────
 
-function priceDiffClass(a: number, b: number): string {
-  if (b < a) return 'text-green-600 dark:text-green-400' // Lower = better for customer
+function diffColor(a: number, b: number): string {
+  if (b < a) return 'text-green-600 dark:text-green-400'
   if (b > a) return 'text-red-600 dark:text-red-400'
-  return ''
+  return 'text-[var(--color-text-subtle)]'
 }
 
-function formatDiff(a: number, b: number): string {
+function formatDelta(a: number, b: number): string {
   const diff = b - a
-  if (diff === 0) return '-'
+  if (diff === 0) return '--'
   const sign = diff > 0 ? '+' : ''
   return `${sign}${diff.toLocaleString('en-EG')}`
 }
 
-// ─── Component ───────────────────────────────────────────────
+function hasChanged(a: number, b: number): boolean {
+  return a !== b
+}
+
+// ─── Component ──────────────────────────────────────────────
 
 interface SideBySideComparisonProps {
   versionAId: string
@@ -148,117 +150,148 @@ export function SideBySideComparison({
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-        <h3 className="text-sm font-semibold">
-          {t('sales.negotiation.comparison', 'Side-by-Side Comparison')}
+      {/* Header */}
+      <div className="border-b border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
+        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">
+          {t('sales.negotiation.comparison', 'Comparison')}
         </h3>
       </div>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-black/10 dark:border-white/10 text-black/50 dark:text-white/50">
-            <th className="text-start px-4 py-2 font-medium">
-              {t('sales.negotiation.item', 'Item')}
-            </th>
-            <th className="text-end px-3 py-2 font-medium font-mono">
-              v{versionA.version}
-            </th>
-            <th className="text-end px-3 py-2 font-medium font-mono">
-              v{versionB.version}
-            </th>
-            <th className="text-end px-3 py-2 font-medium">
-              {t('sales.negotiation.diff', 'Diff')}
-            </th>
-            <th className="text-end px-3 py-2 font-medium">
-              {t('sales.negotiation.customerCounter', 'Counter')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {lineItems.map(({ itemA, itemB }) => (
-            <tr
+      {/* Two-column comparison */}
+      <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+        {lineItems.map(({ itemA, itemB }) => {
+          const changed = itemB && hasChanged(itemA.sellPrice, itemB.sellPrice)
+
+          return (
+            <div
               key={itemA.id}
-              className="border-b border-black/5 dark:border-white/5"
+              className={[
+                'grid grid-cols-2 gap-0',
+                changed ? 'bg-yellow-50/50 dark:bg-yellow-500/[0.03]' : '',
+              ].join(' ')}
             >
-              <td className="px-4 py-2">
-                <div className="font-medium">{itemA.productName}</div>
-                <div className="text-xs text-black/40 dark:text-white/40">
+              {/* Version A */}
+              <div className="border-e border-black/[0.04] px-5 py-3 dark:border-white/[0.04]">
+                <div className="text-[13px] font-medium text-[var(--color-text)]">{itemA.productName}</div>
+                <div className="mt-0.5 text-[11px] text-[var(--color-text-subtle)]">
                   {itemA.quantity} {itemA.unit}
                 </div>
-              </td>
-              <td className="text-end px-3 py-2 font-mono">
-                {itemA.sellPrice.toLocaleString('en-EG')}
-              </td>
-              <td className="text-end px-3 py-2 font-mono">
-                {itemB?.sellPrice.toLocaleString('en-EG') ?? '-'}
-              </td>
-              <td
-                className={`text-end px-3 py-2 font-mono ${itemB ? priceDiffClass(itemA.sellPrice, itemB.sellPrice) : ''}`}
-              >
-                {itemB ? formatDiff(itemA.sellPrice, itemB.sellPrice) : '-'}
-              </td>
-              <td className="text-end px-3 py-2 font-mono text-black/40 dark:text-white/40">
-                {itemB?.customerCounterPrice
-                  ? itemB.customerCounterPrice.toLocaleString('en-EG')
-                  : '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-black/10 dark:border-white/10">
-            <td className="px-4 py-2 font-medium">
-              {t('sales.negotiation.subtotal', 'Subtotal')}
-            </td>
-            <td className="text-end px-3 py-2 font-mono">
-              {versionA.subtotal.toLocaleString('en-EG')}
-            </td>
-            <td className="text-end px-3 py-2 font-mono">
-              {versionB.subtotal.toLocaleString('en-EG')}
-            </td>
-            <td
-              className={`text-end px-3 py-2 font-mono ${priceDiffClass(versionA.subtotal, versionB.subtotal)}`}
-            >
-              {formatDiff(versionA.subtotal, versionB.subtotal)}
-            </td>
-            <td />
-          </tr>
-          <tr>
-            <td className="px-4 py-1 text-black/50 dark:text-white/50">
-              {t('sales.negotiation.vat14', 'VAT 14%')}
-            </td>
-            <td className="text-end px-3 py-1 font-mono text-black/50 dark:text-white/50">
-              {versionA.vatAmount.toLocaleString('en-EG')}
-            </td>
-            <td className="text-end px-3 py-1 font-mono text-black/50 dark:text-white/50">
-              {versionB.vatAmount.toLocaleString('en-EG')}
-            </td>
-            <td
-              className={`text-end px-3 py-1 font-mono ${priceDiffClass(versionA.vatAmount, versionB.vatAmount)}`}
-            >
-              {formatDiff(versionA.vatAmount, versionB.vatAmount)}
-            </td>
-            <td />
-          </tr>
-          <tr className="border-t border-black/10 dark:border-white/10 font-semibold">
-            <td className="px-4 py-2">
-              {t('sales.negotiation.total', 'Total')}
-            </td>
-            <td className="text-end px-3 py-2 font-mono">
-              EGP {versionA.total.toLocaleString('en-EG')}
-            </td>
-            <td className="text-end px-3 py-2 font-mono">
-              EGP {versionB.total.toLocaleString('en-EG')}
-            </td>
-            <td
-              className={`text-end px-3 py-2 font-mono ${priceDiffClass(versionA.total, versionB.total)}`}
-            >
-              {formatDiff(versionA.total, versionB.total)}
-            </td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
+                    {itemA.sellPrice.toLocaleString('en-EG')}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                    {itemA.lineTotal.toLocaleString('en-EG')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Version B */}
+              <div className="px-5 py-3">
+                <div className="text-[13px] font-medium text-[var(--color-text)]">{itemB?.productName ?? '--'}</div>
+                <div className="mt-0.5 text-[11px] text-[var(--color-text-subtle)]">
+                  {itemB ? `${itemB.quantity} ${itemB.unit}` : ''}
+                </div>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
+                    {itemB?.sellPrice.toLocaleString('en-EG') ?? '--'}
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    {itemB && (
+                      <span className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums ${diffColor(itemA.sellPrice, itemB.sellPrice)}`}>
+                        {formatDelta(itemA.sellPrice, itemB.sellPrice)}
+                      </span>
+                    )}
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+                      {itemB?.lineTotal.toLocaleString('en-EG') ?? ''}
+                    </span>
+                  </div>
+                </div>
+                {/* Customer counter if present */}
+                {itemB?.customerCounterPrice && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)]">Counter</span>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                      {itemB.customerCounterPrice.toLocaleString('en-EG')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Totals */}
+      <div className="border-t border-black/[0.06] dark:border-white/[0.06]">
+        {/* Subtotal */}
+        <div className="grid grid-cols-2">
+          <div className="border-e border-black/[0.04] px-5 py-2 dark:border-white/[0.04]">
+            <div className="flex justify-between text-[13px]">
+              <span className="text-[var(--color-text-muted)]">{t('sales.negotiation.subtotal', 'Subtotal')}</span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
+                {versionA.subtotal.toLocaleString('en-EG')}
+              </span>
+            </div>
+          </div>
+          <div className="px-5 py-2">
+            <div className="flex justify-between text-[13px]">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
+                {versionB.subtotal.toLocaleString('en-EG')}
+              </span>
+              <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums ${diffColor(versionA.subtotal, versionB.subtotal)}`}>
+                {formatDelta(versionA.subtotal, versionB.subtotal)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* VAT */}
+        <div className="grid grid-cols-2">
+          <div className="border-e border-black/[0.04] px-5 py-1.5 dark:border-white/[0.04]">
+            <div className="flex justify-between text-[11px] text-[var(--color-text-subtle)]">
+              <span>{t('sales.negotiation.vat14', 'VAT 14%')}</span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                {versionA.vatAmount.toLocaleString('en-EG')}
+              </span>
+            </div>
+          </div>
+          <div className="px-5 py-1.5">
+            <div className="flex justify-between text-[11px] text-[var(--color-text-subtle)]">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                {versionB.vatAmount.toLocaleString('en-EG')}
+              </span>
+              <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums ${diffColor(versionA.vatAmount, versionB.vatAmount)}`}>
+                {formatDelta(versionA.vatAmount, versionB.vatAmount)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="grid grid-cols-2 border-t border-black/[0.06] dark:border-white/[0.06]">
+          <div className="border-e border-black/[0.04] px-5 py-3 dark:border-white/[0.04]">
+            <div className="flex justify-between">
+              <span className="text-[13px] font-semibold text-[var(--color-text)]">
+                {t('sales.negotiation.total', 'Total')}
+              </span>
+              <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
+                EGP {versionA.total.toLocaleString('en-EG')}
+              </span>
+            </div>
+          </div>
+          <div className="px-5 py-3">
+            <div className="flex justify-between">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
+                EGP {versionB.total.toLocaleString('en-EG')}
+              </span>
+              <span className={`font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums ${diffColor(versionA.total, versionB.total)}`}>
+                {formatDelta(versionA.total, versionB.total)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

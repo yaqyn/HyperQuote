@@ -284,3 +284,26 @@ export const previewQuotePDF = createServerFn({ method: 'GET' })
     // TODO: Generate PDF or return pre-generated URL from R2
     return { quote: getMockQuote(input.quoteId), pdfUrl: null }
   })
+
+// ─── Product Catalog ──────────────────────────────────────
+
+export const getProductCatalog = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({}))
+  .handler(async () => {
+    return {
+      products: [
+        { id: 'prod-001', name: 'Portland Cement CEM I 42.5N', specification: '50kg bags', unit: 'bag', category: 'Cement', supplierCost: 47.00, freshness: 'fresh' as const, supplierName: 'Suez Cement' },
+        { id: 'prod-002', name: 'Steel Rebar 16mm', specification: 'Grade 60, 12m', unit: 'bundle', category: 'Steel', supplierCost: 3249.25, freshness: 'fresh' as const, supplierName: 'Ezz Steel' },
+        { id: 'prod-003', name: 'Concrete Blocks 20cm', specification: 'Hollow, load-bearing', unit: 'piece', category: 'Blocks', supplierCost: 12.81, freshness: 'aging' as const, supplierName: 'National Blocks' },
+        { id: 'prod-004', name: 'Plywood Shuttering 18mm', specification: 'Birch, film-faced', unit: 'sheet', category: 'Timber', supplierCost: 80.26, freshness: 'stale' as const, supplierName: 'Delta Timber' },
+        { id: 'prod-005', name: 'PVC Pipes 110mm', specification: 'Class D, 6m length', unit: 'piece', category: 'Pipes', supplierCost: 169.12, freshness: 'fresh' as const, supplierName: 'El Sewedy Pipes' },
+        { id: 'prod-006', name: 'Steel Rebar 12mm', specification: 'Grade 60, 12m', unit: 'bundle', category: 'Steel', supplierCost: 2150.00, freshness: 'fresh' as const, supplierName: 'Ezz Steel' },
+        { id: 'prod-007', name: 'Portland Cement CEM II 32.5N', specification: '50kg bags', unit: 'bag', category: 'Cement', supplierCost: 38.50, freshness: 'fresh' as const, supplierName: 'Arabian Cement' },
+        { id: 'prod-008', name: 'Sand (Fine)', specification: 'Washed, per ton', unit: 'ton', category: 'Aggregates', supplierCost: 120.00, freshness: 'aging' as const, supplierName: 'Cairo Sand' },
+        { id: 'prod-009', name: 'Gravel 20mm', specification: 'Crushed, per ton', unit: 'ton', category: 'Aggregates', supplierCost: 95.00, freshness: 'fresh' as const, supplierName: 'Cairo Sand' },
+        { id: 'prod-010', name: 'Waterproofing Membrane', specification: '4mm SBS modified bitumen', unit: 'roll', category: 'Roofing', supplierCost: 450.00, freshness: 'fresh' as const, supplierName: 'Sika Egypt' },
+        { id: 'prod-011', name: 'Ceramic Tiles 60x60', specification: 'Grade A, polished', unit: 'sqm', category: 'Tiles', supplierCost: 85.00, freshness: 'fresh' as const, supplierName: 'Cleopatra Ceramics' },
+        { id: 'prod-012', name: 'Paint (White Interior)', specification: '18L bucket, washable', unit: 'bucket', category: 'Paint', supplierCost: 320.00, freshness: 'fresh' as const, supplierName: 'Jotun Egypt' },
+      ],
+    }
+  })

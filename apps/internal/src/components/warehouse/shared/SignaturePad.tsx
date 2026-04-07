@@ -9,9 +9,9 @@ interface SignaturePadProps {
 }
 
 /**
- * Canvas-based signature capture component.
- * Touch/mouse drawing on canvas. Returns PNG data URL on completion.
- * Must be TWO separate instances for dual sign-off (driver + loader).
+ * Clean canvas signature capture with clear/undo.
+ * Bordered capture area. Touch-optimized for warehouse tablets.
+ * Returns PNG data URL on stroke completion.
  */
 export function SignaturePad({
   label,
@@ -29,7 +29,6 @@ export function SignaturePad({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Set canvas resolution
     canvas.width = width * 2
     canvas.height = height * 2
     ctx.scale(2, 2)
@@ -102,20 +101,22 @@ export function SignaturePad({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+        <span className="text-xs font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
           {label}
         </span>
-        <Button
-          onPress={clear}
-          className="text-xs text-[#2563EB] hover:underline cursor-pointer"
-        >
-          Clear
-        </Button>
+        {hasContent && (
+          <Button
+            onPress={clear}
+            className="text-xs font-medium text-[#2563EB] cursor-pointer hover:underline"
+          >
+            Clear
+          </Button>
+        )}
       </div>
       <canvas
         ref={canvasRef}
         style={{ width, height }}
-        className="rounded-lg border border-[var(--color-border)] bg-white touch-none cursor-crosshair"
+        className="rounded-lg border-2 border-black/10 dark:border-white/10 bg-white dark:bg-white/5 touch-none cursor-crosshair"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
