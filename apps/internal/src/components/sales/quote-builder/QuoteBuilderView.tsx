@@ -238,7 +238,7 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
 
   // Rebuild sourcing state when items change and we enter step 2
   useEffect(() => {
-    if (currentStep === 2 && sourcingState.length === 0) {
+    if (sourcingState.length === 0) {
       const items = methods.getValues('lineItems') ?? []
       setSourcingState(
         items.map((item) => {
@@ -425,8 +425,9 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
         {/* Left — back + subtle meta */}
         <div className="flex items-center gap-2">
           {onBack && (
-            <button type="button" onClick={onBack} className="text-black/40 hover:text-black/60 dark:text-white/40 dark:hover:text-white/60 outline-none me-1">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <button type="button" onClick={onBack} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-black/40 outline-none transition-colors hover:bg-black/[0.04] hover:text-black/70 dark:text-white/40 dark:hover:bg-white/[0.04] dark:hover:text-white/70">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              RFQs
             </button>
           )}
           <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
@@ -514,7 +515,7 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
                                 {sourceName} ▾
                               </button>
                               {tableSourceOpen === i && (
-                                <div className="fixed z-[9999] w-72 rounded-xl border border-black/[0.06] bg-white p-2.5 shadow-2xl dark:border-white/[0.06] dark:bg-black" style={{ marginTop: '4px' }}>
+                                <div className="absolute start-0 top-full z-[9999] mt-1 w-72 rounded-xl border border-black/[0.06] bg-white p-2.5 shadow-2xl dark:border-white/[0.06] dark:bg-black">
                                   <input
                                     type="text"
                                     value={tableSourceSearch}
