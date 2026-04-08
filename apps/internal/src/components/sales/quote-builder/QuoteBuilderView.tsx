@@ -419,35 +419,38 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Compact header */}
-      <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-2 dark:border-white/[0.06]">
-        {/* Customer — prominent */}
-        <span className="text-[14px] font-semibold">{customerName}</span>
-        <button
-          type="button"
-          onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
-          className="flex items-center gap-1 rounded-full bg-[var(--color-primary)]/10 px-2.5 py-1 text-[11px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/15"
-        >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5h-3a1 1 0 0 0-1 1v1a10 10 0 0 0 10 10h1a1 1 0 0 0 1-1v-3l-3-1.5-1.5 2a7 7 0 0 1-4-4l2-1.5L6.5 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Call
-        </button>
-        {/* Quote meta — subtle */}
-        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">
-          {quoteNumber} · v{version} · {status === 'draft' ? 'Draft' : status}
-        </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
-          RFQ {rfqReference}
-        </span>
-        {lastSavedAt && (
-          <span className="text-[10px] text-black/25 dark:text-white/25">Saved {Math.round((Date.now() - lastSavedAt.getTime()) / 1000)}s ago</span>
-        )}
-        <div className="flex-1" />
-        <button type="button" onClick={handleAutoSave} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 5.5V13H3V3h7.5L13 5.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><path d="M5.5 3v3h4V3" stroke="currentColor" strokeWidth="1" /></svg>
-        </button>
-        <button type="button" onClick={() => setPreviewOpen(true)} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1" /></svg>
-        </button>
+      {/* Compact header — name+call centered, meta on edges */}
+      <div className="flex items-center border-b border-black/[0.06] px-5 py-2 dark:border-white/[0.06]">
+        {/* Left — subtle meta */}
+        <div className="flex items-center gap-2">
+          <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
+            {quoteNumber} · v{version} · {status === 'draft' ? 'Draft' : status}
+          </span>
+          {lastSavedAt && (
+            <span className="text-[10px] text-black/20 dark:text-white/20">Saved {Math.round((Date.now() - lastSavedAt.getTime()) / 1000)}s</span>
+          )}
+        </div>
+        {/* Center — customer + call */}
+        <div className="flex flex-1 items-center justify-center gap-2">
+          <span className="text-[14px] font-semibold">{customerName}</span>
+          <button
+            type="button"
+            onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
+            className="flex items-center gap-1 rounded-full bg-[var(--color-primary)]/10 px-2.5 py-1 text-[11px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/15"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5h-3a1 1 0 0 0-1 1v1a10 10 0 0 0 10 10h1a1 1 0 0 0 1-1v-3l-3-1.5-1.5 2a7 7 0 0 1-4-4l2-1.5L6.5 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Call
+          </button>
+        </div>
+        {/* Right — save + preview */}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={handleAutoSave} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 5.5V13H3V3h7.5L13 5.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><path d="M5.5 3v3h4V3" stroke="currentColor" strokeWidth="1" /></svg>
+          </button>
+          <button type="button" onClick={() => setPreviewOpen(true)} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1" /></svg>
+          </button>
+        </div>
       </div>
 
       {/* Step content */}
@@ -490,7 +493,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                         return (
                           <tr key={item.id || i} className={`border-b border-black/[0.03] dark:border-white/[0.03] transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01] ${isUnassigned ? 'bg-red-500/[0.02]' : ''}`}>
                             {/* Source — small badge */}
-                            <td className="relative py-4 pe-3">
+                            <td className="relative overflow-visible py-4 pe-3">
                               <button
                                 type="button"
                                 onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch(''); setRightPanel('canvas') }}
@@ -505,7 +508,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                                 {sourceName} ▾
                               </button>
                               {tableSourceOpen === i && (
-                                <div className="absolute start-0 top-full z-50 mt-1 w-64 rounded-xl border border-black/[0.06] bg-white p-2 shadow-xl dark:border-white/[0.06] dark:bg-black">
+                                <div className="fixed z-[9999] w-72 rounded-xl border border-black/[0.06] bg-white p-2.5 shadow-2xl dark:border-white/[0.06] dark:bg-black" style={{ marginTop: '4px' }}>
                                   <input
                                     type="text"
                                     value={tableSourceSearch}
