@@ -237,6 +237,24 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
 
+  const methods = useForm<QuoteFormValues>({
+    defaultValues: {
+      lineItems: [],
+      validityDays: 14,
+      paymentTerms: '',
+      deliveryMethod: '',
+      deliveryDate: '',
+      deliveryWindow: '08:00-17:00',
+      specialInstructions: '',
+      earlyPaymentDiscount: '',
+      scheduledSendAt: null,
+      coverNote: '',
+      sendVia: null,
+    },
+  })
+  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({ control: methods.control, name: 'lineItems' })
+  const [searchOpen, setSearchOpen] = useState(false)
+
   // Compute totals from watched items (useWatch, NOT watch)
   const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
   const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
@@ -326,24 +344,6 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
     goToStep(nextStep)
   }
 
-  const methods = useForm<QuoteFormValues>({
-    defaultValues: {
-      lineItems: [],
-      validityDays: 14,
-      paymentTerms: '',
-      deliveryMethod: '',
-      deliveryDate: '',
-      deliveryWindow: '08:00-17:00',
-      specialInstructions: '',
-      earlyPaymentDiscount: '',
-      scheduledSendAt: null,
-      coverNote: '',
-      sendVia: null,
-    },
-  })
-
-  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({ control: methods.control, name: 'lineItems' })
-  const [searchOpen, setSearchOpen] = useState(false)
 
   // Load quote builder data from server
   useEffect(() => {
