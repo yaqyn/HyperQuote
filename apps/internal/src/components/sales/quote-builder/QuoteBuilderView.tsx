@@ -419,40 +419,28 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Compact header — quote info + customer info in one bar */}
+      {/* Compact header */}
       <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-2 dark:border-white/[0.06]">
-        <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums">{quoteNumber}</span>
-        <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-medium dark:bg-white/[0.06]">v{version}</span>
-        <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-medium dark:bg-white/[0.06]">{status === 'draft' ? 'Draft' : status}</span>
-        {lastSavedAt && (
-          <span className="text-[11px] text-black/30 dark:text-white/30">Saved {Math.round((Date.now() - lastSavedAt.getTime()) / 1000)}s ago</span>
-        )}
-        <span className="mx-1 text-black/10 dark:text-white/10">|</span>
-        <span className="text-[13px] font-semibold">{customerName}</span>
-        <span className="rounded-full border border-black/[0.08] px-1.5 py-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums dark:border-white/[0.08]">
-          {customerTier}
-        </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
-          RFQ {rfqReference}
-        </span>
+        {/* Customer — prominent */}
+        <span className="text-[14px] font-semibold">{customerName}</span>
         <button
           type="button"
           onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
-          className="flex items-center gap-1 rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/15"
+          className="flex items-center gap-1 rounded-full bg-[var(--color-primary)]/10 px-2.5 py-1 text-[11px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/15"
         >
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5h-3a1 1 0 0 0-1 1v1a10 10 0 0 0 10 10h1a1 1 0 0 0 1-1v-3l-3-1.5-1.5 2a7 7 0 0 1-4-4l2-1.5L6.5 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Call
         </button>
-        <span className="flex items-center gap-1 text-[11px] text-black/40 dark:text-white/40">
-          <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" stroke="currentColor" strokeWidth="1" /><circle cx="7" cy="6" r="1.25" stroke="currentColor" strokeWidth="1" /></svg>
-          <input
-            type="text"
-            value={deliveryAddress}
-            onChange={(e) => setDeliveryAddress(e.target.value)}
-            onFocus={() => setRightPanel('map')}
-            className="w-48 bg-transparent text-[11px] text-black/40 outline-none border-b border-transparent focus:border-black/[0.12] focus:text-[var(--color-text)] dark:text-white/40 dark:focus:border-white/[0.12]"
-          />
+        {/* Quote meta — subtle */}
+        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">
+          {quoteNumber} · v{version} · {status === 'draft' ? 'Draft' : status}
         </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
+          RFQ {rfqReference}
+        </span>
+        {lastSavedAt && (
+          <span className="text-[10px] text-black/25 dark:text-white/25">Saved {Math.round((Date.now() - lastSavedAt.getTime()) / 1000)}s ago</span>
+        )}
         <div className="flex-1" />
         <button type="button" onClick={handleAutoSave} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 5.5V13H3V3h7.5L13 5.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><path d="M5.5 3v3h4V3" stroke="currentColor" strokeWidth="1" /></svg>
@@ -478,7 +466,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   transition={springTransition}
                 >
                 {/* Unified source + pricing table */}
-                <div className="mt-6 overflow-visible">
+                <div className="mt-6 overflow-visible ps-2">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -663,6 +651,16 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                 {/* Delivery */}
                 <div className="mt-6 border-t border-black/[0.04] pt-5 dark:border-white/[0.04]">
                   <h3 className="mb-3 text-[13px] font-semibold text-[var(--color-text)]">Delivery</h3>
+                  <div className="mb-3 flex items-center gap-2">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-black/40 dark:text-white/40"><path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" stroke="currentColor" strokeWidth="1" /><circle cx="7" cy="6" r="1.25" stroke="currentColor" strokeWidth="1" /></svg>
+                    <input
+                      type="text"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      onFocus={() => setRightPanel('map')}
+                      className="flex-1 bg-transparent text-[13px] text-[var(--color-text)] outline-none border-b border-black/[0.04] focus:border-[var(--color-primary)]/30 dark:border-white/[0.04]"
+                    />
+                  </div>
                   <DeliveryTerms
                     deliveryAddress={deliveryAddress}
                     totalWeightTons={12}
