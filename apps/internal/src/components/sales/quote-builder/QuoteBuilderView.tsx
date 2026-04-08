@@ -411,6 +411,8 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [sourcingDone, setSourcingDone] = useState(false)
+  const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
+  const [tableSourceSearch, setTableSourceSearch] = useState('')
 
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
@@ -737,56 +739,135 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                 transition={springTransition}
                 className="pt-6"
               >
-                {/* Sourcing */}
-                <SourcePricesStep
-                  items={(watchedItems ?? []).map((item) => ({
-                    productName: item.productName,
-                    quantity: item.quantity,
-                    unit: item.unit || 'unit',
-                  }))}
-                  sourcingState={sourcingState}
-                  onToggleSource={toggleItemSource}
-                  onAssignSource={assignItemSource}
-                  onSourcingComplete={() => {}}
-                  onSkip={() => {}}
-                />
+                {/* Unified source + pricing table */}
+                <div className="overflow-visible">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
+                        <th className="py-2 pe-2 text-start text-[12px] font-medium text-black/40 dark:text-white/40">Source</th>
+                        <th className="py-2 px-2 text-start text-[12px] font-medium text-black/40 dark:text-white/40">Item</th>
+                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Qty</th>
+                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Cost</th>
+                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Margin</th>
+                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Price</th>
+                        <th className="py-2 ps-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(watchedItems ?? []).map((item, i) => {
+                        const sourcing = sourcingState[i]
+                        const isStock = sourcing?.sourceId === 'warehouse'
+                        const isUnassigned = !sourcing?.sourceId
+                        const sourceName = isUnassigned ? 'Select' : isStock ? 'Warehouse' : ALL_SUPPLIERS.find((s) => s.id === sourcing?.sourceId)?.name?.split(' ')[0] ?? 'Supplier'
 
-                {/* Pricing & Terms — below sourcing */}
-                <div className="mt-6 border-t border-black/[0.04] pt-6 dark:border-white/[0.04]">
-                {/* Two-column layout: Margins left, Terms right */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  {/* Left: Margins */}
-                  <div>
-                    <MarginControlPanel
-                      lineItems={watchedItems ?? []}
-                      marginThresholds={marginThresholds}
-                      onSetBlanketMargin={(margin) => {
-                        const items = methods.getValues('lineItems')
-                        items.forEach((item, i) => {
-                          const newSellPrice = Math.round((item.supplierCost / (1 - margin / 100)) * 100) / 100
-                          const newLineTotal = Math.round(newSellPrice * item.quantity * 100) / 100
-                          methods.setValue(`lineItems.${i}.marginPercent`, margin)
-                          methods.setValue(`lineItems.${i}.sellPrice`, newSellPrice)
-                          methods.setValue(`lineItems.${i}.lineTotal`, newLineTotal)
-                        })
-                      }}
-                    />
-                  </div>
+                        return (
+                          <tr key={item.id || i} className={`border-b border-black/[0.03] dark:border-white/[0.03] ${isUnassigned ? 'bg-red-500/[0.02]' : ''}`}>
+                            <td className="relative py-2.5 pe-2">
+                              <button
+                                type="button"
+                                onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch('') }}
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-all ${
+                                  isUnassigned
+                                    ? 'border border-dashed border-black/20 text-black/40 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] dark:border-white/20 dark:text-white/40'
+                                    : isStock
+                                      ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                                      : 'bg-black/[0.05] text-black/50 dark:bg-white/[0.06] dark:text-white/50'
+                                }`}
+                              >
+                                {sourceName} ▾
+                              </button>
+                              {tableSourceOpen === i && (
+                                <div className="absolute start-0 top-full z-50 mt-1 w-64 rounded-xl border border-black/[0.06] bg-white p-2 shadow-xl dark:border-white/[0.06] dark:bg-black">
+                                  <input
+                                    type="text"
+                                    value={tableSourceSearch}
+                                    onChange={(e) => setTableSourceSearch(e.target.value)}
+                                    placeholder="Search..."
+                                    autoFocus
+                                    onKeyDown={(e) => { if (e.key === 'Escape') setTableSourceOpen(null) }}
+                                    className="mb-1.5 w-full rounded-md bg-black/[0.03] px-2.5 py-1.5 text-[12px] outline-none placeholder:text-black/30 focus:ring-1 focus:ring-[var(--color-primary)]/30 dark:bg-white/[0.04]"
+                                  />
+                                  {sourcing?.stockAvailable > 0 && !tableSourceSearch && (
+                                    <button type="button" onClick={() => { assignItemSource(i, 'warehouse'); setTableSourceOpen(null) }}
+                                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start text-[12px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
+                                      <span className="flex-1 font-medium">Warehouse</span>
+                                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-green-600">{sourcing.stockAvailable}</span>
+                                    </button>
+                                  )}
+                                  {searchSuppliers(tableSourceSearch, item.productName).slice(0, 6).map((sup) => (
+                                    <button key={sup.id} type="button" onClick={() => { assignItemSource(i, sup.id); setTableSourceOpen(null) }}
+                                      className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start text-[12px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] ${sourcing?.sourceId === sup.id ? 'bg-black/[0.03] dark:bg-white/[0.03]' : ''}`}>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-black/20 dark:bg-white/20" />
+                                      <span className="flex-1">{sup.name}</span>
+                                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">{sup.score}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2">
+                              <span className="font-medium text-[var(--color-text)]">{item.productName}</span>
+                            </td>
+                            <td className="py-2.5 px-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">
+                              {item.quantity}
+                            </td>
+                            <td className="py-2.5 px-2 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/50 dark:text-white/50">
+                              {item.supplierCost ? item.supplierCost.toLocaleString('en-EG') : '—'}
+                            </td>
+                            <td className="py-2.5 px-2 text-end">
+                              <input
+                                type="number"
+                                value={item.marginPercent || ''}
+                                onChange={(e) => {
+                                  const margin = Number(e.target.value) || 0
+                                  const cost = item.supplierCost || 0
+                                  const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
+                                  methods.setValue(`lineItems.${i}.marginPercent`, margin)
+                                  methods.setValue(`lineItems.${i}.sellPrice`, price)
+                                  methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
+                                }}
+                                className="w-14 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none border-b border-transparent focus:border-black/[0.12] dark:focus:border-white/[0.12]"
+                                placeholder="18"
+                              />
+                              <span className="text-[10px] text-black/30 dark:text-white/30">%</span>
+                            </td>
+                            <td className="py-2.5 px-2 text-end">
+                              <input
+                                type="number"
+                                value={item.sellPrice || ''}
+                                onChange={(e) => {
+                                  const price = Number(e.target.value) || 0
+                                  const cost = item.supplierCost || 0
+                                  const margin = cost > 0 && price > 0 ? Math.round((1 - cost / price) * 10000) / 100 : 0
+                                  methods.setValue(`lineItems.${i}.sellPrice`, price)
+                                  methods.setValue(`lineItems.${i}.marginPercent`, margin)
+                                  methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
+                                }}
+                                className="w-20 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none border-b border-transparent focus:border-black/[0.12] dark:focus:border-white/[0.12]"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="py-2.5 ps-2 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums">
+                              {(item.lineTotal || 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-                  {/* Right: Payment + Validity + Credit */}
-                  <div className="space-y-5">
+                {/* Terms: Payment + Validity — compact row */}
+                <div className="mt-5 flex flex-wrap items-start gap-6">
+                  <div className="flex-1 min-w-[200px]">
                     <PaymentTerms
                       customerCredit={customerCredit}
                       isNewCustomer={customerTier === 'new'}
                     />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
                     <ValidityPeriod />
-                    {customerCredit && (
-                      <CreditStatusBanner
-                        creditLimit={customerCredit.creditLimit}
-                        currentExposure={customerCredit.currentExposure}
-                        availableCredit={customerCredit.availableCredit}
-                      />
-                    )}
                   </div>
                 </div>
 
@@ -823,7 +904,6 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   >
                     Next: Review & Send →
                   </Button>
-                </div>
                 </div>
               </motion.div>
             )}
