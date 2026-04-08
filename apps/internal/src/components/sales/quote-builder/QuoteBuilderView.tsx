@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FormProvider, useForm, useWatch } from 'react-hook-form'
+import { FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form'
 import { AnimatePresence, motion } from 'motion/react'
 import { ClientOnly } from '../../../lib/client-only'
 import { QuoteBuilderHeader } from './QuoteBuilderHeader'
 import { LineItemsTable } from './LineItemsTable'
+import { ProductSearchMenu } from './ProductSearchMenu'
 import { MarginControlPanel } from './MarginControlPanel'
 import { ApprovalWorkflow } from './ApprovalWorkflow'
 import { DeliveryTerms } from './DeliveryTerms'
@@ -328,6 +329,9 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
     },
   })
 
+  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({ control: methods.control, name: 'lineItems' })
+  const [searchOpen, setSearchOpen] = useState(false)
+
   // Load quote builder data from server
   useEffect(() => {
     let cancelled = false
@@ -497,6 +501,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                         <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Margin</th>
                         <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Price</th>
                         <th className="py-2 ps-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Total</th>
+                        <th className="w-8 py-2" />
                       </tr>
                     </thead>
                     <tbody>
@@ -597,12 +602,49 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                             <td className="py-2.5 ps-2 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums">
                               {(item.lineTotal || 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}
                             </td>
+                            <td className="py-2.5 text-center">
+                              <button type="button" onClick={() => removeItem(i)}
+                                className="text-[12px] text-black/20 outline-none hover:text-black/50 dark:text-white/20 dark:hover:text-white/50">×</button>
+                            </td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Add item */}
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] outline-none hover:opacity-70"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                  Add item
+                </button>
+
+                <ProductSearchMenu
+                  isOpen={searchOpen}
+                  onClose={() => setSearchOpen(false)}
+                  onAddProduct={(product, quantity) => {
+                    const margin = 18
+                    const sellPrice = Math.round((product.supplierCost / (1 - margin / 100)) * 100) / 100
+                    appendItem({
+                      id: product.id,
+                      productName: product.name,
+                      specification: product.specification,
+                      quantity,
+                      unit: product.unit,
+                      supplierCost: product.supplierCost,
+                      marginPercent: margin,
+                      sellPrice,
+                      lineTotal: Math.round(sellPrice * quantity * 100) / 100,
+                      freshnessIndicator: product.freshness,
+                      supplierName: product.supplierName,
+                    })
+                    setSearchOpen(false)
+                  }}
+                />
 
                 {/* Delivery */}
                 <div className="mt-6 border-t border-black/[0.04] pt-5 dark:border-white/[0.04]">
