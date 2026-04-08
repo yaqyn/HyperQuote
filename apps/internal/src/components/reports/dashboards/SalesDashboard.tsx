@@ -23,7 +23,7 @@ export function SalesDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
+        <span className="text-[13px] text-black/40 dark:text-white/40">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
@@ -37,11 +37,11 @@ export function SalesDashboard() {
   const supportingKpis = data.kpis.filter((k) => k !== heroKpi && k.label !== 'Revenue Target')
 
   return (
-    <div className="p-5 space-y-6 max-w-4xl">
+    <div className="px-6 py-6 space-y-8">
       {/* Hero metric */}
       {heroKpi && (
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+          <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-1">
             {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
           </div>
           <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] leading-none font-light">
@@ -54,13 +54,13 @@ export function SalesDashboard() {
       )}
 
       {/* Supporting metrics */}
-      <div className="flex items-start gap-8">
+      <div className="grid grid-cols-3 gap-8">
         {supportingKpis.slice(0, 3).map((kpi) => (
           <div key={kpi.label}>
-            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-0.5">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-medium">
               {formatKpiValue(kpi.value, kpi.unit)}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
@@ -73,20 +73,20 @@ export function SalesDashboard() {
       {/* Revenue vs Target — CSS bar */}
       <div>
         <div className="flex items-baseline justify-between mb-1.5">
-          <span className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30">
+          <span className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40">
             {t('kpi.revenue_vs_target', 'Revenue vs Target')}
           </span>
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
             {progressPct}%
           </span>
         </div>
-        <div className="h-1.5 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
+        <div className="h-2 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
           <div
             className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
             style={{ width: `${Math.min(progressPct, 100)}%` }}
           />
         </div>
-        <div className="flex justify-between mt-1 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/20 dark:text-white/20">
+        <div className="flex justify-between mt-1 text-[12px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">
           <span>{formatCurrency(revenueMTD)}</span>
           <span>{formatCurrency(revenueTarget)}</span>
         </div>
@@ -94,13 +94,13 @@ export function SalesDashboard() {
 
       {/* Top Deals Table */}
       <div>
-        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+        <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-3">
           {t('sales.top_deals', 'Top Deals')}
         </div>
         <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-black/6 dark:border-white/6 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
+              <tr className="border-b border-black/6 dark:border-white/6 text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40">
                 <th className="py-2 ps-3 font-medium text-start">{t('table.customer', 'Customer')}</th>
                 <th className="py-2 font-medium text-start">{t('table.deal', 'Deal')}</th>
                 <th className="py-2 font-medium text-end">{t('table.value', 'Value')}</th>
@@ -113,11 +113,11 @@ export function SalesDashboard() {
                 <tr key={row.id as string}>
                   <td className="py-2 ps-3">{row.customer as string}</td>
                   <td className="py-2 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">{row.deal as string}</td>
-                  <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  <td className="py-2 pe-6 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
                     {formatCurrency(row.value as number)}
                   </td>
                   <td className="py-2">
-                    <span className={`text-[10px] font-medium ${
+                    <span className={`text-[12px] font-medium ${
                       row.stage === 'Won' ? 'text-green-600 dark:text-green-400' :
                       row.stage === 'Negotiation' ? 'text-amber-600 dark:text-amber-400' :
                       'text-[#2563EB]'

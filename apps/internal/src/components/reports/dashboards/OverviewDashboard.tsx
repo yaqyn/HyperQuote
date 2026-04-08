@@ -22,7 +22,7 @@ export function OverviewDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
+        <span className="text-[13px] text-black/40 dark:text-white/40">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
@@ -32,11 +32,11 @@ export function OverviewDashboard() {
   const bottomRowKpis = data.kpis.slice(4)
 
   return (
-    <div className="p-5 space-y-8 max-w-4xl">
+    <div className="px-6 py-6 space-y-10">
       {/* Hero metric */}
       {heroKpi && (
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+          <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-1">
             {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
           </div>
           <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[48px] leading-none font-light">
@@ -48,14 +48,14 @@ export function OverviewDashboard() {
         </div>
       )}
 
-      {/* Top row KPIs */}
-      <div className="flex items-start gap-10">
+      {/* KPI rows */}
+      <div className="grid grid-cols-3 gap-8">
         {topRowKpis.map((kpi) => (
           <div key={kpi.label}>
-            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl">
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-medium">
               {formatKpiValue(kpi.value, kpi.unit)}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
@@ -65,14 +65,13 @@ export function OverviewDashboard() {
         ))}
       </div>
 
-      {/* Bottom row KPIs */}
-      <div className="flex items-start gap-10">
+      <div className="grid grid-cols-4 gap-8">
         {bottomRowKpis.map((kpi) => (
           <div key={kpi.label}>
-            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl">
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-medium">
               {formatKpiValue(kpi.value, kpi.unit)}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
@@ -82,33 +81,29 @@ export function OverviewDashboard() {
         ))}
       </div>
 
-      {/* Department Health — CSS bars */}
+      {/* Department Health — blue bars, opacity reflects score */}
       {data.chartData && data.chartData.length > 0 && (
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+          <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-4">
             {t('overview.department_health', 'Department Health')}
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {data.chartData.map((row) => {
               const health = row.health as number
               return (
-                <div key={row.department as string}>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-xs">{row.department as string}</span>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/40 dark:text-white/40">
-                      {health}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
+                <div key={row.department as string} className="flex items-center gap-4">
+                  <span className="w-28 shrink-0 text-[13px] text-[var(--color-text)]">
+                    {row.department as string}
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-black/[0.04] dark:bg-white/[0.04] overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        health >= 85 ? 'bg-[#2563EB]' :
-                        health >= 70 ? 'bg-amber-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{ width: `${health}%` }}
+                      className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
+                      style={{ width: `${health}%`, opacity: Math.max(0.3, health / 100) }}
                     />
                   </div>
+                  <span className="w-10 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/50 dark:text-white/50">
+                    {health}%
+                  </span>
                 </div>
               )
             })}
@@ -118,48 +113,61 @@ export function OverviewDashboard() {
 
       {/* Cross-Department Metrics Table */}
       <div>
-        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+        <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-4">
           {t('overview.key_metrics', 'Key Metrics by Department')}
         </div>
-        <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-black/6 dark:border-white/6 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
-                <th className="py-2 ps-3 font-medium text-start">{t('table.department', 'Department')}</th>
-                <th className="py-2 font-medium text-start">{t('table.metric', 'Metric')}</th>
-                <th className="py-2 font-medium text-end">{t('table.value', 'Value')}</th>
-                <th className="py-2 pe-3 font-medium text-start">{t('table.status', 'Status')}</th>
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
+              <th className="py-2.5 pe-4 text-start text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('table.department', 'Department')}
+              </th>
+              <th className="py-2.5 pe-4 text-start text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('table.metric', 'Metric')}
+              </th>
+              <th className="py-2.5 pe-6 text-end text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('table.value', 'Value')}
+              </th>
+              <th className="py-2.5 text-start text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('table.status', 'Status')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data.tableData ?? []).map((row) => (
+              <tr
+                key={`${row.department}-${row.metric}`}
+                className="border-b border-black/[0.03] dark:border-white/[0.03]"
+              >
+                <td className="py-2.5 pe-4 font-medium text-[var(--color-text)]">
+                  {row.department as string}
+                </td>
+                <td className="py-2.5 pe-4 text-black/50 dark:text-white/50">
+                  {row.metric as string}
+                </td>
+                <td className="py-2.5 pe-6 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
+                  {row.unit === 'EGP'
+                    ? formatCurrency(row.value as number)
+                    : row.unit === '%'
+                      ? `${row.value}%`
+                      : row.unit === 'days'
+                        ? `${row.value} days`
+                        : formatNumber(row.value as number)}
+                </td>
+                <td className="py-2.5">
+                  <span className={`text-[12px] font-medium ${
+                    (row.status as string) === 'good' ? 'text-green-600 dark:text-green-400' :
+                    (row.status as string) === 'warning' ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-red-500'
+                  }`}>
+                    {(row.status as string) === 'good' ? 'On Track' :
+                     (row.status as string) === 'warning' ? 'Attention' : 'Critical'}
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
-              {(data.tableData ?? []).map((row, i) => (
-                <tr key={`${row.department}-${row.metric}`}>
-                  <td className="py-2 ps-3 font-medium">{row.department as string}</td>
-                  <td className="py-2 text-black/60 dark:text-white/60">{row.metric as string}</td>
-                  <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {row.unit === 'EGP'
-                      ? formatCurrency(row.value as number)
-                      : row.unit === '%'
-                        ? `${row.value}%`
-                        : row.unit === 'days'
-                          ? `${row.value} days`
-                          : formatNumber(row.value as number)}
-                  </td>
-                  <td className="py-2 pe-3">
-                    <span className={`text-[10px] font-medium ${
-                      (row.status as string) === 'good' ? 'text-green-600 dark:text-green-400' :
-                      (row.status as string) === 'warning' ? 'text-amber-600 dark:text-amber-400' :
-                      'text-red-600 dark:text-red-400'
-                    }`}>
-                      {(row.status as string) === 'good' ? 'On Track' :
-                       (row.status as string) === 'warning' ? 'Attention' : 'Critical'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

@@ -22,7 +22,7 @@ export function DispatchDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
+        <span className="text-[13px] text-black/40 dark:text-white/40">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
@@ -31,11 +31,11 @@ export function DispatchDashboard() {
   const supportingKpis = data.kpis.slice(1)
 
   return (
-    <div className="p-5 space-y-6 max-w-4xl">
+    <div className="px-6 py-6 space-y-8">
       {/* Hero */}
       {heroKpi && (
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+          <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-1">
             {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
           </div>
           <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] leading-none font-light">
@@ -48,13 +48,13 @@ export function DispatchDashboard() {
       )}
 
       {/* Supporting */}
-      <div className="flex items-start gap-8">
+      <div className="grid grid-cols-3 gap-8">
         {supportingKpis.slice(0, 3).map((kpi) => (
           <div key={kpi.label}>
-            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-0.5">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-medium">
               {typeof kpi.value === 'number' && kpi.unit === '%' ? `${kpi.value}%` : kpi.value}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
@@ -66,13 +66,13 @@ export function DispatchDashboard() {
 
       {/* Driver Status Table */}
       <div>
-        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+        <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-3">
           {t('dispatch.driver_status', 'Driver Status')}
         </div>
         <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-black/6 dark:border-white/6 text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
+              <tr className="border-b border-black/6 dark:border-white/6 text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40">
                 <th className="py-2 ps-3 font-medium text-start">{t('table.driver', 'Driver')}</th>
                 <th className="py-2 font-medium text-start">{t('table.vehicle', 'Vehicle')}</th>
                 <th className="py-2 font-medium text-end">{t('table.stops', 'Stops')}</th>
@@ -88,7 +88,7 @@ export function DispatchDashboard() {
                   <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{row.stops as number}</td>
                   <td className="py-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums">{row.completed as number}</td>
                   <td className="py-2 pe-3">
-                    <span className={`text-[10px] font-medium ${
+                    <span className={`text-[12px] font-medium ${
                       row.status === 'In Transit' ? 'text-[#2563EB]' :
                       row.status === 'Loading' ? 'text-amber-600 dark:text-amber-400' :
                       'text-black/35 dark:text-white/35'
@@ -105,4 +105,3 @@ export function DispatchDashboard() {
     </div>
   )
 }
-

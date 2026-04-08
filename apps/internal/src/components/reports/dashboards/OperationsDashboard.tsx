@@ -22,7 +22,7 @@ export function OperationsDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-xs text-black/20 dark:text-white/20">{t('loading', 'Loading...')}</span>
+        <span className="text-[13px] text-black/40 dark:text-white/40">{t('loading', 'Loading...')}</span>
       </div>
     )
   }
@@ -31,11 +31,11 @@ export function OperationsDashboard() {
   const supportingKpis = data.kpis.slice(1)
 
   return (
-    <div className="p-5 space-y-6 max-w-4xl">
+    <div className="px-6 py-6 space-y-8">
       {/* Hero */}
       {heroKpi && (
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1">
+          <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-1">
             {t(`kpi.${heroKpi.label.toLowerCase().replace(/\s+/g, '_')}`, heroKpi.label)}
           </div>
           <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] leading-none font-light">
@@ -48,13 +48,13 @@ export function OperationsDashboard() {
       )}
 
       {/* Supporting */}
-      <div className="flex items-start gap-8">
+      <div className="grid grid-cols-3 gap-8">
         {supportingKpis.slice(0, 3).map((kpi) => (
           <div key={kpi.label}>
-            <div className="text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25 mb-0.5">
+            <div className="text-[12px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-0.5">
               {t(`kpi.${kpi.label.toLowerCase().replace(/\s+/g, '_')}`, kpi.label)}
             </div>
-            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg">
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-medium">
               {typeof kpi.value === 'number' && kpi.unit === '%' ? `${kpi.value}%` : kpi.value}
             </div>
             {kpi.trend !== undefined && kpi.trendDirection && (
@@ -66,7 +66,7 @@ export function OperationsDashboard() {
 
       {/* Orders by Stage — CSS bars */}
       <div>
-        <div className="text-[11px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-3">
+        <div className="text-[12px] uppercase tracking-widest text-black/40 dark:text-white/40 mb-3">
           {t('operations.orders_by_stage', 'Orders by Stage')}
         </div>
         <div className="space-y-2.5">
@@ -76,11 +76,11 @@ export function OperationsDashboard() {
               <div key={row.stage as string}>
                 <div className="flex items-baseline justify-between mb-1">
                   <span className="text-xs">{row.stage as string}</span>
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/40 dark:text-white/40">
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-black/40 dark:text-white/40">
                     {row.count as number} ({pct}%)
                   </span>
                 </div>
-                <div className="h-1 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
+                <div className="h-2 rounded-full bg-black/6 dark:bg-white/6 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
                     style={{ width: `${pct}%` }}
@@ -94,4 +94,3 @@ export function OperationsDashboard() {
     </div>
   )
 }
-
