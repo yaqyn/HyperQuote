@@ -558,7 +558,17 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                               )}
                             </td>
                             <td className="py-2.5 px-2">
-                              <span className="font-medium text-[var(--color-text)]">{item.productName}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSearchOpen(true)
+                                  // Store which row to replace
+                                  ;(window as any).__replaceItemIndex = i
+                                }}
+                                className="text-start font-medium text-[var(--color-text)] outline-none hover:text-[var(--color-primary)] transition-colors"
+                              >
+                                {item.productName}
+                              </button>
                             </td>
                             <td className="py-2.5 px-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">
                               {item.quantity}
@@ -629,7 +639,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   onAddProduct={(product, quantity) => {
                     const margin = 18
                     const sellPrice = Math.round((product.supplierCost / (1 - margin / 100)) * 100) / 100
-                    appendItem({
+                    const newItem = {
                       id: product.id,
                       productName: product.name,
                       specification: product.specification,
@@ -641,7 +651,16 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                       lineTotal: Math.round(sellPrice * quantity * 100) / 100,
                       freshnessIndicator: product.freshness,
                       supplierName: product.supplierName,
-                    })
+                    }
+                    const replaceIdx = (window as any).__replaceItemIndex
+                    if (replaceIdx !== undefined && replaceIdx !== null) {
+                      // Replace existing item
+                      const keys = Object.keys(newItem) as (keyof typeof newItem)[]
+                      keys.forEach((key) => methods.setValue(`lineItems.${replaceIdx}.${key}`, newItem[key] as any))
+                      ;(window as any).__replaceItemIndex = null
+                    } else {
+                      appendItem(newItem)
+                    }
                     setSearchOpen(false)
                   }}
                 />
