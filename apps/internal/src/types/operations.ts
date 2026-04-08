@@ -39,7 +39,7 @@ export type HandoffStage =
   | 'driver'
   | 'finance'
 
-export type OperationsTab = 'operations'
+export type OperationsTab = 'operations' | 'orders'
 
 export type FulfillmentColor = 'green' | 'yellow' | 'red'
 

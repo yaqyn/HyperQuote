@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useReportsStore } from '../../stores/reports'
 import { ReportsTabStrip } from './ReportsTabStrip'
 import { ReportsShortcuts } from './ReportsShortcuts'
+import { OverviewDashboard } from './dashboards/OverviewDashboard'
 import { SalesDashboard } from './dashboards/SalesDashboard'
 import { ProcurementDashboard } from './dashboards/ProcurementDashboard'
 import { OperationsDashboard } from './dashboards/OperationsDashboard'
@@ -41,6 +42,7 @@ export function ReportsModule() {
 
   const renderDashboard = () => {
     switch (activeTab) {
+      case 'overview': return <OverviewDashboard />
       case 'sales': return <SalesDashboard />
       case 'procurement': return <ProcurementDashboard />
       case 'operations': return <OperationsDashboard />

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardData } from '../../../lib/server/reports'
 import { useReportsStore } from '../../../stores/reports'
+import { TrendIndicator } from '../report-helpers'
 
 /**
  * Customer Service — "The Pulse"
@@ -94,14 +95,3 @@ export function CSDashboard() {
   )
 }
 
-function TrendIndicator({ trend, direction }: { trend: number; direction: 'up' | 'down' | 'flat' }) {
-  const arrow = direction === 'up' ? '\u2191' : direction === 'down' ? '\u2193' : '\u2192'
-  const color = direction === 'up' ? 'text-green-600 dark:text-green-400' :
-                direction === 'down' ? 'text-red-600 dark:text-red-400' :
-                'text-black/30 dark:text-white/30'
-  return (
-    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] ${color}`}>
-      {arrow} {direction === 'up' ? '+' : ''}{trend}%
-    </span>
-  )
-}

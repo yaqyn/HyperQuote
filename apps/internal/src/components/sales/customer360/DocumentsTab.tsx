@@ -1,12 +1,20 @@
+import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
-import { toast } from '../../../stores/toast'
+import { Button } from '../../ui'
 
 interface DocumentsTabProps {
   customerId: string
   enabled: boolean
+}
+
+interface UploadedFile {
+  id: string
+  name: string
+  size: number
+  type: string
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -17,8 +25,35 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   certificate: 'CRT',
 }
 
+const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${Math.round(bytes / 1024)} KB`
+}
+
+function processFiles(fileList: FileList): UploadedFile[] {
+  const results: UploadedFile[] = []
+  for (let i = 0; i < fileList.length; i++) {
+    const file = fileList[i]
+    if (!ACCEPTED_TYPES.includes(file.type)) continue
+    if (file.size > MAX_FILE_SIZE) continue
+    results.push({
+      id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    })
+  }
+  return results
+}
+
 export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
   const { t } = useTranslation('internal')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'documents', customerId],
@@ -30,92 +65,163 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
 
   if (!enabled) return null
   if (isLoading) return <TabSkeleton />
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
-        {t('sales.customer360.documents.noDocuments')}
-      </div>
-    )
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+    if (e.dataTransfer.files.length > 0) {
+      // TODO: Upload to Cloudflare R2
+      const newFiles = processFiles(e.dataTransfer.files)
+      setUploadedFiles((prev) => [...prev, ...newFiles])
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files.length > 0) {
+      // TODO: Upload to Cloudflare R2
+      const newFiles = processFiles(e.target.files)
+      setUploadedFiles((prev) => [...prev, ...newFiles])
+      e.target.value = '' // reset so same file can be re-selected
+    }
+  }
+
+  function removeFile(id: string) {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id))
   }
 
   return (
     <div className="p-6 space-y-5">
-      {/* Upload area */}
+      {/* Upload area -- drag-and-drop + click */}
       <div
-        className="flex items-center justify-center gap-3 py-4 rounded-lg border border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#2563EB]/30 transition-colors cursor-pointer"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault()
-          const files = Array.from(e.dataTransfer.files)
-          if (files.length > 0) {
-            toast.info('File upload will be available soon')
-          }
-        }}
+        role="button"
+        tabIndex={0}
+        onClick={() => { fileInputRef.current?.click() }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`flex flex-col items-center justify-center gap-1 py-6 rounded-lg border border-dashed transition-colors cursor-pointer ${
+          isDragOver
+            ? 'border-[#2563EB]/40 bg-[#2563EB]/[0.03]'
+            : 'border-black/[0.08] dark:border-white/[0.08] hover:border-[#2563EB]/30'
+        }`}
       >
         <span className="text-[13px] text-black/25 dark:text-white/25">
           {t('sales.customer360.documents.dragDrop')}
         </span>
-        <label className="px-3 py-1 text-[11px] font-medium text-[#2563EB] rounded-md bg-[#2563EB]/[0.06] hover:bg-[#2563EB]/[0.1] cursor-pointer transition-colors">
-          {t('sales.customer360.documents.browse')}
-          <input
-            type="file"
-            className="hidden"
-            multiple
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                toast.info('File upload will be available soon')
-              }
-            }}
-          />
-        </label>
+        <span className="text-[11px] text-black/20 dark:text-white/20">
+          PDF, JPG, PNG up to 10MB
+        </span>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
 
-      {/* File grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        {data.map((doc) => (
-          <div
-            key={doc.id}
-            className="group relative p-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
-          >
-            {/* Type badge */}
-            <div className="w-8 h-8 rounded bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center mb-2">
-              <span className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold text-black/35 dark:text-white/35 tabular-nums">
-                {DOC_TYPE_LABELS[doc.type] ?? 'DOC'}
+      {/* Uploaded files list */}
+      {uploadedFiles.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {uploadedFiles.map((file) => (
+            <div
+              key={file.id}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 bg-black/[0.02] dark:bg-white/[0.02]"
+            >
+              {/* File icon */}
+              <svg className="size-4 shrink-0 text-black/40 dark:text-white/40" viewBox="0 0 20 20" fill="none">
+                <rect x="4" y="2" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M8 7h4M8 10h4M8 13h2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+              </svg>
+
+              {/* Name */}
+              <span className="text-[12px] text-black/60 dark:text-white/60 truncate flex-1 min-w-0">
+                {file.name}
               </span>
-            </div>
 
-            {/* Filename */}
-            <p className="text-[13px] font-medium text-[var(--color-text)] dark:text-white truncate leading-tight">
-              {doc.name}
-            </p>
-
-            {/* Type + date */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.03] dark:bg-white/[0.04] text-black/35 dark:text-white/35 capitalize">
-                {doc.type.replace(/_/g, ' ')}
+              {/* Size (mono) */}
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-black/40 dark:text-white/40 shrink-0">
+                {formatFileSize(file.size)}
               </span>
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
-                {new Date(doc.uploadedAt).toLocaleDateString()}
-              </span>
-            </div>
 
-            {/* Download action — visible on hover */}
-            <div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                className="text-[10px] font-medium text-[#2563EB] px-2 py-1 rounded bg-white dark:bg-[var(--color-bg)] shadow-sm outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
-                onPress={() => {
-                  const link = document.createElement('a')
-                  link.href = doc.url
-                  link.download = doc.name
-                  link.click()
-                }}
-              >
-                {t('sales.customer360.documents.download')}
+              {/* Remove */}
+              <Button variant="ghost" onPress={() => { removeFile(file.id) }}>
+                ×
               </Button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Existing documents file grid */}
+      {data && data.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {data.map((doc) => (
+            <div
+              key={doc.id}
+              className="group relative p-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
+            >
+              {/* Type badge */}
+              <div className="w-8 h-8 rounded bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center mb-2">
+                <span className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold text-black/35 dark:text-white/35 tabular-nums">
+                  {DOC_TYPE_LABELS[doc.type] ?? 'DOC'}
+                </span>
+              </div>
+
+              {/* Filename */}
+              <p className="text-[13px] font-medium text-[var(--color-text)] dark:text-white truncate leading-tight">
+                {doc.name}
+              </p>
+
+              {/* Type + date */}
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.03] dark:bg-white/[0.04] text-black/35 dark:text-white/35 capitalize">
+                  {doc.type.replace(/_/g, ' ')}
+                </span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/20 dark:text-white/20">
+                  {new Date(doc.uploadedAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              {/* Download action -- visible on hover */}
+              <div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <AriaButton
+                  className="text-[10px] font-medium text-[#2563EB] px-2 py-1 rounded bg-white dark:bg-[var(--color-bg)] shadow-sm outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
+                  onPress={() => {
+                    const link = document.createElement('a')
+                    link.href = doc.url
+                    link.download = doc.name
+                    link.click()
+                  }}
+                >
+                  {t('sales.customer360.documents.download')}
+                </AriaButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(!data || data.length === 0) && uploadedFiles.length === 0 && (
+        <div className="flex items-center justify-center h-16 text-[13px] text-black/30 dark:text-white/30">
+          {t('sales.customer360.documents.noDocuments')}
+        </div>
+      )}
     </div>
   )
 }

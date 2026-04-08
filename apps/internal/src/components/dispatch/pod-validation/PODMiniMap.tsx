@@ -16,9 +16,7 @@ interface PODMiniMapProps {
   expectedLng: number
 }
 
-const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-  : 'https://demotiles.maplibre.org/style.json'
+import { MAP_STYLE } from '../../../lib/map-style'
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000

@@ -1,11 +1,16 @@
-import { useState } from 'react'
-import { Button } from 'react-aria-components'
+import { useState, useCallback, useMemo } from 'react'
+import { Button as AriaButton } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { useMutation } from '@tanstack/react-query'
+import { updateRolePermissions } from '../../../lib/server/admin'
+import { Button } from '../../ui/Button'
 
 /**
  * RoleManagement — "The Permissions Matrix"
  * Grid: roles across top, permissions down left. Each cell: checkbox.
  * Clean, spreadsheet-like. No heavy borders — thin lines only.
+ * Changed (unsaved) permissions highlighted in blue.
+ * "Copy permissions from..." dropdown to clone another role's permissions.
  *
  * NOTE: Frontend permission checks are UX only — gateway validates on every API call.
  */
@@ -58,25 +63,99 @@ const PERMISSION_GROUPS: Record<string, string[]> = {
   report: ['report.read', 'report.create', 'report.export'],
 }
 
-// Flatten all permissions for the matrix columns
-const ALL_PERMISSIONS = Object.entries(PERMISSION_GROUPS).flatMap(([, perms]) => perms)
+/** Resolve whether a role's base permissions include a given perm */
+function roleHasBasePermission(role: typeof ROLES[number], perm: string): boolean {
+  if (role.permissions.includes('*')) return true
+  return role.permissions.some((p) => {
+    if (p.endsWith('.*')) {
+      const prefix = p.replace('.*', '')
+      return perm.startsWith(prefix + '.')
+    }
+    return p === perm
+  })
+}
 
 export function RoleManagement() {
   const { t } = useTranslation('admin')
   const [selectedRoleId, setSelectedRoleId] = useState<string>('admin')
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, boolean>>>({})
+  const [savedIndicator, setSavedIndicator] = useState<string | null>(null)
 
   const selectedRole = ROLES.find((r) => r.id === selectedRoleId) ?? ROLES[0]!
   const isWildcard = selectedRole.permissions.includes('*')
+  const roleOverrides = localOverrides[selectedRoleId] ?? {}
 
-  const hasPermission = (perm: string) => {
+  // Track which permissions have unsaved changes
+  const unsavedPerms = useMemo(() => {
+    const set = new Set<string>()
+    for (const [perm, val] of Object.entries(roleOverrides)) {
+      const baseVal = roleHasBasePermission(selectedRole, perm)
+      if (val !== baseVal) set.add(perm)
+    }
+    return set
+  }, [selectedRole, roleOverrides])
+
+  const hasUnsavedChanges = unsavedPerms.size > 0
+
+  const hasPermission = useCallback((perm: string) => {
+    if (roleOverrides[perm] !== undefined) return roleOverrides[perm]
     if (isWildcard) return true
-    return selectedRole.permissions.some((p) => {
-      if (p.endsWith('.*')) {
-        const prefix = p.replace('.*', '')
-        return perm.startsWith(prefix + '.')
+    return roleHasBasePermission(selectedRole, perm)
+  }, [selectedRole, isWildcard, roleOverrides])
+
+  const saveMutation = useMutation({
+    mutationFn: (permissions: Record<string, boolean>) =>
+      updateRolePermissions({ data: { roleId: selectedRoleId, permissions } }),
+    onSuccess: () => {
+      // Clear overrides for this role after save
+      setLocalOverrides((prev) => {
+        const next = { ...prev }
+        delete next[selectedRoleId]
+        return next
+      })
+      setSavedIndicator(selectedRoleId)
+      setTimeout(() => setSavedIndicator(null), 1500)
+    },
+  })
+
+  const handleTogglePermission = (perm: string, currentlyChecked: boolean) => {
+    if (isWildcard) return
+
+    setLocalOverrides((prev) => ({
+      ...prev,
+      [selectedRoleId]: {
+        ...(prev[selectedRoleId] ?? {}),
+        [perm]: !currentlyChecked,
+      },
+    }))
+  }
+
+  const handleSave = () => {
+    const allPerms: Record<string, boolean> = {}
+    for (const perms of Object.values(PERMISSION_GROUPS)) {
+      for (const p of perms) {
+        allPerms[p] = roleOverrides[p] !== undefined
+          ? roleOverrides[p]!
+          : roleHasBasePermission(selectedRole, p)
       }
-      return p === perm
-    })
+    }
+    saveMutation.mutate(allPerms)
+  }
+
+  const handleCopyFrom = (sourceRoleId: string) => {
+    const source = ROLES.find((r) => r.id === sourceRoleId)
+    if (!source || isWildcard) return
+
+    const newOverrides: Record<string, boolean> = {}
+    for (const perms of Object.values(PERMISSION_GROUPS)) {
+      for (const p of perms) {
+        newOverrides[p] = roleHasBasePermission(source, p)
+      }
+    }
+    setLocalOverrides((prev) => ({
+      ...prev,
+      [selectedRoleId]: newOverrides,
+    }))
   }
 
   return (
@@ -86,9 +165,21 @@ export function RoleManagement() {
         <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
           {t('roles.title', 'Permissions Matrix')}
         </span>
-        <span className="text-[11px] text-black/25 dark:text-white/25 italic">
-          {t('roles.frontendNote', 'UX only — gateway validates every call')}
-        </span>
+        <div className="flex items-center gap-3">
+          {savedIndicator === selectedRoleId && (
+            <span className="text-[11px] text-green-600 dark:text-green-400 font-medium animate-pulse">
+              Saved
+            </span>
+          )}
+          {hasUnsavedChanges && (
+            <span className="text-[11px] text-[#2563EB] font-medium">
+              {unsavedPerms.size} unsaved {unsavedPerms.size === 1 ? 'change' : 'changes'}
+            </span>
+          )}
+          <span className="text-[11px] text-black/25 dark:text-white/25 italic">
+            {t('roles.frontendNote', 'UX only — gateway validates every call')}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr]">
@@ -100,35 +191,70 @@ export function RoleManagement() {
             </span>
           </div>
           <div className="max-h-[600px] overflow-y-auto">
-            {ROLES.map((role) => (
-              <button
-                type="button"
-                key={role.id}
-                onClick={() => setSelectedRoleId(role.id)}
-                className={`w-full px-3 py-2 text-start text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                  selectedRoleId === role.id
-                    ? 'bg-black/[0.04] dark:bg-white/[0.04] font-medium'
-                    : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] text-black/60 dark:text-white/60'
-                }`}
-              >
-                <span className="truncate">{role.name}</span>
-                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 shrink-0 ms-2">
-                  {role.userCount}
-                </span>
-              </button>
-            ))}
+            {ROLES.map((role) => {
+              const roleHasChanges = Object.keys(localOverrides[role.id] ?? {}).length > 0
+              return (
+                <button
+                  type="button"
+                  key={role.id}
+                  onClick={() => setSelectedRoleId(role.id)}
+                  className={`w-full px-3 py-2 text-start text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                    selectedRoleId === role.id
+                      ? 'bg-black/[0.04] dark:bg-white/[0.04] font-medium'
+                      : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] text-black/60 dark:text-white/60'
+                  }`}
+                >
+                  <span className="truncate flex items-center gap-1.5">
+                    {role.name}
+                    {roleHasChanges && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] shrink-0" />
+                    )}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25 shrink-0 ms-2">
+                    {role.userCount}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* Right: Permission Grid */}
         <div className="space-y-4">
-          {/* Matrix */}
+          {/* Matrix header with copy + save */}
           <div className="border border-black/6 dark:border-white/6 rounded-lg overflow-hidden">
-            <div className="px-3 py-2 border-b border-black/6 dark:border-white/6 flex items-center justify-between">
+            <div className="px-3 py-2 border-b border-black/6 dark:border-white/6 flex items-center justify-between gap-3">
               <span className="text-xs font-medium">{selectedRole.name}</span>
-              {isWildcard && (
-                <span className="text-[10px] text-[#2563EB] font-medium">Full access</span>
-              )}
+              <div className="flex items-center gap-2">
+                {isWildcard && (
+                  <span className="text-[10px] text-[#2563EB] font-medium">Full access</span>
+                )}
+                {/* Copy permissions from another role */}
+                {!isWildcard && (
+                  <select
+                    value=""
+                    onChange={(e) => { if (e.target.value) handleCopyFrom(e.target.value) }}
+                    className="rounded-full border border-black/8 dark:border-white/8 bg-transparent px-2 py-0.5 text-[11px] text-black/40 dark:text-white/40 outline-none cursor-pointer"
+                    aria-label="Copy permissions from role"
+                  >
+                    <option value="">Copy from...</option>
+                    {ROLES.filter((r) => r.id !== selectedRoleId).map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                )}
+                {/* Save button — only when unsaved changes exist */}
+                {hasUnsavedChanges && (
+                  <Button
+                    variant="primary"
+                    className="!text-[11px] !px-3 !py-1"
+                    onPress={handleSave}
+                    isDisabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -145,16 +271,18 @@ export function RoleManagement() {
                       {perms.map((perm) => {
                         const action = perm.split('.')[1]!
                         const checked = hasPermission(perm)
+                        const isChanged = unsavedPerms.has(perm)
                         return (
-                          <div key={perm} className="flex flex-col items-center gap-0.5 py-2">
-                            <span className="text-[9px] text-black/25 dark:text-white/25 leading-none mb-1">
+                          <div key={perm} className={`flex flex-col items-center gap-0.5 py-2 rounded transition-colors ${isChanged ? 'bg-[#2563EB]/[0.06]' : ''}`}>
+                            <span className={`text-[9px] leading-none mb-1 ${isChanged ? 'text-[#2563EB] font-medium' : 'text-black/25 dark:text-white/25'}`}>
                               {action}
                             </span>
                             <input
                               type="checkbox"
                               checked={checked}
-                              readOnly
-                              className="w-3.5 h-3.5 rounded border-black/15 dark:border-white/15 text-[#2563EB] focus:ring-[#2563EB]/30 cursor-pointer"
+                              onChange={() => handleTogglePermission(perm, checked)}
+                              disabled={isWildcard}
+                              className={`w-3.5 h-3.5 rounded border-black/15 dark:border-white/15 text-[#2563EB] focus:ring-[#2563EB]/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${isChanged ? 'ring-1 ring-[#2563EB]/30' : ''}`}
                             />
                           </div>
                         )
@@ -175,7 +303,7 @@ export function RoleManagement() {
                   {t('roles.vacationCoverage', 'Assign role temporarily with expiry date')}
                 </p>
               </div>
-              <Button className="rounded-lg border border-[#2563EB]/15 bg-[#2563EB]/5 px-3 py-1.5 text-xs font-medium text-[#2563EB] hover:bg-[#2563EB]/10 cursor-pointer outline-none">
+              <Button variant="outline" className="!text-[#2563EB] !border-[#2563EB]/15 !bg-[#2563EB]/5 data-[hovered]:!bg-[#2563EB]/10">
                 {t('roles.delegateRole', 'Delegate')}
               </Button>
             </div>

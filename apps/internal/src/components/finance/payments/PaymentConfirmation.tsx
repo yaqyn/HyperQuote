@@ -65,14 +65,27 @@ export function PaymentConfirmation() {
   const handleConfirm = async () => {
     setIsSubmitting(true)
     try {
+      const method = paymentFlow.method ?? 'wire'
+      const allocations = data.allocations.map((a) => ({
+        invoiceId: a.invoiceNumber.replace('INV-', 'inv-').toLowerCase(),
+        amount: a.amount,
+      }))
+
       const result = await recordPayment({
         data: {
-          invoiceId: 'inv-001',
+          invoiceId: allocations[0]?.invoiceId ?? 'inv-001',
           amount: data.amount,
-          method: paymentFlow.method ?? 'wire',
+          method,
           reference: data.reference,
           date: data.date,
           bankAccount: 'main-account',
+          allocations,
+          // Cheque-specific fields
+          ...(method === 'cheque' ? {
+            chequeNumber: data.reference,
+            maturityDate: data.date,
+            bankName: 'National Bank of Egypt',
+          } : {}),
         },
       })
       setPaymentId(result.paymentId)

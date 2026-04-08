@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
-import { RadioGroup, Radio } from 'react-aria-components'
+import { PillGroup, Pill } from '../../ui'
 import type { QuoteFormValues } from './LineItemsTable'
 
 // ─── Volatile Material Detection ──────────────────────────
@@ -37,7 +37,6 @@ export function ValidityPeriod() {
   const hasVolatile = volatileMaterials.length > 0
   const defaultDays = hasVolatile ? 7 : 14
 
-  // Auto-set validity when volatile detection changes
   const prevHasVolatileRef = useRef(hasVolatile)
   useEffect(() => {
     if (prevHasVolatileRef.current !== hasVolatile) {
@@ -60,48 +59,38 @@ export function ValidityPeriod() {
   })
 
   return (
-    <div className="flex items-center gap-3">
-      {/* 4 pills in one row */}
+    <div className="flex items-center gap-4">
       <Controller
         control={control}
         name="validityDays"
         render={({ field }) => (
-          <RadioGroup
+          <PillGroup
             aria-label="Validity period"
             value={String(field.value ?? 14)}
             onChange={(val) => field.onChange(Number(val))}
-            className="flex gap-1"
           >
             {[7, 14, 21, 30].map((days) => (
-              <Radio
-                key={days}
-                value={String(days)}
-                className="cursor-pointer rounded-full border border-black/[0.08] px-2.5 py-1 font-[family-name:var(--font-geist-mono)] text-[11px] font-medium tabular-nums outline-none transition-all
-                  data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white
-                  data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                  dark:border-white/[0.08] dark:data-[selected]:border-[var(--color-primary)]
-                  dark:data-[hovered]:bg-white/[0.03]"
-              >
+              <Pill key={days} value={String(days)} mono className="px-2.5 py-1">
                 {days}d
-              </Radio>
+              </Pill>
             ))}
-          </RadioGroup>
+          </PillGroup>
         )}
       />
 
-      {/* Expiry inline */}
-      <span className="text-[11px] text-[var(--color-text-muted)]">
-        Expires{' '}
-        <span className="font-[family-name:var(--font-geist-mono)] font-medium tabular-nums text-[var(--color-text)]">
-          {dateFmt.format(expiryDate)}
-        </span>
+      <span className="text-black/40 dark:text-white/40">→</span>
+
+      <span className="font-[family-name:var(--font-geist-mono)] text-[16px] font-medium tabular-nums text-[var(--color-text)]">
+        {dateFmt.format(expiryDate)}
       </span>
 
-      {/* Volatile note -- tiny inline */}
       {hasVolatile && (
-        <span className="text-[10px] text-yellow-600 dark:text-yellow-400">
-          Shortened — {volatileMaterials.join(', ')}
-        </span>
+        <>
+          <span className="text-black/40 dark:text-white/40">·</span>
+          <span className="text-[12px] text-yellow-600 dark:text-yellow-400">
+            Shortened — {volatileMaterials.join(', ')}
+          </span>
+        </>
       )}
     </div>
   )

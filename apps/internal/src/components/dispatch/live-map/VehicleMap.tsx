@@ -13,9 +13,7 @@ import { useDispatchStore } from '../../../stores/dispatch'
 import type { GPSPosition, DeliveryRoute, Driver } from '../../../types/dispatch'
 import { VehiclePopup } from './VehiclePopup'
 
-const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-  : 'https://demotiles.maplibre.org/style.json'
+import { MAP_STYLE } from '../../../lib/map-style'
 
 // Semantic status colors — for DATA only
 const STATUS_COLORS: Record<string, string> = {

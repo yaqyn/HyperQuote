@@ -56,12 +56,24 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
 
   const rfq = detail as RFQDetail
 
+  // Compute deadline urgency
+  const deadlineMs = rfq.slaDeadline ? new Date(rfq.slaDeadline).getTime() - Date.now() : null
+  const deadlineDays = deadlineMs !== null ? Math.ceil(deadlineMs / 86_400_000) : null
+  const deadlineLabel = deadlineDays === null
+    ? null
+    : deadlineDays <= 0
+      ? 'OVERDUE'
+      : deadlineDays === 1
+        ? '1 day left'
+        : `${deadlineDays} days left`
+  const deadlineUrgent = deadlineDays !== null && deadlineDays <= 2
+
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex-1 min-h-0 overflow-y-auto" data-module-content>
-        {/* Hero section */}
+        {/* Hero section — most important info first */}
         <div className="px-8 pt-8 pb-6">
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between mb-2">
             <div>
               <h2 className="text-xl font-semibold text-[var(--color-text)] mb-1">
                 {rfq.customerName}
@@ -75,10 +87,22 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
             </span>
           </div>
 
-          {/* Metrics grid */}
+          {/* Deadline urgency banner */}
+          {deadlineLabel && (
+            <div className={`inline-flex items-center gap-1.5 mb-4 px-2.5 py-1 rounded-md text-[12px] font-medium ${
+              deadlineUrgent
+                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                : 'bg-black/[0.03] text-[var(--color-text-muted)] dark:bg-white/[0.04]'
+            }`}>
+              <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${deadlineUrgent ? 'bg-red-500 animate-pulse' : 'bg-[var(--color-text-subtle)]'}`} />
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{deadlineLabel}</span>
+            </div>
+          )}
+
+          {/* Key metrics — value + deadline + customer history */}
           <div className="grid grid-cols-4 gap-6">
             {[
-              { value: `EGP ${fmtEGP(rfq.estimatedValue)}`, label: 'Value' },
+              { value: `EGP ${fmtEGP(rfq.estimatedValue)}`, label: 'Est. Value' },
               { value: `${rfq.deliveryUrgency}d`, label: 'Delivery', alert: rfq.deliveryUrgency < 7 },
               { value: `${rfq.customer.avgMargin.toFixed(1)}%`, label: 'Avg Margin' },
               { value: String(rfq.customer.orderCount), label: 'Past Orders' },
@@ -97,32 +121,18 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
           </div>
         </div>
 
-        {/* Materials */}
+        {/* Customer snapshot — moved BEFORE materials for sales rep context */}
         <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
           <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
-            Materials · {rfq.items.length} items
+            Customer
           </p>
-          <div className="grid grid-cols-1 gap-0">
-            {rfq.items.map((item, i) => (
-              <div
-                key={item.id}
-                className={`flex items-center justify-between py-2.5 ${
-                  i > 0 ? 'border-t border-black/[0.03] dark:border-white/[0.03]' : ''
-                }`}
-              >
-                <span className="text-[13px] text-[var(--color-text)]">
-                  {item.productName}
-                </span>
-                <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
-                  {new Intl.NumberFormat('en-EG').format(item.quantity)}
-                  <span className="text-[var(--color-text-subtle)] ml-1">{item.unit}</span>
-                </span>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-y-3 gap-x-8">
+            <Row label="Lifetime Value" value={`EGP ${fmtEGP(rfq.customer.lifetimeValue)}`} />
+            <Row label="Payment History" value={rfq.customer.paymentHistory} />
           </div>
         </div>
 
-        {/* Past quotes */}
+        {/* Past quotes — sales context before raw material list */}
         {rfq.similarQuotes && rfq.similarQuotes.length > 0 && (
           <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
             <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
@@ -155,16 +165,31 @@ export function RFQPreviewPane({ rfqId }: RFQPreviewPaneProps) {
           </div>
         )}
 
-        {/* Customer snapshot */}
+        {/* Materials — moved to bottom, secondary info */}
         <div className="px-8 py-5 border-t border-black/[0.04] dark:border-white/[0.04]">
           <p className="text-[9px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
-            Customer
+            Materials · {rfq.items.length} items
           </p>
-          <div className="grid grid-cols-2 gap-y-3 gap-x-8">
-            <Row label="Lifetime Value" value={`EGP ${fmtEGP(rfq.customer.lifetimeValue)}`} />
-            <Row label="Payment History" value={rfq.customer.paymentHistory} />
+          <div className="grid grid-cols-1 gap-0">
+            {rfq.items.map((item, i) => (
+              <div
+                key={item.id}
+                className={`flex items-center justify-between py-2.5 ${
+                  i > 0 ? 'border-t border-black/[0.03] dark:border-white/[0.03]' : ''
+                }`}
+              >
+                <span className="text-[13px] text-[var(--color-text)]">
+                  {item.productName}
+                </span>
+                <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                  {new Intl.NumberFormat('en-EG').format(item.quantity)}
+                  <span className="text-[var(--color-text-subtle)] ml-1">{item.unit}</span>
+                </span>
+              </div>
+            ))}
           </div>
         </div>
+
       </div>
 
     </div>

@@ -13,6 +13,16 @@ interface DragConfirmDialogProps {
   isPending?: boolean
 }
 
+/** Map target stage to consequence description for the ops manager */
+const STAGE_CONSEQUENCES: Record<string, string> = {
+  'PO Placed': 'Procurement will be notified to place the purchase order.',
+  'In Transit from Supplier': 'Order will be tracked for supplier shipment arrival.',
+  'At Warehouse': 'Warehouse team will be notified for receiving and QC.',
+  'Preparing / Loading': 'Warehouse will begin picking and loading for delivery.',
+  'Out for Delivery': 'Customer will be notified with delivery tracking.',
+  'Delivered': 'Order will be marked complete. Customer will receive delivery confirmation.',
+}
+
 /**
  * Clean modal for confirming stage transitions.
  * Shows what changes (current -> next stage). Confirm button prominent.
@@ -70,11 +80,21 @@ export function DragConfirmDialog({
           </div>
 
           {/* Order reference */}
-          <p className="text-[13px] text-black/50 dark:text-white/50 mb-4">
+          <p className="text-[13px] text-black/50 dark:text-white/50 mb-3">
             <span className="font-[family-name:var(--font-geist-mono)]">{order.orderNumber}</span>
             {' '}&middot;{' '}
             {order.customerName}
           </p>
+
+          {/* Consequence — what happens next */}
+          {STAGE_CONSEQUENCES[toStage] && (
+            <div className="mb-4 rounded-lg bg-[#2563EB]/[0.04] border border-[#2563EB]/[0.08] px-3 py-2.5">
+              <p className="text-[12px] text-black/60 dark:text-white/60">
+                <span className="font-medium text-[#2563EB]">What happens:</span>{' '}
+                {STAGE_CONSEQUENCES[toStage]}
+              </p>
+            </div>
+          )}
 
           {/* Notes */}
           <div className="mb-5">
@@ -108,7 +128,7 @@ export function DragConfirmDialog({
             >
               {isPending
                 ? t('common.updating', 'Moving...')
-                : t('common.confirm', 'Confirm')}
+                : `Move to ${toStage}`}
             </Button>
           </div>
         </Dialog>

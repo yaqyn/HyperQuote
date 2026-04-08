@@ -168,12 +168,12 @@ export function DirectedPicking({
   const canConfirm = locationScanConfirmed && productScanConfirmed
 
   return (
-    <div className="flex flex-col gap-5 p-5">
+    <div className="flex flex-col gap-6 px-6 py-4 min-h-[calc(100dvh-6rem)]">
       {/* Header: back + step indicator */}
       <div className="flex items-center gap-4">
         <AriaButton
           onPress={onBack}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
           aria-label="Back to pick queue"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -189,24 +189,28 @@ export function DirectedPicking({
         </div>
       </div>
 
-      {/* HERO: Location code — the biggest thing on screen */}
+      {/* HERO: Location code — the BIGGEST thing on screen. Worker walks to it. */}
       <div className="flex flex-col items-center gap-1 py-4">
-        <span className="text-xs font-medium text-[#2563EB] uppercase tracking-wider">Go To</span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[24px] font-bold text-[#2563EB] text-center">
+        <span className="text-[12px] font-bold text-[#2563EB] uppercase tracking-[0.15em]">Go To</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[44px] font-bold text-[#2563EB] text-center leading-none">
           {currentStep.locationPath}
         </span>
       </div>
 
-      {/* Product info — centered, large */}
-      <div className="flex flex-col items-center gap-3 py-2">
-        <span className="text-lg font-semibold text-black/90 dark:text-white/90 text-center">
-          {currentStep.productName}
-        </span>
-        {/* Quantity to pick — the second-biggest number */}
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold text-black/90 dark:text-white/90">
+      {/* Quantity — second biggest. Worker needs to know HOW MANY to grab. */}
+      <div className="flex flex-col items-center gap-1 py-2">
+        <span className="text-[12px] font-bold text-black/40 dark:text-white/40 uppercase tracking-[0.15em]">Pick</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[48px] font-bold text-black/90 dark:text-white/90 leading-none">
           {currentStep.quantityToPick}
         </span>
-        <div className="flex items-center gap-4 text-sm text-black/40 dark:text-white/40">
+      </div>
+
+      {/* Product info — readable but secondary */}
+      <div className="flex flex-col items-center gap-2 py-2">
+        <span className="text-[16px] font-semibold text-black/60 dark:text-white/60 text-center">
+          {currentStep.productName}
+        </span>
+        <div className="flex items-center gap-4 text-[13px] text-black/30 dark:text-white/30">
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
             SKU {currentStep.sku}
           </span>
@@ -215,7 +219,7 @@ export function DirectedPicking({
           </span>
         </div>
         {currentStep.fefoEnforced && currentStep.expiryDate && (
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+          <span className="text-[13px] font-medium text-amber-600 dark:text-amber-400">
             FEFO — expires{' '}
             <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
               {new Date(currentStep.expiryDate).toLocaleDateString()}
@@ -225,8 +229,8 @@ export function DirectedPicking({
       </div>
 
       {/* Two-scan verification */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
           <ScanInput
             label="1. Scan Location"
             expectedValue={currentStep.locationPath}
@@ -235,7 +239,7 @@ export function DirectedPicking({
             size="large"
           />
           {locationScanConfirmed && (
-            <span className="text-xs font-medium text-green-600 dark:text-green-400">Location confirmed</span>
+            <span className="text-[14px] font-medium text-green-600 dark:text-green-400">Location confirmed</span>
           )}
         </div>
 
@@ -248,7 +252,7 @@ export function DirectedPicking({
             size="large"
           />
           {productScanConfirmed && (
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 mt-1">Product confirmed</span>
+            <span className="text-[14px] font-medium text-green-600 dark:text-green-400 mt-1">Product confirmed</span>
           )}
         </div>
       </div>
@@ -270,39 +274,32 @@ export function DirectedPicking({
       )}
 
       {/* Exception buttons — large touch targets */}
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <AriaButton
           onPress={() => setExceptionType('short_pick')}
-          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
           Short Pick
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('skip')}
-          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
           Skip
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('substitute')}
-          className="flex h-12 flex-1 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
         >
           Substitute
         </AriaButton>
       </div>
 
-      {/* Confirm Pick — biggest button */}
-      <AriaButton
-        onPress={handleConfirmPick}
-        isDisabled={!canConfirm || confirmMutation.isPending}
-        className="flex h-16 items-center justify-center rounded-lg bg-[#2563EB] text-base font-semibold text-white cursor-pointer disabled:opacity-30 transition-colors"
-      >
-        {confirmMutation.isPending
-          ? 'Confirming...'
-          : isLastStep
-            ? 'Complete Order'
-            : 'Confirm Pick'}
-      </AriaButton>
+      {/* Weight tracker — compact, above actions */}
+      <WeightTracker
+        currentWeightKg={cumulativeWeightKg}
+        maxCapacityKg={maxCapacityKg}
+      />
 
       {confirmMutation.isError && (
         <p className="text-sm text-red-600 dark:text-red-400 text-center">
@@ -310,11 +307,20 @@ export function DirectedPicking({
         </p>
       )}
 
-      {/* Weight tracker */}
-      <WeightTracker
-        currentWeightKg={cumulativeWeightKg}
-        maxCapacityKg={maxCapacityKg}
-      />
+      {/* Confirm Pick — BOTTOM of screen, thumb zone, biggest button */}
+      <div className="mt-auto pt-4">
+        <AriaButton
+          onPress={handleConfirmPick}
+          isDisabled={!canConfirm || confirmMutation.isPending}
+          className="flex h-[72px] w-full items-center justify-center rounded-xl bg-[#2563EB] text-[18px] font-bold text-white cursor-pointer disabled:opacity-30 transition-colors active:scale-[0.98]"
+        >
+          {confirmMutation.isPending
+            ? 'Confirming...'
+            : isLastStep
+              ? 'Complete Order'
+              : 'Confirm Pick'}
+        </AriaButton>
+      </div>
 
       {/* Exception dialog */}
       {exceptionType && (

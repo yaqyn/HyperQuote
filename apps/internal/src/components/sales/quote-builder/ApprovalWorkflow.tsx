@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, TextArea } from 'react-aria-components'
+import { Button, UnderlineTextArea } from '../../ui'
 import type { MarginThresholds, CustomerTier } from '../../../types/sales'
 import { requestApproval } from '../../../lib/server/sales-quotes'
 
@@ -166,7 +166,7 @@ export function ApprovalWorkflow({
   // Auto-approved -- single green line
   if (!needsApproval) {
     return (
-      <p className="flex items-center gap-1.5 text-[12px] font-medium text-green-700 dark:text-green-400">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-green-700 dark:text-green-400">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3.5 7l2.5 2.5L10.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -178,7 +178,7 @@ export function ApprovalWorkflow({
   // Approved -- single green line
   if (status === 'approved') {
     return (
-      <p className="flex items-center gap-1.5 text-[12px] font-medium text-green-700 dark:text-green-400">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-green-700 dark:text-green-400">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3.5 7l2.5 2.5L10.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -193,38 +193,24 @@ export function ApprovalWorkflow({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
-          <span className="text-[12px] font-medium text-yellow-700 dark:text-yellow-300">
+          <span className="text-[13px] font-medium text-yellow-700 dark:text-yellow-300">
             Pending {chain[chain.length - 1]?.label ?? 'approver'}
           </span>
         </div>
 
-        <span className="text-[10px] text-[var(--color-text-subtle)]">
+        <span className="text-[12px] text-[var(--color-text-subtle)]">
           Auto-escalates in 2h
         </span>
 
         {isApprover && (
           <>
-            <Button
-              className="rounded-md bg-[var(--color-primary)] px-2.5 py-1 text-[11px] font-medium text-white outline-none transition-colors
-                data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
-              onPress={() => onStatusChange?.('approved')}
-            >
+            <Button variant="subtle" onPress={() => onStatusChange?.('approved')}>
               Approve
             </Button>
-            <Button
-              className="rounded-md border border-black/[0.08] px-2.5 py-1 text-[11px] font-medium outline-none transition-colors
-                data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.06]"
-              onPress={() => onStatusChange?.('rejected')}
-            >
+            <Button variant="ghost" onPress={() => onStatusChange?.('rejected')}>
               Reject
             </Button>
-            <Button
-              className="rounded-md border border-black/[0.08] px-2.5 py-1 text-[11px] font-medium outline-none transition-colors
-                data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.06]"
-              onPress={() => onStatusChange?.('changes_requested')}
-            >
+            <Button variant="ghost" onPress={() => onStatusChange?.('changes_requested')}>
               Changes
             </Button>
           </>
@@ -240,8 +226,8 @@ export function ApprovalWorkflow({
       <div className="flex items-center gap-2">
         {chain.map((entry, i) => (
           <span key={entry.role} className="flex items-center gap-1">
-            <span className="text-[12px] font-medium">{entry.label}</span>
-            <span className="text-[10px] text-[var(--color-text-subtle)]">({entry.reason})</span>
+            <span className="text-[13px] font-medium">{entry.label}</span>
+            <span className="text-[12px] text-[var(--color-text-subtle)]">({entry.reason})</span>
             {i < chain.length - 1 && (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--color-text-subtle)]" aria-hidden="true">
                 <path d="M3.5 2l3.5 3-3.5 3" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
@@ -251,21 +237,19 @@ export function ApprovalWorkflow({
         ))}
       </div>
 
-      {/* Justification + submit on one row */}
-      <div className="flex gap-2">
-        <TextArea
-          aria-label="Justification"
-          className="flex-1 rounded-md border border-black/[0.08] bg-transparent px-2 py-1.5 text-[12px] outline-none transition-colors
-            placeholder:text-black/20 focus:border-[var(--color-primary)] dark:border-white/[0.08] dark:placeholder:text-white/20"
+      {/* Justification + submit */}
+      <div className="flex items-end gap-4">
+        <UnderlineTextArea
+          label="Justification"
+          className="flex-1"
           placeholder="Strategic account, competitor priced at..."
           value={justification}
-          onChange={(e) => setJustification(e.target.value)}
+          onChange={setJustification}
           rows={1}
         />
         <Button
-          className="shrink-0 rounded-md bg-[var(--color-primary)] px-4 py-1.5 text-[12px] font-medium text-white outline-none transition-colors
-            data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-            data-[disabled]:opacity-50"
+          variant="subtle"
+          className="shrink-0"
           onPress={handleRequestApproval}
           isDisabled={submitting}
         >

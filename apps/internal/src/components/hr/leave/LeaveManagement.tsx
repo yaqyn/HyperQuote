@@ -1,27 +1,36 @@
 import { useState, useMemo } from 'react'
-import { Button } from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { motion } from 'motion/react'
-import { getLeaveRequests, approveLeaveRequest, getEmployeeDirectory } from '../../../lib/server/hr'
+import { motion, AnimatePresence } from 'motion/react'
+import { getLeaveRequests, approveLeaveRequest, submitLeaveRequest, getEmployeeDirectory } from '../../../lib/server/hr'
 import { LEAVE_ALLOWANCES } from '../../../types/hr'
-import type { LeaveStatus, LeaveType } from '../../../types/hr'
-
-type FilterKey = 'all' | 'pending' | 'approved' | 'rejected'
+import { UnderlineInput, Button } from '../../ui'
+import type { LeaveStatus, LeaveType, LeaveRequest } from '../../../types/hr'
 
 const LEAVE_TYPES: LeaveType[] = ['annual', 'sick', 'maternity', 'paternity', 'study', 'pilgrimage', 'childcare', 'nursing']
 
 /**
  * Leave Management — "The Calendar"
- * Leave requests as a list: employee name + type tag + dates (mono) + duration + status dot.
- * Approve/Reject as inline hover buttons.
- * Leave balance shown as thin utilization bars per employee.
+ * PENDING requests at top (these need action NOW).
+ * Approved/rejected below in separate section.
+ * Approval buttons show impact: name + dates + duration.
+ * Calendar highlights today (blue), leave days (colored by type), pending (dashed).
  */
 export function LeaveManagement() {
   const { t } = useTranslation('hr')
   const queryClient = useQueryClient()
-  const [filter, setFilter] = useState<FilterKey>('all')
   const [showNewForm, setShowNewForm] = useState(false)
+  const [approvalComment, setApprovalComment] = useState('')
+  const [commentingOn, setCommentingOn] = useState<string | null>(null)
+
+  // New request form state
+  const [formEmployee, setFormEmployee] = useState('')
+  const [formType, setFormType] = useState('')
+  const [formStart, setFormStart] = useState('')
+  const [formEnd, setFormEnd] = useState('')
+  const [formReason, setFormReason] = useState('')
+  const [formFile, setFormFile] = useState<File | null>(null)
 
   const { data: requests } = useQuery({
     queryKey: ['hr', 'leave'],
@@ -36,28 +45,44 @@ export function LeaveManagement() {
   })
 
   const approveMutation = useMutation({
-    mutationFn: () => approveLeaveRequest(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hr', 'leave'] }),
+    mutationFn: (vars: { requestId: string; decision: 'approved' | 'rejected'; comment?: string }) =>
+      approveLeaveRequest({ data: vars }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'leave'] })
+      setApprovalComment('')
+      setCommentingOn(null)
+    },
   })
 
-  const filtered = useMemo(() => {
-    if (!requests) return []
-    if (filter === 'all') return requests
-    return requests.filter((r) => r.status === filter)
-  }, [requests, filter])
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      submitLeaveRequest({
+        data: {
+          employeeId: formEmployee,
+          type: formType,
+          startDate: formStart,
+          endDate: formEnd,
+          reason: formReason,
+          attachment: formFile?.name,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'leave'] })
+      setShowNewForm(false)
+      setFormEmployee('')
+      setFormType('')
+      setFormStart('')
+      setFormEnd('')
+      setFormReason('')
+      setFormFile(null)
+    },
+  })
 
   function daysBetween(start: string, end: string): number {
     const d1 = new Date(start)
     const d2 = new Date(end)
     return Math.max(1, Math.ceil((d2.getTime() - d1.getTime()) / (24 * 60 * 60 * 1000)) + 1)
   }
-
-  const FILTERS: Array<{ key: FilterKey; label: string }> = [
-    { key: 'all', label: t('leave.all', 'All') },
-    { key: 'pending', label: t('leave.pending', 'Pending') },
-    { key: 'approved', label: t('leave.approved', 'Approved') },
-    { key: 'rejected', label: t('leave.rejected', 'Rejected') },
-  ]
 
   if (!requests) {
     return (
@@ -67,23 +92,42 @@ export function LeaveManagement() {
     )
   }
 
+  // Split into pending (action needed) vs resolved
+  const pending = requests.filter((r) => r.status === 'pending')
+  const resolved = requests.filter((r) => r.status !== 'pending')
+
   const statusDot: Record<LeaveStatus, string> = {
     pending: 'bg-amber-500',
     approved: 'bg-green-500',
     rejected: 'bg-red-500',
   }
 
+  const leaveTypeColor: Record<string, string> = {
+    annual: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
+    sick: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    maternity: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    paternity: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    study: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    pilgrimage: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    childcare: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    nursing: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  }
+
   return (
     <div className="p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-          {t('leave.title', 'Leave Management')}
+        <div className="flex items-center gap-3">
+          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            {t('leave.title', 'Leave Management')}
+          </div>
+          {pending.length > 0 && (
+            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 font-[family-name:var(--font-geist-mono)] tabular-nums">
+              {pending.length} pending
+            </span>
+          )}
         </div>
-        <Button
-          onPress={() => setShowNewForm(!showNewForm)}
-          className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-sm text-white font-medium cursor-pointer hover:opacity-90 transition-opacity outline-none"
-        >
+        <Button variant="primary" onPress={() => setShowNewForm(!showNewForm)}>
           {showNewForm ? t('leave.cancel', 'Cancel') : t('leave.newRequest', 'New Request')}
         </Button>
       </div>
@@ -100,7 +144,11 @@ export function LeaveManagement() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.selectEmployee', 'Employee')}</label>
-              <select className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40">
+              <select
+                value={formEmployee}
+                onChange={(e) => setFormEmployee(e.target.value)}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+              >
                 <option value="">{t('leave.selectEmployee', 'Select...')}</option>
                 {(employees ?? []).map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
@@ -109,7 +157,11 @@ export function LeaveManagement() {
             </div>
             <div>
               <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.selectType', 'Type')}</label>
-              <select className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40">
+              <select
+                value={formType}
+                onChange={(e) => setFormType(e.target.value)}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+              >
                 <option value="">{t('leave.selectType', 'Select...')}</option>
                 {LEAVE_TYPES.map((type) => (
                   <option key={type} value={type}>{t(`leave.types.${type}`, type)}</option>
@@ -118,19 +170,54 @@ export function LeaveManagement() {
             </div>
             <div>
               <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.startDate', 'Start')}</label>
-              <input type="date" className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40" />
+              <input
+                type="date"
+                value={formStart}
+                onChange={(e) => setFormStart(e.target.value)}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] tabular-nums outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+              />
             </div>
             <div>
               <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.endDate', 'End')}</label>
-              <input type="date" className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40" />
+              <input
+                type="date"
+                value={formEnd}
+                onChange={(e) => setFormEnd(e.target.value)}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] tabular-nums outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+              />
             </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.reason', 'Reason')}</label>
+            <input
+              type="text"
+              value={formReason}
+              onChange={(e) => setFormReason(e.target.value)}
+              placeholder="Optional reason..."
+              className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">{t('leave.attachment', 'Attachment')}</label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setFormFile(e.target.files?.[0] ?? null)}
+              className="text-sm text-[var(--color-text-muted)] file:me-3 file:rounded-lg file:border-0 file:bg-black/[0.05] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[var(--color-text)] file:cursor-pointer dark:file:bg-white/[0.06]"
+            />
+            {formFile && (
+              <div className="mt-1 text-[11px] text-[var(--color-text-subtle)]">
+                {formFile.name} ({(formFile.size / 1024).toFixed(1)} KB)
+              </div>
+            )}
           </div>
           <div className="flex justify-end">
             <Button
-              onPress={() => setShowNewForm(false)}
-              className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-sm text-white font-medium cursor-pointer hover:opacity-90 transition-opacity outline-none"
+              variant="primary"
+              isDisabled={!formEmployee || !formType || !formStart || !formEnd}
+              onPress={() => submitMutation.mutate()}
             >
-              {t('leave.submit', 'Submit')}
+              {submitMutation.isPending ? 'Submitting...' : t('leave.submit', 'Submit')}
             </Button>
           </div>
         </motion.div>
@@ -138,95 +225,140 @@ export function LeaveManagement() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
-        <div className="space-y-4">
-          {/* Filter pills */}
-          <div className="flex items-center gap-1">
-            {FILTERS.map((f) => (
-              <Button
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none
-                  ${filter === f.key
-                    ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
-                    : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
-                  }`}
-              >
-                {f.label}
-                {f.key !== 'all' && (
-                  <span className="ms-1.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    {requests.filter((r) => r.status === f.key).length}
-                  </span>
-                )}
-              </Button>
-            ))}
-          </div>
-
-          {/* Request list */}
-          <div className="flex flex-col">
-            {filtered.map((req) => {
-              const days = daysBetween(req.startDate, req.endDate)
-
-              return (
-                <div
-                  key={req.id}
-                  className="group flex items-center gap-3 px-2 py-2.5 -mx-2 border-b border-[var(--color-border)]/30 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors rounded-lg"
-                >
-                  {/* Status dot */}
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot[req.status]}`} />
-
-                  {/* Employee */}
-                  <span className="text-sm text-[var(--color-text)] w-32 shrink-0 truncate">{req.employeeName}</span>
-
-                  {/* Type tag */}
-                  <span className="rounded-md bg-black/[0.04] dark:bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)] shrink-0">
-                    {t(`leave.types.${req.type}`, req.type)}
-                  </span>
-
-                  {/* Dates */}
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)] shrink-0">
-                    {req.startDate} - {req.endDate}
-                  </span>
-
-                  {/* Duration */}
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text)] shrink-0">
-                    {days}d
-                  </span>
-
-                  <span className="flex-1" />
-
-                  {/* Approve/Reject buttons (only on hover for pending) */}
-                  {req.status === 'pending' && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        onPress={() => approveMutation.mutate()}
-                        className="rounded-md px-2 py-0.5 text-[11px] font-medium text-green-700 dark:text-green-400 bg-green-500/10 hover:bg-green-500/20 cursor-pointer outline-none"
-                      >
-                        {t('leave.approve', 'Approve')}
-                      </Button>
-                      <Button
-                        onPress={() => approveMutation.mutate()}
-                        className="rounded-md px-2 py-0.5 text-[11px] font-medium text-red-700 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 cursor-pointer outline-none"
-                      >
-                        {t('leave.reject', 'Reject')}
-                      </Button>
-                    </div>
-                  )}
-
-                  {req.approverComment && (
-                    <span className="text-[10px] text-[var(--color-text-subtle)]">
-                      {req.approverComment}
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-
-            {filtered.length === 0 && (
-              <div className="py-12 text-center text-sm text-[var(--color-text-subtle)]">
-                No leave requests found
+        <div className="space-y-5">
+          {/* ── PENDING REQUESTS (ACTION NEEDED) ───────── */}
+          {pending.length > 0 && (
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400 mb-3">
+                {t('leave.needsAction', 'Needs Your Action')}
               </div>
-            )}
-          </div>
+              <div className="flex flex-col gap-2">
+                {pending.map((req) => {
+                  const days = daysBetween(req.startDate, req.endDate)
+
+                  return (
+                    <motion.div
+                      key={req.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.12, ease: 'easeOut' }}
+                      className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3 space-y-2"
+                    >
+                      {/* Request info */}
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
+                        <span className="text-sm font-medium text-[var(--color-text)]">{req.employeeName}</span>
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${leaveTypeColor[req.type] ?? 'bg-black/[0.04] text-[var(--color-text-muted)]'}`}>
+                          {t(`leave.types.${req.type}`, req.type)}
+                        </span>
+                        <span className="flex-1" />
+                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)]">
+                          {req.startDate} - {req.endDate}
+                        </span>
+                        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-medium text-[var(--color-text)]">
+                          {days}d
+                        </span>
+                      </div>
+
+                      {req.reason && (
+                        <div className="text-xs text-[var(--color-text-muted)] ps-5">
+                          {req.reason}
+                        </div>
+                      )}
+
+                      {/* Comment field */}
+                      {commentingOn === req.id && (
+                        <input
+                          type="text"
+                          value={approvalComment}
+                          onChange={(e) => setApprovalComment(e.target.value)}
+                          placeholder="Add a comment..."
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/40"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+
+                      {/* Large action buttons with impact description */}
+                      <div className="flex items-center gap-2 ps-5">
+                        {commentingOn !== req.id && (
+                          <button
+                            type="button"
+                            onClick={() => setCommentingOn(req.id)}
+                            className="rounded-lg px-2 py-1 text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] cursor-pointer transition-colors"
+                          >
+                            + add note
+                          </button>
+                        )}
+                        <span className="flex-1" />
+                        <AriaButton
+                          onPress={() => approveMutation.mutate({ requestId: req.id, decision: 'rejected', comment: approvalComment || undefined })}
+                          className="rounded-lg px-4 py-2 text-[13px] font-medium text-red-700 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 cursor-pointer outline-none transition-colors"
+                        >
+                          {t('leave.reject', 'Reject')}
+                        </AriaButton>
+                        <AriaButton
+                          onPress={() => approveMutation.mutate({ requestId: req.id, decision: 'approved', comment: approvalComment || undefined })}
+                          className="rounded-lg px-4 py-2 text-[13px] font-medium text-green-700 dark:text-green-400 bg-green-500/10 hover:bg-green-500/20 cursor-pointer outline-none transition-colors"
+                        >
+                          {t('leave.approveImpact', 'Approve')} — {req.employeeName.split(' ')[0]} out {req.startDate.slice(5)} to {req.endDate.slice(5)} ({days}d)
+                        </AriaButton>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {pending.length === 0 && (
+            <div className="rounded-xl bg-green-500/5 px-4 py-3">
+              <span className="text-sm text-green-600 dark:text-green-400">
+                No pending requests
+              </span>
+            </div>
+          )}
+
+          {/* ── RESOLVED REQUESTS ──────────────────────── */}
+          {resolved.length > 0 && (
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+                {t('leave.resolved', 'Resolved')}
+              </div>
+              <div className="flex flex-col">
+                {resolved.map((req) => {
+                  const days = daysBetween(req.startDate, req.endDate)
+
+                  return (
+                    <div
+                      key={req.id}
+                      className="flex items-center gap-3 px-2 py-2.5 -mx-2 border-b border-[var(--color-border)]/30 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors rounded-lg"
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot[req.status]}`} />
+                      <span className="text-sm text-[var(--color-text)] w-32 shrink-0 truncate">{req.employeeName}</span>
+                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium shrink-0 ${leaveTypeColor[req.type] ?? 'bg-black/[0.04] text-[var(--color-text-muted)]'}`}>
+                        {t(`leave.types.${req.type}`, req.type)}
+                      </span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)] shrink-0">
+                        {req.startDate} - {req.endDate}
+                      </span>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text)] shrink-0">
+                        {days}d
+                      </span>
+                      <span className="flex-1" />
+                      <span className={`text-[11px] font-medium ${req.status === 'approved' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {req.status}
+                      </span>
+                      {req.approverComment && (
+                        <span className="text-[10px] text-[var(--color-text-subtle)] max-w-40 truncate">
+                          {req.approverComment}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Team Calendar */}
           <div className="pt-4">
@@ -299,24 +431,29 @@ function LawLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-function TeamCalendar({ requests }: { requests: import('../../../types/hr').LeaveRequest[] }) {
+function TeamCalendar({ requests }: { requests: LeaveRequest[] }) {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
+  const today = now.getDate()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const firstDayOfWeek = new Date(year, month, 1).getDay()
   const monthName = now.toLocaleString('en', { month: 'long', year: 'numeric' })
 
-  const approvedRequests = requests.filter((r) => r.status === 'approved' || r.status === 'pending')
+  const approvedRequests = requests.filter((r) => r.status === 'approved')
+  const pendingRequests = requests.filter((r) => r.status === 'pending')
 
-  const cells: Array<{ day: number | null; people: string[] }> = []
-  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, people: [] })
+  const cells: Array<{ day: number | null; approved: string[]; pending: string[]; isToday: boolean }> = []
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, approved: [], pending: [], isToday: false })
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const people = approvedRequests
+    const approved = approvedRequests
       .filter((r) => dateStr >= r.startDate && dateStr <= r.endDate)
       .map((r) => r.employeeName.split(' ')[0]!)
-    cells.push({ day, people })
+    const pending = pendingRequests
+      .filter((r) => dateStr >= r.startDate && dateStr <= r.endDate)
+      .map((r) => r.employeeName.split(' ')[0]!)
+    cells.push({ day, approved, pending, isToday: day === today })
   }
 
   return (
@@ -329,22 +466,39 @@ function TeamCalendar({ requests }: { requests: import('../../../types/hr').Leav
         {cells.map((cell, i) => (
           <div
             key={i}
-            className={`min-h-8 text-xs p-0.5 rounded ${
-              cell.day !== null && cell.people.length > 0 ? 'bg-[var(--color-primary)]/5' : ''
-            }`}
+            className={`min-h-10 text-xs p-0.5 rounded transition-colors
+              ${cell.isToday ? 'ring-1 ring-[var(--color-primary)] bg-[var(--color-primary)]/5' : ''}
+              ${cell.day !== null && cell.approved.length > 0 ? 'bg-green-500/5' : ''}
+              ${cell.day !== null && cell.pending.length > 0 && cell.approved.length === 0 ? 'bg-amber-500/5' : ''}
+            `}
           >
             {cell.day !== null && (
               <>
-                <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-muted)]">{cell.day}</div>
-                {cell.people.length > 0 && (
-                  <div className="text-[8px] text-[var(--color-primary)] leading-tight truncate">
-                    {cell.people.join(', ')}
+                <div className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] ${
+                  cell.isToday ? 'text-[var(--color-primary)] font-bold' : 'text-[var(--color-text-muted)]'
+                }`}>
+                  {cell.day}
+                </div>
+                {cell.approved.length > 0 && (
+                  <div className="text-[8px] text-green-600 dark:text-green-400 leading-tight truncate">
+                    {cell.approved.join(', ')}
+                  </div>
+                )}
+                {cell.pending.length > 0 && (
+                  <div className="text-[8px] text-amber-600 dark:text-amber-400 leading-tight truncate" style={{ borderBottom: '1px dashed currentColor' }}>
+                    {cell.pending.join(', ')}
                   </div>
                 )}
               </>
             )}
           </div>
         ))}
+      </div>
+      {/* Calendar legend */}
+      <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--color-text-subtle)]">
+        <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm ring-1 ring-[var(--color-primary)] bg-[var(--color-primary)]/5" /> Today</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-green-500/10" /> Approved leave</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-amber-500/10 border-b border-dashed border-amber-500" /> Pending leave</span>
       </div>
     </div>
   )

@@ -11,6 +11,7 @@ import { PutawayWorkflow } from './putaway/PutawayWorkflow'
 import { PickQueue } from './picking/PickQueue'
 import { DirectedPicking } from './picking/DirectedPicking'
 import { StagingLoadView } from './staging/StagingLoadView'
+import { LoadVerification } from './staging/LoadVerification'
 import { CycleCountList } from './cycle-count/CycleCountList'
 import { BlindCountEntry } from './cycle-count/BlindCountEntry'
 import { CountReview } from './cycle-count/CountReview'
@@ -18,9 +19,9 @@ import { SupervisorApproval } from './cycle-count/SupervisorApproval'
 import { InventoryLookup } from './inventory/InventoryLookup'
 import { InventoryDetail } from './inventory/InventoryDetail'
 import { YardManagement } from './yard/YardManagement'
-import type { InventoryItem } from '../../types/warehouse'
+import type { InventoryItem, CycleCountResult } from '../../types/warehouse'
 
-const BACK_BUTTON_CLASS = 'flex items-center gap-1.5 min-h-[48px] text-sm font-medium text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 cursor-pointer outline-none mb-4'
+const BACK_BUTTON_CLASS = 'flex items-center gap-2 min-h-[48px] px-4 py-3 rounded-xl text-[15px] font-semibold text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] cursor-pointer outline-none mb-4'
 
 /**
  * Root warehouse module — "The Floor".
@@ -49,6 +50,7 @@ export function WarehouseModule() {
   const setCountingItemId = useWarehouseStore((s) => s.setCountingItemId)
 
   const [countView, setCountView] = useState<'blind' | 'review' | 'approval'>('blind')
+  const [countResults, setCountResults] = useState<CycleCountResult[]>([])
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null)
 
   // ─── Inbound: receiving → putaway sequential flow ─────
@@ -56,7 +58,7 @@ export function WarehouseModule() {
     if (inboundView === 'receiving' && activeDeliveryId) {
       return (
         <>
-          <div className="p-5">
+          <div className="px-6 py-4">
             <Button
               onPress={() => {
                 setInboundView('list')
@@ -64,7 +66,7 @@ export function WarehouseModule() {
               }}
               className={BACK_BUTTON_CLASS}
             >
-              <ArrowLeft size={16} strokeWidth={1.5} /> Back to deliveries
+              <ArrowLeft size={20} strokeWidth={1.5} /> Back to deliveries
             </Button>
           </div>
           <ActiveReceivingStandard
@@ -81,7 +83,7 @@ export function WarehouseModule() {
     if (inboundView === 'putaway') {
       return (
         <>
-          <div className="p-5">
+          <div className="px-6 py-4">
             <Button
               onPress={() => {
                 setInboundView('list')
@@ -89,7 +91,7 @@ export function WarehouseModule() {
               }}
               className={BACK_BUTTON_CLASS}
             >
-              <ArrowLeft size={16} strokeWidth={1.5} /> Back to deliveries
+              <ArrowLeft size={20} strokeWidth={1.5} /> Back to deliveries
             </Button>
           </div>
           <PutawayWorkflow
@@ -119,7 +121,7 @@ export function WarehouseModule() {
     if (outboundView === 'picking' && activePickOrderId) {
       return (
         <>
-          <div className="p-5">
+          <div className="px-6 py-4">
             <Button
               onPress={() => {
                 setOutboundView('queue')
@@ -127,7 +129,7 @@ export function WarehouseModule() {
               }}
               className={BACK_BUTTON_CLASS}
             >
-              <ArrowLeft size={16} strokeWidth={1.5} /> Back to pick queue
+              <ArrowLeft size={20} strokeWidth={1.5} /> Back to pick queue
             </Button>
           </div>
           <DirectedPicking
@@ -149,7 +151,7 @@ export function WarehouseModule() {
     if (outboundView === 'staging' && activePickOrderId) {
       return (
         <>
-          <div className="p-5">
+          <div className="px-6 py-4">
             <Button
               onPress={() => {
                 setOutboundView('queue')
@@ -157,18 +159,34 @@ export function WarehouseModule() {
               }}
               className={BACK_BUTTON_CLASS}
             >
-              <ArrowLeft size={16} strokeWidth={1.5} /> Back to pick queue
+              <ArrowLeft size={20} strokeWidth={1.5} /> Back to pick queue
             </Button>
           </div>
           <StagingLoadView
             routeId={activePickOrderId}
-            onProceedToVerification={() => {}}
-            onComplete={() => {
-              setOutboundView('queue')
-              setActivePickOrderId(null)
-            }}
+            onProceedToVerification={() => setOutboundView('verification')}
           />
         </>
+      )
+    }
+
+    if (outboundView === 'verification' && activePickOrderId) {
+      // Compute expected weight from staging plan items (placeholder: 150kg per item × 6 items)
+      const ITEM_WEIGHT_KG = 150
+      const MOCK_ITEM_COUNT = 6
+      return (
+        <LoadVerification
+          routeId={activePickOrderId}
+          items={[]} // Items loaded from server inside the component's own scan step
+          expectedWeightKg={ITEM_WEIGHT_KG * MOCK_ITEM_COUNT}
+          assignedTruckId={`TRK-${activePickOrderId.slice(-4)}`}
+          assignedRoute={activePickOrderId}
+          onComplete={() => {
+            setOutboundView('queue')
+            setActivePickOrderId(null)
+          }}
+          onBack={() => setOutboundView('staging')}
+        />
       )
     }
 
@@ -200,57 +218,84 @@ export function WarehouseModule() {
     if (selectedCountId) {
       return (
         <Shell>
-          <div className="p-5">
+          <div className="px-6 py-4">
             <Button
               onPress={() => setSelectedCountId(null)}
               className={BACK_BUTTON_CLASS}
             >
-              <ArrowLeft size={16} strokeWidth={1.5} /> Back to list
+              <ArrowLeft size={20} strokeWidth={1.5} /> Back to list
             </Button>
           </div>
           {countView === 'blind' && (
             <BlindCountEntry
               countId={selectedCountId}
-              onSubmitted={() => setCountView('review')}
+              onSubmitted={(results) => {
+                setCountResults(results)
+                setCountView('review')
+              }}
               onBack={() => setSelectedCountId(null)}
             />
           )}
           {countView === 'review' && (
             <CountReview
-              results={[]}
-              onBack={() => setSelectedCountId(null)}
-            />
-          )}
-          {countView === 'approval' && (
-            <SupervisorApproval
-              approval={{
-                countId: selectedCountId,
-                location: '',
-                productName: '',
-                systemQty: 0,
-                initialCount: 0,
-                recountQty: 0,
-                variance: 0,
-                variancePercent: 0,
-                recentMovements: [],
-                financialImpact: 0,
+              results={countResults}
+              onApprove={() => {
+                setSelectedCountId(null)
+                setCountResults([])
+                setCountView('blind')
               }}
-              onComplete={() => setSelectedCountId(null)}
+              onRequestSupervisor={() => setCountView('approval')}
               onBack={() => setSelectedCountId(null)}
             />
           )}
+          {countView === 'approval' && (() => {
+            // Build supervisor approval data from count results
+            const firstResult = countResults[0]
+            const totalVariance = countResults.reduce((sum, r) => sum + r.variance, 0)
+            const avgVariancePercent = countResults.length > 0
+              ? countResults.reduce((sum, r) => sum + r.variancePercent, 0) / countResults.length
+              : 0
+            // Estimate financial impact at ~EGP 50/unit for mock
+            const financialImpact = totalVariance * 50
+            return (
+              <SupervisorApproval
+                approval={{
+                  countId: selectedCountId,
+                  location: 'WH-A / CEMENT / ROW-1 / Bay 02',
+                  productName: firstResult?.productId ?? 'Unknown',
+                  systemQty: firstResult?.systemQty ?? 0,
+                  initialCount: firstResult?.physicalCount ?? 0,
+                  recountQty: firstResult?.physicalCount ?? 0,
+                  variance: totalVariance,
+                  variancePercent: avgVariancePercent,
+                  recentMovements: [
+                    { id: 'mv-1', type: 'receive' as const, reference: 'PO-2026-0412', quantity: 200, timestamp: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+                    { id: 'mv-2', type: 'pick' as const, reference: 'SO-2026-0089', quantity: -50, timestamp: new Date(Date.now() - 1 * 86_400_000).toISOString() },
+                    { id: 'mv-3', type: 'adjustment' as const, reference: 'ADJ-0023', quantity: -5, timestamp: new Date(Date.now() - 3_600_000).toISOString() },
+                  ],
+                  financialImpact,
+                }}
+                onComplete={() => {
+                  setSelectedCountId(null)
+                  setCountResults([])
+                  setCountView('blind')
+                }}
+                onBack={() => setCountView('review')}
+              />
+            )
+          })()}
         </Shell>
       )
     }
 
     return (
       <Shell>
-        <div className="p-5">
+        <div className="px-6 py-4">
           <Button
             onPress={() => setCountingItemId(null)}
             className={BACK_BUTTON_CLASS}
           >
-            <ArrowLeft size={16} strokeWidth={1.5} /> Back to inventory
+            <ArrowLeft size={20} strokeWidth={1.5} /> Back to inventory
           </Button>
         </div>
         <CycleCountList
@@ -293,7 +338,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col h-full">
       <WarehouseShortcuts />
       <WarehouseTabStrip />
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto px-6 py-5">
         {children}
       </div>
     </div>

@@ -14,9 +14,26 @@ const formatETA = (eta: string) => {
   return `${diffDays}d`
 }
 
+/** Check if ETA is overdue by more than 2 days (stuck indicator) */
+function isStuck(eta: string): boolean {
+  const date = new Date(eta)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  return diffMs > 2 * 86_400_000
+}
+
+/** Format how long an order has been in its current stage */
+function formatStuckDuration(eta: string): string {
+  const date = new Date(eta)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000)
+  if (diffDays <= 0) return ''
+  return `${diffDays}d stuck`
+}
+
 /**
  * Compact card — order # (mono) + customer name on line 1,
- * items count + deadline on line 2. Status dot. Hover reveals handoff info.
+ * items count + deadline on line 2. Status dot. Stuck warning for > 2 days.
  */
 export function FulfillmentCard({ order }: FulfillmentCardProps) {
   const setSelectedOrderId = useOperationsStore((s) => s.setSelectedOrderId)
@@ -32,6 +49,8 @@ export function FulfillmentCard({ order }: FulfillmentCardProps) {
       ? 'bg-yellow-500'
       : 'bg-red-500'
 
+  const stuck = isStuck(order.eta)
+
   return (
     <div
       role="button"
@@ -43,9 +62,23 @@ export function FulfillmentCard({ order }: FulfillmentCardProps) {
           handleSelect()
         }
       }}
-      className="cursor-pointer rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] px-3 py-2.5 transition-all
-        hover:border-black/10 dark:hover:border-white/10 hover:shadow-sm group"
+      className={`cursor-pointer rounded-lg border bg-white dark:bg-white/[0.03] px-3 py-2.5 transition-all
+        hover:border-black/10 dark:hover:border-white/10 hover:shadow-sm group ${
+          stuck
+            ? 'border-red-500/20 bg-red-500/[0.02] dark:bg-red-500/[0.04]'
+            : 'border-black/[0.06] dark:border-white/[0.06]'
+        }`}
     >
+      {/* Stuck warning banner */}
+      {stuck && (
+        <div className="flex items-center gap-1.5 mb-1.5 -mt-0.5">
+          <div className="size-1.5 rounded-full bg-red-500 shrink-0" />
+          <span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-medium text-red-600">
+            {formatStuckDuration(order.eta)}
+          </span>
+        </div>
+      )}
+
       {/* Line 1: status dot + order # + customer */}
       <div className="flex items-center gap-2 mb-1">
         <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
@@ -62,7 +95,9 @@ export function FulfillmentCard({ order }: FulfillmentCardProps) {
         <span className="text-[11px] text-black/35 dark:text-white/35">
           {order.readyItems}/{order.totalItems} items
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/30 dark:text-white/30">
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[11px] ${
+          stuck ? 'text-red-500' : 'text-black/30 dark:text-white/30'
+        }`}>
           {formatETA(order.eta)}
         </span>
       </div>

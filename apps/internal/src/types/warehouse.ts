@@ -10,7 +10,7 @@ export type WarehouseTab =
   | 'yard'
 
 export type InboundView = 'list' | 'receiving' | 'putaway'
-export type OutboundView = 'queue' | 'picking' | 'staging'
+export type OutboundView = 'queue' | 'picking' | 'staging' | 'verification'
 
 export type DeliveryStatus =
   | 'scheduled'
@@ -286,6 +286,20 @@ export interface WeatherAlert {
   outdoorOpsPaused: boolean
   message: string
   recommendation: string
+}
+
+// ─── Vehicle Tracking ────────────────────────────────────
+
+export type VehicleType = 'truck' | 'moffett' | 'crane' | 'other'
+
+export interface VehicleEntry {
+  id: string
+  /** Geist Mono */ plateNumber: string
+  vehicleType: VehicleType
+  zoneId: string
+  zoneName: string
+  /** Geist Mono */ arrivedAt: string
+  notes?: string
 }
 
 // ─── Dashboard ────────────────────────────────────────────

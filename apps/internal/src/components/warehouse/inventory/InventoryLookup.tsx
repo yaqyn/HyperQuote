@@ -47,11 +47,11 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
   const totalAvailable = items.reduce((sum, i) => sum + i.quantityAvailable, 0)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 px-6 py-4">
       {/* ─── Header ──────────────────────────────────────── */}
       <div>
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Inventory</h2>
-        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Cross-location stock lookup</p>
+        <h2 className="text-[20px] font-bold text-[var(--color-text-primary)]">Inventory</h2>
+        <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">Cross-location stock lookup</p>
       </div>
 
       {/* ─── Search (full width, prominent) ──────────────── */}
@@ -60,7 +60,7 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
           type="text"
           value={search}
           onChange={handleSearchChange}
-          className="h-14 w-full rounded-xl border-2 border-[var(--color-border)] px-4 text-base font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[#2563EB] focus:outline-none transition-colors"
+          className="h-14 w-full rounded-xl border-2 border-[var(--color-border)] px-5 text-[16px] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[#2563EB] focus:outline-none transition-colors"
           placeholder="Search SKU, product, or lot..."
         />
         <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
               onChange={(e) => { setBelowReorder(e.target.checked); setPage(1) }}
               className="w-5 h-5 rounded border-[var(--color-border)] accent-[#2563EB]"
             />
-            <span className="text-sm font-medium text-[var(--color-text-primary)]">
+            <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
               Below reorder
             </span>
           </label>
@@ -95,28 +95,28 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
               key={item.id}
               type="button"
               onClick={() => onSelectItem(item)}
-              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-2 py-3 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[64px]"
+              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-4 py-4 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[72px]"
             >
               {/* Status dot */}
               <ConditionDot condition={item.condition} />
 
               {/* SKU */}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-secondary)] w-24 shrink-0 truncate">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text-secondary)] w-24 shrink-0 truncate">
                 {item.sku}
               </span>
 
               {/* Product name */}
-              <span className="flex-1 text-sm font-semibold text-[var(--color-text-primary)] truncate min-w-0">
+              <span className="flex-1 text-[15px] font-semibold text-[var(--color-text-primary)] truncate min-w-0">
                 {item.productName}
               </span>
 
               {/* Location */}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-secondary)] shrink-0">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text-secondary)] shrink-0">
                 {item.locationCode}
               </span>
 
               {/* Quantity — large mono */}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-[var(--color-text-primary)] shrink-0 w-16 text-end">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[20px] font-bold text-[var(--color-text-primary)] shrink-0 w-16 text-end">
                 {item.quantityAvailable}
               </span>
 
@@ -130,7 +130,7 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
                     e.continuePropagation?.()
                     onStartCount(item.id)
                   }}
-                  className="shrink-0 rounded-lg border border-black/8 dark:border-white/8 px-2.5 py-1 text-[11px] font-medium text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:border-black/15 dark:hover:border-white/15 cursor-pointer outline-none opacity-0 group-hover:opacity-100 transition-all"
+                  className="shrink-0 rounded-lg border border-black/8 dark:border-white/8 px-3 py-2 text-[13px] font-semibold text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:border-black/15 dark:hover:border-white/15 cursor-pointer outline-none min-h-[44px] flex items-center transition-all"
                 >
                   Count
                 </Button>
@@ -161,18 +161,18 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="min-h-[48px] px-5 rounded-xl border border-[var(--color-border)] text-sm font-semibold disabled:opacity-40 transition-colors hover:bg-black/[0.02]"
+            className="min-h-[48px] px-6 rounded-xl border border-[var(--color-border)] text-[14px] font-bold disabled:opacity-40 transition-colors hover:bg-black/[0.02]"
           >
             Previous
           </button>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-[var(--color-text-secondary)]">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] text-[var(--color-text-secondary)]">
             {page} / {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="min-h-[48px] px-5 rounded-xl border border-[var(--color-border)] text-sm font-semibold disabled:opacity-40 transition-colors hover:bg-black/[0.02]"
+            className="min-h-[48px] px-6 rounded-xl border border-[var(--color-border)] text-[14px] font-bold disabled:opacity-40 transition-colors hover:bg-black/[0.02]"
           >
             Next
           </button>
@@ -187,8 +187,8 @@ export function InventoryLookup({ onSelectItem, onStartCount }: InventoryLookupP
 function SummaryStat({ label, value, muted, bold }: { label: string; value: number; muted?: boolean; bold?: boolean }) {
   return (
     <div>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">{label}</span>
-      <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-base ${bold ? 'font-bold text-[var(--color-text-primary)]' : muted ? 'font-medium text-[var(--color-text-secondary)]' : 'font-medium text-[var(--color-text-primary)]'}`}>
+      <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">{label}</span>
+      <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[18px] ${bold ? 'font-bold text-[var(--color-text-primary)]' : muted ? 'font-medium text-[var(--color-text-secondary)]' : 'font-medium text-[var(--color-text-primary)]'}`}>
         {value}
       </p>
     </div>

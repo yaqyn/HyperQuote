@@ -75,22 +75,39 @@ export function PaymentFlow() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Step indicator — dots + line breadcrumb */}
+      {/* Step indicator — numbered steps with clear progress */}
       <div className="px-6 pt-5 pb-4 border-b border-black/10 dark:border-white/10">
+        {/* Step counter text */}
+        <div className="text-center mb-3">
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/40 dark:text-white/40">
+            {t('payments.stepOf', 'Step {{current}} of {{total}}', { current: currentStepIndex + 1, total: stepLabels.length })}:
+          </span>
+          <span className="text-xs font-medium text-black dark:text-white ms-1.5">
+            {stepLabels[currentStepIndex]}
+          </span>
+        </div>
         <div className="flex items-center justify-center">
           {stepLabels.map((label, i) => (
             <div key={label} className="flex items-center">
-              {/* Dot + label */}
+              {/* Numbered dot + label */}
               <div className="flex items-center gap-2">
                 <div
-                  className={`size-2 rounded-full transition-colors ${
+                  className={`size-5 rounded-full flex items-center justify-center text-[10px] font-medium transition-colors ${
                     i < currentStepIndex
-                      ? 'bg-[#2563EB]'
+                      ? 'bg-[#2563EB] text-white'
                       : i === currentStepIndex
-                        ? 'bg-[#2563EB] ring-4 ring-[#2563EB]/10'
-                        : 'bg-black/15 dark:bg-white/15'
+                        ? 'bg-[#2563EB] text-white ring-4 ring-[#2563EB]/10'
+                        : 'bg-black/10 dark:bg-white/10 text-black/30 dark:text-white/30'
                   }`}
-                />
+                >
+                  {i < currentStepIndex ? (
+                    <svg viewBox="0 0 12 12" fill="none" className="size-3">
+                      <path d="M2.5 6L5 8.5L9.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{i + 1}</span>
+                  )}
+                </div>
                 <span
                   className={`text-xs transition-colors ${
                     i === currentStepIndex
@@ -121,24 +138,23 @@ export function PaymentFlow() {
         {renderStep()}
       </div>
 
-      {/* Navigation bar */}
-      {currentStepIndex > 0 && (
-        <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 px-6 py-3">
-          <Button
-            onPress={handleBack}
-            className="rounded-md px-4 py-2 text-xs font-medium text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
-          >
-            {t('payments.back', 'Back')}
-          </Button>
-          <button
-            type="button"
-            onClick={resetPaymentFlow}
-            className="text-xs text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 transition-colors"
-          >
-            {t('payments.cancel', 'Cancel')}
-          </button>
-        </div>
-      )}
+      {/* Navigation bar — always visible with Back button */}
+      <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 px-6 py-3">
+        <Button
+          onPress={handleBack}
+          isDisabled={currentStepIndex === 0}
+          className="rounded-md px-4 py-2 text-xs font-medium text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-20 disabled:cursor-default outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
+        >
+          {t('payments.back', 'Back')}
+        </Button>
+        <button
+          type="button"
+          onClick={resetPaymentFlow}
+          className="text-xs text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 transition-colors"
+        >
+          {t('payments.cancel', 'Cancel')}
+        </button>
+      </div>
     </div>
   )
 }

@@ -12,6 +12,7 @@ type SortDir = 'asc' | 'desc'
 interface ARAgingTableProps {
   rows: ARAgingRow[]
   onCellClick: (customerId: string, bucket: ARAgingBucket) => void
+  activeBucketFilter?: ARAgingBucket | null
 }
 
 const BUCKET_KEYS: { key: keyof ARAgingRow; bucket: ARAgingBucket; label: string }[] = [
@@ -53,9 +54,9 @@ const PAGE_SIZE = 20
  * Expandable cells drill into invoices for that customer+bucket.
  * Column header row shows aggregate totals per bucket.
  */
-export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
+export function ARAgingTable({ rows, onCellClick, activeBucketFilter }: ARAgingTableProps) {
   const { t } = useTranslation('finance')
-  const [sortField, setSortField] = useState<SortField>('total')
+  const [sortField, setSortField] = useState<SortField>('days90plus')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page, setPage] = useState(0)
 
@@ -68,6 +69,7 @@ export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
     }
   }
 
+  // Sort: default is worst overdue first (days90plus desc, then days90, days60, days30)
   const sorted = useMemo(() => {
     const copy = [...rows]
     copy.sort((a, b) => {
@@ -80,7 +82,11 @@ export function ARAgingTable({ rows, onCellClick }: ARAgingTableProps) {
           cmp = a.total - b.total
           break
         case 'days90plus':
+          // Multi-level: 90+ first, then 61-90, then 31-60, then 1-30
           cmp = a.days90plus - b.days90plus
+          if (cmp === 0) cmp = a.days90 - b.days90
+          if (cmp === 0) cmp = a.days60 - b.days60
+          if (cmp === 0) cmp = a.days30 - b.days30
           break
         case 'days90':
           cmp = a.days90 - b.days90

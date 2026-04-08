@@ -61,14 +61,56 @@ const loadVerificationInput = z.object({
 export const loadVerification = createServerFn({ method: 'POST' })
   .inputValidator(loadVerificationInput)
   .handler(async ({ data: input }) => {
-    // Clearance false if missing items or weight variance >2%
-    const allScanned = input.scanResults.every((r) => r.scanned)
+    const failures: string[] = []
+
+    // Validate all items scanned
+    const unscanned = input.scanResults.filter((r) => !r.scanned)
+    if (unscanned.length > 0) {
+      failures.push(`${unscanned.length} item(s) not scanned`)
+    }
+
+    // Weight within 2% tolerance
     const expectedWeight = 18500
     const weightVariance = Math.abs(input.weight - expectedWeight) / expectedWeight
-    const clearance = allScanned && weightVariance <= 0.02 && input.photos.length >= 3
+    if (weightVariance > 0.02) {
+      failures.push(`Weight variance ${(weightVariance * 100).toFixed(1)}% exceeds 2% tolerance`)
+    }
+
+    // Minimum 3 photos
+    if (input.photos.length < 3) {
+      failures.push(`${input.photos.length}/3 required photos captured`)
+    }
+
+    // All signatures present
+    if (!input.driverSignature) failures.push('Missing driver signature')
+    if (!input.loaderSignature) failures.push('Missing loader signature')
+
+    const clearance = failures.length === 0
+    const clearanceId = clearance ? `CLR-2026-${Date.now().toString(36).toUpperCase()}` : undefined
 
     return {
       verificationId: `VER-${Date.now()}`,
       clearance,
+      clearanceId,
+      dispatchReady: clearance,
+      failures: clearance ? undefined : failures,
+    }
+  })
+
+// ─── Handoff to Dispatch ──────────────────────────────────
+
+const handoffToDispatchInput = z.object({
+  routeId: z.string(),
+  clearanceId: z.string(),
+  driverNotes: z.string().optional(),
+})
+
+export const handoffToDispatch = createServerFn({ method: 'POST' })
+  .inputValidator(handoffToDispatchInput)
+  .handler(async ({ data }) => {
+    // TODO: integrate with dispatch module — create dispatch record, notify driver
+    return {
+      success: true,
+      dispatchId: `DSP-${Date.now().toString(36).toUpperCase()}`,
     }
   })

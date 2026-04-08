@@ -6,6 +6,9 @@ const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOSt
 const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10)
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString().slice(0, 10)
 
+/** Egyptian VAT rate */
+const VAT_RATE = 0.14
+
 function getMockInvoices(): Invoice[] {
   return [
     {
@@ -57,7 +60,17 @@ export const getInvoiceDetail = createServerFn({ method: 'GET' })
   .handler(async ({ data: input }) => {
     const invoices = getMockInvoices()
     const invoice = invoices.find((i) => i.id === input.invoiceId) ?? invoices[0]
-    return { invoice, payments: [], timeline: [] }
+
+    const payments = [
+      { id: 'pay-mock-001', date: daysAgo(5), amount: 100_000, method: 'wire' as const, reference: 'TRF-001' },
+    ]
+
+    const timeline = [
+      { timestamp: invoice.issuedDate, event: 'Invoice created', user: 'System' },
+      { timestamp: daysAgo(1), event: 'Sent to customer via portal', user: 'Ahmed Hassan' },
+    ]
+
+    return { invoice, payments, timeline }
   })
 
 const createInvoiceInput = z.object({
@@ -76,8 +89,45 @@ const createInvoiceInput = z.object({
 
 export const createInvoice = createServerFn({ method: 'POST' })
   .inputValidator(createInvoiceInput)
-  .handler(async ({ data: _input }) => {
-    return { invoiceId: `inv-${Date.now()}`, etaInvoiceId: `ETA-${Date.now()}` }
+  .handler(async ({ data: input }) => {
+    const invoiceId = `inv-${Date.now()}`
+    const invoiceNumber = `INV-2026-${String(Date.now()).slice(-4)}`
+
+    // Calculate line totals with 14% VAT
+    const items = input.lines.map((line, i) => {
+      const lineTotal = line.quantity * line.unitPrice
+      const vatAmount = Math.round(lineTotal * VAT_RATE * 100) / 100
+      return {
+        id: `item-${Date.now()}-${i}`,
+        productName: line.productName,
+        productNameAr: line.productNameAr,
+        egsCode: line.egsCode,
+        uom: line.uom,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        lineTotal,
+        vatAmount,
+      }
+    })
+
+    const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0)
+    const vatAmount = items.reduce((sum, item) => sum + item.vatAmount, 0)
+    const grandTotal = subtotal + vatAmount
+
+    return {
+      success: true,
+      invoiceId,
+      invoiceNumber,
+      etaInvoiceId: `ETA-${Date.now()}`,
+      subtotal,
+      vatAmount,
+      grandTotal,
+      currency: 'EGP',
+      items,
+      status: 'draft' as const,
+      issuedDate: new Date().toISOString().slice(0, 10),
+      dueDate: input.dueDate,
+    }
   })
 
 const sendInvoiceInput = z.object({
@@ -88,7 +138,13 @@ const sendInvoiceInput = z.object({
 export const sendInvoice = createServerFn({ method: 'POST' })
   .inputValidator(sendInvoiceInput)
   .handler(async ({ data: input }) => {
-    return { sentVia: input.channels }
+    return {
+      success: true,
+      invoiceId: input.invoiceId,
+      status: 'sent' as const,
+      sentVia: input.channels,
+      sentAt: new Date().toISOString(),
+    }
   })
 
 const createCreditNoteInput = z.object({
@@ -100,8 +156,31 @@ const createCreditNoteInput = z.object({
 
 export const createCreditNote = createServerFn({ method: 'POST' })
   .inputValidator(createCreditNoteInput)
-  .handler(async ({ data: _input }) => {
-    return { creditNoteId: `cn-${Date.now()}` }
+  .handler(async ({ data: input }) => {
+    // Reference the original invoice and calculate credit
+    const invoices = getMockInvoices()
+    const originalInvoice = invoices.find((i) => i.id === input.invoiceId) ?? invoices[0]
+
+    const creditAmount = input.amount
+      ?? input.lineItems?.reduce((sum, li) => sum + li.amount, 0)
+      ?? originalInvoice.grandTotal
+
+    const vatOnCredit = Math.round(creditAmount * (VAT_RATE / (1 + VAT_RATE)) * 100) / 100
+    const netCredit = creditAmount - vatOnCredit
+
+    return {
+      success: true,
+      creditNoteId: `cn-${Date.now()}`,
+      creditNoteNumber: `CN-2026-${String(Date.now()).slice(-4)}`,
+      originalInvoiceId: input.invoiceId,
+      originalInvoiceNumber: originalInvoice.number,
+      creditAmount,
+      vatAmount: vatOnCredit,
+      netAmount: netCredit,
+      reason: input.reason,
+      status: 'draft' as const,
+      createdAt: new Date().toISOString(),
+    }
   })
 
 const batchGenerateInput = z.object({
@@ -129,8 +208,14 @@ export const batchSendInvoices = createServerFn({ method: 'POST' })
   .inputValidator(batchSendInput)
   .handler(async ({ data: input }) => {
     return {
+      success: true,
       batchId: `batch-${Date.now()}`,
-      results: input.invoiceIds.map((id) => ({ invoiceId: id, sent: true })),
+      results: input.invoiceIds.map((id) => ({
+        invoiceId: id,
+        sent: true,
+        sentAt: new Date().toISOString(),
+        status: 'sent' as const,
+      })),
       totalSent: input.invoiceIds.length,
     }
   })

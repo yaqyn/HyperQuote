@@ -37,14 +37,22 @@ export const getDeliverySchedule = createServerFn({ method: 'GET' })
 
 const scheduleDeliveryInput = z.object({
   orderId: z.string(),
-  date: z.string(),
-  timeWindow: z.string(),
-  driverId: z.string().optional(),
-  vehicleId: z.string().optional(),
+  deliveryDate: z.string(),
+  deliveryWindow: z.string(),
+  fulfillmentMode: z.enum(['drop_ship', 'own_delivery', 'cross_dock']),
+  items: z.array(z.object({
+    itemId: z.string(),
+    quantity: z.number().positive(),
+  })),
+  driverNotes: z.string().optional(),
 })
 
 export const scheduleDelivery = createServerFn({ method: 'POST' })
   .inputValidator(scheduleDeliveryInput)
-  .handler(async ({ data: _input }) => {
-    return { deliveryId: `del-${Date.now().toString(36)}` }
+  .handler(async ({ data }) => {
+    return {
+      success: true,
+      deliveryId: `DEL-${Date.now()}`,
+      scheduledDate: data.deliveryDate,
+    }
   })

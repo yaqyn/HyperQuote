@@ -13,6 +13,7 @@ import type {
 } from '../../../types/dispatch'
 import { validateAllConstraints } from '../../../lib/constraints'
 import { CapacityBar } from '../shared/CapacityBar'
+import { ConstraintBadge } from '../shared/ConstraintBadge'
 import { StopItem } from './StopItem'
 
 interface RouteCardProps {
@@ -102,6 +103,21 @@ export function RouteCard({
 
   const totalWeight = route.stops.reduce((sum, s) => sum + s.weight, 0)
 
+  // Aggregate all violations across stops for the route-level summary
+  const allViolations = useMemo(() => {
+    const violations: ConstraintViolation[] = []
+    for (const [, stopViolations] of violationsMap) {
+      for (const v of stopViolations) {
+        // Deduplicate by type+message
+        if (!violations.some((existing) => existing.type === v.type && existing.message === v.message)) {
+          violations.push(v)
+        }
+      }
+    }
+    // Errors first, then warnings
+    return violations.sort((a, b) => (a.severity === 'error' ? -1 : 1) - (b.severity === 'error' ? -1 : 1))
+  }, [violationsMap])
+
   return (
     <div
       role="button"
@@ -111,9 +127,20 @@ export function RouteCard({
       className={`rounded-xl border p-3 transition-colors ${
         selected
           ? 'border-[#2563EB]/40 bg-[#2563EB]/[0.04]'
-          : 'border-black/[0.06] hover:bg-black/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.02]'
+          : allViolations.some((v: ConstraintViolation) => v.severity === 'error')
+            ? 'border-red-300/60 hover:bg-red-50/30 dark:border-red-700/40 dark:hover:bg-red-900/10'
+            : 'border-black/[0.06] hover:bg-black/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.02]'
       }`}
     >
+      {/* Constraint violations banner — top of card */}
+      {allViolations.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {allViolations.map((v: ConstraintViolation, i: number) => (
+            <ConstraintBadge key={`${v.type}-${i}`} violation={v} />
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <div className="min-w-0">

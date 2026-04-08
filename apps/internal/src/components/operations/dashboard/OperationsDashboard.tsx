@@ -39,10 +39,10 @@ export function OperationsDashboard() {
   return (
     <div className="flex flex-col px-5 py-6 gap-10">
       <MetricCards metrics={data.metrics} />
+      <SLATracker />
       <BottleneckPipeline stages={data.bottleneck} />
       {selectedBottleneckStage && <BottleneckStageDetail />}
       <FulfillmentKanban />
-      <SLATracker />
     </div>
   )
 }

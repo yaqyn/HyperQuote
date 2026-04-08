@@ -323,9 +323,11 @@ export const getTicketQueue = createServerFn({ method: 'GET' }).handler(
   },
 )
 
-export const getTicketDetail = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<TicketDetail> => {
-    const ticket = MOCK_TICKETS[0]!
+export const getTicketDetail = createServerFn({ method: 'GET' })
+  .inputValidator((d: { ticketId: string }) => d)
+  .handler(
+  async ({ data }): Promise<TicketDetail> => {
+    const ticket = MOCK_TICKETS.find((t) => t.id === data.ticketId) ?? MOCK_TICKETS[0]!
     return {
       ...ticket,
       description: 'Multiple cement bags (approximately 15 out of 200) arrived with torn packaging and visible moisture damage. The delivery was accepted with noted exceptions. Photos attached showing the damage.',
@@ -404,3 +406,42 @@ export const getKnowledgeBase = createServerFn({ method: 'GET' }).handler(
     return MOCK_ARTICLES
   },
 )
+
+export const createTicket = createServerFn({ method: 'POST' })
+  .inputValidator((d: {
+    customerName: string
+    subject: string
+    description: string
+    category: string
+    priority: string
+  }) => d)
+  .handler(
+    async ({ data }): Promise<{ success: boolean; ticketId: string; number: string }> => {
+      const seq = String(MOCK_TICKETS.length + 1).padStart(4, '0')
+      return { success: true, ticketId: `tkt-${Date.now()}`, number: `TKT-2026-${seq}` }
+    },
+  )
+
+export const assignTicket = createServerFn({ method: 'POST' })
+  .inputValidator((d: { ticketId: string; agentName: string }) => d)
+  .handler(
+    async ({ data }): Promise<{ success: boolean; assignedTo: string }> => {
+      return { success: true, assignedTo: data.agentName }
+    },
+  )
+
+export const resolveTicket = createServerFn({ method: 'POST' })
+  .inputValidator((d: { ticketId: string; resolution: string }) => d)
+  .handler(
+    async ({ data }): Promise<{ success: boolean }> => {
+      return { success: true }
+    },
+  )
+
+export const updateTicketStatus = createServerFn({ method: 'POST' })
+  .inputValidator((d: { ticketId: string; status: string }) => d)
+  .handler(
+    async ({ data }): Promise<{ success: boolean }> => {
+      return { success: true }
+    },
+  )

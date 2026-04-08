@@ -36,10 +36,10 @@ export function PickQueue() {
   const orders = data?.orders ?? []
 
   return (
-    <div className="flex flex-col gap-5 p-5">
+    <div className="flex flex-col gap-5 px-6 py-4">
       {/* Header */}
       <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
+        <h2 className="text-[14px] font-semibold text-black/40 dark:text-white/40 uppercase tracking-wider">
           Pick Queue
         </h2>
         {orders.length > 0 && (
@@ -55,7 +55,7 @@ export function PickQueue() {
         onSelectionChange={(key) => setPriorityFilter(key as string)}
       >
         <Label className="sr-only">Priority filter</Label>
-        <AriaButton className="flex h-12 items-center gap-2 rounded-lg border border-black/10 dark:border-white/10 px-4 text-sm cursor-pointer">
+        <AriaButton className="flex h-12 w-full items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 px-5 text-[14px] cursor-pointer">
           <SelectValue />
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M3.5 5.25L7 8.75L10.5 5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -92,16 +92,29 @@ export function PickQueue() {
         </div>
       )}
 
-      {/* Order cards */}
-      <div className="flex flex-col gap-2">
-        {orders.map((order) => (
+      {/* Top priority — prominent "Start Picking" CTA */}
+      {orders.length > 0 && (
+        <div className="flex flex-col gap-3">
           <PickOrderCard
-            key={order.id}
-            order={order}
-            onSelect={() => setSelectedPickOrderId(order.id)}
+            order={orders[0]}
+            onSelect={() => setSelectedPickOrderId(orders[0].id)}
+            isTopPriority
           />
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* Remaining order cards */}
+      {orders.length > 1 && (
+        <div className="flex flex-col gap-3">
+          {orders.slice(1).map((order) => (
+            <PickOrderCard
+              key={order.id}
+              order={order}
+              onSelect={() => setSelectedPickOrderId(order.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -109,9 +122,11 @@ export function PickQueue() {
 function PickOrderCard({
   order,
   onSelect,
+  isTopPriority = false,
 }: {
   order: PickOrder
   onSelect: () => void
+  isTopPriority?: boolean
 }) {
   const deadlineDate = new Date(order.shippingDeadline)
   const timeStr = deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -131,47 +146,54 @@ function PickOrderCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex flex-col gap-3 rounded-lg border border-black/10 dark:border-white/10 border-s-4 ${priorityBorder} p-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors min-h-[80px]`}
+      className={`flex flex-col gap-3 rounded-xl border border-black/10 dark:border-white/10 border-s-4 ${priorityBorder} px-6 py-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors min-h-[88px]`}
     >
       {/* Row 1: Order # + deadline time */}
       <div className="flex items-center justify-between">
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-base font-semibold text-black/90 dark:text-white/90">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[16px] font-bold text-black/90 dark:text-white/90">
           {order.soNumber}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-black/90 dark:text-white/90">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[20px] font-bold text-black/90 dark:text-white/90">
           {timeStr}
         </span>
       </div>
 
       {/* Row 2: Customer + zone */}
       <div className="flex items-center justify-between">
-        <span className="text-sm text-black/70 dark:text-white/70">
+        <span className="text-[15px] text-black/70 dark:text-white/70">
           {order.customerName}
         </span>
-        <span className="text-xs text-black/40 dark:text-white/40">
+        <span className="text-[13px] text-black/40 dark:text-white/40">
           {order.assignedRoute}
         </span>
       </div>
 
       {/* Row 3: Items count + weight + progress bar */}
       <div className="flex items-center gap-4">
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-black/60 dark:text-white/60">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] font-medium text-black/60 dark:text-white/60">
           {order.itemCount} items
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold text-black/60 dark:text-white/60">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] font-semibold text-black/60 dark:text-white/60">
           {(order.totalWeightKg / 1000).toFixed(1)}t
         </span>
         {/* Progress bar */}
-        <div className="flex-1 h-1.5 rounded-full bg-black/5 dark:bg-white/5">
+        <div className="flex-1 h-2 rounded-full bg-black/5 dark:bg-white/5">
           <div
             className="h-full rounded-full bg-[#2563EB] transition-all"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40">
           {pickedCount}/{order.itemCount}
         </span>
       </div>
+
+      {/* Top priority: prominent Start Picking CTA */}
+      {isTopPriority && (
+        <div className="flex h-14 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[15px] font-bold text-white mt-1">
+          Start Picking
+        </div>
+      )}
     </button>
   )
 }

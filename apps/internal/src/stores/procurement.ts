@@ -38,6 +38,11 @@ interface ProcurementStore {
   selectedSupplierId: string | null
   setSelectedSupplierId: (id: string | null) => void
 
+  // Pre-selected supplier for inquiry builder (scorecard → sourcing flow)
+  preSelectedSupplierId: string | null
+  setPreSelectedSupplierId: (id: string | null) => void
+  consumePreSelectedSupplierId: () => string | null
+
   // Sourcing view (inquiry list vs comparison matrix)
   sourcingView: SourcingView
   setSourcingView: (view: SourcingView) => void
@@ -68,6 +73,15 @@ export const useProcurementStore = create<ProcurementStore>()(
     // Supplier detail (scorecard drill-down)
     selectedSupplierId: null,
     setSelectedSupplierId: (id) => set({ selectedSupplierId: id }),
+
+    // Pre-selected supplier for inquiry builder
+    preSelectedSupplierId: null,
+    setPreSelectedSupplierId: (id) => set({ preSelectedSupplierId: id }),
+    consumePreSelectedSupplierId: () => {
+      const current = useProcurementStore.getState().preSelectedSupplierId
+      if (current) set({ preSelectedSupplierId: null })
+      return current
+    },
 
     // Sourcing view
     sourcingView: 'inquiry',

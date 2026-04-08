@@ -2,17 +2,20 @@ interface StepIndicatorProps {
   current: number
   total: number
   label?: 'task' | 'step' | 'count'
+  /** Optional step name shown alongside "Step X/Y" */
+  stepName?: string
 }
 
 /**
  * Horizontal dots connected by line.
  * Current = blue + larger. Completed = filled black. Pending = outline only.
- * Numbers in Geist Mono.
+ * Numbers in Geist Mono. Optional step name for clarity.
  */
 export function StepIndicator({
   current,
   total,
   label = 'step',
+  stepName,
 }: StepIndicatorProps) {
   const labelText =
     label === 'task' ? 'Task' : label === 'count' ? 'Count' : 'Step'
@@ -31,6 +34,11 @@ export function StepIndicator({
             {total}
           </span>
         </span>
+        {stepName && (
+          <span className="text-[13px] font-semibold text-black/60 dark:text-white/60">
+            {stepName}
+          </span>
+        )}
       </div>
 
       {/* Dots connected by line */}

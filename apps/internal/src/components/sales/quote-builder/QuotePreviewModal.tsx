@@ -7,8 +7,8 @@ import {
   Dialog,
   Button as AriaButton,
   Heading,
-  Switch,
 } from 'react-aria-components'
+import { Button, Toggle } from '../../ui'
 import type { QuoteFormValues } from './LineItemsTable'
 
 interface QuotePreviewModalProps {
@@ -79,18 +79,11 @@ export function QuotePreviewModal({
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch
+                  <Toggle
                     isSelected={showSpecDetails}
                     onChange={setShowSpecDetails}
-                    className="group flex items-center gap-2"
-                  >
-                    <div className="h-5 w-9 rounded-full border border-black/[0.06] bg-black/[0.04] p-0.5 transition-colors group-data-[selected]:bg-[var(--color-primary)] dark:border-white/[0.06] dark:bg-white/[0.06]">
-                      <div className="h-4 w-4 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-4 dark:bg-black" />
-                    </div>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">
-                      {showSpecDetails ? 'Detailed' : 'Summary'}
-                    </span>
-                  </Switch>
+                    label={showSpecDetails ? 'Detailed' : 'Summary'}
+                  />
                   <AriaButton
                     onPress={() => onOpenChange(false)}
                     className="rounded-md p-1.5 text-[var(--color-text-subtle)] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]"
@@ -233,20 +226,20 @@ export function QuotePreviewModal({
 
               {/* Footer */}
               <div className="flex items-center justify-end gap-3 border-t border-black/[0.06] px-6 py-3 dark:border-white/[0.06]">
-                <AriaButton
+                <Button
+                  variant="outline"
                   onPress={() => onOpenChange(false)}
-                  className="rounded-lg border border-black/[0.06] px-4 py-2 text-[13px] font-medium outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:border-white/[0.06] dark:data-[hovered]:bg-white/[0.06]"
                 >
                   Close
-                </AriaButton>
-                <AriaButton
-                  className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+                </Button>
+                <Button
+                  variant="primary"
                   onPress={() => {
                     console.log('Download PDF -- Phase 28')
                   }}
                 >
                   Download PDF
-                </AriaButton>
+                </Button>
               </div>
         </Dialog>
       </Modal>

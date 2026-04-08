@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import type { CreditProfile } from '../../../types/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
 import { CreditProfileCard } from './CreditProfileCard'
 import { CreditHoldPanel } from './CreditHoldPanel'
+import { toggleCreditHold } from '../../../lib/server/finance-credit'
 
 // ─── Mock Data ──────────────────────────────────────────
 
@@ -88,24 +89,52 @@ type SortField = 'customerName' | 'utilizationPct' | 'paymentScore' | 'creditLim
 export function CreditDashboard() {
   const { t } = useTranslation('finance')
 
+  const [profiles, setProfiles] = useState(MOCK_PROFILES)
   const [selectedProfile, setSelectedProfile] = useState<CreditProfile | null>(null)
   const [showHoldPanel, setShowHoldPanel] = useState(false)
   const [sortField, setSortField] = useState<SortField>('utilizationPct')
   const [showOnHoldOnly, setShowOnHoldOnly] = useState(false)
+  const [holdLoading, setHoldLoading] = useState<string | null>(null)
+
+  const handleToggleHold = useCallback(async (profile: CreditProfile, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setHoldLoading(profile.customerId)
+    const action = profile.isOnHold ? 'release' : 'hold'
+    const reason = action === 'hold' ? 'Manual hold by finance team' : 'Released by finance team'
+    try {
+      const result = await toggleCreditHold({ data: { customerId: profile.customerId, action, reason } })
+      if (result.success) {
+        setProfiles((prev) =>
+          prev.map((p) =>
+            p.customerId === profile.customerId
+              ? { ...p, isOnHold: result.isOnHold, holdReasons: result.isOnHold ? [...p.holdReasons, 'manual_hold'] : [] }
+              : p,
+          ),
+        )
+        if (selectedProfile?.customerId === profile.customerId) {
+          setSelectedProfile((prev) => prev ? { ...prev, isOnHold: result.isOnHold, holdReasons: result.isOnHold ? [...prev.holdReasons, 'manual_hold'] : [] } : prev)
+        }
+      }
+    } finally {
+      setHoldLoading(null)
+    }
+  }, [selectedProfile])
 
   // Summary stats
-  const totalExposure = MOCK_PROFILES.reduce((sum, p) => sum + p.currentExposure, 0)
-  const totalLimit = MOCK_PROFILES.reduce((sum, p) => sum + p.creditLimit, 0)
+  const totalExposure = profiles.reduce((sum, p) => sum + p.currentExposure, 0)
+  const totalLimit = profiles.reduce((sum, p) => sum + p.creditLimit, 0)
   const utilization = totalLimit > 0 ? (totalExposure / totalLimit) * 100 : 0
-  const onHoldCount = MOCK_PROFILES.filter((p) => p.isOnHold).length
-  const avgScore = MOCK_PROFILES.length > 0
-    ? Math.round(MOCK_PROFILES.reduce((sum, p) => sum + p.paymentScore, 0) / MOCK_PROFILES.length)
+  const onHoldCount = profiles.filter((p) => p.isOnHold).length
+  const avgScore = profiles.length > 0
+    ? Math.round(profiles.reduce((sum, p) => sum + p.paymentScore, 0) / profiles.length)
     : 0
 
-  // Filter & sort
+  // Filter & sort — on-hold customers ALWAYS float to top
   const filtered = useMemo(() => {
-    let list = showOnHoldOnly ? MOCK_PROFILES.filter((p) => p.isOnHold) : MOCK_PROFILES
+    let list = showOnHoldOnly ? profiles.filter((p) => p.isOnHold) : profiles
     return [...list].sort((a, b) => {
+      // On-hold always first
+      if (a.isOnHold !== b.isOnHold) return a.isOnHold ? -1 : 1
       switch (sortField) {
         case 'customerName': return a.customerName.localeCompare(b.customerName)
         case 'utilizationPct': return b.utilizationPct - a.utilizationPct
@@ -114,7 +143,7 @@ export function CreditDashboard() {
         default: return 0
       }
     })
-  }, [sortField, showOnHoldOnly])
+  }, [profiles, sortField, showOnHoldOnly])
 
   // Detail view
   if (selectedProfile) {
@@ -138,8 +167,8 @@ export function CreditDashboard() {
           {showHoldPanel && (
             <CreditHoldPanel
               profile={selectedProfile}
-              onRelease={() => {}}
-              onReleaseOneTime={() => {}}
+              onRelease={() => handleToggleHold(selectedProfile)}
+              onReleaseOneTime={() => handleToggleHold(selectedProfile)}
               onEscalate={() => {}}
             />
           )}
@@ -150,6 +179,23 @@ export function CreditDashboard() {
 
   return (
     <div className="space-y-0">
+      {/* ─── On-hold alert banner ──────────────────────── */}
+      {onHoldCount > 0 && (
+        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-red-500/10 bg-red-500/[0.03]">
+          <span className="size-2 rounded-full bg-red-500" />
+          <span className="text-xs font-medium text-red-600 dark:text-red-400 flex-1">
+            {t('credit.onHoldAlert', '{{count}} customers on credit hold', { count: onHoldCount })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowOnHoldOnly(!showOnHoldOnly)}
+            className="text-[10px] text-red-600 dark:text-red-400 hover:underline underline-offset-2"
+          >
+            {showOnHoldOnly ? t('credit.showAll', 'Show all') : t('credit.viewHeld', 'View held')}
+          </button>
+        </div>
+      )}
+
       {/* ─── Summary strip ─────────────────────────────── */}
       <div className="flex items-center gap-8 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
@@ -204,7 +250,7 @@ export function CreditDashboard() {
           <div className="absolute inset-y-0 start-1/2 w-px bg-black/[0.04] dark:bg-white/[0.04]" />
 
           {/* Customer dots */}
-          {MOCK_PROFILES.map((p) => (
+          {profiles.map((p) => (
             <button
               key={p.customerId}
               type="button"
@@ -262,7 +308,7 @@ export function CreditDashboard() {
       {/* ─── Customer list ─────────────────────────────── */}
       <div>
         {/* Header */}
-        <div className="grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px_120px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/25 dark:text-white/25 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div>{t('credit.customerName', 'Customer')}</div>
           <div className="text-center">{t('credit.tier', 'Tier')}</div>
           <div className="text-end">{t('credit.creditLimit', 'Limit')}</div>
@@ -270,6 +316,7 @@ export function CreditDashboard() {
           <div>{t('credit.utilization', 'Utilization')}</div>
           <div className="text-end">{t('credit.score', 'Score')}</div>
           <div className="text-center">{t('credit.status', 'Status')}</div>
+          <div className="text-center">{t('credit.action', 'Action')}</div>
         </div>
 
         {/* Rows */}
@@ -280,7 +327,7 @@ export function CreditDashboard() {
             tabIndex={0}
             onClick={() => setSelectedProfile(profile)}
             onKeyDown={(e) => { if (e.key === 'Enter') setSelectedProfile(profile) }}
-            className={`grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] cursor-pointer transition-colors ${
+            className={`grid grid-cols-[1.5fr_0.6fr_1fr_1fr_0.8fr_60px_60px_120px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] cursor-pointer transition-colors ${
               profile.isOnHold
                 ? 'bg-red-500/[0.03] hover:bg-red-500/[0.06]'
                 : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
@@ -325,7 +372,40 @@ export function CreditDashboard() {
               {profile.paymentScore}
             </span>
             <div className="flex justify-center">
-              <span className={`size-1.5 rounded-full ${profile.isOnHold ? 'bg-red-500' : 'bg-green-500'}`} />
+              {profile.isOnHold ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-[9px] font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">
+                  <span className="size-1.5 rounded-full bg-red-500" />
+                  {t('credit.held', 'Held')}
+                </span>
+              ) : (
+                <span className={`size-1.5 rounded-full bg-green-500`} />
+              )}
+            </div>
+            <div className="flex justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {/* Review button for high-risk customers */}
+              {(profile.paymentScore < 50 || profile.utilizationPct > 90 || profile.isOnHold) && (
+                <Button
+                  onPress={() => setSelectedProfile(profile)}
+                  className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[#2563EB] hover:bg-[#2563EB]/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors"
+                >
+                  {t('credit.review', 'Review')}
+                </Button>
+              )}
+              <Button
+                onPress={() => handleToggleHold(profile)}
+                isDisabled={holdLoading === profile.customerId}
+                className={`rounded-md px-2 py-0.5 text-[10px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors ${
+                  profile.isOnHold
+                    ? 'text-green-600 dark:text-green-400 hover:bg-green-500/[0.06]'
+                    : 'text-red-600 dark:text-red-400 hover:bg-red-500/[0.06]'
+                } disabled:opacity-40`}
+              >
+                {holdLoading === profile.customerId
+                  ? '...'
+                  : profile.isOnHold
+                    ? t('credit.release', 'Release')
+                    : t('credit.placeHold', 'Hold')}
+              </Button>
             </div>
           </div>
         ))}

@@ -5,6 +5,7 @@
 
 export type CSTab =
   | 'conversations'
+  | 'claims'
 
 // ─── Ticket Types ────────────────────────────────────────
 

@@ -189,21 +189,19 @@ export function RoutePlanningView() {
           }
           right={
             <ClientOnly fallback={<MapSkeleton className="h-full" />}>
-              {() => (
-                <RoutePlanningMap
-                  routes={routes}
-                  unassigned={unassigned}
-                  selectedRouteId={selectedRouteId}
-                  onStopClick={(stopId) => {
-                    for (const route of routes) {
-                      if (route.stops.some((s: RouteStop) => s.id === stopId)) {
-                        setSelectedRouteId(route.id)
-                        break
-                      }
+              <RoutePlanningMap
+                routes={routes}
+                unassigned={unassigned}
+                selectedRouteId={selectedRouteId}
+                onStopClick={(stopId) => {
+                  for (const route of routes) {
+                    if (route.stops.some((s: RouteStop) => s.id === stopId)) {
+                      setSelectedRouteId(route.id)
+                      break
                     }
-                  }}
-                />
-              )}
+                  }
+                }}
+              />
             </ClientOnly>
           }
         />

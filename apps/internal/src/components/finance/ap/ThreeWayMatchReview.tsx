@@ -95,8 +95,8 @@ export function ThreeWayMatchReview({ invoice, onBack }: ThreeWayMatchReviewProp
             </tr>
           </thead>
           <tbody>
-            {/* Quantity */}
-            <tr className="border-t border-black/[0.04] dark:border-white/[0.04]">
+            {/* Quantity — highlighted only if mismatch */}
+            <tr className={`border-t ${qtyExact ? 'border-black/[0.04] dark:border-white/[0.04] opacity-40' : 'border-black/[0.04] dark:border-white/[0.04] bg-yellow-500/[0.04]'}`}>
               <td className="py-2.5 pe-4 text-xs font-medium text-black/60 dark:text-white/60">
                 {t('ap.quantity', 'Quantity')}
               </td>
@@ -117,8 +117,8 @@ export function ThreeWayMatchReview({ invoice, onBack }: ThreeWayMatchReviewProp
               </td>
             </tr>
 
-            {/* Unit Price */}
-            <tr className="border-t border-black/[0.04] dark:border-white/[0.04]">
+            {/* Unit Price — highlighted only if mismatch */}
+            <tr className={`border-t ${priceExact ? 'border-black/[0.04] dark:border-white/[0.04] opacity-40' : 'border-black/[0.04] dark:border-white/[0.04] bg-yellow-500/[0.04]'}`}>
               <td className="py-2.5 pe-4 text-xs font-medium text-black/60 dark:text-white/60">
                 {t('ap.unitPrice', 'Unit Price')}
               </td>
@@ -145,7 +145,7 @@ export function ThreeWayMatchReview({ invoice, onBack }: ThreeWayMatchReviewProp
             </tr>
 
             {/* Line Total */}
-            <tr className="border-t border-black/10 dark:border-white/10 font-medium">
+            <tr className={`border-t border-black/10 dark:border-white/10 font-medium ${varianceAmount === 0 ? 'opacity-40' : ''}`}>
               <td className="py-2.5 pe-4 text-xs text-black dark:text-white">
                 {t('ap.lineTotal', 'Line Total')}
               </td>

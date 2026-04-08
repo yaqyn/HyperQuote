@@ -137,60 +137,89 @@ export function APDashboard() {
             </div>
           </div>
 
-          {/* Key figures row */}
+          {/* Key figures row — Due This Week is PRIMARY for a clerk */}
           <div className="grid grid-cols-4 gap-6">
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
-                {t('ap.totalOutstanding', 'Outstanding')}
-              </div>
-              <CurrencyCell amount={metrics.outstanding} className="text-xl font-semibold text-black dark:text-white" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
-                {t('ap.overdue', 'Overdue')}
-              </div>
-              <div className="flex items-baseline gap-2">
-                <CurrencyCell
-                  amount={metrics.overdueAmount}
-                  className={`text-xl font-semibold ${metrics.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-black dark:text-white'}`}
-                />
-                {metrics.overdue > 0 && (
-                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-red-500">
-                    {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(metrics.overdue)} {t('ap.invoices', 'inv.')}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+            <div className={metrics.dueThisWeekAmount > 0 ? 'col-span-2 rounded-lg bg-[#2563EB]/[0.03] border border-[#2563EB]/10 px-4 py-3 -mx-1' : ''}>
+              <div className="text-[11px] font-medium uppercase tracking-wider text-[#2563EB]/60 mb-1">
                 {t('ap.dueThisWeek', 'Due This Week')}
               </div>
-              <div className="flex items-baseline gap-2">
-                <CurrencyCell amount={metrics.dueThisWeekAmount} className="text-xl font-semibold text-black dark:text-white" />
+              <div className="flex items-baseline gap-3">
+                <CurrencyCell amount={metrics.dueThisWeekAmount} className="text-3xl font-semibold text-black dark:text-white" />
                 <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
-                  {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(metrics.dueThisWeek)}
+                  {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(metrics.dueThisWeek)} {t('ap.invoices', 'inv.')}
                 </span>
               </div>
             </div>
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
-                {t('ap.nextDueDate', 'Next Due')}
-              </div>
-              <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-semibold text-black dark:text-white">
-                {invoices.length > 0
-                  ? new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-EG', {
-                      month: 'short',
-                      day: 'numeric',
-                    }).format(
-                      new Date(
-                        [...invoices]
-                          .filter((inv) => new Date(inv.dueDate) >= new Date())
-                          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0]?.dueDate ?? Date.now(),
-                      ),
-                    )
-                  : '--'}
-              </div>
-            </div>
+            {metrics.dueThisWeekAmount > 0 ? (
+              <>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+                    {t('ap.overdue', 'Overdue')}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <CurrencyCell
+                      amount={metrics.overdueAmount}
+                      className={`text-xl font-semibold ${metrics.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-black dark:text-white'}`}
+                    />
+                    {metrics.overdue > 0 && (
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-red-500">
+                        {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(metrics.overdue)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+                    {t('ap.totalOutstanding', 'Outstanding')}
+                  </div>
+                  <CurrencyCell amount={metrics.outstanding} className="text-xl font-semibold text-black dark:text-white" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+                    {t('ap.totalOutstanding', 'Outstanding')}
+                  </div>
+                  <CurrencyCell amount={metrics.outstanding} className="text-xl font-semibold text-black dark:text-white" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+                    {t('ap.overdue', 'Overdue')}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <CurrencyCell
+                      amount={metrics.overdueAmount}
+                      className={`text-xl font-semibold ${metrics.overdueAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-black dark:text-white'}`}
+                    />
+                    {metrics.overdue > 0 && (
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-red-500">
+                        {new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(metrics.overdue)} {t('ap.invoices', 'inv.')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
+                    {t('ap.nextDueDate', 'Next Due')}
+                  </div>
+                  <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-semibold text-black dark:text-white">
+                    {invoices.length > 0
+                      ? new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-EG', {
+                          month: 'short',
+                          day: 'numeric',
+                        }).format(
+                          new Date(
+                            [...invoices]
+                              .filter((inv) => new Date(inv.dueDate) >= new Date())
+                              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0]?.dueDate ?? Date.now(),
+                          ),
+                        )
+                      : '--'}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

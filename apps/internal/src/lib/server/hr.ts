@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import type {
   AttendanceRecord,
   DriverComplianceRecord,
@@ -163,11 +164,14 @@ export const getEmployeeDirectory = createServerFn({ method: 'GET' }).handler(
   },
 )
 
-export const updateEmployeeRecord = createServerFn({ method: 'POST' }).handler(
-  async (): Promise<{ success: boolean; employeeId: string }> => {
-    return { success: true, employeeId: 'emp-001' }
-  },
-)
+export const updateEmployeeRecord = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    employeeId: z.string(),
+    updates: z.record(z.unknown()),
+  }))
+  .handler(async ({ data }): Promise<{ success: true }> => {
+    return { success: true }
+  })
 
 export const getDriverCompliance = createServerFn({ method: 'GET' }).handler(
   async (): Promise<DriverComplianceRecord[]> => {
@@ -181,42 +185,84 @@ export const getLeaveRequests = createServerFn({ method: 'GET' }).handler(
   },
 )
 
-export const submitLeaveRequest = createServerFn({ method: 'POST' }).handler(
-  async (): Promise<LeaveRequest> => {
-    return {
-      id: `lv-${Date.now()}`,
-      employeeId: 'emp-001',
-      employeeName: 'Ahmed Hassan',
-      type: 'annual' as LeaveType,
-      startDate: '2026-04-20',
-      endDate: '2026-04-22',
-      reason: 'Submitted via form',
-      attachment: null,
-      status: 'pending' as LeaveStatus,
+export const submitLeaveRequest = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    employeeId: z.string(),
+    type: z.string(),
+    startDate: z.string(),
+    endDate: z.string(),
+    reason: z.string().optional(),
+    attachment: z.string().optional(),
+  }))
+  .handler(async ({ data }): Promise<{ success: true; requestId: string }> => {
+    const employee = MOCK_EMPLOYEES.find((e) => e.id === data.employeeId)
+    const requestId = `lv-${Date.now()}`
+    MOCK_LEAVE_REQUESTS.push({
+      id: requestId,
+      employeeId: data.employeeId,
+      employeeName: employee?.name ?? 'Unknown',
+      type: data.type as LeaveType,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      reason: data.reason ?? '',
+      attachment: data.attachment ?? null,
+      status: 'pending',
       approverComment: null,
+    })
+    return { success: true, requestId }
+  })
+
+export const approveLeaveRequest = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    requestId: z.string(),
+    decision: z.enum(['approved', 'rejected']),
+    comment: z.string().optional(),
+  }))
+  .handler(async ({ data }): Promise<{ success: true; updatedStatus: LeaveStatus }> => {
+    const request = MOCK_LEAVE_REQUESTS.find((r) => r.id === data.requestId)
+    if (request) {
+      request.status = data.decision
+      request.approverComment = data.comment ?? null
     }
-  },
-)
+    return { success: true, updatedStatus: data.decision }
+  })
 
-export const approveLeaveRequest = createServerFn({ method: 'POST' }).handler(
-  async (): Promise<{ success: boolean; requestId: string; status: LeaveStatus }> => {
-    return { success: true, requestId: 'lv-001', status: 'approved' }
-  },
-)
+export const getAttendance = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({ date: z.string().optional() }).optional())
+  .handler(async ({ data }): Promise<AttendanceRecord[]> => {
+    const targetDate = data?.date ?? todayStr()
+    // Return mock data for any date — generate records if not today
+    if (targetDate === todayStr()) {
+      return MOCK_ATTENDANCE
+    }
+    // Generate mock historical data for the requested date
+    return MOCK_EMPLOYEES.slice(0, 8).map((emp, i) => ({
+      id: `att-hist-${i}`,
+      employeeId: emp.id,
+      employeeName: emp.name,
+      date: targetDate,
+      clockIn: i < 7 ? `0${7 + (i % 3)}:${i % 2 === 0 ? '00' : '30'}` : null,
+      clockOut: i < 7 ? `${16 + (i % 2)}:${i % 2 === 0 ? '00' : '30'}` : null,
+      hoursWorked: i < 7 ? 8 + (i % 3) * 0.5 : 0,
+      overtime: i < 3 ? (i + 1) * 0.5 : 0,
+      overtimeType: i < 3 ? 'day' as const : null,
+    }))
+  })
 
-export const getAttendance = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<AttendanceRecord[]> => {
-    return MOCK_ATTENDANCE
-  },
-)
-
-export const clockInOut = createServerFn({ method: 'POST' }).handler(
-  async (): Promise<{ success: boolean; employeeId: string; action: 'in' | 'out'; timestamp: string }> => {
+export const clockInOut = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    employeeId: z.string(),
+    action: z.enum(['in', 'out']),
+  }))
+  .handler(async ({ data }): Promise<{ success: true; timestamp: string }> => {
     return {
       success: true,
-      employeeId: 'emp-004',
-      action: 'in',
       timestamp: new Date().toISOString(),
     }
-  },
-)
+  })
+
+export const savePerformanceNotes = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ employeeId: z.string(), notes: z.string() }))
+  .handler(async ({ data }): Promise<{ success: true }> => {
+    return { success: true }
+  })

@@ -10,6 +10,7 @@ import type {
   Driver,
   DeliveryRoute,
   GPSPosition,
+  RouteStop,
   VehicleStatus,
 } from '../../../types/dispatch'
 
@@ -42,11 +43,29 @@ export function DriverSidebar({
   const { t } = useTranslation('dispatch')
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Status priority: problem first, then transit, at_site, loading, delivered, offline
+  const STATUS_PRIORITY: Record<VehicleStatus, number> = {
+    problem: 0,
+    transit: 1,
+    at_site: 2,
+    loading: 3,
+    delivered: 4,
+    offline: 5,
+  }
+
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return drivers
-    const q = searchQuery.toLowerCase()
-    return drivers.filter((d) => d.name.toLowerCase().includes(q))
-  }, [drivers, searchQuery])
+    let result = drivers
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((d) => d.name.toLowerCase().includes(q))
+    }
+    // Sort by live status priority
+    return [...result].sort((a, b) => {
+      const aStatus = positions.get(a.id)?.status ?? 'offline'
+      const bStatus = positions.get(b.id)?.status ?? 'offline'
+      return (STATUS_PRIORITY[aStatus] ?? 5) - (STATUS_PRIORITY[bStatus] ?? 5)
+    })
+  }, [drivers, searchQuery, positions])
 
   return (
     <div
@@ -106,6 +125,35 @@ export function DriverSidebar({
 
 // ─── Driver Row ─────────────────────────────────────────
 
+function estimateETAMinutes(position: GPSPosition | undefined, stop: RouteStop | undefined): number | null {
+  if (!position || !stop) return null
+  // Simple estimate based on straight-line distance and speed
+  const R = 6_371
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const dLat = toRad(stop.lat - position.lat)
+  const dLng = toRad(stop.lng - position.lng)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(position.lat)) * Math.cos(toRad(stop.lat)) * Math.sin(dLng / 2) ** 2
+  const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  // Assume 30 km/h average in Cairo traffic if speed is 0
+  const speedKmh = position.speed > 0 ? position.speed : 30
+  const minutes = Math.round((distKm / speedKmh) * 60)
+  return minutes > 0 ? minutes : 1
+}
+
+function isDriverDelayed(position: GPSPosition | undefined, currentStop: RouteStop | undefined): boolean {
+  if (!position || !currentStop || position.status !== 'transit') return false
+  // Delayed if past the time window end
+  if (!currentStop.timeWindow.end) return false
+  const now = new Date()
+  const [hours, minutes] = currentStop.timeWindow.end.split(':').map(Number)
+  if (hours === undefined || minutes === undefined) return false
+  const windowEnd = new Date()
+  windowEnd.setHours(hours, minutes, 0, 0)
+  return now > windowEnd
+}
+
 function DriverRow({
   driver,
   position,
@@ -124,6 +172,9 @@ function DriverRow({
   const currentStop = route?.stops.find((s) => s.status === 'en_route' || s.status === 'arrived')
   const completedStops = route?.stops.filter((s) => s.status === 'delivered').length ?? 0
   const totalStops = route?.stops.length ?? 0
+  const etaMinutes = estimateETAMinutes(position, currentStop)
+  const delayed = isDriverDelayed(position, currentStop)
+  const isProblem = status === 'problem'
 
   return (
     <button
@@ -132,7 +183,9 @@ function DriverRow({
       className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors ${
         isSelected
           ? 'bg-[#2563EB]/[0.08]'
-          : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
+          : delayed || isProblem
+            ? 'bg-red-50/40 hover:bg-red-50/60 dark:bg-red-900/10 dark:hover:bg-red-900/20'
+            : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
       }`}
     >
       {/* Status dot */}
@@ -160,12 +213,26 @@ function DriverRow({
         )}
       </div>
 
-      {/* ETA or speed */}
-      {currentStop && currentStop.timeWindow.start && (
-        <span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
-          {currentStop.timeWindow.start}
-        </span>
-      )}
+      {/* ETA */}
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        {etaMinutes !== null && currentStop && (
+          <span className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums ${
+            delayed ? 'font-semibold text-red-600 dark:text-red-400' : 'text-black/40 dark:text-white/40'
+          }`}>
+            {etaMinutes} min
+          </span>
+        )}
+        {delayed && (
+          <span className="text-[9px] font-medium uppercase text-red-500">
+            Delayed
+          </span>
+        )}
+        {isProblem && !delayed && (
+          <span className="text-[9px] font-medium uppercase text-red-500">
+            Problem
+          </span>
+        )}
+      </div>
     </button>
   )
 }

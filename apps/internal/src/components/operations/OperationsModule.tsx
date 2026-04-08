@@ -5,14 +5,15 @@ import { OperationsTabStrip } from './OperationsTabStrip'
 import { OperationsShortcuts } from './OperationsShortcuts'
 import { OrderDetailView } from './order-detail/OrderDetailView'
 import { OperationsDashboard } from './dashboard/OperationsDashboard'
+import { OrderListView } from './order-detail/OrderListView'
 
 export function OperationsModule() {
   const activeTab = useOperationsStore((s) => s.activeTab)
   const selectedOrderId = useOperationsStore((s) => s.selectedOrderId)
   const setSelectedOrderId = useOperationsStore((s) => s.setSelectedOrderId)
 
-  // Order detail drill-down from kanban within the operations tab
-  if (selectedOrderId && activeTab === 'operations') {
+  // Order detail drill-down from kanban or order list
+  if (selectedOrderId && (activeTab === 'operations' || activeTab === 'orders')) {
     return (
       <div className="flex flex-col h-full">
         <OperationsShortcuts />
@@ -39,6 +40,7 @@ export function OperationsModule() {
 
   const tabContent: Record<string, React.ReactNode> = {
     operations: <OperationsDashboard />,
+    orders: <OrderListView />,
   }
 
   return (

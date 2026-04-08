@@ -1,13 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
-import {
-  RadioGroup,
-  Radio,
-  Label,
-  Checkbox,
-  Button as AriaButton,
-} from 'react-aria-components'
-import { CreditStatusBanner } from '../shared/CreditStatusBanner'
+import { Checkbox } from 'react-aria-components'
+import { PillGroup, Pill, Button } from '../../ui'
 import type { QuoteFormValues } from './LineItemsTable'
 
 // ─── Payment Term Options ─────────────────────────────────
@@ -40,11 +34,6 @@ export function PaymentTerms({
   const { i18n } = useTranslation('internal')
   const { control } = useFormContext<QuoteFormValues>()
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
-  const fmt = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'EGP',
-    maximumFractionDigits: 0,
-  })
   const fmtCompact = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'EGP',
@@ -60,7 +49,6 @@ export function PaymentTerms({
   const availableCredit = customerCredit?.availableCredit ?? 0
   const creditLimit = customerCredit?.creditLimit ?? 0
   const exceedsCredit = customerCredit !== null && total > availableCredit
-  const lowCredit = customerCredit !== null && creditLimit > 0 && availableCredit / creditLimit < 0.3
 
   const availablePaymentTerms = isNewCustomer
     ? PAYMENT_TERMS.filter((term) => term.id === 'advance_cod')
@@ -68,117 +56,93 @@ export function PaymentTerms({
       ? PAYMENT_TERMS.filter((term) => approvedTerms.includes(term.id))
       : PAYMENT_TERMS
 
+  const usedRatio = creditLimit > 0 ? Math.min(1, (creditLimit - availableCredit) / creditLimit) : 0
+
   return (
-    <div className="space-y-3">
-      {/* Credit warnings -- compact */}
-      {lowCredit && customerCredit && (
-        <CreditStatusBanner
-          creditLimit={customerCredit.creditLimit}
-          currentExposure={customerCredit.currentExposure}
-          availableCredit={customerCredit.availableCredit}
+    <div className="space-y-5">
+      {/* Terms pills + early discount */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Controller
+          control={control}
+          name="paymentTerms"
+          render={({ field }) => (
+            <PillGroup
+              aria-label="Payment terms"
+              value={field.value || (isNewCustomer ? 'advance_cod' : '')}
+              onChange={(val) => field.onChange(val)}
+            >
+              {availablePaymentTerms.map((term) => (
+                <Pill key={term.id} value={term.id}>
+                  {term.label}
+                </Pill>
+              ))}
+            </PillGroup>
+          )}
         />
-      )}
 
-      {isNewCustomer && (
-        <p className="text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
-          New customer — 50% advance + 50% COD only
-        </p>
-      )}
-
-      {exceedsCredit && (
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="font-medium text-red-600 dark:text-red-400">
-            Exceeds credit:
-            <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums">{fmt.format(total)}</span>
-            {' / '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{fmt.format(availableCredit)}</span>
-          </span>
-          <AriaButton
-            className="rounded-md border border-red-300 px-2 py-0.5 text-[10px] font-medium text-red-700 outline-none
-              data-[hovered]:bg-red-50 data-[focus-visible]:ring-2 data-[focus-visible]:ring-red-500/50
-              dark:border-red-700 dark:text-red-300 dark:data-[hovered]:bg-red-900/40"
-            onPress={() => {
-              console.log('Request credit limit increase')
-            }}
-          >
-            Request Increase
-          </AriaButton>
-        </div>
-      )}
-
-      {/* Payment terms -- single row of pills */}
-      <Controller
-        control={control}
-        name="paymentTerms"
-        render={({ field }) => (
-          <RadioGroup
-            aria-label="Payment terms"
-            value={field.value || (isNewCustomer ? 'advance_cod' : '')}
-            onChange={(val) => field.onChange(val)}
-            className="flex flex-wrap gap-1.5"
-          >
-            {availablePaymentTerms.map((term) => (
-              <Radio
-                key={term.id}
-                value={term.id}
-                className="cursor-pointer rounded-full border border-black/[0.08] px-3 py-1 text-[11px] font-medium outline-none transition-all
-                  data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white
-                  data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                  dark:border-white/[0.08] dark:data-[selected]:border-[var(--color-primary)]
-                  dark:data-[hovered]:bg-white/[0.03]"
-              >
-                {term.label}
-              </Radio>
-            ))}
-          </RadioGroup>
-        )}
-      />
-
-      {/* Credit status -- compact inline strip */}
-      {customerCredit && (
-        <p className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
-          Limit {fmtCompact.format(customerCredit.creditLimit)}
-          <span className="mx-1.5 text-black/15 dark:text-white/15">·</span>
-          Used {fmtCompact.format(customerCredit.currentExposure)}
-          <span className="mx-1.5 text-black/15 dark:text-white/15">·</span>
-          <span className="font-medium text-[var(--color-text)]">
-            Available {fmtCompact.format(customerCredit.availableCredit)}
-          </span>
-        </p>
-      )}
-
-      {/* Early payment discount -- small toggle + inline */}
-      <Controller
-        control={control}
-        name="earlyPaymentDiscount"
-        render={({ field }) => (
-          <div className="flex items-center gap-2">
+        <Controller
+          control={control}
+          name="earlyPaymentDiscount"
+          render={({ field }) => (
             <Checkbox
               isSelected={!!field.value}
               onChange={(checked) => field.onChange(checked ? '2/10' : '')}
-              className="group flex h-3.5 w-3.5 shrink-0 cursor-pointer items-center justify-center rounded border border-black/[0.15] outline-none transition-colors
-                data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)]
-                data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                dark:border-white/[0.15] dark:data-[selected]:border-[var(--color-primary)]"
+              className="group flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px] font-medium outline-none transition-all
+                data-[selected]:bg-[var(--color-primary)]/5
+                data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
+                dark:data-[selected]:bg-[var(--color-primary)]/10
+                dark:data-[hovered]:bg-white/[0.03]"
             >
-              <svg
-                viewBox="0 0 14 14"
-                className="hidden h-2.5 w-2.5 text-white group-data-[selected]:block"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 7.5L5.5 10L11 4" />
-              </svg>
+              <span className="text-black/40 group-data-[selected]:text-[var(--color-primary)] dark:text-white/40">
+                2/10 early discount
+              </span>
             </Checkbox>
-            <span className="text-[11px] text-[var(--color-text-muted)]">
-              2% discount if paid within 10 days
+          )}
+        />
+
+        {isNewCustomer && (
+          <>
+            <div className="h-4 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
+            <span className="text-[12px] text-[var(--color-text-muted)]">
+              New customer — COD only
             </span>
-          </div>
+          </>
         )}
-      />
+      </div>
+
+      {/* Credit — pure typography */}
+      {customerCredit && (
+        <div className="flex items-baseline gap-3">
+          <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
+            {fmtCompact.format(customerCredit.availableCredit)}
+          </span>
+          <span className="text-[12px] text-black/40 dark:text-white/40">
+            of {fmtCompact.format(customerCredit.creditLimit)}
+          </span>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40">
+            {Math.round(usedRatio * 100)}% used
+          </span>
+
+          {exceedsCredit && (
+            <>
+              <span className="text-[12px] text-black/40 dark:text-white/40">
+                Exceeds by{' '}
+                <span className="font-[family-name:var(--font-geist-mono)] font-medium tabular-nums text-[var(--color-text)]">
+                  {fmtCompact.format(total - availableCredit)}
+                </span>
+              </span>
+              <Button
+                variant="ghost"
+                onPress={() => {
+                  console.log('Request credit limit increase')
+                }}
+              >
+                Request Increase
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

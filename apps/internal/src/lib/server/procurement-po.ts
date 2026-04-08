@@ -286,6 +286,43 @@ export const updatePOStatus = createServerFn({ method: 'POST' })
     return { success: true }
   })
 
+const receivePOGoodsInput = z.object({
+  poId: z.string(),
+  receivedItems: z.array(z.object({
+    itemId: z.string(),
+    receivedQuantity: z.number().min(0),
+    rejectedQuantity: z.number().min(0),
+  })),
+})
+
+export const receivePOGoods = createServerFn({ method: 'POST' })
+  .inputValidator(receivePOGoodsInput)
+  .handler(async ({ data: input }) => {
+    if (!isSupabaseConfigured()) {
+      // Mock: determine new status based on whether all items are fully received
+      const pos = getMockPOList()
+      const po = pos.find((p) => p.id === input.poId)
+      if (!po) return { success: false, error: 'PO not found', newStatus: 'shipped' as const }
+
+      const allFullyReceived = po.items.every((item) => {
+        const update = input.receivedItems.find((r) => r.itemId === item.id)
+        if (!update) return item.receivedQuantity >= item.quantity
+        const totalReceived = item.receivedQuantity + update.receivedQuantity
+        return totalReceived >= item.quantity
+      })
+
+      return {
+        success: true,
+        newStatus: allFullyReceived ? ('received' as const) : ('partially_received' as const),
+      }
+    }
+
+    // TODO: UPDATE purchase_order_items SET received_quantity, rejected_quantity
+    // TODO: Check if all items fully received → status = 'received', else 'partially_received'
+    // TODO: Log activity
+    return { success: true, newStatus: 'received' as const }
+  })
+
 /**
  * Compute three-way match for a PO (read-only, per Pitfall 5).
  * Tolerance thresholds read from system_settings, not hardcoded.

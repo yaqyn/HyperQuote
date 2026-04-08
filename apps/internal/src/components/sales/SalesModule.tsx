@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from 'react-aria-components'
 import { ArrowLeft } from 'lucide-react'
 import { useSalesStore } from '../../stores/sales'
@@ -19,6 +19,16 @@ export function SalesModule() {
   const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
   const setActiveTab = useSalesStore((s) => s.setActiveTab)
   const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(null)
+
+  // Listen for negotiate events from RFQ inbox
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const quoteId = (e as CustomEvent).detail?.quoteId
+      if (quoteId) setNegotiatingQuoteId(quoteId)
+    }
+    window.addEventListener('sales:negotiate', handler)
+    return () => window.removeEventListener('sales:negotiate', handler)
+  }, [])
 
   // Negotiation overlay
   if (negotiatingQuoteId) {

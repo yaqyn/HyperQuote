@@ -2,6 +2,8 @@ import type { CycleCountResult, ABCClass } from '../../../types/warehouse'
 
 interface CountReviewProps {
   results: CycleCountResult[]
+  onApprove: () => void
+  onRequestSupervisor: () => void
   onBack: () => void
 }
 
@@ -17,11 +19,11 @@ const ABC_THRESHOLD_LABELS: Record<ABCClass, string> = {
  * Variance highlighted: green if match, yellow/red if mismatch.
  * Accept/Recount buttons.
  */
-export function CountReview({ results, onBack }: CountReviewProps) {
+export function CountReview({ results, onApprove, onRequestSupervisor, onBack }: CountReviewProps) {
   const anyNeedsRecount = results.some((r) => r.needsRecount)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 px-6 py-4">
       {/* ─── Header ──────────────────────────────────────── */}
       <div>
         <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Count Review</h2>
@@ -106,10 +108,10 @@ export function CountReview({ results, onBack }: CountReviewProps) {
                 </div>
               </div>
 
-              {/* Threshold result */}
+              {/* Threshold result — clear status indicators */}
               <div
-                className={`mt-3 rounded-lg px-3 py-2 text-xs font-bold ${
-                  result.needsRecount ? 'text-red-700' : 'text-green-700'
+                className={`mt-3 rounded-lg px-4 py-3 text-[14px] font-bold flex items-center gap-3 ${
+                  result.needsRecount ? 'text-red-700' : result.variance === 0 ? 'text-green-700' : 'text-green-700'
                 }`}
                 style={{
                   background: result.needsRecount
@@ -117,9 +119,14 @@ export function CountReview({ results, onBack }: CountReviewProps) {
                     : 'rgba(22, 163, 74, 0.04)',
                 }}
               >
+                <span className="text-[18px]">
+                  {result.needsRecount ? '\u2717' : result.variance === 0 ? '\u2713' : '\u2713'}
+                </span>
                 {result.needsRecount
-                  ? `${absVariancePercent.toFixed(1)}% > ${ABC_THRESHOLD_LABELS[result.abcClass]} -- recount`
-                  : `${absVariancePercent.toFixed(1)}% <= ${ABC_THRESHOLD_LABELS[result.abcClass]} -- approved`
+                  ? `${absVariancePercent.toFixed(1)}% exceeds ${ABC_THRESHOLD_LABELS[result.abcClass]} — needs recount`
+                  : result.variance === 0
+                    ? 'Exact match'
+                    : `${absVariancePercent.toFixed(1)}% within ${ABC_THRESHOLD_LABELS[result.abcClass]} — approved`
                 }
               </div>
             </div>
@@ -127,14 +134,42 @@ export function CountReview({ results, onBack }: CountReviewProps) {
         })}
       </div>
 
-      {/* ─── Back ────────────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="min-h-[48px] rounded-xl border border-[var(--color-border)] text-base font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors"
-      >
-        Back to Count List
-      </button>
+      {/* ─── Actions ──────────────────────────────────────── */}
+      {anyNeedsRecount ? (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex-1 min-h-[56px] rounded-xl border border-[var(--color-border)] text-base font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onRequestSupervisor}
+            className="flex-1 min-h-[56px] rounded-xl bg-[#2563EB] text-white text-base font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.98]"
+          >
+            Submit for Review
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex-1 min-h-[56px] rounded-xl border border-[var(--color-border)] text-base font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onApprove}
+            className="flex-1 min-h-[56px] rounded-xl bg-[#2563EB] text-white text-base font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.98]"
+          >
+            Approve
+          </button>
+        </div>
+      )}
     </div>
   )
 }

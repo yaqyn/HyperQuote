@@ -1,78 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addInternalNote } from '../../../lib/server/sales-activity'
+import { getNegotiationHistory } from '../../../lib/server/sales-pipeline'
+import { Button } from '../../ui'
 
 // ─── Types ──────────────────────────────────────────────────
 
 interface NegotiationEvent {
   id: string
-  type: 'quote_sent' | 'counter_offer' | 'internal_note' | 'system_event'
+  type: string
   description: string
   timestamp: string
   isInternal: boolean
-  metadata?: {
-    method?: string
-    proposedPrices?: { item: string; price: number }[]
-    viewCount?: number
-  }
-}
-
-// ─── Mock Data ──────────────────────────────────────────────
-
-function getMockEvents(): NegotiationEvent[] {
-  return [
-    {
-      id: 'ev-1',
-      type: 'quote_sent',
-      description: 'Quote QT-2026-00523 v1 sent via portal and email',
-      timestamp: new Date(Date.now() - 7 * 86_400_000).toISOString(),
-      isInternal: false,
-      metadata: { method: 'portal + email' },
-    },
-    {
-      id: 'ev-2',
-      type: 'system_event',
-      description: 'Quote viewed 3 times by customer',
-      timestamp: new Date(Date.now() - 6 * 86_400_000).toISOString(),
-      isInternal: false,
-      metadata: { viewCount: 3 },
-    },
-    {
-      id: 'ev-3',
-      type: 'counter_offer',
-      description: 'Customer counter-offer received: Steel Rebar at EGP 3,550/bundle, Cement at EGP 54/bag',
-      timestamp: new Date(Date.now() - 5 * 86_400_000).toISOString(),
-      isInternal: false,
-      metadata: {
-        proposedPrices: [
-          { item: 'Steel Rebar 16mm', price: 3_550 },
-          { item: 'Portland Cement', price: 54 },
-        ],
-      },
-    },
-    {
-      id: 'ev-4',
-      type: 'internal_note',
-      description: 'Customer is comparing with competitor quote from Egyptian Steel. Their price is ~EGP 3,480 for rebar. We can match at EGP 3,600 with volume commitment.',
-      timestamp: new Date(Date.now() - 4.5 * 86_400_000).toISOString(),
-      isInternal: true,
-    },
-    {
-      id: 'ev-5',
-      type: 'quote_sent',
-      description: 'Revised quote v2 sent via portal',
-      timestamp: new Date(Date.now() - 4 * 86_400_000).toISOString(),
-      isInternal: false,
-      metadata: { method: 'portal' },
-    },
-    {
-      id: 'ev-6',
-      type: 'system_event',
-      description: 'Quote expiring in 2 days',
-      timestamp: new Date(Date.now() - 1 * 86_400_000).toISOString(),
-      isInternal: false,
-    },
-  ]
+  actor?: string
+  amount?: number | null
+  metadata?: Record<string, unknown> | null
 }
 
 // ─── Component ──────────────────────────────────────────────
@@ -83,9 +25,25 @@ interface NegotiationThreadProps {
 
 export function NegotiationThread({ quoteId }: NegotiationThreadProps) {
   const { t } = useTranslation('internal')
-  const [events, setEvents] = useState(getMockEvents)
+  const [events, setEvents] = useState<NegotiationEvent[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [noteText, setNoteText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    getNegotiationHistory({ data: { quoteId } })
+      .then((raw: unknown) => {
+        if (cancelled) return
+        const result = raw as { events: NegotiationEvent[] }
+        setEvents(result.events)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [quoteId])
 
   async function handleAddNote() {
     if (!noteText.trim() || isSubmitting) return
@@ -96,11 +54,11 @@ export function NegotiationThread({ quoteId }: NegotiationThreadProps) {
         data: { entityType: 'quote', entityId: quoteId, note: noteText },
       })
 
-      setEvents((prev) => [
+      setEvents((prev: NegotiationEvent[]) => [
         ...prev,
         {
           id: result.noteId,
-          type: 'internal_note' as const,
+          type: 'internal_note',
           description: noteText,
           timestamp: new Date().toISOString(),
           isInternal: true,
@@ -120,9 +78,17 @@ export function NegotiationThread({ quoteId }: NegotiationThreadProps) {
         </h3>
       </div>
 
-      {/* Chat-bubble style messages */}
+      {/* Chat-bubble style messages — reverse chronological, latest at top */}
       <div className="max-h-80 space-y-3 overflow-y-auto px-5 py-4">
-        {events.map((event) => {
+        {isLoading && (
+          <div className="flex justify-center py-6">
+            <svg className="size-5 animate-spin text-[var(--color-text-subtle)]" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
+        {[...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((event: NegotiationEvent) => {
           // Internal notes = our side (end-aligned), external = customer side (start-aligned)
           const isOurs = event.isInternal || event.type === 'quote_sent'
 
@@ -182,14 +148,14 @@ export function NegotiationThread({ quoteId }: NegotiationThreadProps) {
           placeholder={t('sales.negotiation.addNotePlaceholder', 'Add internal note...')}
           className="flex-1 rounded-full border border-black/[0.06] bg-transparent px-4 py-2 text-[13px] text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] dark:border-white/[0.06]"
         />
-        <button
-          type="button"
-          onClick={handleAddNote}
-          disabled={!noteText.trim() || isSubmitting}
-          className="shrink-0 rounded-full bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90 disabled:opacity-40"
+        <Button
+          variant="primary"
+          onPress={handleAddNote}
+          isDisabled={!noteText.trim() || isSubmitting}
+          className="shrink-0"
         >
           {t('sales.negotiation.addNote', 'Send')}
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -47,20 +47,57 @@ export const updateCreditLimit = createServerFn({ method: 'POST' })
   .inputValidator(updateCreditLimitInput)
   .handler(async ({ data: input }) => {
     const profile = getMockCreditProfile(input.customerId)
-    const increasePercent = ((input.newLimit - profile.creditLimit) / profile.creditLimit) * 100
+    const changeAmount = input.newLimit - profile.creditLimit
+    const increasePercent = profile.creditLimit > 0
+      ? ((input.newLimit - profile.creditLimit) / profile.creditLimit) * 100
+      : 100
 
     // Approval chain per spec:
     // <20%: Finance Manager
     // 20-50%: Finance Manager + CFO
     // >50% or >EGP 50M: Finance Manager + CFO + CEO
+    // Decrease: Finance Manager only
     let approvalRequired: string | null = null
-    if (increasePercent > 50 || input.newLimit > 50_000_000) {
+    let approvalChain: string[] = []
+
+    if (changeAmount <= 0) {
+      approvalRequired = 'Finance Manager'
+      approvalChain = ['Finance Manager']
+    } else if (increasePercent > 50 || input.newLimit > 50_000_000) {
       approvalRequired = 'Finance Manager + CFO + CEO'
+      approvalChain = ['Finance Manager', 'CFO', 'CEO']
     } else if (increasePercent > 20) {
       approvalRequired = 'Finance Manager + CFO'
-    } else if (increasePercent > 0) {
+      approvalChain = ['Finance Manager', 'CFO']
+    } else {
       approvalRequired = 'Finance Manager'
+      approvalChain = ['Finance Manager']
     }
 
-    return { success: true, approvalRequired }
+    return {
+      success: true,
+      previousLimit: profile.creditLimit,
+      newLimit: input.newLimit,
+      changeAmount,
+      changePercent: Math.round(increasePercent * 100) / 100,
+      approvalRequired,
+      approvalChain,
+      pendingApproval: approvalChain.length > 1,
+    }
+  })
+
+export const toggleCreditHold = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    customerId: z.string(),
+    action: z.enum(['hold', 'release']),
+    reason: z.string(),
+  }))
+  .handler(async ({ data }) => {
+    return {
+      success: true,
+      customerId: data.customerId,
+      isOnHold: data.action === 'hold',
+      reason: data.reason,
+      timestamp: new Date().toISOString(),
+    }
   })

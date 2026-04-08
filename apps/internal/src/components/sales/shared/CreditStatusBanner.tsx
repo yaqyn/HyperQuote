@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
+import { Button } from '../../ui'
 import { AnimatePresence, motion } from 'motion/react'
 
 interface CreditStatusBannerProps {
@@ -97,9 +97,8 @@ export function CreditStatusBanner({
                 </div>
               </div>
               <Button
-                className="shrink-0 rounded-full border border-black/[0.06] px-3 py-1.5 text-[11px] font-medium text-[var(--color-text-muted)] outline-none transition-colors
-                  data-[hovered]:bg-black/[0.04] dark:border-white/[0.06] dark:data-[hovered]:bg-white/[0.06]
-                  data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+                variant="outline"
+                className="shrink-0"
                 onPress={() => {
                   // Placeholder: will be wired to credit limit increase request flow
                   console.log('Request credit limit increase', { creditLimit, currentExposure, availableCredit })

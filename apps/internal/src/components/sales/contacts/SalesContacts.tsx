@@ -42,7 +42,8 @@ export function SalesContacts() {
           (c.email && fuzzyMatch(c.email, search)),
       )
     }
-    return result
+    // Sort by most recent activity (createdAt as proxy), not alphabetical
+    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   }, [customers, search, tierFilter])
 
   const tierCounts = useMemo(() => {
@@ -147,14 +148,29 @@ export function SalesContacts() {
                   </div>
                 </div>
 
-                {/* Right side — value + exposure */}
+                {/* Right side — credit limit, exposure, utilization */}
                 <div className="shrink-0 text-right">
                   <p className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text)]">
                     {formatValue(customer.creditLimit)}
                   </p>
-                  <p className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-                    {formatValue(customer.currentExposure)} used
-                  </p>
+                  <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                    {/* Credit utilization bar */}
+                    <div className="w-12 h-1 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          customer.creditLimit > 0 && (customer.currentExposure / customer.creditLimit) > 0.8
+                            ? 'bg-red-500'
+                            : customer.creditLimit > 0 && (customer.currentExposure / customer.creditLimit) > 0.6
+                              ? 'bg-yellow-500'
+                              : 'bg-[var(--color-primary)]'
+                        }`}
+                        style={{ width: `${customer.creditLimit > 0 ? Math.min(100, (customer.currentExposure / customer.creditLimit) * 100) : 0}%` }}
+                      />
+                    </div>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+                      {formatValue(customer.currentExposure)} used
+                    </span>
+                  </div>
                 </div>
               </button>
             ))}

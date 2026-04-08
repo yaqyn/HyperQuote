@@ -21,7 +21,7 @@ const DEFAULT_FILTERS: ReportFilter = {
 
 export const useReportsStore = create<ReportsStore>()(
   (set) => ({
-    activeTab: 'sales',
+    activeTab: 'overview',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     filters: DEFAULT_FILTERS,

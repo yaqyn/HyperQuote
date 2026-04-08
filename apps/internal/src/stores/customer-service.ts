@@ -23,6 +23,14 @@ interface CustomerServiceStore {
   // Knowledge Base panel (inline within conversations)
   kbPanelOpen: boolean
   setKbPanelOpen: (open: boolean) => void
+
+  // Create ticket dialog
+  createTicketOpen: boolean
+  setCreateTicketOpen: (open: boolean) => void
+
+  // Assign dialog
+  assignDialogOpen: boolean
+  setAssignDialogOpen: (open: boolean) => void
 }
 
 export const useCustomerServiceStore = create<CustomerServiceStore>()(
@@ -48,6 +56,14 @@ export const useCustomerServiceStore = create<CustomerServiceStore>()(
     // Knowledge Base panel
     kbPanelOpen: false,
     setKbPanelOpen: (open) => set({ kbPanelOpen: open }),
+
+    // Create ticket dialog
+    createTicketOpen: false,
+    setCreateTicketOpen: (open) => set({ createTicketOpen: open }),
+
+    // Assign dialog
+    assignDialogOpen: false,
+    setAssignDialogOpen: (open) => set({ assignDialogOpen: open }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

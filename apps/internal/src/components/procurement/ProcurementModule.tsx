@@ -7,6 +7,7 @@ import { InquiryBuilder } from './inquiry/InquiryBuilder'
 import { ResponseTracker } from './inquiry/ResponseTracker'
 import { PriceComparisonMatrix } from './comparison/PriceComparisonMatrix'
 import { POList } from './po/POList'
+import { PODetail } from './po/PODetail'
 import { SupplierDirectory } from './supplier/SupplierDirectory'
 import { SupplierScorecard } from './supplier/SupplierScorecard'
 
@@ -15,6 +16,8 @@ export function ProcurementModule() {
   const selectedInquiryId = useProcurementStore((s) => s.selectedInquiryId)
   const selectedSupplierId = useProcurementStore((s) => s.selectedSupplierId)
   const setSelectedSupplierId = useProcurementStore((s) => s.setSelectedSupplierId)
+  const selectedPOId = useProcurementStore((s) => s.selectedPOId)
+  const setSelectedPOId = useProcurementStore((s) => s.setSelectedPOId)
   const sourcingView = useProcurementStore((s) => s.sourcingView)
   const setSourcingView = useProcurementStore((s) => s.setSourcingView)
 
@@ -28,6 +31,21 @@ export function ProcurementModule() {
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
           <ResponseTracker inquiryId={selectedInquiryId} />
+        </div>
+      </div>
+    )
+  }
+
+  // PO tab: detail drill-down
+  if (selectedPOId && activeTab === 'po-management') {
+    return (
+      <div className="flex flex-col h-full">
+        <ProcurementShortcuts />
+        <div className="shrink-0 pt-1 pb-2">
+          <ProcurementTabStrip />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+          <PODetail poId={selectedPOId} onBack={() => setSelectedPOId(null)} />
         </div>
       </div>
     )

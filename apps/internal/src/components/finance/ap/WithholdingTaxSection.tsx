@@ -102,7 +102,7 @@ export function WithholdingTaxSection() {
         </div>
       </div>
 
-      {/* Three key metrics — horizontal, dense */}
+      {/* Three key metrics + Form 41 deadline — horizontal, dense */}
       <div className="flex items-start gap-8 mb-5 pb-5 border-b border-black/[0.04] dark:border-white/[0.04]">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-1">
@@ -127,6 +127,23 @@ export function WithholdingTaxSection() {
             })}
           </span>
         </div>
+        {/* Form 41 deadline — prominent countdown */}
+        {(() => {
+          const quarterEndMonth = currentQuarter * 3
+          const quarterEnd = new Date(currentYear, quarterEndMonth, 0)
+          const daysUntilDeadline = Math.max(0, Math.ceil((quarterEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+          const isUrgent = daysUntilDeadline <= 14
+          return (
+            <div className={`rounded-md px-3 py-2 ${isUrgent ? 'bg-red-500/[0.05] border border-red-500/10' : 'bg-black/[0.02] dark:bg-white/[0.02]'}`}>
+              <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-1">
+                {t('ap.form41Deadline', 'Form 41 Deadline')}
+              </div>
+              <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-black dark:text-white'}`}>
+                {t('ap.dueInDays', 'Due in {{days}} days', { days: daysUntilDeadline })}
+              </span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Per-supplier breakdown — minimal table */}

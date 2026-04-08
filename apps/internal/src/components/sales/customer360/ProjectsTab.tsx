@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
+import { Button } from '../../ui'
 
 interface ProjectsTabProps {
   customerId: string
@@ -13,6 +14,12 @@ const STAGE_COLORS: Record<string, string> = {
   structure: '#22c55e',
   finishing: 'var(--color-text-muted)',
 }
+
+const CROSS_SELL_SUGGESTIONS = [
+  { product: 'Waterproofing Membrane', reason: 'Required for foundation phase', confidence: 85 },
+  { product: 'Structural Steel Beams', reason: 'Upcoming structure phase', confidence: 72 },
+  { product: 'Ready-Mix Concrete C35', reason: 'High demand for this project type', confidence: 90 },
+]
 
 export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
   const { t } = useTranslation('internal')
@@ -36,7 +43,7 @@ export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-8">
       {/* Timeline-style vertical list */}
       <div className="relative">
         {/* Vertical timeline line */}
@@ -79,15 +86,45 @@ export function ProjectsTab({ customerId, enabled }: ProjectsTabProps) {
                       </span>
                     ))}
                   </div>
-
-                  {/* AI Cross-sell placeholder */}
-                  <p className="text-[11px] text-black/20 dark:text-white/20 italic mt-2">
-                    {t('sales.customer360.projects.aiCrossSell')}
-                  </p>
                 </div>
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* Cross-sell suggestions */}
+      <div>
+        <p className="text-[11px] text-black/35 dark:text-white/35 mb-3 uppercase tracking-wider font-medium">
+          {t('sales.customer360.projects.crossSellTitle')}
+        </p>
+        <div className="space-y-2">
+          {CROSS_SELL_SUGGESTIONS.map((suggestion) => (
+            <div
+              key={suggestion.product}
+              className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-[var(--color-text)] dark:text-white">
+                  {suggestion.product}
+                </p>
+                <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5">
+                  {suggestion.reason}
+                </p>
+              </div>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-[#2563EB] font-medium shrink-0">
+                {suggestion.confidence}%
+              </span>
+              <Button
+                variant="subtle"
+                onPress={() => {
+                  // TODO: Add product to new quote draft
+                }}
+              >
+                {t('sales.customer360.projects.addToQuote')}
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
     </div>

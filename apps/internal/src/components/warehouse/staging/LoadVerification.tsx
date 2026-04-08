@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay, TextField, Label, Input } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { GatedStep } from './GatedStep'
@@ -8,7 +9,7 @@ import { SignaturePad } from '../shared/SignaturePad'
 import { PhotoCapture } from '../shared/PhotoCapture'
 import { LargeNumberInput } from '../shared/LargeNumberInput'
 import { useWarehouseStore } from '../../../stores/warehouse'
-import { loadVerification } from '../../../lib/server/warehouse-staging'
+import { loadVerification, handoffToDispatch } from '../../../lib/server/warehouse-staging'
 import type { LoadVerificationStep, StagingItem } from '../../../types/warehouse'
 
 // ─── Configurable Tolerance ──────────────────────────────────
@@ -63,6 +64,7 @@ export function LoadVerification({
   onBack,
 }: LoadVerificationProps) {
   const { activeWorkflow, setActiveWorkflow, clearWorkflow } = useWarehouseStore()
+  const queryClient = useQueryClient()
 
   const persistedStep = activeWorkflow?.type === 'load-verification'
     ? (activeWorkflow.step as number)
@@ -77,7 +79,10 @@ export function LoadVerification({
   const [driverSignature, setDriverSignature] = useState<string | null>(null)
   const [loaderSignature, setLoaderSignature] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isHandingOff, setIsHandingOff] = useState(false)
   const [clearanceResult, setClearanceResult] = useState<'granted' | 'blocked' | null>(null)
+  const [clearanceId, setClearanceId] = useState<string | null>(null)
+  const [serverFailures, setServerFailures] = useState<string[]>([])
 
   const { control, setValue, getValues } = useForm<VerificationFormValues>({
     defaultValues: {
@@ -155,6 +160,7 @@ export function LoadVerification({
   // ─── Submit ──────────────────────────────────────────────
   const handleGateClearance = useCallback(async () => {
     setIsSubmitting(true)
+    setServerFailures([])
     try {
       const result = await loadVerification({
         data: {
@@ -170,17 +176,34 @@ export function LoadVerification({
           loaderSignature: loaderSignature ?? '',
         },
       })
-      if (result.clearance) {
+      if (result.clearance && result.clearanceId) {
         setClearanceResult('granted')
+        setClearanceId(result.clearanceId)
         clearWorkflow()
-        setTimeout(() => onComplete(), 2000)
       } else {
         setClearanceResult('blocked')
+        setServerFailures(result.failures ?? [])
       }
     } finally {
       setIsSubmitting(false)
     }
-  }, [routeId, items, scannedItemIds, actualWeightKg, photos, driverSignature, loaderSignature, clearWorkflow, onComplete])
+  }, [routeId, items, scannedItemIds, actualWeightKg, photos, driverSignature, loaderSignature, clearWorkflow])
+
+  // ─── Handoff to Dispatch ────────────────────────────────
+  const handleHandoff = useCallback(async () => {
+    if (!clearanceId) return
+    setIsHandingOff(true)
+    try {
+      await handoffToDispatch({
+        data: { routeId, clearanceId },
+      })
+      await queryClient.invalidateQueries({ queryKey: ['staging-plan'] })
+      await queryClient.invalidateQueries({ queryKey: ['pick-queue'] })
+      onComplete()
+    } finally {
+      setIsHandingOff(false)
+    }
+  }, [routeId, clearanceId, queryClient, onComplete])
 
   const handleManagerOverride = useCallback(() => {
     const creds = getValues('managerCredentials')
@@ -190,7 +213,7 @@ export function LoadVerification({
     }
   }, [getValues, setValue])
 
-  // ─── Success State ───────────────────────────────────────
+  // ─── Success State — Clearance Granted ───────────────────
   if (clearanceResult === 'granted') {
     return (
       <motion.div
@@ -204,44 +227,96 @@ export function LoadVerification({
             <path d="M14 24L22 32L34 16" stroke="#16a34a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Gate Clearance Granted</h2>
-        <p className="text-sm text-[var(--color-text-secondary)]">BOL will be generated</p>
+        <h2 className="text-[20px] font-bold text-[var(--color-text-primary)]">Clearance Granted — Ready for Dispatch</h2>
+        <p className="text-[14px] text-[var(--color-text-secondary)]">BOL will be generated</p>
+        {clearanceId && (
+          <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-secondary)]">
+            {clearanceId}
+          </p>
+        )}
+        <Button
+          onPress={handleHandoff}
+          isDisabled={isHandingOff}
+          className="mt-6 h-[88px] min-h-[48px] w-full max-w-md rounded-2xl bg-[#2563EB] text-[20px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.97] cursor-pointer shadow-lg shadow-[#2563EB]/20"
+        >
+          {isHandingOff ? 'Handing off...' : 'Hand Off to Dispatch'}
+        </Button>
       </motion.div>
+    )
+  }
+
+  // ─── Blocked State — Server-side failures ─────────────────
+  if (clearanceResult === 'blocked' && serverFailures.length > 0) {
+    return (
+      <div className="flex flex-col gap-5 py-12">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'rgba(239, 68, 68, 0.08)' }}>
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M10 10L22 22M22 10L10 22" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <h2 className="text-[18px] font-bold text-[var(--color-text-primary)]">Clearance Denied</h2>
+        </div>
+        <div className="rounded-xl border border-red-200 px-6 py-5" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
+          <ul className="flex flex-col gap-2">
+            {serverFailures.map((failure, i) => (
+              <li key={i} className="text-[14px] text-red-600">{failure}</li>
+            ))}
+          </ul>
+        </div>
+        <Button
+          onPress={() => {
+            setClearanceResult(null)
+            setServerFailures([])
+          }}
+          className="h-14 min-h-[48px] w-full rounded-xl border-2 border-[var(--color-border)] text-[15px] font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors cursor-pointer"
+        >
+          Review and Retry
+        </Button>
+      </div>
     )
   }
 
   const allStepsComplete = currentStepIndex === STEPS.length - 1 && canAdvanceForStep(STEPS.length - 1)
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6 px-6 py-4">
       {/* ─── Header ──────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
         <Button
           onPress={onBack}
-          className="text-sm font-semibold text-[#2563EB] hover:underline cursor-pointer min-h-[48px] flex items-center"
+          className="text-[15px] font-bold text-[#2563EB] hover:bg-[#2563EB]/5 cursor-pointer min-h-[48px] px-4 py-3 rounded-xl flex items-center"
         >
           Back
         </Button>
-        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+        <h2 className="text-[18px] font-bold text-[var(--color-text-primary)]">
           Load Verification
         </h2>
         <div className="w-12" />
       </div>
 
-      {/* ─── Step progress strip ─────────────────────────── */}
-      <div className="flex items-center gap-1">
-        {STEPS.map((step, i) => (
-          <div
-            key={step.key}
-            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-              i < currentStepIndex
-                ? 'bg-green-500'
-                : i === currentStepIndex
-                  ? 'bg-[#2563EB]'
-                  : 'bg-[var(--color-border)]'
-            }`}
-          />
-        ))}
+      {/* ─── Step progress strip with gate indicators ────── */}
+      <div className="flex items-center gap-2">
+        {STEPS.map((step, i) => {
+          const isComplete = i < currentStepIndex
+          const isCurrent = i === currentStepIndex
+          return (
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5">
+              <div
+                className={`h-2 w-full rounded-full transition-all duration-500 ${
+                  isComplete
+                    ? 'bg-green-500'
+                    : isCurrent
+                      ? 'bg-[#2563EB]'
+                      : 'bg-[var(--color-border)]'
+                }`}
+              />
+              <span className={`text-[11px] font-bold ${isComplete ? 'text-green-600' : isCurrent ? 'text-[#2563EB]' : 'text-[var(--color-text-secondary)]'}`}>
+                {isComplete ? '\u2713' : isCurrent ? '\u25CF' : '\u25CB'} {step.title}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ─── Steps ───────────────────────────────────────── */}
@@ -311,32 +386,32 @@ export function LoadVerification({
             </div>
 
             {/* Checklist — verified items muted, remaining bold */}
-            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
               {items.map((item) => {
                 const isScanned = scannedItemIds.has(item.id)
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-3 min-h-[48px] transition-all ${
+                    className={`flex items-center gap-4 rounded-xl px-4 py-4 min-h-[56px] transition-all ${
                       isScanned ? 'opacity-40' : ''
                     }`}
                   >
                     <div
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                         isScanned ? 'bg-green-500 text-white' : 'border-2 border-[var(--color-border)]'
                       }`}
                     >
                       {isScanned && (
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
                           <path d="M2 5.5L4 7.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </div>
-                    <span className={`flex-1 text-sm ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
+                    <span className={`flex-1 text-[15px] ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
                       {item.name}
                     </span>
                     {!isScanned && (
-                      <div className="w-44">
+                      <div className="w-48">
                         <ScanInput
                           label=""
                           expectedValue={item.barcode}
@@ -367,22 +442,22 @@ export function LoadVerification({
           <div className="flex flex-col gap-5">
             <div className="grid grid-cols-3 gap-6">
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Expected</span>
-                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold text-[var(--color-text-primary)] mt-0.5">
+                <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Expected</span>
+                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold text-[var(--color-text-primary)] mt-1">
                   {expectedWeightKg.toLocaleString()}
-                  <span className="text-xs font-medium text-[var(--color-text-secondary)] ms-1">kg</span>
+                  <span className="text-[13px] font-medium text-[var(--color-text-secondary)] ms-1">kg</span>
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Actual</span>
-                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold mt-0.5 ${weightColor}`}>
+                <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Actual</span>
+                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold mt-1 ${weightColor}`}>
                   {actualWeightKg ? `${actualWeightKg.toLocaleString()}` : '--'}
-                  {actualWeightKg && <span className="text-xs font-medium ms-1">kg</span>}
+                  {actualWeightKg && <span className="text-[13px] font-medium ms-1">kg</span>}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Variance</span>
-                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xl font-bold mt-0.5 ${weightColor}`}>
+                <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Variance</span>
+                <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold mt-1 ${weightColor}`}>
                   {actualWeightKg ? `${weightVariancePercent.toFixed(1)}%` : '--'}
                 </p>
               </div>
@@ -398,7 +473,7 @@ export function LoadVerification({
               step={10}
             />
 
-            <p className="text-[10px] font-medium text-[var(--color-text-secondary)]">
+            <p className="text-[13px] font-medium text-[var(--color-text-secondary)]">
               {'<'}<span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{TOLERANCE_CONFIG.green}%</span> approved
               {' / '}
               <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{TOLERANCE_CONFIG.green}-{TOLERANCE_CONFIG.yellow}%</span> warning
@@ -450,18 +525,18 @@ export function LoadVerification({
           {isBlocked ? (
             <div className="flex flex-col gap-3">
               {/* BLOCKED */}
-              <div className="rounded-xl border border-red-200 p-5" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
-                <h3 className="text-sm font-bold text-red-700 mb-2">BLOCKED</h3>
-                <ul className="flex flex-col gap-1">
+              <div className="rounded-xl border border-red-200 px-6 py-5" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
+                <h3 className="text-[15px] font-bold text-red-700 mb-3">BLOCKED</h3>
+                <ul className="flex flex-col gap-2">
                   {blockReasons.map((reason, i) => (
-                    <li key={i} className="text-sm text-red-600">{reason}</li>
+                    <li key={i} className="text-[14px] text-red-600">{reason}</li>
                   ))}
                 </ul>
               </div>
 
               {/* Manager Override */}
               <DialogTrigger>
-                <Button className="h-14 min-h-[48px] w-full rounded-xl border border-amber-300 text-sm font-bold text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer">
+                <Button className="h-14 min-h-[48px] w-full rounded-xl border border-amber-300 text-[15px] font-bold text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer">
                   Manager Override
                 </Button>
                 <ModalOverlay isDismissable={false} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -498,7 +573,7 @@ export function LoadVerification({
             <Button
               onPress={handleGateClearance}
               isDisabled={isSubmitting}
-              className="h-16 min-h-[48px] w-full rounded-xl bg-[#2563EB] text-base font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.98] cursor-pointer"
+              className="h-16 min-h-[48px] w-full rounded-xl bg-[#2563EB] text-[16px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.98] cursor-pointer"
             >
               {isSubmitting ? 'Processing...' : 'Generate BOL'}
             </Button>

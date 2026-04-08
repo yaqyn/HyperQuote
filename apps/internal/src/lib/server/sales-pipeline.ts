@@ -135,18 +135,22 @@ export const moveDealStage = createServerFn({ method: 'POST' })
 
 const markAsWonInput = z.object({
   quoteId: z.string(),
+  customerPONumber: z.string().optional(),
 })
 
 export const markAsWon = createServerFn({ method: 'POST' })
   .inputValidator(markAsWonInput)
   .handler(async ({ data: _input }) => {
+    const orderId = `ord-${Date.now()}`
+    const orderNumber = `ORD-2026-${String(Date.now()).slice(-5)}`
+
     if (!isSupabaseConfigured()) {
-      return { orderId: `ord-${Date.now()}` }
+      return { success: true, orderId, orderNumber }
     }
 
     // TODO: Update quotes.status to 'accepted' via validate_state_transition
     // This triggers on_quote_accepted() which creates the order automatically
-    return { orderId: `ord-${Date.now()}` }
+    return { success: true, orderId, orderNumber }
   })
 
 const markAsLostInput = z.object({
@@ -187,7 +191,7 @@ export const convertQuoteToOrder = createServerFn({ method: 'POST' })
       orderNumber,
       quoteId: input.quoteId,
       customerPoNumber: input.poNumber ?? null,
-      status: 'confirmed' as const,
+      status: 'confirmed',
       createdAt: now.toISOString(),
 
       // Auto-generated Purchase Orders (one per supplier)
@@ -249,4 +253,94 @@ export const convertQuoteToOrder = createServerFn({ method: 'POST' })
 
     // TODO: Full downstream creation cascade via Supabase
     return result
+  })
+
+// ─── Negotiation History ───────────────────────────────────
+
+const getNegotiationHistoryInput = z.object({
+  quoteId: z.string(),
+})
+
+interface NegotiationEvent {
+  id: string
+  type: string
+  timestamp: string
+  actor: string
+  description: string
+  amount: number | null
+  isInternal: boolean
+  metadata: Record<string, unknown> | null
+}
+
+function getMockNegotiationEvents(): NegotiationEvent[] {
+  return [
+    {
+      id: '1',
+      type: 'quote_sent',
+      timestamp: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+      actor: 'Mariam Farouk',
+      description: 'Quote QT-2026-00042 sent to customer',
+      amount: 11_810_000,
+      isInternal: false,
+      metadata: { method: 'portal + email' },
+    },
+    {
+      id: '2',
+      type: 'customer_viewed',
+      timestamp: new Date(Date.now() - 4 * 86_400_000).toISOString(),
+      actor: 'System',
+      description: 'Customer opened quote via portal',
+      amount: null,
+      isInternal: false,
+      metadata: { viewCount: 3 },
+    },
+    {
+      id: '3',
+      type: 'counter_offer',
+      timestamp: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+      actor: 'Al-Nour Construction',
+      description: 'Counter-offer received: 8% discount requested',
+      amount: 10_865_200,
+      isInternal: false,
+      metadata: {
+        proposedPrices: [
+          { item: 'Steel Rebar 16mm', price: 3_550 },
+          { item: 'Portland Cement', price: 54 },
+        ],
+      },
+    },
+    {
+      id: '4',
+      type: 'internal_note',
+      timestamp: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      actor: 'Ahmed Hassan',
+      description: 'Discussed with VP Sales — can go to 5% max',
+      amount: null,
+      isInternal: true,
+      metadata: null,
+    },
+    {
+      id: '5',
+      type: 'revised_quote',
+      timestamp: new Date(Date.now() - 1 * 86_400_000).toISOString(),
+      actor: 'Mariam Farouk',
+      description: 'Revised quote sent with 5% discount',
+      amount: 11_219_500,
+      isInternal: false,
+      metadata: { method: 'portal' },
+    },
+  ]
+}
+
+export const getNegotiationHistory = createServerFn({ method: 'POST' })
+  .inputValidator(getNegotiationHistoryInput)
+  .handler(async ({ data: _input }) => {
+    const events = getMockNegotiationEvents()
+
+    if (!isSupabaseConfigured()) {
+      return { events }
+    }
+
+    // TODO: Fetch from activity_log + quote_versions joined
+    return { events: [] as typeof events }
   })

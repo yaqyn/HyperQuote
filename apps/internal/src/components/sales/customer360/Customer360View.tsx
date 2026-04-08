@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
 import { AnimatePresence, motion } from 'motion/react'
+import { ActiveLine } from '../../ui'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
 import { CustomerHeader } from './CustomerHeader'
 import { OverviewTab } from './OverviewTab'
@@ -17,10 +18,10 @@ import { NotesTab } from './NotesTab'
 
 const TAB_KEYS = [
   'overview',
-  'contacts',
   'quotes',
   'orders',
   'financials',
+  'contacts',
   'projects',
   'communications',
   'documents',
@@ -92,11 +93,8 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
                 data-[hovered]:bg-black/[0.02] dark:data-[hovered]:bg-white/[0.03]
                 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 data-[focus-visible]:ring-inset"
             >
-              {/* Active indicator dot */}
-              <span
-                className="absolute start-0 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full bg-[#2563EB] opacity-0 transition-opacity
-                  [[data-selected]_&]:opacity-100"
-              />
+              {/* Active indicator line */}
+              <ActiveLine />
               {t(`sales.customer360.tabNames.${key}`)}
             </Tab>
           ))}
@@ -119,9 +117,6 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
               <TabPanel id="overview" className="h-full outline-none">
                 <OverviewTab customerId={customerId} enabled={selectedTab === 'overview'} />
               </TabPanel>
-              <TabPanel id="contacts" className="h-full outline-none">
-                <ContactsTab customerId={customerId} enabled={selectedTab === 'contacts'} />
-              </TabPanel>
               <TabPanel id="quotes" className="h-full outline-none">
                 <QuotesTab customerId={customerId} enabled={selectedTab === 'quotes'} />
               </TabPanel>
@@ -130,6 +125,9 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
               </TabPanel>
               <TabPanel id="financials" className="h-full outline-none">
                 <FinancialsTab customerId={customerId} enabled={selectedTab === 'financials'} />
+              </TabPanel>
+              <TabPanel id="contacts" className="h-full outline-none">
+                <ContactsTab customerId={customerId} enabled={selectedTab === 'contacts'} />
               </TabPanel>
               <TabPanel id="projects" className="h-full outline-none">
                 <ProjectsTab customerId={customerId} enabled={selectedTab === 'projects'} />

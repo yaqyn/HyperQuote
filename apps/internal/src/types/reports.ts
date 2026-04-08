@@ -4,6 +4,7 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type ReportsTab =
+  | 'overview'
   | 'sales'
   | 'procurement'
   | 'operations'

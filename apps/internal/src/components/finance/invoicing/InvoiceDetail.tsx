@@ -8,23 +8,38 @@ import { StatusBadge } from '../shared/StatusBadge'
 import { InvoiceActions } from './InvoiceActions'
 import type { ETASubmissionStatus } from '../../../types/finance'
 
-// ─── ETA inline indicator ──────────────────────────────
-const ETA_DOT: Record<ETASubmissionStatus, string> = {
-  pending: 'bg-black/20 dark:bg-white/20',
-  submitted: 'bg-[#2563EB]',
-  accepted: 'bg-green-500',
-  rejected: 'bg-red-500',
-  error: 'bg-red-500',
+// ─── ETA badge ────────────────────────────────────────
+const ETA_BADGE_STYLES: Record<ETASubmissionStatus, string> = {
+  pending: 'bg-black/[0.06] dark:bg-white/[0.06] text-black/40 dark:text-white/40',
+  submitted: 'bg-[#2563EB]/10 text-[#2563EB]',
+  accepted: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  rejected: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  error: 'bg-red-500/10 text-red-600 dark:text-red-400',
 }
 
-function ETAIndicator({ status }: { status: ETASubmissionStatus }) {
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+const ETA_LABELS: Record<ETASubmissionStatus, string> = {
+  pending: 'ETA Pending',
+  submitted: 'ETA Submitted',
+  accepted: 'ETA Accepted',
+  rejected: 'ETA Rejected',
+  error: 'ETA Error',
+}
+
+function ETABadge({ status }: { status: ETASubmissionStatus }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50">
-      <span className={`size-1.5 rounded-full ${ETA_DOT[status]}`} />
-      ETA {label}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wide uppercase ${ETA_BADGE_STYLES[status]}`}
+    >
+      {ETA_LABELS[status]}
     </span>
   )
+}
+
+/** Calculate days since sent for overdue display */
+function getDaysSinceSent(issuedDate: string): number {
+  const now = new Date()
+  const issued = new Date(issuedDate)
+  return Math.floor((now.getTime() - issued.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 /**
@@ -83,11 +98,11 @@ export function InvoiceDetail() {
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={invoice.status} />
-            <ETAIndicator status={invoice.etaStatus} />
+            <ETABadge status={invoice.etaStatus} />
           </div>
         </div>
 
-        {/* Dates row */}
+        {/* Dates row + overdue indicator */}
         <div className="flex items-center gap-8 text-xs">
           <div>
             <span className="text-black/30 dark:text-white/30 me-2">{t('invoicing.issued', 'Issued')}</span>
@@ -97,6 +112,26 @@ export function InvoiceDetail() {
             <span className="text-black/30 dark:text-white/30 me-2">{t('invoicing.due', 'Due')}</span>
             <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-black/70 dark:text-white/70">{invoice.dueDate}</span>
           </div>
+          {/* Days since sent — prominent for overdue invoices */}
+          {invoice.status !== 'draft' && invoice.status !== 'paid' && (() => {
+            const daysSinceSent = getDaysSinceSent(invoice.issuedDate)
+            const dueDate = new Date(invoice.dueDate)
+            const isOverdue = new Date() > dueDate
+            const daysOverdue = isOverdue ? Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+            return isOverdue ? (
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-red-500/[0.06] border border-red-500/10">
+                <span className="size-1.5 rounded-full bg-red-500" />
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-red-600 dark:text-red-400 font-medium">
+                  {t('invoicing.daysOverdue', '{{days}} days overdue', { days: daysOverdue })}
+                </span>
+              </div>
+            ) : (
+              <div className="text-black/30 dark:text-white/30">
+                <span className="me-1">{t('invoicing.daysSinceSent', 'Sent')}</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{daysSinceSent}d</span>
+              </div>
+            )
+          })()}
         </div>
 
         {/* ─── Seller / Buyer ───────────────────────────── */}

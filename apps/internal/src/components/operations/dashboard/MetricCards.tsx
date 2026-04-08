@@ -29,6 +29,40 @@ export function MetricCards({ metrics }: MetricCardsProps) {
 
   return (
     <div className="flex items-start gap-14">
+      {/* SLA Breaches — urgent, always first */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          SLA Breaches
+        </span>
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight ${
+          metrics.slaBreaches > 0 ? 'text-red-600' : 'text-green-600'
+        }`}>
+          {metrics.slaBreaches}
+        </span>
+        {metrics.slaBreaches > 0 && (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
+            need{metrics.slaBreaches !== 1 ? '' : 's'} attention
+          </span>
+        )}
+      </div>
+
+      {/* Stuck Orders — second urgency */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          Stuck Orders
+        </span>
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight ${
+          metrics.bottleneckStuckCount > 0 ? 'text-red-600' : ''
+        }`}>
+          {metrics.bottleneckStuckCount}
+        </span>
+        {metrics.bottleneckStuckCount > 0 && (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/40 dark:text-white/40">
+            in {bottleneckDisplay}
+          </span>
+        )}
+      </div>
+
       {/* Active Orders */}
       <div className="flex flex-col gap-1">
         <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
@@ -47,38 +81,6 @@ export function MetricCards({ metrics }: MetricCardsProps) {
         <span className={`font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight ${onTimeColor}`}>
           {onTimeRate}%
         </span>
-      </div>
-
-      {/* Bottleneck Stage */}
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
-          Bottleneck Stage
-        </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight">
-          {bottleneckDisplay}
-        </span>
-        {metrics.bottleneckStuckCount > 0 && (
-          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
-            {metrics.bottleneckStuckCount} stuck
-          </span>
-        )}
-      </div>
-
-      {/* Avg Cycle Time — derived from SLA breaches as proxy */}
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
-          Avg Cycle Time
-        </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tracking-tight">
-          {metrics.deliveriesToday > 0
-            ? `${Math.round((metrics.deliveriesTotal / metrics.deliveriesToday) * 2.4)}h`
-            : '--'}
-        </span>
-        {metrics.slaBreaches > 0 && (
-          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-red-600">
-            {metrics.slaBreaches} SLA breach{metrics.slaBreaches !== 1 ? 'es' : ''}
-          </span>
-        )}
       </div>
     </div>
   )

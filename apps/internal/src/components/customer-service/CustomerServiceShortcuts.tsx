@@ -43,9 +43,16 @@ export function CustomerServiceShortcuts() {
     }
   }, { enabled: isActive && gPrefix })
 
+  useShortcut('c', () => {
+    if (gPrefix) {
+      setActiveTab('claims')
+      setGPrefix(false)
+    }
+  }, { enabled: isActive && gPrefix })
+
   useShortcut('n', () => {
     if (!gPrefix) {
-      console.log('[CS] New ticket shortcut triggered')
+      useCustomerServiceStore.getState().setCreateTicketOpen(true)
     }
   }, { enabled: isActive && !gPrefix })
 
@@ -71,6 +78,7 @@ export function CustomerServiceShortcuts() {
           {[
             { keys: 'G W', action: 'Conversations' },
             { keys: 'G T', action: 'Conversations' },
+            { keys: 'G C', action: 'Claims' },
             { keys: 'G R', action: 'Returns (filter)' },
             { keys: 'N', action: 'New Ticket' },
             { keys: '?', action: 'Toggle this help' },

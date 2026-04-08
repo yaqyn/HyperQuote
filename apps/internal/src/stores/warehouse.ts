@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { WarehouseTab, InboundView, OutboundView } from '../types/warehouse'
+import type { WarehouseTab, InboundView, OutboundView, VehicleEntry } from '../types/warehouse'
 
 interface WarehouseStore {
   // Tab navigation
@@ -40,6 +40,19 @@ interface WarehouseStore {
   // Inventory → Count master-detail
   countingItemId: string | null
   setCountingItemId: (id: string | null) => void
+
+  // Yard — weather pause
+  outdoorOpsPaused: boolean
+  setOutdoorOpsPaused: (paused: boolean) => void
+
+  // Yard — vehicle tracking
+  vehiclesOnSite: VehicleEntry[]
+  addVehicle: (vehicle: VehicleEntry) => void
+  removeVehicle: (vehicleId: string) => void
+
+  // Yard — covered zones (rain response)
+  coveredZoneIds: Set<string>
+  markZoneCovered: (zoneId: string) => void
 }
 
 export const useWarehouseStore = create<WarehouseStore>()(
@@ -82,6 +95,19 @@ export const useWarehouseStore = create<WarehouseStore>()(
     // Inventory → Count master-detail
     countingItemId: null,
     setCountingItemId: (id) => set({ countingItemId: id }),
+
+    // Yard — weather pause
+    outdoorOpsPaused: false,
+    setOutdoorOpsPaused: (paused) => set({ outdoorOpsPaused: paused }),
+
+    // Yard — vehicle tracking
+    vehiclesOnSite: [],
+    addVehicle: (vehicle) => set((state) => ({ vehiclesOnSite: [...state.vehiclesOnSite, vehicle] })),
+    removeVehicle: (vehicleId) => set((state) => ({ vehiclesOnSite: state.vehiclesOnSite.filter((v) => v.id !== vehicleId) })),
+
+    // Yard — covered zones (rain response)
+    coveredZoneIds: new Set(),
+    markZoneCovered: (zoneId) => set((state) => ({ coveredZoneIds: new Set(state.coveredZoneIds).add(zoneId) })),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

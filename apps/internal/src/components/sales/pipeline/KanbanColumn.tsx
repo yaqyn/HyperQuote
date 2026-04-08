@@ -4,6 +4,7 @@ import { GridList, GridListItem, useDragAndDrop } from 'react-aria-components'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { PipelineDeal, PipelineStage, PipelineStageId } from '../../../types/sales'
 import { markAsWon, markAsLost } from '../../../lib/server/sales-pipeline'
+import { Button } from '../../ui'
 import { KanbanCard } from './KanbanCard'
 
 interface KanbanColumnProps {
@@ -205,16 +206,15 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
             )}
 
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
+              <Button
+                variant="ghost"
+                onPress={() => {
                   setConfirmDeal(null)
                   setLossReason('')
                 }}
-                className="rounded-full px-4 py-1.5 text-[13px] text-black/35 hover:text-black/60 dark:text-white/35 dark:hover:text-white/60"
               >
                 {t('common.cancel', 'Cancel')}
-              </button>
+              </Button>
               <button
                 type="button"
                 onClick={confirmTransition}

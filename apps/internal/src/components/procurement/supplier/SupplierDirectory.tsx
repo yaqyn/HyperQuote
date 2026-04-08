@@ -6,8 +6,8 @@ import Fuse from 'fuse.js'
 import { getSupplierDirectory } from '../../../lib/server/procurement-suppliers'
 import type { SupplierScorecard } from '../../../types/procurement'
 import { SupplierTierBadge } from './SupplierTierBadge'
-import { PerformanceTrend } from './PerformanceTrend'
 import { useProcurementStore } from '../../../stores/procurement'
+import { Button as UiButton } from '../../ui'
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -20,6 +20,28 @@ const TIER_OPTIONS: { id: string; label: string }[] = [
 ]
 
 const PAGE_SIZE = 20
+
+function TrendIndicator({ trend }: { trend: string }) {
+  if (trend === 'improving') {
+    return (
+      <span className="flex items-center gap-1 text-green-600 text-[12px] font-medium leading-none select-none">
+        <span className="text-[16px]">↗</span> Improving
+      </span>
+    )
+  }
+  if (trend === 'declining') {
+    return (
+      <span className="flex items-center gap-1 text-red-500 text-[12px] font-medium leading-none select-none">
+        <span className="text-[16px]">↘</span> Declining
+      </span>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1 text-black/40 dark:text-white/40 text-[12px] font-medium leading-none select-none">
+      <span className="text-[16px]">→</span> Stable
+    </span>
+  )
+}
 
 // ─── Main Component ───────────────────────────────────────
 
@@ -56,6 +78,9 @@ export function SupplierDirectory() {
       results = results.filter((s) => s.tier === tierFilter)
     }
 
+    // Sort by score descending
+    results = [...results].sort((a, b) => b.overallScore - a.overallScore)
+
     return results
   }, [data?.suppliers, search, tierFilter, fuse])
 
@@ -71,7 +96,7 @@ export function SupplierDirectory() {
         >
           <div className="relative">
             <svg
-              className="absolute start-3 top-1/2 -translate-y-1/2 size-3.5 text-black/25 dark:text-white/25"
+              className="absolute start-3 top-1/2 -translate-y-1/2 size-3.5 text-black/40 dark:text-white/40"
               viewBox="0 0 16 16"
               fill="none"
               aria-hidden="true"
@@ -81,7 +106,7 @@ export function SupplierDirectory() {
             </svg>
             <Input
               placeholder="Search suppliers..."
-              className="w-full rounded-lg border border-black/[0.06] bg-transparent py-2 ps-9 pe-3 text-sm text-black/80 placeholder:text-black/20 outline-none focus:border-[#2563EB]/30 dark:border-white/[0.06] dark:text-white/80 dark:placeholder:text-white/20"
+              className="w-full rounded-lg border border-black/[0.06] bg-transparent py-2 ps-9 pe-3 text-[13px] text-black/80 placeholder:text-black/30 outline-none focus:border-[#2563EB]/30 dark:border-white/[0.06] dark:text-white/80 dark:placeholder:text-white/30"
             />
           </div>
         </SearchField>
@@ -91,11 +116,11 @@ export function SupplierDirectory() {
           {TIER_OPTIONS.map((opt) => (
             <Button
               key={opt.id}
-              className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium outline-none transition-colors
+              className={`rounded-md px-2.5 py-1.5 text-[12px] font-medium outline-none transition-colors
                 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50
                 ${tierFilter === opt.id
-                  ? 'bg-black/[0.06] text-black dark:bg-white/[0.08] dark:text-white'
-                  : 'text-black/30 dark:text-white/30 data-[hovered]:text-black/60 dark:data-[hovered]:text-white/60'
+                  ? 'bg-[#2563EB]/10 text-[#2563EB]'
+                  : 'text-black/40 dark:text-white/40 data-[hovered]:text-black/60 dark:data-[hovered]:text-white/60'
                 }`}
               onPress={() => {
                 setTierFilter(opt.id)
@@ -111,14 +136,14 @@ export function SupplierDirectory() {
       {/* Card grid */}
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
-          <p className="text-sm text-black/25 dark:text-white/25">Loading...</p>
+          <p className="text-[13px] text-black/40 dark:text-white/40">Loading...</p>
         </div>
       ) : filteredSuppliers.length === 0 ? (
         <div className="flex items-center justify-center h-48">
-          <p className="text-sm text-black/25 dark:text-white/25">No suppliers found</p>
+          <p className="text-[13px] text-black/40 dark:text-white/40">No suppliers found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filteredSuppliers.map((supplier, i) => (
             <motion.button
               key={supplier.supplierId}
@@ -126,48 +151,35 @@ export function SupplierDirectory() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.02 }}
-              className="group flex flex-col gap-3 rounded-xl p-4 text-start outline-none transition-colors
+              className="flex flex-col rounded-xl p-4 text-start outline-none transition-colors
                 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]
                 data-[focus-visible]:ring-2 data-[focus-visible]:ring-inset data-[focus-visible]:ring-[#2563EB]/50"
               onClick={() => setSelectedSupplierId(supplier.supplierId)}
             >
-              {/* Name + tier */}
-              <div>
-                <div className="text-sm font-semibold text-black/80 dark:text-white/80">
-                  {supplier.supplierName}
-                </div>
-                <div className="mt-1">
-                  <SupplierTierBadge tier={supplier.tier} />
-                </div>
-              </div>
-
-              {/* Key metrics row */}
-              <div className="flex items-center gap-4">
-                <div>
-                  <span className="text-[9px] uppercase tracking-wider text-black/25 dark:text-white/25">On-time</span>
-                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums text-black/70 dark:text-white/70">
-                    {supplier.onTimeDeliveryRate}%
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[9px] uppercase tracking-wider text-black/25 dark:text-white/25">Quality</span>
-                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-medium tabular-nums text-black/70 dark:text-white/70">
-                    {(100 - supplier.qualityRejectionRate).toFixed(1)}%
-                  </div>
-                </div>
-                <div className="ms-auto">
-                  <PerformanceTrend trend={supplier.trend} />
-                </div>
-              </div>
-
-              {/* Score */}
-              <div className="flex items-center justify-between">
-                <span className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums text-black/80 dark:text-white/80">
+              {/* Score + Trend */}
+              <div className="flex items-center gap-3">
+                <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-bold tabular-nums leading-none text-black/80 dark:text-white/80">
                   {supplier.overallScore}
                 </span>
-                <span className="text-[9px] text-black/20 dark:text-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                  View scorecard
-                </span>
+                <TrendIndicator trend={supplier.trend} />
+              </div>
+
+              {/* Divider */}
+              <div className="border-b border-black/[0.04] dark:border-white/[0.04] mt-3 mb-3" />
+
+              {/* Name */}
+              <div className="text-[13px] font-semibold text-black/80 dark:text-white/80">
+                {supplier.supplierName}
+              </div>
+
+              {/* Tier */}
+              <div className="mt-1.5">
+                <SupplierTierBadge tier={supplier.tier} />
+              </div>
+
+              {/* Metrics line */}
+              <div className="mt-3 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/50 dark:text-white/50">
+                {supplier.onTimeDeliveryRate}% on-time · {(100 - supplier.qualityRejectionRate).toFixed(1)}% quality
               </div>
             </motion.button>
           ))}
@@ -177,7 +189,7 @@ export function SupplierDirectory() {
       {/* Pagination */}
       {data && data.total > PAGE_SIZE && (
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-black/25 dark:text-white/25">
+          <p className="text-[12px] text-black/40 dark:text-white/40">
             <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
               {((page - 1) * PAGE_SIZE) + 1}-{Math.min(page * PAGE_SIZE, data.total)}
             </span>
@@ -185,25 +197,25 @@ export function SupplierDirectory() {
             <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{data.total}</span>
           </p>
           <div className="flex items-center gap-1">
-            <Button
+            <UiButton
+              variant="ghost"
               onPress={() => setPage((p) => Math.max(1, p - 1))}
               isDisabled={page <= 1}
-              className="rounded-md px-2 py-1 text-[10px] text-black/35 outline-none data-[hovered]:text-black/60 data-[disabled]:opacity-25 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:text-white/35 dark:data-[hovered]:text-white/60"
-              aria-label="Previous page"
+              className="text-[12px]"
             >
               Prev
-            </Button>
-            <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/40 dark:text-white/40 px-1">
+            </UiButton>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40 px-1">
               {page}
             </span>
-            <Button
+            <UiButton
+              variant="ghost"
               onPress={() => setPage((p) => p + 1)}
               isDisabled={page * PAGE_SIZE >= data.total}
-              className="rounded-md px-2 py-1 text-[10px] text-black/35 outline-none data-[hovered]:text-black/60 data-[disabled]:opacity-25 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50 dark:text-white/35 dark:data-[hovered]:text-white/60"
-              aria-label="Next page"
+              className="text-[12px]"
             >
               Next
-            </Button>
+            </UiButton>
           </div>
         </div>
       )}

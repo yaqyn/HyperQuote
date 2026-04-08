@@ -106,6 +106,7 @@ export function DeliveryLogView() {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page, setPage] = useState(0)
+  const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today')
 
   const { data: board } = useQuery({
     queryKey: ['dispatch', 'board'],
@@ -146,8 +147,16 @@ export function DeliveryLogView() {
     return entries
   }, [board, driverMap, podMap])
 
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
+
   const filtered = useMemo((): DeliveryLogEntry[] => {
     let result = allEntries
+
+    // Date filter: default to today
+    if (dateFilter === 'today') {
+      result = result.filter((e: DeliveryLogEntry) => e.route.date === todayStr)
+    }
+
     if (statusFilter === 'needs_review') {
       result = result.filter((e: DeliveryLogEntry) => e.stop.status === 'delivered' && e.pod && !e.pod.autoChecksPassed)
     } else if (statusFilter === 'delivered') {
@@ -169,11 +178,26 @@ export function DeliveryLogView() {
       )
     }
     return result
-  }, [allEntries, statusFilter, searchQuery])
+  }, [allEntries, statusFilter, searchQuery, dateFilter, todayStr])
+
+  // Stats for the banner
+  const todayStats = useMemo(() => {
+    const todayEntries = allEntries.filter((e: DeliveryLogEntry) => e.route.date === todayStr)
+    const total = todayEntries.length
+    const delivered = todayEntries.filter((e: DeliveryLogEntry) => e.stop.status === 'delivered').length
+    const failed = todayEntries.filter((e: DeliveryLogEntry) => e.stop.status === 'failed').length
+    const rate = total > 0 ? Math.round((delivered / total) * 100) : 0
+    return { total, delivered, failed, rate }
+  }, [allEntries, todayStr])
 
   const sorted = useMemo((): DeliveryLogEntry[] => {
     const copy = [...filtered]
     copy.sort((a: DeliveryLogEntry, b: DeliveryLogEntry) => {
+      // Failed deliveries always float to top regardless of sort
+      const aFailed = a.stop.status === 'failed' ? 0 : 1
+      const bFailed = b.stop.status === 'failed' ? 0 : 1
+      if (aFailed !== bFailed) return aFailed - bFailed
+
       let cmp = 0
       switch (sortField) {
         case 'date': cmp = a.route.date.localeCompare(b.route.date); break
@@ -250,8 +274,66 @@ export function DeliveryLogView() {
 
   return (
     <div className="flex h-full flex-col overflow-auto p-6">
+      {/* Today's stats banner */}
+      {todayStats.total > 0 && (
+        <div className="mb-4 flex items-center gap-4 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+          <div className="flex items-center gap-2">
+            <span className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums">
+              {formatNumber(todayStats.delivered, locale)}/{formatNumber(todayStats.total, locale)}
+            </span>
+            <span className="text-sm text-black/50 dark:text-white/50">
+              {t('deliveryLog.deliveredToday', 'delivered today')}
+            </span>
+          </div>
+          <span className={`font-[family-name:var(--font-geist-mono)] text-sm font-semibold tabular-nums ${
+            todayStats.rate >= 90
+              ? 'text-green-600 dark:text-green-400'
+              : todayStats.rate >= 70
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-red-600 dark:text-red-400'
+          }`}>
+            ({formatNumber(todayStats.rate, locale)}%)
+          </span>
+          {todayStats.failed > 0 && (
+            <div className="ms-auto flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{formatNumber(todayStats.failed, locale)}</span>
+                {' '}{t('deliveryLog.failed', 'failed')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top: filters + search */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        {/* Date toggle */}
+        <div className="flex items-center rounded-full bg-black/[0.04] p-0.5 dark:bg-white/[0.04]">
+          <button
+            type="button"
+            onClick={() => { setDateFilter('today'); setPage(0) }}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-all ${
+              dateFilter === 'today'
+                ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
+                : 'text-black/40 dark:text-white/40'
+            }`}
+          >
+            {t('deliveryLog.today', 'Today')}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setDateFilter('all'); setPage(0) }}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-all ${
+              dateFilter === 'all'
+                ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
+                : 'text-black/40 dark:text-white/40'
+            }`}
+          >
+            {t('deliveryLog.allDates', 'All Dates')}
+          </button>
+        </div>
+
         <div className="flex gap-1">
           {FILTER_TABS.map((tab) => (
             <button
@@ -314,7 +396,11 @@ export function DeliveryLogView() {
             key={stop.id}
             type="button"
             onClick={() => handleRowClick(stop.deliveryId)}
-            className="flex items-center gap-3 border-b border-black/[0.04] px-2 py-3 text-start transition-colors hover:bg-black/[0.02] dark:border-white/[0.04] dark:hover:bg-white/[0.02]"
+            className={`flex items-center gap-3 border-b border-black/[0.04] px-2 py-3 text-start transition-colors dark:border-white/[0.04] ${
+              stop.status === 'failed'
+                ? 'bg-red-50/30 hover:bg-red-50/50 dark:bg-red-900/5 dark:hover:bg-red-900/10'
+                : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+            }`}
           >
             <span className="w-20 font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/50 dark:text-white/50">
               {route.date}
@@ -328,11 +414,16 @@ export function DeliveryLogView() {
             <span className="w-28 truncate text-sm text-black/50 dark:text-white/50">
               {driver?.name ?? route.driverId}
             </span>
-            <span className="flex w-20 items-center gap-1.5">
-              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOTS[stop.status] ?? 'bg-black/20'}`} />
+            <span className="flex w-28 items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOTS[stop.status] ?? 'bg-black/20'}`} />
               <span className="text-xs text-black/60 dark:text-white/60">
                 {getStatusLabel(stop.status, t)}
               </span>
+              {stop.status === 'failed' && (
+                <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                  Action
+                </span>
+              )}
             </span>
             <span className="w-16 text-end font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-black/40 dark:text-white/40">
               {pod ? `${formatNumber(pod.durationMinutes, locale)}m` : '\u2014'}

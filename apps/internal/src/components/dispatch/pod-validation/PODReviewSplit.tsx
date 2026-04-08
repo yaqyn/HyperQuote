@@ -89,14 +89,12 @@ export function PODReviewSplit({
           {/* Mini map */}
           <div className="mb-4 overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
             <ClientOnly fallback={<MapSkeleton className="h-[220px]" />}>
-              {() => (
-                <PODMiniMap
-                  actualLat={pod.gpsLat}
-                  actualLng={pod.gpsLng}
-                  expectedLat={stop.lat}
-                  expectedLng={stop.lng}
-                />
-              )}
+              <PODMiniMap
+                actualLat={pod.gpsLat}
+                actualLng={pod.gpsLng}
+                expectedLat={stop.lat}
+                expectedLng={stop.lng}
+              />
             </ClientOnly>
           </div>
 
@@ -212,7 +210,17 @@ export function PODReviewSplit({
 
           {/* Checklist */}
           <div className="mb-4">
-            <PODChecklist checklist={checklist} onChange={setChecklist} />
+            <PODChecklist
+              checklist={checklist}
+              onChange={setChecklist}
+              autoChecks={{
+                photosOk: pod.photos.length > 0 && pod.autoChecksPassed ? true : undefined,
+                signatureOk: !!pod.signatureUrl ? true : undefined,
+                quantitiesOk: quantitiesMatch ? true : undefined,
+                gpsOk: gpsOk ? true : undefined,
+                noDamage: pod.autoChecksPassed ? true : undefined,
+              }}
+            />
           </div>
 
           {/* Actions */}

@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { useForm, useWatch, Controller } from 'react-hook-form'
-import { Button, DialogTrigger, Dialog, Modal, Heading } from 'react-aria-components'
+import { useState, useCallback } from 'react'
+import { useForm, useWatch, Controller, useFieldArray } from 'react-hook-form'
+import { DialogTrigger, Dialog, Modal, Heading } from 'react-aria-components'
+import { Button, UnderlineInput, UnderlineTextArea } from '../../ui'
 import { useTranslation } from 'react-i18next'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { sendSupplierInquiry } from '../../../lib/server/procurement-inquiries'
+import { getSupplierDirectory } from '../../../lib/server/procurement-suppliers'
 import { useProcurementStore } from '../../../stores/procurement'
 import { SupplierSelector } from './SupplierSelector'
 import { InquiryTemplateSelector } from './InquiryTemplateSelector'
@@ -24,32 +26,7 @@ const DEFAULT_ITEMS: InquiryItem[] = [
   { productId: 'prod-003', productName: 'Steel Rebar 10mm', quantity: 100, uom: 'ton', specs: 'Grade 40, 6m length' },
 ]
 
-// ─── Channel Toggle ──────────────────────────────────────
-
-function ChannelPill({
-  label,
-  active,
-  onToggle,
-}: {
-  label: string
-  active: boolean
-  onToggle: () => void
-}) {
-  return (
-    <Button
-      onPress={onToggle}
-      className={`rounded-lg px-3 py-1.5 text-[13px] font-medium outline-none transition-all duration-150
-        data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40
-        ${
-          active
-            ? 'bg-[var(--color-primary)] text-white'
-            : 'bg-black/[0.04] text-[var(--color-text-muted)] data-[hovered]:bg-black/[0.06] dark:bg-white/[0.04] dark:data-[hovered]:bg-white/[0.06]'
-        }`}
-    >
-      {label}
-    </Button>
-  )
-}
+let nextProductCounter = 4
 
 // ─── Main Builder ────────────────────────────────────────
 
@@ -60,7 +37,7 @@ export function InquiryBuilder() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [channels, setChannels] = useState({ email: true, portal: false, whatsapp: false })
 
-  const { control, handleSubmit, setValue, reset } = useForm<InquiryFormData>({
+  const { control, handleSubmit, setValue, reset, register } = useForm<InquiryFormData>({
     defaultValues: {
       quoteRequestId: '',
       deadline: new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
@@ -71,10 +48,38 @@ export function InquiryBuilder() {
     },
   })
 
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
+
   const watchedTemplate = useWatch({ control, name: 'template' })
   const watchedItems = useWatch({ control, name: 'items' })
   const watchedSupplierIds = useWatch({ control, name: 'selectedSupplierIds' })
   const watchedDeadline = useWatch({ control, name: 'deadline' })
+  const watchedMessage = useWatch({ control, name: 'message' })
+
+  // Resolve supplier names for confirmation dialog
+  const { data: supplierData } = useQuery({
+    queryKey: ['procurement', 'suppliers', 'directory', 'all'],
+    queryFn: () => getSupplierDirectory({ data: { page: 1, limit: 100 } }),
+    staleTime: 60_000,
+  })
+  const allSuppliers = supplierData?.suppliers ?? []
+  const selectedSupplierNames = allSuppliers
+    .filter((s) => watchedSupplierIds.includes(s.supplierId))
+    .map((s) => s.supplierName)
+
+  // Add item row
+  const [newItem, setNewItem] = useState<{ productName: string; quantity: string; uom: string; specs: string }>({ productName: '', quantity: '', uom: '', specs: '' })
+  const addItem = useCallback(() => {
+    if (!newItem.productName || !newItem.quantity) return
+    append({
+      productId: `prod-new-${nextProductCounter++}`,
+      productName: newItem.productName,
+      quantity: Number(newItem.quantity),
+      uom: newItem.uom || 'unit',
+      specs: newItem.specs,
+    })
+    setNewItem({ productName: '', quantity: '', uom: '', specs: '' })
+  }, [newItem, append])
 
   const mutation = useMutation({
     mutationFn: (data: InquiryFormData) =>
@@ -104,40 +109,29 @@ export function InquiryBuilder() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 py-4">
-      {/* Header */}
-      <h2 className="text-[13px] font-semibold tracking-tight text-[var(--color-text)]">
-        {t('procurement.inquiry.title')}
-      </h2>
-
+    <div className="flex flex-col gap-6 px-6 py-6">
       <form
         onSubmit={handleSubmit(() => setConfirmOpen(true))}
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-6"
       >
-        {/* ── Inline Fields: Quote Ref + Deadline ── */}
-        <div className="flex items-end gap-3">
-          <div className="flex flex-1 flex-col gap-1">
-            <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-              {t('procurement.inquiry.quoteReference')}
-            </label>
+        {/* ── Top Bar: Reference + Deadline + Template ── */}
+        <div className="flex items-end gap-4">
+          <div className="min-w-0 flex-1">
             <Controller
               control={control}
               name="quoteRequestId"
               render={({ field }) => (
-                <input
-                  {...field}
-                  type="text"
+                <UnderlineInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  label={t('procurement.inquiry.quoteReference')}
                   placeholder={t('procurement.inquiry.quoteReferencePlaceholder')}
-                  className="w-full border-b border-black/[0.08] bg-transparent py-1.5 text-[13px] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] dark:border-white/[0.08]"
                 />
               )}
             />
           </div>
 
-          <div className="flex w-40 flex-col gap-1">
-            <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-              {t('procurement.inquiry.responseDeadline')}
-            </label>
+          <div className="w-36 shrink-0">
             <Controller
               control={control}
               name="deadline"
@@ -145,134 +139,185 @@ export function InquiryBuilder() {
                 <input
                   {...field}
                   type="date"
-                  className="w-full border-b border-black/[0.08] bg-transparent py-1.5 font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.08]"
+                  aria-label={t('procurement.inquiry.responseDeadline')}
+                  className="w-full border-b border-black/[0.04] bg-transparent py-1.5 font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none transition-colors focus:border-black/[0.12] dark:border-white/[0.04] dark:focus:border-white/[0.12]"
+                />
+              )}
+            />
+          </div>
+
+          <div className="shrink-0">
+            <Controller
+              control={control}
+              name="template"
+              render={({ field }) => (
+                <InquiryTemplateSelector
+                  value={field.value}
+                  onChange={(val) => {
+                    field.onChange(val)
+                    setValue('message', getTemplateMessage(val, watchedDeadline))
+                  }}
                 />
               )}
             />
           </div>
         </div>
 
-        {/* ── Template Selector (pill group) ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-            {t('procurement.inquiry.template')}
-          </label>
-          <Controller
-            control={control}
-            name="template"
-            render={({ field }) => (
-              <InquiryTemplateSelector
-                value={field.value}
-                onChange={(val) => {
-                  field.onChange(val)
-                  setValue('message', getTemplateMessage(val, watchedDeadline))
-                }}
-              />
-            )}
-          />
-        </div>
-
-        {/* ── Items Table (inline spreadsheet) ── */}
+        {/* ── Items Table ── */}
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
               <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
-                <th className="py-2 pe-4 text-start text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+                <th className="py-2.5 pe-4 text-start text-[12px] font-medium text-black/40 dark:text-white/40">
                   {t('procurement.inquiry.product')}
                 </th>
-                <th className="py-2 pe-4 text-start text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+                <th className="py-2.5 pe-4 text-end text-[12px] font-medium text-black/40 dark:text-white/40">
                   {t('procurement.inquiry.quantity')}
                 </th>
-                <th className="py-2 pe-4 text-start text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-                  {t('procurement.inquiry.uom')}
-                </th>
-                <th className="py-2 pe-4 text-start text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-                  {t('procurement.inquiry.specs')}
-                </th>
-                <th className="py-2 text-start text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+                <th className="py-2.5 text-start text-[12px] font-medium text-black/40 dark:text-white/40">
                   {t('procurement.inquiry.suppliers')}
                 </th>
+                <th className="py-2.5 w-8" />
               </tr>
             </thead>
             <tbody>
-              {watchedItems.map((item) => (
+              {fields.map((field, index) => (
                 <tr
-                  key={item.productId}
+                  key={field.id}
                   className="border-b border-black/[0.03] dark:border-white/[0.03]"
                 >
-                  <td className="py-2.5 pe-4 font-medium text-[var(--color-text)]">
-                    {item.productName}
+                  <td className="py-3.5 pe-4">
+                    <span className="font-medium text-[var(--color-text)]">
+                      {watchedItems[index]?.productName}
+                    </span>
+                    {watchedItems[index]?.specs && (
+                      <span className="ms-2 text-[12px] text-black/40 dark:text-white/40">
+                        {watchedItems[index].specs}
+                      </span>
+                    )}
                   </td>
-                  <td className="py-2.5 pe-4">
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
-                      {item.quantity}
+                  <td className="py-3.5 pe-4 text-end">
+                    <Controller
+                      control={control}
+                      name={`items.${index}.quantity`}
+                      render={({ field: qtyField }) => (
+                        <input
+                          type="number"
+                          min={1}
+                          value={qtyField.value}
+                          onChange={(e) => qtyField.onChange(Number(e.target.value) || 0)}
+                          className="w-20 border-b border-transparent bg-transparent py-0.5 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none transition-colors focus:border-black/[0.12] dark:focus:border-white/[0.12]"
+                        />
+                      )}
+                    />
+                    <span className="ms-1 text-[12px] text-black/40 dark:text-white/40">
+                      {watchedItems[index]?.uom}
                     </span>
                   </td>
-                  <td className="py-2.5 pe-4 text-[var(--color-text-muted)]">
-                    {item.uom}
-                  </td>
-                  <td className="max-w-[200px] truncate py-2.5 pe-4 text-[var(--color-text-muted)]">
-                    {item.specs}
-                  </td>
-                  <td className="py-2.5">
+                  <td className="py-3.5">
                     <SupplierSelector
-                      productId={item.productId}
+                      productId={watchedItems[index]?.productId}
                       selectedIds={watchedSupplierIds}
                       onSelectionChange={(ids) => setValue('selectedSupplierIds', ids)}
                     />
+                  </td>
+                  <td className="py-3.5 text-center">
+                    <Button
+                      variant="ghost"
+                      onPress={() => remove(index)}
+                      aria-label={`Remove ${watchedItems[index]?.productName}`}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded text-black/30 outline-none transition-colors data-[hovered]:text-black/60 dark:text-white/30 dark:data-[hovered]:text-white/60 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+                    >
+                      ×
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {/* ── Add Item Row ── */}
+          <div className="flex items-center gap-2 px-1 py-2.5">
+            <input
+              type="text"
+              value={newItem.productName}
+              onChange={(e) => setNewItem((p) => ({ ...p, productName: e.target.value }))}
+              placeholder={t('procurement.inquiry.product')}
+              className="min-w-0 flex-1 border-b border-black/[0.04] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"
+            />
+            <input
+              type="number"
+              min={1}
+              value={newItem.quantity}
+              onChange={(e) => setNewItem((p) => ({ ...p, quantity: e.target.value }))}
+              placeholder={t('procurement.inquiry.quantity')}
+              className="w-20 border-b border-black/[0.04] bg-transparent py-1 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"
+            />
+            <input
+              type="text"
+              value={newItem.uom}
+              onChange={(e) => setNewItem((p) => ({ ...p, uom: e.target.value }))}
+              placeholder="UOM"
+              className="w-16 border-b border-black/[0.04] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"
+            />
+            <input
+              type="text"
+              value={newItem.specs}
+              onChange={(e) => setNewItem((p) => ({ ...p, specs: e.target.value }))}
+              placeholder={t('procurement.inquiry.specsPlaceholder', 'Specs')}
+              className="min-w-0 flex-1 border-b border-black/[0.04] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"
+            />
+            <Button
+              variant="ghost"
+              onPress={addItem}
+              isDisabled={!newItem.productName || !newItem.quantity}
+              className="shrink-0 text-[12px] font-medium text-[var(--color-primary)]"
+            >
+              + {t('procurement.inquiry.addItem', 'Add Item')}
+            </Button>
+          </div>
         </div>
 
-        {/* ── Message (border-bottom only textarea) ── */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-            {t('procurement.inquiry.message')}
-          </label>
-          <Controller
-            control={control}
-            name="message"
-            render={({ field }) => (
-              <textarea
-                {...field}
-                rows={3}
-                className="resize-none border-b border-black/[0.08] bg-transparent py-2 text-[13px] leading-relaxed outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] dark:border-white/[0.08]"
-                placeholder={t('procurement.inquiry.messagePlaceholder')}
-              />
-            )}
-          />
-        </div>
+        {/* ── Message ── */}
+        <Controller
+          control={control}
+          name="message"
+          render={({ field }) => (
+            <UnderlineTextArea
+              value={field.value}
+              onChange={field.onChange}
+              label={t('procurement.inquiry.message')}
+              placeholder={t('procurement.inquiry.messagePlaceholder')}
+              rows={3}
+              className="leading-relaxed"
+            />
+          )}
+        />
 
-        {/* ── Send Channels + Action ── */}
+        {/* ── Bottom Bar: Channels + Send ── */}
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <ChannelPill
-              label={t('procurement.inquiry.sendViaEmail')}
-              active={channels.email}
-              onToggle={() => toggleChannel('email')}
-            />
-            <ChannelPill
-              label={t('procurement.inquiry.sendViaPortal')}
-              active={channels.portal}
-              onToggle={() => toggleChannel('portal')}
-            />
-            <ChannelPill
-              label={t('procurement.inquiry.sendViaWhatsApp')}
-              active={channels.whatsapp}
-              onToggle={() => toggleChannel('whatsapp')}
-            />
+          <div className="flex items-center gap-1">
+            {(Object.keys(channels) as Array<keyof typeof channels>).map((ch) => (
+              <Button
+                key={ch}
+                onPress={() => toggleChannel(ch)}
+                className={`rounded-full px-3 py-1.5 text-[12px] font-medium outline-none transition-all
+                  data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
+                  ${
+                    channels[ch]
+                      ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      : 'text-black/40 data-[hovered]:text-black/50 dark:text-white/40 dark:data-[hovered]:text-white/50'
+                  }`}
+              >
+                {t(`procurement.inquiry.sendVia${ch.charAt(0).toUpperCase() + ch.slice(1)}` as any)}
+              </Button>
+            ))}
           </div>
 
           <Button
+            variant="primary"
             type="submit"
             isDisabled={watchedSupplierIds.length === 0 || mutation.isPending}
-            className="rounded-lg bg-[var(--color-primary)] px-6 py-2 text-[13px] font-semibold text-white outline-none transition-colors
-              data-[hovered]:bg-[var(--color-primary)]/90
-              data-[disabled]:opacity-40
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40 data-[focus-visible]:ring-offset-2"
           >
             {mutation.isPending
               ? t('procurement.inquiry.sending')
@@ -288,26 +333,64 @@ export function InquiryBuilder() {
             className="w-full max-w-md rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl outline-none dark:bg-black/90"
             isKeyboardDismissDisabled
           >
-            <Heading slot="title" className="mb-3 text-[15px] font-semibold tracking-tight">
+            <Heading slot="title" className="mb-4 text-[15px] font-semibold tracking-tight">
               {t('procurement.inquiry.confirmTitle')}
             </Heading>
-            <p className="mb-6 text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-              {t('procurement.inquiry.confirmMessage', { count: watchedSupplierIds.length })}
-            </p>
+
+            {/* Supplier names */}
+            <div className="mb-3">
+              <span className="text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('procurement.inquiry.sendingTo', 'Sending to')} ({watchedSupplierIds.length})
+              </span>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {selectedSupplierNames.map((name) => (
+                  <span
+                    key={name}
+                    className="rounded-md bg-black/[0.04] px-2 py-0.5 text-[12px] font-medium text-[var(--color-text)] dark:bg-white/[0.04]"
+                  >
+                    {name}
+                  </span>
+                ))}
+                {selectedSupplierNames.length === 0 && (
+                  <span className="text-[12px] text-black/30 dark:text-white/30">
+                    {watchedSupplierIds.length} {t('procurement.inquiry.suppliersSelected', 'suppliers selected')}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Message preview */}
+            {watchedMessage && (
+              <div className="mb-3">
+                <span className="text-[12px] font-medium text-black/40 dark:text-white/40">
+                  {t('procurement.inquiry.messagePreview', 'Message preview')}
+                </span>
+                <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-black/50 dark:text-white/50">
+                  {watchedMessage}
+                </p>
+              </div>
+            )}
+
+            {/* Deadline */}
+            <div className="mb-5">
+              <span className="text-[12px] font-medium text-black/40 dark:text-white/40">
+                {t('procurement.inquiry.responseDeadline', 'Deadline')}
+              </span>
+              <p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)]">
+                {watchedDeadline}
+              </p>
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button
+                variant="ghost"
                 onPress={() => setConfirmOpen(false)}
-                className="rounded-lg px-4 py-2 text-[13px] font-medium text-[var(--color-text-muted)] outline-none transition-colors
-                  data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
-                  data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
               >
                 {t('procurement.inquiry.cancel')}
               </Button>
               <Button
+                variant="primary"
                 onPress={handleSubmit(onSubmit)}
-                className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-white outline-none transition-colors
-                  data-[hovered]:bg-[var(--color-primary)]/90
-                  data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40 data-[focus-visible]:ring-offset-2"
               >
                 {t('procurement.inquiry.confirmSend')}
               </Button>

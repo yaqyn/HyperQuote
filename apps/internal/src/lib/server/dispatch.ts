@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import type {
   DeliveryRoute,
   Driver,
@@ -630,3 +631,45 @@ export const getDeliveryAnalytics = createServerFn({ method: 'GET' }).handler(
     }
   },
 )
+
+// ─── Reconciliation ────────────────────────────────────
+
+export const reconcileDeliveries = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ routeId: z.string() }))
+  .handler(async ({ data }) => {
+    // Mock: compare planned vs actual for each stop on the route
+    const route = MOCK_ROUTES.find((r) => r.id === data.routeId)
+    if (!route) {
+      return { success: false, reconciled: false, discrepancies: [] }
+    }
+
+    const deliveredStops = route.stops.filter((s) => s.status === 'delivered')
+    const discrepancies = deliveredStops.map((stop) => ({
+      stopId: stop.id,
+      type: 'quantity' as const,
+      planned: stop.weight,
+      actual: Math.round(stop.weight * (0.9 + Math.random() * 0.1)),
+      variance: -Math.round(stop.weight * Math.random() * 0.1),
+    })).filter((d) => d.variance !== 0)
+
+    return {
+      success: true,
+      reconciled: true,
+      discrepancies,
+    }
+  })
+
+// ─── Driver Messaging ──────────────────────────────────
+
+export const sendDriverMessage = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ driverId: z.string(), message: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const driver = MOCK_DRIVERS.find((d) => d.id === data.driverId)
+    return {
+      success: true,
+      messageId: `msg-${Date.now()}`,
+      driverId: data.driverId,
+      driverName: driver?.name ?? 'Unknown',
+      sentAt: new Date().toISOString(),
+    }
+  })

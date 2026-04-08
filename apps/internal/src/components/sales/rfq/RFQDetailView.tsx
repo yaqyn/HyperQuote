@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button } from 'react-aria-components'
-import { getRFQDetail, reassignRFQ } from '../../../lib/server/sales-rfq'
+import { Button } from '../../ui'
+import { getRFQDetail } from '../../../lib/server/sales-rfq'
 import { createQuote } from '../../../lib/server/sales-quotes'
 import { addInternalNote } from '../../../lib/server/sales-activity'
 import { useSalesStore } from '../../../stores/sales'
@@ -10,6 +10,7 @@ import { TierBadge } from '../shared/TierBadge'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
 import { ClarificationForm } from './ClarificationForm'
 import { DeclineRFQDialog } from './DeclineRFQDialog'
+import { AssignRFQDialog } from './AssignRFQDialog'
 import type { RFQDetail } from '../../../types/sales'
 
 function formatEGP(value: number, locale: string): string {
@@ -47,6 +48,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
   const [showClarification, setShowClarification] = useState(false)
   const [showDecline, setShowDecline] = useState(false)
+  const [showAssign, setShowAssign] = useState(false)
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [noteText, setNoteText] = useState('')
 
@@ -344,8 +346,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
             autoFocus
           />
           <Button
-            className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[11px] font-medium text-white outline-none
-              data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+            variant="primary"
             onPress={() => {
               if (noteText.trim()) addNoteMutation.mutate(noteText.trim())
             }}
@@ -361,8 +362,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
         <div className="flex flex-wrap gap-2">
           {/* 1. Start Quote (primary) */}
           <Button
-            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none
-              data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[focus-visible]:ring-offset-2"
+            variant="primary"
             onPress={() => startQuoteMutation.mutate()}
             isDisabled={startQuoteMutation.isPending}
           >
@@ -371,9 +371,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 2. Request Clarification */}
           <Button
-            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+            variant="subtle"
             onPress={() => setShowClarification(true)}
           >
             Request Clarification
@@ -381,9 +379,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 3. Decline RFQ */}
           <Button
-            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+            variant="subtle"
             onPress={() => setShowDecline(true)}
           >
             Decline RFQ
@@ -391,21 +387,15 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 4. Assign to... */}
           <Button
-            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
-            onPress={() => {
-              // Reassign dropdown -- placeholder
-            }}
+            variant="subtle"
+            onPress={() => setShowAssign(true)}
           >
             Assign to...
           </Button>
 
           {/* 5. Add Note */}
           <Button
-            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+            variant="subtle"
             onPress={() => setShowNoteInput(!showNoteInput)}
           >
             Add Note
@@ -432,9 +422,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
 
           {/* 7. View Full Customer Profile */}
           <Button
-            className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-              data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+            variant="subtle"
             onPress={() => {
               setActiveTab('customers')
             }}
@@ -456,6 +444,13 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
         rfqId={rfqId}
         isOpen={showDecline}
         onClose={() => setShowDecline(false)}
+      />
+
+      {/* Assign RFQ Dialog */}
+      <AssignRFQDialog
+        rfqId={rfqId}
+        isOpen={showAssign}
+        onClose={() => setShowAssign(false)}
       />
     </div>
   )

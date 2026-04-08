@@ -122,8 +122,14 @@ export function PODValidationView() {
   }, [stopMap, reviewStatuses])
 
   const filtered = useMemo(() => {
-    if (activeFilter === 'all') return deliveries
-    return deliveries.filter((d: DeliveryEntry) => d.status === activeFilter)
+    const STATUS_PRIORITY: Record<ReviewStatus, number> = {
+      needs_review: 0,
+      flagged: 1,
+      confirmed: 2,
+    }
+    let result = activeFilter === 'all' ? deliveries : deliveries.filter((d: DeliveryEntry) => d.status === activeFilter)
+    // Always sort needs_review to top, then flagged, then confirmed
+    return [...result].sort((a: DeliveryEntry, b: DeliveryEntry) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status])
   }, [deliveries, activeFilter])
 
   const selected = deliveries.find((d: DeliveryEntry) => d.pod.deliveryId === selectedDeliveryId)

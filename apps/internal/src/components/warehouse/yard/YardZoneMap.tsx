@@ -28,7 +28,7 @@ function getCapacityBarColor(capacityPercent: number): string {
 export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMapProps) {
   return (
     <div
-      className="grid gap-3"
+      className="grid gap-4"
       style={{
         gridTemplateColumns: `repeat(${Math.min(zones.length, 2)}, 1fr)`,
       }}
@@ -43,7 +43,7 @@ export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMap
             key={zone.id}
             type="button"
             onClick={() => onZoneSelect(zone)}
-            className={`flex flex-col gap-3 rounded-xl border-2 p-4 text-start transition-all active:scale-[0.98] min-h-[120px] ${
+            className={`flex flex-col gap-4 rounded-2xl border-2 px-6 py-5 text-start transition-all active:scale-[0.98] min-h-[140px] ${
               isSelected
                 ? 'border-[#2563EB]'
                 : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'
@@ -56,11 +56,11 @@ export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMap
             {/* Zone name */}
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                <p className="text-[15px] font-bold text-[var(--color-text-primary)]">
                   {zone.name}
                 </p>
                 {isAggregate && (
-                  <span className="text-[9px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
                     Est. qty
                   </span>
                 )}
@@ -69,7 +69,7 @@ export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMap
 
             {/* Capacity percentage — LARGE MONO */}
             <p
-              className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold leading-tight"
+              className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold leading-tight"
               style={{ color: barColor }}
             >
               {zone.capacityPercent}%
@@ -77,7 +77,7 @@ export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMap
 
             {/* Usage bar */}
             <div>
-              <div className="h-1.5 w-full rounded-full bg-[var(--color-border)]">
+              <div className="h-2 w-full rounded-full bg-[var(--color-border)]">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
@@ -86,7 +86,7 @@ export function YardZoneMap({ zones, selectedZoneId, onZoneSelect }: YardZoneMap
                   }}
                 />
               </div>
-              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-[var(--color-text-secondary)] mt-1">
+              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text-secondary)] mt-1.5">
                 {zone.currentUsage} / {zone.maxCapacity}
               </p>
             </div>

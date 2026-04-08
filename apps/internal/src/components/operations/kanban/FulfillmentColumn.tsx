@@ -76,7 +76,11 @@ export function FulfillmentColumn({
         <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
           {label}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-black/30 dark:text-white/30">
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-medium rounded-full px-1.5 py-0.5 min-w-[20px] text-center ${
+          count > 0
+            ? 'bg-black/[0.06] dark:bg-white/[0.06] text-black/60 dark:text-white/60'
+            : 'text-black/20 dark:text-white/20'
+        }`}>
           {count}
         </span>
       </div>

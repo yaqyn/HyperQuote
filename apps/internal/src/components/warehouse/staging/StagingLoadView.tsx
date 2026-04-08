@@ -23,6 +23,7 @@ export function StagingLoadView({
   onProceedToVerification,
 }: StagingLoadViewProps) {
   const { activeWorkflow, setActiveWorkflow } = useWarehouseStore()
+  const outdoorOpsPaused = useWarehouseStore((s) => s.outdoorOpsPaused)
 
   const { data, isLoading } = useQuery({
     queryKey: ['staging-plan', routeId],
@@ -102,7 +103,14 @@ export function StagingLoadView({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 px-6 py-4">
+      {/* ─── Weather pause warning ───────────────────────── */}
+      {outdoorOpsPaused && (
+        <div className="rounded-xl border border-yellow-300 px-6 py-4 text-[14px] font-semibold text-yellow-600" style={{ background: 'rgba(234, 179, 8, 0.06)' }}>
+          Outdoor operations paused due to weather conditions. Loading may be delayed.
+        </div>
+      )}
+
       {/* ─── Header ──────────────────────────────────────── */}
       <div className="flex items-end justify-between">
         <div>
@@ -136,7 +144,7 @@ export function StagingLoadView({
 
       {/* ─── Loading order warning ───────────────────────── */}
       {isLoadingOutOfOrder && (
-        <div className="rounded-xl border border-amber-300 px-4 py-3 text-sm font-medium text-amber-800" style={{ background: 'rgba(245, 158, 11, 0.06)' }}>
+        <div className="rounded-xl border border-amber-300 px-6 py-4 text-[14px] font-semibold text-amber-800" style={{ background: 'rgba(245, 158, 11, 0.06)' }}>
           Loading order violation: complete current stop before scanning next.
         </div>
       )}
@@ -154,8 +162,8 @@ export function StagingLoadView({
       </div>
 
       {/* ─── Weight Check ────────────────────────────────── */}
-      <div className="rounded-xl border border-[var(--color-border)] p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)] mb-4">
+      <div className="rounded-xl border border-[var(--color-border)] px-6 py-5">
+        <p className="text-[13px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)] mb-4">
           Weight Check
         </p>
 
@@ -185,18 +193,43 @@ export function StagingLoadView({
         </div>
       </div>
 
-      {/* ─── Proceed ─────────────────────────────────────── */}
-      <Button
-        onPress={onProceedToVerification}
-        isDisabled={!allScanned}
-        className={`h-16 min-h-[48px] w-full rounded-xl text-base font-bold transition-all active:scale-[0.98] cursor-pointer ${
-          allScanned
-            ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
-            : 'border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'
-        }`}
-      >
-        Proceed to Verification
-      </Button>
+      {/* ─── All Items Verified / Proceed ────────────────── */}
+      {allScanned && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          className="flex items-center gap-3 rounded-xl border border-green-200 px-5 py-4"
+          style={{ background: 'rgba(22, 163, 74, 0.04)' }}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 text-white">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 8.5L7 11.5L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-green-700">All Items Verified</p>
+            <p className="text-xs text-green-600 mt-0.5">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{totalItems}</span> items scanned and ready for load verification
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sticky bottom CTA — always visible, no scroll required */}
+      <div className="sticky bottom-0 pb-4 pt-2 -mx-6 px-6 bg-gradient-to-t from-white via-white dark:from-black dark:via-black to-transparent">
+        <Button
+          onPress={onProceedToVerification}
+          isDisabled={!allScanned}
+          className={`h-[72px] min-h-[48px] w-full rounded-xl text-[18px] font-bold transition-all active:scale-[0.98] cursor-pointer ${
+            allScanned
+              ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
+              : 'border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'
+          }`}
+        >
+          {allScanned ? 'Proceed to Load Verification' : `Scan ${totalItems - scannedCount} remaining items`}
+        </Button>
+      </div>
     </div>
   )
 }
@@ -206,12 +239,12 @@ export function StagingLoadView({
 function WeightStat({ label, value, unit }: { label: string; value: number; unit: string }) {
   return (
     <div>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+      <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
         {label}
       </span>
-      <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-bold text-[var(--color-text-primary)] mt-0.5">
+      <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold text-[var(--color-text-primary)] mt-1">
         {value.toLocaleString()}
-        <span className="text-xs font-medium text-[var(--color-text-secondary)] ms-1">{unit}</span>
+        <span className="text-[13px] font-medium text-[var(--color-text-secondary)] ms-1">{unit}</span>
       </p>
     </div>
   )
@@ -232,7 +265,7 @@ function StopCard({ stop, scannedItemIds, onItemScan }: StopCardProps) {
 
   return (
     <div
-      className={`rounded-xl border p-4 transition-all ${
+      className={`rounded-xl border px-6 py-5 transition-all ${
         allScannedInStop
           ? 'border-green-200'
           : 'border-[var(--color-border)]'
@@ -243,7 +276,7 @@ function StopCard({ stop, scannedItemIds, onItemScan }: StopCardProps) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="flex items-baseline gap-2">
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs font-semibold text-[var(--color-text-secondary)]">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-bold text-[var(--color-text-secondary)]">
               STOP {stop.stopNumber}
             </span>
             {allScannedInStop && (
@@ -252,11 +285,11 @@ function StopCard({ stop, scannedItemIds, onItemScan }: StopCardProps) {
               </svg>
             )}
           </div>
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mt-0.5">
+          <h3 className="text-[15px] font-bold text-[var(--color-text-primary)] mt-0.5">
             {stop.customerName}
           </h3>
         </div>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm font-semibold text-[var(--color-text-secondary)]">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[16px] font-bold text-[var(--color-text-secondary)]">
           {scannedInStop}/{stop.items.length}
         </span>
       </div>
@@ -276,31 +309,31 @@ function StopCard({ stop, scannedItemIds, onItemScan }: StopCardProps) {
           return (
             <div
               key={item.id}
-              className={`flex items-center gap-3 rounded-lg px-3 py-3 min-h-[48px] transition-colors ${
+              className={`flex items-center gap-4 rounded-xl px-4 py-4 min-h-[56px] transition-colors ${
                 isScanned ? 'opacity-50' : ''
               }`}
             >
               {/* Status dot */}
               <div
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                   isScanned ? 'bg-green-500 text-white' : 'border-2 border-[var(--color-border)]'
                 }`}
               >
                 {isScanned && (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
                     <path d="M2 5.5L4 7.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </div>
 
               {/* Item name */}
-              <span className={`flex-1 text-sm ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
+              <span className={`flex-1 text-[15px] ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
                 {item.name}
               </span>
 
               {/* Scan input */}
               {!isScanned && (
-                <div className="w-48">
+                <div className="w-52">
                   <ScanInput
                     label=""
                     expectedValue={item.barcode}

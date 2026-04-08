@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useWatch, Controller } from 'react-hook-form'
 import { Button, Checkbox, Select, SelectValue, Popover, ListBox, ListBoxItem, Label } from 'react-aria-components'
-import { getBulkReceivingState } from '../../../lib/server/warehouse-receiving'
+import { getBulkReceivingState, submitBulkReceiving } from '../../../lib/server/warehouse-receiving'
 import { calculateNetWeight } from '../../../lib/warehouse/weight-conversions'
 import { useWarehouseStore } from '../../../stores/warehouse'
 import { LargeNumberInput } from '../shared/LargeNumberInput'
@@ -35,7 +36,10 @@ const YARD_ZONES = [
  */
 export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
   const { t, i18n } = useTranslation('internal')
+  const queryClient = useQueryClient()
   const setSelectedReceivingId = useWarehouseStore((s) => s.setSelectedReceivingId)
+  const setInboundView = useWarehouseStore((s) => s.setInboundView)
+  const [submitSuccess, setSubmitSuccess] = useState<{ grnId: string } | null>(null)
 
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-US'
   const numFmt = new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -66,10 +70,63 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
   const remaining = poTotal - previouslyReceived - netWeight
   const unit = bulkState?.unit ?? 'kg'
 
-  const onSubmit = handleSubmit((_data) => {
-    // TODO: Submit bulk receiving via server function
-    setSelectedReceivingId(null)
+  const bulkMutation = useMutation({
+    mutationFn: (formData: BulkFormData) =>
+      submitBulkReceiving({
+        data: {
+          poId: deliveryId,
+          grossWeight: formData.grossWeight,
+          tareWeight: formData.tareWeight,
+          netWeight,
+          yardZone: formData.dumpLocation,
+          photos: [],
+        },
+      }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse'] })
+      setSubmitSuccess({ grnId: result.grnId })
+    },
   })
+
+  const onSubmit = handleSubmit((formData) => {
+    bulkMutation.mutate(formData)
+  })
+
+  // ─── Success State ─────────────────────────────────────
+  if (submitSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 p-5 py-24">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full" style={{ background: 'rgba(22, 163, 74, 0.08)' }}>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M14 24L22 32L34 16" stroke="#16a34a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <p className="text-xl font-bold text-black/90 dark:text-white/90">
+          {t('warehouse.receiving.receivingComplete', 'Receiving Complete')}
+        </p>
+        <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold text-[#2563EB]">
+          {submitSuccess.grnId}
+        </p>
+        <div className="flex gap-3 mt-4">
+          <Button
+            onPress={() => {
+              setInboundView('putaway')
+              setSelectedReceivingId(null)
+            }}
+            className="flex h-14 items-center justify-center rounded-lg bg-[#2563EB] px-8 text-sm font-semibold text-white cursor-pointer transition-colors"
+          >
+            {t('warehouse.receiving.goToPutaway', 'Go to Putaway')}
+          </Button>
+          <Button
+            onPress={() => setSelectedReceivingId(null)}
+            className="flex h-14 items-center justify-center rounded-lg border border-black/10 dark:border-white/10 px-8 text-sm font-semibold text-black/70 dark:text-white/70 cursor-pointer transition-colors"
+          >
+            {t('common.done', 'Done')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 p-5">
@@ -256,10 +313,19 @@ export function ActiveReceivingBulk({ deliveryId }: ActiveReceivingBulkProps) {
       {/* Confirm */}
       <Button
         onPress={() => onSubmit()}
-        className="flex h-16 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer transition-colors"
+        isDisabled={bulkMutation.isPending}
+        className="flex h-16 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-semibold text-white cursor-pointer transition-colors data-[disabled]:opacity-50"
       >
-        {t('warehouse.receiving.confirmReceipt', 'Confirm Receipt')}
+        {bulkMutation.isPending
+          ? t('common.submitting', 'Submitting...')
+          : t('warehouse.receiving.confirmReceipt', 'Confirm Receipt')}
       </Button>
+
+      {bulkMutation.isError && (
+        <p className="text-sm text-red-600 text-center font-medium">
+          {t('warehouse.receiving.submitError', 'Failed to submit. Please try again.')}
+        </p>
+      )}
     </div>
   )
 }

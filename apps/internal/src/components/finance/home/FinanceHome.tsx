@@ -110,17 +110,110 @@ export function FinanceHome() {
   const draftInvoices = AUTO_GENERATED_INVOICES.filter((inv) => inv.status === 'draft')
   const overduePayments = EXPECTED_PAYMENTS.filter((p) => p.dueDate <= '2026-04-07')
 
+  // Computed action items — finance clerk priorities
+  const expectedTotal = EXPECTED_PAYMENTS.reduce((sum, p) => sum + p.amount, 0)
+  const chequesToDeposit = EXPECTED_PAYMENTS.filter((p) => p.method === 'cheque')
+
   return (
     <div className="p-6 max-w-5xl">
-      {/* ─── Hero: Cash Position ─────────────────────────── */}
+      {/* ─── Expected Payments This Week — TOP PRIORITY ──── */}
+      <section className="mb-8">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+            {t('dashboard.expectedPayments', 'Expected This Week')}
+          </h2>
+          <CurrencyCell amount={expectedTotal} className="text-lg font-semibold" />
+        </div>
+        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04] rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+          {EXPECTED_PAYMENTS.map((payment) => {
+            const isToday = payment.dueDate === new Date().toISOString().slice(0, 10)
+            const isPast = payment.dueDate < new Date().toISOString().slice(0, 10)
+            return (
+              <div key={payment.customer} className={`flex items-center gap-3 px-4 py-2.5 ${isPast ? 'bg-red-500/[0.03]' : isToday ? 'bg-[#2563EB]/[0.02]' : ''}`}>
+                <span className={`size-1.5 rounded-full shrink-0 ${isPast ? 'bg-red-500' : isToday ? 'bg-[#2563EB]' : 'bg-black/15 dark:bg-white/15'}`} />
+                <span className="text-sm flex-1 min-w-0 truncate">{payment.customer}</span>
+                <span className="text-[11px] text-black/35 dark:text-white/35 font-[family-name:var(--font-geist-mono)] tabular-nums">
+                  {PAYMENT_METHOD_LABELS[payment.method]}
+                </span>
+                <CurrencyCell amount={payment.amount} className="text-sm" />
+                <span className={`text-[11px] font-[family-name:var(--font-geist-mono)] tabular-nums ${isPast ? 'text-red-500 font-medium' : 'text-black/30 dark:text-white/30'}`}>
+                  {payment.dueDate}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* ─── Action Items — what needs doing RIGHT NOW ───── */}
+      <section className="mb-8">
+        <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
+          {t('dashboard.actionItems', 'Action Items')}
+        </h2>
+        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04] rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+          {/* Overdue AR — highest urgency */}
+          {dashboard.overdueAR > 0 && (
+            <button
+              type="button"
+              onClick={navigateToAR}
+              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start bg-red-500/[0.02]"
+            >
+              <span className="size-1.5 rounded-full bg-red-500 shrink-0" />
+              <span className="text-sm font-medium flex-1">
+                {t('dashboard.overdueInvoices', '{{count}} invoices overdue', { count: dashboard.overdueInvoiceCount ?? overduePayments.length })}
+              </span>
+              <CurrencyCell amount={dashboard.overdueAR} className="text-sm text-red-600 font-medium" />
+            </button>
+          )}
+
+          {/* Overdue payments to record */}
+          {overduePayments.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
+              <span className="text-sm font-medium flex-1">
+                {t('dashboard.paymentsToRecord', '{{count}} payments to record', { count: overduePayments.length })}
+              </span>
+              <CurrencyCell amount={overduePayments.reduce((s, p) => s + p.amount, 0)} className="text-sm" />
+            </div>
+          )}
+
+          {/* Cheques to deposit */}
+          {chequesToDeposit.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="size-1.5 rounded-full bg-yellow-500 shrink-0" />
+              <span className="text-sm flex-1">
+                {t('dashboard.chequesToDeposit', '{{count}} cheques to deposit', { count: chequesToDeposit.length })}
+              </span>
+              <CurrencyCell amount={chequesToDeposit.reduce((s, c) => s + c.amount, 0)} className="text-sm" />
+            </div>
+          )}
+
+          {/* Draft invoices needing send */}
+          {draftInvoices.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('receivables')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start"
+            >
+              <span className="size-1.5 rounded-full bg-[#2563EB] shrink-0" />
+              <span className="text-sm flex-1">
+                {t('dashboard.draftsToSend', '{{count}} draft invoices to send', { count: draftInvoices.length })}
+              </span>
+              <CurrencyCell amount={draftInvoices.reduce((s, inv) => s + inv.amount, 0)} className="text-sm" />
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ─── Cash Position — secondary context ─────────────── */}
       <section className="mb-8">
         <div className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-1">
           {t('dashboard.cashPosition', 'Cash Position')}
         </div>
-        <CurrencyCell amount={dashboard.cashPosition} className="text-5xl font-light" />
+        <CurrencyCell amount={dashboard.cashPosition} className="text-4xl font-light" />
 
         {/* AR | AP | Net — three numbers in a row */}
-        <div className="flex items-center gap-6 mt-4">
+        <div className="flex items-center gap-6 mt-3">
           <button type="button" onClick={navigateToAR} className="group cursor-pointer text-start">
             <div className="text-[11px] uppercase tracking-wider text-black/35 dark:text-white/35 mb-0.5">
               {t('dashboard.outstandingAR', 'AR')}
@@ -160,111 +253,35 @@ export function FinanceHome() {
         </div>
       </section>
 
-      {/* ─── Action Items ────────────────────────────────── */}
+      {/* ─── AR Aging ──────────────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
-          {t('dashboard.actionItems', 'Today')}
+          {t('dashboard.arAgingSummary', 'Aging')}
         </h2>
-        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04] rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
-          {/* Overdue payments due */}
-          {overduePayments.map((payment) => (
-            <div key={payment.customer} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="size-1.5 rounded-full bg-red-500 shrink-0" />
-              <span className="text-sm flex-1 min-w-0 truncate">
-                {t('dashboard.paymentDue', 'Payment due')}: {payment.customer}
-              </span>
-              <span className="text-[11px] text-black/35 dark:text-white/35 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {PAYMENT_METHOD_LABELS[payment.method]}
-              </span>
-              <CurrencyCell amount={payment.amount} className="text-sm" />
-              <span className="text-[11px] text-black/30 dark:text-white/30 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {payment.dueDate}
-              </span>
-            </div>
-          ))}
-
-          {/* Draft invoices needing review */}
-          {draftInvoices.map((inv) => (
-            <button
-              key={inv.id}
-              type="button"
-              onClick={() => navigateToInvoice(inv.id)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start"
-            >
-              <span className="size-1.5 rounded-full bg-yellow-500 shrink-0" />
-              <span className="text-sm flex-1 min-w-0 truncate">
-                {t('dashboard.reviewInvoice', 'Review invoice')}: {inv.number}
-              </span>
-              <span className="text-[11px] text-black/35 dark:text-white/35">{inv.customer}</span>
-              <CurrencyCell amount={inv.amount} className="text-sm" />
-            </button>
-          ))}
-
-          {/* Overdue AR alert */}
-          {dashboard.overdueAR > 0 && (
-            <button
-              type="button"
-              onClick={navigateToAR}
-              className="w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#2563EB]/[0.02] transition-colors text-start"
-            >
-              <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
-              <span className="text-sm flex-1">
-                {t('dashboard.overdueARAlert', 'Overdue receivables need attention')}
-              </span>
-              <CurrencyCell amount={dashboard.overdueAR} className="text-sm text-red-600" />
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* ─── AR Aging + Expected Payments — side by side ── */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* AR Aging compact */}
-        <div>
-          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
-            {t('dashboard.arAgingSummary', 'Aging')}
-          </h2>
-          <div className="space-y-1.5">
-            {AGING_BUCKETS.map((row) => {
-              const amount = dashboard.arAging[row.field]
-              const pct = dashboard.outstandingAR > 0 ? (amount / dashboard.outstandingAR) * 100 : 0
-              return (
-                <div key={row.key} className="flex items-center gap-3">
-                  <div className="w-12">
-                    <AgingBadge bucket={row.bucket} />
-                  </div>
-                  <div className="flex-1 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-black/20 dark:bg-white/20 transition-all duration-300"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <CurrencyCell amount={amount} className="text-sm w-28 text-end" />
+        <div className="space-y-1.5">
+          {AGING_BUCKETS.map((row) => {
+            const amount = dashboard.arAging[row.field]
+            const pct = dashboard.outstandingAR > 0 ? (amount / dashboard.outstandingAR) * 100 : 0
+            return (
+              <button
+                key={row.key}
+                type="button"
+                onClick={navigateToAR}
+                className="w-full flex items-center gap-3 group cursor-pointer"
+              >
+                <div className="w-12">
+                  <AgingBadge bucket={row.bucket} />
                 </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Expected Payments */}
-        <div>
-          <h2 className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40 mb-3">
-            {t('dashboard.expectedPayments', 'Expected This Week')}
-          </h2>
-          <div className="space-y-1.5">
-            {EXPECTED_PAYMENTS.map((payment) => (
-              <div key={payment.customer} className="flex items-center gap-3">
-                <span className="text-sm flex-1 min-w-0 truncate">{payment.customer}</span>
-                <span className="text-[10px] text-black/30 dark:text-white/30 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                  {payment.dueDate}
-                </span>
-                <span className="text-[10px] text-black/30 dark:text-white/30 w-12 text-end">
-                  {PAYMENT_METHOD_LABELS[payment.method]}
-                </span>
-                <CurrencyCell amount={payment.amount} className="text-sm w-28 text-end" />
-              </div>
-            ))}
-          </div>
+                <div className="flex-1 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-black/20 dark:bg-white/20 transition-all duration-300 group-hover:bg-[#2563EB]/40"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <CurrencyCell amount={amount} className="text-sm w-28 text-end group-hover:text-[#2563EB] transition-colors" />
+              </button>
+            )
+          })}
         </div>
       </section>
 

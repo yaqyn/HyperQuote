@@ -332,15 +332,28 @@ const reassignRFQInput = z.object({
 
 export const reassignRFQ = createServerFn({ method: 'POST' })
   .inputValidator(reassignRFQInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return { success: true }
-    }
-
-    // TODO: Update quote_requests.assigned_to
+  .handler(async ({ data: input }) => {
+    // TODO: Real implementation — update quote_requests.assigned_to
     // TODO: Send push notification to new assignee
     // TODO: Log reassignment in activity
-    return { success: true }
+
+    const mockNames: Record<string, string> = {
+      'user-001': 'Ahmed Hassan',
+      'user-002': 'Mariam Farouk',
+      'user-003': 'Omar Khaled',
+    }
+
+    if (!isSupabaseConfigured()) {
+      return {
+        success: true,
+        assigneeName: mockNames[input.toUserId] ?? 'Unknown',
+      }
+    }
+
+    return {
+      success: true,
+      assigneeName: mockNames[input.toUserId] ?? 'Unknown',
+    }
   })
 
 const autoAssignRFQInput = z.object({

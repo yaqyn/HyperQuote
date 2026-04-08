@@ -4,6 +4,7 @@
 // ─── Tab Navigation ──────────────────────────────────────
 
 export type HRTab =
+  | 'home'
   | 'people'
   | 'time'
   | 'settings'

@@ -2,6 +2,7 @@ import { useReportsStore } from '../../stores/reports'
 import { ModuleTabStrip } from '../shell/ModuleTabStrip'
 
 const TABS = [
+  { id: 'overview', label: 'Overview' },
   { id: 'sales', label: 'Sales' },
   { id: 'procurement', label: 'Procurement' },
   { id: 'operations', label: 'Operations' },

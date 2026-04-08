@@ -64,12 +64,28 @@ const confirmPickInput = z.object({
     stepId: z.string(),
     pickedQty: z.number(),
     lotNumber: z.string(),
+    exception: z.string().optional(),
   })),
   notes: z.string().optional(),
 })
 
 export const confirmPick = createServerFn({ method: 'POST' })
   .inputValidator(confirmPickInput)
-  .handler(async ({ data: _input }) => {
-    return { success: true, shortages: [] as string[] }
+  .handler(async ({ data: input }) => {
+    const steps = getMockPickSteps()
+    const shortages = input.lines
+      .filter((line) => {
+        const step = steps.find((s) => s.id === line.stepId)
+        return step && line.pickedQty < step.quantityToPick
+      })
+      .map((line) => line.stepId)
+
+    return {
+      success: true,
+      pickListCompleted: true,
+      movedToStaging: true,
+      shortages,
+      totalLinesPicked: input.lines.length,
+      totalQtyPicked: input.lines.reduce((sum, l) => sum + l.pickedQty, 0),
+    }
   })

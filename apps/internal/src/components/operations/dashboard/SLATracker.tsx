@@ -75,8 +75,32 @@ export function SLATracker() {
     return sortByUrgency(data.items)
   }, [data?.items])
 
+  // Count breached items
+  const breachedCount = sortedItems.filter((item) => computeSLAStatus(item.remainingMs, item.totalMs) === 'breached').length
+  const atRiskCount = sortedItems.filter((item) => computeSLAStatus(item.remainingMs, item.totalMs) === 'at_risk').length
+
   return (
     <div>
+      {/* Breach alert banner — prominent red count */}
+      {breachedCount > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/[0.06] border border-red-500/10 px-4 py-3">
+          <div className="flex size-6 items-center justify-center rounded-full bg-red-500/10">
+            <div className="size-2 rounded-full bg-red-500" />
+          </div>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold text-red-600">
+            {breachedCount}
+          </span>
+          <span className="text-[13px] font-medium text-red-600">
+            order{breachedCount !== 1 ? 's' : ''} breaching SLA
+          </span>
+          {atRiskCount > 0 && (
+            <span className="text-[12px] text-yellow-600 ms-2">
+              + {atRiskCount} at risk
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Header + Filters */}
       <div className="flex items-center justify-between mb-4">
         <span className="text-[10px] font-medium uppercase tracking-wider text-black/40 dark:text-white/40">

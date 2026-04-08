@@ -272,13 +272,43 @@ export function BounceHandlingModal({
                       </span>
                     </label>
 
-                    {/* Warning — consequences */}
-                    <div className="rounded-md bg-red-500/[0.04] border border-red-500/10 px-3 py-2.5">
-                      <div className="text-[10px] text-red-600 dark:text-red-400 space-y-0.5">
+                    {/* CRIMINAL WARNING — Egyptian law */}
+                    <div className="rounded-md bg-red-600/[0.08] border-2 border-red-600/20 px-4 py-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 text-red-600 dark:text-red-400 shrink-0">
+                          <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider">
+                          {t('pdc.criminalWarning', 'Criminal Offense Under Egyptian Law')}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-red-700/80 dark:text-red-400/80 mb-3">
+                        {t('pdc.criminalWarningDetail', 'Bounced cheques are a criminal offense under Egyptian Penal Code. The drawer may face imprisonment.')}
+                      </div>
+                      <div className="text-[11px] text-red-600 dark:text-red-400 space-y-1">
+                        <div className="font-medium">{t('pdc.nextSteps', 'Required next steps:')}</div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-red-500/60 mt-px">1.</span>
+                          <span>{t('pdc.step1NotifyLegal', 'Notify legal department')}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-red-500/60 mt-px">2.</span>
+                          <span>{t('pdc.step2ContactCustomer', 'Contact customer for immediate resolution')}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-red-500/60 mt-px">3.</span>
+                          <span>{t('pdc.step3CreditHold', 'File credit hold on account')}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Accounting consequences */}
+                    <div className="rounded-md bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.06] px-3 py-2.5">
+                      <div className="text-[10px] text-black/50 dark:text-white/50 space-y-0.5">
                         <div>{t('pdc.reverseEntry', 'Reverses accounting entry')}</div>
                         <div>
                           {t('pdc.addBackToAR', 'Adds back to AR:')}{' '}
-                          <CurrencyCell amount={cheque.amount} className="text-[10px] text-red-600 dark:text-red-400 font-medium" />
+                          <CurrencyCell amount={cheque.amount} className="text-[10px] text-black/70 dark:text-white/70 font-medium" />
                         </div>
                         <div>{t('pdc.creditHold', 'Places customer on credit hold')}</div>
                         <div>{t('pdc.legalNotification', 'Triggers legal notification')}</div>

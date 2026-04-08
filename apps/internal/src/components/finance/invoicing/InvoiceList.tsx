@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button } from 'react-aria-components'
-import { getInvoices } from '../../../lib/server/finance-invoices'
+import { getInvoices, batchSendInvoices, batchGenerateInvoices } from '../../../lib/server/finance-invoices'
 import { useFinanceStore } from '../../../stores/finance'
 import { CurrencyCell } from '../shared/CurrencyCell'
 import { StatusBadge } from '../shared/StatusBadge'
@@ -35,21 +35,30 @@ const GROUP_LABELS: Record<StatusGroup, string> = {
   paid: 'Paid',
 }
 
-// ─── ETA dot ───────────────────────────────────────────
-const ETA_DOT: Record<ETASubmissionStatus, string> = {
-  pending: 'bg-black/20 dark:bg-white/20',
-  submitted: 'bg-[#2563EB]',
-  accepted: 'bg-green-500',
-  rejected: 'bg-red-500',
-  error: 'bg-red-500',
+// ─── ETA badge ────────────────────────────────────────
+const ETA_BADGE_STYLES: Record<ETASubmissionStatus, string> = {
+  pending: 'bg-black/[0.06] dark:bg-white/[0.06] text-black/40 dark:text-white/40',
+  submitted: 'bg-[#2563EB]/10 text-[#2563EB]',
+  accepted: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  rejected: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  error: 'bg-red-500/10 text-red-600 dark:text-red-400',
 }
 
-function ETADot({ status }: { status: ETASubmissionStatus }) {
+const ETA_LABELS: Record<ETASubmissionStatus, string> = {
+  pending: 'ETA Pending',
+  submitted: 'ETA Sent',
+  accepted: 'ETA OK',
+  rejected: 'ETA Rejected',
+  error: 'ETA Error',
+}
+
+function ETABadge({ status }: { status: ETASubmissionStatus }) {
   return (
     <span
-      className={`inline-block size-1.5 rounded-full ${ETA_DOT[status]}`}
-      title={`ETA: ${status}`}
-    />
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium tracking-wide uppercase ${ETA_BADGE_STYLES[status]}`}
+    >
+      {ETA_LABELS[status]}
+    </span>
   )
 }
 
@@ -77,9 +86,10 @@ export function InvoiceList() {
   const { t } = useTranslation('finance')
   const setSelectedInvoiceId = useFinanceStore((s) => s.setSelectedInvoiceId)
 
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('')
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('draft')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchLoading, setBatchLoading] = useState<'send' | 'generate' | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['finance', 'invoices'],
@@ -140,6 +150,36 @@ export function InvoiceList() {
 
   return (
     <div className="space-y-0">
+      {/* ─── Batch send banner for drafts ──────────────── */}
+      {(() => {
+        const draftCount = invoices.filter((inv) => inv.status === 'draft').length
+        if (draftCount === 0) return null
+        return (
+          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#2563EB]/10 bg-[#2563EB]/[0.03]">
+            <span className="text-xs text-black/60 dark:text-white/60 flex-1">
+              {t('invoicing.draftsReady', '{{count}} draft invoices ready to send', { count: draftCount })}
+            </span>
+            <Button
+              isDisabled={batchLoading === 'send'}
+              onPress={async () => {
+                const draftIds = invoices.filter((inv) => inv.status === 'draft').map((inv) => inv.id)
+                setBatchLoading('send')
+                try {
+                  await batchSendInvoices({ data: { invoiceIds: draftIds, channels: ['portal', 'email'] } })
+                } finally {
+                  setBatchLoading(null)
+                }
+              }}
+              className="rounded-md bg-[#2563EB] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 transition-colors"
+            >
+              {batchLoading === 'send'
+                ? t('invoicing.sending', 'Sending...')
+                : t('invoicing.sendAllDrafts', 'Send all {{count}} drafts', { count: draftCount })}
+            </Button>
+          </div>
+        )
+      })()}
+
       {/* ─── Toolbar ─────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
         {/* Status filter pills */}
@@ -201,11 +241,35 @@ export function InvoiceList() {
                 {t('invoicing.selected', 'selected')}
               </span>
               <div className="flex-1" />
-              <Button className="rounded-md bg-[#2563EB] text-white px-3 py-1 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 transition-colors">
-                {t('invoicing.batchSend', 'Batch Send')}
+              <Button
+                isDisabled={batchLoading === 'send'}
+                onPress={async () => {
+                  setBatchLoading('send')
+                  try {
+                    await batchSendInvoices({ data: { invoiceIds: Array.from(selectedIds), channels: ['portal', 'email'] } })
+                    setSelectedIds(new Set())
+                  } finally {
+                    setBatchLoading(null)
+                  }
+                }}
+                className="rounded-md bg-[#2563EB] text-white px-3 py-1 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 transition-colors"
+              >
+                {batchLoading === 'send' ? t('invoicing.sending', 'Sending...') : t('invoicing.batchSend', 'Batch Send')}
               </Button>
-              <Button className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1 text-xs font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
-                {t('invoicing.batchGenerate', 'Batch Generate')}
+              <Button
+                isDisabled={batchLoading === 'generate'}
+                onPress={async () => {
+                  setBatchLoading('generate')
+                  try {
+                    await batchGenerateInvoices({ data: { deliveryIds: Array.from(selectedIds) } })
+                    setSelectedIds(new Set())
+                  } finally {
+                    setBatchLoading(null)
+                  }
+                }}
+                className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1 text-xs font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.03] disabled:opacity-50 transition-colors"
+              >
+                {batchLoading === 'generate' ? t('invoicing.generating', 'Generating...') : t('invoicing.batchGenerate', 'Batch Generate')}
               </Button>
             </div>
           </motion.div>
@@ -215,7 +279,7 @@ export function InvoiceList() {
       {/* ─── Grouped Invoice Rows ───────────────────────── */}
       <div>
         {/* Column header */}
-        <div className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_32px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/30 dark:text-white/30 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_72px] items-center gap-0 px-5 py-2 text-[10px] tracking-wider uppercase text-black/30 dark:text-white/30 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -257,7 +321,7 @@ export function InvoiceList() {
                   tabIndex={0}
                   onClick={() => setSelectedInvoiceId(inv.id)}
                   onKeyDown={(e) => { if (e.key === 'Enter') setSelectedInvoiceId(inv.id) }}
-                  className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_32px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+                  className="grid grid-cols-[28px_1fr_1.5fr_1fr_0.8fr_80px_50px_72px] items-center gap-0 px-5 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <input
@@ -298,9 +362,9 @@ export function InvoiceList() {
                     {getAge(inv.issuedDate)}
                   </span>
 
-                  {/* ETA dot */}
+                  {/* ETA badge */}
                   <div className="flex justify-center">
-                    <ETADot status={inv.etaStatus} />
+                    <ETABadge status={inv.etaStatus} />
                   </div>
                 </div>
               ))}

@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import type {
   AuditEntry,
   AuditLogResponse,
@@ -156,22 +157,38 @@ export const manageUserRoles = createServerFn({ method: 'POST' }).handler(
  * READ-ONLY — NO mutation functions for audit data.
  * WORM pattern: Write Once Read Many. 7-year retention, immutable.
  */
-export const getAuditLog = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<{ entries: AuditEntry[]; total: number; page: number; pageSize: number }> => {
-    // In production, filters would be applied server-side.
-    // Mock returns all 50 entries paginated.
-    const page = 1
-    const pageSize = 20
-    const start = (page - 1) * pageSize
-    const entries = MOCK_AUDIT_ENTRIES.slice(start, start + pageSize)
-    return {
-      entries,
-      total: MOCK_AUDIT_ENTRIES.length,
-      page,
-      pageSize,
-    }
-  },
-)
+export const getAuditLog = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({
+    page: z.number().default(1),
+    limit: z.number().default(20),
+    action: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  }))
+  .handler(
+    async ({ data }): Promise<{ entries: AuditEntry[]; total: number; page: number; pageSize: number }> => {
+      const page = data.page
+      const pageSize = data.limit
+      let filtered = MOCK_AUDIT_ENTRIES
+      if (data.action) {
+        filtered = filtered.filter((e) => e.action === data.action)
+      }
+      if (data.startDate) {
+        filtered = filtered.filter((e) => e.timestamp >= data.startDate!)
+      }
+      if (data.endDate) {
+        filtered = filtered.filter((e) => e.timestamp <= data.endDate!)
+      }
+      const start = (page - 1) * pageSize
+      const entries = filtered.slice(start, start + pageSize)
+      return {
+        entries,
+        total: filtered.length,
+        page,
+        pageSize,
+      }
+    },
+  )
 
 export const updateMarginRules = createServerFn({ method: 'POST' }).handler(
   async ({ data }: { data: { categoryId: string; targetMarginPercent?: number; floorMarginPercent?: number; absoluteMinimum?: number } }): Promise<MarginRule> => {
@@ -203,6 +220,107 @@ export const updateHolidayCalendar = createServerFn({ method: 'POST' }).handler(
     return { ...holiday, confirmedDate: data.confirmedDate }
   },
 )
+
+// ─── User Management ───────────────────────────────────
+
+export const createUser = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    role: z.string(),
+    department: z.string(),
+  }))
+  .handler(async ({ data }) => {
+    return { success: true, userId: `user-${Date.now()}`, tempPassword: 'temp-' + Math.random().toString(36).slice(2, 10) }
+  })
+
+export const suspendUser = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ userId: z.string(), reason: z.string() }))
+  .handler(async ({ data }) => ({ success: true }))
+
+export const activateUser = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ userId: z.string() }))
+  .handler(async ({ data }) => ({ success: true }))
+
+export const resetUserPassword = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ userId: z.string() }))
+  .handler(async ({ data }) => ({ success: true, tempPassword: 'reset-' + Math.random().toString(36).slice(2, 10) }))
+
+export const toggleUserMFA = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ userId: z.string(), enabled: z.boolean() }))
+  .handler(async ({ data }) => ({ success: true, mfaEnabled: data.enabled }))
+
+// ─── Role Management ───────────────────────────────────
+
+export const updateRolePermissions = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    roleId: z.string(),
+    permissions: z.record(z.string(), z.boolean()),
+  }))
+  .handler(async ({ data }) => ({ success: true }))
+
+// ─── Margin Rules CRUD ─────────────────────────────────
+
+export const createMarginRule = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    productCategory: z.string(),
+    target: z.number(),
+    floor: z.number(),
+    absoluteMin: z.number(),
+  }))
+  .handler(async ({ data }) => ({ success: true, ruleId: `rule-${Date.now()}` }))
+
+export const deleteMarginRule = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ ruleId: z.string() }))
+  .handler(async ({ data }) => ({ success: true }))
+
+// ─── Approval Thresholds CRUD ──────────────────────────
+
+export const createApprovalThreshold = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    type: z.string(),
+    description: z.string(),
+    threshold: z.number(),
+    approver: z.string(),
+    escalation: z.string().optional(),
+  }))
+  .handler(async ({ data }) => ({ success: true, thresholdId: `thresh-${Date.now()}` }))
+
+export const deleteApprovalThreshold = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ thresholdId: z.string() }))
+  .handler(async ({ data }) => ({ success: true }))
+
+// ─── Holidays CRUD ─────────────────────────────────────
+
+export const addHoliday = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    name: z.string(),
+    date: z.string(),
+    type: z.enum(['fixed', 'islamic']),
+    days: z.number().default(1),
+  }))
+  .handler(async ({ data }) => ({ success: true, holidayId: `hol-${Date.now()}` }))
+
+export const deleteHoliday = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ holidayId: z.string() }))
+  .handler(async ({ data }) => ({ success: true }))
+
+// ─── Audit Export ──────────────────────────────────────
+
+export const exportAuditLog = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    action: z.string().optional(),
+  }))
+  .handler(async ({ data }) => {
+    const header = 'Timestamp,Action,User,Entity,EntityId,Details\n'
+    const rows = Array.from({ length: 50 }, (_, i) => {
+      const d = new Date(Date.now() - i * 3600000)
+      return `${d.toISOString()},UPDATE,Admin,SystemSetting,set-${i},Updated value`
+    }).join('\n')
+    return { csv: header + rows, filename: `audit-log-${new Date().toISOString().slice(0, 10)}.csv` }
+  })
 
 // Export mock data for use in views
 export const getMarginRules = createServerFn({ method: 'GET' }).handler(

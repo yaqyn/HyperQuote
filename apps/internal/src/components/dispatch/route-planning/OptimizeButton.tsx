@@ -4,13 +4,13 @@
  */
 import { useState, useCallback } from 'react'
 import {
-  Button,
   Dialog,
   DialogTrigger,
   Heading,
   Modal,
   ModalOverlay,
 } from 'react-aria-components'
+import { Button } from '../../ui/Button'
 import { optimizeRoute } from '../../../lib/server/dispatch'
 import type { DeliveryRoute, RouteStop } from '../../../types/dispatch'
 
@@ -52,21 +52,25 @@ export function OptimizeButton({ selectedRoute, onOptimized }: OptimizeButtonPro
     }
   }, [selectedRoute])
 
+  const [lastSavings, setLastSavings] = useState<{ distanceKm: number; durationMin: number } | null>(null)
+
   const handleApply = useCallback(() => {
     if (!selectedRoute || !result) return
     onOptimized(selectedRoute.id, result.optimizedStops)
+    setLastSavings(result.savings)
     setDialogOpen(false)
     setResult(null)
     setDone(true)
-    setTimeout(() => setDone(false), 2000)
+    setTimeout(() => { setDone(false); setLastSavings(null) }, 4000)
   }, [selectedRoute, result, onOptimized])
 
   return (
     <>
       <Button
+        variant="primary"
         onPress={handleOptimize}
         isDisabled={!selectedRoute || loading}
-        className="flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-30"
+        className="flex items-center gap-1.5"
       >
         {loading ? (
           <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -82,7 +86,11 @@ export function OptimizeButton({ selectedRoute, onOptimized }: OptimizeButtonPro
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
           </svg>
         )}
-        {done ? 'Optimized' : 'Optimize'}
+        {done && lastSavings
+          ? `Saved ${lastSavings.distanceKm} km, ${lastSavings.durationMin} min`
+          : done
+            ? 'Optimized'
+            : 'Optimize'}
       </Button>
 
       {result && (
@@ -114,14 +122,14 @@ export function OptimizeButton({ selectedRoute, onOptimized }: OptimizeButtonPro
 
                     <div className="mt-6 flex items-center justify-end gap-2">
                       <Button
+                        variant="outline"
                         onPress={() => { setResult(null); close() }}
-                        className="rounded-lg border border-black/[0.08] px-4 py-2 text-sm transition-colors hover:bg-black/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"
                       >
                         Cancel
                       </Button>
                       <Button
+                        variant="primary"
                         onPress={() => { handleApply(); close() }}
-                        className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
                       >
                         Apply
                       </Button>

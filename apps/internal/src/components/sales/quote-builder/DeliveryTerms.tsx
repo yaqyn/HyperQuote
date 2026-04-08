@@ -16,12 +16,8 @@ import {
   Popover,
   Dialog,
   Group,
-  Label,
-  RadioGroup,
-  Radio,
-  Input,
-  TextField,
 } from 'react-aria-components'
+import { PillGroup, Pill, UnderlineInput } from '../../ui'
 import { today, getLocalTimeZone, parseDate } from '@internationalized/date'
 import type { QuoteFormValues } from './LineItemsTable'
 
@@ -86,7 +82,6 @@ export function DeliveryTerms({
   const isHeavyOrder = isHeavyByWeight || isHeavyByCategory
   const truckBanActive = isCairoDelivery && isHeavyOrder
 
-  // Enforce night delivery window when truck ban is active
   useEffect(() => {
     if (truckBanActive) {
       setFormValue('deliveryWindow', '00:00-06:00')
@@ -104,17 +99,26 @@ export function DeliveryTerms({
   const qualifiesForFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD
 
   return (
-    <div className="space-y-3">
-      {/* Truck ban -- single compact line */}
-      {truckBanActive && (
-        <p className="text-[11px] font-medium text-red-600 dark:text-red-400">
-          Night delivery only (Cairo truck ban)
-        </p>
-      )}
+    <div className="space-y-4">
+      {/* Row 1: Method pills */}
+      <Controller
+        control={control}
+        name="deliveryMethod"
+        render={({ field }) => (
+          <PillGroup
+            aria-label="Delivery method"
+            value={field.value || 'jobsite'}
+            onChange={(val) => field.onChange(val)}
+          >
+            <Pill value="jobsite">Jobsite</Pill>
+            <Pill value="pickup">Pickup</Pill>
+            <Pill value="third_party">3rd Party</Pill>
+          </PillGroup>
+        )}
+      />
 
-      {/* Date + Window + Method -- one horizontal row */}
-      <div className="flex items-end gap-3">
-        {/* Date */}
+      {/* Row 2: Date + Window — prominent, side by side */}
+      <div className="flex items-baseline gap-6">
         <Controller
           control={control}
           name="deliveryDate"
@@ -124,21 +128,22 @@ export function DeliveryTerms({
               minValue={earliestDate}
               value={field.value ? parseDate(field.value) : null}
               onChange={(date) => field.onChange(date?.toString() ?? '')}
-              className="group flex min-w-0 flex-col gap-0.5"
+              className="relative z-10"
             >
-              <Label className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)]">
-                Date
-              </Label>
-              <Group className="flex rounded-md border border-black/[0.08] transition-colors focus-within:border-[var(--color-primary)] dark:border-white/[0.08]">
-                <DateInput className="flex flex-1 items-center px-2 py-1.5">
+              <Group className="flex items-center gap-1.5">
+                <DateInput className="flex items-center">
                   {(segment) => (
                     <DateSegment
                       segment={segment}
-                      className="rounded px-0.5 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums outline-none data-[focused]:bg-[var(--color-primary)]/10 data-[placeholder]:text-black/25 dark:data-[placeholder]:text-white/25"
+                      className="rounded px-0.5 font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums outline-none
+                        data-[focused]:bg-[var(--color-primary)]/10
+                        data-[placeholder]:text-black/15 dark:data-[placeholder]:text-white/15"
                     />
                   )}
                 </DateInput>
-                <AriaButton className="px-2 text-[var(--color-text-subtle)] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">
+                <AriaButton className="rounded-md p-1 text-black/40 outline-none transition-colors
+                  data-[hovered]:text-black/60 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
+                  dark:text-white/40 dark:data-[hovered]:text-white/60">
                   <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                     <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
                     <path d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
@@ -181,122 +186,83 @@ export function DeliveryTerms({
           )}
         />
 
-        {/* Window */}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <Label className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)]">
-            Window
-          </Label>
-          {truckBanActive ? (
-            <div className="flex items-center rounded-md border border-red-200 bg-red-50/50 px-2 py-1.5 dark:border-red-800 dark:bg-red-950/20">
-              <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-red-700 dark:text-red-300">
-                00:00–06:00
-              </span>
-            </div>
-          ) : (
-            <Controller
-              control={control}
-              name="deliveryWindow"
-              render={({ field }) => (
-                <select
-                  value={field.value ?? '08:00-17:00'}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  className="rounded-md border border-black/[0.08] px-2 py-1.5 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.08]"
-                >
-                  <option value="08:00-12:00">08:00–12:00</option>
-                  <option value="12:00-17:00">12:00–17:00</option>
-                  <option value="08:00-17:00">08:00–17:00</option>
-                  <option value="00:00-06:00">00:00–06:00</option>
-                </select>
-              )}
-            />
-          )}
-        </div>
+        <span className="text-[12px] text-black/40 dark:text-white/40">{leadTimeDays}d lead</span>
 
-        {/* Method pills */}
-        <Controller
-          control={control}
-          name="deliveryMethod"
-          render={({ field }) => (
-            <RadioGroup
-              aria-label="Delivery method"
-              value={field.value || 'jobsite'}
-              onChange={(val) => field.onChange(val)}
-              className="flex min-w-0 flex-col gap-0.5"
-            >
-              <Label className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)]">
-                Method
-              </Label>
-              <div className="flex gap-1">
-                {[
-                  { value: 'jobsite', label: 'Jobsite' },
-                  { value: 'pickup', label: 'Pickup' },
-                  { value: 'third_party', label: '3rd Party' },
-                ].map((opt) => (
-                  <Radio
-                    key={opt.value}
-                    value={opt.value}
-                    className="cursor-pointer rounded-full border border-black/[0.08] px-3 py-1 text-[11px] font-medium outline-none transition-all
-                      data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white
-                      data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                      dark:border-white/[0.08] dark:data-[selected]:border-[var(--color-primary)]
-                      dark:data-[hovered]:bg-white/[0.03]"
-                  >
-                    {opt.label}
-                  </Radio>
-                ))}
-              </div>
-            </RadioGroup>
-          )}
-        />
-
-        {/* Zone cost inline */}
-        <div className="flex flex-col gap-0.5 pb-1">
-          <span className="text-[10px] text-[var(--color-text-subtle)]">
-            Zone {deliveryZone.zone}
+        {truckBanActive ? (
+          <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
+            00:00–06:00
           </span>
-          <span className="font-[family-name:var(--font-geist-mono)] text-[12px] font-medium tabular-nums">
+        ) : (
+          <Controller
+            control={control}
+            name="deliveryWindow"
+            render={({ field }) => (
+              <select
+                value={field.value ?? '08:00-17:00'}
+                onChange={(e) => field.onChange(e.target.value)}
+                className="appearance-none bg-transparent font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)] outline-none cursor-pointer"
+              >
+                <option value="08:00-12:00">08:00–12:00</option>
+                <option value="12:00-17:00">12:00–17:00</option>
+                <option value="08:00-17:00">08:00–17:00</option>
+                <option value="00:00-06:00">00:00–06:00</option>
+              </select>
+            )}
+          />
+        )}
+
+        {truckBanActive && (
+          <span className="text-[12px] text-black/40 dark:text-white/40">Night only — Cairo ban</span>
+        )}
+      </div>
+
+      {/* Row 3: Metadata — zone, cost, free delivery */}
+      <div className="flex items-center gap-2 text-[12px] text-black/40 dark:text-white/40">
+        <span>
+          Zone {deliveryZone.zone}
+          <span className="mx-1">·</span>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
             {qualifiesForFreeDelivery ? (
               <span className="text-green-700 dark:text-green-400">Free</span>
             ) : (
               fmt.format(baseCost)
             )}
           </span>
-        </div>
+        </span>
+
+        {weightSurcharge > 0 && (
+          <span>
+            · +{fmt.format(weightSurcharge)}
+            <span className="ms-0.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
+              ({totalWeightTons.toFixed(1)}t)
+            </span>
+          </span>
+        )}
+
+        {!qualifiesForFreeDelivery && subtotal > FREE_DELIVERY_THRESHOLD * 0.7 && (
+          <span>
+            ·{' '}
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+              {fmt.format(FREE_DELIVERY_THRESHOLD - subtotal)}
+            </span>
+            {' '}to free delivery
+          </span>
+        )}
       </div>
 
-      {/* Special instructions -- single line, expands on focus */}
+      {/* Row 4: Notes */}
       <Controller
         control={control}
         name="specialInstructions"
         render={({ field }) => (
-          <TextField
-            aria-label="Special instructions"
-            className="flex items-center gap-2"
-          >
-            <Label className="shrink-0 text-[10px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)]">
-              Notes
-            </Label>
-            <Input
-              value={field.value ?? ''}
-              onChange={(e) => field.onChange(e.target.value)}
-              placeholder="Crane offload, restricted hours, multiple drops..."
-              className="w-full rounded-md border border-black/[0.08] px-2 py-1.5 text-[12px] outline-none transition-colors placeholder:text-black/20 focus:border-[var(--color-primary)] dark:border-white/[0.08] dark:placeholder:text-white/20"
-            />
-          </TextField>
+          <UnderlineInput
+            value={field.value ?? ''}
+            onChange={(val) => field.onChange(val)}
+            placeholder="Delivery notes..."
+            label="Special instructions"
+          />
         )}
       />
-
-      {/* Weight surcharge if applicable */}
-      {weightSurcharge > 0 && (
-        <p className="text-[11px] text-[var(--color-text-muted)]">
-          +{fmt.format(weightSurcharge)} weight surcharge ({totalWeightTons.toFixed(1)}t)
-        </p>
-      )}
-      {!qualifiesForFreeDelivery && (
-        <p className="text-[11px] text-[var(--color-text-subtle)]">
-          {fmt.format(FREE_DELIVERY_THRESHOLD - subtotal)} more for free delivery
-        </p>
-      )}
     </div>
   )
 }

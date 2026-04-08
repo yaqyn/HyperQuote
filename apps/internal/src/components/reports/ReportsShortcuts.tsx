@@ -3,18 +3,19 @@ import { useReportsStore } from '../../stores/reports'
 import type { ReportsTab } from '../../types/reports'
 
 const TAB_SHORTCUTS: Record<string, ReportsTab> = {
-  '1': 'sales',
-  '2': 'procurement',
-  '3': 'operations',
-  '4': 'finance',
-  '5': 'warehouse',
-  '6': 'dispatch',
-  '7': 'cs',
+  '1': 'overview',
+  '2': 'sales',
+  '3': 'procurement',
+  '4': 'operations',
+  '5': 'finance',
+  '6': 'warehouse',
+  '7': 'dispatch',
+  '8': 'cs',
 }
 
 /**
  * Keyboard shortcuts for the Reports module.
- * Number keys 1-7 switch tabs directly.
+ * Number keys 1-8 switch tabs directly.
  */
 export function ReportsShortcuts() {
   const setActiveTab = useReportsStore((s) => s.setActiveTab)

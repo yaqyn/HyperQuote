@@ -65,8 +65,8 @@ export function PDCContainer() {
       {/* Summary strip + view toggle */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
         <div className="flex items-center gap-6">
-          {/* Due This Week */}
-          <div>
+          {/* Due This Week — highlighted */}
+          <div className={dueThisWeek.length > 0 ? 'rounded-lg bg-[#2563EB]/[0.03] border border-[#2563EB]/10 px-3 py-2 -my-1' : ''}>
             <div className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 mb-0.5">
               {t('pdc.dueThisWeek', 'Due This Week')}
             </div>

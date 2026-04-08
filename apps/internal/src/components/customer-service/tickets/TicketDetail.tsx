@@ -1,18 +1,24 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, TextField, TextArea } from 'react-aria-components'
 import { motion, AnimatePresence } from 'motion/react'
-import { BookOpen } from 'lucide-react'
-import { getTicketDetail } from '../../../lib/server/customer-service'
+import { BookOpen, AlertTriangle } from 'lucide-react'
+import { getTicketDetail, escalateTicket, respondToTicket, resolveTicket, assignTicket } from '../../../lib/server/customer-service'
 import { useCustomerServiceStore } from '../../../stores/customer-service'
 import { KnowledgeBase } from '../knowledge-base/KnowledgeBase'
-import type { TicketStatus, TicketActivity } from '../../../types/customer-service'
+import { SLA_CONFIG } from '../../../types/customer-service'
+import type { TicketStatus, TicketPriority, TicketActivity, SubTicket } from '../../../types/customer-service'
+
+// Hardcoded current agent — replace with auth context
+const CURRENT_AGENT = 'Sara Ahmed'
 
 /**
  * Ticket Detail — "The Thread"
- * Chat-style view. Messages alternate: customer left (light bg), agent right (blue tint).
- * Reply input at bottom. Collapsible sidebar: customer info, ticket metadata, linked orders.
+ * Reply input at the TOP (most common action for a CS agent handling 30+ tickets/day).
+ * SLA timer prominent in header. Customer vs agent messages visually distinct.
+ * Action buttons: Reply (primary) -> Assign -> Escalate -> Resolve.
+ * Unassigned tickets show a prominent "Claim Ticket" button.
  */
 export function TicketDetail() {
   const { t } = useTranslation('customer-service')
@@ -20,14 +26,45 @@ export function TicketDetail() {
   const setSelectedTicketId = useCustomerServiceStore((s) => s.setSelectedTicketId)
   const kbPanelOpen = useCustomerServiceStore((s) => s.kbPanelOpen)
   const setKbPanelOpen = useCustomerServiceStore((s) => s.setKbPanelOpen)
+  const setAssignDialogOpen = useCustomerServiceStore((s) => s.setAssignDialogOpen)
   const [replyText, setReplyText] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const queryClient = useQueryClient()
 
   const { data: ticket } = useQuery({
     queryKey: ['cs', 'ticket-detail', selectedTicketId],
-    queryFn: () => getTicketDetail(),
+    queryFn: () => getTicketDetail({ data: { ticketId: selectedTicketId! } }),
     staleTime: 15_000,
     enabled: !!selectedTicketId,
+  })
+
+  const replyMutation = useMutation({
+    mutationFn: () => respondToTicket(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cs', 'ticket-detail', selectedTicketId] })
+      setReplyText('')
+    },
+  })
+
+  const escalateMutation = useMutation({
+    mutationFn: () => escalateTicket(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cs'] })
+    },
+  })
+
+  const resolveMutation = useMutation({
+    mutationFn: () => resolveTicket({ data: { ticketId: selectedTicketId!, resolution: 'resolved' } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cs'] })
+    },
+  })
+
+  const claimMutation = useMutation({
+    mutationFn: () => assignTicket({ data: { ticketId: selectedTicketId!, agentName: CURRENT_AGENT } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cs'] })
+    },
   })
 
   if (!ticket) {
@@ -38,13 +75,16 @@ export function TicketDetail() {
     )
   }
 
+  const isUnassigned = ticket.assignedAgent === null
+  const sla = computeSLA(ticket.priority, ticket.slaDeadline)
+
   // Separate messages (comments) from status changes
-  const messages = ticket.activities.filter((a) => a.type === 'comment' || a.type === 'note')
-  const statusChanges = ticket.activities.filter((a) => a.type !== 'comment' && a.type !== 'note')
+  const messages = ticket.activities.filter((a: TicketActivity) => a.type === 'comment' || a.type === 'note')
+  const statusChanges = ticket.activities.filter((a: TicketActivity) => a.type !== 'comment' && a.type !== 'note')
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header bar */}
+      {/* Header bar with SLA timer */}
       <div className="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[var(--color-border)]">
         <Button
           onPress={() => setSelectedTicketId(null)}
@@ -59,6 +99,12 @@ export function TicketDetail() {
 
         <span className="text-sm text-[var(--color-text)] font-medium truncate flex-1">
           {ticket.subject}
+        </span>
+
+        {/* SLA timer — prominent in header */}
+        <span className={`shrink-0 flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-semibold font-[family-name:var(--font-geist-mono)] tabular-nums ${sla.pillClass}`}>
+          {sla.breached && <AlertTriangle size={12} />}
+          {sla.label}
         </span>
 
         {/* Priority + Status */}
@@ -92,7 +138,79 @@ export function TicketDetail() {
       <div className="flex-1 flex min-h-0">
         {/* Chat thread */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Description at top */}
+          {/* Claim ticket banner for unassigned tickets */}
+          {isUnassigned && (
+            <div className="shrink-0 flex items-center gap-3 px-5 py-3 bg-amber-500/[0.06] border-b border-amber-500/20">
+              <span className="text-sm font-medium text-amber-700 dark:text-amber-400 flex-1">
+                {t('tickets.unassignedBanner', 'This ticket is unassigned')}
+              </span>
+              <Button
+                onPress={() => claimMutation.mutate()}
+                isDisabled={claimMutation.isPending}
+                className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-sm font-semibold text-white cursor-pointer hover:opacity-90 transition-opacity outline-none disabled:opacity-40 disabled:cursor-default"
+              >
+                {claimMutation.isPending
+                  ? t('tickets.claiming', 'Claiming...')
+                  : t('tickets.claimTicket', 'Claim Ticket')}
+              </Button>
+            </div>
+          )}
+
+          {/* Reply input at the TOP — most common action */}
+          <div className="shrink-0 border-b border-[var(--color-border)] px-5 py-3">
+            <div className="flex gap-2 items-end">
+              <TextField
+                aria-label={t('tickets.replyPlaceholder', 'Type your reply...')}
+                value={replyText}
+                onChange={setReplyText}
+                className="flex-1"
+              >
+                <TextArea
+                  placeholder={t('tickets.replyPlaceholder', 'Type your reply...')}
+                  rows={2}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none
+                    focus:ring-1 focus:ring-[var(--color-primary)]/40"
+                />
+              </TextField>
+              <Button
+                onPress={() => replyMutation.mutate()}
+                isDisabled={!replyText.trim() || replyMutation.isPending}
+                className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none disabled:opacity-40 disabled:cursor-default"
+              >
+                {replyMutation.isPending ? '...' : t('tickets.send', 'Send')}
+              </Button>
+            </div>
+
+            {/* Action buttons row: Reply (primary, handled above) -> Assign -> Escalate -> Resolve */}
+            <div className="flex items-center gap-2 mt-2">
+              <Button
+                onPress={() => setAssignDialogOpen(true)}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors outline-none"
+              >
+                {t('tickets.assignTicket', 'Assign')}
+              </Button>
+              <Button
+                onPress={() => escalateMutation.mutate()}
+                isDisabled={escalateMutation.isPending || ticket.status === 'escalated'}
+                className="rounded-lg border border-red-200 dark:border-red-800/50 px-3 py-1.5 text-[12px] font-medium text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors outline-none disabled:opacity-40 disabled:cursor-default"
+              >
+                {escalateMutation.isPending
+                  ? t('tickets.escalating', 'Escalating...')
+                  : t('tickets.escalate', 'Escalate')}
+              </Button>
+              <Button
+                onPress={() => resolveMutation.mutate()}
+                isDisabled={resolveMutation.isPending || ticket.status === 'resolved' || ticket.status === 'closed'}
+                className="rounded-lg border border-green-200 dark:border-green-800/50 px-3 py-1.5 text-[12px] font-medium text-green-600 dark:text-green-400 cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors outline-none disabled:opacity-40 disabled:cursor-default"
+              >
+                {resolveMutation.isPending
+                  ? t('tickets.resolving', 'Resolving...')
+                  : t('tickets.resolve', 'Resolve')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Description */}
           {ticket.description && (
             <div className="px-5 py-3 border-b border-[var(--color-border)]/50">
               <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
@@ -107,7 +225,7 @@ export function TicketDetail() {
             {/* Status changes as compact inline notes */}
             {statusChanges.length > 0 && (
               <div className="space-y-1 mb-4">
-                {statusChanges.map((activity) => (
+                {statusChanges.map((activity: TicketActivity) => (
                   <div key={activity.id} className="flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
                     <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
                       {formatActivityTime(activity.timestamp)}
@@ -118,10 +236,11 @@ export function TicketDetail() {
               </div>
             )}
 
-            {/* Chat bubbles */}
-            {messages.map((msg) => {
-              const isAgent = msg.type === 'note' || !msg.isInternal === false
-              const isInternal = msg.isInternal
+            {/* Chat bubbles — customer left, agent right, internal notes distinct */}
+            {messages.map((msg: TicketActivity) => {
+              const isCustomer = !msg.isInternal && msg.type === 'comment'
+              const isInternal = msg.isInternal || msg.type === 'note'
+              const isAgent = !isCustomer && !isInternal
 
               return (
                 <motion.div
@@ -129,18 +248,23 @@ export function TicketDetail() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isCustomer ? 'justify-start' : 'justify-end'}`}
                 >
                   <div
                     className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
                       isInternal
-                        ? 'bg-amber-500/10 border border-amber-500/20'
-                        : isAgent
-                          ? 'bg-[var(--color-primary)]/10'
-                          : 'bg-black/[0.04] dark:bg-white/[0.04]'
+                        ? 'bg-amber-500/10 border border-amber-500/20 border-dashed'
+                        : isCustomer
+                          ? 'bg-black/[0.04] dark:bg-white/[0.04]'
+                          : 'bg-[var(--color-primary)]/10'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
+                      {isCustomer && (
+                        <span className="text-[10px] font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">
+                          Customer
+                        </span>
+                      )}
                       <span className="text-xs font-medium text-[var(--color-text)]">{msg.author}</span>
                       {isInternal && (
                         <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
@@ -162,32 +286,6 @@ export function TicketDetail() {
                 No messages yet
               </div>
             )}
-          </div>
-
-          {/* Reply input */}
-          <div className="shrink-0 border-t border-[var(--color-border)] px-5 py-3 flex gap-2 items-end">
-            <TextField
-              aria-label={t('tickets.replyPlaceholder', 'Type your reply...')}
-              value={replyText}
-              onChange={setReplyText}
-              className="flex-1"
-            >
-              <TextArea
-                placeholder={t('tickets.replyPlaceholder', 'Type your reply...')}
-                rows={1}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none
-                  focus:ring-1 focus:ring-[var(--color-primary)]/40"
-              />
-            </TextField>
-            <Button
-              onPress={() => {
-                console.log('[CS] Send reply:', replyText)
-                setReplyText('')
-              }}
-              className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none"
-            >
-              {t('tickets.send', 'Send')}
-            </Button>
           </div>
         </div>
 
@@ -245,7 +343,7 @@ export function TicketDetail() {
               {ticket.linkedOrders.length > 0 && (
                 <SidebarSection label={t('tickets.linkedOrders', 'Linked Orders')}>
                   <div className="space-y-1">
-                    {ticket.linkedOrders.map((id) => (
+                    {ticket.linkedOrders.map((id: string) => (
                       <div key={id} className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-[var(--color-primary)]">
                         {id}
                       </div>
@@ -258,7 +356,7 @@ export function TicketDetail() {
               {ticket.linkedQuotes.length > 0 && (
                 <SidebarSection label={t('tickets.linkedQuotes', 'Linked Quotes')}>
                   <div className="space-y-1">
-                    {ticket.linkedQuotes.map((id) => (
+                    {ticket.linkedQuotes.map((id: string) => (
                       <div key={id} className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-[var(--color-primary)]">
                         {id}
                       </div>
@@ -271,7 +369,7 @@ export function TicketDetail() {
               {ticket.linkedInvoices.length > 0 && (
                 <SidebarSection label={t('tickets.linkedInvoices', 'Linked Invoices')}>
                   <div className="space-y-1">
-                    {ticket.linkedInvoices.map((id) => (
+                    {ticket.linkedInvoices.map((id: string) => (
                       <div key={id} className="font-[family-name:var(--font-geist-mono)] tabular-nums text-sm text-[var(--color-primary)]">
                         {id}
                       </div>
@@ -284,7 +382,7 @@ export function TicketDetail() {
               {ticket.attachments.length > 0 && (
                 <SidebarSection label={t('tickets.attachments', 'Attachments')}>
                   <div className="flex flex-wrap gap-1.5">
-                    {ticket.attachments.map((url, idx) => (
+                    {ticket.attachments.map((url: string, idx: number) => (
                       <span
                         key={idx}
                         className="rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-primary)] cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
@@ -300,7 +398,7 @@ export function TicketDetail() {
               {ticket.subTickets.length > 0 && (
                 <SidebarSection label={t('tickets.subTickets', 'Sub-Tickets')}>
                   <div className="space-y-2">
-                    {ticket.subTickets.map((sub) => (
+                    {ticket.subTickets.map((sub: SubTicket) => (
                       <div key={sub.id} className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full ${statusColor(sub.status)}`} />
                         <span className="text-xs text-[var(--color-text)] truncate flex-1">{sub.subject}</span>
@@ -310,16 +408,6 @@ export function TicketDetail() {
                   </div>
                 </SidebarSection>
               )}
-
-              {/* Actions */}
-              <div className="pt-3 border-t border-[var(--color-border)] space-y-2">
-                <Button
-                  onPress={() => console.log('[CS] Escalate ticket')}
-                  className="w-full rounded-lg border border-red-200 dark:border-red-800/50 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors outline-none text-center"
-                >
-                  {t('tickets.escalate', 'Escalate')}
-                </Button>
-              </div>
             </div>
           </motion.div>
         )}
@@ -376,6 +464,45 @@ function statusToI18nKey(status: TicketStatus): string {
     reopened: 'reopened',
   }
   return map[status]
+}
+
+function computeSLA(
+  priority: TicketPriority,
+  slaDeadline: string,
+): { label: string; pillClass: string; breached: boolean } {
+  const deadline = new Date(slaDeadline).getTime()
+  const now = Date.now()
+  const remaining = deadline - now
+  const total = SLA_CONFIG[priority].resolution * 60 * 1000
+
+  if (remaining <= 0) {
+    const breachedMin = Math.abs(Math.round(remaining / (1000 * 60)))
+    const label = breachedMin >= 60 ? `BREACHED -${Math.round(breachedMin / 60)}h` : `BREACHED -${breachedMin}m`
+    return { label, pillClass: 'bg-red-500/15 text-red-700 dark:text-red-400', breached: true }
+  }
+
+  const pct = remaining / total
+  const remainingMin = Math.round(remaining / (1000 * 60))
+
+  let pillClass: string
+  if (pct > 0.5) {
+    pillClass = 'bg-green-500/10 text-green-700 dark:text-green-400'
+  } else if (pct > 0.1) {
+    pillClass = 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+  } else {
+    pillClass = 'bg-red-500/15 text-red-700 dark:text-red-400'
+  }
+
+  let label: string
+  if (remainingMin >= 60) {
+    const hours = Math.floor(remainingMin / 60)
+    const mins = remainingMin % 60
+    label = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+  } else {
+    label = `${remainingMin}m`
+  }
+
+  return { label, pillClass, breached: false }
 }
 
 function formatActivityTime(iso: string): string {

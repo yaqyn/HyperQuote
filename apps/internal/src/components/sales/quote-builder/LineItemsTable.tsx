@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 import { Plus } from 'lucide-react'
 import type { FreshnessIndicator, MarginThresholds } from '../../../types/sales'
@@ -44,6 +44,48 @@ function getThresholdsForItem(
   thresholds: MarginThresholds[],
 ): MarginThresholds {
   return thresholds[0] ?? { productCategory: 'default', target: 18, floor: 12, absoluteMin: 8 }
+}
+
+function PriceInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const formatted = value.toLocaleString('en-EG', { minimumFractionDigits: 2 })
+
+  return (
+    <div className="group/price relative inline-flex items-center justify-end">
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="decimal"
+        value={editing ? draft : formatted}
+        onFocus={(e) => {
+          setDraft(String(value))
+          setEditing(true)
+          requestAnimationFrame(() => e.target.select())
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          setEditing(false)
+          const v = parseFloat(draft.replace(/,/g, ''))
+          if (!isNaN(v)) onChange(v)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') inputRef.current?.blur()
+          if (e.key === 'Escape') {
+            setEditing(false)
+            setDraft('')
+            inputRef.current?.blur()
+          }
+        }}
+        className="w-32 h-7 pe-1.5 ps-8 rounded-md bg-black/[0.03] dark:bg-white/[0.04] text-right font-[family-name:var(--font-geist-mono)] text-[14px] tabular-nums text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/30 transition-shadow"
+      />
+      <span className="pointer-events-none absolute start-1.5 text-[12px] font-medium text-[var(--color-text-subtle)] opacity-40 group-focus-within/price:opacity-70 transition-opacity">
+        EGP
+      </span>
+    </div>
+  )
 }
 
 export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
@@ -111,7 +153,7 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
               {['Material', 'Qty', 'Cost', 'Price', 'Margin', 'Total'].map((h) => (
                 <th
                   key={h}
-                  className={`pb-2 px-3 text-[9px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)] ${
+                  className={`pb-2 px-3 text-[12px] font-medium uppercase tracking-widest text-[var(--color-text-subtle)] ${
                     h === 'Material' ? 'text-left' : 'text-right'
                   }`}
                 >
@@ -133,10 +175,10 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
                 >
                   {/* Material + Spec + Unit — read only */}
                   <td className="py-3 px-3">
-                    <p className="text-[13px] text-[var(--color-text)]">
+                    <p className="text-[14px] text-[var(--color-text)]">
                       {item?.productName}
                     </p>
-                    <p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">
+                    <p className="text-[12px] text-[var(--color-text-subtle)] mt-0.5">
                       {item?.specification}
                       {item?.unit && <span className="ml-1">· {item.unit}</span>}
                     </p>
@@ -153,17 +195,17 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
                         if (!isNaN(v)) handleQtyChange(index, v)
                       }}
                       onFocus={(e) => e.target.select()}
-                      className="w-16 h-7 px-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] text-right font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/30 transition-shadow"
+                      className="w-16 h-7 px-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] text-right font-[family-name:var(--font-geist-mono)] text-[14px] tabular-nums text-[var(--color-text)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]/30 transition-shadow"
                     />
                   </td>
 
                   {/* Cost + Freshness — read only */}
                   <td className="py-3 px-3 text-right">
                     {!hasCost ? (
-                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">Pending</span>
+                      <span className="text-[12px] italic text-[var(--color-text-subtle)]">Pending</span>
                     ) : (
                       <span className="flex items-center justify-end gap-1">
-                        <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                        <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text-muted)]">
                           {item!.supplierCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
                         </span>
                         <CostLookup freshness={item?.freshnessIndicator ?? 'missing'} />
@@ -174,14 +216,11 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
                   {/* Price — editable with floor enforcement */}
                   <td className="py-3 px-3 text-right">
                     {!hasCost ? (
-                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">—</span>
+                      <span className="text-[12px] italic text-[var(--color-text-subtle)]">—</span>
                     ) : (
-                      <input
-                        type="number"
-                        step="0.01"
+                      <PriceInput
                         value={item?.sellPrice ?? 0}
-                        onChange={(e) => handlePriceChange(index, Number(e.target.value))}
-                        className="w-20 bg-transparent text-right font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none border-b border-transparent focus:border-[var(--color-primary)]/30 transition-colors"
+                        onChange={(v) => handlePriceChange(index, v)}
                       />
                     )}
                   </td>
@@ -189,10 +228,10 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
                   {/* Margin — calculated, read only */}
                   <td className="py-3 px-3 text-right">
                     {!hasCost ? (
-                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">—</span>
+                      <span className="text-[12px] italic text-[var(--color-text-subtle)]">—</span>
                     ) : (
                       <span className="flex items-center justify-end gap-1">
-                        <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+                        <span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text-muted)]">
                           {(item?.marginPercent ?? 0).toFixed(1)}%
                         </span>
                         <MarginGuardrails
@@ -206,9 +245,9 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
                   {/* Total — calculated, read only */}
                   <td className="py-3 px-3 text-right">
                     {!hasCost ? (
-                      <span className="text-[10px] italic text-[var(--color-text-subtle)]">TBD</span>
+                      <span className="text-[12px] italic text-[var(--color-text-subtle)]">TBD</span>
                     ) : (
-                      <span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)]">
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)]">
                         {(item?.lineTotal ?? 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}
                       </span>
                     )}
@@ -224,7 +263,7 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
       <button
         type="button"
         onClick={() => setSearchOpen(true)}
-        className="mt-3 self-start flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-primary)] outline-none transition-opacity hover:opacity-70 cursor-pointer"
+        className="mt-3 self-start flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] outline-none transition-opacity hover:opacity-70 cursor-pointer"
       >
         <Plus size={14} strokeWidth={1.5} />
         Add item
@@ -239,7 +278,7 @@ export function LineItemsTable({ marginThresholds }: LineItemsTableProps) {
 
       {pendingPricingCount > 0 && (
         <div className="mt-4 px-3 py-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-          <p className="text-[11px] text-yellow-700 dark:text-yellow-300">
+          <p className="text-[12px] text-yellow-700 dark:text-yellow-300">
             <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-medium">{pendingPricingCount}</span>
             {' '}item{pendingPricingCount > 1 ? 's' : ''} pending pricing — customer will be notified when prices arrive
           </p>

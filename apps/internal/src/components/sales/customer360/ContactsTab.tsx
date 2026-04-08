@@ -1,7 +1,16 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
+import {
+  Dialog,
+  DialogTrigger,
+  Modal,
+  ModalOverlay,
+  Heading,
+  Button as AriaButton,
+} from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
+import { Button, UnderlineInput, Toggle } from '../../ui'
 import type { CustomerContact } from '../../../types/sales'
 
 interface ContactsTabProps {
@@ -9,8 +18,27 @@ interface ContactsTabProps {
   enabled: boolean
 }
 
+interface NewContact {
+  name: string
+  role: string
+  email: string
+  phone: string
+  isPrimary: boolean
+}
+
+const EMPTY_CONTACT: NewContact = {
+  name: '',
+  role: '',
+  email: '',
+  phone: '',
+  isPrimary: false,
+}
+
 export function ContactsTab({ customerId, enabled }: ContactsTabProps) {
   const { t } = useTranslation('internal')
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [localContacts, setLocalContacts] = useState<CustomerContact[]>([])
+  const [form, setForm] = useState<NewContact>(EMPTY_CONTACT)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-360', 'contacts', customerId],
@@ -22,35 +50,163 @@ export function ContactsTab({ customerId, enabled }: ContactsTabProps) {
 
   if (!enabled) return null
   if (isLoading) return <TabSkeleton />
-  if (!data || data.length === 0) {
+
+  const allContacts = [...(data ?? []), ...localContacts]
+
+  if (allContacts.length === 0 && !isDialogOpen) {
     return (
-      <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
-        {t('sales.customer360.contacts.noContacts')}
+      <div className="p-6">
+        <div className="flex items-center justify-center h-48 text-[13px] text-black/30 dark:text-white/30">
+          {t('sales.customer360.contacts.noContacts')}
+        </div>
+        <AddContactButton onPress={() => setIsDialogOpen(true)} />
+        <AddContactDialog
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          form={form}
+          setForm={setForm}
+          onSave={() => handleSave()}
+        />
       </div>
     )
   }
 
+  function handleSave() {
+    if (!form.name.trim() || !form.phone.trim()) return
+
+    // TODO: Save to server via createContact server function
+    const newContact: CustomerContact = {
+      id: `local-${Date.now()}`,
+      name: form.name.trim(),
+      role: form.role.trim() || 'Contact',
+      email: form.email.trim() || null,
+      phone: form.phone.trim(),
+      lastContactDate: null,
+      commPreference: 'phone',
+      relationshipStrength: 'new',
+      dealRole: 'end_user',
+      reportsTo: null,
+    }
+    setLocalContacts((prev) => [...prev, newContact])
+    setForm(EMPTY_CONTACT)
+    setIsDialogOpen(false)
+  }
+
   return (
     <div className="p-6 space-y-6">
-      {/* Mini profile cards — 2-column grid */}
+      {/* Mini profile cards -- 2-column grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-        {data.map((contact) => (
+        {allContacts.map((contact) => (
           <ContactCard key={contact.id} contact={contact} />
         ))}
       </div>
 
       {/* Add Contact */}
-      <Button
-        className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-[#2563EB] outline-none
-          data-[hovered]:bg-[#2563EB]/[0.04] rounded-lg transition-colors
-          data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
-        onPress={() => {
-          // TODO: Open add contact dialog
-        }}
-      >
-        + {t('sales.customer360.contacts.addContact')}
-      </Button>
+      <AddContactButton onPress={() => setIsDialogOpen(true)} />
+      <AddContactDialog
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        form={form}
+        setForm={setForm}
+        onSave={() => handleSave()}
+      />
     </div>
+  )
+}
+
+function AddContactButton({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation('internal')
+  return (
+    <AriaButton
+      className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-[#2563EB] outline-none
+        data-[hovered]:bg-[#2563EB]/[0.04] rounded-lg transition-colors
+        data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
+      onPress={onPress}
+    >
+      + {t('sales.customer360.contacts.addContact')}
+    </AriaButton>
+  )
+}
+
+function AddContactDialog({
+  isOpen,
+  onOpenChange,
+  form,
+  setForm,
+  onSave,
+}: {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  form: NewContact
+  setForm: React.Dispatch<React.SetStateAction<NewContact>>
+  onSave: () => void
+}) {
+  const { t } = useTranslation('internal')
+  const canSave = form.name.trim().length > 0 && form.phone.trim().length > 0
+
+  return (
+    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
+      {/* Hidden trigger -- dialog is opened programmatically */}
+      <AriaButton className="hidden" />
+      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <Modal className="w-full max-w-md mx-4" isKeyboardDismissDisabled>
+          <Dialog className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none">
+            {({ close }) => (
+              <div className="space-y-5">
+                <Heading slot="title" className="text-[16px] font-semibold text-black dark:text-white">
+                  {t('sales.customer360.contacts.addContact')}
+                </Heading>
+
+                <div className="space-y-4">
+                  <UnderlineInput
+                    label={t('sales.customer360.contacts.name')}
+                    placeholder={t('sales.customer360.contacts.name')}
+                    value={form.name}
+                    onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+                  />
+                  <UnderlineInput
+                    label={t('sales.customer360.contacts.role')}
+                    placeholder={t('sales.customer360.contacts.role')}
+                    value={form.role}
+                    onChange={(v) => setForm((f) => ({ ...f, role: v }))}
+                  />
+                  <UnderlineInput
+                    label={t('sales.customer360.contacts.email')}
+                    placeholder={t('sales.customer360.contacts.email')}
+                    value={form.email}
+                    onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+                  />
+                  <UnderlineInput
+                    label={t('sales.customer360.contacts.phone')}
+                    placeholder="+201001234567"
+                    value={form.phone}
+                    onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+                  />
+                  <Toggle
+                    label={t('sales.customer360.contacts.primaryContact')}
+                    isSelected={form.isPrimary}
+                    onChange={(v) => setForm((f) => ({ ...f, isPrimary: v }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button variant="ghost" onPress={close}>
+                    {t('sales.customer360.contacts.cancel')}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    isDisabled={!canSave}
+                    onPress={onSave}
+                  >
+                    {t('sales.customer360.contacts.save')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   )
 }
 

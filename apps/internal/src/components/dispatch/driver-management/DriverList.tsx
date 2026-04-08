@@ -41,11 +41,27 @@ export function DriverList({ drivers, selectedDriverId, onSelectDriver }: Driver
       result = result.filter((d) => d.name.toLowerCase().includes(q))
     }
 
-    // Expired/blocked float to top, then by name
+    // Expired/blocked first, then expiring, then valid — by name within each group
     return [...result].sort((a, b) => {
-      const aBlocked = a.complianceStatus === 'expired' || a.complianceStatus === 'blocked' ? 0 : 1
-      const bBlocked = b.complianceStatus === 'expired' || b.complianceStatus === 'blocked' ? 0 : 1
-      if (aBlocked !== bBlocked) return aBlocked - bBlocked
+      const statusOrder: Record<ComplianceStatusType, number> = {
+        expired: 0,
+        blocked: 0,
+        expiring: 1,
+        valid: 2,
+      }
+      const aOrder = statusOrder[a.complianceStatus] ?? 2
+      const bOrder = statusOrder[b.complianceStatus] ?? 2
+      if (aOrder !== bOrder) return aOrder - bOrder
+      // Within same compliance group, sort by earliest expiry
+      const aExpiry = Math.min(
+        new Date(a.licenseExpiry).getTime(),
+        new Date(a.medicalExpiry).getTime(),
+      )
+      const bExpiry = Math.min(
+        new Date(b.licenseExpiry).getTime(),
+        new Date(b.medicalExpiry).getTime(),
+      )
+      if (aOrder < 2 && aExpiry !== bExpiry) return aExpiry - bExpiry
       return a.name.localeCompare(b.name)
     })
   }, [drivers, filter, search])
@@ -98,7 +114,14 @@ export function DriverList({ drivers, selectedDriverId, onSelectDriver }: Driver
       <div className="flex-1 overflow-y-auto">
         {filtered.map((driver: Driver) => {
           const isBlocked = driver.complianceStatus === 'expired' || driver.complianceStatus === 'blocked'
+          const isExpiring = driver.complianceStatus === 'expiring'
           const isSelected = driver.id === selectedDriverId
+
+          // Calculate days until earliest expiry
+          const licDays = Math.ceil((new Date(driver.licenseExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          const medDays = Math.ceil((new Date(driver.medicalExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          const nearestExpiry = Math.min(licDays, medDays)
+          const expiryLabel = licDays <= medDays ? t('driver.license', 'License') : t('driver.medical', 'Medical')
 
           return (
             <button
@@ -108,15 +131,23 @@ export function DriverList({ drivers, selectedDriverId, onSelectDriver }: Driver
               className={`flex w-full items-center gap-3 border-b border-black/[0.04] px-4 py-3 text-start transition-colors dark:border-white/[0.04] ${
                 isSelected
                   ? 'bg-[#2563EB]/[0.06]'
-                  : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
-              } ${isBlocked ? 'opacity-50' : ''}`}
+                  : isBlocked
+                    ? 'bg-red-50/30 hover:bg-red-50/50 dark:bg-red-900/5 dark:hover:bg-red-900/10'
+                    : isExpiring
+                      ? 'hover:bg-amber-50/30 dark:hover:bg-amber-900/10'
+                      : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+              }`}
             >
               {/* Initials circle */}
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-xs font-semibold text-black/60 dark:bg-white/[0.06] dark:text-white/60">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                isBlocked
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-black/[0.06] text-black/60 dark:bg-white/[0.06] dark:text-white/60'
+              }`}>
                 {driver.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
               </div>
 
-              {/* Name + plate */}
+              {/* Name + plate + expiry */}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-black dark:text-white">
                   {driver.name}
@@ -124,12 +155,38 @@ export function DriverList({ drivers, selectedDriverId, onSelectDriver }: Driver
                 <p className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
                   {driver.vehicleId ?? t('driver.noVehicle', 'Unassigned')}
                 </p>
+                {/* Expiry warning */}
+                {nearestExpiry <= 30 && (
+                  <p className={`mt-0.5 text-[11px] font-medium ${
+                    nearestExpiry <= 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : nearestExpiry <= 7
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {nearestExpiry <= 0
+                      ? `${expiryLabel} ${t('driver.expired', 'expired')}`
+                      : `${expiryLabel} ${t('driver.expiresIn', 'expires in')} `}
+                    {nearestExpiry > 0 && (
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
+                        {nearestExpiry}{t('driver.compliance.daysShort', 'd')}
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
 
-              {/* Compliance dot */}
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${COMPLIANCE_DOTS[driver.complianceStatus] ?? 'bg-black/20'}`}
-              />
+              {/* Compliance dot + blocked badge */}
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span
+                  className={`h-2 w-2 rounded-full ${COMPLIANCE_DOTS[driver.complianceStatus] ?? 'bg-black/20'}`}
+                />
+                {isBlocked && (
+                  <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    {t('driver.blocked', 'Blocked')}
+                  </span>
+                )}
+              </div>
             </button>
           )
         })}

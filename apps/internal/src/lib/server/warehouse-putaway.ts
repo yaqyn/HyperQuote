@@ -30,13 +30,18 @@ export const getPutawayTasks = createServerFn({ method: 'GET' })
   })
 
 const putawayConfirmInput = z.object({
+  taskId: z.string().optional(),
   locationBarcode: z.string(),
   itemBarcode: z.string(),
   quantity: z.number(),
+  overrideReason: z.string().optional(),
 })
 
 export const putawayConfirm = createServerFn({ method: 'POST' })
   .inputValidator(putawayConfirmInput)
   .handler(async ({ data: _input }) => {
-    return { success: true }
+    return {
+      success: true as const,
+      inventoryUpdated: true,
+    }
   })

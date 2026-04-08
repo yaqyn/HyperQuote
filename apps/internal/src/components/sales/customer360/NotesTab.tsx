@@ -1,13 +1,22 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Button, TextField, TextArea, Label } from 'react-aria-components'
+import { TextField, TextArea, Label } from 'react-aria-components'
 import { getCustomer360 } from '../../../lib/server/sales-customers'
 import { addInternalNote } from '../../../lib/server/sales-activity'
+import { Button } from '../../ui'
 
 interface NotesTabProps {
   customerId: string
   enabled: boolean
+}
+
+interface LocalNote {
+  id: string
+  author: string
+  body: string
+  tag: string
+  createdAt: string
 }
 
 export function NotesTab({ customerId, enabled }: NotesTabProps) {
@@ -15,6 +24,7 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
   const queryClient = useQueryClient()
   const [newNote, setNewNote] = useState('')
   const [selectedTag, setSelectedTag] = useState<'quote-related' | 'order-related' | 'general'>('general')
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
   const noteMutation = useMutation({
     mutationFn: (input: { entityType: string; entityId: string; note: string }) =>
@@ -45,16 +55,23 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
     })
   }
 
+  const handleDelete = (noteId: string) => {
+    // TODO: Delete from server via deleteInternalNote server function
+    setDeletedIds((prev) => new Set(prev).add(noteId))
+  }
+
+  const visibleNotes = (data ?? []).filter((n) => !deletedIds.has(n.id))
+
   return (
     <div className="p-6 space-y-6">
       {/* Thread-style notes */}
-      {(!data || data.length === 0) ? (
+      {visibleNotes.length === 0 ? (
         <div className="flex items-center justify-center h-16 text-[13px] text-black/25 dark:text-white/25">
           {t('sales.customer360.notes.noNotes')}
         </div>
       ) : (
         <div className="space-y-4">
-          {data.map((note) => {
+          {visibleNotes.map((note) => {
             const initials = note.author
               .split(' ')
               .map((w) => w[0])
@@ -63,14 +80,14 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
               .toUpperCase()
 
             return (
-              <div key={note.id} className="flex items-start gap-3">
-                {/* Author avatar — initials circle */}
+              <div key={note.id} className="flex items-start gap-3 group">
+                {/* Author avatar -- initials circle */}
                 <div className="w-7 h-7 rounded-full bg-[#2563EB]/[0.08] flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-[10px] font-semibold text-[#2563EB]">{initials}</span>
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  {/* Author + timestamp */}
+                  {/* Author + timestamp + delete */}
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[13px] font-medium text-[var(--color-text)] dark:text-white">
                       {note.author}
@@ -83,6 +100,14 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
                         {note.tag}
                       </span>
                     )}
+                    {/* Delete button -- visible on hover */}
+                    <Button
+                      variant="ghost"
+                      className="ms-auto opacity-0 group-hover:opacity-100 transition-opacity text-[11px]"
+                      onPress={() => handleDelete(note.id)}
+                    >
+                      {t('sales.customer360.notes.delete')}
+                    </Button>
                   </div>
 
                   {/* Note body */}
@@ -96,7 +121,7 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
         </div>
       )}
 
-      {/* New note input — at bottom, like a chat input */}
+      {/* New note input -- at bottom, like a chat input */}
       <div className="border-t border-black/[0.04] dark:border-white/[0.04] pt-4">
         <TextField value={newNote} onChange={setNewNote}>
           <Label className="sr-only">{t('sales.customer360.notes.addNote')}</Label>
@@ -127,9 +152,9 @@ export function NotesTab({ customerId, enabled }: NotesTabProps) {
           </div>
 
           <Button
-            onPress={handleAddNote}
+            variant="primary"
             isDisabled={!newNote.trim() || noteMutation.isPending}
-            className="px-4 py-1.5 text-[13px] font-medium text-white bg-[#2563EB] rounded-lg hover:bg-[#2563EB]/90 disabled:opacity-40 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40 data-[focus-visible]:ring-offset-2"
+            onPress={handleAddNote}
           >
             {t('sales.customer360.notes.save')}
           </Button>

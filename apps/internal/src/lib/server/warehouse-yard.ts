@@ -63,3 +63,25 @@ export const getWeatherAlerts = createServerFn({ method: 'GET' })
   .handler(async ({ data: _input }) => {
     return { alerts: getMockWeatherAlerts() }
   })
+
+// ─── Vehicle Tracking ─────────────────────────────────────
+
+export const logVehicle = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({
+    plateNumber: z.string(),
+    vehicleType: z.enum(['truck', 'moffett', 'crane', 'other']),
+    action: z.enum(['arriving', 'departing']),
+    zoneId: z.string().optional(),
+    notes: z.string().optional(),
+  }))
+  .handler(async ({ data }) => {
+    return { success: true, logId: `VEH-${Date.now()}` }
+  })
+
+// ─── Zone Coverage (Rain Response) ────────────────────────
+
+export const markZoneCovered = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ zoneId: z.string() }))
+  .handler(async ({ data }) => {
+    return { success: true }
+  })

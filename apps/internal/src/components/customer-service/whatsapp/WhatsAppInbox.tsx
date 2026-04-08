@@ -1,27 +1,48 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Button, TextField, Input } from 'react-aria-components'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 import { getWhatsAppInbox } from '../../../lib/server/customer-service'
 import type { AITriageTier } from '../../../types/customer-service'
 
+const QUICK_REPLIES = [
+  { key: 'greeting', label: 'Greeting', text: 'Hello! Thank you for reaching out to HyperQuote. How can I help you today?' },
+  { key: 'orderStatus', label: 'Order Status', text: 'Let me check the status of your order. Could you please share your order number?' },
+  { key: 'quoteReady', label: 'Quote Ready', text: 'Your quote is ready! Please check your email for the full details. Would you like to proceed with the order?' },
+  { key: 'deliveryUpdate', label: 'Delivery ETA', text: 'Your delivery is scheduled for tomorrow. Our driver will contact you 30 minutes before arrival.' },
+  { key: 'escalate', label: 'Escalating', text: 'I understand your concern. Let me escalate this to our specialist team. They will reach out to you within 2 hours.' },
+]
+
 /**
  * WhatsApp Inbox — "The Chat"
- * Two-panel: conversation list on left (like WhatsApp web), active chat on right.
- * Conversation list: customer name + last message preview + timestamp + unread badge.
- * Chat area: message bubbles, clean and minimal.
+ * Two-panel: conversation list on left, active chat on right.
+ * Messages: customer on left, agent on right (chat style, latest at bottom).
+ * Quick reply templates for common responses.
  */
 export function WhatsAppInbox() {
   const { t } = useTranslation('customer-service')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
+  const [showQuickReplies, setShowQuickReplies] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: conversations } = useQuery({
     queryKey: ['cs', 'whatsapp'],
     queryFn: () => getWhatsAppInbox(),
     staleTime: 15_000,
   })
+
+  const selected = selectedId
+    ? conversations?.find((c) => c.id === selectedId) ?? null
+    : null
+
+  // Scroll to bottom when messages change or conversation selected
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [selected?.messages?.length, selectedId])
 
   if (!conversations) {
     return (
@@ -30,10 +51,6 @@ export function WhatsAppInbox() {
       </div>
     )
   }
-
-  const selected = selectedId
-    ? conversations.find((c) => c.id === selectedId) ?? null
-    : null
 
   return (
     <div className="flex h-full">
@@ -116,7 +133,7 @@ export function WhatsAppInbox() {
               </span>
             </div>
 
-            {/* Messages */}
+            {/* Messages — chronological order, latest at bottom */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
               {selected.messages.map((msg) => {
                 const isCustomer = msg.sender === 'customer'
@@ -149,10 +166,52 @@ export function WhatsAppInbox() {
                   </motion.div>
                 )
               })}
+              {/* Scroll anchor */}
+              <div ref={messagesEndRef} />
             </div>
 
+            {/* Quick reply templates (collapsible) */}
+            <AnimatePresence>
+              {showQuickReplies && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="shrink-0 border-t border-[var(--color-border)]/50 overflow-hidden"
+                >
+                  <div className="px-4 py-2 flex flex-wrap gap-1.5">
+                    {QUICK_REPLIES.map((qr) => (
+                      <Button
+                        key={qr.key}
+                        onPress={() => {
+                          setReplyText(qr.text)
+                          setShowQuickReplies(false)
+                        }}
+                        className="rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-muted)] cursor-pointer
+                          hover:bg-black/[0.03] dark:hover:bg-white/[0.03] hover:text-[var(--color-text)] transition-colors outline-none"
+                      >
+                        {qr.label}
+                      </Button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Reply input */}
-            <div className="shrink-0 border-t border-[var(--color-border)] px-4 py-3 flex gap-2">
+            <div className="shrink-0 border-t border-[var(--color-border)] px-4 py-3 flex gap-2 items-center">
+              <Button
+                onPress={() => setShowQuickReplies(!showQuickReplies)}
+                className={`shrink-0 rounded-lg px-2 py-2 text-[11px] font-medium cursor-pointer outline-none transition-colors ${
+                  showQuickReplies
+                    ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                    : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]'
+                }`}
+                aria-label={t('whatsapp.quickReplies', 'Quick Replies')}
+              >
+                QR
+              </Button>
               <TextField
                 aria-label={t('whatsapp.typeMessage', 'Type a message...')}
                 value={replyText}
@@ -170,7 +229,8 @@ export function WhatsAppInbox() {
                   console.log('[CS] Send WhatsApp reply:', replyText)
                   setReplyText('')
                 }}
-                className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none"
+                isDisabled={!replyText.trim()}
+                className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none disabled:opacity-40 disabled:cursor-default"
               >
                 {t('whatsapp.send', 'Send')}
               </Button>

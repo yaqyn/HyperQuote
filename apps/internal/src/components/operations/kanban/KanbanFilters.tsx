@@ -1,4 +1,5 @@
-import { TextField, Input, Button } from 'react-aria-components'
+import { TextField, Input } from 'react-aria-components'
+import { Button } from '../../ui/Button'
 import { useTranslation } from 'react-i18next'
 import { useOperationsStore } from '../../../stores/operations'
 import { FULFILLMENT_COLUMNS } from '../../../types/operations'
@@ -81,9 +82,9 @@ export function KanbanFilters() {
         <>
           <div className="h-4 w-px bg-black/8 dark:bg-white/8" />
           <Button
+            variant="ghost"
             onPress={handleClearAll}
-            className="shrink-0 rounded-md px-2 py-1 text-[11px] text-black/40 dark:text-white/40
-              data-[hovered]:text-black/60 dark:data-[hovered]:text-white/60 outline-none"
+            className="shrink-0"
           >
             {t('operations.filters.clearAll', 'Clear')}
           </Button>

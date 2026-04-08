@@ -2,17 +2,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import {
-  RadioGroup,
-  Radio,
   Switch,
   Heading,
   Modal,
   ModalOverlay,
   Dialog,
   Button as AriaButton,
-  Input,
-  TextField,
 } from 'react-aria-components'
+import { PillGroup, Pill, UnderlineInput, Button as UiButton } from '../../ui'
 import { sendQuote } from '../../../lib/server/sales-send'
 import type { QuoteFormValues } from './LineItemsTable'
 
@@ -72,7 +69,7 @@ export function SendQuote({
     <div className="space-y-3">
       {/* Missing pricing -- compact */}
       {hasMissingPricing && (
-        <p className="text-[11px] text-yellow-700 dark:text-yellow-300">
+        <p className="text-[12px] text-yellow-700 dark:text-yellow-300">
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{missingItems.length}</span>
           {' '}item{missingItems.length > 1 ? 's' : ''} will show "Price on Application"
         </p>
@@ -81,49 +78,28 @@ export function SendQuote({
       {/* Recipients + Cover Note + Send Via -- compact rows */}
       <div className="flex items-center gap-3">
         {/* Recipients as tags */}
-        <span className="rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
+        <span className="text-[12px] font-medium text-[var(--color-text)]">
           Primary Contact
         </span>
-        <AriaButton
-          className="text-[10px] font-medium text-[var(--color-primary)] outline-none transition-opacity data-[hovered]:opacity-70 data-[focus-visible]:underline"
+        <UiButton
+          variant="ghost"
           onPress={() => {
             console.log('Add CC recipient')
           }}
         >
           + CC
-        </AriaButton>
-
-        {/* Separator */}
-        <div className="h-4 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
+        </UiButton>
 
         {/* Send via pills */}
-        <RadioGroup
+        <PillGroup
           aria-label="Send method"
           value={sendMethod}
           onChange={(val) => setSendMethod(val as 'portal' | 'email' | 'both')}
-          className="flex gap-1"
         >
-          {([
-            { value: 'portal', label: 'Portal' },
-            { value: 'email', label: 'Email' },
-            { value: 'both', label: 'Both' },
-          ] as const).map((opt) => (
-            <Radio
-              key={opt.value}
-              value={opt.value}
-              className="cursor-pointer rounded-full border border-black/[0.08] px-2.5 py-0.5 text-[10px] font-medium outline-none transition-all
-                data-[selected]:border-[var(--color-primary)] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white
-                data-[hovered]:bg-black/[0.02] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                dark:border-white/[0.08] dark:data-[selected]:border-[var(--color-primary)]
-                dark:data-[hovered]:bg-white/[0.03]"
-            >
-              {opt.label}
-            </Radio>
-          ))}
-        </RadioGroup>
-
-        {/* Separator */}
-        <div className="h-4 w-px bg-black/[0.06] dark:bg-white/[0.06]" />
+          <Pill value="portal" className="px-2.5 py-0.5">Portal</Pill>
+          <Pill value="email" className="px-2.5 py-0.5">Email</Pill>
+          <Pill value="both" className="px-2.5 py-0.5">Both</Pill>
+        </PillGroup>
 
         {/* Schedule toggle */}
         <Switch
@@ -131,16 +107,16 @@ export function SendQuote({
           onChange={setScheduleSend}
           className="group flex items-center gap-1.5"
         >
-          <div className="h-4 w-7 rounded-full border border-black/[0.06] bg-black/[0.04] p-0.5 transition-colors group-data-[selected]:bg-[var(--color-primary)] dark:border-white/[0.06] dark:bg-white/[0.06]">
+          <div className="h-4 w-7 rounded-full bg-black/[0.06] p-0.5 transition-colors group-data-[selected]:bg-[var(--color-primary)] dark:bg-white/[0.08]">
             <div className="h-3 w-3 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-3 dark:bg-black" />
           </div>
-          <span className="text-[10px] text-[var(--color-text-muted)]">Schedule</span>
+          <span className="text-[12px] text-[var(--color-text-muted)]">Schedule</span>
         </Switch>
 
         {scheduleSend && (
           <>
-            <AriaButton
-              className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[10px] font-medium outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.06]"
+            <UiButton
+              variant="ghost"
               onPress={() => {
                 const tomorrow = new Date()
                 tomorrow.setDate(tomorrow.getDate() + 1)
@@ -149,9 +125,9 @@ export function SendQuote({
               }}
             >
               Tomorrow 8 AM
-            </AriaButton>
+            </UiButton>
             {scheduledDate && (
-              <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-muted)]">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
                 {new Date(scheduledDate).toLocaleString(locale)}
               </span>
             )}
@@ -164,29 +140,24 @@ export function SendQuote({
         control={control}
         name="coverNote"
         render={({ field }) => (
-          <TextField
-            aria-label="Cover note"
-            className="flex items-center gap-2"
-          >
-            <Input
-              value={field.value ?? ''}
-              onChange={(e) => field.onChange(e.target.value)}
-              placeholder="Cover note (optional)..."
-              className="w-full rounded-md border border-black/[0.08] px-2 py-1.5 text-[12px] outline-none transition-colors placeholder:text-black/20 focus:border-[var(--color-primary)] dark:border-white/[0.08] dark:placeholder:text-white/20"
-            />
-          </TextField>
+          <UnderlineInput
+            value={field.value ?? ''}
+            onChange={(val) => field.onChange(val)}
+            placeholder="Cover note (optional)..."
+            label="Cover note"
+          />
         )}
       />
 
-      {/* Big Send button */}
-      <AriaButton
+      {/* Send */}
+      <UiButton
+        variant="subtle"
+        className="w-full rounded-lg py-2.5"
         onPress={() => setShowConfirm(true)}
-        className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-[14px] font-semibold text-white outline-none transition-colors
-          data-[hovered]:bg-[var(--color-primary)]/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[disabled]:opacity-50"
         isDisabled={isSending}
       >
         {scheduleSend ? 'Schedule Send' : 'Send Quote'}
-      </AriaButton>
+      </UiButton>
 
       {/* Confirmation Dialog */}
       <ModalOverlay
@@ -212,7 +183,7 @@ export function SendQuote({
                 : ''}
             </p>
             {hasMissingPricing && (
-              <p className="mt-2 text-[11px] text-yellow-700 dark:text-yellow-300">
+              <p className="mt-2 text-[12px] text-yellow-700 dark:text-yellow-300">
                 {missingItems.length} item{missingItems.length > 1 ? 's' : ''} will show "Price on Application".
               </p>
             )}

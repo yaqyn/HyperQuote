@@ -31,7 +31,9 @@ export function UnassignedPool({ stops }: UnassignedPoolProps) {
           Unassigned
         </h3>
         <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-[#2563EB]">
-          {stops.length}
+          {stops.length > 0
+            ? `${stops.length} (${stops.reduce((sum, s) => sum + s.weight, 0).toLocaleString()} kg)`
+            : '0'}
         </span>
       </div>
 

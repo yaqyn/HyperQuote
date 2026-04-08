@@ -10,8 +10,22 @@ const createDisputeInput = z.object({
 
 export const createDispute = createServerFn({ method: 'POST' })
   .inputValidator(createDisputeInput)
-  .handler(async ({ data: _input }) => {
-    return { disputeId: `disp-${Date.now()}` }
+  .handler(async ({ data: input }) => {
+    const disputeId = `disp-${Date.now()}`
+    const createdAt = new Date().toISOString()
+    // SLA: 7 days from creation
+    const slaDeadline = new Date(Date.now() + 7 * 86_400_000).toISOString()
+
+    return {
+      success: true,
+      disputeId,
+      invoiceId: input.invoiceId,
+      status: 'open' as const,
+      customerFacingStatus: 'under_review',
+      createdAt,
+      slaDeadline,
+      slaHours: 168, // 7 days
+    }
   })
 
 const assignDisputeInput = z.object({
@@ -21,8 +35,14 @@ const assignDisputeInput = z.object({
 
 export const assignDispute = createServerFn({ method: 'POST' })
   .inputValidator(assignDisputeInput)
-  .handler(async ({ data: _input }) => {
-    return { success: true }
+  .handler(async ({ data: input }) => {
+    return {
+      success: true,
+      disputeId: input.disputeId,
+      assignedTo: input.assignedTo,
+      status: 'investigating' as const,
+      assignedAt: new Date().toISOString(),
+    }
   })
 
 const resolveDisputeInput = z.object({
@@ -34,8 +54,6 @@ const resolveDisputeInput = z.object({
 export const resolveDispute = createServerFn({ method: 'POST' })
   .inputValidator(resolveDisputeInput)
   .handler(async ({ data: input }) => {
-    // Side-effect: updates customerFacingStatus on dispute
-    // so customer portals can query dispute outcomes
     const customerFacingStatusMap: Record<string, string> = {
       credit_note: 'credit_issued',
       price_adjustment: 'adjusted',
@@ -44,7 +62,16 @@ export const resolveDispute = createServerFn({ method: 'POST' })
     }
     const customerFacingStatus = customerFacingStatusMap[input.resolutionType] ?? 'resolved'
 
-    return { success: true, customerFacingStatus }
+    return {
+      success: true,
+      disputeId: input.disputeId,
+      status: 'resolved' as const,
+      resolutionType: input.resolutionType,
+      resolutionNotes: input.resolutionNotes,
+      customerFacingStatus,
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: 'Current User',
+    }
   })
 
 const escalateDisputeInput = z.object({
@@ -55,6 +82,22 @@ const escalateDisputeInput = z.object({
 
 export const escalateDispute = createServerFn({ method: 'POST' })
   .inputValidator(escalateDisputeInput)
-  .handler(async ({ data: _input }) => {
-    return { success: true }
+  .handler(async ({ data: input }) => {
+    // Escalation chain: Assigned Agent -> Finance Manager -> Finance Director -> CFO
+    const escalationChain = ['Finance Manager', 'Finance Director', 'CFO']
+    const currentLevel = escalationChain.indexOf(input.escalatedTo)
+    const nextEscalation = currentLevel < escalationChain.length - 1
+      ? escalationChain[currentLevel + 1]
+      : null
+
+    return {
+      success: true,
+      disputeId: input.disputeId,
+      status: 'escalated' as const,
+      escalatedTo: input.escalatedTo,
+      escalatedAt: new Date().toISOString(),
+      escalationLevel: currentLevel + 1,
+      nextEscalation,
+      notes: input.notes,
+    }
   })

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from '../ui/Button'
 import { searchMentionTargets } from '../../lib/server/activity-feed'
 import { keyboardScopeStore } from '../../stores/keyboard-scope'
 import type { MentionTarget } from './types'
@@ -233,9 +233,9 @@ export function MentionInput({ onSubmit, isSubmitting = false }: MentionInputPro
       {/* Submit button */}
       <div className="flex justify-end">
         <Button
+          variant="primary"
           isDisabled={!body.trim() || isSubmitting}
           onPress={handleSubmit}
-          className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {isSubmitting ? 'Posting...' : 'Post'}
         </Button>

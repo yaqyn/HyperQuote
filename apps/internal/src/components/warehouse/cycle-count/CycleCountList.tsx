@@ -48,9 +48,19 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
     status: getStatus(i),
   }))
 
-  const filteredAssignments = enrichedAssignments.filter(
-    (a) => statusFilter === 'all' || a.status === statusFilter,
-  )
+  // Filter then sort: recount_requested first, then assigned (overdue), then rest
+  const STATUS_URGENCY: Record<CycleCountStatus, number> = {
+    recount_requested: 0,
+    assigned: 1,
+    counting: 2,
+    submitted: 3,
+    investigating: 4,
+    approved: 5,
+  }
+
+  const filteredAssignments = enrichedAssignments
+    .filter((a) => statusFilter === 'all' || a.status === statusFilter)
+    .sort((a, b) => (STATUS_URGENCY[a.status] ?? 9) - (STATUS_URGENCY[b.status] ?? 9))
 
   const handleCardTap = (countId: string, status: CycleCountStatus) => {
     setSelectedCountId(countId)
@@ -72,12 +82,12 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 px-6 py-4">
       {/* ─── Header ──────────────────────────────────────── */}
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Cycle Counts</h2>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Inventory audit queue</p>
+          <h2 className="text-[20px] font-bold text-[var(--color-text-primary)]">Cycle Counts</h2>
+          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">Inventory audit queue</p>
         </div>
         <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-[var(--color-text-primary)]">
           {enrichedAssignments.length}
@@ -85,7 +95,7 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
       </div>
 
       {/* ─── Status filter pills ─────────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-3 flex-wrap">
         {FILTER_STATUSES.map((status) => {
           const isActive = statusFilter === status
           const config = status === 'all' ? null : STATUS_CONFIG[status]
@@ -94,7 +104,7 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
               key={status}
               type="button"
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] ${
+              className={`px-5 py-3 rounded-xl text-[14px] font-bold transition-all min-h-[48px] ${
                 isActive
                   ? 'bg-[#2563EB] text-white'
                   : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-black/[0.02]'
@@ -119,24 +129,24 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
               key={assignment.id}
               type="button"
               onClick={() => handleCardTap(assignment.id, assignment.status)}
-              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-2 py-4 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[72px]"
+              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-4 py-5 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[80px]"
             >
               {/* Status dot */}
-              <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: config.color }} />
+              <div className="h-3 w-3 rounded-full shrink-0" style={{ background: config.color }} />
 
               {/* Count ID + zone */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
+                <p className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
                   {assignment.locationCode}
                 </p>
-                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-secondary)]">
+                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text-secondary)] mt-0.5">
                   {assignment.countNumber} / {assignment.totalCounts}
                 </p>
               </div>
 
               {/* Progress bar (inline, compact) */}
-              <div className="w-24 shrink-0">
-                <div className="h-1.5 w-full rounded-full bg-[var(--color-border)]">
+              <div className="w-28 shrink-0">
+                <div className="h-2 w-full rounded-full bg-[var(--color-border)]">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{ width: `${progress}%`, background: config.color }}
@@ -146,14 +156,14 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
 
               {/* Status badge */}
               <span
-                className="shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold"
+                className="shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-bold"
                 style={{ color: config.color, background: config.bg }}
               >
                 {config.label}
               </span>
 
               {/* Arrow */}
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">
                 <path d="M5 3L9 7L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>

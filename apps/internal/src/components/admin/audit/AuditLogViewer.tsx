@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { SearchField, Input } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
-import { getAuditLog } from '../../../lib/server/admin'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { getAuditLog, exportAuditLog } from '../../../lib/server/admin'
+import { Button } from '../../ui/Button'
 import type { AuditEntry } from '../../../types/admin'
 
 /**
  * AuditLogViewer — "The Trail"
  * Dense log: timestamp (mono) + actor + action + entity + changes diff.
  * Filter by date range, actor, action type as inline pills.
- * Infinite scroll.
+ * Server-side pagination.
  *
  * WORM pattern: Write Once Read Many. Strictly read-only.
  * CRITICAL: READ-ONLY. No edit, no delete, no soft-delete buttons anywhere.
@@ -21,18 +22,31 @@ export function AuditLogViewer() {
   const [filterUser, setFilterUser] = useState('')
   const [filterAction, setFilterAction] = useState('')
   const [filterEntity, setFilterEntity] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [page, setPage] = useState(1)
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
+  const pageSize = 20
 
   const { data: auditData } = useQuery({
-    queryKey: ['admin', 'audit'],
-    queryFn: () => getAuditLog(),
+    queryKey: ['admin', 'audit', page, pageSize, filterAction, startDate, endDate],
+    queryFn: () => getAuditLog({
+      data: {
+        page,
+        limit: pageSize,
+        action: filterAction || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      },
+    }),
     staleTime: 15_000,
   })
 
   const entries = auditData?.entries ?? []
   const total = auditData?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
-  // Client-side filtering (server-side in production)
+  // Client-side filtering for search/user/entity (server handles action + dates + pagination)
   const filteredEntries = entries.filter((entry) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -43,7 +57,6 @@ export function AuditLogViewer() {
       ) return false
     }
     if (filterUser && entry.userName !== filterUser) return false
-    if (filterAction && entry.action !== filterAction) return false
     if (filterEntity && entry.entityType !== filterEntity) return false
     return true
   })
@@ -51,6 +64,26 @@ export function AuditLogViewer() {
   const uniqueUsers = [...new Set(entries.map((e) => e.userName))].sort()
   const uniqueActions = [...new Set(entries.map((e) => e.action))].sort()
   const uniqueEntities = [...new Set(entries.map((e) => e.entityType))].sort()
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportAuditLog({
+      data: {
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        action: filterAction || undefined,
+      },
+    }),
+    onSuccess: (result) => {
+      // Trigger browser download
+      const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.filename
+      link.click()
+      URL.revokeObjectURL(url)
+    },
+  })
 
   return (
     <div className="p-5 space-y-4">
@@ -63,16 +96,18 @@ export function AuditLogViewer() {
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-black/30 dark:text-white/30">
             {filteredEntries.length}/{total}
           </span>
-          <button
-            type="button"
-            className="text-[11px] text-[#2563EB]/70 hover:text-[#2563EB] cursor-pointer"
+          <Button
+            variant="ghost"
+            className="!text-[#2563EB]/70 data-[hovered]:!text-[#2563EB]"
+            onPress={() => exportMutation.mutate()}
+            isDisabled={exportMutation.isPending}
           >
-            {t('audit.exportCsv', 'Export CSV')}
-          </button>
+            {exportMutation.isPending ? 'Exporting...' : t('audit.exportCsv', 'Export CSV')}
+          </Button>
         </div>
       </div>
 
-      {/* Filter pills */}
+      {/* Filter pills + date range */}
       <div className="flex items-center gap-2 flex-wrap">
         <SearchField
           value={searchQuery}
@@ -94,7 +129,7 @@ export function AuditLogViewer() {
         />
         <FilterPill
           value={filterAction}
-          onChange={setFilterAction}
+          onChange={(v) => { setFilterAction(v); setPage(1) }}
           options={uniqueActions}
           placeholder={t('audit.filterAction', 'Action')}
         />
@@ -104,6 +139,33 @@ export function AuditLogViewer() {
           options={uniqueEntities}
           placeholder={t('audit.filterEntity', 'Entity')}
         />
+
+        {/* Date range */}
+        <div className="flex items-center gap-1.5 ms-auto">
+          <span className="text-[10px] text-black/25 dark:text-white/25">From</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
+            className="rounded-lg border border-black/8 dark:border-white/8 bg-transparent px-2 py-1 text-[11px] font-[family-name:var(--font-geist-mono)] outline-none cursor-pointer"
+          />
+          <span className="text-[10px] text-black/25 dark:text-white/25">To</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
+            className="rounded-lg border border-black/8 dark:border-white/8 bg-transparent px-2 py-1 text-[11px] font-[family-name:var(--font-geist-mono)] outline-none cursor-pointer"
+          />
+          {(startDate || endDate) && (
+            <button
+              type="button"
+              onClick={() => { setStartDate(''); setEndDate(''); setPage(1) }}
+              className="text-[10px] text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Dense log — READ-ONLY */}
@@ -124,6 +186,29 @@ export function AuditLogViewer() {
           )}
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="ghost"
+            onPress={() => setPage((p: number) => Math.max(1, p - 1))}
+            isDisabled={page <= 1}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+          </Button>
+          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-black/40 dark:text-white/40">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="ghost"
+            onPress={() => setPage((p: number) => Math.min(totalPages, p + 1))}
+            isDisabled={page >= totalPages}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+          </Button>
+        </div>
+      )}
 
       {/* WORM note */}
       <p className="text-[10px] text-black/15 dark:text-white/15">

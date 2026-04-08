@@ -3,6 +3,44 @@ import type { ReportsTab, ReportFilter, DashboardData } from '../../types/report
 
 // ─── Mock KPI Data per Role ─────────────────────────────
 
+function getOverviewData(): DashboardData {
+  return {
+    kpis: [
+      { label: 'Revenue MTD', value: 1_200_000, unit: 'EGP', trend: 15, trendDirection: 'up' },
+      { label: 'Pipeline Value', value: 2_450_000, unit: 'EGP', trend: 12, trendDirection: 'up' },
+      { label: 'Win Rate', value: 28, unit: '%', trend: 2, trendDirection: 'up' },
+      { label: 'On-Time Delivery', value: 91, unit: '%', trend: 2, trendDirection: 'up' },
+      { label: 'AR Outstanding', value: 3_400_000, unit: 'EGP', trend: 8, trendDirection: 'up' },
+      { label: 'Cash Position', value: 2_100_000, unit: 'EGP', trend: 5, trendDirection: 'up' },
+      { label: 'SLA Compliance', value: 92, unit: '%', trend: 4, trendDirection: 'up' },
+      { label: 'Inventory Accuracy', value: 97.3, unit: '%', trend: 0.5, trendDirection: 'up' },
+    ],
+    tableData: [
+      { department: 'Sales', metric: 'Pipeline Value', value: 2_450_000, unit: 'EGP', status: 'good' },
+      { department: 'Sales', metric: 'Conversion Rate', value: 34, unit: '%', status: 'good' },
+      { department: 'Finance', metric: 'Overdue AR', value: 890_000, unit: 'EGP', status: 'warning' },
+      { department: 'Finance', metric: 'DSO', value: 42, unit: 'days', status: 'warning' },
+      { department: 'Operations', metric: 'Avg Cycle Time', value: 3.2, unit: 'days', status: 'good' },
+      { department: 'Operations', metric: 'Completion Rate', value: 94, unit: '%', status: 'good' },
+      { department: 'Procurement', metric: 'Cost Savings MTD', value: 185_000, unit: 'EGP', status: 'good' },
+      { department: 'Procurement', metric: 'Supplier Response', value: 89, unit: '%', status: 'good' },
+      { department: 'Warehouse', metric: 'Pick Accuracy', value: 99.1, unit: '%', status: 'good' },
+      { department: 'Dispatch', metric: 'Route Efficiency', value: 87, unit: '%', status: 'good' },
+      { department: 'CS', metric: 'NPS Score', value: 72, unit: '', status: 'good' },
+      { department: 'CS', metric: 'Open Tickets', value: 24, unit: '', status: 'warning' },
+    ],
+    chartData: [
+      { department: 'Sales', health: 85 },
+      { department: 'Finance', health: 72 },
+      { department: 'Operations', health: 91 },
+      { department: 'Procurement', health: 88 },
+      { department: 'Warehouse', health: 94 },
+      { department: 'Dispatch', health: 87 },
+      { department: 'CS', health: 78 },
+    ],
+  }
+}
+
 function getSalesData(): DashboardData {
   return {
     kpis: [
@@ -154,6 +192,7 @@ function getCSData(): DashboardData {
 
 function resolveDashboard(role: ReportsTab): DashboardData {
   switch (role) {
+    case 'overview': return getOverviewData()
     case 'sales': return getSalesData()
     case 'procurement': return getProcurementData()
     case 'operations': return getOperationsData()
@@ -161,7 +200,7 @@ function resolveDashboard(role: ReportsTab): DashboardData {
     case 'warehouse': return getWarehouseData()
     case 'dispatch': return getDispatchData()
     case 'cs': return getCSData()
-    default: return getSalesData()
+    default: return getOverviewData()
   }
 }
 

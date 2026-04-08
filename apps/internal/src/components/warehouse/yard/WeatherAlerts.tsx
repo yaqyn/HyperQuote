@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
-import type { WeatherAlert } from '../../../types/warehouse'
+import { useWarehouseStore } from '../../../stores/warehouse'
+import { Button as AppButton } from '../../ui/Button'
+import { Toggle } from '../../ui/Toggle'
+import { markZoneCovered as markZoneCoveredServer } from '../../../lib/server/warehouse-yard'
+import type { WeatherAlert, YardZone } from '../../../types/warehouse'
 
 interface WeatherAlertsProps {
   alerts: WeatherAlert[]
+  zones?: YardZone[]
 }
 
 /**
@@ -13,7 +18,7 @@ interface WeatherAlertsProps {
  * block sheet material deliveries when sheetDeliveryBlocked.
  * Dismissible per alert (local state only).
  */
-export function WeatherAlerts({ alerts }: WeatherAlertsProps) {
+export function WeatherAlerts({ alerts, zones = [] }: WeatherAlertsProps) {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
 
   const visibleAlerts = alerts.filter((a) => !dismissedIds.has(a.id))
@@ -27,7 +32,7 @@ export function WeatherAlerts({ alerts }: WeatherAlertsProps) {
   return (
     <div className="flex flex-col gap-2">
       {visibleAlerts.map((alert) => (
-        <AlertBanner key={alert.id} alert={alert} onDismiss={() => dismiss(alert.id)} />
+        <AlertBanner key={alert.id} alert={alert} zones={zones} onDismiss={() => dismiss(alert.id)} />
       ))}
     </div>
   )
@@ -35,75 +40,125 @@ export function WeatherAlerts({ alerts }: WeatherAlertsProps) {
 
 // ─── Alert Banner (compact inline) ──────────────────────────
 
-function AlertBanner({ alert, onDismiss }: { alert: WeatherAlert; onDismiss: () => void }) {
+function AlertBanner({ alert, zones, onDismiss }: { alert: WeatherAlert; zones: YardZone[]; onDismiss: () => void }) {
   const isCritical = alert.severity === 'critical'
+  const isKhamsin = alert.type === 'khamsin' && alert.windSpeedKmh > 30
+  const isRain = alert.type === 'rain'
+
+  const outdoorOpsPaused = useWarehouseStore((s) => s.outdoorOpsPaused)
+  const setOutdoorOpsPaused = useWarehouseStore((s) => s.setOutdoorOpsPaused)
+  const coveredZoneIds = useWarehouseStore((s) => s.coveredZoneIds)
+  const markZoneCoveredLocal = useWarehouseStore((s) => s.markZoneCovered)
+
+  // Cement zones for rain alerts
+  const cementZones = zones.filter((z) =>
+    z.name.toLowerCase().includes('cement') ||
+    z.inventorySummary.toLowerCase().includes('cement')
+  )
+
+  const handleMarkCovered = async (zoneId: string) => {
+    await markZoneCoveredServer({ data: { zoneId } })
+    markZoneCoveredLocal(zoneId)
+  }
 
   const style = isCritical
     ? { border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.04)', color: '#b91c1c' }
     : { border: '1px solid rgba(234, 179, 8, 0.2)', background: 'rgba(234, 179, 8, 0.04)', color: '#a16207' }
 
   return (
-    <div
-      className="flex items-center gap-3 rounded-xl px-4 py-3"
-      style={style}
-    >
-      {/* Type icon */}
-      <WeatherIcon type={alert.type} />
+    <div className="rounded-xl px-4 py-3" style={style}>
+      <div className="flex items-center gap-3">
+        {/* Type icon */}
+        <WeatherIcon type={alert.type} />
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span
-            className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
-            style={{
-              background: isCritical ? 'rgba(239, 68, 68, 0.08)' : 'rgba(234, 179, 8, 0.08)',
-            }}
-          >
-            {alert.severity}
-          </span>
-          <span className="text-sm font-bold truncate">{alert.message}</span>
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+              style={{
+                background: isCritical ? 'rgba(239, 68, 68, 0.08)' : 'rgba(234, 179, 8, 0.08)',
+              }}
+            >
+              {alert.severity}
+            </span>
+            <span className="text-sm font-bold truncate">{alert.message}</span>
+          </div>
+
+          {/* Khamsin-specific data */}
+          <div className="flex items-center gap-4 mt-1">
+            {alert.windSpeedKmh > 0 && (
+              <span className="text-xs">
+                Wind{' '}
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-bold">
+                  {alert.windSpeedKmh}
+                </span>{' '}
+                km/h
+              </span>
+            )}
+
+            {alert.windSpeedKmh > 30 && (
+              <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
+                Outdoor ops paused
+              </span>
+            )}
+
+            {alert.sheetDeliveryBlocked && (
+              <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
+                Sheet deliveries blocked
+              </span>
+            )}
+          </div>
+
+          {alert.recommendation && (
+            <p className="text-[10px] mt-1 opacity-70">{alert.recommendation}</p>
+          )}
         </div>
 
-        {/* Khamsin-specific data */}
-        <div className="flex items-center gap-4 mt-1">
-          {alert.windSpeedKmh > 0 && (
-            <span className="text-xs">
-              Wind{' '}
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums font-bold">
-                {alert.windSpeedKmh}
-              </span>{' '}
-              km/h
-            </span>
-          )}
-
-          {alert.windSpeedKmh > 30 && (
-            <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
-              Outdoor ops paused
-            </span>
-          )}
-
-          {alert.sheetDeliveryBlocked && (
-            <span className="text-xs font-bold" style={{ color: '#b91c1c' }}>
-              Sheet deliveries blocked
-            </span>
-          )}
-        </div>
-
-        {alert.recommendation && (
-          <p className="text-[10px] mt-1 opacity-70">{alert.recommendation}</p>
-        )}
+        {/* Dismiss */}
+        <Button
+          onPress={onDismiss}
+          className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg opacity-50 hover:opacity-100 cursor-pointer"
+          aria-label="Dismiss alert"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </Button>
       </div>
 
-      {/* Dismiss */}
-      <Button
-        onPress={onDismiss}
-        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg opacity-50 hover:opacity-100 cursor-pointer"
-        aria-label="Dismiss alert"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </Button>
+      {/* ─── Khamsin: Pause Outdoor Ops toggle ────────── */}
+      {isKhamsin && (
+        <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)' }}>
+          <span className="text-xs font-semibold">Pause Outdoor Ops</span>
+          <Toggle
+            isSelected={outdoorOpsPaused}
+            onChange={setOutdoorOpsPaused}
+          />
+        </div>
+      )}
+
+      {/* ─── Rain: Cover cement storage actions ───────── */}
+      {isRain && cementZones.length > 0 && (
+        <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(234, 179, 8, 0.1)' }}>
+          <span className="text-xs font-semibold block mb-2">Cover cement storage — moisture risk</span>
+          <div className="flex flex-wrap gap-2">
+            {cementZones.map((z) => {
+              const isCovered = coveredZoneIds.has(z.id)
+              return (
+                <AppButton
+                  key={z.id}
+                  variant={isCovered ? 'ghost' : 'outline'}
+                  isDisabled={isCovered}
+                  onPress={() => handleMarkCovered(z.id)}
+                >
+                  {isCovered ? `${z.name} — Covered` : `Mark ${z.name} Covered`}
+                </AppButton>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

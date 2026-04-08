@@ -62,9 +62,26 @@ export function OrderDetailView() {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
 
+  // Determine if there's a pending handoff (not yet completed all stages)
+  const hasPendingHandoff = order.handoff.completedStages.length < 5 // 6 stages total, current counts as pending
+  const handoffBreached = order.handoff.timeInStage > order.handoff.slaMs
+
+  // Determine the next action needed based on order status
+  const nextAction = (() => {
+    switch (order.status) {
+      case 'confirmed': return 'Next step: Schedule delivery'
+      case 'processing': return 'Next step: Track procurement progress'
+      case 'partially_fulfilled': return 'Next step: Follow up on remaining items'
+      case 'on_hold': return 'Action needed: Resolve hold reason to continue'
+      case 'back_ordered': return 'Action needed: Source alternative supplier'
+      case 'cancellation_requested': return 'Action needed: Review cancellation request'
+      default: return null
+    }
+  })()
+
   return (
     <div className="relative flex flex-col gap-8 px-5 py-6 pb-28">
-      {/* Header — order # large mono + back */}
+      {/* Header — order # large mono + back + status */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
@@ -92,6 +109,47 @@ export function OrderDetailView() {
         </span>
       </div>
 
+      {/* Progress bar — status visualization */}
+      <OrderProgressBar items={order.items} />
+
+      {/* Action needed banner — prominent if order needs next step */}
+      {nextAction && (
+        <div className={`flex items-center gap-3 rounded-lg px-4 py-3 ${
+          order.status === 'on_hold' || order.status === 'cancellation_requested' || order.status === 'back_ordered'
+            ? 'bg-red-500/[0.06] border border-red-500/10'
+            : 'bg-[#2563EB]/[0.04] border border-[#2563EB]/[0.08]'
+        }`}>
+          <div className={`flex size-5 items-center justify-center rounded-full ${
+            order.status === 'on_hold' || order.status === 'cancellation_requested' || order.status === 'back_ordered'
+              ? 'bg-red-500/10'
+              : 'bg-[#2563EB]/10'
+          }`}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={
+              order.status === 'on_hold' || order.status === 'cancellation_requested' || order.status === 'back_ordered'
+                ? 'text-red-600'
+                : 'text-[#2563EB]'
+            }>
+              <path d="M6 3V6.5M6 8.5V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <span className={`text-[13px] font-medium ${
+            order.status === 'on_hold' || order.status === 'cancellation_requested' || order.status === 'back_ordered'
+              ? 'text-red-600'
+              : 'text-[#2563EB]'
+          }`}>
+            {nextAction}
+          </span>
+        </div>
+      )}
+
+      {/* Cross-module handoff — at TOP when there's a pending/breached handoff */}
+      {(hasPendingHandoff || handoffBreached) && (
+        <CrossModuleHandoff orderId={order.id} handoff={order.handoff} />
+      )}
+
+      {/* Actions bar */}
+      <OrderActions orderId={order.id} />
+
       {/* Info strip — horizontal key-value pairs */}
       <div className="flex flex-wrap gap-x-10 gap-y-3">
         <div className="flex flex-col gap-0.5">
@@ -108,23 +166,19 @@ export function OrderDetailView() {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <OrderProgressBar items={order.items} />
-
-      {/* Cross-module handoff */}
-      <CrossModuleHandoff orderId={order.id} handoff={order.handoff} />
-
       {/* Line items */}
       <OrderLineItems items={order.items} />
 
       {/* Documents */}
       <OrderDocuments documents={order.documents} />
 
+      {/* Cross-module handoff — full section when NOT pending (completed handoff history) */}
+      {!hasPendingHandoff && !handoffBreached && (
+        <CrossModuleHandoff orderId={order.id} handoff={order.handoff} />
+      )}
+
       {/* Activity log */}
       <OrderActivityLog activityLog={order.activityLog} />
-
-      {/* Floating action bar */}
-      <OrderActions orderId={order.id} />
     </div>
   )
 }

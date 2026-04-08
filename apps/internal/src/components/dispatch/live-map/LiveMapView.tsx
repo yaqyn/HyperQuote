@@ -6,13 +6,16 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ClientOnly } from '../../../lib/client-only'
 import { Button } from 'react-aria-components'
+import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useDispatchStore } from '../../../stores/dispatch'
 import { useGPSBroadcast } from '../../../hooks/useGPSBroadcast'
-import { getDriverLocations, getDispatchBoard } from '../../../lib/server/dispatch'
+import { getDriverLocations, getDispatchBoard, sendDriverMessage } from '../../../lib/server/dispatch'
 import { MapSkeleton } from '../shared/MapSkeleton'
 import { DriverSidebar } from './DriverSidebar'
 import { VehicleMap } from './VehicleMap'
+import { UnderlineInput } from '../../ui'
+import { Button as UIButton } from '../../ui'
 import type { GPSPosition, DeliveryRoute, Driver } from '../../../types/dispatch'
 
 export function LiveMapView() {
@@ -80,6 +83,35 @@ export function LiveMapView() {
 
   const positions = useGPSBroadcast(null, initialPositions)
 
+  // ─── Driver Message Dialog ─────────────────────────────
+  const [messageTarget, setMessageTarget] = useState<{ driverId: string; driverName: string } | null>(null)
+  const [messageText, setMessageText] = useState('')
+  const [messageSending, setMessageSending] = useState(false)
+
+  useEffect(() => {
+    function handleDispatchMessage(e: Event) {
+      const detail = (e as CustomEvent<{ driverId: string; driverName: string }>).detail
+      setMessageTarget(detail)
+      setMessageText('')
+    }
+    window.addEventListener('dispatch-message', handleDispatchMessage)
+    return () => window.removeEventListener('dispatch-message', handleDispatchMessage)
+  }, [])
+
+  const handleSendMessage = useCallback(async () => {
+    if (!messageTarget || !messageText.trim()) return
+    setMessageSending(true)
+    try {
+      await sendDriverMessage({ data: { driverId: messageTarget.driverId, message: messageText.trim() } })
+      setMessageTarget(null)
+      setMessageText('')
+    } catch {
+      // Toast would go here in production
+    } finally {
+      setMessageSending(false)
+    }
+  }, [messageTarget, messageText])
+
   const [selectedVehicle, setSelectedVehicle] = useState<GPSPosition | null>(null)
   const [highlightedRouteId, setHighlightedRouteId] = useState<string | null>(null)
 
@@ -142,20 +174,18 @@ export function LiveMapView() {
         </div>
 
         <ClientOnly fallback={<MapSkeleton className="h-full" />}>
-          {() =>
-            loading ? (
-              <MapSkeleton className="h-full" />
-            ) : (
-              <VehicleMap
-                positions={positions}
-                routes={routes}
-                drivers={drivers}
-                selectedVehicle={selectedVehicle}
-                onSelectVehicle={handleSelectVehicle}
-                highlightedRouteId={highlightedRouteId}
-              />
-            )
-          }
+          {loading ? (
+            <MapSkeleton className="h-full" />
+          ) : (
+            <VehicleMap
+              positions={positions}
+              routes={routes}
+              drivers={drivers}
+              selectedVehicle={selectedVehicle}
+              onSelectVehicle={handleSelectVehicle}
+              highlightedRouteId={highlightedRouteId}
+            />
+          )}
         </ClientOnly>
       </div>
 
@@ -168,6 +198,52 @@ export function LiveMapView() {
         selectedDriverId={selectedDriverId}
         onSelectDriver={handleSelectDriver}
       />
+
+      {/* Driver message dialog */}
+      {messageTarget && (
+        <ModalOverlay
+          isOpen
+          onOpenChange={(open) => { if (!open) setMessageTarget(null) }}
+          isDismissable
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+        >
+          <Modal className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/95 p-5 shadow-2xl backdrop-blur-2xl dark:border-white/[0.08] dark:bg-black/95">
+            <Dialog className="outline-none">
+              {({ close }) => (
+                <>
+                  <Heading slot="title" className="mb-1 text-sm font-semibold text-black dark:text-white">
+                    {t('messageDriver', 'Message Driver')}
+                  </Heading>
+                  <p className="mb-4 text-xs text-black/50 dark:text-white/50">
+                    {messageTarget.driverName}
+                  </p>
+                  <UnderlineInput
+                    label={t('message', 'Message')}
+                    value={messageText}
+                    onChange={(v: string) => setMessageText(v)}
+                    placeholder={t('typeMessage', 'Type your message...')}
+                  />
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <UIButton
+                      variant="ghost"
+                      onPress={() => { setMessageTarget(null); close() }}
+                    >
+                      {t('cancel', 'Cancel')}
+                    </UIButton>
+                    <UIButton
+                      variant="primary"
+                      isDisabled={!messageText.trim() || messageSending}
+                      onPress={handleSendMessage}
+                    >
+                      {messageSending ? t('sending', 'Sending...') : t('send', 'Send')}
+                    </UIButton>
+                  </div>
+                </>
+              )}
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      )}
     </div>
   )
 }

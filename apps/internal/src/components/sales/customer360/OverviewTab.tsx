@@ -29,59 +29,98 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
     : 0
   const openQuotes = quotes.filter((q) => q.outcome === 'pending').length
 
-  // Key-value pairs — clean list, no cards
-  const keyValues = [
-    { label: t('sales.customer360.overview.companyName'), value: customer.companyName },
-    { label: t('sales.customer360.overview.contactName'), value: customer.contactName },
-    { label: t('sales.customer360.overview.phone'), value: customer.phone, mono: true },
-    { label: t('sales.customer360.overview.email'), value: customer.email ?? '\u2014' },
-    { label: t('sales.customer360.overview.address'), value: customer.address ?? '\u2014' },
-    null, // spacer
-    { label: t('sales.customer360.overview.creditLimit'), value: formatCurrency(financials.creditLimit), mono: true },
-    { label: t('sales.customer360.overview.currentExposure'), value: formatCurrency(customer.currentExposure), mono: true },
-    { label: t('sales.customer360.overview.available'), value: formatCurrency(financials.creditLimit - customer.currentExposure), mono: true },
-    { label: t('sales.customer360.overview.avgDaysToPay'), value: `${financials.avgDaysToPay}d`, mono: true },
-    null, // spacer
-    { label: t('sales.customer360.overview.revenue12mo'), value: formatCurrency(revenue12mo), mono: true },
-    { label: t('sales.customer360.overview.winRate'), value: `${winRate}%`, mono: true },
-    { label: t('sales.customer360.overview.openQuotes'), value: String(openQuotes), mono: true },
-    { label: t('sales.customer360.overview.orders12mo'), value: String(data.orders.length), mono: true },
-  ]
+  const availableCredit = financials.creditLimit - customer.currentExposure
+  const creditUtilization = financials.creditLimit > 0
+    ? Math.round((customer.currentExposure / financials.creditLimit) * 100)
+    : 0
+  const openOrders = data.orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length
 
   return (
     <div className="p-6 flex gap-12">
-      {/* Left column — key-value list */}
+      {/* Left column — summary metrics first, then details */}
       <div className="flex-1 min-w-0">
-        <div className="space-y-0">
-          {keyValues.map((item, i) => {
-            if (item === null) {
-              return <div key={`spacer-${i}`} className="h-6" />
-            }
-            return (
-              <div key={item.label} className="flex items-baseline justify-between py-2">
-                <span className="text-[11px] text-black/35 dark:text-white/35">
-                  {item.label}
-                </span>
-                <span
-                  className={`text-[13px] text-[var(--color-text)] dark:text-white ${
-                    item.mono ? 'font-[family-name:var(--font-geist-mono)] tabular-nums' : ''
-                  }`}
-                >
-                  {item.value}
-                </span>
-              </div>
-            )
-          })}
+        {/* Credit status — the #1 thing a sales rep checks */}
+        <div className="mb-6">
+          <p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mb-3 font-medium">
+            {t('sales.customer360.overview.creditStatus', 'Credit Status')}
+          </p>
+          <div className="flex items-end gap-8">
+            <div>
+              <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
+                {formatCurrency(availableCredit)}
+              </p>
+              <p className="text-[11px] text-black/35 dark:text-white/35 mt-0.5">
+                {t('sales.customer360.overview.available', 'Available')}
+              </p>
+            </div>
+            <div>
+              <p className={`font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums ${
+                creditUtilization > 80 ? 'text-red-500' : creditUtilization > 60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-[var(--color-text)]'
+              }`}>
+                {creditUtilization}%
+              </p>
+              <p className="text-[11px] text-black/35 dark:text-white/35 mt-0.5">utilized</p>
+            </div>
+            <div>
+              <p className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
+                {financials.avgDaysToPay}d
+              </p>
+              <p className="text-[11px] text-black/35 dark:text-white/35 mt-0.5">avg pay</p>
+            </div>
+          </div>
         </div>
 
-        {/* Key contacts — inline, no cards */}
+        {/* Activity counts — open quotes/orders at a glance */}
+        <div className="mb-6 flex items-center gap-8">
+          {[
+            { value: String(openQuotes), label: 'Open Quotes' },
+            { value: String(openOrders), label: 'Open Orders' },
+            { value: String(data.orders.length), label: 'Orders 12mo' },
+            { value: formatCurrency(revenue12mo), label: 'Revenue 12mo' },
+            { value: `${winRate}%`, label: 'Win Rate' },
+          ].map((m) => (
+            <div key={m.label}>
+              <p className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)]">
+                {m.value}
+              </p>
+              <p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mt-0.5">
+                {m.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Contact info — compact */}
+        <div className="space-y-0 border-t border-black/[0.04] dark:border-white/[0.04] pt-4">
+          {[
+            { label: t('sales.customer360.overview.contactName'), value: customer.contactName },
+            { label: t('sales.customer360.overview.phone'), value: customer.phone, mono: true },
+            { label: t('sales.customer360.overview.email'), value: customer.email ?? '\u2014' },
+            { label: t('sales.customer360.overview.address'), value: customer.address ?? '\u2014' },
+          ].map((item) => (
+            <div key={item.label} className="flex items-baseline justify-between py-2">
+              <span className="text-[11px] text-black/35 dark:text-white/35">
+                {item.label}
+              </span>
+              <span
+                className={`text-[13px] text-[var(--color-text)] dark:text-white ${
+                  item.mono ? 'font-[family-name:var(--font-geist-mono)] tabular-nums' : ''
+                }`}
+              >
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Key contacts — compact */}
         {contacts.length > 0 && (
-          <div className="mt-8">
-            <p className="text-[11px] text-black/35 dark:text-white/35 mb-3 uppercase tracking-wider font-medium">
+          <div className="mt-6">
+            <p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mb-3 font-medium">
               {t('sales.customer360.overview.keyContacts')}
             </p>
-            <div className="space-y-3">
-              {contacts.slice(0, 5).map((contact) => (
+            <div className="space-y-2">
+              {contacts.slice(0, 3).map((contact) => (
                 <div key={contact.id} className="flex items-baseline justify-between">
                   <div>
                     <span className="text-[13px] font-medium text-[var(--color-text)] dark:text-white">
@@ -103,7 +142,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 
       {/* Right column — recent activity */}
       <div className="w-[320px] shrink-0">
-        <p className="text-[11px] text-black/35 dark:text-white/35 mb-3 uppercase tracking-wider font-medium">
+        <p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mb-3 font-medium">
           {t('sales.customer360.overview.recentActivity')}
         </p>
         <div className="space-y-3">

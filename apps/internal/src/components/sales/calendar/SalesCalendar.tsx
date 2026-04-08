@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, ToggleButton } from 'react-aria-components'
+import { Button as AriaButton, ToggleButton } from 'react-aria-components'
+import { Button } from '../../ui'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
@@ -351,24 +352,24 @@ export function SalesCalendar() {
           <h2 className="text-[15px] font-semibold text-[var(--color-text)]">{formatHeader()}</h2>
 
           <div className="flex items-center gap-1">
-            <Button
+            <AriaButton
               onPress={() => navigate(-1)}
               className="rounded-lg p-1.5 text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]"
             >
               <ChevronLeft className="size-4" />
-            </Button>
-            <Button
+            </AriaButton>
+            <AriaButton
               onPress={() => navigate(1)}
               className="rounded-lg p-1.5 text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]"
             >
               <ChevronRight className="size-4" />
-            </Button>
+            </AriaButton>
           </div>
 
           {/* Today pill */}
           <Button
+            variant="outline"
             onPress={() => setCurrentDate(new Date())}
-            className="rounded-full border border-black/[0.08] px-3 py-1 text-[11px] font-medium text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] dark:border-white/[0.08] dark:data-[hovered]:bg-white/[0.04]"
           >
             {t('sales.calendar.today', 'Today')}
           </Button>
@@ -395,10 +396,11 @@ export function SalesCalendar() {
           </div>
 
           <Button
+            variant="primary"
             onPress={() => {
               // Placeholder: open add event form
             }}
-            className="flex items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3.5 py-1.5 text-[11px] font-medium text-white outline-none transition-colors data-[hovered]:bg-[var(--color-primary)]/90"
+            className="flex items-center gap-1.5"
           >
             <Plus className="size-3" />
             {t('sales.calendar.addEvent', 'Add Event')}

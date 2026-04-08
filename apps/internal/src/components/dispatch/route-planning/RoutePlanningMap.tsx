@@ -15,11 +15,9 @@ interface RoutePlanningMapProps {
   onStopClick: (stopId: string) => void
 }
 
-const ROUTE_COLORS = ['#2563EB', '#16A34A', '#EA580C', '#9333EA', '#0D9488', '#EC4899']
+import { MAP_STYLE } from '../../../lib/map-style'
 
-const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-  : 'https://demotiles.maplibre.org/style.json'
+const ROUTE_COLORS = ['#2563EB', '#16A34A', '#EA580C', '#9333EA', '#0D9488', '#EC4899']
 
 export function RoutePlanningMap({
   routes,

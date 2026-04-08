@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../ui/Button'
 import { useFinanceStore } from '../../../stores/finance'
 import type { ARAgingBucket } from '../../../types/finance'
 
@@ -186,17 +187,16 @@ export function ARFilters() {
               >
                 {t('ar.filters.saveView', 'Save view')}
               </button>
-              <button
-                type="button"
-                onClick={() => {
+              <Button
+                variant="ghost"
+                onPress={() => {
                   clearARFilters()
                   setActiveBucket(null)
                   setSearch('')
                 }}
-                className="text-xs text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
               >
                 {t('ar.filters.clearAll', 'Clear')}
-              </button>
+              </Button>
             </>
           )}
         </div>

@@ -55,24 +55,31 @@ export function BottleneckPipeline({ stages }: BottleneckPipelineProps) {
 
               {/* Bar segment */}
               <motion.div
-                className={`h-8 rounded-md transition-colors ${
+                className={`h-8 rounded-md transition-colors relative ${
                   isSelected
                     ? 'bg-[#2563EB]'
                     : isBottleneck
-                      ? 'bg-black/10 dark:bg-white/10'
+                      ? 'bg-red-500/15 dark:bg-red-500/20 ring-1 ring-red-500/20'
                       : 'bg-black/[0.05] dark:bg-white/[0.05]'
                 } group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.08] ${
                   isSelected ? 'group-hover:bg-[#2563EB]' : ''
                 }`}
                 animate={isBottleneck && !isSelected ? {
-                  opacity: [1, 0.6, 1],
+                  opacity: [1, 0.7, 1],
                 } : {}}
                 transition={isBottleneck ? {
                   duration: 2,
                   repeat: Infinity,
                   ease: 'easeInOut',
                 } : {}}
-              />
+              >
+                {/* Worst stage indicator */}
+                {isBottleneck && !isSelected && (
+                  <span className="absolute inset-0 flex items-center justify-center font-[family-name:var(--font-geist-mono)] text-[11px] font-medium text-red-600">
+                    {stage.stuckCount} stuck
+                  </span>
+                )}
+              </motion.div>
 
               {/* Count + dwell time below */}
               <div className="flex items-baseline gap-1.5">

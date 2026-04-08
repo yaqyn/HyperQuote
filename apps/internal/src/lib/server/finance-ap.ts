@@ -5,8 +5,28 @@ import type { APInvoice } from '../../types/finance'
 const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10)
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString().slice(0, 10)
 
+/** Three-way match tolerance constants */
+const TOLERANCE = {
+  quantity: 0.02,  // +/-2%
+  price: 0.01,     // +/-1%
+  tax: 0,          // 0% — must match exactly
+}
+
+function calculateMatchStatus(
+  po: { qty: number; price: number },
+  receipt: { qty: number },
+  invoice: { qty: number; price: number },
+): 'matched' | 'within_tolerance' | 'exceeds_tolerance' {
+  const qtyVariance = po.qty > 0 ? Math.abs(invoice.qty - receipt.qty) / po.qty : 0
+  const priceVariance = po.price > 0 ? Math.abs(invoice.price - po.price) / po.price : 0
+
+  if (qtyVariance === 0 && priceVariance === 0) return 'matched'
+  if (qtyVariance <= TOLERANCE.quantity && priceVariance <= TOLERANCE.price) return 'within_tolerance'
+  return 'exceeds_tolerance'
+}
+
 function getMockAPInvoices(): APInvoice[] {
-  return [
+  const invoices: APInvoice[] = [
     {
       id: 'ap-001', supplierId: 'sup-001', supplierName: 'Cairo Steel Co.', poId: 'po-001',
       poNumber: 'PO-2026-0031', amount: 1_250_000, vatAmount: 175_000, withholdingTax: 12_500,
@@ -38,6 +58,21 @@ function getMockAPInvoices(): APInvoice[] {
       },
     },
   ]
+
+  // Recalculate match statuses dynamically using tolerance logic
+  for (const inv of invoices) {
+    const m = inv.threeWayMatch
+    inv.matchStatus = calculateMatchStatus(m.poLine, m.receiptLine, m.invoiceLine)
+    inv.threeWayMatch.qtyVariance = m.poLine.qty > 0
+      ? Math.abs(((m.invoiceLine.qty - m.receiptLine.qty) / m.poLine.qty) * 100)
+      : 0
+    inv.threeWayMatch.priceVariance = m.poLine.price > 0
+      ? Math.abs(((m.invoiceLine.price - m.poLine.price) / m.poLine.price) * 100)
+      : 0
+    inv.threeWayMatch.withinTolerance = inv.matchStatus !== 'exceeds_tolerance'
+  }
+
+  return invoices
 }
 
 export const getAPInvoices = createServerFn({ method: 'GET' })
@@ -60,18 +95,37 @@ export const getAPAgingReport = createServerFn({ method: 'GET' })
     }
   })
 
+/** Withholding tax rates per Egyptian tax law */
+const WITHHOLDING_RATES = {
+  goods: 0.01,    // 1% for goods
+  services: 0.05, // 5% for services
+} as const
+
 const createSupplierPaymentInput = z.object({
   supplierId: z.string(),
-  poIds: z.array(z.string()),
-  amount: z.number(),
+  invoiceId: z.string().optional(),
+  poIds: z.array(z.string()).optional(),
+  grossAmount: z.number(),
+  category: z.enum(['goods', 'services']),
   method: z.enum(['wire', 'cheque', 'lc', 'cash']),
   reference: z.string(),
 })
 
 export const createSupplierPayment = createServerFn({ method: 'POST' })
   .inputValidator(createSupplierPaymentInput)
-  .handler(async ({ data: _input }) => {
-    return { paymentId: `ap-pay-${Date.now()}` }
+  .handler(async ({ data: input }) => {
+    const withholdingRate = WITHHOLDING_RATES[input.category]
+    const withholdingAmount = Math.round(input.grossAmount * withholdingRate * 100) / 100
+    const netAmount = input.grossAmount - withholdingAmount
+
+    return {
+      success: true,
+      paymentId: `ap-pay-${Date.now()}`,
+      grossAmount: input.grossAmount,
+      withholdingAmount,
+      netAmount,
+      withholdingRate,
+    }
   })
 
 const generateForm41Input = z.object({
@@ -82,5 +136,24 @@ const generateForm41Input = z.object({
 export const generateForm41 = createServerFn({ method: 'POST' })
   .inputValidator(generateForm41Input)
   .handler(async ({ data: input }) => {
-    return { reportId: `f41-${Date.now()}`, downloadUrl: `/reports/form41-Q${input.quarter}-${input.year}.pdf` }
+    // Realistic mock: aggregate withholding data for the quarter
+    const mockSupplierWithholdings = [
+      { supplierId: 'sup-001', supplierName: 'Cairo Steel Co.', trn: '100-200-300', totalPaid: 3_750_000, withheld: 37_500, category: 'goods' },
+      { supplierId: 'sup-002', supplierName: 'Delta Cement Group', trn: '100-200-301', totalPaid: 720_000, withheld: 7_200, category: 'goods' },
+      { supplierId: 'sup-003', supplierName: 'Nile Aggregates', trn: '100-200-302', totalPaid: 675_000, withheld: 6_750, category: 'goods' },
+      { supplierId: 'sup-004', supplierName: 'Alexandria Logistics', trn: '100-200-303', totalPaid: 480_000, withheld: 24_000, category: 'services' },
+      { supplierId: 'sup-005', supplierName: 'Smart Quality Testing', trn: '100-200-304', totalPaid: 120_000, withheld: 6_000, category: 'services' },
+    ]
+
+    const totalWithheld = mockSupplierWithholdings.reduce((sum, s) => sum + s.withheld, 0)
+
+    return {
+      success: true,
+      pdfUrl: `/mock/form41-Q${input.quarter}-${input.year}.pdf`,
+      quarter: input.quarter,
+      year: input.year,
+      totalWithheld,
+      supplierCount: mockSupplierWithholdings.length,
+      suppliers: mockSupplierWithholdings,
+    }
   })

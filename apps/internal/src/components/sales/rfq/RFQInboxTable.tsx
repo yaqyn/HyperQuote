@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button } from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components'
+import { Button } from '../../ui'
 import { motion, AnimatePresence } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { getRFQQueue, autoAssignRFQ } from '../../../lib/server/sales-rfq'
@@ -8,6 +9,7 @@ import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 import type { RFQ } from '../../../types/sales'
 import { RFQPreviewPane } from './RFQPreviewPane'
+import { DeclineRFQDialog } from './DeclineRFQDialog'
 
 // ─── Stage filter config ────────────────────────────────
 const STAGE_FILTERS = [
@@ -64,9 +66,12 @@ function getSlaRemaining(slaDeadline: string): { text: string; color: string } {
   const totalMinutes = Math.floor(ms / 60_000)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
+  const days = Math.floor(hours / 24)
+  if (days >= 3) return { text: `${days}d`, color: 'text-green-600 dark:text-green-400' }
+  if (days >= 1) return { text: `${days}d ${hours % 24}h`, color: days <= 2 ? 'text-red-500 font-semibold' : 'text-yellow-600 dark:text-yellow-400' }
   if (hours >= 2) return { text: `${hours}h ${minutes}m`, color: 'text-green-600 dark:text-green-400' }
   if (hours >= 1) return { text: `${hours}h ${minutes}m`, color: 'text-yellow-600 dark:text-yellow-400' }
-  return { text: `${minutes}m`, color: 'text-red-500' }
+  return { text: `${minutes}m`, color: 'text-red-500 font-semibold' }
 }
 
 function getPriorityDot(score: number): string {
@@ -113,6 +118,8 @@ export function RFQInboxTable() {
     queryFn: () => getSalesPipeline({ data: {} }),
     staleTime: 60_000,
   })
+
+  const [showDecline, setShowDecline] = useState(false)
 
   const claimMutation = useMutation({
     mutationFn: (rfqId: string) => autoAssignRFQ({ data: { rfqId } }),
@@ -213,7 +220,7 @@ export function RFQInboxTable() {
               const count = stageCounts[stage.id] ?? 0
               const isActive = rfqStageFilter === stage.id
               return (
-                <Button
+                <AriaButton
                   key={stage.id}
                   onPress={() => setRfqStageFilter(stage.id)}
                   className={`shrink-0 cursor-pointer outline-none transition-all duration-150 ${
@@ -233,7 +240,7 @@ export function RFQInboxTable() {
                   {isActive && (
                     <div className="mt-1 h-[2px] rounded-full bg-[var(--color-primary)]" />
                   )}
-                </Button>
+                </AriaButton>
               )
             })}
           </div>
@@ -333,33 +340,104 @@ export function RFQInboxTable() {
           </AnimatePresence>
         </div>
 
-        {/* Fixed action bar — outside animation */}
+        {/* Fixed action bar — contextual based on RFQ status */}
+        {selectedRfqId && (() => {
+          const selectedRfq = filteredRfqs.find((r) => r.id === selectedRfqId)
+          const status = selectedRfq?.status ?? 'submitted'
+          const isQuoted = status === 'quoted'
+          const isNegotiating = status === 'negotiating' || status === 'countered'
+          const isClosed = ['won', 'lost', 'declined', 'expired'].includes(status)
+
+          if (isClosed) return null
+
+          // Contextual status hint
+          const statusHint = isNegotiating
+            ? 'Customer countered — respond or accept'
+            : isQuoted
+              ? 'Quote sent — awaiting response'
+              : status === 'assigned'
+                ? 'Assigned to you — start quoting'
+                : status === 'reviewing'
+                  ? 'Under review'
+                  : status === 'awaiting_clarification'
+                    ? 'Waiting for customer clarification'
+                    : 'New RFQ — claim and quote'
+
+          return (
+            <div className="shrink-0 px-8 py-4 border-t border-black/[0.04] dark:border-white/[0.04]">
+              {/* Status hint */}
+              <p className="text-[11px] text-[var(--color-text-subtle)] mb-2.5">
+                {statusHint}
+              </p>
+              <div className="flex items-center gap-3">
+                {isNegotiating ? (
+                  <Button
+                    variant="primary"
+                    onPress={() => {
+                      const store = useSalesStore.getState()
+                      ;(store as any).setNegotiatingQuoteId?.(selectedRfqId)
+                      window.dispatchEvent(new CustomEvent('sales:negotiate', { detail: { quoteId: selectedRfqId } }))
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    View Negotiation
+                    <ArrowRight size={14} strokeWidth={1.5} />
+                  </Button>
+                ) : isQuoted ? (
+                  <Button
+                    variant="primary"
+                    onPress={() => {
+                      window.dispatchEvent(new CustomEvent('sales:negotiate', { detail: { quoteId: selectedRfqId } }))
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    Track Quote
+                    <ArrowRight size={14} strokeWidth={1.5} />
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="primary"
+                      onPress={() => {
+                        const store = useSalesStore.getState()
+                        store.setEditingRfqId(selectedRfqId)
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      Start Quote
+                      <ArrowRight size={14} strokeWidth={1.5} />
+                    </Button>
+                    {!selectedRfq?.assignedRep && (
+                      <Button
+                        variant="subtle"
+                        onPress={() => claimMutation.mutate(selectedRfqId)}
+                      >
+                        Claim
+                      </Button>
+                    )}
+                  </>
+                )}
+                <div className="flex-1" />
+                {!isQuoted && !isNegotiating && (
+                  <Button
+                    variant="ghost"
+                    onPress={() => setShowDecline(true)}
+                  >
+                    Decline
+                  </Button>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Decline RFQ Dialog */}
         {selectedRfqId && (
-          <div className="shrink-0 px-8 py-4 border-t border-black/[0.04] dark:border-white/[0.04] flex items-center gap-3">
-            <Button
-              onPress={() => {
-                const store = useSalesStore.getState()
-                store.setEditingRfqId(selectedRfqId)
-              }}
-              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[var(--color-primary)] text-white text-[13px] font-medium cursor-pointer outline-none hover:opacity-90 transition-opacity"
-            >
-              Start Quote
-              <ArrowRight size={14} strokeWidth={1.5} />
-            </Button>
-            <Button
-              onPress={() => claimMutation.mutate(selectedRfqId)}
-              className="px-4 py-2 rounded-lg text-[13px] font-medium text-[var(--color-text)] bg-black/[0.04] dark:bg-white/[0.06] cursor-pointer outline-none hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
-            >
-              Claim
-            </Button>
-            <div className="flex-1" />
-            <Button
-              onPress={() => {}}
-              className="px-4 py-2 rounded-lg text-[13px] text-[var(--color-text-subtle)] cursor-pointer outline-none hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all"
-            >
-              Decline
-            </Button>
-          </div>
+          <DeclineRFQDialog
+            rfqId={selectedRfqId}
+            isOpen={showDecline}
+            onClose={() => setShowDecline(false)}
+          />
         )}
       </div>
     </div>

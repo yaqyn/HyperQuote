@@ -2,7 +2,8 @@ import { useOperationsStore } from '../../stores/operations'
 import { ModuleTabStrip } from '../shell/ModuleTabStrip'
 
 const TABS = [
-  { id: 'operations', label: 'Operations' },
+  { id: 'operations', label: 'Fulfillment' },
+  { id: 'orders', label: 'Orders' },
 ]
 
 export function OperationsTabStrip() {

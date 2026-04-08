@@ -3,10 +3,13 @@ import { ArrowLeft } from 'lucide-react'
 import { useHRStore } from '../../stores/hr'
 import { HRTabStrip } from './HRTabStrip'
 import { HRShortcuts } from './HRShortcuts'
+import { HRHome } from './home/HRHome'
 import { EmployeeDirectory } from './employees/EmployeeDirectory'
 import { EmployeeProfile } from './employees/EmployeeProfile'
 import { LeaveManagement } from './leave/LeaveManagement'
 import { AttendanceDashboard } from './attendance/AttendanceDashboard'
+import { DriverCompliance } from './compliance/DriverCompliance'
+import { HRSettings } from './settings/HRSettings'
 
 /**
  * HR — "The Roster"
@@ -44,28 +47,20 @@ export function HRModule() {
   }
 
   const tabContent: Record<string, React.ReactNode> = {
+    home: <HRHome />,
     people: <EmployeeDirectory />,
     time: (
-      <div className="flex flex-col gap-6 p-5">
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
-            Who's Here Today
-          </h3>
-          <AttendanceDashboard />
-        </div>
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-text-subtle)] mb-3">
-            Pending Leave Requests
-          </h3>
+      <div className="flex flex-col gap-6">
+        <AttendanceDashboard />
+        <div className="border-t border-[var(--color-border)]">
           <LeaveManagement />
         </div>
+        <div className="border-t border-[var(--color-border)]">
+          <DriverCompliance />
+        </div>
       </div>
     ),
-    settings: (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-[var(--color-text-subtle)]">Coming soon</p>
-      </div>
-    ),
+    settings: <HRSettings />,
   }
 
   return (

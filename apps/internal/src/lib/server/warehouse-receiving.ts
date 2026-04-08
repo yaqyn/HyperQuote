@@ -77,17 +77,45 @@ const receiveGoodsInput = z.object({
   lines: z.array(z.object({
     lineId: z.string(),
     receivedQty: z.number(),
+    rejectedQty: z.number().optional(),
     condition: z.string(),
     lotNumber: z.string().optional(),
     note: z.string().optional(),
   })),
   photos: z.array(z.string()).optional(),
+  signature: z.string().optional(),
 })
 
 export const receiveGoods = createServerFn({ method: 'POST' })
   .inputValidator(receiveGoodsInput)
+  .handler(async ({ data: input }) => {
+    // Mock: generate realistic GRN number
+    const seq = String(Math.floor(10000 + Math.random() * 90000))
+    const grnId = `GRN-2026-${seq}`
+    return {
+      success: true as const,
+      grnId,
+      putawayTasksCreated: input.lines.length,
+    }
+  })
+
+const submitBulkReceivingInput = z.object({
+  poId: z.string(),
+  grossWeight: z.number(),
+  tareWeight: z.number(),
+  netWeight: z.number(),
+  yardZone: z.string(),
+  photos: z.array(z.string()).optional(),
+})
+
+export const submitBulkReceiving = createServerFn({ method: 'POST' })
+  .inputValidator(submitBulkReceivingInput)
   .handler(async ({ data: _input }) => {
-    return { grnId: `GRN-${Date.now()}` }
+    const seq = String(Math.floor(10000 + Math.random() * 90000))
+    return {
+      success: true as const,
+      grnId: `GRN-2026-${seq}`,
+    }
   })
 
 const getBulkReceivingStateInput = z.object({

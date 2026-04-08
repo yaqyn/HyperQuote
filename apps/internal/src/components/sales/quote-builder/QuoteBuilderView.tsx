@@ -243,10 +243,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
             </DocumentSection>
 
             {/* Delivery */}
-            <DocumentSection
-              title="Delivery"
-              description="Set delivery date, window, and special instructions."
-            >
+            <DocumentSection title="Delivery">
               <DeliveryTerms
                 deliveryAddress="Cairo, Egypt"
                 totalWeightTons={12}
@@ -263,15 +260,25 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
             </DocumentSection>
 
             {/* Validity */}
-            <DocumentSection
-              title="Validity"
-              description="How long this quote remains valid."
-            >
+            <DocumentSection title="Validity">
               <ValidityPeriod />
             </DocumentSection>
 
             {/* Approval */}
             <DocumentSection title="Approval">
+              {/* Approval Required banner — prominent when not yet approved */}
+              {status === 'draft' && (
+                <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/[0.04] px-4 py-3">
+                  <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-primary)]/10">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M7 3v4M7 10h.01" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <p className="text-[13px] font-medium text-[var(--color-primary)]">
+                    Approval Required — Submit for review before sending
+                  </p>
+                </div>
+              )}
               <ApprovalWorkflow
                 quoteId={quoteId ?? 'new'}
                 marginPercent={subtotal > 0 ? Math.round((1 - (watchedItems ?? []).reduce((s, i) => s + i.supplierCost * i.quantity, 0) / subtotal) * 10000) / 100 : 0}
@@ -293,15 +300,39 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
               onOpenChange={setPreviewOpen}
             />
 
-            {/* Send */}
-            <DocumentSection title="Send Quote">
-              <SendQuote
-                quoteId={quoteId ?? 'new'}
-                quoteNumber={quoteNumber}
-                customerName={customerName}
-                onSent={() => setStatus('sent')}
-              />
-            </DocumentSection>
+            {/* Send — prominent when approved, muted when blocked */}
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              className={`pt-8 pb-4 ${
+                status === 'approved'
+                  ? 'rounded-xl border-2 border-green-500/20 bg-green-500/[0.03] px-6 -mx-2'
+                  : ''
+              }`}
+            >
+              {status === 'approved' && (
+                <div className="flex items-center gap-2 mb-3">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M3.5 7l2.5 2.5L10.5 5" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[13px] font-semibold text-green-700 dark:text-green-400">
+                    Approved — Ready to send
+                  </span>
+                </div>
+              )}
+              <h2 className="text-[16px] font-semibold text-[var(--color-text)]">
+                Send Quote
+              </h2>
+              <div className="mt-4">
+                <SendQuote
+                  quoteId={quoteId ?? 'new'}
+                  quoteNumber={quoteNumber}
+                  customerName={customerName}
+                  onSent={() => setStatus('sent')}
+                />
+              </div>
+            </motion.section>
           </FormProvider>
         </div>
 

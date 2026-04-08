@@ -6,9 +6,9 @@ import {
   DialogTrigger,
   Modal,
   ModalOverlay,
-  Button,
   Heading,
 } from 'react-aria-components'
+import { Button } from '../../ui'
 import { requestClarification } from '../../../lib/server/sales-rfq'
 import type { ClarificationQuestionType } from '../../../types/sales'
 
@@ -136,9 +136,7 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
               {/* Actions */}
               <div className="flex justify-end gap-2">
                 <Button
-                  className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-                    data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
+                  variant="outline"
                   onPress={() => {
                     setSelectedTypes(new Set())
                     setFreeText('')
@@ -148,10 +146,7 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
                   Cancel
                 </Button>
                 <Button
-                  className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-medium text-white outline-none
-                    data-[hovered]:bg-[var(--color-primary)]/90
-                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 data-[focus-visible]:ring-offset-2
-                    data-[disabled]:opacity-50"
+                  variant="primary"
                   onPress={() => mutation.mutate()}
                   isDisabled={!canSubmit || mutation.isPending}
                 >

@@ -8,6 +8,7 @@ import {
   Heading,
 } from 'react-aria-components'
 import { AlertTriangle } from 'lucide-react'
+import { Button } from '../../ui'
 import { markAsLost } from '../../../lib/server/sales-pipeline'
 
 // ─── Types ──────────────────────────────────────────────────
@@ -126,13 +127,12 @@ export function MarkAsLostDialog({
 
             {/* Actions */}
             <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="rounded-full px-4 py-2 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+              <Button
+                variant="outline"
+                onPress={() => onOpenChange(false)}
               >
                 {t('common.cancel', 'Cancel')}
-              </button>
+              </Button>
               <button
                 type="button"
                 onClick={handleSubmit}

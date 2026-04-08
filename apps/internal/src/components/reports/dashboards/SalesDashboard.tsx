@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardData } from '../../../lib/server/reports'
 import { useReportsStore } from '../../../stores/reports'
+import { TrendIndicator, formatKpiValue, formatCurrency } from '../report-helpers'
 
 /**
  * Sales — "The Front Page"
@@ -135,26 +136,3 @@ export function SalesDashboard() {
   )
 }
 
-// ─── Shared helpers ──────────────────────────────────────
-
-function TrendIndicator({ trend, direction }: { trend: number; direction: 'up' | 'down' | 'flat' }) {
-  const arrow = direction === 'up' ? '\u2191' : direction === 'down' ? '\u2193' : '\u2192'
-  const color = direction === 'up' ? 'text-green-600 dark:text-green-400' :
-                direction === 'down' ? 'text-red-600 dark:text-red-400' :
-                'text-black/30 dark:text-white/30'
-  return (
-    <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] ${color}`}>
-      {arrow} {direction === 'up' ? '+' : ''}{trend}%
-    </span>
-  )
-}
-
-function formatKpiValue(value: number | string, unit?: string): string {
-  if (typeof value === 'number' && unit === 'EGP') return formatCurrency(value)
-  if (typeof value === 'number' && unit === '%') return `${value}%`
-  return String(value)
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(value)
-}

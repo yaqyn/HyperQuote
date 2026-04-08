@@ -20,15 +20,16 @@ export function AttendanceDashboard() {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
   })
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const { data: attendance } = useQuery({
-    queryKey: ['hr', 'attendance'],
-    queryFn: () => getAttendance(),
+    queryKey: ['hr', 'attendance', selectedDate],
+    queryFn: () => getAttendance({ data: selectedDate ? { date: selectedDate } : undefined }),
     staleTime: 15_000,
   })
 
   const clockMutation = useMutation({
-    mutationFn: () => clockInOut(),
+    mutationFn: () => clockInOut({ data: { employeeId: 'emp-004', action: 'in' } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] }),
   })
 
@@ -135,23 +136,34 @@ export function AttendanceDashboard() {
             ))}
 
             {/* Day cells */}
-            {cells.map((cell, i) => (
-              <div
-                key={i}
-                className="flex flex-col items-center justify-center py-2 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
-              >
-                {cell.day !== null && (
-                  <>
-                    <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)]">
-                      {cell.day}
-                    </span>
-                    {cell.status && (
-                      <span className={`w-1.5 h-1.5 rounded-full mt-1 ${cellDotColor[cell.status]}`} />
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
+            {cells.map((cell, i) => {
+              const dateStr = cell.day !== null
+                ? `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`
+                : null
+              const isSelected = dateStr !== null && selectedDate === dateStr
+
+              return (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => { if (dateStr) setSelectedDate(isSelected ? null : dateStr) }}
+                  className={`flex flex-col items-center justify-center py-2 rounded-lg transition-colors cursor-pointer
+                    ${isSelected ? 'bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]/30' : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'}
+                    ${cell.day === null ? 'pointer-events-none' : ''}`}
+                >
+                  {cell.day !== null && (
+                    <>
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)]">
+                        {cell.day}
+                      </span>
+                      {cell.status && (
+                        <span className={`w-1.5 h-1.5 rounded-full mt-1 ${cellDotColor[cell.status]}`} />
+                      )}
+                    </>
+                  )}
+                </button>
+              )
+            })}
           </div>
 
           {/* Legend */}
@@ -166,7 +178,10 @@ export function AttendanceDashboard() {
         {/* Today's timeline */}
         <div>
           <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
-            {t('attendance.todayTimeline', 'Today\'s Check-ins')}
+            {selectedDate
+              ? <>{t('attendance.checkinsFor', 'Check-ins for')} <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{selectedDate}</span></>
+              : t('attendance.todayTimeline', 'Today\'s Check-ins')
+            }
           </div>
 
           <div className="flex flex-col">

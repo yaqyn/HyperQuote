@@ -56,9 +56,11 @@ export function PutawayTask({ task, onComplete }: PutawayTaskProps) {
     mutationFn: () =>
       putawayConfirm({
         data: {
+          taskId: task.id,
           locationBarcode: effectiveDestination,
           itemBarcode: task.fromLocation,
           quantity: quantityPlaced,
+          ...(overrideReason ? { overrideReason } : {}),
         },
       }),
     onSuccess: () => {
