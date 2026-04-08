@@ -100,24 +100,7 @@ export function DeliveryTerms({
 
   return (
     <div className="space-y-4">
-      {/* Row 1: Method pills */}
-      <Controller
-        control={control}
-        name="deliveryMethod"
-        render={({ field }) => (
-          <PillGroup
-            aria-label="Delivery method"
-            value={field.value || 'jobsite'}
-            onChange={(val) => field.onChange(val)}
-          >
-            <Pill value="jobsite">Jobsite</Pill>
-            <Pill value="pickup">Pickup</Pill>
-            <Pill value="third_party">3rd Party</Pill>
-          </PillGroup>
-        )}
-      />
-
-      {/* Row 2: Date + Window — prominent, side by side */}
+      {/* Date + Window */}
       <div className="flex items-baseline gap-6">
         <Controller
           control={control}
@@ -151,7 +134,7 @@ export function DeliveryTerms({
                 </AriaButton>
               </Group>
               <Popover>
-                <Dialog className="rounded-xl border border-black/[0.06] bg-white/95 p-4 shadow-xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/95">
+                <Dialog className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl dark:border-white/[0.06] dark:bg-black">
                   <Calendar>
                     <header className="mb-2 flex items-center justify-between">
                       <AriaButton slot="previous" className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">

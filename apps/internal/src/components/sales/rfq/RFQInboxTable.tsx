@@ -399,6 +399,10 @@ export function RFQInboxTable() {
                     <Button
                       variant="primary"
                       onPress={() => {
+                        // Auto-claim if unclaimed, then start quoting
+                        if (!selectedRfq?.assignedRep) {
+                          claimMutation.mutate(selectedRfqId)
+                        }
                         const store = useSalesStore.getState()
                         store.setEditingRfqId(selectedRfqId)
                       }}
@@ -409,7 +413,7 @@ export function RFQInboxTable() {
                     </Button>
                     {!selectedRfq?.assignedRep && (
                       <Button
-                        variant="subtle"
+                        variant="ghost"
                         onPress={() => claimMutation.mutate(selectedRfqId)}
                       >
                         Claim
