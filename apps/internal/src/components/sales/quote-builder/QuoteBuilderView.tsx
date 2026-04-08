@@ -674,17 +674,14 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   </table>
                 </div>
 
-                {/* Terms: Payment + Validity — compact row */}
-                <div className="mt-5 flex flex-wrap items-start gap-6">
-                  <div className="flex-1 min-w-[200px]">
-                    <PaymentTerms
-                      customerCredit={customerCredit}
-                      isNewCustomer={customerTier === 'new'}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <ValidityPeriod />
-                  </div>
+                {/* Payment */}
+                <div className="mt-4 text-[12px] text-black/40 dark:text-white/40">
+                  Payment via bank transfer or cash
+                </div>
+
+                {/* Validity — auto-calculated note */}
+                <div className="mt-1 text-[12px] text-black/40 dark:text-white/40">
+                  Valid for <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('validityDays') ?? 14}</span> days — expires <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{new Date(Date.now() + (methods.getValues('validityDays') ?? 14) * 86400000).toLocaleDateString('en-EG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 </div>
 
                 {/* Totals */}
