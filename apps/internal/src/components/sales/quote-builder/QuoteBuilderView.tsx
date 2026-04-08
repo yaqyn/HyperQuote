@@ -236,25 +236,30 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
 
-  // Rebuild sourcing state when items change and we enter step 2
+  // Build sourcing state when items load/change
+  const itemCount = watchedItems?.length ?? 0
   useEffect(() => {
-    if (sourcingState.length === 0) {
-      const items = methods.getValues('lineItems') ?? []
+    if (itemCount === 0) return
+    // Rebuild if item count changed (items loaded or added/removed)
+    if (sourcingState.length !== itemCount) {
+      const items = watchedItems ?? []
       setSourcingState(
         items.map((item) => {
           const inv = MOCK_INVENTORY[item.productName]
+          // Preserve existing sourceId if available
+          const existing = sourcingState.find((s) => s.productName === item.productName)
           return {
             productName: item.productName,
             quantity: item.quantity,
             unit: item.unit || 'unit',
-            sourceId: '', // unassigned — user must choose
+            sourceId: existing?.sourceId ?? '',
             stockAvailable: inv?.available ?? 0,
             stockWac: inv?.wac ?? 0,
           }
         }),
       )
     }
-  }, [currentStep]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Assign item to a specific source
   const assignItemSource = (itemIndex: number, sourceId: string) => {
