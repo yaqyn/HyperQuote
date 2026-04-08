@@ -2,7 +2,7 @@
  * The Roster — split layout: driver list on left, profile on right.
  * When no driver selected, right panel shows empty state.
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getDriverList, getDeliveryAnalytics } from '../../../lib/server/dispatch'
@@ -37,8 +37,39 @@ export function DriverManagementView() {
   const selectedPerformance =
     analytics?.topDrivers.find((p) => p.driverId === selectedDriverId) ?? null
 
+  const complianceSummary = useMemo(() => {
+    const blocked = drivers.filter((d) => d.complianceStatus === 'expired' || d.complianceStatus === 'blocked').length
+    const expiring = drivers.filter((d) => d.complianceStatus === 'expiring').length
+    return { blocked, expiring }
+  }, [drivers])
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      {/* Compliance alert banner */}
+      {(complianceSummary.blocked > 0 || complianceSummary.expiring > 0) && (
+        <div className="flex items-center gap-4 border-b border-black/[0.06] px-4 py-2.5 dark:border-white/[0.06]">
+          {complianceSummary.blocked > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{complianceSummary.blocked}</span>
+                {' '}{t('driver.blockedDrivers', 'blocked from dispatch')}
+              </span>
+            </div>
+          )}
+          {complianceSummary.expiring > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{complianceSummary.expiring}</span>
+                {' '}{t('driver.expiringDocs', 'documents expiring soon')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1">
       {/* Left: driver list */}
       <div className="w-[340px] shrink-0 overflow-y-auto border-e border-black/[0.06] dark:border-white/[0.06]">
         <DriverList
@@ -63,6 +94,7 @@ export function DriverManagementView() {
             <p className="text-sm">{t('driver.selectPrompt', 'Select a driver')}</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   )

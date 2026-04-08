@@ -191,6 +191,11 @@ export function SystemSettings() {
               <p className="text-[11px] text-black/25 dark:text-white/25 mt-0.5">
                 {CATEGORY_DESCRIPTIONS[cat]}
               </p>
+              {hasChanges && (
+                <span className="text-[10px] font-medium text-[#2563EB] mt-1 inline-block">
+                  Unsaved changes
+                </span>
+              )}
             </div>
 
             {/* Settings rows — Company gets form-like padding */}
@@ -245,7 +250,7 @@ function SettingRow({
   error?: string
   isEdited?: boolean
 }) {
-  const editedHighlight = isEdited ? 'bg-[#2563EB]/[0.02]' : ''
+  const editedHighlight = isEdited ? 'bg-[#2563EB]/[0.05] border-s-2 border-s-[#2563EB]/30' : ''
 
   // Boolean → Toggle
   if (setting.type === 'boolean') {

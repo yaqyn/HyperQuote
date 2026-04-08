@@ -217,17 +217,17 @@ export function StagingLoadView({
       )}
 
       {/* Sticky bottom CTA — always visible, no scroll required */}
-      <div className="sticky bottom-0 pb-4 pt-2 -mx-6 px-6 bg-gradient-to-t from-white via-white dark:from-black dark:via-black to-transparent">
+      <div className="sticky bottom-0 pb-4 pt-3 -mx-6 px-6 bg-gradient-to-t from-white via-white dark:from-black dark:via-black to-transparent">
         <Button
           onPress={onProceedToVerification}
           isDisabled={!allScanned}
-          className={`h-[72px] min-h-[48px] w-full rounded-xl text-[18px] font-bold transition-all active:scale-[0.98] cursor-pointer ${
+          className={`h-[80px] min-h-[48px] w-full rounded-2xl text-[20px] font-bold transition-all active:scale-[0.97] cursor-pointer ${
             allScanned
-              ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
+              ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8] shadow-lg shadow-[#2563EB]/20'
               : 'border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'
           }`}
         >
-          {allScanned ? 'Proceed to Load Verification' : `Scan ${totalItems - scannedCount} remaining items`}
+          {allScanned ? 'Proceed to Verification' : `Scan ${totalItems - scannedCount} remaining`}
         </Button>
       </div>
     </div>
@@ -326,19 +326,19 @@ function StopCard({ stop, scannedItemIds, onItemScan }: StopCardProps) {
                 )}
               </div>
 
-              {/* Item name */}
-              <span className={`flex-1 text-[15px] ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
+              {/* Item name — tablet readable */}
+              <span className={`flex-1 text-[16px] ${isScanned ? 'text-[var(--color-text-secondary)] line-through' : 'font-semibold text-[var(--color-text-primary)]'}`}>
                 {item.name}
               </span>
 
-              {/* Scan input */}
+              {/* Scan input — wider for tablet */}
               {!isScanned && (
-                <div className="w-52">
+                <div className="w-64">
                   <ScanInput
                     label=""
                     expectedValue={item.barcode}
                     onScan={() => onItemScan(item)}
-                    size="default"
+                    size="large"
                   />
                 </div>
               )}

@@ -292,7 +292,19 @@ export function PDCGridView({ cheques, onRefresh }: PDCGridViewProps) {
               return (
                 <tr
                   key={cheque.id}
-                  className="border-t border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors"
+                  className={`border-t border-black/[0.04] dark:border-white/[0.04] hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors ${
+                    (() => {
+                      const maturity = new Date(cheque.maturityDate).getTime()
+                      const now = Date.now()
+                      const weekMs = 7 * 86_400_000
+                      const isDueThisWeek = maturity >= now && maturity <= now + weekMs && cheque.status !== 'cleared' && cheque.status !== 'written_off' && cheque.status !== 'replaced'
+                      const isDue3Days = maturity >= now && maturity <= now + 3 * 86_400_000 && cheque.status !== 'cleared' && cheque.status !== 'written_off' && cheque.status !== 'replaced'
+                      if (cheque.status === 'bounced') return 'bg-red-500/[0.04]'
+                      if (isDue3Days) return 'bg-[#2563EB]/[0.03]'
+                      if (isDueThisWeek) return 'bg-[#2563EB]/[0.015]'
+                      return ''
+                    })()
+                  }`}
                 >
                   <td className="px-3 py-2">
                     <Checkbox

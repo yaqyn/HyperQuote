@@ -159,22 +159,40 @@ export function EmployeeProfile() {
         </div>
       </section>
 
-      {/* ── 2. Current Status ──────────────────────────── */}
+      {/* ── 2. Current Status (prominent — first thing HR checks) ── */}
       <section className="border-t border-[var(--color-border)] pt-5">
         <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
           {t('profile.currentStatus', 'Current Status')}
         </div>
-        <div className={`text-sm font-medium ${currentStatusColor}`}>
-          {currentStatusLabel}
+        <div className={`rounded-xl px-4 py-3 ${
+          employee.status === 'inactive' ? 'bg-black/[0.03] dark:bg-white/[0.03]'
+            : isOnLeave ? 'bg-[var(--color-primary)]/[0.05] border border-[var(--color-primary)]/20'
+              : todayAttendance?.clockIn ? 'bg-green-500/[0.05] border border-green-500/20'
+                : 'bg-red-500/[0.05] border border-red-500/20'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              employee.status === 'inactive' ? 'bg-black/15 dark:bg-white/15'
+                : isOnLeave ? 'bg-[var(--color-primary)]'
+                  : todayAttendance?.clockIn ? 'bg-green-500'
+                    : 'bg-red-500'
+            }`} />
+            <span className={`text-sm font-medium ${currentStatusColor}`}>
+              {currentStatusLabel}
+            </span>
+          </div>
         </div>
         {pendingLeave.length > 0 && (
-          <div className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2">
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              {pendingLeave.length} pending leave request{pendingLeave.length > 1 ? 's' : ''}
-            </span>
+          <div className="mt-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 px-4 py-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                {pendingLeave.length} pending leave request{pendingLeave.length > 1 ? 's' : ''}
+              </span>
+            </div>
             {pendingLeave.map((l) => (
-              <div key={l.id} className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                {t(`leave.types.${l.type}`, l.type)} — {l.startDate} to {l.endDate}
+              <div key={l.id} className="text-[11px] text-[var(--color-text-muted)] mt-0.5 ps-3.5">
+                {t(`leave.types.${l.type}`, l.type)} — <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{l.startDate}</span> to <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{l.endDate}</span>
               </div>
             ))}
           </div>

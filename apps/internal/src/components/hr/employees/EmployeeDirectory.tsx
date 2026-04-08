@@ -3,7 +3,7 @@ import { SearchField, Input, Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { getEmployeeDirectory, getLeaveRequests } from '../../../lib/server/hr'
+import { getEmployeeDirectory, getLeaveRequests, getDriverCompliance } from '../../../lib/server/hr'
 import { useHRStore } from '../../../stores/hr'
 import { Toggle } from '../../ui'
 
@@ -28,6 +28,12 @@ export function EmployeeDirectory() {
   const { data: leaveRequests } = useQuery({
     queryKey: ['hr', 'leave'],
     queryFn: () => getLeaveRequests(),
+    staleTime: 30_000,
+  })
+
+  const { data: complianceRecords } = useQuery({
+    queryKey: ['hr', 'compliance'],
+    queryFn: () => getDriverCompliance(),
     staleTime: 30_000,
   })
 
@@ -71,17 +77,35 @@ export function EmployeeDirectory() {
     return groups
   }, [filtered])
 
-  // Pending leave badge counts per employee
+  // Pending work badge counts per employee (leave requests + compliance issues)
   const pendingByEmployee = useMemo(() => {
-    if (!leaveRequests) return new Map<string, number>()
     const map = new Map<string, number>()
-    for (const req of leaveRequests) {
-      if (req.status === 'pending') {
-        map.set(req.employeeId, (map.get(req.employeeId) ?? 0) + 1)
+    if (leaveRequests) {
+      for (const req of leaveRequests) {
+        if (req.status === 'pending') {
+          map.set(req.employeeId, (map.get(req.employeeId) ?? 0) + 1)
+        }
+      }
+    }
+    if (complianceRecords) {
+      for (const rec of complianceRecords) {
+        if (rec.complianceStatus === 'red' || rec.complianceStatus === 'yellow') {
+          map.set(rec.driverId, (map.get(rec.driverId) ?? 0) + 1)
+        }
       }
     }
     return map
-  }, [leaveRequests])
+  }, [leaveRequests, complianceRecords])
+
+  // Compliance status per driver (for showing blocked/expiring indicator)
+  const complianceByDriver = useMemo(() => {
+    if (!complianceRecords) return new Map<string, 'green' | 'yellow' | 'red'>()
+    const map = new Map<string, 'green' | 'yellow' | 'red'>()
+    for (const rec of complianceRecords) {
+      map.set(rec.driverId, rec.complianceStatus)
+    }
+    return map
+  }, [complianceRecords])
 
   // Current status per employee (on leave / active)
   const currentStatus = useMemo(() => {
@@ -173,6 +197,8 @@ export function EmployeeDirectory() {
             {members.map((employee) => {
               const pendingCount = pendingByEmployee.get(employee.id) ?? 0
               const onLeave = currentStatus.get(employee.id) === 'leave'
+              const driverStatus = complianceByDriver.get(employee.id)
+              const isBlocked = driverStatus === 'red'
 
               return (
                 <motion.button
@@ -182,15 +208,17 @@ export function EmployeeDirectory() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.12, ease: 'easeOut' }}
                   onClick={() => setSelectedEmployeeId(employee.id)}
-                  className={`flex items-center gap-3 rounded-xl border border-[var(--color-border)]/50 px-4 py-3 text-start cursor-pointer transition-all
-                    hover:border-[var(--color-border)] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] ${employee.status === 'inactive' ? 'opacity-50' : ''}`}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start cursor-pointer transition-all
+                    hover:bg-black/[0.02] dark:hover:bg-white/[0.02]
+                    ${isBlocked ? 'border-red-500/30 bg-red-500/[0.02]' : 'border-[var(--color-border)]/50 hover:border-[var(--color-border)]'}
+                    ${employee.status === 'inactive' ? 'opacity-50' : ''}`}
                 >
                   {/* Initials circle */}
                   <div className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.05] flex items-center justify-center text-sm font-semibold text-[var(--color-text-muted)] shrink-0 relative">
                     {employee.name.charAt(0)}
                     {/* Pending work badge */}
                     {pendingCount > 0 && (
-                      <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-[9px] font-bold text-white">
+                      <span className={`absolute -top-1 -end-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${isBlocked ? 'bg-red-500' : 'bg-amber-500'}`}>
                         {pendingCount}
                       </span>
                     )}
@@ -206,6 +234,9 @@ export function EmployeeDirectory() {
                       }`} />
                       {onLeave && (
                         <span className="text-[10px] text-[var(--color-primary)] font-medium">On leave</span>
+                      )}
+                      {isBlocked && (
+                        <span className="text-[9px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Blocked</span>
                       )}
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] truncate">{employee.role}</div>

@@ -28,6 +28,10 @@ export function DriverCompliance() {
 
   const expiring = records.filter((r) => r.complianceStatus === 'yellow')
   const expired = records.filter((r) => r.complianceStatus === 'red')
+  const valid = records.filter((r) => r.complianceStatus === 'green')
+
+  // Sort by urgency: expired -> expiring -> valid
+  const sortedRecords = [...expired, ...expiring, ...valid]
 
   // Document columns for the matrix
   const docColumns = [
@@ -38,6 +42,48 @@ export function DriverCompliance() {
 
   return (
     <div className="p-5 space-y-6">
+      {/* EXPIRED: Red blocked banner (critical — must see first) */}
+      {expired.length > 0 && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-5 py-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+            <span className="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+              {t('compliance.blockedBanner', 'BLOCKED — Expired Documents')}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {expired.map((r) => (
+              <div key={r.driverId} className="flex items-center gap-3 text-sm">
+                <span className="text-[var(--color-text)] font-medium">{r.driverName}</span>
+                <span className="text-red-600 dark:text-red-400 text-xs">
+                  {t('compliance.cannotDispatch', 'Cannot dispatch — documents expired')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* EXPIRING: Amber warning (needs attention within 30 days) */}
+      {expiring.length > 0 && (
+        <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/20 px-5 py-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              {t('compliance.expiringBanner', '{{count}} driver documents expiring within 30 days', { count: expiring.length })}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {expiring.map((r) => (
+              <div key={r.driverId} className="flex items-center gap-3 text-sm">
+                <span className="text-[var(--color-text)]">{r.driverName}</span>
+                <span className="text-amber-600 dark:text-amber-400 text-xs">{t('compliance.reviewNeeded', 'Review needed')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats strip */}
       <div className="flex items-baseline gap-8 border-b border-[var(--color-border)] pb-5">
         <div>
@@ -94,9 +140,9 @@ export function DriverCompliance() {
           </div>
         </div>
 
-        {/* Driver rows */}
+        {/* Driver rows — sorted: Expired → Expiring → Valid */}
         <div className="flex flex-col">
-          {records.map((record) => {
+          {sortedRecords.map((record) => {
             const isRed = record.complianceStatus === 'red'
             const isYellow = record.complianceStatus === 'yellow'
 

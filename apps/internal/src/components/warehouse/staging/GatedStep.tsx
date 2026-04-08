@@ -41,8 +41,8 @@ export function GatedStep({
             : 'border-[var(--color-border)] bg-white opacity-50'
       }`}
     >
-      {/* ─── Header ──────────────────────────────────────── */}
-      <div className="flex items-center gap-3 p-4">
+      {/* ─── Header — tablet: larger touch target ─────────── */}
+      <div className="flex items-center gap-4 p-5 min-h-[64px]">
         {/* Step icon */}
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
@@ -73,7 +73,7 @@ export function GatedStep({
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`text-sm font-bold ${
+            className={`text-[15px] font-bold ${
               isActive
                 ? 'text-[var(--color-text-primary)]'
                 : isCompleted
@@ -113,13 +113,13 @@ export function GatedStep({
             }}
             className="overflow-hidden"
           >
-            <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-4">
+            <div className="border-t border-[var(--color-border)] px-5 pb-5 pt-5">
               <div>{children}</div>
 
               <Button
                 onPress={onAdvance}
                 isDisabled={!canAdvance}
-                className={`mt-5 h-14 min-h-[48px] w-full rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer ${
+                className={`mt-5 h-16 min-h-[48px] w-full rounded-xl text-[16px] font-bold transition-all active:scale-[0.98] cursor-pointer ${
                   canAdvance
                     ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'
                     : 'border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed'

@@ -91,12 +91,34 @@ export function DriverSidebar({
             </SearchField>
           </div>
 
-          {/* Driver count */}
-          <div className="px-3 pb-2">
+          {/* Driver count + status summary */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2">
             <span className="text-[11px] text-black/40 dark:text-white/40">
               <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{filtered.length}</span>
               {' '}{t('drivers', 'drivers')}
             </span>
+            {(() => {
+              const problemCount = filtered.filter((d: Driver) => (positions.get(d.id)?.status ?? 'offline') === 'problem').length
+              const transitCount = filtered.filter((d: Driver) => (positions.get(d.id)?.status ?? 'offline') === 'transit').length
+              return (
+                <>
+                  {problemCount > 0 && (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{problemCount}</span>
+                      {' '}problem
+                    </span>
+                  )}
+                  {transitCount > 0 && (
+                    <span className="flex items-center gap-1 text-[11px] text-black/40 dark:text-white/40">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                      <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{transitCount}</span>
+                      {' '}in transit
+                    </span>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           {/* Scrollable driver list */}
@@ -199,7 +221,7 @@ function DriverRow({
         <p className="truncate text-[13px] font-medium text-black dark:text-white">{driver.name}</p>
         {currentStop ? (
           <p className="truncate text-[11px] text-black/40 dark:text-white/40">
-            {currentStop.customerName}
+            Next: {currentStop.customerName}
           </p>
         ) : (
           totalStops > 0 && (
@@ -219,7 +241,7 @@ function DriverRow({
           <span className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums ${
             delayed ? 'font-semibold text-red-600 dark:text-red-400' : 'text-black/40 dark:text-white/40'
           }`}>
-            {etaMinutes} min
+            {delayed ? `${etaMinutes} min late` : `${etaMinutes} min`}
           </span>
         )}
         {delayed && (

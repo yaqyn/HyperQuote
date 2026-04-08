@@ -28,7 +28,8 @@ export function TicketDetail() {
   const setKbPanelOpen = useCustomerServiceStore((s) => s.setKbPanelOpen)
   const setAssignDialogOpen = useCustomerServiceStore((s) => s.setAssignDialogOpen)
   const [replyText, setReplyText] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isInternalNote, setIsInternalNote] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: ticket } = useQuery({
@@ -130,7 +131,7 @@ export function TicketDetail() {
           onPress={() => setSidebarOpen(!sidebarOpen)}
           className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none"
         >
-          {sidebarOpen ? 'Hide info' : 'Show info'}
+          {sidebarOpen ? t('tickets.hideInfo', 'Hide info') : t('tickets.showInfo', 'Show info')}
         </Button>
       </div>
 
@@ -157,31 +158,67 @@ export function TicketDetail() {
           )}
 
           {/* Reply input at the TOP — most common action */}
-          <div className="shrink-0 border-b border-[var(--color-border)] px-5 py-3">
+          <div className={`shrink-0 border-b px-5 py-3 ${isInternalNote ? 'border-amber-500/30 bg-amber-500/[0.03]' : 'border-[var(--color-border)]'}`}>
+            {/* Reply / Internal Note toggle */}
+            <div className="flex items-center gap-1 mb-2">
+              <Button
+                onPress={() => setIsInternalNote(false)}
+                className={`rounded-md px-2.5 py-1 text-[12px] font-medium cursor-pointer transition-all outline-none
+                  ${!isInternalNote
+                    ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
+                    : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
+                  }`}
+              >
+                {t('tickets.reply', 'Reply')}
+              </Button>
+              <Button
+                onPress={() => setIsInternalNote(true)}
+                className={`rounded-md px-2.5 py-1 text-[12px] font-medium cursor-pointer transition-all outline-none
+                  ${isInternalNote
+                    ? 'text-amber-700 dark:text-amber-400 bg-amber-500/10'
+                    : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
+                  }`}
+              >
+                {t('tickets.internalNote', 'Internal Note')}
+              </Button>
+            </div>
+
             <div className="flex gap-2 items-end">
               <TextField
-                aria-label={t('tickets.replyPlaceholder', 'Type your reply...')}
+                aria-label={isInternalNote
+                  ? t('tickets.notePlaceholder', 'Add an internal note...')
+                  : t('tickets.replyPlaceholder', 'Type your reply...')}
                 value={replyText}
                 onChange={setReplyText}
                 className="flex-1"
               >
                 <TextArea
-                  placeholder={t('tickets.replyPlaceholder', 'Type your reply...')}
+                  placeholder={isInternalNote
+                    ? t('tickets.notePlaceholder', 'Add an internal note...')
+                    : t('tickets.replyPlaceholder', 'Type your reply...')}
                   rows={2}
-                  className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none
-                    focus:ring-1 focus:ring-[var(--color-primary)]/40"
+                  className={`w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none
+                    focus:ring-1 ${isInternalNote
+                      ? 'border-amber-500/30 focus:ring-amber-500/30'
+                      : 'border-[var(--color-border)] focus:ring-[var(--color-primary)]/40'
+                    }`}
                 />
               </TextField>
               <Button
                 onPress={() => replyMutation.mutate()}
                 isDisabled={!replyText.trim() || replyMutation.isPending}
-                className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none disabled:opacity-40 disabled:cursor-default"
+                className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium text-white cursor-pointer hover:opacity-90 transition-opacity outline-none disabled:opacity-40 disabled:cursor-default
+                  ${isInternalNote ? 'bg-amber-600' : 'bg-[var(--color-primary)]'}`}
               >
-                {replyMutation.isPending ? '...' : t('tickets.send', 'Send')}
+                {replyMutation.isPending
+                  ? '...'
+                  : isInternalNote
+                    ? t('tickets.addNote', 'Add Note')
+                    : t('tickets.send', 'Send')}
               </Button>
             </div>
 
-            {/* Action buttons row: Reply (primary, handled above) -> Assign -> Escalate -> Resolve */}
+            {/* Action buttons row: Assign -> Escalate -> Resolve */}
             <div className="flex items-center gap-2 mt-2">
               <Button
                 onPress={() => setAssignDialogOpen(true)}

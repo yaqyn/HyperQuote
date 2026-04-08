@@ -105,7 +105,7 @@ export function ExpectedDeliveriesList() {
           <Label className="sr-only">
             {t('warehouse.receiving.filterStatus', 'Status')}
           </Label>
-          <Button className="flex h-12 w-full items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 px-5 text-[14px] cursor-pointer">
+          <Button className="flex h-14 w-full items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 px-5 text-[15px] cursor-pointer">
             <SelectValue />
           </Button>
           <Popover className="w-[--trigger-width] rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-lg">
@@ -125,7 +125,7 @@ export function ExpectedDeliveriesList() {
 
         <DialogTrigger isOpen={unscheduledOpen} onOpenChange={setUnscheduledOpen}>
           <Button
-            className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-[#2563EB] px-5 text-[14px] font-semibold text-white cursor-pointer"
+            className="flex h-14 shrink-0 items-center gap-2 rounded-xl bg-[#2563EB] px-6 text-[15px] font-bold text-white cursor-pointer"
           >
             <Plus size={16} />
             {t('warehouse.receiving.unscheduled', 'Unscheduled')}
@@ -227,10 +227,10 @@ export function ExpectedDeliveriesList() {
           <Button
             key={delivery.id}
             onPress={() => handleCardPress(delivery)}
-            className="relative flex items-center gap-4 min-h-[80px] rounded-xl border border-black/8 dark:border-white/8 px-6 py-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="relative flex items-center gap-5 min-h-[96px] rounded-xl border border-black/8 dark:border-white/8 px-6 py-5 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
           >
             {/* ETA — large mono, the primary glanceable info */}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold text-black/90 dark:text-white/90 w-[80px] shrink-0">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[24px] font-bold text-black/90 dark:text-white/90 w-[88px] shrink-0">
               {timeFmt.format(new Date(delivery.eta))}
             </span>
 
@@ -238,21 +238,21 @@ export function ExpectedDeliveriesList() {
             <StatusDot status={delivery.status} />
 
             {/* Supplier + PO */}
-            <div className="flex flex-col gap-1 flex-1 min-w-0">
-              <span className="text-[15px] font-semibold text-black/80 dark:text-white/80 truncate">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <span className="text-[16px] font-semibold text-black/80 dark:text-white/80 truncate">
                 {delivery.supplierName}
               </span>
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] text-black/40 dark:text-white/40">
                 {delivery.poNumber}
               </span>
             </div>
 
             {/* Item count + dock */}
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[18px] font-semibold text-black/70 dark:text-white/70">
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[20px] font-bold text-black/70 dark:text-white/70">
                 {delivery.lineItemCount}
               </span>
-              <span className="text-[13px] text-black/30 dark:text-white/30">
+              <span className="text-[14px] text-black/30 dark:text-white/30">
                 {delivery.assignedDock}
               </span>
             </div>

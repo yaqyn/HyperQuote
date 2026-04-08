@@ -358,7 +358,7 @@ function UserDetailPanel({ user }: { user: UserRecord }) {
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
       >
         <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-          <Dialog className="outline-none">
+          <Dialog className="outline-none" isKeyboardDismissDisabled>
             {({ close }) => (
               <div className="space-y-4">
                 <Heading slot="title" className="text-sm font-semibold">
@@ -443,7 +443,7 @@ function AddUserDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-md rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-        <Dialog className="outline-none">
+        <Dialog className="outline-none" isKeyboardDismissDisabled>
           {({ close }) => (
             <div className="space-y-5">
               <Heading slot="title" className="text-sm font-semibold">
@@ -549,7 +549,7 @@ function SuspendDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-        <Dialog className="outline-none">
+        <Dialog className="outline-none" isKeyboardDismissDisabled>
           {() => (
             <div className="space-y-4">
               <Heading slot="title" className="text-sm font-semibold">

@@ -61,8 +61,49 @@ export function HRSettings() {
     setShowAddHoliday(false)
   }
 
+  // Compute next upcoming holiday
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]!
+  const upcomingHolidays = holidays
+    .filter((h) => h.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const nextHoliday = upcomingHolidays[0] ?? null
+  const daysUntilNext = nextHoliday
+    ? Math.ceil((new Date(nextHoliday.date).getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+    : null
+
   return (
     <div className="p-5 space-y-8 max-w-3xl">
+
+      {/* Next holiday banner */}
+      {nextHoliday && daysUntilNext !== null && (
+        <div className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-primary)]/[0.03] px-5 py-4 flex items-center gap-4">
+          <div className="flex-1">
+            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-1">
+              {t('settings.nextHoliday', 'Next Holiday')}
+            </div>
+            <div className="text-sm font-medium text-[var(--color-text)]">
+              {nextHoliday.name}
+              {nextHoliday.days && nextHoliday.days > 1 && (
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text-muted)] ms-1.5">
+                  ({nextHoliday.days}d)
+                </span>
+              )}
+            </div>
+            <div className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)] mt-0.5">
+              {nextHoliday.date}
+            </div>
+          </div>
+          <div className="text-end">
+            <div className="text-2xl font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-primary)]">
+              {daysUntilNext}
+            </div>
+            <div className="text-[10px] text-[var(--color-text-subtle)]">
+              {daysUntilNext === 0 ? t('settings.today', 'today') : daysUntilNext === 1 ? t('settings.tomorrow', 'tomorrow') : t('settings.daysAway', 'days away')}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section A: Working Hours */}
       <section>
@@ -232,30 +273,42 @@ export function HRSettings() {
         <div className="flex flex-col">
           {holidays
             .sort((a, b) => a.date.localeCompare(b.date))
-            .map((holiday, i) => (
-              <div
-                key={`${holiday.date}-${i}`}
-                className="flex items-center gap-3 py-2.5 border-b border-[var(--color-border)]/30"
-              >
-                <span className="text-[13px] text-[var(--color-text)] flex-1">
-                  {holiday.name}
-                  {holiday.days && holiday.days > 1 && (
-                    <span className="ms-1.5 font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-subtle)]">
-                      ({holiday.days}d)
-                    </span>
-                  )}
-                </span>
-                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-[var(--color-text-muted)]">
-                  {holiday.date}
-                </span>
-                <Badge
-                  variant="status"
-                  color={holiday.type === 'islamic' ? 'blue' : 'neutral'}
+            .map((holiday, i) => {
+              const isPast = holiday.date < todayStr
+              const isNext = nextHoliday?.date === holiday.date && nextHoliday?.name === holiday.name
+
+              return (
+                <div
+                  key={`${holiday.date}-${i}`}
+                  className={`flex items-center gap-3 py-2.5 border-b border-[var(--color-border)]/30 transition-colors
+                    ${isPast ? 'opacity-40' : ''}
+                    ${isNext ? 'bg-[var(--color-primary)]/[0.03] rounded-lg px-2 -mx-2' : ''}`}
                 >
-                  {holiday.type === 'islamic' ? 'Islamic — may shift' : 'Fixed'}
-                </Badge>
-              </div>
-            ))}
+                  <span className="text-[13px] text-[var(--color-text)] flex-1">
+                    {holiday.name}
+                    {holiday.days && holiday.days > 1 && (
+                      <span className="ms-1.5 font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-subtle)]">
+                        ({holiday.days}d)
+                      </span>
+                    )}
+                    {isNext && (
+                      <span className="ms-2 text-[10px] font-medium text-[var(--color-primary)] uppercase tracking-wider">
+                        Next
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px] text-[var(--color-text-muted)]">
+                    {holiday.date}
+                  </span>
+                  <Badge
+                    variant="status"
+                    color={holiday.type === 'islamic' ? 'blue' : 'neutral'}
+                  >
+                    {holiday.type === 'islamic' ? 'Islamic — may shift' : 'Fixed'}
+                  </Badge>
+                </div>
+              )
+            })}
         </div>
       </section>
     </div>

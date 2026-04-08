@@ -139,9 +139,6 @@ export function ApprovalThresholds() {
                       <div className="text-xs font-medium">
                         {t(typeLabel.key, typeLabel.fallback)}
                       </div>
-                      <div className="text-[11px] text-black/35 dark:text-white/35 mt-0.5">
-                        {threshold.condition}
-                      </div>
                     </div>
 
                     {/* Escalation time — prominent */}
@@ -158,9 +155,12 @@ export function ApprovalThresholds() {
                           <span className="text-[10px] text-black/25 dark:text-white/25">min</span>
                         </div>
                       ) : (
-                        <div className="rounded-full bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1">
-                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] font-medium">
-                            Auto-escalates in {formatEscalationLong(threshold.escalationMinutes)}
+                        <div className="rounded-full bg-amber-500/[0.08] border border-amber-500/15 px-2.5 py-1">
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                            {formatEscalation(threshold.escalationMinutes)}
+                          </span>
+                          <span className="text-[10px] text-amber-600/60 dark:text-amber-400/60 ms-1">
+                            escalation
                           </span>
                         </div>
                       )}
@@ -192,8 +192,15 @@ export function ApprovalThresholds() {
                     </div>
                   </div>
 
-                  {/* Visual approval chain */}
+                  {/* Visual approval chain: Condition -> Approver1 -> Approver2 -> ... -> Escalation */}
                   <div className="flex items-center gap-0 ps-0">
+                    {/* Condition trigger */}
+                    <span className="rounded bg-black/[0.03] dark:bg-white/[0.03] px-2 py-0.5 text-[10px] font-[family-name:var(--font-geist-mono)] tabular-nums text-black/40 dark:text-white/40">
+                      {threshold.condition}
+                    </span>
+                    <svg className="w-3.5 h-3.5 text-black/15 dark:text-white/15 mx-1 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
                     {/* Approvers chain */}
                     {threshold.approvers.map((approver, i) => (
                       <div key={approver} className="flex items-center">
@@ -259,7 +266,7 @@ export function ApprovalThresholds() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
         >
           <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-            <Dialog className="outline-none">
+            <Dialog className="outline-none" isKeyboardDismissDisabled>
               {() => (
                 <div className="space-y-4">
                   <Heading slot="title" className="text-sm font-semibold">Delete Rule</Heading>
@@ -331,7 +338,7 @@ function AddRuleDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-md rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-        <Dialog className="outline-none">
+        <Dialog className="outline-none" isKeyboardDismissDisabled>
           {() => (
             <div className="space-y-5">
               <Heading slot="title" className="text-sm font-semibold">

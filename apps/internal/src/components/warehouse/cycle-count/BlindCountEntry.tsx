@@ -121,10 +121,10 @@ export function BlindCountEntry({ countId, onSubmitted, onBack }: BlindCountEntr
         </div>
 
         <div className="text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)] mb-2">
+          <p className="text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-secondary)] mb-3">
             Location
           </p>
-          <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold text-[#2563EB] leading-tight">
+          <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] font-bold text-[#2563EB] leading-tight">
             {assignment.locationCode}
           </p>
         </div>
@@ -195,14 +195,14 @@ export function BlindCountEntry({ countId, onSubmitted, onBack }: BlindCountEntr
         >
           {/* Product identity — LARGE, centered. Worker is looking at shelves then at tablet. */}
           <div className="text-center">
-            <p className="text-[28px] font-bold text-[var(--color-text-primary)] leading-tight">
+            <p className="text-[32px] font-bold text-[var(--color-text-primary)] leading-tight">
               {currentItem.productName}
             </p>
-            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[15px] text-[var(--color-text-secondary)] mt-3">
+            <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[16px] text-[var(--color-text-secondary)] mt-3">
               {currentItem.sku}
             </p>
             {currentItem.lotNumber && (
-              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] text-[var(--color-text-secondary)] mt-1">
+              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[15px] text-[var(--color-text-secondary)] mt-1.5">
                 Lot: {currentItem.lotNumber}
               </p>
             )}
@@ -220,13 +220,13 @@ export function BlindCountEntry({ countId, onSubmitted, onBack }: BlindCountEntr
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation buttons */}
+      {/* Navigation buttons — tablet: 64px+ touch targets */}
       <div className="flex gap-3 mt-6 px-6">
         <button
           type="button"
           onClick={handlePrevItem}
           disabled={currentItemIndex === 0}
-          className="flex-1 min-h-[56px] rounded-xl border border-[var(--color-border)] text-[15px] font-bold text-[var(--color-text-secondary)] disabled:opacity-30 transition-colors hover:bg-black/[0.02]"
+          className="flex-1 min-h-[64px] rounded-xl border border-[var(--color-border)] text-[16px] font-bold text-[var(--color-text-secondary)] disabled:opacity-30 transition-colors hover:bg-black/[0.02] active:scale-[0.98]"
         >
           Previous
         </button>
@@ -234,7 +234,7 @@ export function BlindCountEntry({ countId, onSubmitted, onBack }: BlindCountEntr
           <button
             type="button"
             onClick={handleNextItem}
-            className="flex-1 min-h-[56px] rounded-xl bg-[#2563EB] text-[15px] font-bold text-white hover:bg-[#1d4ed8] transition-colors active:scale-[0.98]"
+            className="flex-1 min-h-[64px] rounded-xl bg-[#2563EB] text-[16px] font-bold text-white hover:bg-[#1d4ed8] transition-colors active:scale-[0.97]"
           >
             Next
           </button>
@@ -291,13 +291,13 @@ export function BlindCountEntry({ countId, onSubmitted, onBack }: BlindCountEntr
         </div>
       )}
 
-      {/* Submit — HUGE button, unmissable */}
+      {/* Submit — HUGE button, unmissable on tablet */}
       {isLastItem && (
         <button
           type="button"
           onClick={() => submitMutation.mutate()}
           disabled={submitMutation.isPending}
-          className="mt-4 mx-6 min-h-[72px] rounded-2xl bg-[#2563EB] text-white text-[18px] font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.97] disabled:opacity-50"
+          className="mt-4 mx-6 mb-4 min-h-[80px] rounded-2xl bg-[#2563EB] text-white text-[20px] font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.97] disabled:opacity-50 shadow-lg shadow-[#2563EB]/20"
         >
           {submitMutation.isPending ? 'Submitting...' : 'Submit Count'}
         </button>

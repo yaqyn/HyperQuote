@@ -44,15 +44,15 @@ export function WarehouseHome({ isManager = true }: WarehouseHomeProps) {
 
   return (
     <div className="flex flex-col gap-6 px-6 py-4">
-      {/* Urgent delivery banner — above everything */}
+      {/* Urgent delivery banner — above everything, TABLET: large text, high contrast */}
       {urgentDeliveries.length > 0 && (
         <div
-          className="rounded-2xl px-6 py-5 flex items-center gap-4"
+          className="rounded-2xl px-6 py-6 flex items-center gap-5 min-h-[80px]"
           style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
         >
-          <span className="shrink-0 h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+          <span className="shrink-0 h-4 w-4 rounded-full bg-red-500 animate-pulse" />
           <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-bold text-red-700 dark:text-red-400">
+            <p className="text-[18px] font-bold text-red-700 dark:text-red-400 leading-snug">
               {urgentDeliveries.length === 1
                 ? t('warehouse.home.urgentDelivery', '{{supplier}} arriving in < 30 min', {
                     supplier: urgentDeliveries[0].supplierName,
@@ -62,7 +62,7 @@ export function WarehouseHome({ isManager = true }: WarehouseHomeProps) {
                   })}
             </p>
             {urgentDeliveries.length === 1 && (
-              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-red-600/70 dark:text-red-400/70 mt-0.5">
+              <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[15px] text-red-600/70 dark:text-red-400/70 mt-1">
                 {urgentDeliveries[0].assignedDock} &middot; {urgentDeliveries[0].lineItemCount} {t('warehouse.home.items', 'items')}
               </p>
             )}
@@ -121,7 +121,7 @@ function AlertRow({
   const dotColor = severity === 'critical' ? 'bg-red-500' : 'bg-amber-500'
 
   return (
-    <div className="flex items-center gap-3 min-h-[56px] px-6 py-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02]">
+    <div className="flex items-center gap-3 min-h-[64px] px-6 py-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02]">
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
       <span className="text-[14px] text-black/70 dark:text-white/70">{text}</span>
     </div>

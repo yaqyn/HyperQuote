@@ -28,7 +28,7 @@ export function CapacityBar({
       <span
         className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums font-medium ${textColor}`}
       >
-        {rounded}%
+        {currentKg.toLocaleString()}/{capacityKg.toLocaleString()} kg
       </span>
     </div>
   )

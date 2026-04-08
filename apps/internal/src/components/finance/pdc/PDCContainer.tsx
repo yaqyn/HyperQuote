@@ -57,11 +57,38 @@ export function PDCContainer() {
     })
   }, [dueThisWeek, now])
 
+  const bouncedCheques = useMemo(() => {
+    return cheques.filter((c) => c.status === 'bounced')
+  }, [cheques])
+
+  const bouncedTotal = useMemo(
+    () => bouncedCheques.reduce((sum, c) => sum + c.amount, 0),
+    [bouncedCheques],
+  )
+
   const formatCount = (n: number) =>
     new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en-EG').format(n)
 
   return (
     <div className="flex flex-col">
+      {/* CRIMINAL WARNING — Bounced cheques banner (Egyptian law) */}
+      {!loading && bouncedCheques.length > 0 && (
+        <div className="flex items-center gap-3 px-6 py-3 border-b-2 border-red-600/20 bg-red-600/[0.06]">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="size-5 text-red-600 dark:text-red-400 shrink-0">
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider">
+              {t('pdc.bouncedAlert', '{{count}} bounced cheques — Criminal offense under Egyptian law', { count: bouncedCheques.length })}
+            </span>
+            <span className="text-[10px] text-red-600/70 dark:text-red-400/70 ms-2">
+              {t('pdc.bouncedAlertSub', 'Penal Code Art. 337 — immediate legal action required')}
+            </span>
+          </div>
+          <CurrencyCell amount={bouncedTotal} className="text-sm font-semibold text-red-600 dark:text-red-400 shrink-0" />
+        </div>
+      )}
+
       {/* Summary strip + view toggle */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
         <div className="flex items-center gap-6">

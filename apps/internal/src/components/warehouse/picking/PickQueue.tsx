@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Select, SelectValue, Label, Button as AriaButton, ListBox, ListBoxItem, Popover } from 'react-aria-components'
 import { getPickQueue } from '../../../lib/server/warehouse-picking'
@@ -19,6 +20,7 @@ const PRIORITY_OPTIONS = [
  * Priority indicated by left border color (data-semantic only).
  */
 export function PickQueue() {
+  const { t } = useTranslation('internal')
   const setSelectedPickOrderId = useWarehouseStore((s) => s.setSelectedPickOrderId)
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
 
@@ -128,6 +130,7 @@ function PickOrderCard({
   onSelect: () => void
   isTopPriority?: boolean
 }) {
+  const { t } = useTranslation('internal')
   const deadlineDate = new Date(order.shippingDeadline)
   const timeStr = deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -143,57 +146,56 @@ function PickOrderCard({
   const progressPct = order.itemCount > 0 ? (pickedCount / order.itemCount) * 100 : 0
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex flex-col gap-3 rounded-xl border border-black/10 dark:border-white/10 border-s-4 ${priorityBorder} px-6 py-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors min-h-[88px]`}
+    <AriaButton
+      onPress={onSelect}
+      className={`flex flex-col gap-3 rounded-xl border border-black/10 dark:border-white/10 border-s-4 ${priorityBorder} px-6 py-5 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors min-h-[96px] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50`}
     >
       {/* Row 1: Order # + deadline time */}
       <div className="flex items-center justify-between">
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[16px] font-bold text-black/90 dark:text-white/90">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[17px] font-bold text-black/90 dark:text-white/90">
           {order.soNumber}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[20px] font-bold text-black/90 dark:text-white/90">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[22px] font-bold text-black/90 dark:text-white/90">
           {timeStr}
         </span>
       </div>
 
       {/* Row 2: Customer + zone */}
       <div className="flex items-center justify-between">
-        <span className="text-[15px] text-black/70 dark:text-white/70">
+        <span className="text-[16px] text-black/70 dark:text-white/70">
           {order.customerName}
         </span>
-        <span className="text-[13px] text-black/40 dark:text-white/40">
+        <span className="text-[14px] text-black/40 dark:text-white/40">
           {order.assignedRoute}
         </span>
       </div>
 
       {/* Row 3: Items count + weight + progress bar */}
       <div className="flex items-center gap-4">
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] font-medium text-black/60 dark:text-white/60">
-          {order.itemCount} items
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[15px] font-medium text-black/60 dark:text-white/60">
+          {order.itemCount} {t('warehouse.picking.items', 'items')}
         </span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] font-semibold text-black/60 dark:text-white/60">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[15px] font-semibold text-black/60 dark:text-white/60">
           {(order.totalWeightKg / 1000).toFixed(1)}t
         </span>
         {/* Progress bar */}
-        <div className="flex-1 h-2 rounded-full bg-black/5 dark:bg-white/5">
+        <div className="flex-1 h-2.5 rounded-full bg-black/5 dark:bg-white/5">
           <div
             className="h-full rounded-full bg-[#2563EB] transition-all"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40">
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] text-black/40 dark:text-white/40">
           {pickedCount}/{order.itemCount}
         </span>
       </div>
 
-      {/* Top priority: prominent Start Picking CTA */}
+      {/* Top priority: prominent Start Picking CTA — HUGE for tablet */}
       {isTopPriority && (
-        <div className="flex h-14 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[15px] font-bold text-white mt-1">
-          Start Picking
+        <div className="flex h-16 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[17px] font-bold text-white mt-1">
+          {t('warehouse.picking.startPicking', 'Start Picking')}
         </div>
       )}
-    </button>
+    </AriaButton>
   )
 }

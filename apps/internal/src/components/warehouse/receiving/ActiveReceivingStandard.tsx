@@ -194,10 +194,19 @@ export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardP
         <div className="w-16" />
       </div>
 
-      {/* Step indicator — dots connected by line + step name */}
-      <StepIndicator current={currentStep + 1} total={STEPS.length} label="step" />
-      <p className="text-[15px] font-bold text-black/70 dark:text-white/70 text-center -mt-2">
-        {t(`warehouse.receiving.step.${currentStep}`, STEPS[currentStep])}
+      {/* Step indicator — dots connected by line + clear "Step X of Y: Name" */}
+      <StepIndicator
+        current={currentStep + 1}
+        total={STEPS.length}
+        label="step"
+        stepName={t(`warehouse.receiving.step.${currentStep}`, STEPS[currentStep])}
+      />
+      <p className="text-[17px] font-bold text-black/80 dark:text-white/80 text-center -mt-2">
+        {t('warehouse.receiving.stepProgress', 'Step {{current}} of {{total}}: {{name}}', {
+          current: currentStep + 1,
+          total: STEPS.length,
+          name: t(`warehouse.receiving.step.${currentStep}`, STEPS[currentStep]),
+        })}
       </p>
 
       {/* Step content */}
@@ -229,11 +238,11 @@ export function ActiveReceivingStandard({ deliveryId }: ActiveReceivingStandardP
         <CompletionStep control={control} receivingLines={receivingLines} onSubmit={onSubmit} isPending={receiveMutation.isPending} error={receiveMutation.isError} />
       )}
 
-      {/* Next button */}
+      {/* Next button — tablet: large touch target in thumb zone */}
       {currentStep < STEPS.length - 1 && (
         <Button
           onPress={handleNext}
-          className="flex h-14 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[15px] font-bold text-white cursor-pointer transition-colors"
+          className="flex h-16 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[17px] font-bold text-white cursor-pointer transition-colors active:scale-[0.98]"
         >
           {t('common.next', 'Next')}
         </Button>
@@ -391,7 +400,7 @@ function LineItemCard({
       {/* Collapsed header — large touch target */}
       <Button
         onPress={onToggle}
-        className="flex w-full items-center justify-between min-h-[72px] px-6 py-4 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+        className="flex w-full items-center justify-between min-h-[80px] px-6 py-5 text-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
       >
         <div className="flex flex-col gap-1 flex-1 min-w-0">
           <span className="text-[16px] font-semibold text-black/90 dark:text-white/90 truncate">
@@ -677,7 +686,7 @@ function CompletionStep({
         <Button
           onPress={onSubmit}
           isDisabled={isPending}
-          className="flex h-16 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[15px] font-bold text-white cursor-pointer transition-colors data-[disabled]:opacity-50"
+          className="flex h-[72px] w-full items-center justify-center rounded-2xl bg-[#2563EB] text-[18px] font-bold text-white cursor-pointer transition-all active:scale-[0.98] data-[disabled]:opacity-50"
         >
           {isPending
             ? t('common.submitting', 'Submitting...')
@@ -685,7 +694,7 @@ function CompletionStep({
         </Button>
         <Button
           isDisabled={isPending}
-          className="flex h-14 w-full items-center justify-center rounded-xl border-2 border-red-500/30 px-6 text-[15px] font-semibold text-red-600 dark:text-red-400 cursor-pointer transition-colors data-[disabled]:opacity-50"
+          className="flex h-16 w-full items-center justify-center rounded-xl border-2 border-red-500/30 px-6 text-[16px] font-bold text-red-600 dark:text-red-400 cursor-pointer transition-colors data-[disabled]:opacity-50"
         >
           {t('warehouse.receiving.rejectDelivery', 'Reject')}
         </Button>

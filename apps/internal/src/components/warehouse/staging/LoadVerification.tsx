@@ -237,7 +237,7 @@ export function LoadVerification({
         <Button
           onPress={handleHandoff}
           isDisabled={isHandingOff}
-          className="mt-6 h-[88px] min-h-[48px] w-full max-w-md rounded-2xl bg-[#2563EB] text-[20px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.97] cursor-pointer shadow-lg shadow-[#2563EB]/20"
+          className="mt-6 h-[96px] min-h-[48px] w-full max-w-lg rounded-2xl bg-[#2563EB] text-[22px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.97] cursor-pointer shadow-xl shadow-[#2563EB]/25"
         >
           {isHandingOff ? 'Handing off...' : 'Hand Off to Dispatch'}
         </Button>
@@ -295,15 +295,15 @@ export function LoadVerification({
         <div className="w-12" />
       </div>
 
-      {/* ─── Step progress strip with gate indicators ────── */}
+      {/* ─── Step progress strip with gate indicators — tablet readable ── */}
       <div className="flex items-center gap-2">
         {STEPS.map((step, i) => {
           const isComplete = i < currentStepIndex
           const isCurrent = i === currentStepIndex
           return (
-            <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5">
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-2">
               <div
-                className={`h-2 w-full rounded-full transition-all duration-500 ${
+                className={`h-2.5 w-full rounded-full transition-all duration-500 ${
                   isComplete
                     ? 'bg-green-500'
                     : isCurrent
@@ -311,7 +311,7 @@ export function LoadVerification({
                       : 'bg-[var(--color-border)]'
                 }`}
               />
-              <span className={`text-[11px] font-bold ${isComplete ? 'text-green-600' : isCurrent ? 'text-[#2563EB]' : 'text-[var(--color-text-secondary)]'}`}>
+              <span className={`text-[13px] font-bold text-center leading-tight ${isComplete ? 'text-green-600' : isCurrent ? 'text-[#2563EB]' : 'text-[var(--color-text-secondary)]'}`}>
                 {isComplete ? '\u2713' : isCurrent ? '\u25CF' : '\u25CB'} {step.title}
               </span>
             </div>
@@ -411,13 +411,14 @@ export function LoadVerification({
                       {item.name}
                     </span>
                     {!isScanned && (
-                      <div className="w-48">
+                      <div className="w-60">
                         <ScanInput
                           label=""
                           expectedValue={item.barcode}
                           onScan={() => {
                             setScannedItemIds((prev) => new Set(prev).add(item.id))
                           }}
+                          size="large"
                         />
                       </div>
                     )}
@@ -573,7 +574,7 @@ export function LoadVerification({
             <Button
               onPress={handleGateClearance}
               isDisabled={isSubmitting}
-              className="h-16 min-h-[48px] w-full rounded-xl bg-[#2563EB] text-[16px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.98] cursor-pointer"
+              className="h-[72px] min-h-[48px] w-full rounded-2xl bg-[#2563EB] text-[18px] font-bold text-white hover:bg-[#1d4ed8] transition-all active:scale-[0.97] cursor-pointer shadow-lg shadow-[#2563EB]/20"
             >
               {isSubmitting ? 'Processing...' : 'Generate BOL'}
             </Button>

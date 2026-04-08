@@ -10,12 +10,24 @@ import type { AuditEntry } from '../../../types/admin'
  * AuditLogViewer — "The Trail"
  * Dense log: timestamp (mono) + actor + action + entity + changes diff.
  * Filter by date range, actor, action type as inline pills.
- * Server-side pagination.
+ * Server-side pagination. Critical actions highlighted.
  *
  * WORM pattern: Write Once Read Many. Strictly read-only.
  * CRITICAL: READ-ONLY. No edit, no delete, no soft-delete buttons anywhere.
  * 7-year retention, immutable.
  */
+
+const CRITICAL_ACTIONS = new Set([
+  'delete', 'suspend', 'role_change', 'permission_change',
+  'password_reset', 'mfa_disable', 'system_config_change',
+  'credit_limit_change', 'approval_override',
+])
+
+function isCriticalAction(action: string): boolean {
+  if (CRITICAL_ACTIONS.has(action)) return true
+  const lower = action.toLowerCase()
+  return lower.includes('delete') || lower.includes('suspend') || lower.includes('password') || lower.includes('permission')
+}
 export function AuditLogViewer() {
   const { t } = useTranslation('admin')
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,7 +114,16 @@ export function AuditLogViewer() {
             onPress={() => exportMutation.mutate()}
             isDisabled={exportMutation.isPending}
           >
-            {exportMutation.isPending ? 'Exporting...' : t('audit.exportCsv', 'Export CSV')}
+            {exportMutation.isPending ? 'Exporting...' : (
+              <>
+                {t('audit.exportCsv', 'Export CSV')}
+                {total > 0 && (
+                  <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums text-[10px] text-black/25 dark:text-white/25">
+                    ~{total.toLocaleString()} rows
+                  </span>
+                )}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -272,7 +293,9 @@ function AuditRow({
   return (
     <>
       <div
-        className="grid grid-cols-[120px_100px_80px_100px_80px_1fr] gap-2 items-center px-4 py-2 cursor-pointer hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors"
+        className={`grid grid-cols-[120px_100px_80px_100px_80px_1fr] gap-2 items-center px-4 py-2 cursor-pointer hover:bg-black/[0.015] dark:hover:bg-white/[0.015] transition-colors ${
+          isCriticalAction(entry.action) ? 'border-s-2 border-s-red-500/40' : ''
+        }`}
         onClick={onToggle}
       >
         {/* Timestamp — mono */}
@@ -283,8 +306,12 @@ function AuditRow({
         {/* Actor */}
         <span className="text-xs truncate">{entry.userName}</span>
 
-        {/* Action */}
-        <span className="text-[10px] font-medium text-black/50 dark:text-white/50">
+        {/* Action — critical actions highlighted */}
+        <span className={`text-[10px] font-medium ${
+          isCriticalAction(entry.action)
+            ? 'text-red-600 dark:text-red-400'
+            : 'text-black/50 dark:text-white/50'
+        }`}>
           {entry.action}
         </span>
 

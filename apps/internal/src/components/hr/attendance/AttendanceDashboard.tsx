@@ -43,9 +43,11 @@ export function AttendanceDashboard() {
 
   // Summary stats
   const clockedIn = attendance.filter((a) => a.clockIn !== null).length
+  const absentCount = attendance.filter((a) => a.clockIn === null).length
   const totalHours = attendance.reduce((sum, a) => sum + a.hoursWorked, 0)
   const overtimeHours = attendance.reduce((sum, a) => sum + a.overtime, 0)
-  const lateCount = attendance.filter((a) => a.clockIn !== null && a.overtime > 0).length
+  const lateArrivals = attendance.filter((a) => a.clockIn !== null && a.overtime > 0)
+  const lateCount = lateArrivals.length
 
   // Calendar grid
   const daysInMonth = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate()
@@ -105,12 +107,56 @@ export function AttendanceDashboard() {
         </Button>
       </div>
 
-      {/* Summary strip */}
+      {/* Today's summary — Present | Absent | Late (most important at a glance) */}
+      <div className="rounded-xl border border-[var(--color-border)]/50 px-5 py-4">
+        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)] mb-3">
+          {t('attendance.todaySummary', "Today's Summary")}
+        </div>
+        <div className="flex items-baseline gap-6">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums text-green-600 dark:text-green-400">{clockedIn}</span>
+            <span className="text-xs text-[var(--color-text-subtle)]">{t('attendance.present', 'Present')}</span>
+          </div>
+          <span className="text-[var(--color-border)]">|</span>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums ${absentCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-[var(--color-text-subtle)]'}`}>{absentCount}</span>
+            <span className="text-xs text-[var(--color-text-subtle)]">{t('attendance.absent', 'Absent')}</span>
+          </div>
+          <span className="text-[var(--color-border)]">|</span>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-3xl font-[family-name:var(--font-geist-mono)] tabular-nums ${lateCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--color-text-subtle)]'}`}>{lateCount}</span>
+            <span className="text-xs text-[var(--color-text-subtle)]">{t('attendance.late', 'Late')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Late arrivals callout (if any) */}
+      {lateArrivals.length > 0 && (
+        <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/20 px-4 py-3">
+          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400 mb-2">
+            {t('attendance.lateArrivals', 'Late Arrivals')}
+          </div>
+          <div className="flex flex-col gap-1">
+            {lateArrivals.map((record) => (
+              <div key={record.id} className="flex items-center gap-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                <span className="text-sm text-[var(--color-text)]">{record.employeeName}</span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-amber-600 dark:text-amber-400">
+                  {record.clockIn}
+                </span>
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] text-[var(--color-text-muted)]">
+                  +{record.overtime.toFixed(1)}h
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Detailed stats */}
       <div className="flex items-baseline gap-8 border-b border-[var(--color-border)] pb-5">
-        <StatCell label={t('attendance.clockedIn', 'Clocked In')} value={clockedIn} color="text-green-600 dark:text-green-400" />
         <StatCell label={t('attendance.totalHours', 'Total Hours')} value={totalHours.toFixed(1)} />
         <StatCell label={t('attendance.overtimeHours', 'Overtime')} value={overtimeHours.toFixed(1)} color="text-[var(--color-primary)]" />
-        <StatCell label={t('attendance.lateCount', 'Late')} value={lateCount} color={lateCount > 0 ? 'text-amber-600 dark:text-amber-400' : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
@@ -185,8 +231,9 @@ export function AttendanceDashboard() {
           </div>
 
           <div className="flex flex-col">
-            {attendance
+            {[...attendance]
               .filter((a) => a.clockIn !== null)
+              .sort((a, b) => (b.overtime > 0 ? 1 : 0) - (a.overtime > 0 ? 1 : 0))
               .map((record) => (
                 <motion.div
                   key={record.id}
@@ -196,6 +243,9 @@ export function AttendanceDashboard() {
                   className="flex items-center gap-3 py-2 border-b border-[var(--color-border)]/30"
                 >
                   <span className="text-sm text-[var(--color-text)] w-32 truncate">{record.employeeName}</span>
+                  {record.overtime > 0 && (
+                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">Late</span>
+                  )}
                   <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-xs text-[var(--color-text-muted)]">
                     {record.clockIn}
                   </span>

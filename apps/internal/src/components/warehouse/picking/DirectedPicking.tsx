@@ -190,27 +190,27 @@ export function DirectedPicking({
       </div>
 
       {/* HERO: Location code — the BIGGEST thing on screen. Worker walks to it. */}
-      <div className="flex flex-col items-center gap-1 py-4">
-        <span className="text-[12px] font-bold text-[#2563EB] uppercase tracking-[0.15em]">Go To</span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[44px] font-bold text-[#2563EB] text-center leading-none">
+      <div className="flex flex-col items-center gap-2 py-6">
+        <span className="text-[13px] font-bold text-[#2563EB] uppercase tracking-[0.2em]">Go To</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[52px] font-bold text-[#2563EB] text-center leading-none">
           {currentStep.locationPath}
         </span>
       </div>
 
       {/* Quantity — second biggest. Worker needs to know HOW MANY to grab. */}
-      <div className="flex flex-col items-center gap-1 py-2">
-        <span className="text-[12px] font-bold text-black/40 dark:text-white/40 uppercase tracking-[0.15em]">Pick</span>
-        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[48px] font-bold text-black/90 dark:text-white/90 leading-none">
+      <div className="flex flex-col items-center gap-2 py-3">
+        <span className="text-[13px] font-bold text-black/40 dark:text-white/40 uppercase tracking-[0.2em]">Pick</span>
+        <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[56px] font-bold text-black/90 dark:text-white/90 leading-none">
           {currentStep.quantityToPick}
         </span>
       </div>
 
       {/* Product info — readable but secondary */}
       <div className="flex flex-col items-center gap-2 py-2">
-        <span className="text-[16px] font-semibold text-black/60 dark:text-white/60 text-center">
+        <span className="text-[18px] font-semibold text-black/60 dark:text-white/60 text-center">
           {currentStep.productName}
         </span>
-        <div className="flex items-center gap-4 text-[13px] text-black/30 dark:text-white/30">
+        <div className="flex items-center gap-4 text-[14px] text-black/30 dark:text-white/30">
           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
             SKU {currentStep.sku}
           </span>
@@ -273,23 +273,23 @@ export function DirectedPicking({
         </div>
       )}
 
-      {/* Exception buttons — large touch targets */}
+      {/* Exception buttons — 48px+ touch targets for gloved hands */}
       <div className="flex gap-3">
         <AriaButton
           onPress={() => setExceptionType('short_pick')}
-          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-14 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[15px] font-semibold text-black/50 dark:text-white/50 cursor-pointer active:scale-[0.97]"
         >
           Short Pick
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('skip')}
-          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-14 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[15px] font-semibold text-black/50 dark:text-white/50 cursor-pointer active:scale-[0.97]"
         >
           Skip
         </AriaButton>
         <AriaButton
           onPress={() => setExceptionType('substitute')}
-          className="flex h-12 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[14px] font-medium text-black/50 dark:text-white/50 cursor-pointer"
+          className="flex h-14 flex-1 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-[15px] font-semibold text-black/50 dark:text-white/50 cursor-pointer active:scale-[0.97]"
         >
           Substitute
         </AriaButton>
@@ -308,11 +308,11 @@ export function DirectedPicking({
       )}
 
       {/* Confirm Pick — BOTTOM of screen, thumb zone, biggest button */}
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-4 pb-2">
         <AriaButton
           onPress={handleConfirmPick}
           isDisabled={!canConfirm || confirmMutation.isPending}
-          className="flex h-[72px] w-full items-center justify-center rounded-xl bg-[#2563EB] text-[18px] font-bold text-white cursor-pointer disabled:opacity-30 transition-colors active:scale-[0.98]"
+          className="flex h-[80px] w-full items-center justify-center rounded-2xl bg-[#2563EB] text-[20px] font-bold text-white cursor-pointer disabled:opacity-30 transition-all active:scale-[0.97] shadow-lg shadow-[#2563EB]/20"
         >
           {confirmMutation.isPending
             ? 'Confirming...'

@@ -421,7 +421,7 @@ export function DeliveryLogView() {
               </span>
               {stop.status === 'failed' && (
                 <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                  Action
+                  Action needed
                 </span>
               )}
             </span>

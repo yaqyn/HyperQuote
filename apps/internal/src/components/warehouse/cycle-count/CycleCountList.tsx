@@ -129,17 +129,17 @@ export function CycleCountList({ onNavigate }: CycleCountListProps) {
               key={assignment.id}
               type="button"
               onClick={() => handleCardTap(assignment.id, assignment.status)}
-              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-4 py-5 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[80px]"
+              className="group flex items-center gap-4 border-b border-[var(--color-border)] px-5 py-5 text-start transition-colors hover:bg-black/[0.02] active:bg-black/[0.04] min-h-[88px]"
             >
               {/* Status dot */}
               <div className="h-3 w-3 rounded-full shrink-0" style={{ background: config.color }} />
 
               {/* Count ID + zone */}
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                <p className="text-[17px] font-bold text-[var(--color-text-primary)] truncate">
                   {assignment.locationCode}
                 </p>
-                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text-secondary)] mt-0.5">
+                <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[14px] text-[var(--color-text-secondary)] mt-1">
                   {assignment.countNumber} / {assignment.totalCounts}
                 </p>
               </div>

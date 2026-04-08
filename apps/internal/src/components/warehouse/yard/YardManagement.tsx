@@ -71,35 +71,35 @@ export function YardManagement() {
           <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Yard</h2>
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Zone management</p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Total vehicles on site — prominent */}
+        <div className="flex items-center gap-6">
+          {/* Total vehicles on site — PROMINENT for tablet */}
           <div className="text-center">
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold text-[var(--color-text-primary)] leading-none">
+            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] font-bold text-[var(--color-text-primary)] leading-none">
               {vehiclesOnSite.length}
             </span>
-            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)] mt-1">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)] mt-1.5">
               Vehicles
             </p>
           </div>
           {/* Utilization */}
           <div className="text-center">
-            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[32px] font-bold leading-none ${overallPercent >= 90 ? 'text-red-600' : overallPercent >= 75 ? 'text-amber-600' : 'text-[var(--color-text-primary)]'}`}>
+            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[40px] font-bold leading-none ${overallPercent >= 90 ? 'text-red-600' : overallPercent >= 75 ? 'text-amber-600' : 'text-[var(--color-text-primary)]'}`}>
               {overallPercent}%
             </span>
-            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)] mt-1">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)] mt-1.5">
               Capacity
             </p>
           </div>
         </div>
       </div>
 
-      {/* Zones at capacity warning */}
+      {/* Zones at capacity warning — highlighted for tablet */}
       {zones.some((z) => z.currentUsage >= z.maxCapacity) && (
         <div
-          className="rounded-xl px-6 py-4 text-[14px] font-bold text-red-700 flex items-center gap-3"
+          className="rounded-xl px-6 py-5 text-[16px] font-bold text-red-700 flex items-center gap-3 min-h-[64px]"
           style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.15)' }}
         >
-          <span className="text-[16px]">{'\u26A0'}</span>
+          <span className="text-[20px]">{'\u26A0'}</span>
           {zones.filter((z) => z.currentUsage >= z.maxCapacity).map((z) => z.name).join(', ')} at full capacity
         </div>
       )}
@@ -117,26 +117,24 @@ export function YardManagement() {
         </ModalOverlay>
       </DialogTrigger>
 
-      {/* ─── Main content ────────────────────────────────── */}
-      <div className="flex gap-4">
+      {/* ─── Main content — tablet: stack vertically ──────── */}
+      <div className="flex flex-col gap-4">
         {/* Zone map */}
-        <div className="flex-1">
-          <YardZoneMap
-            zones={zones}
-            selectedZoneId={selectedZone?.id ?? null}
-            onZoneSelect={setSelectedZone}
-          />
-        </div>
+        <YardZoneMap
+          zones={zones}
+          selectedZoneId={selectedZone?.id ?? null}
+          onZoneSelect={setSelectedZone}
+        />
 
-        {/* Zone detail panel (slides in) */}
+        {/* Zone detail panel (slides down on tablet) */}
         <AnimatePresence>
           {selectedZone && (
             <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 288 }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2, ease: 'easeIn' }}
-              className="shrink-0 overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              className="overflow-hidden"
             >
               <ZoneDetail zone={selectedZone} onClose={() => setSelectedZone(null)} />
             </motion.div>

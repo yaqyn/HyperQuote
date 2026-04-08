@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Button, TextField, Input } from 'react-aria-components'
@@ -33,6 +33,15 @@ export function WhatsAppInbox() {
     staleTime: 15_000,
   })
 
+  // Sort: unread first, then by most recent
+  const sortedConversations = useMemo(() => {
+    if (!conversations) return []
+    return [...conversations].sort((a, b) => {
+      if (a.unread !== b.unread) return a.unread ? -1 : 1
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    })
+  }, [conversations])
+
   const selected = selectedId
     ? conversations?.find((c) => c.id === selectedId) ?? null
     : null
@@ -56,9 +65,23 @@ export function WhatsAppInbox() {
     <div className="flex h-full">
       {/* Left panel: conversation list */}
       <div className={`w-full md:w-80 lg:w-96 border-e border-[var(--color-border)] flex flex-col shrink-0 ${selected ? 'hidden md:flex' : 'flex'}`}>
+        {/* Header with unread count */}
+        <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border)]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-[var(--color-text)]">
+              {t('whatsapp.title', 'WhatsApp')}
+            </span>
+            {conversations.filter((c) => c.unread).length > 0 && (
+              <span className="rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[11px] font-semibold font-[family-name:var(--font-geist-mono)] tabular-nums text-white">
+                {conversations.filter((c) => c.unread).length}
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto">
-          {conversations.map((conv) => (
+          {sortedConversations.map((conv) => (
             <button
               key={conv.id}
               type="button"
@@ -88,7 +111,7 @@ export function WhatsAppInbox() {
                       {conv.lastMessage.length > 50 ? `${conv.lastMessage.slice(0, 50)}...` : conv.lastMessage}
                     </span>
                     {conv.unread && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] shrink-0" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary)] shrink-0 ring-2 ring-white dark:ring-black" />
                     )}
                   </div>
                 </div>

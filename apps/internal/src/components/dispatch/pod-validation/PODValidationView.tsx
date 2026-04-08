@@ -161,8 +161,44 @@ export function PODValidationView() {
     { key: 'all', label: t('pod.filter.all', 'All') },
   ]
 
+  const needsReviewCount = deliveries.filter((d: DeliveryEntry) => d.status === 'needs_review').length
+  const flaggedCount = deliveries.filter((d: DeliveryEntry) => d.status === 'flagged').length
+  const confirmedCount = deliveries.filter((d: DeliveryEntry) => d.status === 'confirmed').length
+
   return (
     <div className="flex h-full flex-col overflow-auto p-6">
+      {/* Stats banner */}
+      {deliveries.length > 0 && (
+        <div className="mb-4 flex items-center gap-4 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+          <div className="flex items-center gap-2">
+            <span className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums">
+              {confirmedCount}/{deliveries.length}
+            </span>
+            <span className="text-sm text-black/50 dark:text-white/50">
+              {t('pod.reviewed', 'reviewed')}
+            </span>
+          </div>
+          {needsReviewCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{needsReviewCount}</span>
+                {' '}{t('pod.pendingReview', 'pending review')}
+              </span>
+            </div>
+          )}
+          {flaggedCount > 0 && (
+            <div className="ms-auto flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{flaggedCount}</span>
+                {' '}{t('pod.flagged', 'flagged')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Filter pills */}
       <div className="mb-4 flex gap-1">
         {FILTER_TABS.map((tab) => (

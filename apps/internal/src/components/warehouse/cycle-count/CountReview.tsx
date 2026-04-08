@@ -30,18 +30,18 @@ export function CountReview({ results, onApprove, onRequestSupervisor, onBack }:
         <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Variance analysis</p>
       </div>
 
-      {/* ─── Summary banner ──────────────────────────────── */}
+      {/* ─── Summary banner — tablet readable ────────────── */}
       {anyNeedsRecount ? (
-        <div className="rounded-xl border border-red-200 p-4" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
-          <p className="text-sm font-bold text-red-700">Recount Requested</p>
-          <p className="text-xs text-red-600 mt-1">
+        <div className="rounded-xl border border-red-200 px-5 py-5 min-h-[72px] flex flex-col justify-center" style={{ background: 'rgba(239, 68, 68, 0.04)' }}>
+          <p className="text-[16px] font-bold text-red-700">Recount Requested</p>
+          <p className="text-[14px] text-red-600 mt-1">
             Items exceed ABC variance threshold. A different worker will recount.
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-green-200 p-4" style={{ background: 'rgba(22, 163, 74, 0.04)' }}>
-          <p className="text-sm font-bold text-green-700">Auto-Approved</p>
-          <p className="text-xs text-green-600 mt-1">
+        <div className="rounded-xl border border-green-200 px-5 py-5 min-h-[72px] flex flex-col justify-center" style={{ background: 'rgba(22, 163, 74, 0.04)' }}>
+          <p className="text-[16px] font-bold text-green-700">Auto-Approved</p>
+          <p className="text-[14px] text-green-600 mt-1">
             All items within ABC variance thresholds.
           </p>
         </div>
@@ -65,14 +65,14 @@ export function CountReview({ results, onApprove, onRequestSupervisor, onBack }:
               {/* Product + ABC badge */}
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                  <p className="text-[16px] font-bold text-[var(--color-text-primary)]">
                     {result.productId}
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-[var(--color-border)]">
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-md border border-[var(--color-border)]">
                       {result.abcClass}
                     </span>
-                    <span className="text-[10px] text-[var(--color-text-secondary)]">
+                    <span className="text-[12px] text-[var(--color-text-secondary)]">
                       Threshold {ABC_THRESHOLD_LABELS[result.abcClass]}
                     </span>
                   </div>
@@ -80,47 +80,53 @@ export function CountReview({ results, onApprove, onRequestSupervisor, onBack }:
                 <VarianceBadge variancePercent={result.variancePercent} needsRecount={result.needsRecount} />
               </div>
 
-              {/* Side-by-side quantities — LARGE MONO */}
+              {/* Side-by-side quantities — LARGE MONO for tablet */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
                     System
                   </span>
-                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-[var(--color-text-primary)] mt-0.5">
+                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold text-[var(--color-text-primary)] mt-1">
                     {result.systemQty}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
                     Counted
                   </span>
-                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold text-[var(--color-text-primary)] mt-0.5">
+                  <p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold text-[var(--color-text-primary)] mt-1">
                     {result.physicalCount}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
                     Variance
                   </span>
-                  <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold mt-0.5 ${varianceColor}`}>
+                  <p className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold mt-1 ${varianceColor}`}>
                     {result.variance > 0 ? '+' : ''}{result.variance}
                   </p>
                 </div>
               </div>
 
-              {/* Threshold result — clear status indicators */}
+              {/* Threshold result — clear status: ✓ Within | ⚠ Recount | ✗ Major variance */}
               <div
-                className={`mt-3 rounded-lg px-4 py-3 text-[14px] font-bold flex items-center gap-3 ${
-                  result.needsRecount ? 'text-red-700' : result.variance === 0 ? 'text-green-700' : 'text-green-700'
+                className={`mt-4 rounded-xl px-5 py-4 text-[15px] font-bold flex items-center gap-3 min-h-[56px] ${
+                  result.needsRecount
+                    ? 'text-red-700'
+                    : result.variance === 0
+                      ? 'text-green-700'
+                      : 'text-amber-700'
                 }`}
                 style={{
                   background: result.needsRecount
                     ? 'rgba(239, 68, 68, 0.04)'
-                    : 'rgba(22, 163, 74, 0.04)',
+                    : result.variance === 0
+                      ? 'rgba(22, 163, 74, 0.04)'
+                      : 'rgba(234, 179, 8, 0.04)',
                 }}
               >
-                <span className="text-[18px]">
-                  {result.needsRecount ? '\u2717' : result.variance === 0 ? '\u2713' : '\u2713'}
+                <span className="text-[22px]">
+                  {result.needsRecount ? '\u2717' : result.variance === 0 ? '\u2713' : '\u26A0'}
                 </span>
                 {result.needsRecount
                   ? `${absVariancePercent.toFixed(1)}% exceeds ${ABC_THRESHOLD_LABELS[result.abcClass]} — needs recount`
@@ -134,20 +140,20 @@ export function CountReview({ results, onApprove, onRequestSupervisor, onBack }:
         })}
       </div>
 
-      {/* ─── Actions ──────────────────────────────────────── */}
+      {/* ─── Actions — tablet: 64px+ touch targets ─────────── */}
       {anyNeedsRecount ? (
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="flex-1 min-h-[56px] rounded-xl border border-[var(--color-border)] text-base font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
+            className="flex-1 min-h-[64px] rounded-xl border border-[var(--color-border)] text-[16px] font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
           >
             Back
           </button>
           <button
             type="button"
             onClick={onRequestSupervisor}
-            className="flex-1 min-h-[56px] rounded-xl bg-[#2563EB] text-white text-base font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.98]"
+            className="flex-1 min-h-[64px] rounded-xl bg-[#2563EB] text-white text-[16px] font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.97]"
           >
             Submit for Review
           </button>
@@ -157,14 +163,14 @@ export function CountReview({ results, onApprove, onRequestSupervisor, onBack }:
           <button
             type="button"
             onClick={onBack}
-            className="flex-1 min-h-[56px] rounded-xl border border-[var(--color-border)] text-base font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
+            className="flex-1 min-h-[64px] rounded-xl border border-[var(--color-border)] text-[16px] font-bold text-[var(--color-text-primary)] hover:bg-black/[0.02] transition-colors active:scale-[0.98]"
           >
             Back
           </button>
           <button
             type="button"
             onClick={onApprove}
-            className="flex-1 min-h-[56px] rounded-xl bg-[#2563EB] text-white text-base font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.98]"
+            className="flex-1 min-h-[64px] rounded-xl bg-[#2563EB] text-white text-[16px] font-bold hover:bg-[#1d4ed8] transition-all active:scale-[0.97]"
           >
             Approve
           </button>

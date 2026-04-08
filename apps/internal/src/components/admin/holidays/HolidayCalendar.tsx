@@ -129,36 +129,41 @@ export function HolidayCalendar() {
       </div>
 
       {/* Next upcoming holiday — prominent banner */}
-      {nextHoliday && daysUntilNext !== null && (
-        <div className="border border-black/6 dark:border-white/6 rounded-lg px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#2563EB]/10 flex items-center justify-center shrink-0">
-              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] font-semibold text-[#2563EB]">
-                {new Date(nextHoliday.confirmedDate ?? nextHoliday.estimatedDate).getDate()}
-              </span>
-            </div>
-            <div>
-              <span className="text-xs font-medium">
-                Next: {nextHoliday.name}
-                {nextHoliday.nameAr !== nextHoliday.name && (
-                  <span className="text-black/30 dark:text-white/30 ms-1.5">{nextHoliday.nameAr}</span>
-                )}
-              </span>
-              <div className="text-[11px] text-black/35 dark:text-white/35 font-[family-name:var(--font-geist-mono)] tabular-nums">
-                {new Date(nextHoliday.confirmedDate ?? nextHoliday.estimatedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+      {nextHoliday && daysUntilNext !== null && (() => {
+        const nextDate = new Date(nextHoliday.confirmedDate ?? nextHoliday.estimatedDate)
+        const formattedDate = nextDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        return (
+          <div className="border border-[#2563EB]/15 bg-[#2563EB]/[0.03] rounded-lg px-5 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#2563EB]/10 flex items-center justify-center shrink-0">
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-bold text-[#2563EB]">
+                  {nextDate.getDate()}
+                </span>
+              </div>
+              <div>
+                <div className="text-sm font-semibold">
+                  Next: {nextHoliday.name} ({formattedDate})
+                </div>
+                <div className="text-[12px] text-black/40 dark:text-white/40 mt-0.5">
+                  {nextHoliday.nameAr !== nextHoliday.name && nextHoliday.nameAr}
+                  {nextHoliday.isIslamic && !nextHoliday.confirmedDate && (
+                    <span className="text-amber-600 dark:text-amber-400 ms-2">estimated date</span>
+                  )}
+                </div>
               </div>
             </div>
+            <div className="text-end">
+              <span className="text-[11px] text-black/30 dark:text-white/30">in</span>
+              <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-2xl font-bold ms-1.5">
+                {daysUntilNext}
+              </span>
+              <span className="text-[12px] text-black/35 dark:text-white/35 ms-1">
+                {daysUntilNext === 1 ? 'day' : 'days'}
+              </span>
+            </div>
           </div>
-          <div className="text-end">
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-lg font-semibold">
-              {daysUntilNext}
-            </span>
-            <span className="text-[11px] text-black/30 dark:text-white/30 ms-1">
-              {daysUntilNext === 1 ? 'day' : 'days'}
-            </span>
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Unconfirmed Islamic holidays alert */}
       {unconfirmedCount > 0 && (
@@ -289,7 +294,7 @@ export function HolidayCalendar() {
             ) : holiday.isIslamic ? (
               <AriaButton
                 onPress={() => { setConfirmingId(holiday.id); setConfirmDate('') }}
-                className="rounded-full bg-[#2563EB]/10 px-3 py-1 text-[11px] font-medium text-[#2563EB] hover:bg-[#2563EB]/20 cursor-pointer outline-none transition-colors shrink-0"
+                className="rounded-full bg-[#2563EB] px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2563EB]/90 cursor-pointer outline-none transition-colors shrink-0"
               >
                 {t('holidays.confirmDate', 'Confirm Date')}
               </AriaButton>
@@ -335,7 +340,7 @@ export function HolidayCalendar() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
         >
           <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-            <Dialog className="outline-none">
+            <Dialog className="outline-none" isKeyboardDismissDisabled>
               {() => (
                 <div className="space-y-4">
                   <Heading slot="title" className="text-sm font-semibold">Delete Holiday</Heading>
@@ -397,7 +402,7 @@ function AddHolidayDialog({ isOpen, onClose, year }: { isOpen: boolean; onClose:
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-md rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-        <Dialog className="outline-none">
+        <Dialog className="outline-none" isKeyboardDismissDisabled>
           {() => (
             <div className="space-y-5">
               <Heading slot="title" className="text-sm font-semibold">

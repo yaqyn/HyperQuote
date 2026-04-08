@@ -30,6 +30,13 @@ type WizardStep = 'customer' | 'subject' | 'description' | 'classify'
 
 const STEPS: WizardStep[] = ['customer', 'subject', 'description', 'classify']
 
+const STEP_LABELS: Record<WizardStep, string> = {
+  customer: 'Customer',
+  subject: 'Subject',
+  description: 'Details',
+  classify: 'Classify',
+}
+
 export function CreateTicketDialog() {
   const { t } = useTranslation('customer-service')
   const queryClient = useQueryClient()
@@ -137,6 +144,7 @@ export function CreateTicketDialog() {
               if (!val) resetForm()
               setOpen(val)
             }}
+            isKeyboardDismissDisabled
             className="outline-none"
           >
             <Dialog className="outline-none">
@@ -161,17 +169,27 @@ export function CreateTicketDialog() {
                       {t('tickets.createTicket', 'Create Ticket')}
                     </Heading>
 
-                    {/* Step indicator */}
-                    <div className="flex items-center gap-1.5">
+                    {/* Step indicator with labels */}
+                    <div className="flex items-center gap-3">
                       {STEPS.map((s, idx) => (
-                        <div
-                          key={s}
-                          className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                            idx <= stepIndex
-                              ? 'bg-[var(--color-primary)]'
-                              : 'bg-black/10 dark:bg-white/10'
-                          }`}
-                        />
+                        <div key={s} className="flex items-center gap-1.5">
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                              idx <= stepIndex
+                                ? 'bg-[var(--color-primary)]'
+                                : 'bg-black/10 dark:bg-white/10'
+                            }`}
+                          />
+                          <span className={`text-[10px] transition-colors ${
+                            idx === stepIndex
+                              ? 'text-[var(--color-text)] font-medium'
+                              : idx < stepIndex
+                                ? 'text-[var(--color-text-subtle)]'
+                                : 'text-[var(--color-text-subtle)] opacity-50'
+                          }`}>
+                            {STEP_LABELS[s]}
+                          </span>
+                        </div>
                       ))}
                     </div>
 
@@ -309,8 +327,11 @@ export function CreateTicketDialog() {
 
                           {/* Summary */}
                           <div className="rounded-lg bg-black/[0.02] dark:bg-white/[0.02] p-3 text-xs text-[var(--color-text-muted)] space-y-1">
-                            <div><span className="text-[var(--color-text-subtle)]">Customer:</span> {customerName}</div>
-                            <div><span className="text-[var(--color-text-subtle)]">Subject:</span> {subject}</div>
+                            <div><span className="text-[var(--color-text-subtle)]">{t('tickets.customer', 'Customer')}:</span> {customerName}</div>
+                            <div><span className="text-[var(--color-text-subtle)]">{t('tickets.subject', 'Subject')}:</span> {subject}</div>
+                            {description && <div><span className="text-[var(--color-text-subtle)]">{t('tickets.description', 'Description')}:</span> {description.length > 80 ? `${description.slice(0, 80)}...` : description}</div>}
+                            <div><span className="text-[var(--color-text-subtle)]">{t('tickets.category', 'Category')}:</span> {category}</div>
+                            <div><span className="text-[var(--color-text-subtle)]">{t('tickets.priority', 'Priority')}:</span> {priority}</div>
                           </div>
                         </motion.div>
                       )}

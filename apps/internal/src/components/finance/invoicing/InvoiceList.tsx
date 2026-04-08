@@ -155,10 +155,15 @@ export function InvoiceList() {
         const draftCount = invoices.filter((inv) => inv.status === 'draft').length
         if (draftCount === 0) return null
         return (
-          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#2563EB]/10 bg-[#2563EB]/[0.03]">
-            <span className="text-xs text-black/60 dark:text-white/60 flex-1">
+          <div className="flex items-center gap-4 px-5 py-3 border-b-2 border-[#2563EB]/20 bg-[#2563EB]/[0.04]">
+            <span className="size-2 rounded-full bg-[#2563EB] shrink-0" />
+            <span className="text-sm font-medium text-black dark:text-white flex-1">
               {t('invoicing.draftsReady', '{{count}} draft invoices ready to send', { count: draftCount })}
             </span>
+            <CurrencyCell
+              amount={invoices.filter((inv) => inv.status === 'draft').reduce((s, inv) => s + inv.grandTotal, 0)}
+              className="text-sm text-black/50 dark:text-white/50"
+            />
             <Button
               isDisabled={batchLoading === 'send'}
               onPress={async () => {
@@ -170,7 +175,7 @@ export function InvoiceList() {
                   setBatchLoading(null)
                 }
               }}
-              className="rounded-md bg-[#2563EB] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 transition-colors"
+              className="rounded-md bg-[#2563EB] text-white px-5 py-2 text-sm font-medium hover:bg-[#2563EB]/90 pressed:bg-[#2563EB]/80 disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 transition-colors"
             >
               {batchLoading === 'send'
                 ? t('invoicing.sending', 'Sending...')

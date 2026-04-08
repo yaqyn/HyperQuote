@@ -53,7 +53,7 @@ export function WorkerTileGrid() {
   }, [dashboard])
 
   return (
-    <div className="flex flex-col gap-4 px-6 py-4">
+    <div className="flex flex-col gap-4">
       {sortedTiles.map((tile) => {
         const count = dashboard ? (dashboard[tile.badgeField] as number) : 0
 
@@ -61,22 +61,22 @@ export function WorkerTileGrid() {
           <Button
             key={tile.key}
             onPress={() => setActiveTab(tile.tab)}
-            className="relative flex items-center justify-between min-h-[88px] rounded-2xl border border-black/10 dark:border-white/10 px-6 py-5 cursor-pointer transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] pressed:bg-black/[0.05] dark:pressed:bg-white/[0.05] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
+            className="relative flex items-center justify-between min-h-[96px] rounded-2xl border border-black/10 dark:border-white/10 px-7 py-6 cursor-pointer transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] pressed:bg-black/[0.05] dark:pressed:bg-white/[0.05] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50"
           >
-            {/* Action name + pending description */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[16px] font-semibold text-black/80 dark:text-white/80">
+            {/* Action name + pending task count description */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[18px] font-bold text-black/85 dark:text-white/85">
                 {t(tile.labelKey, tile.fallback)}
               </span>
-              <span className={`text-[14px] ${count > 0 ? 'text-black/50 dark:text-white/50' : 'text-black/20 dark:text-white/20'}`}>
+              <span className={`text-[15px] ${count > 0 ? 'text-black/55 dark:text-white/55' : 'text-black/20 dark:text-white/20'}`}>
                 {count > 0
                   ? t(tile.descKey, tile.descFallback, { count })
                   : t('warehouse.tiles.noPending', 'All clear')}
               </span>
             </div>
 
-            {/* Count — huge mono number */}
-            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[28px] font-bold ${count > 0 ? 'text-black/90 dark:text-white/90' : 'text-black/10 dark:text-white/10'}`}>
+            {/* Count — huge mono number, glanceable from arm's length */}
+            <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-[36px] font-bold ${count > 0 ? 'text-black/90 dark:text-white/90' : 'text-black/10 dark:text-white/10'}`}>
               {count}
             </span>
 

@@ -111,10 +111,13 @@ export function MarginRules() {
                 <div className="flex items-center gap-3">
                   {/* Category name + tightness indicator */}
                   <div className="w-40 shrink-0 flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{rule.categoryName}</span>
                     {isTight && (
-                      <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-1.5 py-0.5 shrink-0">
-                        tight
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" title="Tight margin" />
+                    )}
+                    <span className={`text-sm font-medium truncate ${isTight ? 'text-red-700 dark:text-red-400' : ''}`}>{rule.categoryName}</span>
+                    {isTight && (
+                      <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/15 rounded-full px-2 py-0.5 shrink-0">
+                        {spread.toFixed(1)}% spread
                       </span>
                     )}
                   </div>
@@ -273,7 +276,7 @@ export function MarginRules() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
         >
           <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-            <Dialog className="outline-none">
+            <Dialog className="outline-none" isKeyboardDismissDisabled>
               {() => (
                 <div className="space-y-4">
                   <Heading slot="title" className="text-sm font-semibold">Delete Rule</Heading>
@@ -397,7 +400,7 @@ function AddMarginRuleDialog({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
     >
       <Modal className="w-full max-w-md rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
-        <Dialog className="outline-none">
+        <Dialog className="outline-none" isKeyboardDismissDisabled>
           {() => (
             <div className="space-y-5">
               <Heading slot="title" className="text-sm font-semibold">

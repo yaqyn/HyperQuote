@@ -64,6 +64,11 @@ export function TicketList() {
           break
       }
 
+      // Channel filter (when not 'all')
+      if (channelFilter !== 'all') {
+        if ('channel' in ticket && (ticket as any).channel !== channelFilter) return false
+      }
+
       return true
     })
 
@@ -75,7 +80,7 @@ export function TicketList() {
     })
 
     return result
-  }, [tickets, filter, ownerFilter])
+  }, [tickets, filter, ownerFilter, channelFilter])
 
   if (!tickets) {
     return (
@@ -89,10 +94,14 @@ export function TicketList() {
   const myCount = tickets.filter((t) => t.assignedAgent === CURRENT_AGENT && t.status !== 'resolved' && t.status !== 'closed').length
   const unassignedCount = tickets.filter((t) => t.assignedAgent === null && t.status !== 'resolved' && t.status !== 'closed').length
 
-  const FILTERS: Array<{ key: FilterKey; label: string }> = [
-    { key: 'all', label: t('tickets.filterAll', 'All') },
-    { key: 'open', label: t('tickets.filterOpen', 'Open') },
-    { key: 'waiting', label: t('tickets.filterWaiting', 'Waiting') },
+  // Compute counts for status filter badges
+  const openCount = tickets.filter((t) => t.status === 'new' || t.status === 'open' || t.status === 'in_progress').length
+  const waitingCount = tickets.filter((t) => t.status === 'awaiting_customer' || t.status === 'awaiting_internal' || t.status === 'awaiting_supplier').length
+
+  const FILTERS: Array<{ key: FilterKey; label: string; count?: number }> = [
+    { key: 'all', label: t('tickets.filterAll', 'All'), count: tickets.length },
+    { key: 'open', label: t('tickets.filterOpen', 'Open'), count: openCount },
+    { key: 'waiting', label: t('tickets.filterWaiting', 'Waiting'), count: waitingCount },
     { key: 'resolved', label: t('tickets.filterResolved', 'Resolved') },
   ]
 
@@ -133,13 +142,18 @@ export function TicketList() {
             <Button
               key={f.key}
               onPress={() => setFilter(f.key)}
-              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none
+              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none flex items-center gap-1.5
                 ${filter === f.key
                   ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
                   : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
                 }`}
             >
               {f.label}
+              {f.count !== undefined && f.count > 0 && (
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] rounded-full bg-black/[0.08] dark:bg-white/[0.08] px-1.5 min-w-[18px] text-center">
+                  {f.count}
+                </span>
+              )}
             </Button>
           ))}
         </div>
@@ -203,10 +217,11 @@ export function TicketList() {
                     {ticket.subject}
                   </span>
 
-                  {/* SLA countdown — prominent pill */}
+                  {/* SLA countdown — prominent pill with "remaining" context */}
                   <span className={`shrink-0 flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold font-[family-name:var(--font-geist-mono)] tabular-nums ${sla.pillClass}`}>
                     {sla.breached && <AlertTriangle size={10} />}
                     {sla.label}
+                    {!sla.breached && <span className="font-normal font-sans text-[10px] opacity-70">left</span>}
                   </span>
                 </div>
 

@@ -25,14 +25,29 @@ export function UnassignedPool({ stops }: UnassignedPoolProps) {
   })
 
   return (
-    <div className="rounded-xl border border-black/[0.06] p-3 dark:border-white/[0.06]">
+    <div className={`rounded-xl border p-3 ${
+      stops.length > 0
+        ? 'border-amber-300/60 bg-amber-50/20 dark:border-amber-700/40 dark:bg-amber-900/5'
+        : 'border-black/[0.06] dark:border-white/[0.06]'
+    }`}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
-          Unassigned
-        </h3>
-        <span className="font-[family-name:var(--font-geist-mono)] text-xs tabular-nums text-[#2563EB]">
+        <div className="flex items-center gap-2">
+          {stops.length > 0 && (
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          )}
+          <h3 className={`text-xs font-medium uppercase tracking-wider ${
+            stops.length > 0
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-black/40 dark:text-white/40'
+          }`}>
+            Unassigned
+          </h3>
+        </div>
+        <span className={`font-[family-name:var(--font-geist-mono)] text-xs font-semibold tabular-nums ${
+          stops.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-black/40 dark:text-white/40'
+        }`}>
           {stops.length > 0
-            ? `${stops.length} (${stops.reduce((sum, s) => sum + s.weight, 0).toLocaleString()} kg)`
+            ? `${stops.length} items (${stops.reduce((sum, s) => sum + s.weight, 0).toLocaleString()} kg)`
             : '0'}
         </span>
       </div>

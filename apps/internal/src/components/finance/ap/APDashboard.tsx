@@ -221,6 +221,30 @@ export function APDashboard() {
               </>
             )}
           </div>
+
+          {/* Form 41 deadline — inline countdown for finance clerk */}
+          {(() => {
+            const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
+            const currentYear = new Date().getFullYear()
+            const quarterEndMonth = currentQuarter * 3
+            const quarterEnd = new Date(currentYear, quarterEndMonth, 0)
+            const daysUntilDeadline = Math.max(0, Math.ceil((quarterEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+            const isUrgent = daysUntilDeadline <= 14
+            return (
+              <div className={`flex items-center gap-3 mt-4 pt-3 border-t border-black/[0.04] dark:border-white/[0.04] ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-black/40 dark:text-white/40'}`}>
+                {isUrgent && <span className="size-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />}
+                <span className="text-[11px] font-medium uppercase tracking-wider">
+                  {t('ap.form41DeadlineInline', 'Form 41')}
+                </span>
+                <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums text-xs ${isUrgent ? 'font-semibold' : ''}`}>
+                  {t('ap.dueInDays', 'Due in {{days}} days', { days: daysUntilDeadline })}
+                </span>
+                <span className="text-[10px] text-black/20 dark:text-white/20">
+                  Q{currentQuarter} {currentYear}
+                </span>
+              </div>
+            )
+          })()}
         </div>
       )}
 

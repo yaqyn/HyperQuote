@@ -174,6 +174,20 @@ export function ARDrillDown({ customerId, bucket, onBack }: ARDrillDownProps) {
                   <span>\u2014</span>
                 )}
               </div>
+
+              {/* Send reminder action */}
+              <div className="w-24 text-end" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="text-[10px] font-medium text-[#2563EB] hover:underline underline-offset-2 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Will trigger reminder workflow
+                  }}
+                >
+                  {t('ar.drillDown.sendReminder', 'Send Reminder')}
+                </button>
+              </div>
             </button>
           ))}
         </div>

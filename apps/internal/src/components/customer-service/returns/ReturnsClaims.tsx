@@ -95,10 +95,18 @@ export function ReturnsClaims() {
     )
   }
 
-  const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
-    { key: 'active', label: t('returns.filterActive', 'Active') },
-    { key: 'all', label: t('returns.filterAll', 'All') },
-    { key: 'settled', label: t('returns.filterSettled', 'Settled') },
+  // Compute counts for filter badges
+  const allMerged = [
+    ...data.claims.map((c) => ({ isResolved: c.status === 'settled' })),
+    ...data.returns.map((r) => ({ isResolved: r.status === 'credit_issued' })),
+  ]
+  const activeCount = allMerged.filter((c) => !c.isResolved).length
+  const settledCount = allMerged.filter((c) => c.isResolved).length
+
+  const STATUS_FILTERS: Array<{ key: StatusFilter; label: string; count?: number }> = [
+    { key: 'active', label: t('returns.filterActive', 'Active'), count: activeCount },
+    { key: 'all', label: t('returns.filterAll', 'All'), count: allMerged.length },
+    { key: 'settled', label: t('returns.filterSettled', 'Settled'), count: settledCount },
   ]
 
   return (
@@ -110,13 +118,18 @@ export function ReturnsClaims() {
             <Button
               key={f.key}
               onPress={() => setStatusFilter(f.key)}
-              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none
+              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-150 outline-none flex items-center gap-1.5
                 ${statusFilter === f.key
                   ? 'text-[var(--color-text)] bg-black/[0.06] dark:bg-white/[0.06]'
                   : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
                 }`}
             >
               {f.label}
+              {f.count !== undefined && f.count > 0 && (
+                <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[11px] rounded-full bg-black/[0.08] dark:bg-white/[0.08] px-1.5 min-w-[18px] text-center">
+                  {f.count}
+                </span>
+              )}
             </Button>
           ))}
         </div>
@@ -207,6 +220,26 @@ export function ReturnsClaims() {
                     className="overflow-hidden"
                   >
                     <div className="px-3 pb-4 pt-1 space-y-4">
+                      {/* Case summary line */}
+                      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+                        <span className="font-medium text-[var(--color-text)]">{item.customer}</span>
+                        <span className="text-[var(--color-text-subtle)]">{item.type === 'claim' ? t('returns.damageClaim', 'Damage Claim') : t('returns.returnRequest', 'Return')}</span>
+                        {item.orderRef && (
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-primary)]">
+                            {t('returns.order', 'Order')}: {item.orderRef}
+                          </span>
+                        )}
+                        {item.deliveryRef && (
+                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-primary)]">
+                            {t('returns.delivery', 'Delivery')}: {item.deliveryRef}
+                          </span>
+                        )}
+                        <span className="flex-1" />
+                        <span className={`font-[family-name:var(--font-geist-mono)] tabular-nums font-medium ${age.color}`}>
+                          {t('returns.opened', 'Opened')} {age.label} {t('returns.ago', 'ago')}
+                        </span>
+                      </div>
+
                       {/* Flow chain */}
                       {item.type === 'claim' && (
                         <ClaimFlowChain status={item.raw.status as ClaimStatus} t={t} />
