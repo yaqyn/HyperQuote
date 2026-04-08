@@ -24,6 +24,7 @@ import type { MarginThresholds, FreshnessIndicator, QuoteStatus } from '../../..
 interface QuoteBuilderViewProps {
   quoteId?: string
   rfqId: string
+  onBack?: () => void
 }
 
 // --- Mock supplier database (in production: server query with search) ---
@@ -205,7 +206,7 @@ interface ItemSourcingState {
 
 // --- Main view ---
 
-export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
+export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewProps) {
   const { t } = useTranslation('internal')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [status, setStatus] = useState<QuoteStatus>('draft')
@@ -421,8 +422,13 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
     <div className="flex h-full flex-col">
       {/* Compact header — name+call centered, meta on edges */}
       <div className="flex items-center border-b border-black/[0.06] px-5 py-2 dark:border-white/[0.06]">
-        {/* Left — subtle meta */}
+        {/* Left — back + subtle meta */}
         <div className="flex items-center gap-2">
+          {onBack && (
+            <button type="button" onClick={onBack} className="text-black/40 hover:text-black/60 dark:text-white/40 dark:hover:text-white/60 outline-none me-1">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
           <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
             {quoteNumber} · v{version} · {status === 'draft' ? 'Draft' : status}
           </span>

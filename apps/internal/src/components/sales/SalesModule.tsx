@@ -58,18 +58,8 @@ export function SalesModule() {
   // RFQ tab: inbox list → click → quote builder inline
   const rfqContent = editingRfqId ? (
     <div className="flex flex-col h-full">
-      <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
-        <Button
-          onPress={() => setEditingRfqId(null)}
-          aria-label="Back to RFQ list"
-          className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer outline-none transition-colors"
-        >
-          <ArrowLeft size={16} strokeWidth={1.5} />
-          Back to RFQs
-        </Button>
-      </div>
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
-        <QuoteBuilderView rfqId={editingRfqId} />
+        <QuoteBuilderView rfqId={editingRfqId} onBack={() => setEditingRfqId(null)} />
       </div>
     </div>
   ) : (
