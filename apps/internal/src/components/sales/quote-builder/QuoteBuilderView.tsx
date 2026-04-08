@@ -236,6 +236,12 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
 
+  // Compute totals from watched items (useWatch, NOT watch)
+  const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
+  const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
+  const vatAmount = Math.round(subtotal * 14) / 100
+  const total = subtotal + vatAmount
+
   // Build sourcing state when items load/change
   const itemCount = watchedItems?.length ?? 0
   useEffect(() => {
@@ -412,11 +418,6 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
     }
   }, [handleAutoSave])
 
-  // Compute totals from watched items (useWatch, NOT watch)
-  const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
-  const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
-  const vatAmount = Math.round(subtotal * 14) / 100
-  const total = subtotal + vatAmount
   const blendedMargin = subtotal > 0
     ? Math.round((1 - (watchedItems ?? []).reduce((s, i) => s + i.supplierCost * i.quantity, 0) / subtotal) * 10000) / 100
     : 0
