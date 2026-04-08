@@ -434,16 +434,6 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         onSendToCustomer={() => setStatus('sent')}
       />
 
-      {/* Step indicator */}
-      <div className="border-b border-black/[0.06] dark:border-white/[0.06]">
-        <StepIndicator
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          sourcingDone={sourcingDone}
-          onStepClick={goToStep}
-        />
-      </div>
-
       {/* Step content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Main content — scrollable */}
