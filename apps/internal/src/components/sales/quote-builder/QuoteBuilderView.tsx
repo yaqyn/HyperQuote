@@ -101,7 +101,7 @@ const defaultDeliveryAddress = '15 \u0634\u0627\u0631\u0639 \u0627\u0644\u062C\u
 
 // --- Step indicator ---
 
-const STEP_LABELS = ['Items & Delivery', 'Source & Price', 'Review & Send'] as const
+const STEP_LABELS = ['Build Quote', 'Review & Send'] as const
 
 function StepIndicator({
   currentStep,
@@ -229,6 +229,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
   const [sourcingDone, setSourcingDone] = useState(false)
   const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
   const [tableSourceSearch, setTableSourceSearch] = useState('')
+  const [rightPanel, setRightPanel] = useState<'map' | 'canvas'>('map')
 
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
@@ -290,15 +291,11 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
     const values = methods.getValues()
 
     if (step === 1) {
-      if (!values.lineItems || values.lineItems.length === 0) errors.push('Add at least one item to continue')
+      if (!values.lineItems || values.lineItems.length === 0) errors.push('Add at least one item')
       if (!deliveryAddress.trim()) errors.push('Please enter a delivery address')
       if (!values.deliveryDate) errors.push('Please select a delivery date')
-    }
-
-    if (step === 2) {
       const unassigned = sourcingState.filter((s) => !s.sourceId).length
       if (unassigned > 0) errors.push(`${unassigned} item${unassigned !== 1 ? 's' : ''} still need a source`)
-      if (!values.paymentTerms) errors.push('Please select payment terms')
       const hasZeroPrice = (values.lineItems ?? []).some((item) => !item.sellPrice || item.sellPrice <= 0)
       if (hasZeroPrice) errors.push('Some items are missing a sell price')
     }
@@ -449,7 +446,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         <div className="flex-1 overflow-y-auto px-8 pb-16">
           <FormProvider {...methods}>
             <AnimatePresence mode="wait">
-              {/* ==================== STEP 1: Confirm Items & Delivery ==================== */}
+              {/* ==================== STEP 1: Build Quote ==================== */}
               {currentStep === 1 && (
                 <motion.div
                   key="step-1"
@@ -470,91 +467,24 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                     <span className="mx-1 text-black/10 dark:text-white/10">|</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        // Server-initiated call — number never exposed to frontend
-                        // TODO: Replace with server function that initiates VoIP/SIP call
-                        // For now: use a server-side redirect endpoint
-                        window.open(`/api/call/${rfqId}`, '_blank')
-                      }}
-                      className="flex items-center gap-1.5 rounded-full bg-[var(--color-primary)]/10 px-2.5 py-1 text-[12px] font-medium text-[var(--color-primary)] outline-none transition-all hover:bg-[var(--color-primary)]/15 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50"
+                      onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
+                      className="flex items-center gap-1.5 rounded-full bg-[var(--color-primary)]/10 px-2.5 py-1 text-[12px] font-medium text-[var(--color-primary)] outline-none transition-all hover:bg-[var(--color-primary)]/15"
                     >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <path d="M6.5 1.5h-3a1 1 0 0 0-1 1v1a10 10 0 0 0 10 10h1a1 1 0 0 0 1-1v-3l-3-1.5-1.5 2a7 7 0 0 1-4-4l2-1.5L6.5 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Call Customer
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5h-3a1 1 0 0 0-1 1v1a10 10 0 0 0 10 10h1a1 1 0 0 0 1-1v-3l-3-1.5-1.5 2a7 7 0 0 1-4-4l2-1.5L6.5 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      Call
                     </button>
                     <span className="mx-1 text-black/10 dark:text-white/10">|</span>
                     <span className="flex items-center gap-1.5 text-[12px] text-[var(--color-text-subtle)]">
-                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true" className="shrink-0">
-                        <path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="7" cy="6" r="1.25" stroke="currentColor" strokeWidth="1" />
-                      </svg>
+                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0"><path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /><circle cx="7" cy="6" r="1.25" stroke="currentColor" strokeWidth="1" /></svg>
                       <input
                         type="text"
                         value={deliveryAddress}
                         onChange={(e) => setDeliveryAddress(e.target.value)}
+                        onFocus={() => setRightPanel('map')}
                         className="min-w-[200px] flex-1 bg-transparent text-[12px] text-[var(--color-text-subtle)] outline-none border-b border-transparent transition-colors focus:border-black/[0.12] focus:text-[var(--color-text)] dark:focus:border-white/[0.12]"
                       />
                     </span>
                   </div>
-
-                  {/* Line items */}
-                  <div className="pt-6">
-                    <h2 className="text-[16px] font-semibold text-[var(--color-text)]">Materials</h2>
-                    <p className="mt-0.5 text-[12px] text-[var(--color-text-subtle)]">
-                      Add line items, adjust pricing and margins inline.
-                    </p>
-                    <div className="mt-4">
-                      <LineItemsTable marginThresholds={marginThresholds} />
-                    </div>
-                  </div>
-
-                  {/* Delivery */}
-                  <div className="pt-8">
-                    <h2 className="text-[16px] font-semibold text-[var(--color-text)]">Delivery</h2>
-                    <div className="mt-4">
-                      <DeliveryTerms
-                        deliveryAddress={deliveryAddress}
-                        totalWeightTons={12}
-                        leadTimeDays={3}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Validation errors */}
-                  {validationErrors.length > 0 && (
-                    <div className="mt-6 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/[0.04] px-4 py-3">
-                      {validationErrors.map((err) => (
-                        <p key={err} className="text-[13px] text-[var(--color-primary)]">
-                          {err}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Next button */}
-                  <div className="pt-6">
-                    <Button
-                      variant="primary"
-                      className="w-full py-3 text-[14px]"
-                      onPress={() => tryGoToStep(2)}
-                    >
-                      Next: Source & Price →
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-
-            {/* ==================== STEP 2: Source & Price ==================== */}
-            {currentStep === 2 && (
-              <motion.div
-                key="step-2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' } }}
-                transition={springTransition}
-                className="pt-6"
-              >
                 {/* Unified source + pricing table */}
                 <div className="overflow-visible">
                   <table className="w-full text-[13px]">
@@ -581,7 +511,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                             <td className="relative py-2.5 pe-2">
                               <button
                                 type="button"
-                                onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch('') }}
+                                onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch(''); setRightPanel('canvas') }}
                                 className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-all ${
                                   isUnassigned
                                     ? 'border border-dashed border-black/20 text-black/40 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] dark:border-white/20 dark:text-white/40'
@@ -674,14 +604,20 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   </table>
                 </div>
 
-                {/* Payment */}
-                <div className="mt-4 text-[12px] text-black/40 dark:text-white/40">
-                  Payment via bank transfer or cash
+                {/* Delivery */}
+                <div className="mt-6 border-t border-black/[0.04] pt-5 dark:border-white/[0.04]">
+                  <h3 className="mb-3 text-[13px] font-semibold text-[var(--color-text)]">Delivery</h3>
+                  <DeliveryTerms
+                    deliveryAddress={deliveryAddress}
+                    totalWeightTons={12}
+                    leadTimeDays={3}
+                  />
                 </div>
 
-                {/* Validity — auto-calculated note */}
-                <div className="mt-1 text-[12px] text-black/40 dark:text-white/40">
-                  Valid for <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('validityDays') ?? 14}</span> days — expires <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{new Date(Date.now() + (methods.getValues('validityDays') ?? 14) * 86400000).toLocaleDateString('en-EG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                {/* Notes */}
+                <div className="mt-4 flex gap-6 text-[12px] text-black/40 dark:text-white/40">
+                  <span>Payment via bank transfer or cash</span>
+                  <span>Valid for <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('validityDays') ?? 14}</span> days</span>
                 </div>
 
                 {/* Totals */}
@@ -713,7 +649,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                   <Button
                     variant="primary"
                     className="w-full py-3 text-[14px]"
-                    onPress={() => tryGoToStep(3)}
+                    onPress={() => tryGoToStep(2)}
                   >
                     Next: Review & Send →
                   </Button>
@@ -721,10 +657,10 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
               </motion.div>
             )}
 
-            {/* ==================== STEP 3: Review & Send ==================== */}
-            {currentStep === 3 && (
+            {/* ==================== STEP 2: Review & Send ==================== */}
+            {currentStep === 2 && (
               <motion.div
-                key="step-3"
+                key="step-2"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' } }}
@@ -813,25 +749,30 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
         </FormProvider>
         </div>
 
-        {/* Right panel — contextual per step, wide screens only */}
+        {/* Right panel — toggles map/canvas, Step 1 only, wide screens */}
         {currentStep === 1 && (
-          <div className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:block dark:border-white/[0.06]">
-            <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map...</div>}>
-              <DeliveryMap
-                address={deliveryAddress}
-                onAddressChange={setDeliveryAddress}
-              />
-            </ClientOnly>
-          </div>
-        )}
-        {currentStep === 2 && sourcingState.length > 0 && (
-          <div className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:block dark:border-white/[0.06]">
-            <SourcingCanvas
-              items={sourcingState}
-              allSuppliers={ALL_SUPPLIERS}
-              searchSuppliers={searchSuppliers}
-              onAssignSource={assignItemSource}
-            />
+          <div className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:flex lg:flex-col dark:border-white/[0.06]">
+            {/* Toggle buttons */}
+            <div className="flex border-b border-black/[0.04] dark:border-white/[0.04]">
+              <button type="button" onClick={() => setRightPanel('map')}
+                className={`flex-1 py-2.5 text-center text-[12px] font-medium transition-colors ${rightPanel === 'map' ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' : 'text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60'}`}>
+                Map
+              </button>
+              <button type="button" onClick={() => setRightPanel('canvas')}
+                className={`flex-1 py-2.5 text-center text-[12px] font-medium transition-colors ${rightPanel === 'canvas' ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' : 'text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60'}`}>
+                Sourcing
+              </button>
+            </div>
+            {/* Panel content */}
+            <div className="flex-1">
+              {rightPanel === 'map' ? (
+                <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map...</div>}>
+                  <DeliveryMap address={deliveryAddress} onAddressChange={setDeliveryAddress} />
+                </ClientOnly>
+              ) : (
+                <SourcingCanvas items={sourcingState} allSuppliers={ALL_SUPPLIERS} searchSuppliers={searchSuppliers} onAssignSource={assignItemSource} />
+              )}
+            </div>
           </div>
         )}
       </div>
