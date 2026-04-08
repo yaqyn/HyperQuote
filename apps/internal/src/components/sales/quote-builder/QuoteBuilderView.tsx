@@ -490,18 +490,18 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                     </span>
                   </div>
                 {/* Unified source + pricing table */}
-                <div className="overflow-visible">
-                  <table className="w-full text-[13px]">
+                <div className="mt-6 overflow-visible">
+                  <table className="w-full">
                     <thead>
                       <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
-                        <th className="py-2 pe-2 text-start text-[12px] font-medium text-black/40 dark:text-white/40">Source</th>
-                        <th className="py-2 px-2 text-start text-[12px] font-medium text-black/40 dark:text-white/40">Item</th>
-                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Qty</th>
-                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Cost</th>
-                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Margin</th>
-                        <th className="py-2 px-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Price</th>
-                        <th className="py-2 ps-2 text-end text-[12px] font-medium text-black/40 dark:text-white/40">Total</th>
-                        <th className="w-8 py-2" />
+                        <th className="py-2.5 pe-3 text-start text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Source</th>
+                        <th className="py-2.5 px-3 text-start text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Item</th>
+                        <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Qty</th>
+                        <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Cost</th>
+                        <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Margin</th>
+                        <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Price</th>
+                        <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Total</th>
+                        <th className="w-8 py-2.5" />
                       </tr>
                     </thead>
                     <tbody>
@@ -512,17 +512,18 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                         const sourceName = isUnassigned ? 'Select' : isStock ? 'Warehouse' : ALL_SUPPLIERS.find((s) => s.id === sourcing?.sourceId)?.name?.split(' ')[0] ?? 'Supplier'
 
                         return (
-                          <tr key={item.id || i} className={`border-b border-black/[0.03] dark:border-white/[0.03] ${isUnassigned ? 'bg-red-500/[0.02]' : ''}`}>
-                            <td className="relative py-2.5 pe-2">
+                          <tr key={item.id || i} className={`border-b border-black/[0.03] dark:border-white/[0.03] transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01] ${isUnassigned ? 'bg-red-500/[0.02]' : ''}`}>
+                            {/* Source — small badge */}
+                            <td className="relative py-4 pe-3">
                               <button
                                 type="button"
                                 onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch(''); setRightPanel('canvas') }}
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-all ${
+                                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
                                   isUnassigned
                                     ? 'border border-dashed border-black/20 text-black/40 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] dark:border-white/20 dark:text-white/40'
                                     : isStock
                                       ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                                      : 'bg-black/[0.05] text-black/50 dark:bg-white/[0.06] dark:text-white/50'
+                                      : 'bg-black/[0.04] text-black/50 dark:bg-white/[0.06] dark:text-white/50'
                                 }`}
                               >
                                 {sourceName} ▾
@@ -543,7 +544,7 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                                       className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start text-[12px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
                                       <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
                                       <span className="flex-1 font-medium">Warehouse</span>
-                                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-green-600">{sourcing.stockAvailable}</span>
+                                      <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-green-600">{sourcing.stockAvailable}</span>
                                     </button>
                                   )}
                                   {searchSuppliers(tableSourceSearch, item.productName).slice(0, 6).map((sup) => (
@@ -551,32 +552,35 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                                       className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start text-[12px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] ${sourcing?.sourceId === sup.id ? 'bg-black/[0.03] dark:bg-white/[0.03]' : ''}`}>
                                       <span className="h-1.5 w-1.5 rounded-full bg-black/20 dark:bg-white/20" />
                                       <span className="flex-1">{sup.name}</span>
-                                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">{sup.score}</span>
+                                      <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/30 dark:text-white/30">{sup.score}</span>
                                     </button>
                                   ))}
                                 </div>
                               )}
                             </td>
-                            <td className="py-2.5 px-2">
+                            {/* Item — prominent, clickable */}
+                            <td className="py-4 px-3">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setSearchOpen(true)
-                                  // Store which row to replace
-                                  ;(window as any).__replaceItemIndex = i
-                                }}
-                                className="text-start font-medium text-[var(--color-text)] outline-none hover:text-[var(--color-primary)] transition-colors"
+                                onClick={() => { setSearchOpen(true); (window as any).__replaceItemIndex = i }}
+                                className="text-start text-[14px] font-semibold text-[var(--color-text)] outline-none hover:text-[var(--color-primary)] transition-colors"
                               >
                                 {item.productName}
                               </button>
+                              {item.specification && (
+                                <div className="mt-0.5 text-[11px] text-black/30 dark:text-white/30">{item.specification}</div>
+                              )}
                             </td>
-                            <td className="py-2.5 px-2 text-end font-[family-name:var(--font-geist-mono)] tabular-nums text-black/50 dark:text-white/50">
+                            {/* Qty — fixed, subtle */}
+                            <td className="py-4 px-3 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/40 dark:text-white/40">
                               {item.quantity}
                             </td>
-                            <td className="py-2.5 px-2 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/50 dark:text-white/50">
+                            {/* Cost — fixed from DB, subtle */}
+                            <td className="py-4 px-3 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/40 dark:text-white/40">
                               {item.supplierCost ? item.supplierCost.toLocaleString('en-EG') : '—'}
                             </td>
-                            <td className="py-2.5 px-2 text-end">
+                            {/* Margin — editable, prominent */}
+                            <td className="py-4 px-3 text-end">
                               <input
                                 type="number"
                                 value={item.marginPercent || ''}
@@ -588,12 +592,13 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                                   methods.setValue(`lineItems.${i}.sellPrice`, price)
                                   methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
                                 }}
-                                className="w-14 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none border-b border-transparent focus:border-black/[0.12] dark:focus:border-white/[0.12]"
+                                className="w-14 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)] outline-none border-b border-black/[0.06] focus:border-[var(--color-primary)]/40 dark:border-white/[0.06]"
                                 placeholder="18"
                               />
-                              <span className="text-[10px] text-black/30 dark:text-white/30">%</span>
+                              <span className="ms-0.5 text-[11px] text-black/30 dark:text-white/30">%</span>
                             </td>
-                            <td className="py-2.5 px-2 text-end">
+                            {/* Price — editable, prominent */}
+                            <td className="py-4 px-3 text-end">
                               <input
                                 type="number"
                                 value={item.sellPrice || ''}
@@ -605,16 +610,18 @@ export function QuoteBuilderView({ quoteId, rfqId }: QuoteBuilderViewProps) {
                                   methods.setValue(`lineItems.${i}.marginPercent`, margin)
                                   methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
                                 }}
-                                className="w-20 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none border-b border-transparent focus:border-black/[0.12] dark:focus:border-white/[0.12]"
+                                className="w-24 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)] outline-none border-b border-black/[0.06] focus:border-[var(--color-primary)]/40 dark:border-white/[0.06]"
                                 placeholder="0"
                               />
                             </td>
-                            <td className="py-2.5 ps-2 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums">
+                            {/* Total — bold, largest */}
+                            <td className="py-4 px-3 text-end font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
                               {(item.lineTotal || 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="py-2.5 text-center">
+                            {/* Remove */}
+                            <td className="py-4 text-center">
                               <button type="button" onClick={() => removeItem(i)}
-                                className="text-[12px] text-black/20 outline-none hover:text-black/50 dark:text-white/20 dark:hover:text-white/50">×</button>
+                                className="text-[14px] text-black/15 outline-none hover:text-black/40 dark:text-white/15 dark:hover:text-white/40 transition-colors">×</button>
                             </td>
                           </tr>
                         )

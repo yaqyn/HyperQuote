@@ -170,8 +170,8 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
         )}
       </Map>
 
-      {/* Address card at bottom */}
-      <div className="absolute bottom-4 start-4 end-4 rounded-xl border border-black/[0.06] bg-white/95 px-4 py-3 shadow-lg backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90">
+      {/* Address card at bottom — above attribution */}
+      <div className="absolute bottom-8 start-4 end-4 rounded-xl border border-black/[0.06] bg-white px-4 py-3 shadow-lg dark:border-white/[0.06] dark:bg-black">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2563EB]/10">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" className="text-[#2563EB]">
