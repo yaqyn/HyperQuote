@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form'
 import { AnimatePresence, motion } from 'motion/react'
@@ -506,8 +507,9 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
                         return (
                           <tr key={item.id || i} className={`border-b border-black/[0.03] dark:border-white/[0.03] transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01] ${isUnassigned ? 'bg-red-500/[0.02]' : ''}`}>
                             {/* Source — small badge */}
-                            <td className="relative overflow-visible py-4 pe-3">
+                            <td className="py-4 pe-3">
                               <button
+                                ref={(el) => { if (el && tableSourceOpen === i) { const r = el.getBoundingClientRect(); (window as any).__srcBtnRect = { top: r.bottom + 4, left: r.left } } }}
                                 type="button"
                                 onClick={() => { setTableSourceOpen(tableSourceOpen === i ? null : i); setTableSourceSearch(''); setRightPanel('canvas') }}
                                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
@@ -520,8 +522,11 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
                               >
                                 {sourceName} ▾
                               </button>
-                              {tableSourceOpen === i && (
-                                <div className="absolute start-0 top-full z-[9999] mt-1 w-72 rounded-xl border border-black/[0.06] bg-white p-2.5 shadow-2xl dark:border-white/[0.06] dark:bg-black">
+                              {tableSourceOpen === i && createPortal(
+                                <div
+                                  className="fixed z-[9999] w-72 rounded-xl border border-black/[0.06] bg-white p-2.5 shadow-2xl dark:border-white/[0.06] dark:bg-black"
+                                  style={{ top: (window as any).__srcBtnRect?.top ?? 0, left: (window as any).__srcBtnRect?.left ?? 0 }}
+                                >
                                   <input
                                     type="text"
                                     value={tableSourceSearch}
@@ -547,7 +552,8 @@ export function QuoteBuilderView({ quoteId, rfqId, onBack }: QuoteBuilderViewPro
                                       <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/30 dark:text-white/30">{sup.score}</span>
                                     </button>
                                   ))}
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </td>
                             {/* Item — prominent, clickable */}
