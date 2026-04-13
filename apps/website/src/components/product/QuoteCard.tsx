@@ -8,7 +8,7 @@ import {
 } from 'react-aria-components'
 import { MessageCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useLoginModal } from '../../hooks/useLoginModal'
+import { useNavigate } from '@tanstack/react-router'
 
 interface QuoteCardProps {
   productName: string
@@ -17,7 +17,7 @@ interface QuoteCardProps {
 
 export function QuoteCard({ productName, unitOfMeasure }: QuoteCardProps) {
   const { t } = useTranslation('website')
-  const { open: openLoginModal } = useLoginModal()
+  const navigateTo = useNavigate()
   const [quantity, setQuantity] = useState(1)
 
   const whatsappMessage = encodeURIComponent(
@@ -62,7 +62,7 @@ export function QuoteCard({ productName, unitOfMeasure }: QuoteCardProps) {
       {/* Add to Quote button */}
       <button
         type="button"
-        onClick={() => openLoginModal('/portal/quote')}
+        onClick={() => navigateTo({ to: '/login' })}
         className="h-12 w-full rounded-lg bg-[var(--color-primary)] font-semibold text-white transition-opacity hover:opacity-90"
       >
         {t('market.addToQuote', 'Add to Quote')}

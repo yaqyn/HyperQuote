@@ -29,7 +29,7 @@ export function WebsiteFooter() {
 	}, [])
 
 	return (
-		<footer className="sticky bottom-0 z-0 border-t border-[var(--color-text)]/[0.06]">
+		<footer dir="ltr" className="sticky bottom-0 z-0 border-t border-[var(--color-text)]/[0.06]">
 			<div className="mx-auto max-w-7xl px-6">
 				{/* Main row: Brand | Links | Contact */}
 				<div className="grid grid-cols-1 gap-14 py-16 lg:grid-cols-[1fr_auto_auto] lg:gap-20 lg:py-20">
@@ -53,7 +53,7 @@ export function WebsiteFooter() {
 								rel="noopener noreferrer"
 								className="mt-4 inline-flex self-start bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-40 transition-opacity hover:opacity-65"
 							>
-								Arkan Plaza, Sheikh Zayed ↗
+								{t('hero.address')} ↗
 							</a>
 						</div>
 					</div>
@@ -101,7 +101,7 @@ export function WebsiteFooter() {
 								onClick={(e) => handleClick(e, '/support')}
 								className="inline-flex bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-45 transition-opacity hover:opacity-70"
 							>
-								Support
+								{t('footer.support')}
 							</Link>
 						</div>
 					</div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Menu, ShoppingCart, X, Minus, Plus, Trash2, Copy, StickyNote, ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,7 @@ import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
-import { useLoginModal } from '../../hooks/useLoginModal'
+import { useNavigate } from '@tanstack/react-router'
 
 export function WebsiteHeader() {
 	const { t } = useTranslation('website')
@@ -16,18 +16,27 @@ export function WebsiteHeader() {
 	const [cartOpen, setCartOpen] = useState(false)
 	const [isDark, setIsDark] = useState(false)
 	const { items, updateQuantity, updateNote, remove, clear, duplicate, globalNote, setGlobalNote } = useQuoteCart()
-	const { open: openLoginModal } = useLoginModal()
+	const navigateTo = useNavigate()
 	const [showGlobalNote, setShowGlobalNote] = useState(false)
 	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
-	const [introDone, setIntroDone] = useState(false)
-
-	useEffect(() => {
-		const timer = setTimeout(() => setIntroDone(true), 650)
-		return () => clearTimeout(timer)
-	}, [])
-
 	const routerState = useRouterState()
 	const isHome = routerState.location.pathname === '/'
+	const wasHome = useRef(isHome)
+	const [introDone, setIntroDone] = useState(!isHome)
+
+	useEffect(() => {
+		if (isHome) {
+			// On navigation TO home: briefly hide wordmark while hero intro plays
+			setIntroDone(false)
+			const delay = wasHome.current ? 650 : 800
+			const timer = setTimeout(() => setIntroDone(true), delay)
+			wasHome.current = true
+			return () => clearTimeout(timer)
+		}
+		// Leaving home: show wordmark immediately
+		wasHome.current = false
+		setIntroDone(true)
+	}, [isHome])
 	const heroMode = isHome && !scrolled
 
 	useEffect(() => {
@@ -50,10 +59,11 @@ export function WebsiteHeader() {
 
 	return (
 		<>
-			{/* Hero logo — centered, slides up into view with headline, slides up out on scroll */}
+			{/* Hero bar — wordmark left, toggles right. Visible on home before scroll */}
 			{isHome && (
 				<div
-					className="fixed top-0 inset-x-0 z-41 h-16 max-md:h-14 flex items-center justify-center pointer-events-none overflow-hidden"
+					dir="ltr"
+					className="fixed top-0 inset-x-0 z-39 h-16 max-md:h-14 flex items-center justify-between px-6 pointer-events-none overflow-hidden"
 					style={{
 						opacity: scrolled ? 0 : 1,
 						transition: 'opacity 0.7s ease-out',
@@ -70,10 +80,20 @@ export function WebsiteHeader() {
 						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)] block overflow-hidden">
 							<span className="block" style={{
 								transform: introDone && !scrolled ? 'translateY(0)' : 'translateY(110%)',
-								transition: 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s',
+								transition: introDone ? 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s' : 'none',
 							}}>HyperQuote</span>
 						</span>
 					</button>
+					<div
+						className="flex items-center gap-1 pointer-events-auto"
+						style={{
+							opacity: introDone && !scrolled ? 1 : 0,
+							transition: introDone ? 'opacity 0.5s ease-out 0.3s' : 'none',
+						}}
+					>
+						<LanguageToggle />
+						<ThemeToggle />
+					</div>
 				</div>
 			)}
 
@@ -141,12 +161,13 @@ export function WebsiteHeader() {
 						)}
 					</button>
 
+					<span className="hidden md:block w-px h-4 bg-[var(--color-border)] ms-2" />
 					<button
 						type="button"
-						onClick={() => openLoginModal('/portal/quote')}
-						className="hidden md:inline-flex items-center text-[var(--color-text)] font-medium text-sm h-9 px-3 rounded-lg hover:text-[var(--color-primary)] transition-colors"
+						onClick={() => navigateTo({ to: '/login' })}
+						className="hidden md:inline-flex items-center justify-center w-[100px] ms-2 text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
 					>
-						{t('cta.getQuote')}
+						{t('login.step1.heading')}
 					</button>
 					<button
 						type="button"
@@ -177,7 +198,7 @@ export function WebsiteHeader() {
 								</span>
 								{items.length > 0 && (
 									<span className="text-[12px] text-[var(--color-text-muted)] ms-1.5">
-										{items.length} {items.length === 1 ? 'item' : 'items'} · {items.reduce((s, i) => s + i.quantity, 0)} units
+										{t('cart.itemCount', { count: items.length })} · {items.reduce((s, i) => s + i.quantity, 0)} {t('cart.units')}
 									</span>
 								)}
 							</div>
@@ -324,10 +345,10 @@ export function WebsiteHeader() {
 								<div className="px-4 py-3 border-t border-[var(--color-border)]">
 									<button
 										type="button"
-										onClick={() => { setCartOpen(false); openLoginModal('/portal/quote') }}
+										onClick={() => { setCartOpen(false); navigateTo({ to: '/login' }) }}
 										className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
 									>
-										{t('cart.submit')} — {items.length} {items.length === 1 ? 'item' : 'items'}
+										{t('cart.submit')} — {t('cart.itemCount', { count: items.length })}
 									</button>
 									<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
 										{t('cart.submitHint')}

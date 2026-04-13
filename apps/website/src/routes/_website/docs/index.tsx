@@ -61,19 +61,16 @@ function DocsIndexPage() {
             className="font-bold leading-[0.95] tracking-[-0.03em]"
             style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
           >
-            {t('docs.heading', { defaultValue: 'Documentation' })}
+            {t('docs.heroHeading')}
           </h1>
 
           <div className="mt-6 h-px w-16 bg-[var(--color-text)] opacity-10" />
 
           <p className="mt-6 text-[15px] opacity-35 max-w-[440px] leading-relaxed">
-            {t('docs.subheading', {
-              defaultValue:
-                'Everything you need to source materials, manage quotes, and track deliveries on HyperQuote.',
-            })}
+            {t('docs.heroSubheading')}
           </p>
           <p className="mt-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text)] opacity-25 tracking-wide">
-            {DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} articles &middot; {WIZARDS.length} guides
+            {DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} {t('docs.articles')} &middot; {WIZARDS.length} {t('docs.guides')}
           </p>
 
           {/* Search */}
@@ -94,10 +91,10 @@ function DocsIndexPage() {
           type="button"
           onClick={() => setIsMobileSidebarOpen(true)}
           className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)]"
-          aria-label={t('docs.openSidebar', { defaultValue: 'Open documentation menu' })}
+          aria-label={t('docs.openSidebar')}
         >
           <Menu size={16} />
-          {t('docs.browseAll', { defaultValue: 'Browse all topics' })}
+          {t('docs.browseAll')}
         </button>
       </div>
 
@@ -116,7 +113,7 @@ function DocsIndexPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('docs.guidesHeading', { defaultValue: 'Guides' })}
+              {t('docs.guidesHeading')}
             </h2>
           </motion.div>
 
@@ -135,7 +132,7 @@ function DocsIndexPage() {
                   className="group block p-6 border border-[var(--color-text)]/[0.06] hover:border-[var(--color-text)]/[0.12] transition-colors"
                 >
                   <span className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
-                    {t('docs.wizard.guide', { defaultValue: 'Guide' })}
+                    {t('docs.wizard.guide')}
                   </span>
                   <h3 className="mt-2 text-[16px] font-semibold tracking-[-0.01em]">
                     {t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
@@ -144,7 +141,7 @@ function DocsIndexPage() {
                     {t(w.descriptionKey, { defaultValue: displayName(w.descriptionKey) })}
                   </p>
                   <div className="mt-4 flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    {t('docs.startGuide', { defaultValue: 'Start guide' })}
+                    {t('docs.startGuide')}
                     <ArrowRight size={13} className="icon-end" />
                   </div>
                 </Link>
@@ -174,7 +171,7 @@ function DocsIndexPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('docs.docsHeading', { defaultValue: 'Documentation' })}
+              {t('docs.docsHeading')}
             </h2>
           </motion.div>
 
@@ -254,7 +251,7 @@ function DocsIndexPage() {
         >
           <Modal className="fixed inset-x-0 bottom-0 z-50">
             <Dialog
-              aria-label={t('docs.sidebarMenu', { defaultValue: 'Documentation menu' })}
+              aria-label={t('docs.sidebarMenu')}
               className="bg-[var(--color-base)] rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto outline-none"
             >
               <div className="w-12 h-1 bg-[var(--color-border)] rounded-full mx-auto mb-4" />

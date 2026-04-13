@@ -38,7 +38,7 @@ export function HowItWorksSection() {
 				className="relative overflow-hidden bg-[#101010]"
 			>
 				{/* Images — crossfade */}
-				<div className="absolute top-0 bottom-0 max-lg:hidden" style={{ left: '55%', right: 0 }}>
+				<div className="absolute top-0 bottom-0 max-lg:hidden start-[55%] end-0">
 					{IMAGES.map((src, i) => (
 						<img
 							key={src}

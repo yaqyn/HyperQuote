@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { PackageX, ArrowLeft, ChevronRight, MessageCircle } from 'lucide-react'
-import { useState } from 'react'
-import { motion } from 'motion/react'
+import { PackageX, ArrowLeft, ChevronRight, Check, Pencil, Undo2, Share2, MessageSquare, Copy } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import {
   NumberField,
   Label,
@@ -13,6 +13,8 @@ import {
 import { getProductBySlug, getPublicCatalog } from '../../../lib/catalog'
 import { formatPriceRange } from '../../../lib/price-range'
 import { SectionReveal } from '../../../components/shared/SectionReveal'
+import { useQuoteCart } from '../../../hooks/useQuoteCart'
+import { useChatWidget } from '../../../hooks/useChatWidget'
 
 export const Route = createFileRoute('/_website/market/$productSlug')({
   loader: async ({ params }) => {
@@ -56,6 +58,11 @@ export const Route = createFileRoute('/_website/market/$productSlug')({
 const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
 
 const FALLBACK_IMAGE = 'https://websiteassets.hyperquote.net/Images/cairo.webp'
+
+function formatWeight(kg: number): string {
+  if (kg >= 1000) return `${(kg / 1000).toFixed(kg % 1000 === 0 ? 0 : 1)} t`
+  return `${kg.toFixed(kg % 1 === 0 ? 0 : 1)} kg`
+}
 
 // --------------------------------------------------------------------------
 
@@ -107,27 +114,27 @@ function ProductDetailPage() {
   return (
     <>
       <div className="pt-20 pb-28 lg:pb-16">
-        {/* Back + Breadcrumb bar */}
-        <div className="px-6 lg:px-12 max-w-7xl mx-auto mb-8">
+        {/* Breadcrumb */}
+        <div className="px-6 lg:px-16 max-w-[1400px] mx-auto mb-10">
           <Link
             to="/market"
-            className="inline-flex items-center gap-2 text-[14px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+            className="inline-flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
           >
-            <ArrowLeft size={16} className="icon-end" />
+            <ArrowLeft size={14} className="icon-end" />
             {t('product.breadcrumbMarket')}
-            <ChevronRight size={12} className="text-[var(--color-border)] rtl:rotate-180" />
+            <ChevronRight size={10} className="text-[var(--color-border)] rtl:rotate-180" />
             <span className="text-[var(--color-text-muted)]">{categoryLabel}</span>
           </Link>
         </div>
 
         {/* Hero: Image + Info */}
-        <div className="px-6 lg:px-12 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-16">
+        <div className="px-6 lg:px-16 max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-20">
             {/* Image */}
             <ProductImage images={images} name={productName} />
 
             {/* Info column */}
-            <div className="flex flex-col">
+            <div className="flex flex-col lg:py-2">
               {/* Category */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -137,7 +144,7 @@ function ProductDetailPage() {
                 <Link
                   to="/market"
                   search={{ category: product.category }}
-                  className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)]"
+                  className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)]"
                 >
                   {categoryLabel}
                 </Link>
@@ -148,7 +155,7 @@ function ProductDetailPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...spring, delay: 0.04 }}
-                className="mt-3 text-[32px] lg:text-[40px] font-bold leading-tight text-[var(--color-text)] tracking-tight"
+                className="mt-4 text-[36px] lg:text-[44px] font-bold leading-[1.05] text-[var(--color-text)] tracking-[-0.02em]"
               >
                 {productName}
               </motion.h1>
@@ -158,14 +165,14 @@ function ProductDetailPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...spring, delay: 0.08 }}
-                className="mt-4 flex items-center gap-4"
+                className="mt-5 flex items-center gap-4"
               >
-                <span className="font-mono text-[13px] text-[var(--color-text-subtle)]">
+                <span className="font-mono text-[12px] text-[var(--color-text-subtle)]">
                   {product.sku}
                 </span>
-                <span className="w-px h-4 bg-[var(--color-border)]" />
-                <span className="flex items-center gap-2 text-[14px] text-[var(--color-text-muted)]">
-                  <span className={`w-2 h-2 rounded-full ${availDot}`} />
+                <span className="w-px h-3.5 bg-[var(--color-border)]" />
+                <span className="flex items-center gap-2 text-[13px] text-[var(--color-text-muted)]">
+                  <span className={`w-1.5 h-1.5 rounded-full ${availDot}`} />
                   {availLabel}
                 </span>
               </motion.div>
@@ -175,9 +182,9 @@ function ProductDetailPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...spring, delay: 0.12 }}
-                className="mt-6"
+                className="mt-8"
               >
-                <p className="font-mono text-[24px] font-bold text-[var(--color-primary)]">
+                <p className="font-mono text-[28px] font-bold text-[var(--color-primary)] tracking-[-0.01em]">
                   {priceRange}
                 </p>
               </motion.div>
@@ -188,7 +195,7 @@ function ProductDetailPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ ...spring, delay: 0.16 }}
-                  className="mt-6 text-[16px] leading-[1.7] text-[var(--color-text-muted)] max-w-[500px]"
+                  className="mt-6 text-[15px] leading-[1.8] text-[var(--color-text-muted)] max-w-[480px]"
                 >
                   {locale === 'ar' && product.description_ar
                     ? product.description_ar
@@ -196,11 +203,46 @@ function ProductDetailPage() {
                 </motion.p>
               )}
 
-              {/* Divider */}
-              <div className="my-8 h-px bg-[var(--color-border)]" />
-
               {/* Quote action — desktop */}
-              <QuoteAction unitOfMeasure={product.unit_of_measure} productName={productName} />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...spring, delay: 0.2 }}
+                className="mt-10 hidden lg:block"
+              >
+                <QuoteAction
+                  product={{
+                    id: product.id,
+                    slug: product.slug,
+                    name: product.name,
+                    category: product.category,
+                    unitOfMeasure: product.unit_of_measure,
+                    imageUrl: images[0],
+                    weightKg: product.weight_kg,
+                  }}
+                  productName={productName}
+                />
+
+                <div className="mt-4">
+                  <ProductActions
+                    productName={productName}
+                    description={
+                      locale === 'ar' && product.description_ar
+                        ? product.description_ar
+                        : product.description ?? ''
+                    }
+                    sku={product.sku}
+                    category={categoryLabel}
+                    priceRange={priceRange}
+                    slug={product.slug}
+                    specifications={(product.specifications as Record<string, unknown>) ?? {}}
+                    brand={product.brand}
+                    manufacturer={product.manufacturer}
+                    weightKg={product.weight_kg}
+                    unitOfMeasure={product.unit_of_measure}
+                  />
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>
@@ -219,7 +261,17 @@ function ProductDetailPage() {
       </div>
 
       {/* Mobile bottom bar */}
-      <MobileBar unitOfMeasure={product.unit_of_measure} />
+      <MobileBar
+        product={{
+          id: product.id,
+          slug: product.slug,
+          name: product.name,
+          category: product.category,
+          unitOfMeasure: product.unit_of_measure,
+          imageUrl: images[0],
+          weightKg: product.weight_kg,
+        }}
+      />
     </>
   )
 }
@@ -235,14 +287,15 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      transition={spring}
+      className="lg:sticky lg:top-24 lg:self-start"
     >
       {/* Main image */}
-      <div className="group aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+      <div className="group aspect-[5/6] overflow-hidden rounded-2xl bg-[var(--color-surface)]">
         <img
           src={images[activeIndex]}
           alt={name}
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           loading="eager"
         />
       </div>
@@ -255,10 +308,10 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
               key={url}
               type="button"
               onClick={() => setActiveIndex(i)}
-              className={`h-16 w-16 overflow-hidden rounded-lg border-2 transition-colors ${
+              className={`h-16 w-16 overflow-hidden rounded-lg transition-all duration-200 ${
                 i === activeIndex
-                  ? 'border-[var(--color-primary)]'
-                  : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
+                  ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-base)]'
+                  : 'opacity-60 hover:opacity-100'
               }`}
             >
               <img src={url} alt={`${name} ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
@@ -274,74 +327,317 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
 // Quote Action — quantity + CTA
 // --------------------------------------------------------------------------
 
-function QuoteAction({ unitOfMeasure, productName }: { unitOfMeasure: string; productName: string }) {
-  const { t } = useTranslation('website')
-  const [quantity, setQuantity] = useState(1)
+interface QuoteActionProduct {
+  id: string
+  slug: string
+  name: string
+  category: string
+  unitOfMeasure: string
+  imageUrl: string | null
+  weightKg: number | null
+}
 
-  const whatsappMessage = encodeURIComponent(
-    `Hi, I'm interested in ${productName}. Can I get a quote?`,
-  )
+const PRESETS: Record<string, number[]> = {
+  ton: [1, 5, 10, 25],
+  bag: [10, 25, 50, 100],
+  m3: [1, 5, 10, 20],
+  m2: [10, 25, 50, 100],
+  piece: [10, 50, 100, 500],
+  roll: [5, 10, 25, 50],
+  liter: [5, 20, 50, 100],
+  kg: [25, 50, 100, 500],
+}
+
+type QuoteMode = 'idle' | 'selecting' | 'added'
+
+function QuoteAction({ product, productName }: { product: QuoteActionProduct; productName: string }) {
+  const { t } = useTranslation('website')
+  const { add, remove, items, updateQuantity } = useQuoteCart()
+  const cartItem = items.find((i) => i.productId === product.id)
+  const [quantity, setQuantity] = useState(1)
+  const [mode, setMode] = useState<QuoteMode>(cartItem ? 'added' : 'idle')
+
+  // Sync mode when cart changes externally
+  useEffect(() => {
+    if (!cartItem && mode === 'added') setMode('idle')
+    if (cartItem && mode === 'idle') setMode('added')
+  }, [cartItem, mode])
+
+  const unit = t(`units.${product.unitOfMeasure}`, product.unitOfMeasure)
+
+  const inputRef = useCallback((el: HTMLInputElement | null) => {
+    if (el && mode === 'selecting') {
+      requestAnimationFrame(() => { el.focus(); el.select() })
+    }
+  }, [mode])
+
+  const confirmWithQuantity = (qty: number) => {
+    const q = Math.max(1, qty)
+    if (cartItem) {
+      updateQuantity(product.id, q)
+    } else {
+      add(
+        {
+          productId: product.id,
+          slug: product.slug,
+          name: product.name,
+          category: product.category,
+          unitOfMeasure: product.unitOfMeasure,
+          imageUrl: product.imageUrl,
+        },
+        q,
+      )
+    }
+    setQuantity(q)
+    setMode('added')
+  }
+
+  const handleConfirm = () => confirmWithQuantity(quantity)
+
+  const handleRemove = () => {
+    remove(product.id)
+    setQuantity(1)
+    setMode('idle')
+  }
+
+  const handleEdit = () => {
+    if (cartItem) setQuantity(cartItem.quantity)
+    setMode('selecting')
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.2 }}
-      className="hidden lg:block"
-    >
-      <NumberField
-        value={quantity}
-        onChange={(v) => setQuantity(v)}
-        minValue={1}
-        step={1}
-        className="mb-5"
-      >
-        <Label className="mb-2 block text-[14px] font-medium text-[var(--color-text)]">
-          {t('product.quantityLabel')}
-          <span className="ms-2 text-[13px] font-normal text-[var(--color-text-muted)]">
-            ({t(`units.${unitOfMeasure}`, unitOfMeasure)})
-          </span>
-        </Label>
-        <Group className="flex items-center gap-2">
-          <Button
-            slot="decrement"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--color-border)] text-lg hover:bg-[var(--color-surface)] transition-colors"
+    <div className="rounded-2xl bg-[var(--color-surface)] p-6">
+      <AnimatePresence mode="wait" initial={false}>
+        {/* State: idle — just the Add to Quote button */}
+        {mode === 'idle' && (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            -
-          </Button>
-          <Input className="h-11 w-[100px] rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-center font-mono text-[16px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
-          <Button
-            slot="increment"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--color-border)] text-lg hover:bg-[var(--color-surface)] transition-colors"
+            <button
+              type="button"
+              onClick={() => setMode('selecting')}
+              className="h-14 w-full rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
+            >
+              {t('market.addToQuote')}
+            </button>
+          </motion.div>
+        )}
+
+        {/* State: selecting — advanced quantity picker + confirm */}
+        {mode === 'selecting' && (
+          <motion.div
+            key="selecting"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            +
-          </Button>
-        </Group>
-      </NumberField>
+            {/* Unified stepper */}
+            <NumberField
+              value={quantity}
+              onChange={(v) => setQuantity(v)}
+              minValue={1}
+              step={1}
+              className="mb-4"
+            >
+              <Label className="sr-only">{t('product.quantityLabel')}</Label>
+              <Group className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] overflow-hidden">
+                <Button
+                  slot="decrement"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center text-[20px] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-border)]"
+                >
+                  -
+                </Button>
+                <div className="flex flex-1 items-center justify-center gap-2">
+                  <Input
+                    ref={inputRef}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === 'Enter') { confirmWithQuantity(parseInt(e.currentTarget.value, 10) || 1) }
+                      if (e.key === 'Escape') setMode(cartItem ? 'added' : 'idle')
+                    }}
+                    className="h-14 w-[80px] bg-transparent text-center font-mono text-[20px] font-semibold text-[var(--color-text)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <span className="text-[13px] text-[var(--color-text-subtle)] font-medium">{unit}</span>
+                </div>
+                <Button
+                  slot="increment"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center text-[20px] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-border)]"
+                >
+                  +
+                </Button>
+              </Group>
+            </NumberField>
 
-      <button
-        type="button"
-        onClick={() => console.log('Add to Quote — Login Modal (Phase 6)')}
-        className="h-13 w-full rounded-xl bg-[var(--color-primary)] font-semibold text-[16px] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
-      >
-        {t('market.addToQuote')}
-      </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMode(cartItem ? 'added' : 'idle')}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-base)] hover:text-[var(--color-text)] transition-colors"
+                aria-label={t('product.back')}
+              >
+                <ArrowLeft size={18} className="icon-end" />
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="h-14 flex-1 rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-2"
+              >
+                <Check size={18} />
+                {t('product.confirm')}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
-      <a
-        href={`https://wa.me/201234567890?text=${whatsappMessage}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-4 flex items-center justify-center gap-2 text-[14px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-      >
-        <MessageCircle size={16} />
-        {t('product.whatsappFallback')}
-      </a>
-    </motion.div>
+        {/* State: added — back (remove) + edit */}
+        {mode === 'added' && (
+          <motion.div
+            key="added"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            {cartItem && (
+              <p className="mb-4 text-[13px] text-[var(--color-text-muted)]">
+                <span className="font-mono font-semibold text-[var(--color-text)]">{cartItem.quantity}</span>
+                {' '}{unit} {t('product.inQuote')}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-error)] hover:text-[var(--color-error)] transition-colors"
+                aria-label={t('product.removeFromQuote')}
+              >
+                <Undo2 size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={handleEdit}
+                className="h-14 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] font-semibold text-[15px] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2"
+              >
+                <Pencil size={16} />
+                {t('product.editQuantity')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
 // --------------------------------------------------------------------------
-// Specs Section — clean grid layout
+// Product Actions — share, AI, copy, WhatsApp
+// --------------------------------------------------------------------------
+
+interface ProductActionsProps {
+  productName: string
+  description: string
+  sku: string
+  category: string
+  priceRange: string
+  slug: string
+  specifications: Record<string, unknown>
+  brand: string | null
+  manufacturer: string | null
+  weightKg: number | null
+  unitOfMeasure: string
+}
+
+function buildProductText(props: ProductActionsProps, t: (k: string) => string): string {
+  const lines: string[] = [
+    props.productName,
+    `${props.sku}  ·  ${props.category}`,
+    '',
+    props.priceRange,
+  ]
+
+  if (props.description) {
+    lines.push('', props.description)
+  }
+
+  const specs: string[] = []
+  if (props.manufacturer) specs.push(`${t('product.specManufacturer')}: ${props.manufacturer}`)
+  if (props.brand) specs.push(`${t('product.specBrand')}: ${props.brand}`)
+  for (const [key, value] of Object.entries(props.specifications)) {
+    if (value == null || value === '') continue
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    specs.push(`${label}: ${String(value)}`)
+  }
+  if (props.weightKg != null) specs.push(`${t('product.specWeight')}: ${props.weightKg} kg`)
+  if (props.unitOfMeasure) specs.push(`${t('product.specUOM')}: ${t(`units.${props.unitOfMeasure}`, props.unitOfMeasure)}`)
+
+  if (specs.length > 0) {
+    lines.push('', '—', ...specs)
+  }
+
+  lines.push('', `hyperquote.net/market/${props.slug}`)
+  return lines.join('\n')
+}
+
+function ProductActions(props: ProductActionsProps) {
+  const { t } = useTranslation('website')
+  const [copied, setCopied] = useState(false)
+  const openWithMessage = useChatWidget((s) => s.openWithMessage)
+
+  const productText = buildProductText(props, t)
+  const productUrl = `https://hyperquote.net/market/${props.slug}`
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      await navigator.share({ title: props.productName, text: props.description, url: productUrl })
+    } else {
+      await navigator.clipboard.writeText(productUrl)
+    }
+  }
+
+  const handleAskLyon = () => {
+    openWithMessage(props.productName)
+  }
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(productText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleWhatsApp = () => {
+    const waText = encodeURIComponent(productText)
+    window.open(`https://wa.me/?text=${waText}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const btnClass =
+    'flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text-subtle)] hover:border-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors'
+
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={handleShare} className={btnClass} aria-label={t('product.share')}>
+        <Share2 size={16} />
+      </button>
+      <button type="button" onClick={handleAskLyon} className={btnClass} aria-label={t('product.askLyon')}>
+        <MessageSquare size={16} />
+      </button>
+      <button type="button" onClick={handleCopy} className={btnClass} aria-label={t('product.copy')}>
+        {copied ? <Check size={16} className="text-[var(--color-success)]" /> : <Copy size={16} />}
+      </button>
+      <button type="button" onClick={handleWhatsApp} className={btnClass} aria-label={t('product.shareWhatsApp')}>
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+// --------------------------------------------------------------------------
+// Specs Section — grid of individual spec items
 // --------------------------------------------------------------------------
 
 function SpecsSection({
@@ -359,44 +655,46 @@ function SpecsSection({
 }) {
   const { t } = useTranslation('website')
 
-  const rows: { label: string; value: string; mono: boolean }[] = []
+  const items: { label: string; value: string; mono: boolean }[] = []
 
-  if (brand) rows.push({ label: t('product.specBrand'), value: brand, mono: false })
-  if (manufacturer) rows.push({ label: t('product.specManufacturer'), value: manufacturer, mono: false })
+  if (manufacturer) items.push({ label: t('product.specManufacturer'), value: manufacturer, mono: false })
+  if (brand) items.push({ label: t('product.specBrand'), value: brand, mono: false })
 
   for (const [key, value] of Object.entries(specifications)) {
     if (value == null || value === '') continue
-    rows.push({
+    items.push({
       label: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       value: String(value),
       mono: typeof value === 'number' || /^[\d.,]+/.test(String(value)),
     })
   }
 
-  if (weightKg != null) rows.push({ label: t('product.specWeight'), value: `${weightKg} kg`, mono: true })
-  if (unitOfMeasure) rows.push({ label: t('product.specUOM'), value: t(`units.${unitOfMeasure}`, unitOfMeasure), mono: false })
+  if (weightKg != null) items.push({ label: t('product.specWeight'), value: `${weightKg} kg`, mono: true })
+  if (unitOfMeasure) items.push({ label: t('product.specUOM'), value: t(`units.${unitOfMeasure}`, unitOfMeasure), mono: false })
 
-  if (rows.length === 0) return null
+  if (items.length === 0) return null
 
   return (
-    <div className="mt-20 px-6 lg:px-12 max-w-7xl mx-auto">
+    <div className="mt-24 px-6 lg:px-16 max-w-[1400px] mx-auto">
       <SectionReveal>
-        <p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">
           {t('product.specsLabel')}
         </p>
-        <h2 className="text-[28px] lg:text-[32px] font-bold text-[var(--color-text)] mb-10">
+        <h2 className="text-[28px] lg:text-[36px] font-bold text-[var(--color-text)] tracking-[-0.02em] mb-12">
           {t('product.specsHeading')}
         </h2>
       </SectionReveal>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-        {rows.map((row, i) => (
-          <SectionReveal key={row.label} delay={i * 0.03}>
-            <div className="flex items-center justify-between py-4 px-1 border-b border-[var(--color-border)]">
-              <span className="text-[15px] text-[var(--color-text-muted)]">{row.label}</span>
-              <span className={`text-[15px] font-medium text-[var(--color-text)] ${row.mono ? 'font-mono' : ''}`}>
-                {row.value}
-              </span>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-[var(--color-border)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
+        {items.map((item, i) => (
+          <SectionReveal key={item.label} delay={i * 0.03}>
+            <div className="bg-[var(--color-base)] px-5 py-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-2">
+                {item.label}
+              </p>
+              <p className={`text-[16px] font-semibold text-[var(--color-text)] ${item.mono ? 'font-mono' : ''}`}>
+                {item.value}
+              </p>
             </div>
           </SectionReveal>
         ))}
@@ -428,17 +726,17 @@ function RelatedSection({ products }: { products: RelatedProduct[] }) {
   if (products.length === 0) return null
 
   return (
-    <div className="mt-20 px-6 lg:px-12 max-w-7xl mx-auto">
+    <div className="mt-24 px-6 lg:px-16 max-w-[1400px] mx-auto">
       <SectionReveal>
-        <p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">
           {t('product.relatedLabel')}
         </p>
-        <h2 className="text-[28px] lg:text-[32px] font-bold text-[var(--color-text)] mb-10">
+        <h2 className="text-[28px] lg:text-[36px] font-bold text-[var(--color-text)] tracking-[-0.02em] mb-12">
           {t('product.relatedHeading')}
         </h2>
       </SectionReveal>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
         {products.slice(0, 3).map((product, i) => {
           const name = locale === 'ar' && product.name_ar ? product.name_ar : product.name
           const image = product.image_urls?.[0] ?? FALLBACK_IMAGE
@@ -449,19 +747,21 @@ function RelatedSection({ products }: { products: RelatedProduct[] }) {
               <Link
                 to="/market/$productSlug"
                 params={{ productSlug: product.slug }}
-                className="group block rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] overflow-hidden hover:border-[var(--color-primary)] hover:shadow-md transition-all duration-200"
+                className="group block"
               >
-                <div className="aspect-[4/3] overflow-hidden bg-[var(--color-surface)]">
+                <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--color-surface)]">
                   <img
                     src={image}
                     alt={name}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
                     loading="lazy"
                   />
                 </div>
-                <div className="p-4">
-                  <p className="text-[15px] font-semibold text-[var(--color-text)] line-clamp-2">{name}</p>
-                  <p className="mt-2 font-mono text-[14px] text-[var(--color-primary)]">{price}</p>
+                <div className="mt-4">
+                  <h3 className="text-[15px] font-semibold text-[var(--color-text)] line-clamp-2 leading-snug group-hover:text-[var(--color-primary)] transition-colors">
+                    {name}
+                  </h3>
+                  <p className="mt-2 font-mono text-[14px] text-[var(--color-text-muted)]">{price}</p>
                 </div>
               </Link>
             </SectionReveal>
@@ -476,47 +776,180 @@ function RelatedSection({ products }: { products: RelatedProduct[] }) {
 // Mobile Bottom Bar
 // --------------------------------------------------------------------------
 
-function MobileBar({ unitOfMeasure }: { unitOfMeasure: string }) {
+function MobileBar({ product }: { product: QuoteActionProduct }) {
   const { t } = useTranslation('website')
+  const { add, remove, items, updateQuantity } = useQuoteCart()
+  const cartItem = items.find((i) => i.productId === product.id)
   const [quantity, setQuantity] = useState(1)
+  const [mode, setMode] = useState<QuoteMode>(cartItem ? 'added' : 'idle')
+
+  useEffect(() => {
+    if (!cartItem && mode === 'added') setMode('idle')
+    if (cartItem && mode === 'idle') setMode('added')
+  }, [cartItem, mode])
+
+  const unit = t(`units.${product.unitOfMeasure}`, product.unitOfMeasure)
+
+  const mobileInputRef = useCallback((el: HTMLInputElement | null) => {
+    if (el && mode === 'selecting') {
+      requestAnimationFrame(() => { el.focus(); el.select() })
+    }
+  }, [mode])
+
+  const confirmWithQuantity = (qty: number) => {
+    const q = Math.max(1, qty)
+    if (cartItem) {
+      updateQuantity(product.id, q)
+    } else {
+      add(
+        {
+          productId: product.id,
+          slug: product.slug,
+          name: product.name,
+          category: product.category,
+          unitOfMeasure: product.unitOfMeasure,
+          imageUrl: product.imageUrl,
+        },
+        q,
+      )
+    }
+    setQuantity(q)
+    setMode('added')
+  }
+
+  const handleConfirm = () => confirmWithQuantity(quantity)
+
+  const handleRemove = () => {
+    remove(product.id)
+    setQuantity(1)
+    setMode('idle')
+  }
+
+  const handleEdit = () => {
+    if (cartItem) setQuantity(cartItem.quantity)
+    setMode('selecting')
+  }
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 flex h-16 items-center gap-3 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 lg:hidden">
-      <NumberField
-        value={quantity}
-        onChange={(v) => setQuantity(v)}
-        minValue={1}
-        step={1}
-        aria-label={t('product.quantityLabel')}
-      >
-        <Group className="flex items-center gap-1">
-          <Button
-            slot="decrement"
-            className="flex h-10 w-8 items-center justify-center rounded border border-[var(--color-border)] text-sm"
+    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 lg:hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        {mode === 'idle' && (
+          <motion.div
+            key="m-idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex h-12 items-center"
           >
-            -
-          </Button>
-          <Input className="h-10 w-[60px] rounded border border-[var(--color-border)] bg-transparent px-1 text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
-          <Button
-            slot="increment"
-            className="flex h-10 w-8 items-center justify-center rounded border border-[var(--color-border)] text-sm"
+            <button
+              type="button"
+              onClick={() => setMode('selecting')}
+              className="h-10 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white"
+            >
+              {t('market.addToQuote')}
+            </button>
+          </motion.div>
+        )}
+
+        {mode === 'selecting' && (
+          <motion.div
+            key="m-selecting"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex h-12 items-center gap-2"
           >
-            +
-          </Button>
-        </Group>
-      </NumberField>
+            <button
+              type="button"
+              onClick={() => setMode(cartItem ? 'added' : 'idle')}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)]"
+              aria-label={t('product.back')}
+            >
+              <ArrowLeft size={16} className="icon-end" />
+            </button>
 
-      <span className="text-xs text-[var(--color-text-muted)]">
-        {t(`units.${unitOfMeasure}`, unitOfMeasure)}
-      </span>
+            <NumberField
+              value={quantity}
+              onChange={(v) => setQuantity(v)}
+              minValue={1}
+              step={1}
+              aria-label={t('product.quantityLabel')}
+            >
+              <Group className="flex items-center gap-1">
+                <Button
+                  slot="decrement"
+                  className="flex h-10 w-8 items-center justify-center rounded border border-[var(--color-border)] text-sm"
+                >
+                  -
+                </Button>
+                <Input
+                  ref={mobileInputRef}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === 'Enter') { confirmWithQuantity(parseInt(e.currentTarget.value, 10) || 1) }
+                    if (e.key === 'Escape') setMode(cartItem ? 'added' : 'idle')
+                  }}
+                  className="h-10 w-[52px] rounded border border-[var(--color-border)] bg-transparent px-1 text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                />
+                <Button
+                  slot="increment"
+                  className="flex h-10 w-8 items-center justify-center rounded border border-[var(--color-border)] text-sm"
+                >
+                  +
+                </Button>
+              </Group>
+            </NumberField>
 
-      <button
-        type="button"
-        onClick={() => console.log('Add to Quote — Phase 6')}
-        className="h-10 flex-1 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white"
-      >
-        {t('market.addToQuote')}
-      </button>
+            <span className="text-[11px] text-[var(--color-text-muted)] shrink-0">{unit}</span>
+
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="h-10 flex-1 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white flex items-center justify-center gap-1.5"
+            >
+              <Check size={16} />
+              {t('product.confirm')}
+            </button>
+          </motion.div>
+        )}
+
+        {mode === 'added' && (
+          <motion.div
+            key="m-added"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex h-12 items-center gap-2"
+          >
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)]"
+              aria-label={t('product.removeFromQuote')}
+            >
+              <Undo2 size={16} />
+            </button>
+
+            {cartItem && (
+              <span className="text-[12px] text-[var(--color-text-muted)] shrink-0">
+                <span className="font-mono font-semibold text-[var(--color-text)]">{cartItem.quantity}</span>
+                {' '}{unit}
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="h-10 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm font-semibold text-[var(--color-text)] flex items-center justify-center gap-1.5"
+            >
+              <Pencil size={14} />
+              {t('product.editQuantity')}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

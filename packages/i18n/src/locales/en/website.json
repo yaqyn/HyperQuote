@@ -18,7 +18,8 @@
     "headlinePart2": "Faster.",
     "address": "Arkan Plaza, Sheikh Zayed, Egypt",
     "subheadline": "We source your building materials and deliver them to your site. You focus on building.",
-    "imageAlt": "Cairo construction site"
+    "imageAlt": "Cairo construction site",
+    "visitUs": "Visit us ↗"
   },
   "howItWorks": {
     "label": "HyperQuote",
@@ -115,7 +116,7 @@
     "team": {
       "label": "Team",
       "heading": "Team",
-      "member1": { "name": "Ahmed Hassan", "role": "CEO & Founder" },
+      "member1": { "name": "Hicham M. AlQuoaiidy", "role": "CEO & Founder" },
       "member2": { "name": "Sarah El-Masry", "role": "CTO" },
       "member3": { "name": "Omar Khalil", "role": "Head of Operations" },
       "member4": { "name": "Nour Abdel-Rahman", "role": "Head of Product" }
@@ -136,7 +137,10 @@
     "remove": "Remove item",
     "addNote": "Add a note",
     "submit": "Request Quote",
-    "submitHint": "Free. No commitment. Response within 4 hours."
+    "submitHint": "Free. No commitment. Response within 4 hours.",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "units": "units"
   },
   "market": {
     "pageTitle": "Building Materials",
@@ -166,6 +170,7 @@
     "filtersApply": "Apply",
     "filtersReset": "Reset",
     "addToQuote": "Add to Quote",
+    "addMore": "Add More",
     "priceOnRequest": "Price on Request",
     "emptyTitle": "No products found",
     "emptyBody": "Try adjusting your filters or search terms",
@@ -234,6 +239,16 @@
     "relatedHeading": "Related Products",
     "quantityLabel": "Quantity",
     "whatsappFallback": "Or reach us on WhatsApp",
+    "confirm": "Confirm",
+    "back": "Back",
+    "inQuote": "in quote",
+    "editQuantity": "Edit",
+    "removeFromQuote": "Remove from quote",
+    "estimatedWeight": "Est. weight",
+    "share": "Share",
+    "askLyon": "Calculate with Lyon",
+    "copy": "Copy product details",
+    "shareWhatsApp": "Share on WhatsApp",
     "notFoundTitle": "Product not found",
     "notFoundBody": "This product may have been removed or the link is incorrect.",
     "notFoundCTA": "Browse Market",
@@ -389,7 +404,8 @@
     "signInPrompt": "Sign in to continue",
     "welcome": "How can we help?",
     "fabLabel": "Open chat",
-    "closeLabel": "Close chat"
+    "closeLabel": "Close chat",
+    "heroDescription": "Materials, pricing, delivery, orders — ask anything about HyperQuote."
   },
   "support": {
     "heading": "How can we help?",
@@ -534,7 +550,11 @@
       "deny": "No, create a new one"
     },
     "claimFailed": "Something went wrong. Try again.",
-    "rateLimit": "Too many attempts. Wait a moment."
+    "rateLimit": "Too many attempts. Wait a moment.",
+    "otpDigit": "Digit {{n}}"
+  },
+  "search": {
+    "noResults": "No results found"
   },
   "docs": {
     "sidebar": {
@@ -604,6 +624,20 @@
     },
     "toc": {
       "label": "Contents"
+    },
+    "heroHeading": "Documentation",
+    "heroSubheading": "Everything you need to source materials, manage quotes, and track deliveries on HyperQuote.",
+    "searchPlaceholder": "Search documentation...",
+    "articles": "articles",
+    "guides": "guides",
+    "browseAll": "Browse all topics",
+    "openSidebar": "Open documentation menu",
+    "guidesHeading": "Guides",
+    "docsHeading": "Documentation",
+    "startGuide": "Start guide",
+    "sidebarMenu": "Documentation menu",
+    "wizard": {
+      "guide": "Guide"
     }
   }
 }

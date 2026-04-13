@@ -96,8 +96,8 @@ export function DocsSearch({ onAskLyon }: DocsSearchProps = {}) {
   return (
     <SearchDropdown
       items={items}
-      placeholder={t('docs.searchPlaceholder', { defaultValue: 'Search documentation...' })}
-      askLyonLabel={t('docs.askLyon', { defaultValue: 'Ask Lyon' })}
+      placeholder={t('docs.searchPlaceholder')}
+      askLyonLabel={t('chat.header')}
       onSelect={handleSelect}
       onAskLyon={onAskLyon}
       className="max-w-[480px]"

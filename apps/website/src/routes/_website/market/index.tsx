@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { useState, useMemo, useCallback } from 'react'
+import { motion } from 'motion/react'
 import {
   SearchX,
   AlertTriangle,
@@ -69,6 +70,7 @@ export const Route = createFileRoute('/_website/market/')({
     ],
   }),
   component: MarketPage,
+  pendingComponent: MarketLoading,
   errorComponent: MarketError,
 })
 
@@ -295,11 +297,16 @@ function MarketPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6"
+              >
                 {data.items.map((item) => (
                   <ProductCard key={item.id} product={item} variant="grid" />
                 ))}
-              </div>
+              </motion.div>
 
               <Pagination
                 total={data.total}
@@ -313,6 +320,38 @@ function MarketPage() {
       </section>
 
       <MobileCartButton />
+    </div>
+  )
+}
+
+function MarketLoading() {
+  return (
+    <div className="min-h-screen pt-20 max-md:pt-16">
+      <section className="px-6 lg:px-12 pb-6">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="h-10 w-48 rounded-lg bg-[var(--color-surface)] animate-pulse" />
+        </div>
+      </section>
+      <section className="border-y border-[var(--color-border)] py-3">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 flex gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-8 w-20 rounded-full bg-[var(--color-surface)] animate-pulse" />
+          ))}
+        </div>
+      </section>
+      <section className="px-6 lg:px-12 py-8">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="aspect-[3/2] rounded-lg bg-[var(--color-surface)]" />
+                <div className="mt-3 h-4 w-3/4 rounded bg-[var(--color-surface)]" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-[var(--color-surface)]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

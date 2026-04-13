@@ -77,7 +77,8 @@ function DesktopPanel(props: ChatPanelProps) {
           exit={closed}
           transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           style={{ transformOrigin: 'bottom right' }}
-          className="fixed bottom-20 end-4 z-50 flex h-[500px] w-[380px] flex-col overflow-hidden rounded-2xl border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
+          dir="ltr"
+          className="fixed bottom-20 right-4 z-50 flex h-[500px] w-[380px] flex-col overflow-hidden rounded-2xl border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
         >
           <PanelShell {...props} />
         </motion.div>
@@ -96,7 +97,7 @@ function MobilePanel(props: ChatPanelProps) {
       isDismissable
       className="fixed inset-0 z-50 flex items-end bg-black/25"
     >
-      <Modal className="flex h-[75vh] w-full flex-col rounded-t-2xl border-t border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_-16px_60px_rgba(0,0,0,0.1)] outline-none">
+      <Modal dir="ltr" className="flex h-[75vh] w-full flex-col rounded-t-2xl border-t border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_-16px_60px_rgba(0,0,0,0.1)] outline-none">
         <PanelShell {...props} />
       </Modal>
     </ModalOverlay>

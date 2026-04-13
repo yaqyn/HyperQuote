@@ -18,7 +18,7 @@ export function ChatFAB() {
   }, [])
 
   return (
-    <div className="fixed bottom-4 end-4 z-40 flex flex-col items-center gap-2">
+    <div dir="ltr" className="fixed bottom-4 right-4 z-40 flex flex-col items-center gap-2">
       {/* Back to top */}
       <AnimatePresence>
         {scrolled && !isOpen && (

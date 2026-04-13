@@ -33,6 +33,8 @@ export interface SearchDropdownProps {
   className?: string
   /** Unique ID prefix for ARIA (avoid collisions if multiple on page) */
   idPrefix?: string
+  /** Label shown when no results match */
+  noResultsLabel?: string
 }
 
 // ── Utilities ──
@@ -77,6 +79,7 @@ export function SearchDropdown({
   maxResults = 8,
   className = '',
   idPrefix = 'search',
+  noResultsLabel = 'No results found',
 }: SearchDropdownProps) {
   const openWithMessage = useChatWidget((s) => s.openWithMessage)
   const [query, setQuery] = useState('')
@@ -287,7 +290,7 @@ export function SearchDropdown({
             ) : (
               <>
                 <div className="px-5 pt-5 pb-2">
-                  <p className="text-[14px] opacity-35">No results found</p>
+                  <p className="text-[14px] opacity-35">{noResultsLabel}</p>
                 </div>
                 {onAskLyon && (
                   <button

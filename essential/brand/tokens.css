@@ -16,7 +16,7 @@
 @theme {
   /* Typography */
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-arabic: 'Tajawal', system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
 
   /* Spacing (4px base grid) */

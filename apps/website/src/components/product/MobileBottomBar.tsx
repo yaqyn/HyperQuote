@@ -6,7 +6,7 @@ import {
   Button,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { useLoginModal } from '../../hooks/useLoginModal'
+import { useNavigate } from '@tanstack/react-router'
 
 interface MobileBottomBarProps {
   unitOfMeasure: string
@@ -14,7 +14,7 @@ interface MobileBottomBarProps {
 
 export function MobileBottomBar({ unitOfMeasure }: MobileBottomBarProps) {
   const { t } = useTranslation('website')
-  const { open: openLoginModal } = useLoginModal()
+  const navigateTo = useNavigate()
   const [quantity, setQuantity] = useState(1)
 
   return (
@@ -51,7 +51,7 @@ export function MobileBottomBar({ unitOfMeasure }: MobileBottomBarProps) {
       {/* Add to Quote button */}
       <button
         type="button"
-        onClick={() => openLoginModal('/portal/quote')}
+        onClick={() => navigateTo({ to: '/login' })}
         className="h-10 flex-1 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white"
       >
         {t('market.addToQuote', 'Add to Quote')}

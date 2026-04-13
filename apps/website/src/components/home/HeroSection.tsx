@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
-import { Link } from '@tanstack/react-router'
-import { useLoginModal } from '../../hooks/useLoginModal'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useChatWidget } from '../../hooks/useChatWidget'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
@@ -19,7 +18,7 @@ const transition = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
-	const { open: openLoginModal } = useLoginModal()
+	const navigateTo = useNavigate()
 	const [stage, setStage] = useState(0)
 	const [mode, setMode] = useState<HeroMode>('hero')
 	const [chatInitialMessage, setChatInitialMessage] = useState('')
@@ -95,7 +94,7 @@ export function HeroSection() {
 								transition={transition}
 								className="text-center"
 							>
-								<h1 className="text-[56px] lg:text-[80px] leading-[1.02] font-extrabold tracking-[-0.03em]">
+								<h1 className="text-[56px] lg:text-[80px] leading-[1.3] font-extrabold tracking-[-0.03em]">
 									<span className="block overflow-hidden">
 										<span
 											className="block text-[var(--color-text)]"
@@ -123,6 +122,7 @@ export function HeroSection() {
 
 								{/* Mode buttons */}
 								<div
+									dir="ltr"
 									className="mt-8 flex items-center justify-center gap-1"
 									style={{
 										opacity: stage >= 3 ? 1 : 0,
@@ -139,7 +139,7 @@ export function HeroSection() {
 									</button>
 									<span className="text-[var(--color-border)] text-[10px]">|</span>
 									<button type="button" onClick={() => openChat()} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-subtle)]">
-										Ask Lyon
+										{t('chat.header')}
 									</button>
 								</div>
 							</motion.div>
@@ -185,13 +185,13 @@ export function HeroSection() {
 							>
 								<div className="w-full max-w-[600px] text-center">
 									<h2 className="text-[48px] lg:text-[64px] font-extrabold tracking-[-0.03em] text-[var(--color-text)] leading-[1]">
-										{t('docs.heading', { defaultValue: 'Documentation' })}
+										{t('docs.heroHeading')}
 									</h2>
 									<p className="mt-5 text-[16px] text-[var(--color-text-muted)] leading-relaxed mx-auto max-w-[440px]">
-										{t('docs.subheading', { defaultValue: 'Everything you need to source materials, manage quotes, and track deliveries on HyperQuote.' })}
+										{t('docs.heroSubheading')}
 									</p>
 									<p className="mt-2 font-mono text-[12px] text-[var(--color-text-subtle)] tracking-wide">
-										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} articles · {WIZARDS.length} guides
+										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} {t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
 									</p>
 									<div className="mt-10 flex justify-center">
 										<div className="w-full max-w-[480px]">
@@ -219,6 +219,7 @@ export function HeroSection() {
 
 				{/* Bottom bar */}
 				<div
+					dir="ltr"
 					className="w-full border-t border-[var(--color-border)] shrink-0"
 					style={{
 						opacity: stage >= 3 ? 1 : 0,
@@ -242,7 +243,7 @@ export function HeroSection() {
 										onClick={() => setMode('hero')}
 										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
 									>
-										← Back
+										← {t('product.back')}
 									</button>
 									<div className="flex items-center gap-1">
 										<button
@@ -264,7 +265,7 @@ export function HeroSection() {
 											onClick={() => openChat()}
 											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'chat' ? 'text-[var(--color-primary)] font-semibold bg-[var(--color-subtle)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]'}`}
 										>
-											Ask Lyon
+											{t('chat.header')}
 										</button>
 									</div>
 								</motion.div>
@@ -278,8 +279,8 @@ export function HeroSection() {
 									className="flex items-center justify-between max-sm:flex-col max-sm:gap-4"
 								>
 									<div className="flex items-center gap-4">
-										<Link to="/support" className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-											FAQ
+										<Link to="/support" hash="faq" className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+											{t('support.sectionFaq')}
 										</Link>
 										<AddressCycle />
 									</div>
@@ -287,7 +288,7 @@ export function HeroSection() {
 										<Link to="/market" className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors">
 											{t('cta.browseMarket')}
 										</Link>
-										<button type="button" onClick={() => openLoginModal()} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+										<button type="button" onClick={() => navigateTo({ to: '/login' })} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
 											{t('login.step1.heading')}
 										</button>
 									</div>
@@ -341,17 +342,17 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 	const isEmpty = messages.length === 0
 
 	return (
-		<div className="flex-1 flex flex-col w-full">
+		<div dir="ltr" className="flex-1 flex flex-col w-full">
 			<div className="pt-20 shrink-0" />
 
 			<div ref={messagesRef} className="flex-1 overflow-y-auto">
 				{isEmpty && !isLoading ? (
 					<div className="h-full flex flex-col items-center justify-center gap-3">
 						<h2 className="text-[28px] lg:text-[40px] font-extrabold text-[var(--color-text)] tracking-[-0.03em]">
-							Ask Lyon
+							{t('chat.header')}
 						</h2>
 						<p className="text-[15px] text-[var(--color-text-subtle)] max-w-[360px] text-center">
-							Materials, pricing, delivery, orders — ask anything about HyperQuote.
+							{t('chat.heroDescription')}
 						</p>
 					</div>
 				) : (
@@ -389,6 +390,7 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 					<div className="flex items-end gap-3 bg-[var(--color-surface)] rounded-2xl px-4 py-3">
 						<textarea
 							ref={inputRef}
+							dir="auto"
 							value={input}
 							onChange={(e) => { setInput(e.target.value); handleInput() }}
 							onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
@@ -417,7 +419,7 @@ function AddressCycle() {
 	const [index, setIndex] = useState(0)
 	const [prevIndex, setPrevIndex] = useState(-1)
 	const [ready, setReady] = useState(false)
-	const items = [t('hero.address'), t('hero.visitUs', { defaultValue: 'Visit us ↗' })]
+	const items = [t('hero.address'), t('hero.visitUs')]
 
 	// Delay cycle start so it doesn't animate during the bar's fade-in
 	useEffect(() => {

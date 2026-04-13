@@ -88,7 +88,7 @@ function SupportPage() {
             className="font-extrabold leading-[1] tracking-[-0.03em]"
             style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
           >
-            {t('support.heroHeading', { defaultValue: 'How can we help?' })}
+            {t('support.heading')}
           </h1>
           <p className="mt-5 text-[15px] opacity-35 mx-auto max-w-[400px] leading-[1.7]">
             {t('support.responseTime')}
@@ -153,6 +153,7 @@ function SupportPage() {
 
       {/* FAQ */}
       <motion.section
+        id="faq"
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}

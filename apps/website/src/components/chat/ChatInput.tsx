@@ -44,6 +44,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
       <div className="flex items-end border-b border-[var(--color-text)]/[0.1] pb-2 transition-colors duration-200 focus-within:border-[var(--color-primary)]/40">
         <textarea
           ref={textareaRef}
+          dir="auto"
           value={value}
           onChange={(e) => { setValue(e.target.value); handleInput() }}
           onKeyDown={handleKeyDown}

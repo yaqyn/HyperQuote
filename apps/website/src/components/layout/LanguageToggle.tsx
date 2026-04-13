@@ -7,11 +7,19 @@ export function LanguageToggle() {
 	const next = isAr ? 'en' : 'ar'
 
 	function handleToggle() {
-		i18n.changeLanguage(next)
-		document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
-		document.documentElement.lang = next
-		localStorage.setItem('hq-locale', next)
-		document.cookie = 'hq-locale=' + next + ';path=/;max-age=31536000'
+		const swap = () => {
+			i18n.changeLanguage(next)
+			document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
+			document.documentElement.lang = next
+			localStorage.setItem('hq-locale', next)
+			document.cookie = 'hq-locale=' + next + ';path=/;max-age=31536000'
+		}
+
+		if (document.startViewTransition) {
+			document.startViewTransition(swap)
+		} else {
+			swap()
+		}
 	}
 
 	return (

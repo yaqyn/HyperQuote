@@ -122,78 +122,63 @@
 
 
 /* ========================================
-   IBM PLEX SANS ARABIC — Arabic Text
+   TAJAWAL — Arabic Text
    Unicode range: Arabic script blocks
    ======================================== */
 
 @font-face {
-  font-family: 'IBM Plex Sans Arabic';
-  font-style: normal;
-  font-weight: 100;
-  font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-Thin.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans Arabic';
-  font-style: normal;
-  font-weight: 200;
-  font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-ExtraLight.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans Arabic';
+  font-family: 'Tajawal';
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-Light.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
+  src: url('./tajawal/Tajawal-Light-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891,
+    U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
 
 @font-face {
-  font-family: 'IBM Plex Sans Arabic';
+  font-family: 'Tajawal';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
+  src: url('./tajawal/Tajawal-Regular-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891,
+    U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
 
 @font-face {
-  font-family: 'IBM Plex Sans Arabic';
+  font-family: 'Tajawal';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-Medium.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
+  src: url('./tajawal/Tajawal-Medium-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891,
+    U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
 
 @font-face {
-  font-family: 'IBM Plex Sans Arabic';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-SemiBold.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans Arabic';
+  font-family: 'Tajawal';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('./ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF,
-    U+FB50-FDFF, U+FE70-FEFF, U+0660-0669, U+06F0-06F9;
+  src: url('./tajawal/Tajawal-Bold-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891,
+    U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./tajawal/Tajawal-ExtraBold-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891,
+    U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
 
 

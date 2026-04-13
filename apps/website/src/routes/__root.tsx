@@ -5,38 +5,44 @@ import {
 	Scripts,
 	createRootRoute,
 } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 import { I18nProvider } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
-import { LoginModal } from '../components/auth/LoginModal'
+
 import { ChatWidget } from '../components/chat/ChatWidget'
 import { ChatProvider } from '../hooks/ChatProvider'
 import styles from '../styles.css?url'
 import { setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
 
-function detectLocale(request?: Request): 'ar' | 'en' {
-	// Client-side: read from localStorage or current i18n state
-	if (!request) {
-		if (typeof localStorage !== 'undefined') {
-			const stored = localStorage.getItem('hq-locale')
-			if (stored === 'ar' || stored === 'en') return stored
-		}
-		return 'en'
+const getServerLocale = createServerFn().handler(async () => {
+	const { getCookie } = await import('@tanstack/react-start/server')
+	const locale = getCookie('hq-locale')
+	return (locale === 'ar' || locale === 'en') ? locale : 'en'
+})
+
+function detectClientLocale(): 'ar' | 'en' {
+	if (typeof localStorage !== 'undefined') {
+		const stored = localStorage.getItem('hq-locale')
+		if (stored === 'ar' || stored === 'en') return stored
 	}
-
-	// Server-side: check cookie → Accept-Language → default
-	const cookieHeader = request.headers.get('cookie') ?? ''
-	const match = cookieHeader.match(/hq-locale=(ar|en)/)
-	if (match) return match[1] as 'ar' | 'en'
-
+	if (typeof document !== 'undefined') {
+		if (document.documentElement.dir === 'rtl') return 'ar'
+		const match = document.cookie.match(/hq-locale=(ar|en)/)
+		if (match) return match[1] as 'ar' | 'en'
+	}
 	return 'en'
 }
 
 export const Route = createRootRoute({
-	beforeLoad: async ({ context }) => {
-		const request = (context as Record<string, unknown>).request as Request | undefined
-		const locale = detectLocale(request)
+	beforeLoad: async () => {
+		let locale: 'ar' | 'en'
+		if (typeof window === 'undefined') {
+			locale = await getServerLocale()
+		} else {
+			locale = detectClientLocale()
+		}
 		await setupI18n(locale)
 		return { locale }
 	},
@@ -66,7 +72,13 @@ function RootComponent() {
 				<HeadContent />
 				<script
 					dangerouslySetInnerHTML={{
-						__html: '(function(){var t=localStorage.getItem("hq-theme");if(t)document.documentElement.setAttribute("data-theme",t);})()',
+						__html: `(function(){
+							var d=document.documentElement;
+							var t=localStorage.getItem("hq-theme");
+							if(t)d.setAttribute("data-theme",t);
+							var l=localStorage.getItem("hq-locale");
+							if(l){d.lang=l;d.dir=l==="ar"?"rtl":"ltr";}
+						})()`,
 					}}
 				/>
 			</head>
@@ -81,7 +93,6 @@ function RootComponent() {
 				<I18nProvider locale={locale}>
 					<ChatProvider>
 						<Outlet />
-						<LoginModal />
 						<ChatWidget />
 					</ChatProvider>
 				</I18nProvider>
