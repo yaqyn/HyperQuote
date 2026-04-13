@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Menu, ShoppingCart, X, Minus, Plus, Trash2, Copy, StickyNote, ChevronDown } from 'lucide-react'
+import { Menu, ShoppingCart, X, Minus, Plus, Trash2, Copy, StickyNote, ChevronDown, ArrowLeft, Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useScrolled } from '../../hooks/useScrolled'
 import { LanguageToggle } from './LanguageToggle'
@@ -8,6 +8,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 import { useNavigate } from '@tanstack/react-router'
+import { sendOTP, verifyOTP } from '../../lib/auth'
 
 export function WebsiteHeader() {
 	const { t } = useTranslation('website')
@@ -184,46 +185,30 @@ export function WebsiteHeader() {
 			{cartOpen && (
 				<>
 					<div
-						className="fixed inset-0 z-45"
+						className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px]"
 						onClick={() => setCartOpen(false)}
 						onKeyDown={() => {}}
 						role="presentation"
 					/>
-					<div className="fixed top-16 end-4 z-50 w-[380px] max-h-[80vh] bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden flex flex-col">
+					<div className="fixed top-14 right-4 z-50 w-[360px] max-h-[75vh] bg-[var(--color-base)] rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col border border-[var(--color-text)]/[0.06]">
 						{/* Header */}
-						<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-							<div>
-								<span className="text-[14px] font-semibold text-[var(--color-text)]">
-									{t('cart.title')}
-								</span>
-								{items.length > 0 && (
-									<span className="text-[12px] text-[var(--color-text-muted)] ms-1.5">
-										{t('cart.itemCount', { count: items.length })} · {items.reduce((s, i) => s + i.quantity, 0)} {t('cart.units')}
-									</span>
-								)}
-							</div>
-							<div className="flex items-center gap-1.5">
-								{items.length > 0 && (
-									<button type="button" onClick={clear} className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-colors px-1.5 py-0.5 rounded hover:bg-[var(--color-surface)]">
-										{t('cart.clearAll')}
-									</button>
-								)}
-								<button type="button" onClick={() => setCartOpen(false)} className="p-1 rounded hover:bg-[var(--color-surface)]">
-									<X size={15} className="text-[var(--color-text-muted)]" />
-								</button>
-							</div>
+						<div className="flex items-center justify-between px-5 pt-5 pb-4">
+							<span className="text-[15px] font-semibold text-[var(--color-text)]">
+								{t('cart.title')}
+							</span>
+							<button type="button" onClick={() => setCartOpen(false)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">
+								<X size={15} />
+							</button>
 						</div>
 
 						{/* Items */}
 						{items.length === 0 ? (
-							<div className="px-4 py-10 text-center">
-								<ShoppingCart size={28} className="mx-auto text-[var(--color-text-subtle)] mb-3" />
-								<p className="text-[14px] font-medium text-[var(--color-text)] mb-1">{t('cart.emptyTitle')}</p>
-								<p className="text-[13px] text-[var(--color-text-muted)] mb-3">{t('cart.empty')}</p>
+							<div className="px-5 pb-6 pt-4 text-center">
+								<p className="text-[13px] text-[var(--color-text-muted)] mb-4">{t('cart.empty')}</p>
 								<Link
 									to="/market"
 									onClick={() => setCartOpen(false)}
-									className="text-[13px] font-medium text-[var(--color-primary)] hover:underline"
+									className="text-[13px] font-medium text-[var(--color-primary)]"
 								>
 									{t('cart.browseCta')}
 								</Link>
@@ -231,129 +216,48 @@ export function WebsiteHeader() {
 						) : (
 							<>
 								<div className="flex-1 overflow-y-auto">
-									{items.map((item) => {
-										const noteOpen = expandedNotes.has(item.productId)
-										return (
-											<div key={item.productId} className="px-4 py-3 border-b border-[var(--color-divider)]">
-												<div className="flex items-start gap-3">
-													{item.imageUrl && (
-														<Link to="/market/$productSlug" params={{ productSlug: item.slug }} onClick={() => setCartOpen(false)}>
-															<img src={item.imageUrl} alt="" className="w-11 h-11 rounded-lg object-cover bg-[var(--color-surface)] shrink-0" />
-														</Link>
-													)}
-													<div className="flex-1 min-w-0">
-														<Link to="/market/$productSlug" params={{ productSlug: item.slug }} onClick={() => setCartOpen(false)} className="text-[13px] font-medium text-[var(--color-text)] line-clamp-1 hover:text-[var(--color-primary)] transition-colors block">
-															{item.name}
-														</Link>
-														<p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-															{t(`categories.${item.category}`)} · {t(`units.${item.unitOfMeasure}`, item.unitOfMeasure)}
-														</p>
-													</div>
-													<button type="button" onClick={() => remove(item.productId)} className="p-1 text-[var(--color-text-subtle)] hover:text-[var(--color-error)] shrink-0 transition-colors">
-														<Trash2 size={13} />
-													</button>
-												</div>
-
-												{/* Quantity + actions row */}
-												<div className="flex items-center gap-2 mt-2 ms-14">
-													<div className="flex items-center border border-[var(--color-border)] rounded-lg overflow-hidden">
-														<button type="button" onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors">
-															<Minus size={11} />
-														</button>
-														<input
-															type="number"
-															value={item.quantity}
-															onChange={(e) => {
-																const v = parseInt(e.target.value, 10)
-																if (!isNaN(v) && v >= 0) updateQuantity(item.productId, v)
-															}}
-															className="w-12 h-7 text-center font-mono text-[13px] bg-transparent border-x border-[var(--color-border)] outline-none text-[var(--color-text)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-															min={1}
-														/>
-														<button type="button" onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors">
-															<Plus size={11} />
-														</button>
-													</div>
-
-													<button
-														type="button"
-														onClick={() => duplicate(item.productId)}
-														className="p-1.5 rounded text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
-														title={t('cart.duplicate', { defaultValue: 'Duplicate' })}
-													>
-														<Copy size={12} />
-													</button>
-													<button
-														type="button"
-														onClick={() => {
-															const next = new Set(expandedNotes)
-															if (next.has(item.productId)) next.delete(item.productId)
-															else next.add(item.productId)
-															setExpandedNotes(next)
-														}}
-														className={`p-1.5 rounded transition-colors ${item.note ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]'} hover:bg-[var(--color-surface)]`}
-														title={t('cart.addNote')}
-													>
-														<StickyNote size={12} />
-													</button>
-												</div>
-
-												{/* Per-item note */}
-												{noteOpen && (
-													<div className="mt-2 ms-14">
-														<input
-															type="text"
-															value={item.note}
-															onChange={(e) => updateNote(item.productId, e.target.value)}
-															placeholder={t('cart.notePlaceholder', { defaultValue: 'e.g. Grade 42.5N preferred' })}
-															className="w-full h-7 px-2 rounded border border-[var(--color-border)] bg-transparent text-[12px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:border-[var(--color-primary)] transition-colors"
-														/>
-													</div>
-												)}
+									{items.map((item, idx) => (
+										<div key={item.productId} className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}>
+											{/* Name + remove */}
+											<div className="flex items-start justify-between gap-3">
+												<Link to="/market/$productSlug" params={{ productSlug: item.slug }} onClick={() => setCartOpen(false)} className="text-[13px] font-medium text-[var(--color-text)] line-clamp-1 hover:text-[var(--color-primary)] transition-colors">
+													{item.name}
+												</Link>
+												<button type="button" onClick={() => remove(item.productId)} className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5">
+													<X size={13} />
+												</button>
 											</div>
-										)
-									})}
-								</div>
 
-								{/* Global note toggle */}
-								<div className="border-t border-[var(--color-border)]">
-									<button
-										type="button"
-										onClick={() => setShowGlobalNote(!showGlobalNote)}
-										className="w-full flex items-center justify-between px-4 py-2.5 text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-									>
-										<span className="flex items-center gap-1.5">
-											<StickyNote size={12} />
-											{t('cart.addNote')}
-										</span>
-										<ChevronDown size={12} className={`transition-transform ${showGlobalNote ? 'rotate-180' : ''}`} />
-									</button>
-									{showGlobalNote && (
-										<div className="px-4 pb-3">
-											<textarea
-												value={globalNote}
-												onChange={(e) => setGlobalNote(e.target.value)}
-												placeholder={t('cart.globalNotePlaceholder', { defaultValue: 'Delivery instructions, timeline, special requirements...' })}
-												rows={2}
-												className="w-full px-2.5 py-2 rounded-lg border border-[var(--color-border)] bg-transparent text-[12px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:border-[var(--color-primary)] transition-colors resize-none"
-											/>
+											{/* Unified stepper — matches product page */}
+											<div className="flex items-center rounded-xl border border-[var(--color-text)]/[0.06] bg-[var(--color-surface)] overflow-hidden mt-3 h-10">
+												<button type="button" onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]">
+													<Minus size={13} />
+												</button>
+												<div className="flex flex-1 items-center justify-center gap-2">
+													<input
+														type="number"
+														value={item.quantity}
+														onChange={(e) => {
+															const v = parseInt(e.target.value, 10)
+															if (!isNaN(v) && v >= 0) updateQuantity(item.productId, v)
+														}}
+														className="w-12 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+														min={1}
+													/>
+													<span className="text-[12px] text-[var(--color-text-subtle)]">
+														{t(`units.${item.unitOfMeasure}`, item.unitOfMeasure)}
+													</span>
+												</div>
+												<button type="button" onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]">
+													<Plus size={13} />
+												</button>
+											</div>
 										</div>
-									)}
+									))}
 								</div>
 
-								{/* Submit */}
-								<div className="px-4 py-3 border-t border-[var(--color-border)]">
-									<button
-										type="button"
-										onClick={() => { setCartOpen(false); navigateTo({ to: '/login' }) }}
-										className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
-									>
-										{t('cart.submit')} — {t('cart.itemCount', { count: items.length })}
-									</button>
-									<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
-										{t('cart.submitHint')}
-									</p>
-								</div>
+								{/* Submit / Inline Auth */}
+								<CartSubmit itemCount={items.length} />
 							</>
 						)}
 					</div>
@@ -365,5 +269,204 @@ export function WebsiteHeader() {
 				onClose={() => setMobileNavOpen(false)}
 			/>
 		</>
+	)
+}
+
+// --------------------------------------------------------------------------
+// Cart Submit — inline auth when not signed in
+// --------------------------------------------------------------------------
+
+const PHONE_REGEX = /^(10|11|12|15)\d{8}$/
+const OTP_LENGTH = 6
+const RESEND_COOLDOWN = 30
+
+type CartAuthStep = 'submit' | 'phone' | 'otp'
+
+function CartSubmit({ itemCount }: { itemCount: number }) {
+	const { t } = useTranslation('website')
+	const [step, setStep] = useState<CartAuthStep>('submit')
+	const [phone, setPhone] = useState('')
+	const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+	const [error, setError] = useState<string | null>(null)
+	const [loading, setLoading] = useState(false)
+	const [resendCountdown, setResendCountdown] = useState(0)
+	const phoneRef = useRef<HTMLInputElement>(null)
+	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+	useEffect(() => {
+		if (resendCountdown <= 0) return
+		const timer = setInterval(() => setResendCountdown((p) => Math.max(0, p - 1)), 1000)
+		return () => clearInterval(timer)
+	}, [resendCountdown])
+
+	useEffect(() => {
+		if (step === 'phone') phoneRef.current?.focus()
+		if (step === 'otp') otpRefs.current[0]?.focus()
+	}, [step])
+
+	async function handleSendOTP() {
+		if (!PHONE_REGEX.test(phone)) { setError(t('login.phoneInvalid')); return }
+		setLoading(true); setError(null)
+		try {
+			const result = await sendOTP({ data: { phone, method: 'whatsapp' } })
+			if (!result.success) { setError(result.error === 'rate_limited' ? t('login.rateLimit') : t('login.sendFailed')); return }
+			setResendCountdown(RESEND_COOLDOWN)
+			setStep('otp')
+		} catch { setError(t('login.sendFailed')) }
+		finally { setLoading(false) }
+	}
+
+	const submitCode = useCallback(async (digits: string[]) => {
+		const fullCode = digits.join('')
+		if (fullCode.length !== OTP_LENGTH) return
+		setLoading(true); setError(null)
+		try {
+			const result = await verifyOTP({ data: { phone, code: fullCode } })
+			if (!result.success) {
+				setError(t('login.wrongCode'))
+				setCode(Array(OTP_LENGTH).fill(''))
+				otpRefs.current[0]?.focus()
+				return
+			}
+			window.location.reload()
+		} catch {
+			setError(t('login.wrongCode'))
+			setCode(Array(OTP_LENGTH).fill(''))
+			otpRefs.current[0]?.focus()
+		} finally { setLoading(false) }
+	}, [phone, t])
+
+	function handleOTPInput(index: number, value: string) {
+		const digit = value.replace(/\D/g, '').slice(-1)
+		const newCode = [...code]
+		newCode[index] = digit
+		setCode(newCode)
+		if (digit && index < OTP_LENGTH - 1) otpRefs.current[index + 1]?.focus()
+		if (digit && newCode.every((d) => d !== '')) submitCode(newCode)
+	}
+
+	function handleOTPKeyDown(index: number, e: React.KeyboardEvent) {
+		if (e.key === 'Backspace' && !code[index] && index > 0) otpRefs.current[index - 1]?.focus()
+	}
+
+	function handleOTPPaste(e: React.ClipboardEvent) {
+		e.preventDefault()
+		const pasted = e.clipboardData.getData('text').replace(/\D/g, '')
+		if (!pasted.length) return
+		const chars = pasted.slice(0, OTP_LENGTH).split('')
+		const newCode = [...code]
+		for (let i = 0; i < chars.length; i++) newCode[i] = chars[i]
+		setCode(newCode)
+		const next = newCode.findIndex((d) => !d)
+		if (next >= 0) otpRefs.current[next]?.focus()
+		else { otpRefs.current[OTP_LENGTH - 1]?.focus(); submitCode(newCode) }
+	}
+
+	async function handleResend() {
+		setError(null); setResendCountdown(RESEND_COOLDOWN)
+		try { await sendOTP({ data: { phone, method: 'whatsapp' } }) }
+		catch { setError(t('login.sendFailed')) }
+	}
+
+	if (step === 'submit') {
+		return (
+			<div className="px-4 py-3 border-t border-[var(--color-border)]">
+				<button
+					type="button"
+					onClick={() => setStep('phone')}
+					className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
+				>
+					{t('cart.submit')} — {t('cart.itemCount', { count: itemCount })}
+				</button>
+				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
+					{t('cart.submitHint')}
+				</p>
+			</div>
+		)
+	}
+
+	if (step === 'phone') {
+		return (
+			<div className="px-4 py-3 border-t border-[var(--color-border)]">
+				<div className="flex items-center gap-2 mb-3">
+					<button type="button" onClick={() => { setStep('submit'); setError(null) }} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+						<ArrowLeft size={14} />
+					</button>
+					<span className="text-[13px] font-medium text-[var(--color-text)]">{t('login.step1.heading')}</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<span className="flex h-9 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-[12px] text-[var(--color-text-muted)] shrink-0">
+						<span aria-hidden>🇪🇬</span>
+						<span className="font-mono">+20</span>
+					</span>
+					<input
+						ref={phoneRef}
+						type="tel"
+						inputMode="numeric"
+						value={phone}
+						onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); if (error) setError(null) }}
+						onKeyDown={(e) => { if (e.key === 'Enter') handleSendOTP() }}
+						className="h-9 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 font-mono text-[14px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+					/>
+				</div>
+				{error && <p className="mt-2 text-[11px] text-[var(--color-error)]">{error}</p>}
+				<button
+					type="button"
+					onClick={handleSendOTP}
+					disabled={loading}
+					className="mt-3 w-full h-9 rounded-lg bg-[#25D366] text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+				>
+					{loading ? (
+						<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+					) : (
+						<>
+							<svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+							{t('login.whatsappCTA')}
+						</>
+					)}
+				</button>
+			</div>
+		)
+	}
+
+	return (
+		<div className="px-4 py-3 border-t border-[var(--color-border)]">
+			<div className="flex items-center gap-2 mb-3">
+				<button type="button" onClick={() => { setStep('phone'); setError(null); setCode(Array(OTP_LENGTH).fill('')) }} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+					<ArrowLeft size={14} />
+				</button>
+				<span className="text-[13px] font-medium text-[var(--color-text)]">{t('login.step2.heading')}</span>
+				<span className="font-mono text-[11px] text-[var(--color-text-subtle)] ms-auto">+20{phone}</span>
+			</div>
+			<div dir="ltr" className="flex justify-center gap-1.5" onPaste={handleOTPPaste}>
+				{Array.from({ length: OTP_LENGTH }).map((_, i) => (
+					<input
+						key={i}
+						ref={(el) => { otpRefs.current[i] = el }}
+						type="tel"
+						inputMode="numeric"
+						maxLength={1}
+						value={code[i]}
+						onChange={(e) => handleOTPInput(i, e.target.value)}
+						onKeyDown={(e) => handleOTPKeyDown(i, e)}
+						disabled={loading}
+						className="h-9 w-9 rounded-lg border border-[var(--color-border)] bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] disabled:opacity-50"
+					/>
+				))}
+			</div>
+			{error && <p className="mt-2 text-center text-[11px] text-[var(--color-error)]">{error}</p>}
+			{loading && (
+				<div className="mt-2 flex justify-center">
+					<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)]" />
+				</div>
+			)}
+			<div className="mt-2 text-center text-[11px]">
+				{resendCountdown > 0 ? (
+					<span className="text-[var(--color-text-subtle)]">{t('login.resendIn')} <span className="font-mono">{resendCountdown}s</span></span>
+				) : (
+					<button type="button" onClick={handleResend} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">{t('login.resend')}</button>
+				)}
+			</div>
+		</div>
 	)
 }

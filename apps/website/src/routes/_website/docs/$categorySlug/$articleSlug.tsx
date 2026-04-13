@@ -48,7 +48,7 @@ function ArticlePage() {
 
   const { category, article } = match
   const adjacent = getAdjacentArticles(categorySlug, articleSlug)
-  const headings = useMemo(() => extractHeadings(markdown), [markdown])
+  const headings = useMemo(() => extractHeadings(markdown), [markdown, locale])
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 lg:px-12 pt-24 pb-20 lg:pt-32 lg:pb-28">
@@ -80,6 +80,7 @@ function ArticlePage() {
 
         {/* Article */}
         <ArticleRenderer
+          key={locale}
           markdown={markdown}
           articleTitle={t(article.titleKey, { defaultValue: displayName(article.titleKey) })}
           categorySlug={categorySlug}
@@ -89,7 +90,7 @@ function ArticlePage() {
         />
 
         {/* TOC */}
-        <TableOfContentsRaw headings={headings} />
+        <TableOfContentsRaw key={`toc-${locale}`} headings={headings} />
       </motion.div>
 
       {/* Mobile sidebar */}

@@ -636,8 +636,15 @@
     "docsHeading": "Documentation",
     "startGuide": "Start guide",
     "sidebarMenu": "Documentation menu",
+    "askLyon": "Ask Lyon",
+    "nav": {
+      "previous": "Previous",
+      "next": "Next"
+    },
     "wizard": {
-      "guide": "Guide"
+      "guide": "Guide",
+      "previous": "Previous",
+      "next": "Next"
     }
   }
 }

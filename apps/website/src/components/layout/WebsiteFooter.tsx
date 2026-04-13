@@ -47,14 +47,24 @@ export function WebsiteFooter() {
 							<span className="mt-3 max-w-[200px] text-[13px] leading-[1.5] opacity-35">
 								{t('hero.subheadline').split('.')[0]}.
 							</span>
-							<a
-								href="https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="mt-4 inline-flex self-start bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-40 transition-opacity hover:opacity-65"
-							>
-								{t('hero.address')} ↗
-							</a>
+							<div className="mt-4 flex items-center gap-2">
+								<a
+									href="https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex bg-[var(--color-text)]/[0.04] px-3 py-1.5 rounded-lg text-[11px] tracking-wide opacity-40 transition-opacity hover:opacity-65"
+								>
+									{t('hero.visitUs')}
+								</a>
+								<a
+									href="https://portal.hyperquote.net"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1.5 bg-[var(--color-primary)] text-white px-4 py-1.5 rounded-lg text-[11px] font-semibold tracking-wide transition-opacity hover:opacity-85"
+								>
+									Portal ↗
+								</a>
+							</div>
 						</div>
 					</div>
 
@@ -65,9 +75,9 @@ export function WebsiteFooter() {
 								{t('footer.platform')}
 							</h3>
 							<ul className="flex flex-col gap-2.5">
-								<li><Link to="/portal" onClick={(e) => handleClick(e, '/portal')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.getQuote')}</Link></li>
+								<li><Link to="/login" onClick={(e) => handleClick(e, '/login')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('login.step1.heading')}</Link></li>
 								<li><Link to="/market" onClick={(e) => handleClick(e, '/market')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.browseMarket')}</Link></li>
-								<li><Link to="/portal" onClick={(e) => handleClick(e, '/portal')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.trackOrder')}</Link></li>
+								<li><Link to="/support" onClick={(e) => handleClick(e, '/support')} className="text-[13px] opacity-45 transition-opacity hover:opacity-75">{t('footer.support')}</Link></li>
 							</ul>
 						</div>
 						<div>
@@ -82,29 +92,6 @@ export function WebsiteFooter() {
 						</div>
 					</div>
 
-					{/* Contact */}
-					<div>
-						<h3 className="mb-4 text-[11px] font-medium uppercase tracking-[.1em] opacity-25">
-							{t('support.sectionContact')}
-						</h3>
-						<div className="flex flex-col gap-2">
-							<a
-								href="https://wa.me/201234567890"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-45 transition-opacity hover:opacity-70"
-							>
-								WhatsApp ↗
-							</a>
-							<Link
-								to="/support"
-								onClick={(e) => handleClick(e, '/support')}
-								className="inline-flex bg-[var(--color-text)]/[0.04] px-3 py-1.5 text-[11px] tracking-wide opacity-45 transition-opacity hover:opacity-70"
-							>
-								{t('footer.support')}
-							</Link>
-						</div>
-					</div>
 				</div>
 
 				{/* Bottom */}
