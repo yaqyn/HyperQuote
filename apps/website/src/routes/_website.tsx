@@ -15,9 +15,9 @@ function WebsiteLayout() {
       const scrollTop = window.scrollY
       const docHeight = document.documentElement.scrollHeight - window.innerHeight
       if (docHeight <= 0) { setShadowOpacity(0); return }
-      // Fade shadow in the last 300px of scroll
+      // Fade shadow in the last 800px of scroll
       const remaining = docHeight - scrollTop
-      setShadowOpacity(Math.min(1, remaining / 300))
+      setShadowOpacity(Math.min(1, remaining / 800))
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
