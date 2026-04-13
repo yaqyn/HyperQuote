@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Outlet, createFileRoute } from '@tanstack/react-router'
 import { WebsiteHeader } from '../components/layout/WebsiteHeader'
 import { WebsiteFooter } from '../components/layout/WebsiteFooter'
@@ -7,10 +8,30 @@ export const Route = createFileRoute('/_website')({
 })
 
 function WebsiteLayout() {
+  const [shadowOpacity, setShadowOpacity] = useState(1)
+
+  useEffect(() => {
+    function onScroll() {
+      const scrollTop = window.scrollY
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight
+      if (docHeight <= 0) { setShadowOpacity(0); return }
+      // Fade shadow in the last 300px of scroll
+      const remaining = docHeight - scrollTop
+      setShadowOpacity(Math.min(1, remaining / 300))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <>
       <WebsiteHeader />
-      <main id="main" className="relative z-10 bg-[var(--color-base)] shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+      <main
+        id="main"
+        className="relative z-10 bg-[var(--color-base)]"
+        style={{ boxShadow: `0 40px 100px rgba(0,0,0,${(0.5 * shadowOpacity).toFixed(3)})` }}
+      >
         <Outlet />
       </main>
       <WebsiteFooter />

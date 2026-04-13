@@ -283,9 +283,14 @@ export function HeroSection() {
 										</Link>
 										<AddressCycle />
 									</div>
-									<Link to="/market" className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors">
-										{t('cta.browseMarket')}
-									</Link>
+									<div className="flex items-center gap-4">
+										<Link to="/market" className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors">
+											{t('cta.browseMarket')}
+										</Link>
+										<button type="button" onClick={() => openLoginModal()} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+											{t('login.step1.heading')}
+										</button>
+									</div>
 								</motion.div>
 							)}
 						</AnimatePresence>
