@@ -1,10 +1,10 @@
 /**
- * Dynamic sourcing canvas — wiring board.
- * Items on the left. Warehouse + dynamically added suppliers on the right.
- * "+" button to add a supplier source block with search.
- * SVG bezier curves show connections.
+ * Sourcing summary panel — scales to 1000+ items.
+ * Shows assignment progress, source cards with counts,
+ * and supports bulk category-based assignment.
  */
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { SearchMenu } from './SearchMenu'
 
 interface SupplierRecord {
   id: string
@@ -31,330 +31,277 @@ interface SourcingCanvasProps {
 }
 
 export function SourcingCanvas({ items, allSuppliers, searchSuppliers, onAssignSource }: SourcingCanvasProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([])
-  const sourceRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const [lines, setLines] = useState<{ x1: number; y1: number; x2: number; y2: number; isStock: boolean }[]>([])
-  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null)
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false)
 
-  // Dynamic supplier blocks — starts empty, user adds via "+"
-  const [activeSupplierIds, setActiveSupplierIds] = useState<string[]>(() => {
-    // Auto-add suppliers that already have items assigned
-    const ids = new Set<string>()
-    items.forEach((item) => {
-      if (item.sourceId !== 'warehouse') ids.add(item.sourceId)
-    })
-    return Array.from(ids)
-  })
+  const totalItems = items.length
+  const assignedCount = items.filter((i) => !!i.sourceId).length
+  const unassignedCount = totalItems - assignedCount
+  const progress = totalItems > 0 ? Math.round((assignedCount / totalItems) * 100) : 0
 
-  // Auto-sync: add any supplier assigned from the form that's not yet on the canvas
-  useEffect(() => {
-    const assignedIds = new Set<string>()
-    items.forEach((item) => {
-      if (item.sourceId !== 'warehouse') assignedIds.add(item.sourceId)
+  // Group items by source
+  const sourceGroups = useMemo(() => {
+    const groups = new Map<string, { indices: number[]; items: SourcingItem[] }>()
+
+    items.forEach((item, i) => {
+      const key = item.sourceId || '__unassigned__'
+      const group = groups.get(key) ?? { indices: [], items: [] }
+      group.indices.push(i)
+      group.items.push(item)
+      groups.set(key, group)
     })
-    setActiveSupplierIds((prev) => {
-      const merged = new Set(prev)
-      let changed = false
-      assignedIds.forEach((id) => {
-        if (!merged.has(id)) { merged.add(id); changed = true }
-      })
-      return changed ? Array.from(merged) : prev
-    })
+
+    return groups
   }, [items])
 
-  // Search state for adding new supplier
-  const [showSearch, setShowSearch] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // Search results — relevant to selected item if any
-  const selectedItemName = selectedItemIndex !== null ? items[selectedItemIndex]?.productName : undefined
-  const searchResults = useMemo(() => {
-    if (!showSearch) return []
-    return searchSuppliers(searchQuery, selectedItemName)
-      .filter((s) => !activeSupplierIds.includes(s.id)) // exclude already added
-      .slice(0, 6)
-  }, [searchQuery, showSearch, selectedItemName, activeSupplierIds, searchSuppliers])
-
-  // Active supplier records
-  const activeSuppliers = useMemo(
-    () => activeSupplierIds.map((id) => allSuppliers.find((s) => s.id === id)).filter(Boolean) as SupplierRecord[],
-    [activeSupplierIds, allSuppliers],
-  )
-
-  // All source IDs (warehouse + active suppliers)
-  const allSourceIds = ['warehouse', ...activeSupplierIds]
-
-  // Calculate SVG lines
-  const updateLines = useCallback(() => {
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const newLines: typeof lines = []
-
-    items.forEach((item, i) => {
-      const itemEl = itemRefs.current[i]
-      if (!itemEl) return
-      if (!allSourceIds.includes(item.sourceId)) return
-
-      const sourceEl = sourceRefs.current.get(item.sourceId)
-      if (!sourceEl) return
-
-      const ir = itemEl.getBoundingClientRect()
-      const sr = sourceEl.getBoundingClientRect()
-
-      newLines.push({
-        x1: ir.right - rect.left,
-        y1: ir.top + ir.height / 2 - rect.top,
-        x2: sr.left - rect.left,
-        y2: sr.top + sr.height / 2 - rect.top,
-        isStock: item.sourceId === 'warehouse',
-      })
+  // Active suppliers (ones that have items assigned)
+  const activeSupplierIds = useMemo(() => {
+    const ids = new Set<string>()
+    items.forEach((item) => {
+      if (item.sourceId && item.sourceId !== 'warehouse') ids.add(item.sourceId)
     })
+    return Array.from(ids)
+  }, [items])
 
-    setLines(newLines)
-  }, [items, allSourceIds])
+  // Warehouse stats
+  const warehouseGroup = sourceGroups.get('warehouse')
+  const warehouseCount = warehouseGroup?.items.length ?? 0
+  const stockableItems = items.filter((i) => i.stockAvailable > 0)
 
-  useEffect(() => {
-    updateLines()
-    window.addEventListener('resize', updateLines)
-    return () => window.removeEventListener('resize', updateLines)
-  }, [updateLines])
+  // Unassigned items
+  const unassignedGroup = sourceGroups.get('__unassigned__')
 
-  useEffect(() => {
-    const t = setTimeout(updateLines, 80)
-    return () => clearTimeout(t)
-  }, [items, activeSupplierIds, updateLines])
-
-  const handleSourceClick = (sourceId: string) => {
-    if (selectedItemIndex === null) return
-    // Block warehouse if no stock for this item
-    if (sourceId === 'warehouse' && items[selectedItemIndex].stockAvailable <= 0) return
-    onAssignSource(selectedItemIndex, sourceId)
-    setSelectedItemIndex(null)
-  }
-
-  const addSupplier = (supplier: SupplierRecord) => {
-    setActiveSupplierIds((prev) => [...prev, supplier.id])
-    setShowSearch(false)
-    setSearchQuery('')
-    // If an item was selected, wire it to this new supplier
-    if (selectedItemIndex !== null) {
-      onAssignSource(selectedItemIndex, supplier.id)
-      setSelectedItemIndex(null)
-    }
-  }
-
-  const removeSupplier = (supplierId: string) => {
-    // Reassign any items from this supplier to warehouse
+  // Bulk assign all stockable unassigned items to warehouse
+  const assignAllStockToWarehouse = () => {
     items.forEach((item, i) => {
-      if (item.sourceId === supplierId) onAssignSource(i, 'warehouse')
+      if (!item.sourceId && item.stockAvailable > 0) {
+        onAssignSource(i, 'warehouse')
+      }
     })
-    setActiveSupplierIds((prev) => prev.filter((id) => id !== supplierId))
   }
 
-  const countBySource = (sourceId: string) => items.filter((i) => i.sourceId === sourceId).length
+  // Bulk assign unassigned items to a supplier
+  const assignAllUnassignedTo = (sourceId: string) => {
+    items.forEach((item, i) => {
+      if (!item.sourceId) onAssignSource(i, sourceId)
+    })
+  }
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-b border-black/[0.04] px-5 py-3 dark:border-white/[0.04]">
-        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">Sourcing Board</h3>
-        <p className="mt-0.5 text-[12px] text-black/40 dark:text-white/40">
-          {selectedItemIndex !== null
-            ? `Select a source for "${items[selectedItemIndex].productName}"`
-            : 'Click item → click source to wire'}
-        </p>
+      {/* Progress header */}
+      <div className="shrink-0 border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.04]">
+        <div className="flex items-baseline justify-between mb-2">
+          <h3 className="text-[13px] font-semibold text-[var(--color-text)]">Sourcing</h3>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40">
+            {assignedCount}/{totalItems}
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div className="h-1 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.06]">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              progress === 100 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-primary)]/60'
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       </div>
 
-      {/* Canvas */}
-      <div ref={containerRef} className="relative flex-1 overflow-y-auto px-4 py-5">
-        {/* SVG lines */}
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 1 }}>
-          {lines.map((line, i) => {
-            const cx1 = line.x1 + 30
-            const cx2 = line.x2 - 30
+      {/* Source cards */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2" data-module-content>
+
+        {/* Unassigned */}
+        {unassignedCount > 0 && (
+          <div className="rounded-lg border border-dashed border-black/[0.1] px-4 py-3 dark:border-white/[0.1]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-black/20 text-[9px] text-black/30 dark:border-white/20 dark:text-white/30">?</span>
+                <span className="text-[12px] font-medium text-black/50 dark:text-white/50">Unassigned</span>
+              </div>
+              <span className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums text-black/40 dark:text-white/40">
+                {unassignedCount}
+              </span>
+            </div>
+            {/* Quick actions */}
+            <div className="flex flex-wrap gap-1.5">
+              {stockableItems.some((i) => !i.sourceId) && (
+                <button
+                  type="button"
+                  onClick={assignAllStockToWarehouse}
+                  className="rounded-full bg-[var(--color-primary)]/[0.08] px-2.5 py-1 text-[10px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/[0.14] transition-colors"
+                >
+                  Auto-fill from stock
+                </button>
+              )}
+              {activeSupplierIds.map((id) => {
+                const sup = allSuppliers.find((s) => s.id === id)
+                if (!sup) return null
+                const initials = sup.name.split(' ').map((w) => w[0]).slice(0, 2).join('')
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => assignAllUnassignedTo(id)}
+                    className="rounded-full bg-black/[0.04] px-2.5 py-1 text-[10px] font-medium text-black/50 hover:bg-black/[0.08] dark:bg-white/[0.06] dark:text-white/50 dark:hover:bg-white/[0.1] transition-colors"
+                  >
+                    All → {initials}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Warehouse card */}
+        <SourceCard
+          label="Warehouse"
+          initials="W"
+          count={warehouseCount}
+          detail={`${stockableItems.length} items in stock`}
+          variant="primary"
+        />
+
+        {/* Supplier cards */}
+        {activeSupplierIds.map((id) => {
+          const sup = allSuppliers.find((s) => s.id === id)
+          if (!sup) return null
+          const group = sourceGroups.get(id)
+          const count = group?.items.length ?? 0
+          const initials = sup.name.split(' ').map((w) => w[0]).slice(0, 2).join('')
+
+          return (
+            <SourceCard
+              key={id}
+              label={sup.name}
+              initials={initials}
+              count={count}
+              detail={`${sup.tier} · ${sup.score}/100`}
+              variant="default"
+            />
+          )
+        })}
+
+        {/* Add supplier */}
+        <button
+          type="button"
+          onClick={() => setAddSupplierOpen(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-black/[0.08] px-3 py-3 text-[12px] text-black/40 transition-colors hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)] dark:border-white/[0.08] dark:text-white/40"
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          Add Supplier
+        </button>
+      </div>
+
+      {/* Footer summary */}
+      <div className="shrink-0 border-t border-black/[0.04] px-5 py-2.5 dark:border-white/[0.04]">
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-black/40 dark:text-white/40">
+          {warehouseCount > 0 && (
+            <span><span className="font-medium text-[var(--color-primary)]">{warehouseCount}</span> stock</span>
+          )}
+          {activeSupplierIds.map((id) => {
+            const sup = allSuppliers.find((s) => s.id === id)
+            const count = sourceGroups.get(id)?.items.length ?? 0
+            if (!sup || count === 0) return null
             return (
-              <path
-                key={i}
-                d={`M ${line.x1} ${line.y1} C ${cx1} ${line.y1}, ${cx2} ${line.y2}, ${line.x2} ${line.y2}`}
-                stroke="#2563EB"
-                strokeWidth="1.5"
-                fill="none"
-                strokeDasharray={line.isStock ? 'none' : '4 3'}
-                opacity={0.4}
-              />
+              <span key={id}>
+                <span className="font-medium text-[var(--color-text)]">{count}</span> {sup.name.split(' ')[0]}
+              </span>
             )
           })}
-        </svg>
-
-        <div className="relative flex justify-between gap-6" style={{ zIndex: 2 }}>
-          {/* LEFT: Items */}
-          <div className="flex w-[42%] flex-col gap-1.5">
-            <span className="mb-1 text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">Items</span>
-            {items.map((item, index) => {
-              const isSelected = selectedItemIndex === index
-              const isStock = item.sourceId === 'warehouse'
-
-              return (
-                <div
-                  key={item.productName}
-                  ref={(el) => { itemRefs.current[index] = el }}
-                  onClick={() => setSelectedItemIndex(isSelected ? null : index)}
-                  className={`cursor-pointer rounded-lg px-3 py-2 transition-all ${
-                    isSelected
-                      ? 'bg-[var(--color-primary)]/[0.08] ring-1 ring-[var(--color-primary)]/30'
-                      : isStock
-                        ? 'bg-[var(--color-primary)]/[0.03] hover:bg-[var(--color-primary)]/[0.06]'
-                        : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-text)]">
-                    {item.stockAvailable > 0 && (
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="shrink-0 text-[var(--color-primary)]">
-                        <path d="M2.5 6.5L8 2l5.5 4.5V13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M6 14V9h4v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                    {item.productName}
-                  </div>
-                  <div className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">
-                    {item.quantity} {item.unit}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* RIGHT: Sources */}
-          <div className="flex w-[42%] flex-col gap-1.5">
-            <span className="mb-1 text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">Sources</span>
-
-            {/* Warehouse — always present */}
-            <div
-              ref={(el) => { sourceRefs.current.set('warehouse', el) }}
-              onClick={() => handleSourceClick('warehouse')}
-              className={`rounded-lg bg-[var(--color-primary)]/[0.03] px-3 py-2 transition-all ${
-                selectedItemIndex !== null ? 'cursor-pointer hover:ring-1 hover:ring-[var(--color-primary)]/30' : ''
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
-                <span className="text-[12px] font-medium text-[var(--color-text)]">Warehouse</span>
-                {countBySource('warehouse') > 0 && (
-                  <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-primary)]">{countBySource('warehouse')}</span>
-                )}
-              </div>
-              <div className="mt-1.5 space-y-0.5">
-                {items.map((item) => (
-                  <div key={item.productName} className="flex items-center justify-between">
-                    <span className="truncate text-[10px] text-black/30 dark:text-white/30">{item.productName.split(' ').slice(0, 2).join(' ')}</span>
-                    <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums font-medium ${
-                      item.stockAvailable >= item.quantity
-                        ? 'text-green-600 dark:text-green-400'
-                        : item.stockAvailable > 0
-                          ? 'text-yellow-600 dark:text-yellow-400'
-                          : 'text-black/20 dark:text-white/20'
-                    }`}>
-                      {item.stockAvailable > 0 ? item.stockAvailable : '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Dynamic supplier blocks */}
-            {activeSuppliers.map((supplier) => (
-              <div
-                key={supplier.id}
-                ref={(el) => { sourceRefs.current.set(supplier.id, el) }}
-                onClick={() => handleSourceClick(supplier.id)}
-                className={`group rounded-lg px-3 py-2 transition-all ${
-                  selectedItemIndex !== null ? 'cursor-pointer hover:ring-1 hover:ring-[var(--color-primary)]/30' : ''
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-black/20 dark:bg-white/20" />
-                  <span className="flex-1 text-[12px] font-medium text-[var(--color-text)]">{supplier.name}</span>
-                  {countBySource(supplier.id) > 0 && (
-                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/40 dark:text-white/40">{countBySource(supplier.id)}</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeSupplier(supplier.id) }}
-                    className="opacity-0 group-hover:opacity-100 text-[10px] text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 transition-opacity"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="mt-0.5 text-[10px] text-black/30 dark:text-white/30">
-                  {supplier.tier} · {supplier.score}/100
-                </div>
-              </div>
-            ))}
-
-            {/* Add supplier button / search */}
-            {showSearch ? (
-              <div className="rounded-lg border border-[var(--color-primary)]/30 bg-white px-3 py-2 dark:bg-black">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') { setShowSearch(false); setSearchQuery('') } }}
-                  placeholder="Search supplier..."
-                  autoFocus
-                  className="w-full bg-transparent text-[12px] outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
-                />
-                {searchResults.length > 0 && (
-                  <div className="mt-2 -mx-1 space-y-0.5">
-                    {searchResults.map((sup) => (
-                      <button
-                        key={sup.id}
-                        type="button"
-                        onClick={() => addSupplier(sup)}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
-                      >
-                        <span className="flex-1 text-[11px] font-medium text-[var(--color-text)]">{sup.name}</span>
-                        <span className="text-[10px] text-black/30 dark:text-white/30">{sup.tier}</span>
-                        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">{sup.score}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {searchQuery && searchResults.length === 0 && (
-                  <p className="mt-2 text-[11px] text-black/30 dark:text-white/30">No suppliers found</p>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowSearch(true)}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-black/[0.08] px-3 py-2.5 text-[12px] text-black/40 transition-colors hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)] dark:border-white/[0.08] dark:text-white/40"
-              >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                Add Supplier
-              </button>
-            )}
-          </div>
+          {unassignedCount > 0 && (
+            <span><span className="font-medium">{unassignedCount}</span> unassigned</span>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-black/[0.04] px-5 py-2.5 dark:border-white/[0.04]">
-        <div className="flex flex-wrap items-center gap-3 text-[11px]">
-          <span className="text-black/40 dark:text-white/40">
-            <span className="font-medium text-[var(--color-primary)]">{countBySource('warehouse')}</span> stock
-          </span>
-          {activeSuppliers.map((s) => {
-            const c = countBySource(s.id)
-            return c > 0 ? (
-              <span key={s.id} className="text-black/40 dark:text-white/40">
-                <span className="font-medium text-[var(--color-text)]">{c}</span> {s.name.split(' ')[0]}
-              </span>
-            ) : null
-          })}
+      {/* Add supplier modal — reuses SearchMenu */}
+      <SearchMenu isOpen={addSupplierOpen} onClose={() => setAddSupplierOpen(false)} placeholder="Search suppliers...">
+        {(search) => {
+          const results = searchSuppliers(search).filter((s) => !activeSupplierIds.includes(s.id))
+
+          if (results.length === 0) {
+            return (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-[13px] text-[var(--color-text-subtle)]">
+                  {search ? 'No suppliers found' : 'No suppliers available'}
+                </p>
+              </div>
+            )
+          }
+
+          return (
+            <div className="flex flex-col py-1">
+              {results.map((sup) => {
+                const initials = sup.name.split(' ').map((w) => w[0]).slice(0, 2).join('')
+                return (
+                  <button
+                    key={sup.id}
+                    type="button"
+                    onClick={() => {
+                      // Add this supplier and assign all unassigned items to it
+                      items.forEach((item, i) => {
+                        if (!item.sourceId) onAssignSource(i, sup.id)
+                      })
+                      setAddSupplierOpen(false)
+                    }}
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none"
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
+                      <span className="text-[10px] font-semibold text-[var(--color-text-subtle)]">{initials}</span>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[13px] font-medium text-[var(--color-text)] truncate">{sup.name}</span>
+                      <p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">{sup.tier} · {sup.score}/100</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        }}
+      </SearchMenu>
+    </div>
+  )
+}
+
+// ─── Source card ─────────────────────────────────────────
+
+function SourceCard({
+  label,
+  initials,
+  count,
+  detail,
+  variant,
+}: {
+  label: string
+  initials: string
+  count: number
+  detail: string
+  variant: 'primary' | 'default'
+}) {
+  return (
+    <div className="rounded-lg bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+            variant === 'primary'
+              ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+              : 'bg-black/[0.06] text-black/50 dark:bg-white/[0.08] dark:text-white/50'
+          }`}
+        >
+          {initials}
+        </span>
+        <div className="flex-1 min-w-0">
+          <span className="text-[12px] font-medium text-[var(--color-text)]">{label}</span>
+          <p className="text-[10px] text-black/30 dark:text-white/30">{detail}</p>
         </div>
+        <span className={`font-[family-name:var(--font-geist-mono)] text-[14px] font-semibold tabular-nums ${
+          count > 0
+            ? variant === 'primary' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'
+            : 'text-black/20 dark:text-white/20'
+        }`}>
+          {count}
+        </span>
       </div>
     </div>
   )

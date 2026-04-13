@@ -50,11 +50,11 @@ function SupportPage() {
     () =>
       FAQ_DATA.map((faq) => ({
         id: faq.id,
-        title: isArabic ? faq.question_ar : faq.question,
-        subtitle: faq.tag,
-        body: isArabic ? faq.answer_ar : faq.answer,
+        title: t(faq.questionKey),
+        subtitle: t(`support.faq.tags.${t(faq.tagKey)}`),
+        body: t(faq.answerKey),
       })),
-    [isArabic],
+    [t],
   )
 
   const handleSelect = useCallback(
@@ -81,34 +81,33 @@ function SupportPage() {
         initial="hidden"
         animate="visible"
         variants={reveal}
-        className="px-6 pb-16 pt-24 lg:px-12 lg:pb-24 lg:pt-36"
+        className="px-6 lg:px-12 min-h-[70vh] flex items-center justify-center"
       >
-        <div className="mx-auto max-w-[1200px]">
+        <div className="mx-auto max-w-[1200px] text-center">
           <h1
-            className="font-semibold leading-[1] tracking-[-0.02em]"
-            style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)' }}
+            className="font-extrabold leading-[1] tracking-[-0.03em]"
+            style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
           >
             {t('support.heroHeading', { defaultValue: 'How can we help?' })}
           </h1>
-          <p className="mt-4 text-[15px] opacity-35 max-w-[400px] leading-[1.7]">
+          <p className="mt-5 text-[15px] opacity-35 mx-auto max-w-[400px] leading-[1.7]">
             {t('support.responseTime')}
+          </p>
+          <p className="mt-2 font-[family-name:var(--font-mono)] text-[12px] tracking-[0.04em] opacity-25">
+            {isArabic
+              ? '\u0627\u0644\u0623\u062D\u062F \u2013 \u0627\u0644\u062E\u0645\u064A\u0633 \u060C \u0668:\u0660\u0660 \u0635 \u2013 \u0666:\u0660\u0660 \u0645 \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
+              : 'Sun\u2013Thu, 8:00 AM \u2013 6:00 PM Cairo time'}
           </p>
 
           {/* Search */}
-          <div className="mt-14 ps-6 lg:ps-10">
-            <p className="mb-5 font-[family-name:var(--font-mono)] text-[12px] tracking-[0.04em] opacity-30">
-              {isArabic
-                ? '\u0627\u0644\u0623\u062D\u062F \u2013 \u0627\u0644\u062E\u0645\u064A\u0633 \u060C \u0668:\u0660\u0660 \u0635 \u2013 \u0666:\u0660\u0660 \u0645 \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
-                : 'Sun\u2013Thu, 8:00 AM \u2013 6:00 PM Cairo time'}
-            </p>
-
+          <div className="mt-10 flex justify-center">
             <SearchDropdown
               items={faqItems}
               placeholder={t('support.searchPlaceholder', { defaultValue: 'Search for help...' })}
               askLyonLabel={t('support.askAI', { defaultValue: 'Ask Lyon' })}
               onSelect={handleSelect}
               onAskLyon={handleAskLyon}
-              className="max-w-[480px]"
+              className="max-w-[480px] w-full"
               idPrefix="support-search"
             />
           </div>

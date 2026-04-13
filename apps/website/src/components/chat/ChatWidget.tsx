@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChatWidget } from '../../hooks/useChatWidget'
-import { useAIChat } from '../../hooks/useAIChat'
+import { useSharedChat } from '../../hooks/ChatProvider'
 import type { ChatMessage } from '../../hooks/useAIChat'
 import { ChatFAB } from './ChatFAB'
 import { ChatPanel } from './ChatPanel'
@@ -11,7 +11,7 @@ export function ChatWidget() {
   const isOpen = useChatWidget((s) => s.isOpen)
   const pendingMessage = useChatWidget((s) => s.pendingMessage)
   const consumePendingMessage = useChatWidget((s) => s.consumePendingMessage)
-  const { messages, sendMessage, isLoading } = useAIChat()
+  const { messages, sendMessage, isLoading } = useSharedChat()
   const hasInjectedWelcome = useRef(false)
   const hasSentPending = useRef(false)
   const [welcomeMessage, setWelcomeMessage] = useState<ChatMessage | null>(null)
@@ -47,13 +47,11 @@ export function ChatWidget() {
   return (
     <>
       <ChatFAB />
-      {isOpen && (
-        <ChatPanel
-          messages={allMessages}
-          isLoading={isLoading}
-          sendMessage={sendMessage}
-        />
-      )}
+      <ChatPanel
+        messages={allMessages}
+        isLoading={isLoading}
+        sendMessage={sendMessage}
+      />
     </>
   )
 }

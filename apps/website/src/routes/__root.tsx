@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
 import { LoginModal } from '../components/auth/LoginModal'
 import { ChatWidget } from '../components/chat/ChatWidget'
+import { ChatProvider } from '../hooks/ChatProvider'
 import styles from '../styles.css?url'
 import { setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
@@ -78,9 +79,11 @@ function RootComponent() {
 					{t('a11y.skipToContent')}
 				</a>
 				<I18nProvider locale={locale}>
-					<Outlet />
-					<LoginModal />
-					<ChatWidget />
+					<ChatProvider>
+						<Outlet />
+						<LoginModal />
+						<ChatWidget />
+					</ChatProvider>
 				</I18nProvider>
 				<Scripts />
 			</body>

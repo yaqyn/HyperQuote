@@ -22,47 +22,68 @@
   --color-surface: #0A0A0A;
 }
 
-/* Custom scrollbar — minimal, auto-hiding */
-[data-module-content] {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.3s;
+/* Custom scrollbar — Chromium (webkit) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-[data-module-content]:hover {
-  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
-}
-
-[data-module-content]:hover::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
-}
-
-[data-module-content]::-webkit-scrollbar {
-  width: 6px;
-}
-
-[data-module-content]::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-[data-module-content]::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 3px;
-  transition: background 0.3s;
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-[data-module-content]:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
 }
 
-[data-theme="dark"] [data-module-content]:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.35);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
 }
 
-[data-theme="dark"] [data-module-content]:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
 }
 
-[data-theme="dark"] [data-module-content]:hover::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.35);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+/* Custom scrollbar — Firefox only */
+@-moz-document url-prefix() {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+  }
+  [data-theme="dark"] * {
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }

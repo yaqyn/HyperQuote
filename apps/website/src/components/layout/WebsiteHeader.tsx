@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { Menu, ShoppingCart, X, Minus, Plus, Trash2, Copy, StickyNote, ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useScrolled } from '../../hooks/useScrolled'
@@ -19,6 +19,10 @@ export function WebsiteHeader() {
 	const { open: openLoginModal } = useLoginModal()
 	const [showGlobalNote, setShowGlobalNote] = useState(false)
 	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+
+	const routerState = useRouterState()
+	const isHome = routerState.location.pathname === '/'
+	const heroMode = isHome && !scrolled
 
 	useEffect(() => {
 		function checkTheme() {
@@ -40,23 +44,57 @@ export function WebsiteHeader() {
 
 	return (
 		<>
+			{/* Hero logo — centered, floats up and fades on scroll */}
+			{isHome && (
+				<div
+					className="fixed top-0 inset-x-0 z-41 h-16 max-md:h-14 flex items-center justify-center pointer-events-none transition-all duration-700 ease-out"
+					style={{
+						opacity: heroMode ? 1 : 0,
+						transform: heroMode ? 'translateY(0)' : 'translateY(-100%)',
+					}}
+				>
+					<button
+						type="button"
+						onClick={() => document.getElementById('process')?.scrollIntoView({ behavior: 'smooth' })}
+						className="pointer-events-auto"
+					>
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)]">
+							HyperQuote
+						</span>
+					</button>
+				</div>
+			)}
+
+			{/* Full header — slides down from top on scroll */}
 			<header
 				dir="ltr"
-				className={`fixed top-0 inset-x-0 z-40 h-16 max-md:h-14 flex items-center justify-between px-6 transition-all duration-200 ${
-					scrolled
-						? 'bg-[color-mix(in_srgb,var(--color-base)_80%,transparent)] backdrop-blur-[12px]'
-						: 'bg-[var(--color-base)]'
-				}`}
+				data-theme="dark"
+				className="fixed top-0 inset-x-0 z-40 h-16 max-md:h-14 flex items-center justify-between px-6 bg-[#101010] transition-all duration-700 ease-out"
+				style={{
+					transform: heroMode ? 'translateY(-100%)' : 'translateY(0)',
+				}}
 			>
-				{/* Logo + Brand */}
-				<Link to="/" aria-label={t('a11y.home')} className="flex items-center gap-3">
-					<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)]">
-						HyperQuote
-					</span>
-				</Link>
+				{/* Logo */}
+				{isHome ? (
+					<button
+						type="button"
+						onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+						className="flex items-center gap-3"
+					>
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-white">
+							HyperQuote
+						</span>
+					</button>
+				) : (
+					<Link to="/" aria-label={t('a11y.home')} className="flex items-center gap-3">
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-white">
+							HyperQuote
+						</span>
+					</Link>
+				)}
 
-				{/* Desktop Nav */}
-				<nav className="hidden md:flex items-center gap-6">
+				{/* Desktop Nav — absolute center, unaffected by siblings */}
+				<nav className="hidden md:flex items-center gap-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
 					<Link to="/market" className={navLinkClass} activeProps={{ className: navLinkActiveClass }}>
 						{t('nav.market')}
 					</Link>
@@ -72,7 +110,7 @@ export function WebsiteHeader() {
 				</nav>
 
 				{/* Right Cluster */}
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle />
 
@@ -83,9 +121,9 @@ export function WebsiteHeader() {
 						className="relative p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
 						aria-label={t('cart.label')}
 					>
-						<ShoppingCart size={20} className="text-[var(--color-text-muted)]" />
+						<ShoppingCart size={18} className="text-[var(--color-text-muted)]" />
 						{items.length > 0 && (
-							<span className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] rounded-full bg-[var(--color-primary)] text-white text-[11px] font-bold flex items-center justify-center px-1">
+							<span className="absolute -top-0.5 -end-0.5 min-w-[16px] h-[16px] rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center justify-center px-0.5">
 								{items.length}
 							</span>
 						)}
@@ -94,7 +132,7 @@ export function WebsiteHeader() {
 					<button
 						type="button"
 						onClick={() => openLoginModal('/portal/quote')}
-						className="hidden md:inline-flex items-center bg-[var(--color-primary)] text-white font-semibold text-sm h-9 px-4 rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
+						className="hidden md:inline-flex items-center text-[var(--color-text)] font-medium text-sm h-9 px-3 rounded-lg hover:text-[var(--color-primary)] transition-colors"
 					>
 						{t('cta.getQuote')}
 					</button>
@@ -208,7 +246,7 @@ export function WebsiteHeader() {
 														type="button"
 														onClick={() => duplicate(item.productId)}
 														className="p-1.5 rounded text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
-														title="Duplicate"
+														title={t('cart.duplicate', { defaultValue: 'Duplicate' })}
 													>
 														<Copy size={12} />
 													</button>
@@ -221,7 +259,7 @@ export function WebsiteHeader() {
 															setExpandedNotes(next)
 														}}
 														className={`p-1.5 rounded transition-colors ${item.note ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]'} hover:bg-[var(--color-surface)]`}
-														title="Add note"
+														title={t('cart.addNote')}
 													>
 														<StickyNote size={12} />
 													</button>
@@ -234,7 +272,7 @@ export function WebsiteHeader() {
 															type="text"
 															value={item.note}
 															onChange={(e) => updateNote(item.productId, e.target.value)}
-															placeholder="e.g. Grade 42.5N preferred"
+															placeholder={t('cart.notePlaceholder', { defaultValue: 'e.g. Grade 42.5N preferred' })}
 															className="w-full h-7 px-2 rounded border border-[var(--color-border)] bg-transparent text-[12px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:border-[var(--color-primary)] transition-colors"
 														/>
 													</div>
@@ -262,7 +300,7 @@ export function WebsiteHeader() {
 											<textarea
 												value={globalNote}
 												onChange={(e) => setGlobalNote(e.target.value)}
-												placeholder="Delivery instructions, timeline, special requirements..."
+												placeholder={t('cart.globalNotePlaceholder', { defaultValue: 'Delivery instructions, timeline, special requirements...' })}
 												rows={2}
 												className="w-full px-2.5 py-2 rounded-lg border border-[var(--color-border)] bg-transparent text-[12px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none focus:border-[var(--color-primary)] transition-colors resize-none"
 											/>

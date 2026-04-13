@@ -5,6 +5,16 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin 'tailwindcss-react-aria-components';
 
+/* Selection highlight */
+::selection {
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
+}
+[data-theme="dark"] ::selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
@@ -47,25 +57,24 @@ input[type="search"]::-webkit-search-decoration {
   appearance: none;
 }
 
-/* Minimal scrollbar — no track, faded black thumb */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+/* Hide all native scrollbars */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* Hero concentric rings */
+@keyframes hero-ring {
+  0% { transform: scale(0.1); opacity: 0.06; }
+  50% { opacity: 0.03; }
+  100% { transform: scale(1); opacity: 0; }
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+@media (prefers-reduced-motion: reduce) {
+  @keyframes hero-ring { 0%, 100% { transform: scale(0.5); opacity: 0.02; } }
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
-}
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+
+/* Image scroll strip */
+@keyframes hero-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 /* Chat widget animations */

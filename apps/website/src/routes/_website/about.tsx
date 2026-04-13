@@ -7,17 +7,17 @@ import { SectionNumber } from '../../components/shared/SectionNumber'
 export const Route = createFileRoute('/_website/about')({
   head: () => ({
     meta: [
-      { title: 'About \u2014 HyperQuote' },
+      { title: 'About — HyperQuote' },
       {
         name: 'description',
         content:
-          "Learn about HyperQuote, Egypt's first digital platform for building materials sourcing.",
+          "HyperQuote connects contractors with verified suppliers across Egypt. One platform for sourcing, quoting, and delivery.",
       },
-      { property: 'og:title', content: 'About \u2014 HyperQuote' },
+      { property: 'og:title', content: 'About — HyperQuote' },
       {
         property: 'og:description',
         content:
-          "Learn about HyperQuote, Egypt's first digital platform for building materials sourcing.",
+          "HyperQuote connects contractors with verified suppliers across Egypt.",
       },
     ],
   }),
@@ -44,27 +44,8 @@ const stagger = (delay: number) => ({
 
 const viewportOnce = { once: true, margin: '-60px' as const }
 
-const VALUES = [
-  {
-    title: '4-Hour Quotes',
-    body: 'Submit your material list and receive a consolidated quote from multiple suppliers within 4 hours. No more days spent chasing individual prices.',
-  },
-  {
-    title: 'Complete Transparency',
-    body: 'Every quote includes unit pricing, delivery timelines, and payment terms. Track your order from confirmation through delivery with live GPS.',
-  },
-  {
-    title: 'Egyptian-Built',
-    body: 'Designed for how Egyptian construction actually works. Quote-based pricing, wire and cheque payments, Cairo truck ban compliance, ETA e-invoicing \u2014 all built in.',
-  },
-]
-
-const TEAM = [
-  { name: 'Ahmed Hassan', role: 'CEO & Founder' },
-  { name: 'Sarah El-Masry', role: 'CTO' },
-  { name: 'Omar Khalil', role: 'Head of Operations' },
-  { name: 'Nour Abdel-Rahman', role: 'Head of Product' },
-]
+const VALUE_KEYS = ['value1', 'value2', 'value3'] as const
+const TEAM_KEYS = ['member1', 'member2', 'member3', 'member4'] as const
 
 function AboutPage() {
   const { t } = useTranslation('website')
@@ -85,21 +66,17 @@ function AboutPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="block font-[family-name:var(--font-mono)] text-[12px] tracking-[0.08em] uppercase mb-6"
           >
-            Cairo, Egypt — Est. 2026
+            {t('about.established')}
           </motion.span>
           <h1
             className="leading-[0.95] tracking-[-0.03em]"
             style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
           >
             <span className="block font-light">
-              {t('about.heroLine1', {
-                defaultValue: "Egypt\u2019s building materials,",
-              })}
+              {t('about.heroLine1')}
             </span>
             <span className="block font-bold mt-1">
-              {t('about.heroLine2', {
-                defaultValue: 'reimagined',
-              })}
+              {t('about.heroLine2')}
             </span>
           </h1>
           <motion.p
@@ -108,10 +85,7 @@ function AboutPage() {
             transition={{ duration: 0.5, delay: 0.25 }}
             className="mt-12 text-[15px] max-w-[480px] leading-[1.7]"
           >
-            {t('about.heroSubheadline', {
-              defaultValue:
-                'HyperQuote connects contractors with verified suppliers through a single platform. One quote request, multiple supplier bids, delivered to your site.',
-            })}
+            {t('about.heroSubheadline')}
           </motion.p>
         </div>
       </motion.section>
@@ -136,22 +110,16 @@ function AboutPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('about.story.heading', { defaultValue: 'The problem' })}
+              {t('about.story.heading')}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
             <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-              {t('about.story.p1', {
-                defaultValue:
-                  "Egyptian construction runs on relationships, phone calls, and handshake deals. Contractors spend days calling suppliers for prices, comparing quotes on paper, and coordinating deliveries with no visibility. There\u2019s no standard platform, no price transparency, and no way to track an order once it\u2019s placed.",
-              })}
+              {t('about.story.p1')}
             </p>
             <p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-              {t('about.story.p2', {
-                defaultValue:
-                  'HyperQuote replaces that chaos with a structured, transparent system \u2014 without removing the human element that makes Egyptian business work. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.',
-              })}
+              {t('about.story.p2')}
             </p>
           </div>
         </div>
@@ -169,6 +137,8 @@ function AboutPage() {
           <img
             src="https://websiteassets.hyperquote.net/Images/cairo.webp"
             alt=""
+            width={1200}
+            height={514}
             className="h-full w-full object-cover"
           />
         </div>
@@ -189,14 +159,14 @@ function AboutPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('about.mission.heading', { defaultValue: 'What we deliver' })}
+              {t('about.mission.heading')}
             </h2>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
-            {VALUES.map((v, i) => (
+            {VALUE_KEYS.map((key, i) => (
               <motion.div
-                key={v.title}
+                key={key}
                 initial="hidden"
                 whileInView="visible"
                 viewport={viewportOnce}
@@ -213,10 +183,10 @@ function AboutPage() {
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <h3 className="text-[16px] font-semibold tracking-[-0.01em] mb-3">
-                  {v.title}
+                  {t(`about.mission.${key}.title`)}
                 </h3>
                 <p className="text-[14px] leading-[1.7] text-[var(--color-text-muted)]">
-                  {v.body}
+                  {t(`about.mission.${key}.description`)}
                 </p>
               </motion.div>
             ))}
@@ -244,22 +214,24 @@ function AboutPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('about.team.heading', { defaultValue: 'Team' })}
+              {t('about.team.heading')}
             </h2>
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-8">
-            {TEAM.map((member, i) => (
+            {TEAM_KEYS.map((key, i) => (
               <motion.div
-                key={member.name}
+                key={key}
                 initial="hidden"
                 whileInView="visible"
                 viewport={viewportOnce}
                 variants={stagger(i * 0.06)}
               >
-                <p className="text-[15px] font-semibold">{member.name}</p>
+                <p className="text-[15px] font-semibold">
+                  {t(`about.team.${key}.name`)}
+                </p>
                 <p className="text-[13px] text-[var(--color-text-muted)] mt-1">
-                  {member.role}
+                  {t(`about.team.${key}.role`)}
                 </p>
               </motion.div>
             ))}
@@ -287,20 +259,17 @@ function AboutPage() {
               className="mt-3 font-bold tracking-[-0.02em]"
               style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
             >
-              {t('about.careers.heading', { defaultValue: 'Join us' })}
+              {t('about.careers.heading')}
             </h2>
           </div>
           <p className="text-[15px] leading-[1.7] text-[var(--color-text-muted)] max-w-[480px] mb-8">
-            {t('about.careers.description', {
-              defaultValue:
-                "We\u2019re building the infrastructure for Egypt\u2019s construction industry. If you want to work on hard problems with real impact, we\u2019d like to hear from you.",
-            })}
+            {t('about.careers.description')}
           </p>
           <Link
             to="/careers"
             className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
           >
-            {t('about.careers.cta', { defaultValue: 'View open positions' })}
+            {t('about.careers.cta')}
             <ArrowRight size={15} className="icon-end" />
           </Link>
         </div>

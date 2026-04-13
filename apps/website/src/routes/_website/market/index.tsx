@@ -2,13 +2,11 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { useState, useMemo, useCallback } from 'react'
-import { motion } from 'motion/react'
 import {
   SearchX,
   AlertTriangle,
   X,
   ShoppingCart,
-  SlidersHorizontal,
   ChevronsUpDown,
 } from 'lucide-react'
 import {
@@ -29,27 +27,25 @@ import { getPublicCatalog } from '../../../lib/catalog'
 import { ProductCard } from '../../../components/market/ProductCard'
 import { Pagination } from '../../../components/market/Pagination'
 import { QuoteCartPanel } from '../../../components/market/QuoteCartPanel'
-import { MobileFilterSheet } from '../../../components/market/MobileFilterSheet'
 import { useQuoteCart } from '../../../hooks/useQuoteCart'
+
+// ── Search schema ──
+// category and price_tier come as comma-separated strings in the URL,
+// transformed to arrays for the component. All navigate calls must serialize back.
 
 const marketSearchSchema = z.object({
   q: z.string().optional(),
-  category: z
-    .string()
-    .transform((s) => (s ? s.split(',') : undefined))
-    .optional(),
+  category: z.string().optional(),
   availability: z.enum(['available', 'low_stock']).optional(),
-  price_tier: z
-    .string()
-    .transform((s) => (s ? s.split(',') : undefined))
-    .optional(),
-  sort: z
-    .enum(['relevance', 'name', 'category', 'availability'])
-    .catch('relevance')
-    .optional(),
-  view: z.enum(['grid', 'list']).optional(),
+  price_tier: z.string().optional(),
+  sort: z.enum(['relevance', 'name', 'category', 'availability']).catch('relevance').optional(),
   page: z.coerce.number().int().min(1).catch(1).optional(),
 })
+
+/** Split comma-separated string into array, or empty array */
+function splitParam(s?: string): string[] {
+  return s ? s.split(',').filter(Boolean) : []
+}
 
 export const Route = createFileRoute('/_website/market/')({
   validateSearch: marketSearchSchema,
@@ -57,9 +53,9 @@ export const Route = createFileRoute('/_website/market/')({
   loader: ({ deps }) =>
     getPublicCatalog({
       data: {
-        category: deps.category,
+        category: splitParam(deps.category),
         availability: deps.availability || 'all',
-        priceTier: deps.price_tier,
+        priceTier: splitParam(deps.price_tier),
         search: deps.q,
         sort: deps.sort || 'relevance',
         page: deps.page || 1,
@@ -68,49 +64,15 @@ export const Route = createFileRoute('/_website/market/')({
     }),
   head: () => ({
     meta: [
-      { title: 'Market \u2014 HyperQuote' },
-      {
-        name: 'description',
-        content:
-          'Browse building materials from verified Egyptian suppliers. Cement, steel, aggregates, and more.',
-      },
+      { title: 'Market — HyperQuote' },
+      { name: 'description', content: 'Browse building materials from verified Egyptian suppliers.' },
     ],
   }),
   component: MarketPage,
   errorComponent: MarketError,
 })
 
-// ── Category chips for horizontal filter strip ──
-
-const CATEGORIES = [
-  'cement',
-  'reinforcing_steel',
-  'structural_steel',
-  'aggregates',
-  'sand',
-  'ready_mix_concrete',
-  'bricks',
-  'blocks',
-  'tiles_ceramic',
-  'tiles_porcelain',
-  'marble',
-  'granite',
-  'paint',
-  'glass',
-  'gypsum_board',
-  'pipes_pvc',
-  'pipes_metal',
-  'electrical_cable',
-  'electrical_conduit',
-  'lumber',
-  'plywood',
-  'insulation',
-  'waterproofing',
-  'roofing',
-  'aluminum_profiles',
-  'adhesives',
-  'hardware_fasteners',
-] as const
+const CATEGORIES = ['cement', 'steel', 'aggregates', 'bricks', 'timber', 'finishing'] as const
 
 const SORT_OPTIONS = [
   { id: 'relevance', labelKey: 'market.sortRelevance' },
@@ -119,18 +81,61 @@ const SORT_OPTIONS = [
   { id: 'availability', labelKey: 'market.sortAvailability' },
 ] as const
 
-const reveal = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-  },
+
+// ── Market Search ──
+
+function MarketSearch({
+  items: catalogItems,
+  onSearch,
+}: {
+  items: Array<{ id: string; slug: string; name: string; name_ar: string | null; category: string; unit_of_measure: string; [key: string]: unknown }>
+  onSearch: (q: string) => void
+}) {
+  const { t, i18n } = useTranslation('website')
+  const navigate = useNavigate({ from: Route.fullPath })
+  const locale = i18n.language === 'ar' ? 'ar' : 'en'
+
+  const searchItems: SearchEntry[] = useMemo(
+    () =>
+      catalogItems.map((p) => {
+        const name = locale === 'ar' ? p.name_ar || p.name : p.name
+        const category = t(`categories.${p.category}`, { defaultValue: p.category.replace(/_/g, ' ') })
+        const unit = t(`units.${p.unit_of_measure}`, { defaultValue: p.unit_of_measure })
+        const description = (locale === 'ar' ? (p.description_ar as string) : (p.description as string)) ?? ''
+        const brand = (p.brand as string) ?? ''
+
+        return {
+          id: p.id,
+          title: name,
+          subtitle: [category, unit].filter(Boolean).join(' · '),
+          body: [p.name, p.name_ar, description, brand, category].filter(Boolean).join(' '),
+          href: `/market/${p.slug}`,
+        }
+      }),
+    [catalogItems, locale, t],
+  )
+
+  const handleSelect = useCallback(
+    (item: SearchEntry) => {
+      if (item.href) navigate({ to: item.href })
+    },
+    [navigate],
+  )
+
+  return (
+    <SearchDropdown
+      items={searchItems}
+      placeholder={t('market.searchPlaceholder')}
+      askLyonLabel={t('market.search', { defaultValue: 'Search' })}
+      onSelect={handleSelect}
+      onAskLyon={onSearch}
+      maxResults={6}
+      idPrefix="market-search"
+    />
+  )
 }
 
-const viewportOnce = { once: true, margin: '-60px' as const }
-
-// ── Floating mobile cart button ──
+// ── Mobile Cart ──
 
 function MobileCartButton() {
   const { t } = useTranslation('website')
@@ -152,7 +157,6 @@ function MobileCartButton() {
           {cartCount}
         </span>
       </button>
-
       {open && (
         <ModalOverlay
           isOpen={open}
@@ -161,23 +165,14 @@ function MobileCartButton() {
           className="xl:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
         >
           <Modal className="fixed inset-x-0 bottom-0 z-50">
-            <Dialog
-              aria-label={t('cart.title')}
-              className="bg-[var(--color-base)] rounded-t-2xl max-h-[70vh] overflow-y-auto outline-none"
-            >
+            <Dialog aria-label={t('cart.title')} className="bg-[var(--color-base)] rounded-t-2xl max-h-[70vh] overflow-y-auto outline-none">
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                 <span className="text-[16px] font-semibold">{t('cart.title')}</span>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="p-1 rounded-lg hover:bg-[var(--color-surface)]"
-                >
+                <button type="button" onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-[var(--color-surface)]">
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-4">
-                <QuoteCartPanel />
-              </div>
+              <div className="p-4"><QuoteCartPanel /></div>
             </Dialog>
           </Modal>
         </ModalOverlay>
@@ -186,82 +181,7 @@ function MobileCartButton() {
   )
 }
 
-// ── Market search ──
-// Uses shared SearchDropdown for UI/keyboard, but the real search goes through
-// the route loader (server-side DB query). The dropdown shows current-page items
-// as quick suggestions. On Enter with no selection, navigates with ?q= param
-// so the loader fetches matching results from the database.
-
-function MarketSearch({
-  items: catalogItems,
-  navigate,
-}: {
-  items: Array<{ id: string; slug: string; name: string; name_ar: string | null; category: string; unit_of_measure: string; [key: string]: unknown }>
-  navigate: ReturnType<typeof useNavigate>
-}) {
-  const { t, i18n } = useTranslation('website')
-  const locale = i18n.language === 'ar' ? 'ar' : 'en'
-
-  const searchItems: SearchEntry[] = useMemo(
-    () =>
-      catalogItems.map((p) => {
-        const name = locale === 'ar' ? p.name_ar || p.name : p.name
-        const category = t(`categories.${p.category}`, { defaultValue: p.category.replace(/_/g, ' ') })
-        const unit = t(`units.${p.unit_of_measure}`, { defaultValue: p.unit_of_measure })
-        const description = (locale === 'ar' ? (p.description_ar as string) : (p.description as string)) ?? ''
-        const specs = p.specifications
-          ? Object.values(p.specifications as Record<string, unknown>).filter(Boolean).join(' ')
-          : ''
-        const brand = (p.brand as string) ?? ''
-        const sku = (p.sku as string) ?? ''
-
-        return {
-          id: p.id,
-          title: name,
-          subtitle: [category, unit].filter(Boolean).join(' · '),
-          body: [p.name, p.name_ar, description, specs, brand, sku, category, unit].filter(Boolean).join(' '),
-          href: `/market/${p.slug}`,
-        }
-      }),
-    [catalogItems, locale, t],
-  )
-
-  const handleSelect = useCallback(
-    (item: SearchEntry) => {
-      if (item.href) navigate({ to: item.href })
-    },
-    [navigate],
-  )
-
-  // On Ask Lyon / Enter with no selection → set URL ?q= param for server-side search
-  const handleSearch = useCallback(
-    (q: string) => {
-      navigate({
-        search: (prev: Record<string, unknown>) => ({
-          ...prev,
-          q: q || undefined,
-          page: 1,
-        }),
-      })
-    },
-    [navigate],
-  )
-
-  return (
-    <SearchDropdown
-      items={searchItems}
-      placeholder={t('market.searchPlaceholder', { defaultValue: 'Search materials...' })}
-      askLyonLabel={t('market.search', { defaultValue: 'Search' })}
-      onSelect={handleSelect}
-      onAskLyon={handleSearch}
-      maxResults={6}
-      className="max-w-[480px]"
-      idPrefix="market-search"
-    />
-  )
-}
-
-// ── Main page ──
+// ── Main Page ──
 
 function MarketPage() {
   const { t } = useTranslation('website')
@@ -269,316 +189,129 @@ function MarketPage() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
 
-  const hasActiveFilters = !!(
-    search.q ||
-    search.category?.length ||
-    search.availability ||
-    search.price_tier?.length
-  )
+  const categories = splitParam(search.category)
+  const priceTiers = splitParam(search.price_tier)
+  const hasActiveFilters = !!(search.q || categories.length || search.availability || priceTiers.length)
 
-  const handleClearFilters = () => {
-    navigate({ search: {} })
+  function nav(overrides: Partial<typeof search>) {
+    navigate({ search: { ...search, ...overrides, page: overrides.page ?? 1 } })
   }
 
-  const toggleCategory = (cat: string) => {
-    navigate({
-      search: (prev: Record<string, unknown>) => {
-        const current = ((prev.category as string) ?? '').split(',').filter(Boolean)
-        const next = current.includes(cat)
-          ? current.filter((c: string) => c !== cat)
-          : [...current, cat]
-        return {
-          ...prev,
-          category: next.length ? next.join(',') : undefined,
-          page: 1,
-        }
-      },
-    })
+  function toggleCategory(cat: string) {
+    const next = categories.includes(cat) ? categories.filter((c) => c !== cat) : [...categories, cat]
+    nav({ category: next.length ? next.join(',') : undefined })
   }
 
   return (
-    <div className="min-h-screen">
-      {/* ── Hero ── */}
-      <section className="px-6 pb-12 pt-24 lg:px-12 lg:pb-16 lg:pt-36">
+    <div className="min-h-screen pt-20 max-md:pt-16">
+      {/* Top bar */}
+      <section className="px-6 lg:px-12 pb-6">
         <div className="mx-auto max-w-[1400px]">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 lg:gap-16">
-            {/* Left — heading + subtitle */}
-            <div className="flex-1 min-w-0">
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="font-bold leading-[0.95] tracking-[-0.03em]"
-                style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
-              >
-                {t('market.pageTitle', { defaultValue: 'Market' })}
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.06 }}
-                className="mt-4 text-[15px] opacity-35 max-w-[440px] leading-relaxed"
-              >
-                {t('market.subtitle', {
-                  defaultValue:
-                    'Browse building materials from verified Egyptian suppliers. No published prices — request a quote for current rates.',
-                })}
-              </motion.p>
-
-              {/* Search */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.12 }}
-                className="mt-10"
-              >
-                <MarketSearch items={data.items} navigate={navigate} />
-              </motion.div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h1 className="text-[28px] lg:text-[36px] font-extrabold tracking-[-0.02em]">
+              {t('market.pageTitle')}
+            </h1>
+            <div className="w-full md:w-auto md:min-w-[360px] lg:min-w-[420px]">
+              <MarketSearch
+                items={data.items}
+                onSearch={(q) => nav({ q: q || undefined })}
+              />
             </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Right — staggered catalog counter */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.08 }}
-              className="shrink-0 flex flex-col items-start lg:items-end"
+      {/* Category strip + sort */}
+      <section className="border-y border-[var(--color-border)] py-3">
+        <div className="mx-auto max-w-[1400px] flex items-center gap-4 px-6 lg:px-12">
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-2">
+              {CATEGORIES.map((cat) => {
+                const isActive = categories.includes(cat)
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCategory(cat)}
+                    className={`shrink-0 px-3.5 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'bg-[var(--color-text)] text-[var(--color-base)]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
+                    }`}
+                  >
+                    {t(`marketPreview.categories.${cat}`, { defaultValue: cat })}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div className="hidden md:flex items-center shrink-0">
+            <Select
+              selectedKey={search.sort || 'relevance'}
+              onSelectionChange={(key) => nav({ sort: key as string })}
+              aria-label={t('market.sortLabel')}
             >
-              <span
-                className="font-[family-name:var(--font-mono)] font-bold text-[var(--color-primary)] leading-none"
-                style={{ fontSize: 'clamp(3.5rem, 8vw, 6rem)' }}
-              >
-                {data.total.toLocaleString()}+
-              </span>
-              <span className="mt-2 text-[14px] tracking-[0.08em] uppercase opacity-30 font-medium">
-                {t('market.heroCountLabel', { defaultValue: 'Materials' })}
-              </span>
-              {/* Horizontal rule extending from counter */}
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                className="mt-4 h-px w-32 lg:w-48 bg-[var(--color-primary)] origin-start lg:origin-end opacity-20"
-              />
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Divider ── */}
-      <div className="mx-auto max-w-[1400px] px-6 lg:px-12">
-        <div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-      </div>
-
-      {/* ── Filter strip + sort ── */}
-      <section className="px-6 lg:px-12 py-6">
-        <div className="mx-auto max-w-[1400px]">
-          <div className="flex items-center gap-4">
-            {/* Category chips — horizontal scroll */}
-            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-              <div className="flex items-center gap-2 pb-1">
-                {CATEGORIES.map((cat) => {
-                  const isActive = search.category?.includes(cat)
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => toggleCategory(cat)}
-                      className={`shrink-0 px-3.5 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
-                        isActive
-                          ? 'bg-[var(--color-text)] text-[var(--color-base)]'
-                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
-                      }`}
+              <Label className="sr-only">{t('market.sortLabel')}</Label>
+              <Button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+                <SelectValue />
+                <ChevronsUpDown size={14} className="opacity-40" aria-hidden="true" />
+              </Button>
+              <Popover className="w-44 rounded-lg border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)] overflow-hidden z-50">
+                <ListBox className="p-1">
+                  {SORT_OPTIONS.map((opt) => (
+                    <ListBoxItem
+                      key={opt.id}
+                      id={opt.id}
+                      className="px-3 py-2 text-[13px] rounded-md cursor-pointer text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.03] data-[selected]:font-medium data-[selected]:text-[var(--color-primary)] outline-none data-[focused]:bg-[var(--color-text)]/[0.03]"
                     >
-                      {t(`categories.${cat}`, { defaultValue: cat.replace(/_/g, ' ') })}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Sort */}
-            <div className="hidden md:flex items-center gap-3 shrink-0">
-              <Select
-                selectedKey={search.sort || 'relevance'}
-                onSelectionChange={(key) =>
-                  navigate({
-                    search: (prev: Record<string, unknown>) => ({
-                      ...prev,
-                      sort: key as string,
-                    }),
-                  })
-                }
-                aria-label={t('market.sortLabel', { defaultValue: 'Sort' })}
-              >
-                <Label className="sr-only">{t('market.sortLabel', { defaultValue: 'Sort' })}</Label>
-                <Button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-                  <SelectValue />
-                  <ChevronsUpDown size={14} className="opacity-40" aria-hidden="true" />
-                </Button>
-                <Popover className="w-44 rounded-lg border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)] overflow-hidden z-50">
-                  <ListBox className="p-1">
-                    {SORT_OPTIONS.map((opt) => (
-                      <ListBoxItem
-                        key={opt.id}
-                        id={opt.id}
-                        className="px-3 py-2 text-[13px] rounded-md cursor-pointer text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.03] data-[selected]:font-medium data-[selected]:text-[var(--color-primary)] outline-none data-[focused]:bg-[var(--color-text)]/[0.03]"
-                      >
-                        {t(opt.labelKey, { defaultValue: opt.id })}
-                      </ListBoxItem>
-                    ))}
-                  </ListBox>
-                </Popover>
-              </Select>
-            </div>
-
-            {/* Mobile: filter + sort */}
-            <div className="md:hidden shrink-0">
-              <MobileFilterSheet
-                category={search.category}
-                availability={search.availability}
-                priceTier={search.price_tier}
-                onFilterChange={(filters) =>
-                  navigate({
-                    search: (prev: Record<string, unknown>) => ({
-                      ...prev,
-                      ...filters,
-                      page: 1,
-                    }),
-                  })
-                }
-                onClearAll={handleClearFilters}
-              />
-            </div>
+                      {t(opt.labelKey, { defaultValue: opt.id })}
+                    </ListBoxItem>
+                  ))}
+                </ListBox>
+              </Popover>
+            </Select>
           </div>
-
-          {/* Active filter chips — availability & price tier (categories shown as chips above) */}
-          {(search.availability || search.price_tier?.length) && (
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              {search.availability && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium bg-[var(--color-text)]/[0.04] text-[var(--color-text)]">
-                  {search.availability === 'available'
-                    ? t('market.availabilityAvailable', { defaultValue: 'In Stock' })
-                    : t('market.availabilityLowStock', { defaultValue: 'Low Stock' })}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate({
-                        search: (prev: Record<string, unknown>) => ({
-                          ...prev,
-                          availability: undefined,
-                          page: 1,
-                        }),
-                      })
-                    }
-                    className="opacity-40 hover:opacity-80 transition-opacity"
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              )}
-              {search.price_tier?.map((tier) => (
-                <span
-                  key={tier}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium bg-[var(--color-text)]/[0.04] text-[var(--color-text)]"
-                >
-                  {tier === 'budget'
-                    ? t('market.filterBudget', { defaultValue: 'Budget' })
-                    : tier === 'mid_range'
-                      ? t('market.filterMidRange', { defaultValue: 'Mid Range' })
-                      : t('market.filterPremium', { defaultValue: 'Premium' })}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate({
-                        search: (prev: Record<string, unknown>) => {
-                          const tiers = ((prev.price_tier as string) ?? '')
-                            .split(',')
-                            .filter((t: string) => t !== tier)
-                          return {
-                            ...prev,
-                            price_tier: tiers.length ? tiers.join(',') : undefined,
-                            page: 1,
-                          }
-                        },
-                      })
-                    }
-                    className="opacity-40 hover:opacity-80 transition-opacity"
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  className="text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
-                  {t('market.clearAll', { defaultValue: 'Clear all' })}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </section>
 
-      {/* ── Product grid ── */}
-      <section className="px-6 lg:px-12 pb-20">
+      {/* Product grid */}
+      <section className="px-6 lg:px-12 py-8">
         <div className="mx-auto max-w-[1400px]">
           {data.items.length === 0 ? (
             <EmptyState
               icon={<SearchX size={48} />}
-              title={t('market.emptyTitle', { defaultValue: 'No materials found' })}
-              description={t('market.emptyBody', { defaultValue: 'Try adjusting your search or filters.' })}
-              action={
-                hasActiveFilters
-                  ? { label: t('market.emptyCTA', { defaultValue: 'Clear filters' }), onClick: handleClearFilters }
-                  : undefined
-              }
+              title={t('market.emptyTitle')}
+              description={t('market.emptyBody')}
+              action={hasActiveFilters ? { label: t('market.emptyCTA'), onClick: () => navigate({ search: {} }) } : undefined}
               className="mt-8"
             />
           ) : (
             <>
-              {/* Result count */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8">
                 <p className="text-[13px] text-[var(--color-text-subtle)]">
-                  <span className="font-[family-name:var(--font-mono)]">{data.total}</span>{' '}
-                  {t('market.resultCount', { defaultValue: 'materials', count: data.total })}
+                  {t('market.resultCount', { count: data.total })}
                 </p>
               </div>
 
-              {/* Grid — 3 columns max for breathing room */}
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={viewportOnce}
-                variants={reveal}
-                className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
-              >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                 {data.items.map((item) => (
                   <ProductCard key={item.id} product={item} variant="grid" />
                 ))}
-              </motion.div>
+              </div>
 
               <Pagination
                 total={data.total}
                 page={search.page || 1}
                 limit={24}
-                onPageChange={(page) =>
-                  navigate({
-                    search: (prev: Record<string, unknown>) => ({
-                      ...prev,
-                      page,
-                    }),
-                  })
-                }
+                onPageChange={(page) => nav({ page })}
               />
             </>
           )}
         </div>
       </section>
 
-      {/* Mobile floating cart */}
       <MobileCartButton />
     </div>
   )
@@ -592,12 +325,9 @@ function MarketError() {
     <div className="px-6 lg:px-12 py-12">
       <EmptyState
         icon={<AlertTriangle size={48} className="text-[var(--color-warning)]" />}
-        title={t('market.errorTitle', { defaultValue: 'Something went wrong' })}
-        description={t('market.errorBody', { defaultValue: 'Failed to load the market. Please try again.' })}
-        action={{
-          label: t('market.errorCTA', { defaultValue: 'Try again' }),
-          onClick: () => navigate({ search: {} }),
-        }}
+        title={t('market.errorTitle')}
+        description={t('market.errorBody')}
+        action={{ label: t('market.errorCTA'), onClick: () => navigate({ search: {} }) }}
       />
     </div>
   )

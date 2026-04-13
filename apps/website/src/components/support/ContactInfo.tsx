@@ -96,7 +96,7 @@ export function ContactInfo() {
             <div className="flex items-baseline justify-between">
               <span className="text-[14px] opacity-60">{t('support.info.weekdays')}</span>
               <span className="font-[family-name:var(--font-mono)] text-[13px] opacity-45">
-                8:00 – 18:00
+                {t('support.businessHours')}
               </span>
             </div>
             <div className="flex items-baseline justify-between">

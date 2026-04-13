@@ -56,7 +56,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
           type="button"
           disabled={!hasText || isLoading}
           onClick={handleSubmit}
-          aria-label="Send"
+          aria-label={t('a11y.send')}
           className={`ms-3 flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-150 ${
             hasText && !isLoading
               ? 'cursor-pointer bg-[var(--color-primary)] text-white'

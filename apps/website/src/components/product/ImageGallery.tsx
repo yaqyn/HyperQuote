@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const FALLBACK_IMAGE =
   'https://websiteassets.hyperquote.net/Images/cairo.webp'
@@ -10,6 +11,7 @@ interface ImageGalleryProps {
 }
 
 export function ImageGallery({ imageUrls, productName }: ImageGalleryProps) {
+  const { t } = useTranslation('website')
   const images = imageUrls?.length ? imageUrls : [FALLBACK_IMAGE]
   const [activeIndex, setActiveIndex] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
@@ -59,7 +61,7 @@ export function ImageGallery({ imageUrls, productName }: ImageGalleryProps) {
             type="button"
             onClick={() => setOverlayOpen(false)}
             className="absolute top-4 end-4 z-10 rounded-full bg-white/20 p-2 text-white"
-            aria-label="Close"
+            aria-label={t('a11y.close')}
           >
             <X size={24} />
           </button>

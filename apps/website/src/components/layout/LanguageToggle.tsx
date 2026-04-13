@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Globe } from 'lucide-react'
 
 export function LanguageToggle() {
 	const { i18n, t } = useTranslation('website')
@@ -18,9 +19,9 @@ export function LanguageToggle() {
 			type="button"
 			onClick={handleToggle}
 			aria-label={isAr ? t('a11y.switchToEnglish') : t('a11y.switchToArabic')}
-			className="text-xs font-semibold px-2 py-1 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+			className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
 		>
-			{isAr ? 'EN' : 'AR'}
+			<Globe size={18} className="text-[var(--color-text-muted)]" />
 		</button>
 	)
 }

@@ -108,8 +108,17 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
     setReverseResult(null)
   }, [clickedPoint, reverseResult, onAddressChange])
 
+  const [mapLoaded, setMapLoaded] = useState(false)
+
   return (
     <div className="relative h-full w-full">
+      {/* Loading placeholder */}
+      {!mapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-10">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
+        </div>
+      )}
+      <div className={`h-full w-full transition-opacity duration-500 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}>
       <Map
         ref={mapRef}
         mapStyle={MAP_STYLE as any}
@@ -121,6 +130,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
         cursor="crosshair"
+        onLoad={() => setMapLoaded(true)}
       >
         <NavigationControl position="top-right" showCompass={false} />
 
@@ -169,6 +179,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
           </Marker>
         )}
       </Map>
+      </div>
 
       {/* Address card at bottom — above attribution */}
       <div className="absolute bottom-8 start-4 end-4 rounded-xl border border-black/[0.06] bg-white px-4 py-3 shadow-lg dark:border-white/[0.06] dark:bg-black">

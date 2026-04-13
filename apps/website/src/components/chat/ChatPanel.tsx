@@ -59,10 +59,11 @@ function PanelShell({ messages, isLoading, sendMessage }: ChatPanelProps) {
   )
 }
 
-const open = { opacity: 0, scale: 0.97 }
-const visible = { opacity: 1, scale: 1 }
-const closed = { opacity: 0, scale: 0.98 }
-const fast = { duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }
+const open = { opacity: 0, scale: 0.95, y: 10 }
+const visible = { opacity: 1, scale: 1, y: 0 }
+const closed = { opacity: 0, scale: 0.95, y: 10 }
+const enterTransition = { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }
+const exitTransition = { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
 
 function DesktopPanel(props: ChatPanelProps) {
   const isOpen = useChatWidget((s) => s.isOpen)
@@ -74,7 +75,7 @@ function DesktopPanel(props: ChatPanelProps) {
           initial={open}
           animate={visible}
           exit={closed}
-          transition={fast}
+          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           style={{ transformOrigin: 'bottom right' }}
           className="fixed bottom-20 end-4 z-50 flex h-[500px] w-[380px] flex-col overflow-hidden rounded-2xl border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
         >

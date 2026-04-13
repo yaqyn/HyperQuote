@@ -9,7 +9,7 @@ interface PaginationProps {
 }
 
 export function Pagination({ total, page, limit, onPageChange }: PaginationProps) {
-	const { i18n } = useTranslation()
+	const { t, i18n } = useTranslation('website')
 	const totalPages = Math.ceil(total / limit)
 
 	// Don't render for single page
@@ -22,7 +22,7 @@ export function Pagination({ total, page, limit, onPageChange }: PaginationProps
 
 	return (
 		<nav
-			aria-label="Pagination"
+			aria-label={t('a11y.pagination')}
 			className="flex items-center justify-center gap-1 mt-8"
 		>
 			{/* Previous button */}
@@ -31,7 +31,7 @@ export function Pagination({ total, page, limit, onPageChange }: PaginationProps
 				onClick={() => onPageChange(page - 1)}
 				disabled={page <= 1}
 				className="p-2 rounded-lg text-[var(--color-text)] hover:bg-[var(--color-surface)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-				aria-label="Previous page"
+				aria-label={t('a11y.previousPage')}
 			>
 				{isRTL ? (
 					<ChevronRight size={18} aria-hidden="true" />
@@ -79,7 +79,7 @@ export function Pagination({ total, page, limit, onPageChange }: PaginationProps
 				onClick={() => onPageChange(page + 1)}
 				disabled={page >= totalPages}
 				className="p-2 rounded-lg text-[var(--color-text)] hover:bg-[var(--color-surface)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-				aria-label="Next page"
+				aria-label={t('a11y.nextPage')}
 			>
 				{isRTL ? (
 					<ChevronLeft size={18} aria-hidden="true" />

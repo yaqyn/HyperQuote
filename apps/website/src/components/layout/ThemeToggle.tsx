@@ -25,7 +25,7 @@ export function ThemeToggle() {
 			aria-label={isDark ? t('a11y.toggleLightMode') : t('a11y.toggleDarkMode')}
 			className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
 		>
-			{isDark ? <Sun size={20} /> : <Moon size={20} />}
+			{isDark ? <Sun size={18} className="text-white/60" /> : <Moon size={18} className="text-white/60" />}
 		</ToggleButton>
 	)
 }

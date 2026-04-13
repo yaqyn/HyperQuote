@@ -34,7 +34,11 @@ function findMatchHeading(rawMd: string, query: string): string | null {
   return lastHeading
 }
 
-export function DocsSearch() {
+interface DocsSearchProps {
+  onAskLyon?: (query: string) => void
+}
+
+export function DocsSearch({ onAskLyon }: DocsSearchProps = {}) {
   const { t } = useTranslation('website')
   const navigate = useNavigate()
 
@@ -95,7 +99,7 @@ export function DocsSearch() {
       placeholder={t('docs.searchPlaceholder', { defaultValue: 'Search documentation...' })}
       askLyonLabel={t('docs.askLyon', { defaultValue: 'Ask Lyon' })}
       onSelect={handleSelect}
-      onAskLyon={(q) => { /* handled by SearchDropdown's default chat integration */ }}
+      onAskLyon={onAskLyon}
       className="max-w-[480px]"
       idPrefix="docs-search"
     />

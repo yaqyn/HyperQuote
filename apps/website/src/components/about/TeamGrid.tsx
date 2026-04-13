@@ -1,12 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
-const team = [
-	{ name: 'Ahmed Hassan', title: 'CEO & Founder', initials: 'AH' },
-	{ name: 'Sarah El-Masry', title: 'CTO', initials: 'SM' },
-	{ name: 'Omar Khalil', title: 'Head of Operations', initials: 'OK' },
-	{ name: 'Nour Abdel-Rahman', title: 'Head of Product', initials: 'NA' },
-]
+const MEMBER_KEYS = ['member1', 'member2', 'member3', 'member4'] as const
 
 export function TeamGrid() {
 	const { t } = useTranslation('website')
@@ -23,24 +18,27 @@ export function TeamGrid() {
 			</SectionReveal>
 
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-				{team.map((member, i) => (
-					<SectionReveal key={member.name} delay={i * 0.08}>
-						<div className="group">
-							{/* Avatar */}
-							<div className="w-full aspect-square rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center mb-5 group-hover:border-[var(--color-primary)] transition-colors">
-								<span className="text-[32px] font-bold text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
-									{member.initials}
-								</span>
+				{MEMBER_KEYS.map((key, i) => {
+					const name = t(`about.team.${key}.name`)
+					const initials = name.split(' ').map((w: string) => w[0]).join('')
+					return (
+						<SectionReveal key={key} delay={i * 0.08}>
+							<div className="group">
+								<div className="w-full aspect-square rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center mb-5 group-hover:border-[var(--color-primary)] transition-colors">
+									<span className="text-[32px] font-bold text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
+										{initials}
+									</span>
+								</div>
+								<p className="font-semibold text-[16px] text-[var(--color-text)]">
+									{name}
+								</p>
+								<p className="text-[14px] text-[var(--color-text-muted)] mt-1">
+									{t(`about.team.${key}.role`)}
+								</p>
 							</div>
-							<p className="font-semibold text-[16px] text-[var(--color-text)]">
-								{member.name}
-							</p>
-							<p className="text-[14px] text-[var(--color-text-muted)] mt-1">
-								{member.title}
-							</p>
-						</div>
-					</SectionReveal>
-				))}
+						</SectionReveal>
+					)
+				})}
 			</div>
 		</section>
 	)

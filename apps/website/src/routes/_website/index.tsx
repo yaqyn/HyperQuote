@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { OrganizationJsonLd, WebsiteJsonLd } from '../../components/shared/JsonLd'
 import { HeroSection } from '../../components/home/HeroSection'
 import { HowItWorksSection } from '../../components/home/HowItWorksSection'
-import { ValuePropsSection } from '../../components/home/ValuePropsSection'
 import { MarketPreviewSection } from '../../components/home/MarketPreviewSection'
 import { CTASection } from '../../components/home/CTASection'
 
@@ -37,7 +36,6 @@ function HomePage() {
 			<WebsiteJsonLd />
 			<HeroSection />
 			<HowItWorksSection />
-			<ValuePropsSection />
 			<MarketPreviewSection />
 			<CTASection />
 		</>

@@ -3,7 +3,6 @@ import { ModuleTabStrip } from '../shell/ModuleTabStrip'
 
 const TABS = [
   { id: 'rfq-inbox', label: 'RFQs' },
-  { id: 'customers', label: 'Customers' },
 ]
 
 export function SalesTabStrip() {

@@ -163,10 +163,10 @@ export function ApprovalWorkflow({
     }
   }
 
-  // Auto-approved -- single green line
+  // Auto-approved
   if (!needsApproval) {
     return (
-      <p className="flex items-center gap-1.5 text-[13px] font-medium text-green-700 dark:text-green-400">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)]">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3.5 7l2.5 2.5L10.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -175,10 +175,10 @@ export function ApprovalWorkflow({
     )
   }
 
-  // Approved -- single green line
+  // Approved
   if (status === 'approved') {
     return (
-      <p className="flex items-center gap-1.5 text-[13px] font-medium text-green-700 dark:text-green-400">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)]">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M3.5 7l2.5 2.5L10.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -187,18 +187,18 @@ export function ApprovalWorkflow({
     )
   }
 
-  // Pending -- compact with approver actions
+  // Pending
   if (status === 'pending_approval') {
     return (
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
-          <span className="text-[13px] font-medium text-yellow-700 dark:text-yellow-300">
+          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-primary)]" />
+          <span className="text-[13px] font-medium text-[var(--color-text)]">
             Pending {chain[chain.length - 1]?.label ?? 'approver'}
           </span>
         </div>
 
-        <span className="text-[12px] text-[var(--color-text-subtle)]">
+        <span className="text-[12px] text-black/30 dark:text-white/30">
           Auto-escalates in 2h
         </span>
 

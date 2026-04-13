@@ -29,7 +29,7 @@ export function ChatFAB() {
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.15 }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            aria-label="Back to top"
+            aria-label={t('a11y.backToTop')}
             className="flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--color-text)] opacity-25 transition-opacity hover:opacity-50"
           >
             <ChevronUp size={16} />
@@ -37,12 +37,18 @@ export function ChatFAB() {
         )}
       </AnimatePresence>
 
-      {/* Chat toggle */}
-      <button
+      {/* Chat toggle — only visible after scroll */}
+      <AnimatePresence>
+        {(scrolled || isOpen) && (
+      <motion.button
         type="button"
+        initial={{ opacity: 0, scale: 0.8, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.8, y: 8 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
         onClick={toggle}
         aria-label={t('chat.fabLabel')}
-        className="flex p-3.5 cursor-pointer items-center justify-center rounded-full bg-[var(--color-base)]/40 backdrop-blur-2xl text-[var(--color-text)]/60 transition-all duration-150 hover:bg-[var(--color-base)]/50 hover:text-[var(--color-text)]/80 hover:scale-105 active:scale-95"
+        className="flex p-3.5 cursor-pointer items-center justify-center rounded-full bg-[var(--color-base)]/40 backdrop-blur-2xl text-[var(--color-text)]/60 transition-colors duration-150 hover:bg-[var(--color-base)]/50 hover:text-[var(--color-text)]/80"
       >
         <AnimatePresence mode="wait" initial={false}>
           {isOpen ? (
@@ -69,7 +75,9 @@ export function ChatFAB() {
             </motion.span>
           )}
         </AnimatePresence>
-      </button>
+      </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

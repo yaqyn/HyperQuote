@@ -8,70 +8,65 @@
   "cta": {
     "getQuote": "Get a Quote",
     "browseMarket": "Browse Market",
-    "readyToBuild": "Ready to Build?",
-    "getStartedFree": "Get Started — Free",
-    "noCreditCard": "No credit card required. Quote requests are always free."
+    "readyToBuild": "Start Building",
+    "getStartedFree": "Get Started",
+    "noCreditCard": "Free to use. No commitment."
   },
   "hero": {
     "headline": "Build the Future, Faster.",
     "headlinePart1": "Build the Future,",
     "headlinePart2": "Faster.",
-    "subheadline": "Egypt's first digital platform for building materials sourcing. Get competitive quotes in 4 hours, not 4 days.",
-    "trustProducts": "500+ Products",
-    "trustSuppliers": "50+ Suppliers",
-    "trustResponse": "4hr Response",
-    "quoteSpeed": "Quote Response",
-    "floatStat": "500+",
-    "floatLabel": "Verified Suppliers",
-    "imageAlt": "Cairo construction skyline"
+    "address": "Arkan Plaza, Sheikh Zayed, Egypt",
+    "subheadline": "We source your building materials and deliver them to your site. You focus on building.",
+    "imageAlt": "Cairo construction site"
   },
   "howItWorks": {
     "label": "Process",
-    "heading": "How It Works",
+    "heading": "List to site.\nHere's how.",
     "step1": {
-      "title": "Build Your List",
-      "description": "Add materials from our catalog or upload your own list."
+      "title": "Send your list",
+      "description": "Upload a material list or build one from our catalog. Any format works."
     },
     "step2": {
-      "title": "Get a Quote",
-      "description": "Receive competitive pricing from verified suppliers within 4 hours."
+      "title": "We source it",
+      "description": "Our team finds the best prices from verified suppliers across Egypt. You get a quote within 4 hours."
     },
     "step3": {
-      "title": "We Deliver",
-      "description": "Coordinated delivery to your site with real-time tracking."
+      "title": "We deliver it",
+      "description": "Coordinated delivery to your site. Track every truck in real time."
     },
     "step4": {
-      "title": "Track Everything",
-      "description": "Monitor orders, deliveries, and payments in one place."
+      "title": "You build",
+      "description": "Materials arrive. You build. That's it."
     }
   },
   "valueProps": {
-    "label": "Advantages",
-    "heading": "Why HyperQuote",
-    "subtitle": "Everything you need to source building materials efficiently, from quote to delivery.",
+    "label": "Platform",
+    "heading": "Built for how you work",
+    "subtitle": "One platform for sourcing, quoting, and delivery — so your time stays on the job site.",
     "aiOrdering": {
-      "title": "AI-Powered Ordering",
-      "description": "Smart suggestions and automated list building save hours of manual work."
+      "title": "One platform, not ten phone calls",
+      "description": "Submit your list once. We handle the rest — sourcing, negotiation, coordination."
     },
     "fastQuotes": {
-      "title": "4-Hour Quotes",
-      "description": "Get competitive pricing faster than any traditional supplier."
+      "title": "4 hours, not 4 days",
+      "description": "Competitive pricing from multiple suppliers, delivered to you before lunch."
     },
     "tracking": {
-      "title": "Real-Time Tracking",
-      "description": "Know exactly where your materials are, from warehouse to site."
+      "title": "Know where everything is",
+      "description": "Real-time tracking from warehouse to site. No more guessing."
     },
     "projects": {
-      "title": "Project Organization",
-      "description": "Organize orders by project, track budgets, and manage your team."
+      "title": "Your projects, organized",
+      "description": "Every order tied to a project. Budgets tracked. History searchable."
     },
     "pricing": {
-      "title": "Transparent Pricing",
-      "description": "See price ranges upfront. No surprises, no hidden fees."
+      "title": "Honest pricing",
+      "description": "See the range upfront. No hidden fees. No surprises after delivery."
     },
     "whatsapp": {
-      "title": "WhatsApp Support",
-      "description": "Get help instantly through the app you already use every day."
+      "title": "Talk to a human",
+      "description": "Real support on WhatsApp. Not a chatbot. Not a ticket queue."
     }
   },
   "marketPreview": {
@@ -88,53 +83,60 @@
     }
   },
   "about": {
-    "label": "About Us",
-    "heroHeadline": "Building Egypt's Future Together",
-    "heroSubheadline": "We're on a mission to digitize the building materials supply chain across Egypt — making sourcing faster, transparent, and reliable.",
+    "label": "About",
+    "established": "Cairo, Egypt — Est. 2026",
+    "heroLine1": "Orchestrating",
+    "heroLine2": "the physical world",
+    "heroHeadline": "The supply chain, rebuilt",
+    "heroSubheadline": "HyperQuote connects contractors with verified suppliers through a single platform. One quote request, multiple supplier bids, delivered to your site.",
     "story": {
       "label": "Our Story",
-      "heading": "Our Story",
-      "p1": "HyperQuote was born from a simple observation: sourcing building materials in Egypt shouldn't be this hard. Contractors spend days calling suppliers, comparing prices, and coordinating deliveries — time that should be spent building.",
-      "p2": "Founded in Cairo, we set out to digitize the entire building materials supply chain. Our platform connects contractors with verified suppliers, automates the quoting process, and provides real-time delivery tracking.",
-      "p3": "Today, we serve hundreds of contractors across Egypt, processing thousands of quotes and deliveries. But we're just getting started."
+      "heading": "The problem",
+      "p1": "Egyptian construction runs on relationships, phone calls, and handshake deals. Contractors spend days calling suppliers for prices, comparing quotes on paper, and coordinating deliveries with no visibility. There's no standard platform, no price transparency, and no way to track an order once it's placed.",
+      "p2": "HyperQuote replaces that chaos with a structured, transparent system — without removing the human element that makes Egyptian business work. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.",
+      "p3": "We're based in Cairo. We work with suppliers across Egypt. And we're just getting started."
     },
     "mission": {
       "label": "Values",
-      "heading": "Mission & Values",
+      "heading": "What we deliver",
       "value1": {
-        "title": "Speed",
-        "description": "We believe 4-hour quotes should be the standard, not the exception."
+        "title": "4-hour quotes",
+        "description": "Submit your material list and receive a consolidated quote from multiple suppliers within 4 hours. No more days spent chasing individual prices."
       },
       "value2": {
-        "title": "Transparency",
-        "description": "No hidden fees, no surprises. You see what you pay."
+        "title": "Complete transparency",
+        "description": "Every quote includes unit pricing, delivery timelines, and payment terms. Track your order from confirmation through delivery with live GPS."
       },
       "value3": {
-        "title": "Reliability",
-        "description": "Every delivery tracked, every promise kept."
+        "title": "Built for Egypt",
+        "description": "Designed for how Egyptian construction actually works. Quote-based pricing, wire and cheque payments, Cairo truck ban compliance, ETA e-invoicing — all built in."
       }
     },
     "team": {
       "label": "Team",
-      "heading": "Our Team"
+      "heading": "Team",
+      "member1": { "name": "Ahmed Hassan", "role": "CEO & Founder" },
+      "member2": { "name": "Sarah El-Masry", "role": "CTO" },
+      "member3": { "name": "Omar Khalil", "role": "Head of Operations" },
+      "member4": { "name": "Nour Abdel-Rahman", "role": "Head of Product" }
     },
     "careers": {
-      "heading": "Join Us",
-      "description": "We're building the future of construction in Egypt. Join our team and help transform an entire industry.",
-      "cta": "See Open Positions"
+      "heading": "Join us",
+      "description": "We're building the infrastructure for Egypt's construction industry. If you want to work on hard problems with real impact, we'd like to hear from you.",
+      "cta": "View open positions"
     }
   },
   "cart": {
     "label": "Quote Cart",
     "title": "Your Quote",
     "emptyTitle": "No items yet",
-    "empty": "Browse materials and click + to add them to your quote.",
+    "empty": "Browse materials and add them to your quote.",
     "browseCta": "Browse Materials",
     "clearAll": "Clear",
     "remove": "Remove item",
-    "addNote": "Add note to quote",
+    "addNote": "Add a note",
     "submit": "Request Quote",
-    "submitHint": "Free quote — no commitment. We'll respond within 4 hours."
+    "submitHint": "Free. No commitment. Response within 4 hours."
   },
   "market": {
     "pageTitle": "Building Materials",
@@ -143,7 +145,7 @@
     "groupFinishing": "Finishing",
     "groupMEP": "MEP",
     "groupOther": "Other",
-    "searchPlaceholder": "Search cement, steel, bricks...",
+    "searchPlaceholder": "Search materials...",
     "filterClear": "Clear All",
     "resultCount": "{{count}} products",
     "sortLabel": "Sort by",
@@ -169,7 +171,7 @@
     "emptyBody": "Try adjusting your filters or search terms",
     "emptyCTA": "Clear Filters",
     "errorTitle": "Failed to load products",
-    "errorBody": "Products failed to load. Check your connection and try again.",
+    "errorBody": "Something went wrong. Check your connection and try again.",
     "errorCTA": "Retry",
     "loginPrompt": "Sign in to add products to your quote",
     "available": "Available",
@@ -212,13 +214,13 @@
     "getQuote": "Get a Quote",
     "browseMarket": "Browse Market",
     "trackOrder": "Track Order",
-    "aboutUs": "About Us",
+    "aboutUs": "About",
     "support": "Support",
     "careers": "Careers",
-    "docs": "Documentation",
-    "privacyPolicy": "Privacy Policy",
-    "termsOfUse": "Terms of Use",
-    "copyright": "© 2026 HyperQuote. All rights reserved.",
+    "docs": "Docs",
+    "privacyPolicy": "Privacy",
+    "termsOfUse": "Terms",
+    "copyright": "© 2026 HyperQuote",
     "regionEn": "Egypt · English",
     "regionAr": "Egypt · العربية"
   },
@@ -227,17 +229,17 @@
     "specsLabel": "Details",
     "specsHeading": "Specifications",
     "documentsHeading": "Documents",
-    "noDocuments": "No documents available for this product.",
-    "relatedLabel": "More Like This",
+    "noDocuments": "No documents available.",
+    "relatedLabel": "Related",
     "relatedHeading": "Related Products",
     "quantityLabel": "Quantity",
-    "whatsappFallback": "Or contact us on WhatsApp",
+    "whatsappFallback": "Or reach us on WhatsApp",
     "notFoundTitle": "Product not found",
     "notFoundBody": "This product may have been removed or the link is incorrect.",
     "notFoundCTA": "Browse Market",
     "breadcrumbMarket": "Market",
     "specWeight": "Weight",
-    "specUOM": "Unit of Measure",
+    "specUOM": "Unit",
     "specBrand": "Brand",
     "specManufacturer": "Manufacturer"
   },
@@ -283,8 +285,8 @@
         "content": "You have the right to access, correct, or delete your personal data. You may request a copy of all data we hold about you. To exercise these rights, contact us at privacy@hyperquote.net. We will respond within 30 days as required by Egyptian data protection regulations."
       },
       "contact": {
-        "title": "Contact Us",
-        "content": "For privacy-related inquiries, contact our Data Protection Officer at privacy@hyperquote.net or write to: HyperQuote, Cairo, Egypt."
+        "title": "Contact",
+        "content": "For privacy-related inquiries, contact our Data Protection Officer at privacy@hyperquote.net or write to: HyperQuote, Arkan Plaza, Sheikh Zayed, Egypt."
       }
     },
     "terms": {
@@ -316,9 +318,47 @@
     }
   },
   "careers": {
-    "heading": "Join Our Team",
-    "noJobs": "No open positions right now. Send us your CV and we'll keep you in mind.",
-    "sendCV": "Send us your CV",
+    "heading": "Open Positions",
+    "location": "Cairo, Egypt",
+    "heroLine1": "An invitation to build",
+    "heroLine2": "something permanent.",
+    "openCount": "6 open positions",
+    "why": {
+      "p1": "Egypt's construction supply chain is a $40B market still running on phone calls, paper quotes, and personal relationships. We're not building another SaaS dashboard.",
+      "pullquote1": "We're building the operating system for how materials move from supplier to site.",
+      "p2": "You'll work directly with the founders on problems that matter: real-time logistics coordination, supplier matching algorithms, and a product designed for how Egyptian business actually works.",
+      "pullquote2": "Small team. High ownership. Shipping weekly.",
+      "p3": "This isn't a place where you'll disappear into a feature factory. Every engineer touches the full stack, every designer talks to users, every ops person shapes the logistics network. The problems are hard and the impact is immediate."
+    },
+    "positions": {
+      "heading": "Open positions",
+      "job1": { "title": "Senior Frontend Engineer", "department": "Engineering", "location": "Cairo", "type": "Full-time" },
+      "job2": { "title": "Backend Engineer", "department": "Engineering", "location": "Cairo", "type": "Full-time" },
+      "job3": { "title": "Product Designer", "department": "Design", "location": "Cairo", "type": "Full-time" },
+      "job4": { "title": "Operations Manager", "department": "Operations", "location": "Cairo", "type": "Full-time" },
+      "job5": { "title": "Supply Chain Analyst", "department": "Operations", "location": "Cairo", "type": "Full-time" },
+      "job6": { "title": "Customer Success Lead", "department": "Support", "location": "Cairo", "type": "Full-time" }
+    },
+    "process": {
+      "heading": "How we hire",
+      "step1": {
+        "title": "Apply",
+        "description": "Send your CV and a brief note about why HyperQuote interests you. We review every application within 48 hours."
+      },
+      "step2": {
+        "title": "Interview",
+        "description": "A short technical or role-specific conversation followed by a practical exercise. No trick questions, no whiteboard algorithms."
+      },
+      "step3": {
+        "title": "Offer",
+        "description": "If it's a mutual fit, we move fast. You'll receive a clear offer with compensation, equity, and start date within one week."
+      }
+    },
+    "cta": {
+      "headline": "Ready?"
+    },
+    "noJobs": "No open positions right now. Send us your CV and we'll reach out when something fits.",
+    "sendCV": "Send your CV",
     "jobs": {
       "fullStack": "Full Stack Engineer",
       "operations": "Operations Manager",
@@ -335,43 +375,112 @@
     "switchToEnglish": "Switch to English",
     "toggleDarkMode": "Switch to dark mode",
     "toggleLightMode": "Switch to light mode",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "pagination": "Pagination",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "close": "Close",
+    "send": "Send",
+    "backToTop": "Back to top"
   },
   "chat": {
-    "header": "HyperQuote",
+    "header": "Lyon AI",
     "inputPlaceholder": "Ask anything...",
-    "signInPrompt": "Sign in to use this feature",
-    "welcome": "Hi! I'm HyperQuote's assistant. How can I help you today?",
+    "signInPrompt": "Sign in to continue",
+    "welcome": "How can we help?",
     "fabLabel": "Open chat",
     "closeLabel": "Close chat"
   },
   "support": {
     "heading": "How can we help?",
     "responseTime": "Average response: 2 hours",
-    "formHeading": "Still need help?",
-    "formSubheading": "Send us a message and we'll get back to you.",
+    "formHeading": "Send us a message",
+    "formSubheading": "We'll get back to you within a few hours.",
     "searchPlaceholder": "Search for answers...",
-    "askAI": "Ask our AI assistant instead",
+    "askAI": "Ask our AI assistant",
     "sectionContact": "Contact",
     "sectionFaq": "Questions",
     "sectionMessage": "Message",
-    "whatsappLabel": "Chat on WhatsApp",
+    "whatsappLabel": "WhatsApp",
     "whatsappDetail": "Fastest response",
-    "emailLabel": "Email Us",
-    "phoneLabel": "Call Us",
+    "emailLabel": "Email",
+    "phoneLabel": "Call",
     "info": {
-      "hours": "Business Hours",
-      "weekdays": "Sunday \u2013 Thursday",
-      "weekends": "Friday \u2013 Saturday",
+      "hours": "Hours",
+      "weekdays": "Sunday – Thursday",
+      "weekends": "Friday – Saturday",
       "closed": "Closed",
       "channels": "Channels",
       "office": "Office",
       "address": "Arkan Plaza\nSheikh Zayed\nEgypt"
     },
+    "businessHours": "8:00 – 18:00",
     "faq": {
       "heading": "Frequently Asked Questions",
       "searchPlaceholder": "Search questions...",
-      "noResults": "No matching questions found"
+      "noResults": "No matching questions found",
+      "tags": {
+        "quotes": "Quotes",
+        "delivery": "Delivery",
+        "payment": "Payment",
+        "account": "Account",
+        "materials": "Materials",
+        "bulk": "Bulk",
+        "returns": "Returns",
+        "platform": "Platform"
+      },
+      "items": {
+        "1": {
+          "question": "How long does it take to receive a quote?",
+          "answer": "We deliver quotes within 4 hours during business hours (Sunday–Thursday, 8 AM–6 PM). Submit your material list through the platform or via WhatsApp. Each quote includes unit pricing, delivery timeline, and payment terms. You can accept, negotiate quantities, swap materials, or request changes — all from your dashboard.",
+          "tag": "quotes"
+        },
+        "2": {
+          "question": "When can you deliver within Greater Cairo?",
+          "answer": "Most Cairo orders arrive within 24–48 hours. Heavy materials (steel, cement, aggregates) are delivered during permitted hours due to the Cairo truck ban that restricts heavy vehicles between 6 AM and midnight. Every delivery includes real-time GPS tracking and SMS status updates.",
+          "tag": "delivery"
+        },
+        "3": {
+          "question": "What payment methods do you accept?",
+          "answer": "Wire transfers, post-dated cheques, cash on delivery, and letters of credit. We follow Egyptian B2B standards — no online payments or mobile wallets. All invoices include 14% VAT and are ETA e-invoicing compliant. Payment terms are negotiable for established accounts.",
+          "tag": "payment"
+        },
+        "4": {
+          "question": "How do I sign up?",
+          "answer": "Enter your Egyptian mobile number and verify via WhatsApp OTP — no email or password needed. Add your company name and full name to complete registration. The whole process takes under 60 seconds. You can browse the product catalog without an account, but submitting quotes requires sign-in.",
+          "tag": "account"
+        },
+        "5": {
+          "question": "What building materials do you supply?",
+          "answer": "Over 500 products across cement, reinforcing steel, aggregates, bricks, ceramic tiles, timber, insulation, plumbing, electrical, paint, and waterproofing. All sourced from verified Egyptian suppliers. The catalog shows price ranges and specifications — exact pricing is calculated per quote based on quantity and delivery location.",
+          "tag": "materials"
+        },
+        "6": {
+          "question": "Do you deliver outside Cairo?",
+          "answer": "Yes — Alexandria, the Delta, and Upper Egypt. Delivery takes 24–72 hours depending on distance. Remote locations may require minimum order quantities. Contact us for a delivery estimate to your specific construction site.",
+          "tag": "delivery"
+        },
+        "7": {
+          "question": "How does invoicing work?",
+          "answer": "Every order generates an Arabic e-invoice compliant with the Egyptian Tax Authority's real-time system. Invoices break down 14% VAT, itemized materials, delivery charges, and payment terms. Available in your dashboard and sent via email and WhatsApp automatically.",
+          "tag": "payment"
+        },
+        "8": {
+          "question": "Do you offer volume pricing for large projects?",
+          "answer": "Yes. Bulk orders get priority pricing from our supplier network. For projects exceeding EGP 500,000, we assign a dedicated account manager who handles quoting, delivery scheduling across multiple sites, and consolidated invoicing.",
+          "tag": "bulk"
+        },
+        "9": {
+          "question": "What is your returns policy?",
+          "answer": "Defective or incorrect materials can be returned within 7 days of delivery. We arrange pickup at no extra cost. Custom-cut items and special orders are non-returnable unless defective. Refunds are processed within 5 business days after inspection.",
+          "tag": "returns"
+        },
+        "10": {
+          "question": "Is the platform fully available in Arabic?",
+          "answer": "Arabic is our primary language. Every screen, invoice, and document uses native right-to-left layout. Numbers display in Arabic-Indic numerals (١٢٣) when using Arabic. You can switch between Arabic and English at any time from the header.",
+          "tag": "platform"
+        }
+      }
     },
     "form": {
       "name": "Name",
@@ -379,13 +488,13 @@
       "phone": "Phone (optional)",
       "subject": "Subject",
       "message": "Message",
-      "submit": "Send Message",
-      "success": "Thank you! We'll get back to you soon.",
-      "error": "Your message couldn't be sent. Please try again.",
+      "submit": "Send",
+      "success": "Sent. We'll respond shortly.",
+      "error": "Something went wrong. Try again.",
       "subjects": {
-        "general": "General Inquiry",
-        "quote": "Quote Question",
-        "delivery": "Delivery Issue",
+        "general": "General",
+        "quote": "Quote",
+        "delivery": "Delivery",
         "billing": "Billing",
         "other": "Other"
       }
@@ -396,36 +505,36 @@
       "heading": "Sign In"
     },
     "step2": {
-      "heading": "Verify Your Number"
+      "heading": "Verify"
     },
     "step3": {
-      "heading": "Create Your Account"
+      "heading": "Create Account"
     },
     "phoneLabel": "Phone Number",
     "phoneRequired": "Phone number is required",
     "phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
     "whatsappCTA": "Continue with WhatsApp",
-    "smsFallback": "Send via SMS instead",
+    "smsFallback": "Send via SMS",
     "codeSent": "Code sent to",
-    "wrongCode": "Incorrect code. Please try again.",
+    "wrongCode": "Incorrect code. Try again.",
     "resend": "Resend",
     "resendIn": "Resend in",
-    "sendFailed": "Failed to send code. Please try again.",
+    "sendFailed": "Failed to send. Try again.",
     "companyName": "Company Name",
     "fullName": "Full Name",
     "createButton": "Create Account",
-    "createFailed": "Failed to create account. Please try again.",
-    "legalPrefix": "By creating an account, you agree to our",
-    "termsLink": "Terms of Use",
+    "createFailed": "Something went wrong. Try again.",
+    "legalPrefix": "By continuing, you agree to our",
+    "termsLink": "Terms",
     "and": "and",
     "privacyLink": "Privacy Policy",
     "claiming": {
-      "heading": "We found an existing account",
+      "heading": "We found your account",
       "confirm": "Yes, that's me",
-      "deny": "No, create a new account"
+      "deny": "No, create a new one"
     },
-    "claimFailed": "Failed to claim account. Please try again.",
-    "rateLimit": "Too many attempts. Please wait and try again."
+    "claimFailed": "Something went wrong. Try again.",
+    "rateLimit": "Too many attempts. Wait a moment."
   },
   "docs": {
     "sidebar": {
@@ -443,8 +552,8 @@
       "handlingPOs": "Handling POs"
     },
     "content": {
-      "notFound": "Section Not Found",
-      "notFoundBody": "The requested documentation section could not be found.",
+      "notFound": "Not Found",
+      "notFoundBody": "This section doesn't exist.",
       "whatIsHyperquote": {
         "title": "What is HyperQuote?",
         "overview": "Overview",
@@ -459,13 +568,13 @@
       "yourFirstQuote": {
         "title": "Your First Quote",
         "addingMaterials": "Adding Materials",
-        "submitting": "Submitting Your Quote",
-        "receivingResponse": "Receiving a Response"
+        "submitting": "Submitting",
+        "receivingResponse": "Getting a Response"
       },
       "buildingMaterialLists": {
         "title": "Building Material Lists",
         "catalogSearch": "Searching the Catalog",
-        "customItems": "Adding Custom Items"
+        "customItems": "Custom Items"
       },
       "trackingOrders": {
         "title": "Tracking Orders",
@@ -475,12 +584,12 @@
       "managingProjects": {
         "title": "Managing Projects",
         "createProject": "Creating a Project",
-        "budgets": "Budgets & Tracking"
+        "budgets": "Budgets"
       },
       "publishingCatalog": {
         "title": "Publishing Your Catalog",
         "uploadProducts": "Uploading Products",
-        "aiParsing": "AI-Powered Parsing"
+        "aiParsing": "AI Parsing"
       },
       "managingPrices": {
         "title": "Managing Prices",
@@ -494,7 +603,7 @@
       }
     },
     "toc": {
-      "label": "Table of Contents"
+      "label": "Contents"
     }
   }
 }
