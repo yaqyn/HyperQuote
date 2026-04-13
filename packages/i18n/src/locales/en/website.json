@@ -21,23 +21,23 @@
     "imageAlt": "Cairo construction site"
   },
   "howItWorks": {
-    "label": "Process",
-    "heading": "List to site.\nHere's how.",
+    "label": "HyperQuote",
+    "heading": "We move the materials.\nYou move the world.",
     "step1": {
-      "title": "Send your list",
-      "description": "Upload a material list or build one from our catalog. Any format works."
+      "title": "500+ products",
+      "description": "Cement, steel, aggregates, timber, finishing — everything a site needs, from verified suppliers across Egypt."
     },
     "step2": {
-      "title": "We source it",
-      "description": "Our team finds the best prices from verified suppliers across Egypt. You get a quote within 4 hours."
+      "title": "4-hour quotes",
+      "description": "Send your list in any format. Receive competitive pricing from multiple suppliers before the day is over."
     },
     "step3": {
-      "title": "We deliver it",
-      "description": "Coordinated delivery to your site. Track every truck in real time."
+      "title": "Tracked delivery",
+      "description": "Every truck on a map. Every order with a timeline. No more calling to ask where your materials are."
     },
     "step4": {
-      "title": "You build",
-      "description": "Materials arrive. You build. That's it."
+      "title": "One platform",
+      "description": "Quotes, orders, invoices, deliveries — managed in one place. Built for how Egyptian construction actually works."
     }
   },
   "valueProps": {

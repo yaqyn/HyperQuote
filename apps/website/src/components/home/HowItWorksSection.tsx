@@ -7,34 +7,19 @@ const STEP_KEYS = ['step1', 'step2', 'step3', 'step4'] as const
 const IMAGES = [
 	'https://websiteassets.hyperquote.net/Images/sea1.webp',
 	'https://websiteassets.hyperquote.net/Images/truck1.webp',
-	'https://websiteassets.hyperquote.net/Images/cairo.webp',
 ]
 
 export function HowItWorksSection() {
 	const { t } = useTranslation('website')
 	const sectionRef = useRef<HTMLElement>(null)
 	const [activeImg, setActiveImg] = useState(0)
-	const [transitioning, setTransitioning] = useState(true)
-	const stripRef = useRef<HTMLDivElement>(null)
-	const totalSlides = IMAGES.length + 1 // duplicate first at end
 
 	useEffect(() => {
 		const id = setInterval(() => {
-			setActiveImg((p) => p + 1)
-			setTransitioning(true)
-		}, 5000)
+			setActiveImg((p) => (p + 1) % IMAGES.length)
+		}, 30000)
 		return () => clearInterval(id)
 	}, [])
-
-	// When we land on the duplicate (index === IMAGES.length), snap back to 0 instantly
-	useEffect(() => {
-		if (activeImg !== IMAGES.length) return
-		const timeout = setTimeout(() => {
-			setTransitioning(false)
-			setActiveImg(0)
-		}, 1000) // wait for slide animation to finish
-		return () => clearTimeout(timeout)
-	}, [activeImg])
 
 	const { scrollYProgress } = useScroll({
 		target: sectionRef,
@@ -52,27 +37,17 @@ export function HowItWorksSection() {
 				style={{ clipPath }}
 				className="relative overflow-hidden bg-[#101010]"
 			>
-				{/* Images — slide one at a time */}
-				<div className="absolute top-0 bottom-0 max-lg:hidden overflow-hidden" style={{ left: '55%', right: 0 }}>
-					<div
-						ref={stripRef}
-						className="flex h-full"
-						style={{
-							width: `${totalSlides * 100}%`,
-							transform: `translateX(-${activeImg * (100 / totalSlides)}%)`,
-							transition: transitioning ? 'transform 1s ease-in-out' : 'none',
-						}}
-					>
-						{[...IMAGES, IMAGES[0]].map((src, i) => (
-							<img
-								key={`${src}-${i}`}
-								src={src}
-								alt=""
-								className="h-full flex-shrink-0 object-cover object-left"
-								style={{ width: `${100 / totalSlides}%` }}
-							/>
-						))}
-					</div>
+				{/* Images — crossfade */}
+				<div className="absolute top-0 bottom-0 max-lg:hidden" style={{ left: '55%', right: 0 }}>
+					{IMAGES.map((src, i) => (
+						<img
+							key={src}
+							src={src}
+							alt=""
+							className="absolute inset-0 h-full w-full object-cover object-left transition-opacity duration-[2s] ease-in-out"
+							style={{ opacity: i === activeImg ? 1 : 0 }}
+						/>
+					))}
 				</div>
 
 				{/* Content — left side */}

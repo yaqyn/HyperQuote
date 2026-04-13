@@ -10,7 +10,7 @@ function WebsiteLayout() {
   return (
     <>
       <WebsiteHeader />
-      <main id="main">
+      <main id="main" className="relative z-10 bg-[var(--color-base)] shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
         <Outlet />
       </main>
       <WebsiteFooter />

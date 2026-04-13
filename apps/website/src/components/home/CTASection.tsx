@@ -1,42 +1,28 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
 import { SectionReveal } from '../shared/SectionReveal'
 
 export function CTASection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="relative py-28 max-md:py-20 px-6 lg:px-12 overflow-hidden bg-[#111113]">
-			{/* Subtle grid */}
-			<div
-				className="absolute inset-0 opacity-[0.04]"
-				style={{
-					backgroundImage:
-						'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
-					backgroundSize: '60px 60px',
-				}}
-			/>
-
+		<section className="bg-[#101010] py-28 max-md:py-20 px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32">
 			<SectionReveal>
-				<div className="relative z-10 max-w-3xl mx-auto text-center">
-					<h2 className="text-[40px] lg:text-[56px] font-bold text-white leading-[1.1]">
-						{t('cta.readyToBuild')}
-					</h2>
-
-					<p className="text-[16px] text-white/60 mt-4 max-w-[400px] mx-auto">
-						{t('cta.noCreditCard')}
-					</p>
-
-					<div className="mt-8 flex justify-center gap-4 max-sm:flex-col max-sm:items-center">
-						<Link
-							to="/portal"
-							className="inline-flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white font-semibold text-[16px] h-13 px-7 rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors"
-						>
-							{t('cta.getStartedFree')}
-							<ArrowRight size={18} className="icon-end" />
-						</Link>
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+					<div>
+						<h2 className="text-[28px] lg:text-[36px] font-extrabold text-white tracking-[-0.02em] leading-tight">
+							{t('cta.readyToBuild')}
+						</h2>
+						<p className="mt-2 text-[15px] text-[#808080]">
+							{t('cta.noCreditCard')}
+						</p>
 					</div>
+					<Link
+						to="/market"
+						className="inline-flex items-center justify-center text-[14px] font-semibold text-[#3B82F6] hover:text-white transition-colors shrink-0"
+					>
+						{t('cta.browseMarket')} →
+					</Link>
 				</div>
 			</SectionReveal>
 		</section>

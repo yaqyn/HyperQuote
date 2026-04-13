@@ -19,6 +19,12 @@ export function WebsiteHeader() {
 	const { open: openLoginModal } = useLoginModal()
 	const [showGlobalNote, setShowGlobalNote] = useState(false)
 	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+	const [introDone, setIntroDone] = useState(false)
+
+	useEffect(() => {
+		const timer = setTimeout(() => setIntroDone(true), 650)
+		return () => clearTimeout(timer)
+	}, [])
 
 	const routerState = useRouterState()
 	const isHome = routerState.location.pathname === '/'
@@ -44,22 +50,28 @@ export function WebsiteHeader() {
 
 	return (
 		<>
-			{/* Hero logo — centered, floats up and fades on scroll */}
+			{/* Hero logo — centered, slides up into view with headline, slides up out on scroll */}
 			{isHome && (
 				<div
-					className="fixed top-0 inset-x-0 z-41 h-16 max-md:h-14 flex items-center justify-center pointer-events-none transition-all duration-700 ease-out"
+					className="fixed top-0 inset-x-0 z-41 h-16 max-md:h-14 flex items-center justify-center pointer-events-none overflow-hidden"
 					style={{
-						opacity: heroMode ? 1 : 0,
-						transform: heroMode ? 'translateY(0)' : 'translateY(-100%)',
+						opacity: scrolled ? 0 : 1,
+						transition: 'opacity 0.7s ease-out',
 					}}
 				>
 					<button
 						type="button"
 						onClick={() => document.getElementById('process')?.scrollIntoView({ behavior: 'smooth' })}
-						className="pointer-events-auto"
+						className="pointer-events-auto transition-transform duration-700 ease-out"
+						style={{
+							transform: scrolled ? 'translateY(-100%)' : 'translateY(0)',
+						}}
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)]">
-							HyperQuote
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)] block overflow-hidden">
+							<span className="block" style={{
+								transform: introDone && !scrolled ? 'translateY(0)' : 'translateY(110%)',
+								transition: 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s',
+							}}>HyperQuote</span>
 						</span>
 					</button>
 				</div>

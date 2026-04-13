@@ -29,7 +29,7 @@ export function WebsiteFooter() {
 	}, [])
 
 	return (
-		<footer className="border-t border-[var(--color-text)]/[0.06]">
+		<footer className="sticky bottom-0 z-0 border-t border-[var(--color-text)]/[0.06]">
 			<div className="mx-auto max-w-7xl px-6">
 				{/* Main row: Brand | Links | Contact */}
 				<div className="grid grid-cols-1 gap-14 py-16 lg:grid-cols-[1fr_auto_auto] lg:gap-20 lg:py-20">
