@@ -234,7 +234,7 @@ function ConfirmedPOCard({
         <span className="font-mono font-semibold text-sm text-[var(--color-text)]">
           {po.reference}
         </span>
-        <span className="font-mono text-xs text-[var(--color-text-muted)]">
+        <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
           {formattedDate}
         </span>
       </div>
@@ -248,13 +248,13 @@ function ConfirmedPOCard({
       <div className="flex gap-2">
         <Button
           onPress={() => setShowDeliveryModal(true)}
-          className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] font-medium hover:bg-[var(--color-surface)] cursor-pointer transition-colors"
+          className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] font-medium hover:bg-[var(--color-surface)] cursor-pointer transition-colors"
         >
           {t('supplier.updateStatus')}
         </Button>
         <Button
           onPress={onSubmitInvoice}
-          className="h-9 px-4 rounded-lg bg-[var(--color-primary)] text-white text-xs font-medium cursor-pointer hover:opacity-90 transition-opacity"
+          className="h-9 px-4 rounded-lg bg-[var(--color-primary)] text-white text-[13px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
         >
           {t('supplier.submitInvoice')}
         </Button>
@@ -284,7 +284,7 @@ function ConfirmedPOCard({
                   onChange={setTrackingNumber}
                   className="flex flex-col gap-1"
                 >
-                  <Label className="text-xs text-[var(--color-text-muted)]">
+                  <Label className="text-[13px] text-[var(--color-text-muted)]">
                     {t('supplier.trackingNumber')}
                   </Label>
                   <Input className="h-9 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] font-mono text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
@@ -292,7 +292,7 @@ function ConfirmedPOCard({
 
                 {/* Delivery note PDF upload */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs text-[var(--color-text-muted)]">
+                  <span className="text-[13px] text-[var(--color-text-muted)]">
                     {t('supplier.uploadDeliveryNote')}
                   </span>
                   <DropZone
@@ -319,7 +319,7 @@ function ConfirmedPOCard({
                         {deliveryFileName}
                       </p>
                     ) : (
-                      <p className="text-xs text-[var(--color-text-muted)]">
+                      <p className="text-[13px] text-[var(--color-text-muted)]">
                         {t('supplier.deliveryNote')} (PDF, max 10MB)
                       </p>
                     )}
@@ -335,7 +335,7 @@ function ConfirmedPOCard({
                         }
                       }}
                     >
-                      <Button className="h-8 px-4 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] font-medium cursor-pointer hover:bg-[var(--color-surface)] transition-colors">
+                      <Button className="h-8 px-4 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] font-medium cursor-pointer hover:bg-[var(--color-surface)] transition-colors">
                         {t('supplier.browseFiles')}
                       </Button>
                     </FileTrigger>

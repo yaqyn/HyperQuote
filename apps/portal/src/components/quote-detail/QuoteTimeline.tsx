@@ -64,7 +64,7 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
                 {t(`quoteDetail.timeline.${step.key}`)}
               </span>
               {step.timestamp && (
-                <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                   {new Intl.DateTimeFormat(undefined, {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -103,7 +103,7 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
             {/* Label */}
             <span
               className={[
-                'text-[10px] text-center leading-tight',
+                'text-[13px] text-center leading-tight',
                 step.status === 'current'
                   ? 'font-semibold text-[var(--color-text)]'
                   : step.status === 'future'

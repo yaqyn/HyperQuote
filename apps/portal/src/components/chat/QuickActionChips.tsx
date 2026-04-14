@@ -37,7 +37,7 @@ export function QuickActionChips({ sendMessage }: QuickActionChipsProps) {
           <button
             type="button"
             onClick={() => sendMessage(t(key))}
-            className="text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors duration-150"
+            className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors duration-150"
           >
             {t(key)}
           </button>

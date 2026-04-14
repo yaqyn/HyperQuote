@@ -87,7 +87,7 @@ export function AttachmentUpload() {
 
   return (
     <div className="space-y-3">
-      <label className="text-xs font-medium text-[var(--color-text-muted)]">
+      <label className="text-[13px] font-medium text-[var(--color-text-muted)]">
         {t('quoteBuilder.attachmentsLabel', 'Attachments')}
         <span className="text-[var(--color-text-muted)] ms-1">
           ({t('quoteBuilder.attachmentsHint', 'Drawings, specs -- PDF or images, max 5 files, 10MB each')})
@@ -127,7 +127,7 @@ export function AttachmentUpload() {
                 // Spring for enter, tween for exit
                 { type: 'spring', stiffness: 300, damping: 25 }
               }
-              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--color-surface)] text-xs text-[var(--color-text)]"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--color-surface)] text-[13px] text-[var(--color-text)]"
             >
               <Paperclip size={12} className="text-[var(--color-text-muted)] shrink-0" />
               <span className="truncate max-w-[140px]">{file.name}</span>
@@ -146,7 +146,7 @@ export function AttachmentUpload() {
 
       {/* File count */}
       {attachments.length > 0 && (
-        <p className="text-xs text-[var(--color-text-muted)]">
+        <p className="text-[13px] text-[var(--color-text-muted)]">
           <span className="font-mono">{attachments.length}</span> / <span className="font-mono">{MAX_FILES}</span>{' '}
           {t('quoteBuilder.filesAttached', 'files')}
         </p>

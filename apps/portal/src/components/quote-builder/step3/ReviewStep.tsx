@@ -126,7 +126,7 @@ export function ReviewStep() {
           </h3>
           <Button
             onPress={() => useQuoteBuilderStore.getState().setStep(1)}
-            className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline outline-none"
+            className="flex items-center gap-1 text-[13px] text-[var(--color-primary)] hover:underline outline-none"
           >
             <Pencil size={12} />
             {t('quoteBuilder.edit')}
@@ -153,12 +153,12 @@ export function ReviewStep() {
       {deliveryDate && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[var(--color-text-muted)]">
+            <span className="text-[13px] text-[var(--color-text-muted)]">
               {t('quoteBuilder.deliveryDateLabel')}
             </span>
             <Button
               onPress={() => useQuoteBuilderStore.getState().setStep(2)}
-              className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline outline-none"
+              className="flex items-center gap-1 text-[13px] text-[var(--color-primary)] hover:underline outline-none"
             >
               <Pencil size={12} />
               {t('quoteBuilder.edit')}
@@ -173,7 +173,7 @@ export function ReviewStep() {
       {/* Notes */}
       {notes && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-[var(--color-text-muted)]">
+          <span className="text-[13px] text-[var(--color-text-muted)]">
             {t('quoteBuilder.notesLabel')}
           </span>
           <p className="text-sm text-[var(--color-text)]">{notes}</p>

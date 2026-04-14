@@ -1,11 +1,8 @@
 /**
- * ChatBubble — "Data is the design."
- *
- * No colored bubbles. No containers. Just text on the surface.
- * User: right-aligned, medium weight — your words carry visual weight.
- * AI: left-aligned, normal weight — the response flows naturally.
- * Numbers in Geist Mono. Timestamps appear on hover.
- * The conversation rhythm IS the visual design.
+ * ChatBubble — Dark theme message bubbles.
+ * User: right-aligned, subtle card background.
+ * AI: left-aligned, no background, just text.
+ * Numbers in Geist Mono. Timestamps on hover.
  */
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -69,44 +66,45 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         type: 'spring',
-        stiffness: 260,
-        damping: 24,
+        stiffness: 300,
+        damping: 28,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`group relative flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
-      style={{ maxWidth: isUser ? '75%' : '80%', alignSelf: isUser ? 'flex-end' : 'flex-start' }}
+      className={`group relative flex flex-col py-2 ${isUser ? 'items-end' : 'items-start'}`}
     >
-      {/* The text — no bubble, no container */}
-      <p
-        className={[
-          'text-[14px] leading-[1.65] whitespace-pre-wrap',
-          isUser
-            ? 'text-[var(--color-text)] font-medium'
-            : 'text-[var(--color-text-muted)]',
-        ].join(' ')}
-      >
-        {processedContent}
-        {isStreaming && !isUser && (
-          <span className="inline-block w-[1.5px] h-[14px] bg-[var(--color-text-muted)] align-middle ms-0.5 animate-pulse" />
-        )}
-      </p>
+      {isUser ? (
+        <div className="max-w-[75%] px-4 py-2.5 rounded-2xl bg-[var(--p-card)] border border-[var(--p-border)]">
+          <p className="text-sm leading-relaxed text-[var(--p-text)] whitespace-pre-wrap">
+            {processedContent}
+          </p>
+        </div>
+      ) : (
+        <div className="max-w-[85%]">
+          <p className="text-sm leading-[1.7] text-[var(--p-text-secondary)] whitespace-pre-wrap">
+            {processedContent}
+            {isStreaming && (
+              <span className="inline-block w-[2px] h-[14px] bg-[var(--p-text-secondary)] align-middle ms-1 animate-pulse" />
+            )}
+          </p>
 
-      {/* Rich content */}
-      {!isUser && message.richContent && message.richContent.length > 0 && (
-        <div className="mt-3">
-          <RichMessageList items={message.richContent} />
+          {/* Rich content */}
+          {message.richContent && message.richContent.length > 0 && (
+            <div className="mt-3">
+              <RichMessageList items={message.richContent} />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Timestamp — fades in on hover */}
+      {/* Timestamp */}
       <span
-        className="font-mono text-[10px] text-[var(--color-text-subtle)] mt-1 transition-opacity duration-200"
-        style={{ opacity: hovered ? 0.6 : 0 }}
+        className="font-mono text-[13px] text-[var(--p-text-muted)] mt-1 px-1 transition-opacity duration-200"
+        style={{ opacity: hovered ? 0.7 : 0 }}
       >
         {formattedTime}
       </span>

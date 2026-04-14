@@ -108,7 +108,7 @@ export function NotificationsSection({
                       <span className="absolute top-[2px] start-[2px] w-3 h-3 rounded-full bg-white dark:bg-[#09090B] transition-transform group-data-[selected]:translate-x-3 rtl:group-data-[selected]:-translate-x-3" />
                     </span>
                   </Switch>
-                  <span className="text-[11px] text-[var(--color-text-subtle)]">
+                  <span className="text-[13px] text-[var(--color-text-subtle)]">
                     {CHANNEL_LABELS[channel]}
                   </span>
                 </label>

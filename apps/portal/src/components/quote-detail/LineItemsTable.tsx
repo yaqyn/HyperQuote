@@ -39,22 +39,22 @@ export function LineItemsTable({
           className="w-full text-sm"
         >
           <TableHeader>
-            <Column isRowHeader className="text-start py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column isRowHeader className="text-start py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               #
             </Column>
-            <Column className="text-start py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column className="text-start py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               {t('quoteDetail.product')}
             </Column>
-            <Column className="text-end py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column className="text-end py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               {t('quoteDetail.qty')}
             </Column>
-            <Column className="text-start py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column className="text-start py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               {t('quoteDetail.uom')}
             </Column>
-            <Column className="text-end py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column className="text-end py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               {t('quoteDetail.unitPrice')}
             </Column>
-            <Column className="text-end py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <Column className="text-end py-2 px-3 text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               {t('quoteDetail.lineTotal')}
             </Column>
           </TableHeader>
@@ -72,7 +72,7 @@ export function LineItemsTable({
                     <span className="text-[var(--color-text)]">
                       {isArabic ? item.productNameAr : item.productName}
                     </span>
-                    <span className="text-xs text-[var(--color-text-muted)]">
+                    <span className="text-[13px] text-[var(--color-text-muted)]">
                       {isArabic ? item.productName : item.productNameAr}
                     </span>
                   </div>
@@ -127,11 +127,11 @@ export function LineItemsTable({
                 <span className="text-sm font-medium text-[var(--color-text)]">
                   {isArabic ? item.productNameAr : item.productName}
                 </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-[13px] text-[var(--color-text-muted)]">
                   {isArabic ? item.productName : item.productNameAr}
                 </span>
               </div>
-              <span className="font-mono text-xs text-[var(--color-text-muted)]">
+              <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                 #{numberFormatter.format(index + 1)}
               </span>
             </div>
@@ -139,18 +139,18 @@ export function LineItemsTable({
             {/* Stacked label:value pairs */}
             <div className="flex flex-col gap-2">
               <div className="flex justify-between">
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-[13px] text-[var(--color-text-muted)]">
                   {t('quoteDetail.qty')}
                 </span>
                 <span className="font-mono text-sm">
                   {numberFormatter.format(item.quantity)}{' '}
-                  <span className="text-xs text-[var(--color-text-muted)]">
+                  <span className="text-[13px] text-[var(--color-text-muted)]">
                     {t(`units.${item.unitOfMeasure}`)}
                   </span>
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-[13px] text-[var(--color-text-muted)]">
                   {t('quoteDetail.unitPrice')}
                 </span>
                 <span className="text-sm">
@@ -165,7 +165,7 @@ export function LineItemsTable({
                 </span>
               </div>
               <div className="flex justify-between border-t border-[var(--color-border)] pt-2">
-                <span className="text-xs font-medium text-[var(--color-text)]">
+                <span className="text-[13px] font-medium text-[var(--color-text)]">
                   {t('quoteDetail.lineTotal')}
                 </span>
                 <span className="font-mono text-sm font-semibold">
@@ -215,7 +215,7 @@ function EditablePrice({
         ].join(' ')}
       >
         {isModified && (
-          <span className="block text-xs line-through text-[var(--color-text-muted)] font-mono">
+          <span className="block text-[13px] line-through text-[var(--color-text-muted)] font-mono">
             <CurrencyDisplay value={item.unitPrice} />
           </span>
         )}

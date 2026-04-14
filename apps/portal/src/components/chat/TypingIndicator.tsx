@@ -1,11 +1,16 @@
 /**
- * TypingIndicator — a thin cursor blink on the left side.
- * No dots. No text. Just a line that breathes.
+ * TypingIndicator — Three subtle dots pulsing.
  */
 export function TypingIndicator() {
   return (
-    <div className="flex items-start me-auto">
-      <span className="block w-[1.5px] h-4 bg-[var(--color-text-muted)] animate-pulse" />
+    <div className="flex items-center gap-1.5 py-3 ps-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="block w-1.5 h-1.5 rounded-full bg-[var(--p-text-muted)] animate-pulse"
+          style={{ animationDelay: `${i * 200}ms` }}
+        />
+      ))}
     </div>
   )
 }

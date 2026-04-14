@@ -189,7 +189,7 @@ export function CatalogUploadModal({ locale }: CatalogUploadModalProps) {
                 {t('supplier.browseFiles')}
               </Button>
             </FileTrigger>
-            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-2 text-[13px] text-[var(--color-text-muted)]">
               {t('supplier.maxFileSize')}
             </p>
           </DropZone>

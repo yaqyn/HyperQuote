@@ -48,14 +48,14 @@ export function InfiniteScrollSentinel({
 
 function SkeletonCard() {
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-card)]">
+    <div className="flex flex-col rounded-2xl overflow-hidden border border-[var(--p-border)] bg-[var(--p-card)]">
       {/* Image skeleton */}
-      <div className="aspect-[4/3] bg-[var(--color-surface)] animate-pulse" />
+      <div className="aspect-[4/3] bg-[var(--p-surface)] animate-pulse" />
       {/* Content skeleton */}
       <div className="flex flex-col gap-2 p-4">
-        <div className="h-4 w-3/4 rounded bg-[var(--color-surface)] animate-pulse" />
-        <div className="h-4 w-1/2 rounded bg-[var(--color-surface)] animate-pulse" />
-        <div className="h-3 w-1/4 rounded bg-[var(--color-surface)] animate-pulse" />
+        <div className="h-4 w-3/4 rounded bg-[var(--p-surface)] animate-pulse" />
+        <div className="h-4 w-1/2 rounded bg-[var(--p-surface)] animate-pulse" />
+        <div className="h-3 w-1/4 rounded bg-[var(--p-surface)] animate-pulse" />
       </div>
     </div>
   )

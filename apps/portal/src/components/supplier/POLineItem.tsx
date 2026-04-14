@@ -127,7 +127,7 @@ export function POLineItem({ line, index, onChange, locale }: POLineItemProps) {
             onSelectionChange={(key) => handleReasonChange(key as ReasonKey)}
             className="flex flex-col gap-1"
           >
-            <Label className="text-xs text-[var(--color-text-muted)]">
+            <Label className="text-[13px] text-[var(--color-text-muted)]">
               {t('supplier.reason')}
             </Label>
             <Button className="flex items-center justify-between h-9 px-3 min-w-[180px] rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] cursor-pointer">
@@ -157,7 +157,7 @@ export function POLineItem({ line, index, onChange, locale }: POLineItemProps) {
               minValue={1}
               className="flex flex-col gap-1"
             >
-              <Label className="text-xs text-[var(--color-text-muted)]">
+              <Label className="text-[13px] text-[var(--color-text-muted)]">
                 {t('supplier.qtyRequested')}
               </Label>
               <Input className="h-9 w-28 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] font-mono text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
@@ -173,12 +173,12 @@ export function POLineItem({ line, index, onChange, locale }: POLineItemProps) {
                 minValue={0}
                 className="flex flex-col gap-1"
               >
-                <Label className="text-xs text-[var(--color-text-muted)]">
+                <Label className="text-[13px] text-[var(--color-text-muted)]">
                   {t('supplier.newPrice')}
                 </Label>
                 <Input className="h-9 w-28 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] font-mono text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
               </NumberField>
-              <p className="text-xs text-[var(--color-warning)]">
+              <p className="text-[13px] text-[var(--color-warning)]">
                 {t('supplier.requiresReview')}
               </p>
             </div>

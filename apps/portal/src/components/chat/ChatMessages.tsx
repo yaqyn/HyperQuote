@@ -1,10 +1,8 @@
 /**
- * ChatMessages — scrollable conversation.
- * Messages are just text — the alignment and weight create the visual rhythm.
- * A thin separator line between user and AI creates breathing room.
+ * ChatMessages — Scrollable conversation area.
+ * Dark theme, clean spacing, auto-scroll.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../../lib/chat-types'
 import { ChatBubble } from './ChatBubble'
 import { TypingIndicator } from './TypingIndicator'
@@ -57,7 +55,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto"
       >
-        <div className="max-w-[680px] mx-auto flex flex-col gap-6 px-6 py-8 sm:px-4">
+        <div className="max-w-[720px] mx-auto flex flex-col gap-1 px-6 py-6 sm:px-4">
           {messages.map((msg, idx) => (
             <ChatBubble
               key={msg.id}

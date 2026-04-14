@@ -53,7 +53,7 @@ export function OrderCard({ order, onPress }: OrderCardProps) {
           <span className="font-mono text-sm text-[var(--color-text)]">
             {order.reference}
           </span>
-          <span className="text-[11px] uppercase tracking-widest text-[var(--color-text-muted)]">
+          <span className="text-[13px] uppercase tracking-widest text-[var(--color-text-muted)]">
             {getStatusLabel(order.status)}
           </span>
         </div>
@@ -66,11 +66,11 @@ export function OrderCard({ order, onPress }: OrderCardProps) {
 
         {/* Row 3: Date + Amount */}
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
             {formattedDate}
           </span>
           {order.amount != null && (
-            <span className="font-mono text-xs text-[var(--color-text-muted)]">
+            <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
               {formatAmount(order.amount)}
             </span>
           )}

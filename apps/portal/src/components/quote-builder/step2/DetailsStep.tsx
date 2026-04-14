@@ -86,7 +86,7 @@ export function DetailsStep() {
           granularity="day"
           className="flex flex-col gap-1"
         >
-          <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+          <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
             {t('quoteBuilder.deliveryDateLabel', 'Preferred Delivery Date')}
           </Label>
           <Group className="flex h-10 rounded-lg border border-[var(--color-border)] bg-transparent overflow-hidden focus-within:ring-2 focus-within:ring-[var(--color-primary)]/30 focus-within:border-[var(--color-primary)] transition-colors">
@@ -121,7 +121,7 @@ export function DetailsStep() {
                 <CalendarGrid className="w-full">
                   <CalendarGridHeader>
                     {(day) => (
-                      <CalendarHeaderCell className="text-xs font-medium text-[var(--color-text-muted)] p-1 text-center">
+                      <CalendarHeaderCell className="text-[13px] font-medium text-[var(--color-text-muted)] p-1 text-center">
                         {day}
                       </CalendarHeaderCell>
                     )}
@@ -144,7 +144,7 @@ export function DetailsStep() {
               </Calendar>
             </Dialog>
           </Popover>
-          <p className="text-xs text-[var(--color-text-muted)]">
+          <p className="text-[13px] text-[var(--color-text-muted)]">
             {t('quoteBuilder.fridayError', 'Friday and Saturday are not delivery days. Please choose Sunday-Thursday.')}
           </p>
         </DatePicker>
@@ -157,7 +157,7 @@ export function DetailsStep() {
           onChange={handleNotesChange}
           className="flex flex-col gap-1"
         >
-          <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+          <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
             {t('quoteBuilder.notesLabel', 'Notes')}
           </Label>
           <TextArea

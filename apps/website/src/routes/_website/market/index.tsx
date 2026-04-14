@@ -6,8 +6,6 @@ import { motion } from 'motion/react'
 import {
   SearchX,
   AlertTriangle,
-  X,
-  ShoppingCart,
   ChevronsUpDown,
 } from 'lucide-react'
 import {
@@ -18,17 +16,12 @@ import {
   Popover,
   ListBox,
   ListBoxItem,
-  Dialog,
-  Modal,
-  ModalOverlay,
 } from 'react-aria-components'
 import { SearchDropdown, type SearchEntry } from '../../../components/shared/SearchDropdown'
 import { EmptyState } from '@hyperquote/ui'
 import { getPublicCatalog } from '../../../lib/catalog'
 import { ProductCard } from '../../../components/market/ProductCard'
 import { Pagination } from '../../../components/market/Pagination'
-import { QuoteCartPanel } from '../../../components/market/QuoteCartPanel'
-import { useQuoteCart } from '../../../hooks/useQuoteCart'
 
 // ── Search schema ──
 // category and price_tier come as comma-separated strings in the URL,
@@ -138,50 +131,6 @@ function MarketSearch({
 }
 
 // ── Mobile Cart ──
-
-function MobileCartButton() {
-  const { t } = useTranslation('website')
-  const cartCount = useQuoteCart((s) => s.items.length)
-  const [open, setOpen] = useState(false)
-
-  if (cartCount === 0) return null
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="xl:hidden fixed bottom-6 end-6 z-40 w-14 h-14 rounded-full bg-[var(--color-primary)] text-white shadow-lg flex items-center justify-center hover:bg-[var(--color-primary-hover)] transition-colors"
-        aria-label={t('cart.label')}
-      >
-        <ShoppingCart size={22} />
-        <span className="absolute -top-1 -end-1 min-w-[20px] h-[20px] rounded-full bg-white text-[var(--color-primary)] text-[11px] font-bold flex items-center justify-center px-1 shadow">
-          {cartCount}
-        </span>
-      </button>
-      {open && (
-        <ModalOverlay
-          isOpen={open}
-          onOpenChange={(o) => { if (!o) setOpen(false) }}
-          isDismissable
-          className="xl:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-        >
-          <Modal className="fixed inset-x-0 bottom-0 z-50">
-            <Dialog aria-label={t('cart.title')} className="bg-[var(--color-base)] rounded-t-2xl max-h-[70vh] overflow-y-auto outline-none">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-                <span className="text-[16px] font-semibold">{t('cart.title')}</span>
-                <button type="button" onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-[var(--color-surface)]">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="p-4"><QuoteCartPanel /></div>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      )}
-    </>
-  )
-}
 
 // ── Main Page ──
 
@@ -319,7 +268,6 @@ function MarketPage() {
         </div>
       </section>
 
-      <MobileCartButton />
     </div>
   )
 }

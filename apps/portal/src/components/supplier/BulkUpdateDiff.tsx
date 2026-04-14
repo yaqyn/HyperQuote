@@ -244,7 +244,7 @@ export default function BulkUpdateDiff({
                             <span className="text-sm text-[var(--color-text)]">
                               {diff.productName}
                             </span>
-                            <span className="text-xs text-[var(--color-text-muted)] ms-2">
+                            <span className="text-[13px] text-[var(--color-text-muted)] ms-2">
                               ({diff.field === 'price'
                                 ? t('supplier.price')
                                 : t('supplier.stockQty')})

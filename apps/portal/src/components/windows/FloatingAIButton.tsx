@@ -55,7 +55,7 @@ function MiniMessage({ message }: { message: ChatMessage }) {
       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+        className={`max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
           isUser
             ? 'bg-[var(--color-primary)] text-white rounded-br-sm rtl:rounded-br-xl rtl:rounded-bl-sm'
             : 'bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text)] rounded-bl-sm rtl:rounded-bl-xl rtl:rounded-br-sm'
@@ -204,7 +204,7 @@ export function FloatingAIButton() {
                       {t(greetingKey)}
                     </p>
                     {activeRole === 'supplier' && (
-                      <p className="text-xs text-[var(--color-text-muted)] opacity-60">
+                      <p className="text-[13px] text-[var(--color-text-muted)] opacity-60">
                         {SUPPLIER_CONTEXT}
                       </p>
                     )}

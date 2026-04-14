@@ -41,15 +41,15 @@ function ParsedItemRow({ item, index }: { item: ParsedItem & { isUnmatched: bool
       className="flex items-center gap-sm border-b border-[var(--color-border)] px-sm py-xs"
       style={{ opacity: 0 }}
     >
-      <span className="flex-1 text-xs">{item.productName}</span>
-      <span className="font-[family-name:var(--font-geist-mono)] text-xs">
+      <span className="flex-1 text-[13px]">{item.productName}</span>
+      <span className="font-[family-name:var(--font-geist-mono)] text-[13px]">
         {item.quantity}
       </span>
-      <span className="text-xs text-[var(--color-text-subtle)]">
+      <span className="text-[13px] text-[var(--color-text-subtle)]">
         {item.unitOfMeasure}
       </span>
       {item.isUnmatched && (
-        <span className="rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-[10px] text-[var(--color-warning)]">
+        <span className="rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-[13px] text-[var(--color-warning)]">
           Unmatched
         </span>
       )}
@@ -132,7 +132,7 @@ export function AIAssistMethod() {
       />
 
       {/* Example text */}
-      <Text className="text-xs text-[var(--color-text-subtle)]">
+      <Text className="text-[13px] text-[var(--color-text-subtle)]">
         {t(
           'quoteBuilder.aiExample',
           'Example: I need 500 bags of OPC cement 50kg, 200 bundles of 12mm rebar, and 100 sheets of 18mm plywood',
@@ -156,13 +156,13 @@ export function AIAssistMethod() {
         <div className="flex flex-col gap-sm rounded-xl border border-[var(--color-border)]">
           {/* Summary */}
           <div className="flex items-center gap-sm border-b border-[var(--color-border)] px-sm py-xs">
-            <Text className="text-xs">
+            <Text className="text-[13px]">
               {t('quoteBuilder.aiSuccess', '{{count}} items parsed successfully', {
                 count: successCount,
               })}
             </Text>
             {unmatchedCount > 0 && (
-              <Text className="text-xs text-[var(--color-warning)]">
+              <Text className="text-[13px] text-[var(--color-warning)]">
                 {t('quoteBuilder.aiUnmatched', '{{count}} items need verification', {
                   count: unmatchedCount,
                 })}

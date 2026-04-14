@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from 'react-aria-components'
 import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
-import { useToastStore } from '../../stores/toast'
+import { useToastStore } from '../../stores/toast-store'
 
 interface PaymentInstructionsCardProps {
   bankName: string

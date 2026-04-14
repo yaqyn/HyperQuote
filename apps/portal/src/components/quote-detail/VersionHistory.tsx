@@ -130,7 +130,7 @@ export function VersionHistory({ versions, currentVersionId, onCompare }: Versio
             {isExpanded && (
               <div className="border-t border-[var(--color-border)] px-4 py-3">
                 {version.notes && (
-                  <p className="text-xs text-[var(--color-text-muted)] mb-3">{version.notes}</p>
+                  <p className="text-[13px] text-[var(--color-text-muted)] mb-3">{version.notes}</p>
                 )}
                 <div className="flex flex-col gap-2">
                   {diffs.map((diff) => (

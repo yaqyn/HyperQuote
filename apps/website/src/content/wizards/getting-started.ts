@@ -52,7 +52,7 @@ export const steps: WizardStep[] = [
     titleKey: 'docs.wizard.gettingStarted.steps.submitQuote.title',
     bodyKey: 'docs.wizard.gettingStarted.steps.submitQuote.body',
     title: 'Submit Your Quote',
-    body: 'Review your material list, choose a delivery location, and submit your quote request. Our team sources the best prices from multiple suppliers and sends you a formal quote — typically within 4 hours.',
+    body: 'Review your material list, choose a delivery location, and submit your quote request. Our team sources the best prices from multiple suppliers and sends you a single consolidated quote.',
     illustration: 'submit',
     tipText: 'Quotes for common materials like cement and rebar often arrive in under an hour.',
   },

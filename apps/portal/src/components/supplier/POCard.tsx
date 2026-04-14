@@ -107,10 +107,10 @@ export function POCard({ po, locale }: POCardProps) {
 
         {/* Row 3: Date received + Deadline */}
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-[var(--color-text-subtle)]">
+          <span className="font-mono text-[13px] text-[var(--color-text-subtle)]">
             {formattedDate}
           </span>
-          <span className={`font-mono text-xs ${urgencyColors[urgency]}`}>
+          <span className={`font-mono text-[13px] ${urgencyColors[urgency]}`}>
             {deadlineDate}
           </span>
         </div>

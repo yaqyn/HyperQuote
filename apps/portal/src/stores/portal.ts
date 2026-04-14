@@ -6,6 +6,8 @@ interface PortalStore {
   isFloatingAIOpen: boolean
   toggleFloatingAI: () => void
   setFloatingAIOpen: (open: boolean) => void
+  isSigningOut: boolean
+  setSigningOut: (v: boolean) => void
 }
 
 export const usePortalStore = create<PortalStore>()((set) => ({
@@ -15,4 +17,6 @@ export const usePortalStore = create<PortalStore>()((set) => ({
   toggleFloatingAI: () =>
     set((s) => ({ isFloatingAIOpen: !s.isFloatingAIOpen })),
   setFloatingAIOpen: (open) => set({ isFloatingAIOpen: open }),
+  isSigningOut: false,
+  setSigningOut: (v) => set({ isSigningOut: v }),
 }))

@@ -44,7 +44,7 @@ interface TeamSectionProps {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
   'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
@@ -83,7 +83,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
             <span className="text-sm text-[var(--color-text)]">
               {ownEntry.name}
             </span>
-            <span className="ms-3 text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+            <span className="ms-3 text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
               {t(ROLE_LABELS[ownEntry.role])}
             </span>
           </div>
@@ -117,20 +117,20 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
                   {member.name}
                 </span>
                 {member.isOwner && (
-                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
                     {t('settings.team.owner')}
                   </span>
                 )}
                 {!member.isOwner && (
-                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
                     {t(ROLE_LABELS[member.role])}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[var(--color-text-subtle)]">
+              <p className="text-[13px] text-[var(--color-text-subtle)]">
                 {member.email}
               </p>
-              <p className="text-xs text-[var(--color-text-subtle)]">
+              <p className="text-[13px] text-[var(--color-text-subtle)]">
                 {t('settings.team.joined')}{' '}
                 <span className="font-mono">
                   {new Date(member.joinedAt).toLocaleDateString()}
@@ -151,7 +151,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
                   }
                   aria-label={t('settings.team.role')}
                 >
-                  <Button className="bg-transparent border-0 border-b border-[var(--color-border)] py-1 text-xs text-[var(--color-text)] cursor-pointer outline-none focus:border-[#2563EB] transition-colors">
+                  <Button className="bg-transparent border-0 border-b border-[var(--color-border)] py-1 text-[13px] text-[var(--color-text)] cursor-pointer outline-none focus:border-[#2563EB] transition-colors">
                     <SelectValue />
                   </Button>
                   <Popover className="w-40 border border-[var(--color-border)] bg-white/95 dark:bg-black/95 backdrop-blur-2xl shadow-lg">
@@ -161,7 +161,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
                           key={role}
                           id={role}
                           textValue={t(ROLE_LABELS[role])}
-                          className="px-3 py-2 text-xs text-[var(--color-text)] cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:font-medium"
+                          className="px-3 py-2 text-[13px] text-[var(--color-text)] cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] data-[selected]:font-medium"
                         >
                           {t(ROLE_LABELS[role])}
                         </ListBoxItem>
@@ -172,7 +172,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
 
                 <Button
                   onPress={() => setRemovingMember(member)}
-                  className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                  className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
                 >
                   {t('settings.team.removeMember')}
                 </Button>
@@ -185,7 +185,7 @@ export function TeamSection({ members, isOwner }: TeamSectionProps) {
       {/* Transfer Ownership link */}
       <Button
         onPress={() => setShowTransfer(true)}
-        className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+        className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
       >
         {t('settings.team.transferOwnership')}
       </Button>
@@ -319,7 +319,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
               )}
             />
 
-            <p className="text-[11px] text-[var(--color-text-subtle)]">
+            <p className="text-[13px] text-[var(--color-text-subtle)]">
               {t('settings.team.inviteNote')}
             </p>
 
@@ -490,7 +490,7 @@ function TransferDialog({
               />
             </TextField>
 
-            <p className="text-[11px] text-[var(--color-text-subtle)]">
+            <p className="text-[13px] text-[var(--color-text-subtle)]">
               {t('settings.team.transferWarning')}
             </p>
 

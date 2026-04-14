@@ -121,7 +121,7 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
         isRequired
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.addressStreet', 'Street')} *
         </Label>
         <Input className={fieldClass} placeholder={t('quoteBuilder.addressStreetPlaceholder', 'e.g. 15 Tahrir Street')} />
@@ -134,7 +134,7 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
         isRequired
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.addressArea', 'Area / District')} *
         </Label>
         <Input className={fieldClass} placeholder={t('quoteBuilder.addressAreaPlaceholder', 'e.g. Downtown')} />
@@ -146,7 +146,7 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
         onSelectionChange={(key) => setGovernorate(key as string)}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.addressGovernorate', 'City / Governorate')} *
         </Label>
         <AriaButton className={`${fieldClass} flex items-center justify-between cursor-pointer`}>
@@ -182,7 +182,7 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
         onChange={setLandmark}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.addressLandmark', 'Landmark')}
         </Label>
         <Input className={fieldClass} placeholder={t('quoteBuilder.addressLandmarkPlaceholder', 'e.g. Near Tahrir Square')} />
@@ -194,7 +194,7 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
         onChange={setPhone}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.addressPhone', 'Phone at site')}
         </Label>
         <Input className={fieldClass} placeholder={t('quoteBuilder.addressPhonePlaceholder', 'e.g. +20 2 1234 5678')} />
@@ -288,7 +288,7 @@ export function AddressComboBox() {
         className="flex flex-col gap-1"
         menuTrigger="focus"
       >
-        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+        <Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
           {t('quoteBuilder.deliveryAddress', 'Delivery Address')}
         </Label>
         <div className="relative">
@@ -313,7 +313,7 @@ export function AddressComboBox() {
                 <div className="text-sm font-medium text-[var(--color-text)]">
                   {addr.label || addr.street}
                 </div>
-                <div className="text-xs text-[var(--color-text-muted)]">
+                <div className="text-[13px] text-[var(--color-text-muted)]">
                   {addr.street} - {addr.area}, {addr.city}
                 </div>
               </ListBoxItem>
@@ -334,7 +334,7 @@ export function AddressComboBox() {
 
       {/* Selected address preview */}
       {selectedAddress && !showNewForm && (
-        <div className="mt-2 p-3 rounded-lg bg-[var(--color-surface)] text-xs text-[var(--color-text-muted)]">
+        <div className="mt-2 p-3 rounded-lg bg-[var(--color-surface)] text-[13px] text-[var(--color-text-muted)]">
           {selectedAddress.street}, {selectedAddress.area}, {selectedAddress.city},{' '}
           {selectedAddress.governorate}
           {selectedAddress.landmark && ` - ${selectedAddress.landmark}`}

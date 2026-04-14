@@ -111,7 +111,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         <span className="text-[13px] text-[var(--color-text-muted)] line-clamp-2">
           {notification.body}
         </span>
-        <span className="text-[11px] font-mono text-[var(--color-text-subtle)]">
+        <span className="text-[13px] font-mono text-[var(--color-text-subtle)]">
           {formatRelativeTime(notification.createdAt)}
         </span>
       </div>

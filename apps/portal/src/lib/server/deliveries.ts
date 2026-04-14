@@ -74,6 +74,7 @@ export interface OrderDetailResult {
       unitOfMeasure: string
       unitPrice: number
       lineTotal: number
+      imageUrl: string
     }>
   }
   timeline: TimelineStep[]
@@ -148,29 +149,32 @@ function getMockOrderDetail(orderId: string): OrderDetailResult {
         {
           id: 'item-001',
           productName: 'Portland Cement 50kg',
-          productNameAr: '\u0623\u0633\u0645\u0646\u062a \u0628\u0648\u0631\u062a\u0644\u0627\u0646\u062f\u064a \u0665\u0660 \u0643\u062c\u0645',
+          productNameAr: 'اسمنت بورتلاندي ٥٠ كجم',
           quantity: 500,
           unitOfMeasure: 'bag',
           unitPrice: 85.0,
           lineTotal: 42500.0,
+          imageUrl: 'https://websiteassets.hyperquote.net/Images/cement.webp',
         },
         {
           id: 'item-002',
           productName: 'Rebar 12mm',
-          productNameAr: '\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0661\u0662 \u0645\u0645',
+          productNameAr: 'حديد تسليح ١٢ مم',
           quantity: 10,
           unitOfMeasure: 'ton',
           unitPrice: 32500.0,
           lineTotal: 325000.0,
+          imageUrl: 'https://websiteassets.hyperquote.net/Images/steel.webp',
         },
         {
           id: 'item-003',
           productName: 'Washed Sand',
-          productNameAr: '\u0631\u0645\u0644 \u0645\u063a\u0633\u0648\u0644',
+          productNameAr: 'رمل مغسول',
           quantity: 50,
           unitOfMeasure: 'cubic_meter',
           unitPrice: 450.0,
           lineTotal: 22500.0,
+          imageUrl: 'https://websiteassets.hyperquote.net/Images/Aggregates.webp',
         },
       ],
     },

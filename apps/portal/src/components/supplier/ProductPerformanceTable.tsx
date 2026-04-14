@@ -65,7 +65,7 @@ export function ProductPerformanceTable({
   }
 
   const headerClass =
-    'px-4 py-3 text-start text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--color-text)] select-none'
+    'px-4 py-3 text-start text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--color-text)] select-none'
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
@@ -73,7 +73,7 @@ export function ProductPerformanceTable({
         <table className="w-full" role="grid">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-              <th className="px-4 py-3 text-start text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+              <th className="px-4 py-3 text-start text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
                 {t('supplier.product')}
               </th>
               <th

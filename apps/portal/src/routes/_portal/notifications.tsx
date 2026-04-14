@@ -158,7 +158,7 @@ function NotificationsWindow() {
                 type="button"
                 onClick={() => markAllReadMutation.mutate()}
                 disabled={markAllReadMutation.isPending}
-                className="text-xs text-[var(--color-primary)] hover:underline disabled:opacity-50"
+                className="text-[13px] text-[var(--color-primary)] hover:underline disabled:opacity-50"
               >
                 {t('notifications.markAllRead', 'Mark all as read')}
               </button>
@@ -214,7 +214,7 @@ function NotificationsWindow() {
                     type="button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={isLoading}
-                    className="text-xs text-[var(--color-primary)] hover:underline disabled:opacity-50"
+                    className="text-[13px] text-[var(--color-primary)] hover:underline disabled:opacity-50"
                   >
                     {t('notifications.showOlder', 'Show older')}
                   </button>

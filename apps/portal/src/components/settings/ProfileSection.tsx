@@ -28,7 +28,7 @@ interface ProfileFormValues {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
   'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
@@ -125,7 +125,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           </Button>
         </FileTrigger>
         <div>
-          <p className="text-xs text-[var(--color-text-subtle)]">
+          <p className="text-[13px] text-[var(--color-text-subtle)]">
             JPG, PNG. {t('settings.profile.maxSize', { size: '2MB' })}
           </p>
         </div>
@@ -178,7 +178,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
               {profile.phone}
             </span>
           </div>
-          <p className="text-[11px] text-[var(--color-text-subtle)]">
+          <p className="text-[13px] text-[var(--color-text-subtle)]">
             {t('settings.profile.phoneNote')}
           </p>
         </div>
@@ -238,11 +238,11 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           acceptedFileTypes={['application/pdf', 'image/jpeg']}
           onSelect={handleLicenseSelect}
         >
-          <Button className="w-full py-6 border border-dashed border-[var(--color-border)] text-xs text-[var(--color-text-subtle)] hover:border-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors">
+          <Button className="w-full py-6 border border-dashed border-[var(--color-border)] text-[13px] text-[var(--color-text-subtle)] hover:border-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors">
             {t('settings.profile.uploadLicense')}
           </Button>
         </FileTrigger>
-        <p className="text-[11px] text-[var(--color-text-subtle)]">
+        <p className="text-[13px] text-[var(--color-text-subtle)]">
           PDF, JPG. {t('settings.profile.maxSize', { size: '5MB' })}
         </p>
       </div>
@@ -265,7 +265,7 @@ function TradeLicenseBadge({
   const label = labels[status] ?? t('settings.profile.notUploaded')
 
   return (
-    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+    <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
       {label}
     </span>
   )

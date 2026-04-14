@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getReferralStats } from '../../lib/server/referrals'
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 export function ReferralsSection() {
   const { t } = useTranslation('portal')
@@ -99,7 +99,7 @@ export function ReferralsSection() {
       </div>
 
       {/* Credit explanation */}
-      <p className="text-[11px] text-[var(--color-text-subtle)]">
+      <p className="text-[13px] text-[var(--color-text-subtle)]">
         {t('settings.referrals.creditExplanation')}
       </p>
     </div>
@@ -133,7 +133,7 @@ function CopyLink({
   return (
     <Button
       onPress={handleCopy}
-      className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded shrink-0"
+      className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded shrink-0"
     >
       {copied
         ? t('settings.referrals.copied', { defaultValue: 'Copied' })

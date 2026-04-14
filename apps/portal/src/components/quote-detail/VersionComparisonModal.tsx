@@ -191,7 +191,7 @@ export function VersionComparisonModal({
               />
             </div>
 
-            <p className="text-xs text-[var(--color-text-muted)] mb-3 md:hidden">
+            <p className="text-[13px] text-[var(--color-text-muted)] mb-3 md:hidden">
               Scroll to compare
             </p>
 
@@ -221,12 +221,12 @@ export function VersionComparisonModal({
                       {isArabic ? diff.productNameAr : diff.productName}
                     </span>
                     {diff.changeType === 'added' && (
-                      <span className="bg-[var(--color-success)] text-white text-xs px-2 py-0.5 rounded">
+                      <span className="bg-[var(--color-success)] text-white text-[13px] px-2 py-0.5 rounded">
                         {t('quoteDetail.newItem')}
                       </span>
                     )}
                     {diff.changeType === 'removed' && (
-                      <span className="bg-[var(--color-error)] text-white text-xs px-2 py-0.5 rounded">
+                      <span className="bg-[var(--color-error)] text-white text-[13px] px-2 py-0.5 rounded">
                         {t('quoteDetail.removedItem')}
                       </span>
                     )}

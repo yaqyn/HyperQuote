@@ -29,7 +29,7 @@
       "description": "Cement, steel, aggregates, timber, finishing — everything a site needs, from verified suppliers across Egypt."
     },
     "step2": {
-      "title": "4-hour quotes",
+      "title": "Multi-supplier quotes",
       "description": "Send your list in any format. Receive competitive pricing from multiple suppliers before the day is over."
     },
     "step3": {
@@ -50,7 +50,7 @@
       "description": "Submit your list once. We handle the rest — sourcing, negotiation, coordination."
     },
     "fastQuotes": {
-      "title": "4 hours, not 4 days",
+      "title": "Hours, not days",
       "description": "Competitive pricing from multiple suppliers, delivered to you before lunch."
     },
     "tracking": {
@@ -101,8 +101,8 @@
       "label": "Values",
       "heading": "What we deliver",
       "value1": {
-        "title": "4-hour quotes",
-        "description": "Submit your material list and receive a consolidated quote from multiple suppliers within 4 hours. No more days spent chasing individual prices."
+        "title": "Consolidated quotes",
+        "description": "Submit your material list and receive a single consolidated quote from multiple suppliers. No more days spent chasing individual prices."
       },
       "value2": {
         "title": "Complete transparency",
@@ -137,7 +137,7 @@
     "remove": "Remove item",
     "addNote": "Add a note",
     "submit": "Request Quote",
-    "submitHint": "Free. No commitment. Response within 4 hours.",
+    "submitHint": "Free. No commitment. We handle the sourcing.",
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items",
     "units": "units"
@@ -170,6 +170,8 @@
     "filtersApply": "Apply",
     "filtersReset": "Reset",
     "addToQuote": "Add to Quote",
+    "confirm": "Confirm",
+    "editQuantity": "Edit quantity",
     "addMore": "Add More",
     "priceOnRequest": "Price on Request",
     "emptyTitle": "No products found",
@@ -448,7 +450,7 @@
       "items": {
         "1": {
           "question": "How long does it take to receive a quote?",
-          "answer": "We deliver quotes within 4 hours during business hours (Sunday–Thursday, 8 AM–6 PM). Submit your material list through the platform or via WhatsApp. Each quote includes unit pricing, delivery timeline, and payment terms. You can accept, negotiate quantities, swap materials, or request changes — all from your dashboard.",
+          "answer": "Submit your material list through the platform or via WhatsApp. We source pricing from multiple suppliers in parallel during business hours (Sunday–Thursday, 8 AM–6 PM). Each quote includes unit pricing, delivery timeline, and payment terms. You can accept, negotiate quantities, swap materials, or request changes — all from your dashboard.",
           "tag": "quotes"
         },
         "2": {

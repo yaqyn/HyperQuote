@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useForm, useWatch, Controller } from 'react-hook-form'
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema'
+import { standardSchemaResolver } from '@hyperquote/forms'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -194,7 +194,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
           }}
           className="flex flex-col gap-1"
         >
-          <Label className="text-xs text-[var(--color-text-muted)]">
+          <Label className="text-[13px] text-[var(--color-text-muted)]">
             {t('supplier.relatedPO')}
           </Label>
           <Group className="flex items-center h-9 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)]">
@@ -211,7 +211,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
                   <span className="font-mono text-[var(--color-text)]">
                     {po.reference}
                   </span>
-                  <span className="text-xs text-[var(--color-text-muted)] ms-2">
+                  <span className="text-[13px] text-[var(--color-text-muted)] ms-2">
                     {po.items.length} {t('supplier.itemsSummary')}
                   </span>
                 </ListBoxItem>
@@ -226,7 +226,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
         value={undefined}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs text-[var(--color-text-muted)]">
+        <Label className="text-[13px] text-[var(--color-text-muted)]">
           {t('supplier.invoiceNumber')}
         </Label>
         <Input
@@ -246,7 +246,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
         }}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs text-[var(--color-text-muted)]">
+        <Label className="text-[13px] text-[var(--color-text-muted)]">
           {t('supplier.invoiceDate')}
         </Label>
         <Group className="flex items-center h-9 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)]">
@@ -264,11 +264,11 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
       {/* Line items (auto-populated from PO) */}
       {selectedPO && watchedLineItems && watchedLineItems.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium text-[var(--color-text-muted)]">
+          <h3 className="text-[13px] font-medium text-[var(--color-text-muted)]">
             {t('supplier.lineItems')}
           </h3>
           <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
-            <div className="grid grid-cols-[1fr_80px_100px_100px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-muted)]">
+            <div className="grid grid-cols-[1fr_80px_100px_100px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-muted)]">
               <span>{t('supplier.productName')}</span>
               <span className="text-end">{t('supplier.qtyRequested')}</span>
               <span className="text-end">{t('supplier.unitPrice')}</span>
@@ -350,7 +350,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
 
       {/* PDF upload */}
       <div className="flex flex-col gap-1">
-        <span className="text-xs text-[var(--color-text-muted)]">
+        <span className="text-[13px] text-[var(--color-text-muted)]">
           {t('supplier.uploadInvoicePDF')}
         </span>
         <DropZone
@@ -393,7 +393,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
               }
             }}
           >
-            <Button className="h-8 px-4 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] font-medium cursor-pointer hover:bg-[var(--color-surface)] transition-colors">
+            <Button className="h-8 px-4 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] font-medium cursor-pointer hover:bg-[var(--color-surface)] transition-colors">
               {t('supplier.browseFiles')}
             </Button>
           </FileTrigger>
@@ -405,7 +405,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
         value={undefined}
         className="flex flex-col gap-1"
       >
-        <Label className="text-xs text-[var(--color-text-muted)]">
+        <Label className="text-[13px] text-[var(--color-text-muted)]">
           {t('supplier.notes')}
         </Label>
         <TextArea

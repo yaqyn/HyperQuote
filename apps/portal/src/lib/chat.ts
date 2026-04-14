@@ -40,7 +40,7 @@ const CUSTOMER_RESPONSES: Record<string, string> = {
   track:
     'Let me look up your latest delivery status:',
   price:
-    "Prices depend on quantity, delivery location, and current market conditions. Request a quote and you'll get a response within 4 hours!",
+    "Prices depend on quantity, delivery location, and current market conditions. Request a quote and we'll source pricing from multiple suppliers for you.",
   help:
     'Here are some things I can help you with:',
 }

@@ -109,7 +109,7 @@ export function SearchAndAdd() {
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   {/* Category badge */}
-                  <span className="text-xs bg-[var(--color-surface)] text-[var(--color-text-muted)] rounded-full px-2 py-0.5">
+                  <span className="text-[13px] bg-[var(--color-surface)] text-[var(--color-text-muted)] rounded-full px-2 py-0.5">
                     {product.category}
                   </span>
                   {/* Availability dot */}

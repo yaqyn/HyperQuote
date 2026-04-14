@@ -25,7 +25,7 @@ const MOCK_RESPONSES: Record<string, string> = {
   quote:
     "I'd be happy to help you get a quote! You can start by telling me what materials you need, or use our Material List Builder for a more detailed request.",
   price:
-    "We don't publish exact prices -- they depend on quantity, delivery location, and current market conditions. Request a quote and you'll get a response within 4 hours!",
+    "We don't publish exact prices -- they depend on quantity, delivery location, and current market conditions. Request a quote and we'll source pricing from multiple suppliers for you.",
   delivery:
     'Delivery times depend on your location and the materials ordered. Most orders within Cairo are delivered within 24-48 hours. Would you like to place an order?',
   cement:

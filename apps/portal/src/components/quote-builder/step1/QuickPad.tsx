@@ -168,7 +168,7 @@ function PadRowInput({
             ref={skuRef}
             placeholder={t('quoteBuilder.quickPadSku', 'SKU or product name')}
             onPaste={handlePaste}
-            className={`h-8 w-full rounded border px-sm text-xs outline-none ${
+            className={`h-8 w-full rounded border px-sm text-[13px] outline-none ${
               row.error
                 ? 'border-[var(--color-error)]'
                 : 'border-transparent focus:border-[var(--color-primary)]'
@@ -177,11 +177,11 @@ function PadRowInput({
           <Popover className="w-[var(--trigger-width)] rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] shadow-lg">
             <ListBox className="max-h-48 overflow-auto p-xs">
               {isLoading ? (
-                <ListBoxItem id="loading" className="px-sm py-xs text-xs text-[var(--color-text-subtle)]">
+                <ListBoxItem id="loading" className="px-sm py-xs text-[13px] text-[var(--color-text-subtle)]">
                   Loading...
                 </ListBoxItem>
               ) : results.length === 0 && query.length >= 2 ? (
-                <ListBoxItem id="empty" className="px-sm py-xs text-xs text-[var(--color-text-subtle)]">
+                <ListBoxItem id="empty" className="px-sm py-xs text-[13px] text-[var(--color-text-subtle)]">
                   No products found
                 </ListBoxItem>
               ) : (
@@ -189,7 +189,7 @@ function PadRowInput({
                   <ListBoxItem
                     key={product.id}
                     id={product.id}
-                    className="cursor-pointer rounded-lg px-sm py-xs text-xs hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
+                    className="cursor-pointer rounded-lg px-sm py-xs text-[13px] hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
                   >
                     {product.name} {product.sku ? `(${product.sku})` : ''}
                   </ListBoxItem>
@@ -199,7 +199,7 @@ function PadRowInput({
           </Popover>
         </ComboBox>
         {row.error && row.skuQuery.length > 0 && (
-          <Text className="px-sm text-[10px] text-[var(--color-error)]">{row.error}</Text>
+          <Text className="px-sm text-[13px] text-[var(--color-error)]">{row.error}</Text>
         )}
       </div>
 
@@ -215,7 +215,7 @@ function PadRowInput({
             <Input
               ref={qtyRef}
               placeholder={t('quoteBuilder.quickPadQty', 'Qty')}
-              className="h-8 w-full rounded border border-transparent px-sm font-[family-name:var(--font-geist-mono)] text-xs outline-none focus:border-[var(--color-primary)]"
+              className="h-8 w-full rounded border border-transparent px-sm font-[family-name:var(--font-geist-mono)] text-[13px] outline-none focus:border-[var(--color-primary)]"
             />
           </Group>
         </NumberField>
@@ -223,7 +223,7 @@ function PadRowInput({
 
       {/* UOM display - 20% */}
       <div className="w-[20%] px-xs">
-        <span className="text-xs text-[var(--color-text-subtle)]">
+        <span className="text-[13px] text-[var(--color-text-subtle)]">
           {row.uom || t('quoteBuilder.quickPadUom', 'UOM')}
         </span>
       </div>
@@ -256,7 +256,7 @@ function MobilePadRow({
 
   return (
     <div className="flex flex-col gap-sm rounded-xl border border-[var(--color-border)] p-md">
-      <Text className="text-xs text-[var(--color-text-subtle)]">
+      <Text className="text-[13px] text-[var(--color-text-subtle)]">
         Row <span className="font-[family-name:var(--font-geist-mono)]">{index + 1}</span> of{' '}
         <span className="font-[family-name:var(--font-geist-mono)]">{total}</span>
       </Text>
@@ -272,13 +272,13 @@ function MobilePadRow({
         <Button
           isDisabled={index === 0}
           onPress={() => onNavigate('prev')}
-          className="h-9 flex-1 rounded-xl border border-[var(--color-border)] text-xs font-semibold outline-none hover:bg-[var(--color-surface)] disabled:opacity-40"
+          className="h-9 flex-1 rounded-xl border border-[var(--color-border)] text-[13px] font-semibold outline-none hover:bg-[var(--color-surface)] disabled:opacity-40"
         >
           {t('quoteBuilder.quickPadPrevious', 'Previous')}
         </Button>
         <Button
           onPress={() => onNavigate('next')}
-          className="h-9 flex-1 rounded-xl border border-[var(--color-border)] text-xs font-semibold outline-none hover:bg-[var(--color-surface)]"
+          className="h-9 flex-1 rounded-xl border border-[var(--color-border)] text-[13px] font-semibold outline-none hover:bg-[var(--color-surface)]"
         >
           {t('quoteBuilder.quickPadNext', 'Next')}
         </Button>
@@ -455,13 +455,13 @@ export function QuickPad() {
     <div className="flex flex-col gap-sm">
       {/* Header */}
       <div className="flex h-9 items-center border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="w-[60%] px-sm text-xs font-semibold">
+        <div className="w-[60%] px-sm text-[13px] font-semibold">
           {t('quoteBuilder.quickPadSku', 'SKU or product name')}
         </div>
-        <div className="w-[20%] px-sm text-xs font-semibold">
+        <div className="w-[20%] px-sm text-[13px] font-semibold">
           {t('quoteBuilder.quickPadQty', 'Qty')}
         </div>
-        <div className="w-[20%] px-sm text-xs font-semibold">
+        <div className="w-[20%] px-sm text-[13px] font-semibold">
           {t('quoteBuilder.quickPadUom', 'UOM')}
         </div>
       </div>
@@ -492,7 +492,7 @@ export function QuickPad() {
             {t('quoteBuilder.quickPadAddAll', 'Add All')} (
             <span className="font-[family-name:var(--font-geist-mono)]">{validCount}</span>)
           </Button>
-          <Text className="text-xs text-[var(--color-text-subtle)]">
+          <Text className="text-[13px] text-[var(--color-text-subtle)]">
             Ctrl+Enter
           </Text>
         </div>

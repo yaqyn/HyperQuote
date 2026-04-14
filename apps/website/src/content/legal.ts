@@ -19,7 +19,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     content: [
       'HyperQuote is a B2B digital platform that connects contractors and construction companies with verified building materials suppliers across Egypt. We facilitate the request-for-quote (RFQ) process, supplier coordination, order management, delivery logistics, and payment processing.',
       'HyperQuote acts as an intermediary platform. We are not a supplier, manufacturer, or distributor of building materials. While we verify suppliers on our platform, we do not guarantee the quality, safety, or fitness of any materials. All material warranties and guarantees are the responsibility of the respective suppliers.',
-      'We aim to deliver consolidated quotes within 4 hours of a valid RFQ submission during business hours (Sunday through Thursday, 9:00 AM to 5:00 PM Egypt Standard Time). This is a service target, not a guarantee. Complex or non-standard requests may require additional time.',
+      'We deliver consolidated quotes during business hours (Sunday through Thursday, 9:00 AM to 5:00 PM Egypt Standard Time). Response times vary based on request complexity, material availability, and supplier capacity.',
     ],
   },
   {

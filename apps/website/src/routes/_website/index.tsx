@@ -12,7 +12,7 @@ export const Route = createFileRoute('/_website/')({
 			{
 				name: 'description',
 				content:
-					"Egypt's first digital platform for building materials sourcing. Get quotes in 4 hours.",
+					"Egypt's first digital platform for building materials sourcing. One request, multiple suppliers.",
 			},
 			{
 				property: 'og:title',

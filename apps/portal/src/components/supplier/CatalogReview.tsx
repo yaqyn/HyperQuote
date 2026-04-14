@@ -42,7 +42,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
                 key={item.id}
                 className="px-4 py-3 border-b border-[var(--color-border)] last:border-b-0"
               >
-                <pre className="text-xs font-mono whitespace-pre-wrap text-[var(--color-text-muted)]">
+                <pre className="text-[13px] font-mono whitespace-pre-wrap text-[var(--color-text-muted)]">
                   {item.originalText}
                 </pre>
               </div>
@@ -75,7 +75,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
                     value={item.productName}
                     onChange={(v) => updateItem(item.id, 'productName', v)}
                   >
-                    <Label className="text-xs text-[var(--color-text-muted)]">
+                    <Label className="text-[13px] text-[var(--color-text-muted)]">
                       {t('supplier.productName')}
                     </Label>
                     <Input className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10" />
@@ -85,7 +85,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
                     value={item.sku}
                     onChange={(v) => updateItem(item.id, 'sku', v)}
                   >
-                    <Label className="text-xs text-[var(--color-text-muted)]">
+                    <Label className="text-[13px] text-[var(--color-text-muted)]">
                       {t('supplier.sku')}
                     </Label>
                     <Input className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-3 text-sm font-mono text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10" />
@@ -99,7 +99,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
                       minimumFractionDigits: 2,
                     }}
                   >
-                    <Label className="text-xs text-[var(--color-text-muted)]">
+                    <Label className="text-[13px] text-[var(--color-text-muted)]">
                       {t('supplier.price')}
                     </Label>
                     <Input className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-3 text-sm font-mono text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10" />
@@ -109,7 +109,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
                     value={item.quantity}
                     onChange={(v) => updateItem(item.id, 'quantity', v)}
                   >
-                    <Label className="text-xs text-[var(--color-text-muted)]">
+                    <Label className="text-[13px] text-[var(--color-text-muted)]">
                       {t('supplier.stockQty')}
                     </Label>
                     <Input className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-3 text-sm font-mono text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10" />

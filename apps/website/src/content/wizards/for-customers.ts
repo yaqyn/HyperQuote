@@ -35,7 +35,7 @@ export const steps: WizardStep[] = [
     titleKey: 'docs.wizard.for-customers.steps.requestQuote.title',
     bodyKey: 'docs.wizard.for-customers.steps.requestQuote.body',
     title: 'Request a Quote',
-    body: 'Submit your material list as a quote request. We source prices from multiple suppliers in parallel and build you a single consolidated quote — usually within 4 hours for common materials.',
+    body: 'Submit your material list as a quote request. We source prices from multiple suppliers in parallel and deliver a single consolidated quote — one request replaces dozens of phone calls.',
     illustration: 'submit',
     tip: 'docs.wizard.for-customers.steps.requestQuote.tip',
     tipText: 'Quotes include 14% VAT as a separate line. B2B buyers can reclaim input VAT, so your net cost is the pre-VAT price.',

@@ -1,498 +1,321 @@
 /**
- * Orders — minimal, inviting, optimized for desktop.
- * Data creates the rhythm. Cairo placeholder for empty states.
+ * Orders — premium card grid with product thumbnails.
+ * Grouped by type: Saved, Submitted, Confirmed.
+ * Cards show stacked product images, quantities, and inline actions.
  */
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Button,
-  DatePicker,
-  DateInput,
-  DateSegment,
-  Group,
-  Label,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from 'react-aria-components'
-import { X } from 'lucide-react'
-import { useState } from 'react'
-import { today, getLocalTimeZone } from '@internationalized/date'
+import { useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { Pencil, Send, Trash2, ChevronRight, Package, AlertTriangle } from 'lucide-react'
+import { Button } from 'react-aria-components'
 
-import { WindowShell } from '../../components/windows/WindowShell'
-import { ApprovalBanner } from '../../components/quote-builder/ApprovalBanner'
-import { useIsApprover } from '../../hooks/useApproval'
-import { getPendingApprovals } from '../../lib/server/approvals'
-import { getDrafts } from '../../lib/server/quote-requests'
-import {
-  getCustomerOrders,
-  getCustomerQuotes,
-  getCustomerOrderHistory,
-  getSavedLists,
-  deleteSavedList,
-} from '../../lib/server/orders'
-import { OrderCard } from '../../components/orders/OrderCard'
-import { FilterChips, type QuoteFilterValue } from '../../components/orders/FilterChips'
-import { ReorderDialog } from '../../components/orders/ReorderDialog'
-import { SavedListCard } from '../../components/orders/SavedListCard'
-import type { Order } from '../../types/order'
-
-const CAIRO_PLACEHOLDER = 'https://websiteassets.hyperquote.net/Images/cairo.webp'
+import { getAllCustomerOrders, deleteOrder, submitOrder } from '../../lib/server/orders'
+import type { Order, OrderType } from '../../types/order'
 
 export const Route = createFileRoute('/_portal/orders')({
-  component: OrdersWindow,
+  component: OrdersPage,
 })
 
-function OrdersWindow() {
-  const { t } = useTranslation('portal')
-  const navigate = useNavigate()
-  const isApprover = useIsApprover()
+// ============================================================================
+// Main Page
+// ============================================================================
 
-  const { data: activeData } = useQuery({
-    queryKey: ['customer-orders'],
-    queryFn: () => getCustomerOrders({ data: { page: 1, limit: 20 } }),
-    staleTime: 60_000,
-  })
-  const { data: quotesData } = useQuery({
-    queryKey: ['customer-quotes', 'all'],
-    queryFn: () => getCustomerQuotes({ data: { page: 1, limit: 20 } }),
-    staleTime: 60_000,
-  })
-  const { data: draftsResult } = useQuery({
-    queryKey: ['quote-drafts'],
-    queryFn: () => getDrafts(),
+function OrdersPage() {
+  const { t } = useTranslation('portal')
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['customer-orders-all'],
+    queryFn: () => getAllCustomerOrders(),
     staleTime: 30_000,
   })
-  const { data: savedListsData } = useQuery({
-    queryKey: ['saved-lists'],
-    queryFn: () => getSavedLists({ data: {} }),
-    staleTime: 60_000,
-  })
 
-  const activeCount = activeData?.orders?.length ?? 0
-  const quotesCount = quotesData?.quotes?.length ?? 0
-  const draftsCount =
-    (draftsResult?.length ?? 0) + (savedListsData?.lists?.length ?? 0)
+  const grouped = useMemo(() => {
+    if (!data?.orders) return { saved: [], submitted: [], confirmed: [] }
+    return {
+      saved: data.orders.filter((o) => o.type === 'saved'),
+      submitted: data.orders.filter((o) => o.type === 'submitted'),
+      confirmed: data.orders.filter((o) => o.type === 'confirmed'),
+    }
+  }, [data])
+
+  const hasAny = (grouped.saved.length + grouped.submitted.length + grouped.confirmed.length) > 0
 
   return (
-    <WindowShell title={t('nav.orders')} maxWidth="800px">
-      <div className="flex flex-col py-8 max-md:py-5">
-        {/* New Quote button — top right */}
-        <div className="flex items-center justify-end mb-8">
-          <Button
-            onPress={() => navigate({ to: '/orders/new' })}
-            className="h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-xs font-medium cursor-pointer transition-opacity hover:opacity-80 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
+      <div className="w-full max-w-[960px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
+        {/* Header */}
+        <div className="mb-10">
+          <h1
+            className="text-[22px] font-semibold tracking-tight"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
           >
-            {t('quoteBuilder.newQuoteRequest')}
-          </Button>
+            {t('nav.orders')}
+          </h1>
         </div>
 
-        {isApprover && <PendingApprovalsSection />}
+        {isLoading && <SkeletonGrid />}
 
-        {/* Tabs */}
-        <Tabs className="flex flex-col">
-          <TabList className="flex gap-8 border-b border-[var(--color-border)]">
-            <StyledTab id="active">
-              {t('orders.tabActive')}
-              <TabCount count={activeCount} />
-            </StyledTab>
-            <StyledTab id="quotes">
-              {t('orders.tabQuotes')}
-              <TabCount count={quotesCount} />
-            </StyledTab>
-            <StyledTab id="history">{t('orders.tabHistory')}</StyledTab>
-            <StyledTab id="drafts">
-              {t('orders.tabDrafts')}
-              <TabCount count={draftsCount} />
-            </StyledTab>
-          </TabList>
-
-          <TabPanel id="active" className="pt-6">
-            <ActiveTab />
-          </TabPanel>
-          <TabPanel id="quotes" className="pt-6">
-            <QuotesTab />
-          </TabPanel>
-          <TabPanel id="history" className="pt-6">
-            <HistoryTab />
-          </TabPanel>
-          <TabPanel id="drafts" className="pt-6">
-            <DraftsTab />
-          </TabPanel>
-        </Tabs>
-      </div>
-    </WindowShell>
-  )
-}
-
-// ============================================================================
-// Tab components
-// ============================================================================
-
-function StyledTab({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <Tab
-      id={id}
-      className={({ isSelected }) =>
-        [
-          'pb-3 text-sm cursor-pointer outline-none transition-colors -mb-px flex items-center',
-          isSelected
-            ? 'text-[var(--color-text)] border-b-2 border-[var(--color-text)] font-medium'
-            : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]',
-        ].join(' ')
-      }
-    >
-      {children}
-    </Tab>
-  )
-}
-
-function TabCount({ count }: { count: number }) {
-  if (!count) return null
-  return (
-    <span className="font-mono text-[11px] ms-1.5 text-[var(--color-text-subtle)]">
-      {count}
-    </span>
-  )
-}
-
-// ============================================================================
-// Active Tab
-// ============================================================================
-
-function ActiveTab() {
-  const { t } = useTranslation('portal')
-  const navigate = useNavigate()
-
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['customer-orders'],
-    queryFn: () => getCustomerOrders({ data: { page: 1, limit: 20 } }),
-    staleTime: 60_000,
-  })
-
-  if (isLoading) return <SkeletonRows />
-  if (isError) return <ErrorState message={t('orders.errorLoading')} onRetry={refetch} />
-
-  if (!data?.orders?.length) {
-    return (
-      <EmptyState
-        heading={t('orders.emptyActiveTitle')}
-        body={t('orders.emptyActiveBody')}
-        actionLabel={t('quoteBuilder.newQuoteRequest')}
-        onAction={() => navigate({ to: '/orders/new' })}
-      />
-    )
-  }
-
-  return (
-    <div className="flex flex-col">
-      {data.orders.map((order) => (
-        <OrderCard
-          key={order.id}
-          order={order}
-          onPress={() => navigate({ to: '/orders/$orderId', params: { orderId: order.id } })}
-        />
-      ))}
-    </div>
-  )
-}
-
-// ============================================================================
-// Quotes Tab
-// ============================================================================
-
-function QuotesTab() {
-  const { t } = useTranslation('portal')
-  const navigate = useNavigate()
-  const [filter, setFilter] = useState<QuoteFilterValue>('all')
-
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['customer-quotes', filter],
-    queryFn: () => getCustomerQuotes({ data: { status: filter, page: 1, limit: 20 } }),
-    staleTime: 60_000,
-  })
-
-  return (
-    <div>
-      <FilterChips selected={filter} onChange={setFilter} />
-
-      {isLoading && <SkeletonRows />}
-      {isError && <ErrorState message={t('orders.errorLoading')} onRetry={refetch} />}
-
-      {!isLoading && !isError && !data?.quotes?.length && (
-        <EmptyState
-          heading={t('orders.emptyQuotesTitle')}
-          body={t('orders.emptyQuotesBody')}
-          actionLabel={t('quoteBuilder.newQuoteRequest')}
-          onAction={() => navigate({ to: '/orders/new' })}
-        />
-      )}
-
-      {data?.quotes?.map((quote) => (
-        <OrderCard
-          key={quote.id}
-          order={quote}
-          onPress={() => navigate({ to: '/orders/$orderId', params: { orderId: quote.id } })}
-        />
-      ))}
-    </div>
-  )
-}
-
-// ============================================================================
-// History Tab
-// ============================================================================
-
-function HistoryTab() {
-  const { t } = useTranslation('portal')
-  const tz = getLocalTimeZone()
-  const defaultTo = today(tz)
-  const defaultFrom = defaultTo.subtract({ days: 90 })
-
-  const [dateFrom, setDateFrom] = useState(defaultFrom)
-  const [dateTo, setDateTo] = useState(defaultTo)
-  const [reorderTarget, setReorderTarget] = useState<Order | null>(null)
-
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['customer-order-history', dateFrom.toString(), dateTo.toString()],
-    queryFn: () =>
-      getCustomerOrderHistory({
-        data: { page: 1, limit: 20, dateFrom: dateFrom.toString(), dateTo: dateTo.toString() },
-      }),
-    staleTime: 60_000,
-  })
-
-  return (
-    <div>
-      <div className="flex flex-wrap items-end gap-6 mb-8">
-        <DatePicker value={dateFrom} onChange={(v) => v && setDateFrom(v)}>
-          <Label className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-1.5 block">
-            {t('orders.dateFrom')}
-          </Label>
-          <Group className="flex items-center h-9 border-b border-[var(--color-border)] focus-within:border-[var(--color-primary)] transition-colors">
-            <DateInput className="flex font-mono text-sm text-[var(--color-text)]">
-              {(segment) => (
-                <DateSegment
-                  segment={segment}
-                  className="px-0.5 outline-none focus:bg-[var(--color-primary)]/10 rounded"
-                />
-              )}
-            </DateInput>
-          </Group>
-        </DatePicker>
-
-        <DatePicker value={dateTo} onChange={(v) => v && setDateTo(v)}>
-          <Label className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-1.5 block">
-            {t('orders.dateTo')}
-          </Label>
-          <Group className="flex items-center h-9 border-b border-[var(--color-border)] focus-within:border-[var(--color-primary)] transition-colors">
-            <DateInput className="flex font-mono text-sm text-[var(--color-text)]">
-              {(segment) => (
-                <DateSegment
-                  segment={segment}
-                  className="px-0.5 outline-none focus:bg-[var(--color-primary)]/10 rounded"
-                />
-              )}
-            </DateInput>
-          </Group>
-        </DatePicker>
-      </div>
-
-      {isLoading && <SkeletonRows />}
-      {isError && <ErrorState message={t('orders.errorLoading')} onRetry={refetch} />}
-
-      {!isLoading && !isError && !data?.orders?.length && (
-        <EmptyState heading={t('orders.emptyHistoryTitle')} body={t('orders.emptyHistoryBody')} />
-      )}
-
-      {data?.orders?.map((order) => (
-        <div key={order.id} className="flex items-center">
-          <div className="flex-1">
-            <OrderCard order={order} onPress={() => {}} />
-          </div>
-          {order.status === 'delivered' && (
+        {isError && (
+          <div className="py-16 text-center">
+            <AlertTriangle size={32} className="mx-auto mb-3 text-[var(--p-text-muted)]" />
+            <p className="text-sm text-[var(--p-text-muted)]">{t('orders.error')}</p>
             <button
               type="button"
-              onClick={() => setReorderTarget(order)}
-              className="shrink-0 text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors ms-4"
+              onClick={() => refetch()}
+              className="mt-3 text-sm text-[var(--p-text)] underline underline-offset-2"
             >
-              {t('orders.reorder')}
+              {t('orders.retry')}
             </button>
-          )}
-        </div>
-      ))}
+          </div>
+        )}
 
-      {reorderTarget && (
-        <ReorderDialog
-          orderId={reorderTarget.id}
-          orderRef={reorderTarget.reference}
-          itemCount={reorderTarget.itemCount}
-          isOpen={!!reorderTarget}
-          onOpenChange={(open) => { if (!open) setReorderTarget(null) }}
-        />
-      )}
+        {!isLoading && !isError && !hasAny && <EmptyState />}
+
+        {!isLoading && !isError && hasAny && (
+          <div className="flex flex-col gap-12">
+            <OrderSection type="saved" orders={grouped.saved} />
+            <OrderSection type="submitted" orders={grouped.submitted} />
+            <OrderSection type="confirmed" orders={grouped.confirmed} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // ============================================================================
-// Drafts Tab
+// Order Section
 // ============================================================================
 
-function DraftsTab() {
+function OrderSection({ type, orders }: { type: OrderType; orders: Order[] }) {
   const { t } = useTranslation('portal')
+  if (orders.length === 0) return null
+
+  return (
+    <section>
+      <div className="flex items-center gap-3 mb-5">
+        <div className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[type]}`} />
+        <h3 className="text-[13px] uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
+          {t(`orders.${type}`)}
+        </h3>
+        <span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+          {orders.length}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AnimatePresence mode="popLayout">
+          {orders.map((order, i) => (
+            <motion.div
+              key={order.id}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.25, delay: i * 0.05 }}
+            >
+              <OrderCard order={order} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </section>
+  )
+}
+
+// ============================================================================
+// Order Card
+// ============================================================================
+
+const STATUS_DOT: Record<OrderType, string> = {
+  saved: 'bg-[var(--p-text-muted)]',
+  submitted: 'bg-[var(--p-accent)]',
+  confirmed: 'bg-[var(--p-success)]',
+}
+
+const GLOW_COLOR: Record<OrderType, string> = {
+  saved: 'rgba(255,255,255,0.06)',
+  submitted: 'rgba(59,130,246,0.15)',
+  confirmed: 'rgba(74,222,128,0.15)',
+}
+
+function OrderCard({ order }: { order: Order }) {
+  const { t, i18n } = useTranslation('portal')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-
-  const { data: drafts, isLoading: draftsLoading } = useQuery({
-    queryKey: ['quote-drafts'],
-    queryFn: () => getDrafts(),
-    staleTime: 30_000,
-  })
-
-  const { data: savedListsData, isLoading: listsLoading } = useQuery({
-    queryKey: ['saved-lists'],
-    queryFn: () => getSavedLists({ data: {} }),
-    staleTime: 60_000,
-  })
-
-  const [reorderList, setReorderList] = useState<{ id: string; name: string; itemCount: number } | null>(null)
-
-  const deleteListMutation = useMutation({
-    mutationFn: (listId: string) => deleteSavedList({ data: { listId } }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['saved-lists'] }) },
-  })
-
-  const isLoading = draftsLoading || listsLoading
-  const hasDrafts = drafts && drafts.length > 0
-  const hasSavedLists = savedListsData?.lists && savedListsData.lists.length > 0
-
-  if (isLoading) return <SkeletonRows />
-
-  if (!hasDrafts && !hasSavedLists) {
-    return <EmptyState heading={t('orders.emptyDraftsTitle')} body={t('orders.emptyDraftsBody')} />
-  }
-
-  return (
-    <div className="flex flex-col gap-10">
-      {hasDrafts && (
-        <div className="flex flex-col">
-          {drafts.map((draft) => (
-            <DraftRow
-              key={draft.id}
-              draft={draft}
-              onResume={() => navigate({ to: '/orders/new', search: { draft: draft.id } })}
-              onDeleted={() => queryClient.invalidateQueries({ queryKey: ['quote-drafts'] })}
-            />
-          ))}
-        </div>
-      )}
-
-      {hasSavedLists && (
-        <div className="flex flex-col gap-4">
-          <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
-            {t('orders.savedLists')}
-          </span>
-          {savedListsData.lists.map((list) => (
-            <SavedListCard
-              key={list.id}
-              list={list}
-              onReorder={() => setReorderList({ id: list.id, name: list.name, itemCount: list.items.length })}
-              onEdit={() => {}}
-              onDelete={() => deleteListMutation.mutate(list.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      {reorderList && (
-        <ReorderDialog
-          orderId={reorderList.id}
-          orderRef={reorderList.name}
-          itemCount={reorderList.itemCount}
-          isOpen={!!reorderList}
-          onOpenChange={(open) => { if (!open) setReorderList(null) }}
-        />
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Pending Approvals
-// ============================================================================
-
-function PendingApprovalsSection() {
-  const { data: approvals } = useQuery({
-    queryKey: ['pending-approvals'],
-    queryFn: () => getPendingApprovals(),
-    staleTime: 60_000,
-  })
-
-  if (!approvals || approvals.length === 0) return null
-
-  return (
-    <div className="flex flex-col gap-3 mb-8">
-      <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
-        Pending Approvals
-      </span>
-      {approvals.map((approval) => (
-        <ApprovalBanner key={approval.approvalId} approval={approval} />
-      ))}
-    </div>
-  )
-}
-
-// ============================================================================
-// Draft Row
-// ============================================================================
-
-interface DraftData {
-  id: string
-  requestNumber: string
-  notes: string | null
-  updatedAt: string
-  itemCount: number
-}
-
-function DraftRow({ draft, onResume, onDeleted }: { draft: DraftData; onResume: () => void; onDeleted: () => void }) {
-  const { t } = useTranslation('portal')
+  const isAr = i18n.language === 'ar'
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const deleteMutation = useMutation({
-    mutationFn: async () => ({ success: true }),
-    onSuccess: onDeleted,
+    mutationFn: () => deleteOrder({ data: { orderId: order.id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
   })
 
-  const formattedDate = new Date(draft.updatedAt).toLocaleDateString('en-GB', {
+  const submitMutation = useMutation({
+    mutationFn: () => submitOrder({ data: { orderId: order.id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
+  })
+
+  const formattedDate = new Date(order.date).toLocaleDateString(isAr ? 'ar-EG' : 'en-GB', {
     day: 'numeric',
     month: 'short',
   })
 
-  return (
-    <div className="flex items-center justify-between py-4 border-b border-[var(--color-border)]">
-      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-        <span className="text-sm text-[var(--color-text)]">
-          {draft.requestNumber || draft.notes || 'Draft'}
-        </span>
-        <span className="text-xs text-[var(--color-text-subtle)]">
-          <span className="font-mono">{draft.itemCount}</span> items · <span className="font-mono">{formattedDate}</span>
-        </span>
+  const title = order.type === 'saved' ? order.name : order.reference
+  const isClickable = order.type !== 'saved'
+
+  // Deduplicate images for the thumbnail strip
+  const uniqueImages = [...new Set(order.items.map((i) => i.imageUrl))].slice(0, 4)
+
+  const handleCardClick = () => {
+    if (isClickable) {
+      navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
+    }
+  }
+
+  const cardInner = (
+    <>
+      {/* Top glow */}
+      <div
+        className="absolute inset-x-0 top-0 h-px rounded-t-xl"
+        style={{
+          background: `linear-gradient(90deg, transparent 5%, ${GLOW_COLOR[order.type]} 50%, transparent 95%)`,
+        }}
+      />
+
+      {/* Product image strip */}
+      <div className="flex gap-2 mb-4">
+        {uniqueImages.map((img, i) => (
+          <div
+            key={i}
+            className="w-12 h-12 rounded-lg overflow-hidden bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0"
+          >
+            <img
+              src={img}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        ))}
+        {order.items.length > uniqueImages.length && (
+          <div className="w-12 h-12 rounded-lg bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0 flex items-center justify-center">
+            <span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+              +{order.items.length - uniqueImages.length}
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <button type="button" onClick={onResume} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-          {t('orders.continue')}
-        </button>
+      {/* Title row */}
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h4 className={`text-[15px] font-medium text-[var(--p-text)] leading-snug ${order.type !== 'saved' ? 'font-mono' : ''}`}>
+          {title}
+        </h4>
+        {isClickable && (
+          <ChevronRight size={14} strokeWidth={1.5} className="shrink-0 mt-0.5 text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-180" />
+        )}
+      </div>
 
+      {/* Item list — always 3 rows + more line for consistent height */}
+      <div className="flex flex-col gap-1.5 mb-4">
+        {Array.from({ length: 3 }).map((_, i) => {
+          const item = order.items[i]
+          if (!item) {
+            return <div key={i} className="h-[18px]" />
+          }
+          return (
+            <div key={item.productId} className="flex items-center justify-between">
+              <span className="text-[13px] text-[var(--p-text-secondary)] truncate flex-1">
+                {isAr ? item.productNameAr : item.productName}
+              </span>
+              <span className="font-mono text-[13px] text-[var(--p-text-muted)] ms-3 shrink-0">
+                {item.quantity} {item.unitOfMeasure}
+              </span>
+            </div>
+          )
+        })}
+        <div className="h-[17px]">
+          {order.items.length > 3 && (
+            <span className="text-[13px] text-[var(--p-text-muted)]">
+              +{order.items.length - 3} {t('orders.more')}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Footer: date + amount */}
+      <div className="flex items-center gap-3 mt-auto">
+        <span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+          {formattedDate}
+        </span>
+        {order.amount != null && (
+          <>
+            <span className="text-[var(--p-border)]">·</span>
+            <span className="font-mono text-[13px] font-medium text-[var(--p-text)]">
+              EGP {new Intl.NumberFormat('en-EG').format(order.amount)}
+            </span>
+          </>
+        )}
+      </div>
+    </>
+  )
+
+  // Submitted/Confirmed: entire card is a button
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        onClick={handleCardClick}
+        className="group relative flex flex-col w-full rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 pb-6 transition-all duration-200 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] text-start cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)]"
+      >
+        {cardInner}
+      </button>
+    )
+  }
+
+  // Saved: card with action buttons
+  return (
+    <div className="group relative flex flex-col rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 transition-all duration-200 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)]">
+      {cardInner}
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-3 mt-4 border-t border-[var(--p-border)]">
+        <ActionButton
+          icon={<Pencil size={12} strokeWidth={1.5} />}
+          label={t('orders.edit')}
+          onPress={() => navigate({ to: '/orders/edit/$orderId', params: { orderId: order.id } })}
+        />
+        <ActionButton
+          icon={<Send size={12} strokeWidth={1.5} />}
+          label={t('orders.submit')}
+          variant="primary"
+          loading={submitMutation.isPending}
+          onPress={() => submitMutation.mutate()}
+        />
+        <div className="flex-1" />
         {confirmDelete ? (
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => { deleteMutation.mutate(); setConfirmDelete(false) }} className="text-[11px] text-[var(--color-error)]">
+            <button
+              type="button"
+              onClick={() => deleteMutation.mutate()}
+              className="text-[13px] text-[var(--p-error)] hover:underline"
+            >
               {t('orders.confirmDelete')}
             </button>
-            <button type="button" onClick={() => setConfirmDelete(false)} className="text-[11px] text-[var(--color-text-subtle)]">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="text-[13px] text-[var(--p-text-muted)]"
+            >
               {t('orders.cancel')}
             </button>
           </div>
@@ -500,10 +323,10 @@ function DraftRow({ draft, onResume, onDeleted }: { draft: DraftData; onResume: 
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="text-[var(--color-text-subtle)]/40 hover:text-[var(--color-text-muted)] transition-colors"
-            aria-label={`Delete draft ${draft.requestNumber}`}
+            className="p-1.5 rounded-md text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--p-error)] transition-all"
+            aria-label={t('orders.delete')}
           >
-            <X size={12} strokeWidth={1.5} />
+            <Trash2 size={12} strokeWidth={1.5} />
           </button>
         )}
       </div>
@@ -512,17 +335,90 @@ function DraftRow({ draft, onResume, onDeleted }: { draft: DraftData; onResume: 
 }
 
 // ============================================================================
+// Action Button
+// ============================================================================
+
+function ActionButton({
+  icon,
+  label,
+  variant = 'default',
+  loading = false,
+  onPress,
+}: {
+  icon: React.ReactNode
+  label: string
+  variant?: 'default' | 'primary'
+  loading?: boolean
+  onPress: () => void
+}) {
+  const base = 'flex items-center gap-1.5 h-7 px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)] disabled:opacity-40'
+  const variants = {
+    default: 'text-[var(--p-text-secondary)] hover:text-[var(--p-text)] hover:bg-[var(--p-hover)]',
+    primary: 'text-[var(--p-accent)] hover:bg-[var(--p-accent-dim)]',
+  }
+
+  return (
+    <Button
+      onPress={onPress}
+      isDisabled={loading}
+      className={`${base} ${variants[variant]}`}
+    >
+      {loading ? <Spinner /> : icon}
+      {label}
+    </Button>
+  )
+}
+
+// ============================================================================
+// Empty State
+// ============================================================================
+
+function EmptyState() {
+  const { t } = useTranslation('portal')
+
+  return (
+    <div className="flex flex-col items-center py-20">
+      <div className="w-14 h-14 rounded-2xl bg-[var(--p-card)] border border-[var(--p-border)] flex items-center justify-center mb-6">
+        <Package size={24} strokeWidth={1} className="text-[var(--p-text-muted)]" />
+      </div>
+      <p className="text-sm text-[var(--p-text)]">{t('orders.noOrders')}</p>
+      <p className="text-sm text-[var(--p-text-muted)] mt-1">{t('orders.noOrdersBody')}</p>
+    </div>
+  )
+}
+
+// ============================================================================
 // Skeleton
 // ============================================================================
 
-function SkeletonRows() {
+function SkeletonGrid() {
   return (
-    <div className="flex flex-col">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="py-5 border-b border-[var(--color-border)] animate-pulse">
-          <div className="h-3.5 w-28 bg-[var(--color-surface)] rounded-sm mb-2.5" />
-          <div className="h-3 w-44 bg-[var(--color-surface)] rounded-sm mb-2" />
-          <div className="h-2.5 w-32 bg-[var(--color-surface)] rounded-sm" />
+    <div className="flex flex-col gap-12">
+      {[1, 2].map((section) => (
+        <div key={section}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--p-border)] animate-pulse" />
+            <div className="h-2.5 w-20 bg-[var(--p-card)] rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2].map((card) => (
+              <div
+                key={card}
+                className="rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 animate-pulse"
+              >
+                <div className="flex gap-2 mb-4">
+                  {[1, 2, 3].map((thumb) => (
+                    <div key={thumb} className="w-12 h-12 rounded-lg bg-[var(--p-elevated)]" />
+                  ))}
+                </div>
+                <div className="h-4 w-40 bg-[var(--p-border)] rounded mb-3" />
+                <div className="h-3 w-full bg-[var(--p-border)] rounded mb-2" />
+                <div className="h-3 w-3/4 bg-[var(--p-border)] rounded mb-2" />
+                <div className="h-3 w-1/2 bg-[var(--p-border)] rounded mb-4" />
+                <div className="h-2.5 w-24 bg-[var(--p-border)] rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -530,60 +426,11 @@ function SkeletonRows() {
 }
 
 // ============================================================================
-// Error State
+// Spinner
 // ============================================================================
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  const { t } = useTranslation('portal')
+function Spinner() {
   return (
-    <div className="py-16 text-center">
-      <p className="text-sm text-[var(--color-text-muted)]">{message}</p>
-      <button type="button" onClick={() => onRetry()} className="text-sm text-[var(--color-text)] mt-2 underline underline-offset-2">
-        {t('orders.retry')}
-      </button>
-    </div>
-  )
-}
-
-// ============================================================================
-// Empty State — inviting, with Cairo skyline
-// ============================================================================
-
-function EmptyState({
-  heading,
-  body,
-  actionLabel,
-  onAction,
-}: {
-  heading: string
-  body: string
-  actionLabel?: string
-  onAction?: () => void
-}) {
-  return (
-    <div className="flex flex-col items-center py-20">
-      {/* Cairo skyline — soft, atmospheric, part of the surface */}
-      <div className="w-full max-w-[320px] h-[120px] rounded-xl overflow-hidden mb-8 opacity-40">
-        <img
-          src={CAIRO_PLACEHOLDER}
-          alt=""
-          className="w-full h-full object-cover object-center"
-          loading="lazy"
-        />
-      </div>
-
-      <p className="text-sm font-normal text-[var(--color-text)]">{heading}</p>
-      <p className="text-sm text-[var(--color-text-subtle)] mt-1">{body}</p>
-
-      {actionLabel && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="mt-6 h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-xs font-medium transition-opacity hover:opacity-80"
-        >
-          {actionLabel}
-        </button>
-      )}
-    </div>
+    <span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-[var(--p-accent)]/20 border-t-[var(--p-accent)]" />
   )
 }

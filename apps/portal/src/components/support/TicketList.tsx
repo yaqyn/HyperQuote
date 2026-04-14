@@ -55,17 +55,17 @@ export function TicketList({ tickets, onSelect }: TicketListProps) {
                 {ticket.subject}
               </span>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+                <span className="text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
                   {statusLabel(ticket.status)}
                 </span>
                 {ticket.relatedOrderRef && (
-                  <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
+                  <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                     {ticket.relatedOrderRef}
                   </span>
                 )}
               </div>
             </div>
-            <span className="font-mono text-[11px] text-[var(--color-text-subtle)] shrink-0 ms-4">
+            <span className="font-mono text-[13px] text-[var(--color-text-subtle)] shrink-0 ms-4">
               {formattedDate}
             </span>
           </ListBoxItem>

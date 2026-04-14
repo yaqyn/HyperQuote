@@ -72,7 +72,7 @@ export function StatusCard({ data }: StatusCardProps) {
           {entityLabel}
         </span>
         <span
-          className={`${colors.bg} ${colors.text} text-xs font-semibold rounded-full px-2 py-0.5`}
+          className={`${colors.bg} ${colors.text} text-[13px] font-semibold rounded-full px-2 py-0.5`}
         >
           {data.status}
         </span>
@@ -86,10 +86,10 @@ export function StatusCard({ data }: StatusCardProps) {
             .slice(-2)
             .map((step) => (
               <div key={step.label} className="flex items-center justify-between">
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-[13px] text-[var(--color-text-muted)]">
                   {step.label}
                 </span>
-                <span className="font-[family-name:var(--font-geist-mono)] text-xs text-[var(--color-text-muted)]">
+                <span className="font-[family-name:var(--font-geist-mono)] text-[13px] text-[var(--color-text-muted)]">
                   {isArabic ? toArabicIndic(step.date) : step.date}
                 </span>
               </div>

@@ -1,77 +1,94 @@
-# HyperQuote — Claude Code Instructions
+# HyperQuote
 
-**Project:** B2B building materials platform for Egypt. 5 apps, spatial glass UI, Arabic-first.
+Craftsmanship over speed. Built right once beats built fast twice. Phase 1 shortcuts become Phase 16 bugs.
+
+B2B building materials platform for Egypt. 5 apps, spatial glass UI, Arabic-first.
+Contractors submit once, receive consolidated multi-supplier quotes via AI coordination.
 
 ## Essential Files
 
-| File | Purpose | When to Read |
-|------|---------|--------------|
-| `essential/brand/UI-VISION.md` | Design philosophy — the WHY | Every session |
-| `essential/brand/STACK-DECISION.md` | Packages, versions, gotchas — the HOW | Before any import or config |
-| `essential/FRONTEND.md` | Screen-by-screen spec — the WHAT | When building a screen |
-| `essential/BACKEND.md` | Database, APIs, auth, cron — the INFRA | When touching server/DB code |
-| `essential/RESEARCH.md` | Business domain — the CONTEXT | When you need the WHY behind a rule |
+IMPORTANT: You MUST read the relevant file before building — do not guess from memory.
 
-## Ownership Mindset
+| File | When to Read |
+|------|-------------|
+| `frontend-design` skill | Building any UI component (invoke via Skill tool — single source of truth for design) |
+| `essential/brand/STACK-DECISION.md` | Before any new import or config |
+| `essential/BACKEND.md` | Touching server/DB code |
 
-This is the founder's life work. Act like a co-founder, not a contractor. Anticipate problems. Flag risks. Care about every pixel, every Arabic numeral, every animation — the details ARE the product.
+## Stack
 
-**Craftsmanship over speed.** Built right once > built fast twice. Choose excellent over good enough.
-**Protect the vision.** Spatial glass, three colors, 4-hour quotes — these are competitive advantages. Don't dilute them.
-**Think downstream.** Phase 1 shortcuts become Phase 16 bugs. Skipped RTL tests become broken Arabic layouts.
+Use TanStack Start, not Next.js. Use React Aria, not shadcn. Use Motion v12, not framer-motion. Use Bun, not npm. Deploy to Cloudflare Workers, not Vercel. Stay on Vite 7 — Vite 8 is incompatible. Wrap 0.x libraries (TanStack AI, Hotkeys) behind abstractions.
 
-## Quality Standard
+IMPORTANT: Check `package.json` for current versions before adding or upgrading any dependency.
 
-**"Fix all" means fix ALL.** Every item regardless of severity. No silent triage. No downgrading verdicts. No rationalizing gaps. The user should never have to say it twice.
+## Code Rules
 
-**Verify ALL tiers.** Phase verification must cover every priority level — low, mid, high, must-haves, AND nice-to-haves. Not just must-haves. Every plan item deserves verification regardless of priority.
+- `useWatch()` never `watch()` — RHF watch() is broken with React 19
+- `.inputValidator()` not `.validator()` for TanStack server functions
+- CSS custom properties in `:root {}`, never `@theme`
+- `ClientOnly` wrapper for maps and browser-only APIs
+- `isKeyboardDismissDisabled` on all Dialogs
+- Data fetching in TanStack Router loaders, never `useEffect`
+- Server state in TanStack Query, never useState/Zustand
+- UI-only state (open/closed, forms) in useState
+- Cross-component client state (sidebar, theme) in Zustand
+- Two Supabase clients: browser client for client code, server client for server code — never mix
+- `getUser()` for auth checks, not `getSession()` — session can be tampered
 
-## Non-Negotiable Rules
+## Build
 
-**Design:** Three colors only (white/black/blue #2563EB). Spatial glass, not dashboards. Geist Mono for ALL numbers.
+Don't build after every single edit. Build periodically — after completing a full feature or when the user asks to check. Constant builds are disruptive.
 
-**Architecture:** TanStack Start (NOT Next.js). React Aria (NOT shadcn). Motion v12 (NOT framer-motion). Bun (NOT npm). Cloudflare Workers (NOT Vercel).
+## Quality
 
-**Code:** `useWatch()` never `watch()`. `.inputValidator()` not `.validator()`. Colors in `:root {}` never `@theme`. `ClientOnly` for maps. `isKeyboardDismissDisabled` on Dialogs.
+- Never drop a requirement because it's hard. If the user asked for it, it ships. If an approach fails, diagnose why and try a fundamentally different approach — never retry the same pattern, and never remove the feature and call it done.
+- Learn from context. Before each attempt, review what already failed and why. Understand the root cause — then decide: fix the specific flaw, or pivot to a different approach. Never blindly repeat the same mistake, but don't abandon a sound approach over a fixable detail either.
+- Never claim code works without running it. `bun test` or `bun run build` — verify, don't assume.
+- Never generate placeholder/TODO code. Finish what you start or don't start it.
+- No `any` types. No `as` casts unless truly unavoidable — add a comment explaining why.
+- Every component handles three states: loading, error, empty. No blank screens.
+- No dead code, unused imports, or commented-out blocks. Delete, don't comment.
+- No `console.log` in committed code. Use structured logging or remove it.
 
-**Egyptian law:** 14% VAT. ETA e-invoicing (real-time, Arabic). Sun-Thu work week. Wire/cheque/cash/LC only — no mobile wallets. Bounced cheque = criminal. Cairo truck ban 6AM-midnight. Arabic-Indic numerals + Arabic unit translations — no exceptions.
+## Frontend
 
-## Project
+- All text must be i18n keys — never hardcode English or Arabic strings in JSX.
+- RTL-first: use logical properties (margin-inline-start, padding-inline-end), never left/right.
+- All interactive elements must be keyboard accessible. React Aria handles this — don't override it.
+- Images: always specify width/height or aspect-ratio to prevent layout shift. Use WebP/AVIF.
+- Forms: validate on blur, not on change. Show errors inline next to the field, not in toasts.
+- Animations: respect `prefers-reduced-motion`. Wrap all Motion usage in a check.
+- Never use `dangerouslySetInnerHTML`. React's JSX escaping handles XSS — don't bypass it.
+- Wrap route-level components in error boundaries. One crash must not white-screen the app.
+- Brand colors: white, black, blue `#2563EB`. These are the only colors in the palette.
 
-A B2B building materials logistics platform for Egypt. Quote-based RFQ model, no published prices, no online payments. Five apps (website, internal platform, portal, CEO app, driver app) sharing one Supabase backend on Cloudflare Workers. White-label per tenant.
+## Security
 
-**Core Value:** Contractors get quotes within 4 hours through an AI-powered platform that coordinates suppliers, deliveries, and payments behind a single branded experience.
+- Audit dependencies before adding. Pin exact versions for critical packages. Never auto-update without review.
+- Never expose secrets, API keys, or connection strings in client-side code.
+- All database queries through Supabase RLS — never bypass with service role key unless explicitly required.
+- Never concatenate user input into SQL strings — not in `.rpc()` calls, not in migrations, nowhere.
+- CORS: allowlist specific origins, never wildcard `*` in production.
+- Rate limit all public-facing endpoints. Use Cloudflare Workers rate limiting or KV counters.
+- File uploads: validate MIME type, enforce size limits, sanitize filenames. Store in R2, never local filesystem.
+- Auth tokens: short-lived access tokens, httpOnly secure cookies. Never store tokens in localStorage.
 
-**Known risks:** @supabase/ssr on Workers (test Phase 1), RHF watch() broken with React 19, TanStack AI/Hotkeys are 0.x (wrap behind abstractions), Vite 8 incompatible (stay on 7).
+## Backend
 
-## Stack (Quick Reference — full details in STACK-DECISION.md)
+- Every server function has Zod input validation AND typed return. No untyped endpoints.
+- Database migrations are idempotent — safe to run multiple times without side effects.
+- All Supabase queries use `.select()` to specify columns — never `SELECT *`.
+- Errors return structured responses `{ error: string, code: string }`, never raw stack traces.
+- Long operations (PDF generation, email, AI) run async via Cloudflare Queues, never block the request.
+- All monetary values stored as integers (smallest unit). Never use floating point for money.
+- Timestamps in UTC. Convert to local timezone only at the display layer.
 
-TanStack Start ^1.167.12 | React ^19.2.4 | TypeScript ^6.0.2 | Vite ^7.3.1 (NOT 8)
-Tailwind ^4.2.2 | React Aria ^1.16.0 | Motion ^12.38.0 | Zustand ^5.0.12
-i18next ^25.10.10 | React Hook Form ^7.72.0 | Supabase | Cloudflare Workers + R2 + KV
-Bun workspaces + Turborepo ^2.8.21 | Vitest ^4.1.2 | Playwright ^1.58.2 | Biome ^2.4.8
+## Performance
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-## Conventions
-
-**Fix from the root, never patch over symptoms.** When something is misaligned, broken, or wrong — find the actual cause and fix it there. Never add visual hacks (extra dividers, spacers, opacity tricks) to hide a structural problem. If a grid has uneven rows, fix the grid — don't add fake lines between them.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow
-
-Use `/gsd:quick` for small fixes, `/gsd:debug` for bugs, `/gsd:execute-phase` for planned work.
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Not yet configured. Run `/gsd:profile-user` to generate.
-<!-- GSD:profile-end -->
+- Lazy load routes and heavy components. Only the current route's code should ship to the client.
+- TanStack Query: set `staleTime` per query type — never leave defaults. Cache aggressively for static data.
+- Debounce search inputs (300ms minimum). Never fire a query on every keystroke.
+- Virtualize long lists (100+ items). Never render 500 DOM nodes when 20 are visible.
+- Bundle size: no barrel exports (`index.ts` re-exporting everything). Import from specific modules.
+- Images: lazy load below-the-fold. Use `loading="lazy"` and `decoding="async"`.
+- Cloudflare Workers: stay under 50ms CPU time. No synchronous loops over large datasets — paginate or stream.

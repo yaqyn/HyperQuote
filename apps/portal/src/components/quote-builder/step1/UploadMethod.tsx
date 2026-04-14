@@ -195,11 +195,11 @@ export function UploadMethod() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <Text className="mt-xs block text-center font-[family-name:var(--font-geist-mono)] text-xs text-[var(--color-text-subtle)]">
+          <Text className="mt-xs block text-center font-[family-name:var(--font-geist-mono)] text-[13px] text-[var(--color-text-subtle)]">
             {progress}%
           </Text>
         </div>
-        <Text className="text-xs text-[var(--color-text-subtle)]">
+        <Text className="text-[13px] text-[var(--color-text-subtle)]">
           {t('quoteBuilder.parsing', 'Parsing your file...')}
         </Text>
       </div>
@@ -214,7 +214,7 @@ export function UploadMethod() {
         <Text className="text-sm text-[var(--color-error)]">{errorMessage}</Text>
         <Button
           onPress={handleReupload}
-          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-xs font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-[13px] font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         >
           {t('quoteBuilder.reupload', 'Re-upload')}
         </Button>
@@ -234,7 +234,7 @@ export function UploadMethod() {
         </Text>
         <Button
           onPress={handleReupload}
-          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-xs font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-[13px] font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         >
           {t('quoteBuilder.uploadAnother', 'Upload another file')}
         </Button>
@@ -259,14 +259,14 @@ export function UploadMethod() {
         <Text slot="label" className="text-center text-sm text-[var(--color-text)]">
           {t('quoteBuilder.uploadPrimary', 'Drop your file here or click to browse')}
         </Text>
-        <Text className="mt-xs text-center text-xs text-[var(--color-text-subtle)]">
+        <Text className="mt-xs text-center text-[13px] text-[var(--color-text-subtle)]">
           {t('quoteBuilder.uploadSecondary', 'Supports: CSV, Excel (.xlsx), PDF')}
         </Text>
         <FileTrigger
           acceptedFileTypes={['.csv', '.xlsx', '.xls']}
           onSelect={handleFileSelect}
         >
-          <Button className="mt-md h-9 rounded-xl bg-[var(--color-primary)] px-md text-xs font-semibold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
+          <Button className="mt-md h-9 rounded-xl bg-[var(--color-primary)] px-md text-[13px] font-semibold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
             {t('quoteBuilder.browse', 'Browse Files')}
           </Button>
         </FileTrigger>
@@ -275,7 +275,7 @@ export function UploadMethod() {
       <button
         type="button"
         onClick={downloadTemplate}
-        className="flex items-center gap-xs text-xs font-normal text-[var(--color-primary)] hover:underline"
+        className="flex items-center gap-xs text-[13px] font-normal text-[var(--color-primary)] hover:underline"
       >
         <Download size={14} />
         {t('quoteBuilder.downloadTemplate', 'Download Template')}

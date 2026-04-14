@@ -2,20 +2,25 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
 import { MessageSquare, X, ChevronUp } from 'lucide-react'
+import { useRouterState } from '@tanstack/react-router'
 import { useChatWidget } from '../../hooks/useChatWidget'
 
 export function ChatFAB() {
   const { t } = useTranslation('website')
   const { toggle, isOpen } = useChatWidget()
-  const [scrolled, setScrolled] = useState(false)
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const isHome = pathname === '/' || pathname === ''
+  const [scrolled, setScrolled] = useState(!isHome)
 
   useEffect(() => {
+    if (!isHome) { setScrolled(true); return }
     function onScroll() {
       setScrolled(window.scrollY > 400)
     }
+    onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [isHome])
 
   return (
     <div dir="ltr" className="fixed bottom-4 right-4 z-40 flex flex-col items-center gap-2">

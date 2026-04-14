@@ -70,7 +70,7 @@ interface AddressFormValues {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
   'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
@@ -136,7 +136,7 @@ export function AddressesSection({ addresses }: AddressesSectionProps) {
                   {address.label}
                 </span>
                 {address.isDefault && (
-                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
                     {t('settings.addresses.default')}
                   </span>
                 )}
@@ -163,20 +163,20 @@ export function AddressesSection({ addresses }: AddressesSectionProps) {
                       isDefault: true,
                     })
                   }
-                  className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                  className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
                 >
                   {t('settings.addresses.setDefault')}
                 </Button>
               )}
               <Button
                 onPress={() => handleEdit(address)}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.addresses.edit')}
               </Button>
               <Button
                 onPress={() => setDeletingId(address.id)}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.addresses.delete')}
               </Button>

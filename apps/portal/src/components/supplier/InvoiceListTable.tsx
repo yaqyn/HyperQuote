@@ -109,7 +109,7 @@ export function InvoiceListTable({ locale }: InvoiceListTableProps) {
       {/* Table */}
       <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
         {/* Header */}
-        <div className="grid grid-cols-[1fr_1fr_100px_100px_80px_100px_100px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-muted)] max-md:hidden">
+        <div className="grid grid-cols-[1fr_1fr_100px_100px_80px_100px_100px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-muted)] max-md:hidden">
           <span>{t('supplier.invoiceNumber')}</span>
           <span>{t('supplier.poReference')}</span>
           <span>{t('supplier.invoiceDate')}</span>
@@ -131,7 +131,7 @@ export function InvoiceListTable({ locale }: InvoiceListTableProps) {
             <span className="font-mono text-sm text-[var(--color-text-muted)]">
               {inv.poReference}
             </span>
-            <span className="font-mono text-xs text-[var(--color-text-muted)]">
+            <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
               {formatDate(inv.invoiceDate)}
             </span>
             <span className="font-mono text-sm text-[var(--color-text)] text-end">
@@ -158,17 +158,17 @@ export function InvoiceListTable({ locale }: InvoiceListTableProps) {
           <Button
             onPress={() => setPage((p) => Math.max(1, p - 1))}
             isDisabled={page <= 1}
-            className="h-8 px-3 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] cursor-pointer hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
+            className="h-8 px-3 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] cursor-pointer hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
           >
             &larr;
           </Button>
-          <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
             {page} / {Math.ceil(data.total / 20)}
           </span>
           <Button
             onPress={() => setPage((p) => p + 1)}
             isDisabled={page >= Math.ceil(data.total / 20)}
-            className="h-8 px-3 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] cursor-pointer hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
+            className="h-8 px-3 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] cursor-pointer hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
           >
             &rarr;
           </Button>

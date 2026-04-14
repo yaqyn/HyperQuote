@@ -9,17 +9,26 @@ import { z } from 'zod'
 // Types
 // ============================================================================
 
+export interface ProductSpec {
+  label: string
+  labelAr: string
+  value: string
+}
+
 export interface MarketProduct {
   id: string
   slug: string
   name: string
   nameAr: string
+  description: string
+  descriptionAr: string
   category: string
   unitOfMeasure: string
   priceRangeMin: number | null
   priceRangeMax: number | null
   availabilityStatus: 'available' | 'limited' | 'out_of_stock'
   imageUrl: string
+  specs: ProductSpec[]
 }
 
 export interface MarketProductsResponse {
@@ -67,274 +76,50 @@ function isSupabaseConfigured(): boolean {
 // Mock data -- realistic Egyptian building materials
 // ============================================================================
 
-const CAIRO_SKYLINE_PLACEHOLDER =
-  'https://cdn.hyperquote.io/placeholders/cairo-skyline.jpg'
+const IMG_BASE = 'https://websiteassets.hyperquote.net/Images'
+const CATEGORY_IMG: Record<string, string> = {
+  cement: `${IMG_BASE}/cement.webp`,
+  reinforcing_steel: `${IMG_BASE}/steel.webp`,
+  structural_steel: `${IMG_BASE}/steel.webp`,
+  aggregates: `${IMG_BASE}/Aggregates.webp`,
+  sand: `${IMG_BASE}/Aggregates.webp`,
+  bricks: `${IMG_BASE}/bricks.webp`,
+  wood: `${IMG_BASE}/wood.webp`,
+  paints: `${IMG_BASE}/finish.webp`,
+  waterproofing: `${IMG_BASE}/wood.webp`,
+  plumbing: `${IMG_BASE}/steel.webp`,
+  electrical: `${IMG_BASE}/steel.webp`,
+  tiles: `${IMG_BASE}/finish.webp`,
+  insulation: `${IMG_BASE}/wood.webp`,
+  concrete: `${IMG_BASE}/cement.webp`,
+  drywall: `${IMG_BASE}/finish.webp`,
+  adhesives: `${IMG_BASE}/finish.webp`,
+}
+function imgFor(category: string) { return CATEGORY_IMG[category] ?? `${IMG_BASE}/cement.webp` }
 
 const MOCK_PRODUCTS: MarketProduct[] = [
-  {
-    id: 'prod-cement-opc',
-    slug: 'portland-cement-opc-42-5n',
-    name: 'Portland Cement OPC 42.5N',
-    nameAr: '\u0627\u0633\u0645\u0646\u062a \u0628\u0648\u0631\u062a\u0644\u0627\u0646\u062f\u064a \u0639\u0627\u062f\u064a',
-    category: 'cement',
-    unitOfMeasure: 'ton',
-    priceRangeMin: 1800,
-    priceRangeMax: 2200,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-cement-src',
-    slug: 'sulphate-resistant-cement',
-    name: 'Sulphate Resistant Cement',
-    nameAr: '\u0627\u0633\u0645\u0646\u062a \u0645\u0642\u0627\u0648\u0645 \u0644\u0644\u0643\u0628\u0631\u064a\u062a\u0627\u062a',
-    category: 'cement',
-    unitOfMeasure: 'ton',
-    priceRangeMin: 2100,
-    priceRangeMax: 2500,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-rebar-12',
-    slug: 'steel-rebar-12mm-grade-60',
-    name: 'Steel Rebar 12mm Grade 60',
-    nameAr: '\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0661\u0662\u0645\u0645',
-    category: 'reinforcing_steel',
-    unitOfMeasure: 'ton',
-    priceRangeMin: 36000,
-    priceRangeMax: 40000,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-rebar-16',
-    slug: 'steel-rebar-16mm-grade-60',
-    name: 'Steel Rebar 16mm Grade 60',
-    nameAr: '\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0661\u0666\u0645\u0645',
-    category: 'reinforcing_steel',
-    unitOfMeasure: 'ton',
-    priceRangeMin: 38000,
-    priceRangeMax: 42000,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-rebar-20',
-    slug: 'steel-rebar-20mm-grade-60',
-    name: 'Steel Rebar 20mm Grade 60',
-    nameAr: '\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0662\u0660\u0645\u0645',
-    category: 'reinforcing_steel',
-    unitOfMeasure: 'ton',
-    priceRangeMin: 39000,
-    priceRangeMax: 43000,
-    availabilityStatus: 'limited',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-sand-washed',
-    slug: 'washed-sand',
-    name: 'Washed Sand',
-    nameAr: '\u0631\u0645\u0644 \u0645\u063a\u0633\u0648\u0644',
-    category: 'sand',
-    unitOfMeasure: 'cubic_meter',
-    priceRangeMin: 180,
-    priceRangeMax: 250,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-gravel-20',
-    slug: 'crushed-gravel-20mm',
-    name: 'Crushed Gravel 20mm',
-    nameAr: '\u0632\u0644\u0637 \u0645\u062c\u0631\u0648\u0634 \u0662\u0660\u0645\u0645',
-    category: 'aggregates',
-    unitOfMeasure: 'cubic_meter',
-    priceRangeMin: 200,
-    priceRangeMax: 300,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-brick-red',
-    slug: 'red-clay-brick-standard',
-    name: 'Red Clay Brick Standard',
-    nameAr: '\u0637\u0648\u0628 \u0623\u062d\u0645\u0631',
-    category: 'bricks',
-    unitOfMeasure: 'piece',
-    priceRangeMin: 0.8,
-    priceRangeMax: 1.2,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-brick-cement',
-    slug: 'cement-block-20cm',
-    name: 'Cement Block 20cm',
-    nameAr: '\u0628\u0644\u0648\u0643 \u0623\u0633\u0645\u0646\u062a\u064a \u0662\u0660\u0633\u0645',
-    category: 'bricks',
-    unitOfMeasure: 'piece',
-    priceRangeMin: 5,
-    priceRangeMax: 8,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-plywood-18',
-    slug: 'plywood-18mm',
-    name: 'Plywood 18mm',
-    nameAr: '\u062e\u0634\u0628 \u0623\u0628\u0644\u0643\u0627\u0634 \u0661\u0668\u0645\u0645',
-    category: 'wood',
-    unitOfMeasure: 'sheet',
-    priceRangeMin: 450,
-    priceRangeMax: 600,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-plywood-12',
-    slug: 'plywood-12mm',
-    name: 'Plywood 12mm',
-    nameAr: '\u062e\u0634\u0628 \u0623\u0628\u0644\u0643\u0627\u0634 \u0661\u0662\u0645\u0645',
-    category: 'wood',
-    unitOfMeasure: 'sheet',
-    priceRangeMin: 350,
-    priceRangeMax: 480,
-    availabilityStatus: 'limited',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-paint-white',
-    slug: 'acrylic-paint-white-18l',
-    name: 'Acrylic Paint White 18L',
-    nameAr: '\u0637\u0644\u0627\u0621 \u0623\u0643\u0631\u064a\u0644\u064a\u0643 \u0623\u0628\u064a\u0636 \u0661\u0668\u0644',
-    category: 'paints',
-    unitOfMeasure: 'bucket',
-    priceRangeMin: 800,
-    priceRangeMax: 1200,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-waterproofing',
-    slug: 'bitumen-waterproofing-membrane',
-    name: 'Bitumen Waterproofing Membrane',
-    nameAr: '\u0639\u0632\u0644 \u0628\u064a\u062a\u0648\u0645\u064a\u0646\u064a',
-    category: 'waterproofing',
-    unitOfMeasure: 'roll',
-    priceRangeMin: 250,
-    priceRangeMax: 400,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-pvc-pipe',
-    slug: 'pvc-pipe-110mm-6m',
-    name: 'PVC Pipe 110mm 6m',
-    nameAr: '\u0645\u0627\u0633\u0648\u0631\u0629 PVC \u0661\u0661\u0660\u0645\u0645',
-    category: 'plumbing',
-    unitOfMeasure: 'piece',
-    priceRangeMin: 120,
-    priceRangeMax: 180,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-wire-2-5',
-    slug: 'copper-wire-2-5mm',
-    name: 'Copper Wire 2.5mm',
-    nameAr: '\u0633\u0644\u0643 \u0646\u062d\u0627\u0633 \u0662.\u0665\u0645\u0645',
-    category: 'electrical',
-    unitOfMeasure: 'meter',
-    priceRangeMin: 15,
-    priceRangeMax: 25,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-tiles-ceramic',
-    slug: 'ceramic-floor-tile-60x60',
-    name: 'Ceramic Floor Tile 60x60',
-    nameAr: '\u0628\u0644\u0627\u0637 \u0633\u064a\u0631\u0627\u0645\u064a\u0643 \u0660\u0666\u0660x\u0660\u0666\u0660',
-    category: 'tiles',
-    unitOfMeasure: 'sqm',
-    priceRangeMin: 80,
-    priceRangeMax: 150,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-insulation-xps',
-    slug: 'xps-insulation-board-50mm',
-    name: 'XPS Insulation Board 50mm',
-    nameAr: '\u0644\u0648\u062d \u0639\u0632\u0644 XPS \u0665\u0660\u0645\u0645',
-    category: 'insulation',
-    unitOfMeasure: 'sqm',
-    priceRangeMin: 60,
-    priceRangeMax: 90,
-    availabilityStatus: 'limited',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-concrete-mix',
-    slug: 'ready-mix-concrete-c30',
-    name: 'Ready Mix Concrete C30',
-    nameAr: '\u062e\u0631\u0633\u0627\u0646\u0629 \u062c\u0627\u0647\u0632\u0629 C30',
-    category: 'concrete',
-    unitOfMeasure: 'cubic_meter',
-    priceRangeMin: 1200,
-    priceRangeMax: 1600,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-gypsum-board',
-    slug: 'gypsum-board-12mm',
-    name: 'Gypsum Board 12mm',
-    nameAr: '\u0623\u0644\u0648\u0627\u062d \u062c\u0628\u0633 \u0628\u0648\u0631\u062f \u0661\u0662\u0645\u0645',
-    category: 'drywall',
-    unitOfMeasure: 'sheet',
-    priceRangeMin: 120,
-    priceRangeMax: 180,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-mesh-wire',
-    slug: 'welded-wire-mesh-4mm',
-    name: 'Welded Wire Mesh 4mm',
-    nameAr: '\u0634\u0628\u0643 \u062d\u062f\u064a\u062f \u0645\u0644\u062d\u0648\u0645 \u0664\u0645\u0645',
-    category: 'reinforcing_steel',
-    unitOfMeasure: 'sheet',
-    priceRangeMin: 250,
-    priceRangeMax: 350,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-adhesive-tile',
-    slug: 'tile-adhesive-25kg',
-    name: 'Tile Adhesive 25kg',
-    nameAr: '\u0644\u0627\u0635\u0642 \u0628\u0644\u0627\u0637 \u0662\u0665\u0643\u062c',
-    category: 'adhesives',
-    unitOfMeasure: 'bag',
-    priceRangeMin: 80,
-    priceRangeMax: 130,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
-  {
-    id: 'prod-steel-angle',
-    slug: 'steel-angle-50x50x5',
-    name: 'Steel Angle 50x50x5mm',
-    nameAr: '\u0632\u0627\u0648\u064a\u0629 \u062d\u062f\u064a\u062f \u0665\u0660x\u0665\u0660x\u0665\u0645\u0645',
-    category: 'structural_steel',
-    unitOfMeasure: 'piece',
-    priceRangeMin: 180,
-    priceRangeMax: 250,
-    availabilityStatus: 'available',
-    imageUrl: CAIRO_SKYLINE_PLACEHOLDER,
-  },
+  { id: 'prod-cement-opc', slug: 'portland-cement-opc-42-5n', name: 'Portland Cement OPC 42.5N', nameAr: 'اسمنت بورتلاندي عادي', description: 'General purpose Portland cement for foundations, structural concrete, and masonry. Meets EN 197-1 standard.', descriptionAr: 'اسمنت بورتلاندي عادي للأساسات والخرسانة الإنشائية والبناء. يلبي معيار EN 197-1.', category: 'cement', unitOfMeasure: 'ton', priceRangeMin: 1800, priceRangeMax: 2200, availabilityStatus: 'available', imageUrl: imgFor('cement'), specs: [{ label: 'Grade', labelAr: 'الدرجة', value: '42.5N' }, { label: 'Bag Size', labelAr: 'حجم الشيكارة', value: '50 kg' }, { label: 'Standard', labelAr: 'المعيار', value: 'EN 197-1' }, { label: 'Type', labelAr: 'النوع', value: 'OPC' }] },
+  { id: 'prod-cement-src', slug: 'sulphate-resistant-cement', name: 'Sulphate Resistant Cement', nameAr: 'اسمنت مقاوم للكبريتات', description: 'Sulfate resistant Portland cement for foundations in high-sulfate soil. Ideal for coastal and underground structures.', descriptionAr: 'اسمنت بورتلاندي مقاوم للكبريتات للأساسات في التربة عالية الكبريتات. مثالي للمنشآت الساحلية والتحت أرضية.', category: 'cement', unitOfMeasure: 'ton', priceRangeMin: 2100, priceRangeMax: 2500, availabilityStatus: 'available', imageUrl: imgFor('cement'), specs: [{ label: 'Grade', labelAr: 'الدرجة', value: '42.5N' }, { label: 'Bag Size', labelAr: 'حجم الشيكارة', value: '50 kg' }, { label: 'Resistance', labelAr: 'المقاومة', value: 'High sulfate' }] },
+  { id: 'prod-rebar-12', slug: 'steel-rebar-12mm-grade-60', name: 'Steel Rebar 12mm Grade 60', nameAr: 'حديد تسليح ١٢مم', description: 'Deformed reinforcement bar, 12mm diameter, Grade 60 (420 MPa yield). 12m standard length.', descriptionAr: 'حديد تسليح مشرشر قطر ١٢مم درجة ٦٠. طول قياسي ١٢ متر.', category: 'reinforcing_steel', unitOfMeasure: 'ton', priceRangeMin: 36000, priceRangeMax: 40000, availabilityStatus: 'available', imageUrl: imgFor('reinforcing_steel'), specs: [{ label: 'Diameter', labelAr: 'القطر', value: '12 mm' }, { label: 'Grade', labelAr: 'الدرجة', value: '60' }, { label: 'Yield', labelAr: 'قوة الخضوع', value: '420 MPa' }, { label: 'Length', labelAr: 'الطول', value: '12 m' }] },
+  { id: 'prod-rebar-16', slug: 'steel-rebar-16mm-grade-60', name: 'Steel Rebar 16mm Grade 60', nameAr: 'حديد تسليح ١٦مم', description: 'High-strength deformed steel bar, 16mm diameter. For columns, beams, and structural elements.', descriptionAr: 'حديد تسليح مشرشر عالي المتانة قطر ١٦مم. للأعمدة والكمرات والعناصر الإنشائية.', category: 'reinforcing_steel', unitOfMeasure: 'ton', priceRangeMin: 38000, priceRangeMax: 42000, availabilityStatus: 'available', imageUrl: imgFor('reinforcing_steel'), specs: [{ label: 'Diameter', labelAr: 'القطر', value: '16 mm' }, { label: 'Grade', labelAr: 'الدرجة', value: '60' }, { label: 'Yield', labelAr: 'قوة الخضوع', value: '420 MPa' }, { label: 'Length', labelAr: 'الطول', value: '12 m' }] },
+  { id: 'prod-rebar-20', slug: 'steel-rebar-20mm-grade-60', name: 'Steel Rebar 20mm Grade 60', nameAr: 'حديد تسليح ٢٠مم', description: 'Heavy-duty deformed steel bar, 20mm diameter. For heavy structural applications.', descriptionAr: 'حديد تسليح مشرشر للأحمال الثقيلة قطر ٢٠مم.', category: 'reinforcing_steel', unitOfMeasure: 'ton', priceRangeMin: 39000, priceRangeMax: 43000, availabilityStatus: 'limited', imageUrl: imgFor('reinforcing_steel'), specs: [{ label: 'Diameter', labelAr: 'القطر', value: '20 mm' }, { label: 'Grade', labelAr: 'الدرجة', value: '60' }, { label: 'Yield', labelAr: 'قوة الخضوع', value: '420 MPa' }, { label: 'Length', labelAr: 'الطول', value: '12 m' }] },
+  { id: 'prod-sand-washed', slug: 'washed-sand', name: 'Washed Sand', nameAr: 'رمل مغسول', description: 'Fine washed natural sand for plastering and finishing. Low silt content, consistent grain size.', descriptionAr: 'رمل طبيعي ناعم مغسول للمحارة والتشطيبات. نسبة طمي منخفضة.', category: 'sand', unitOfMeasure: 'cubic_meter', priceRangeMin: 180, priceRangeMax: 250, availabilityStatus: 'available', imageUrl: imgFor('sand'), specs: [{ label: 'Grade', labelAr: 'الدرجة', value: 'Fine' }, { label: 'Silt Content', labelAr: 'نسبة الطمي', value: '< 3%' }, { label: 'Source', labelAr: 'المصدر', value: 'Natural' }] },
+  { id: 'prod-gravel-20', slug: 'crushed-gravel-20mm', name: 'Crushed Gravel 20mm', nameAr: 'زلط مجروش ٢٠مم', description: 'Washed crushed limestone gravel for concrete production. Size 1 (5-20mm), low clay content.', descriptionAr: 'زلط حجر جيري مكسر ومغسول لإنتاج الخرسانة. مقاس ٥-٢٠مم.', category: 'aggregates', unitOfMeasure: 'cubic_meter', priceRangeMin: 200, priceRangeMax: 300, availabilityStatus: 'available', imageUrl: imgFor('aggregates'), specs: [{ label: 'Size', labelAr: 'المقاس', value: '5-20 mm' }, { label: 'Type', labelAr: 'النوع', value: 'Crushed limestone' }, { label: 'Clay Content', labelAr: 'نسبة الطين', value: '< 2%' }] },
+  { id: 'prod-brick-red', slug: 'red-clay-brick-standard', name: 'Red Clay Brick Standard', nameAr: 'طوب أحمر', description: 'Standard red clay bricks for walls and partitions. Dimensions: 25 × 12 × 6.5 cm.', descriptionAr: 'طوب أحمر قياسي للحوائط والقواطع. الأبعاد: ٢٥ × ١٢ × ٦.٥ سم.', category: 'bricks', unitOfMeasure: 'piece', priceRangeMin: 0.8, priceRangeMax: 1.2, availabilityStatus: 'available', imageUrl: imgFor('bricks'), specs: [{ label: 'Dimensions', labelAr: 'الأبعاد', value: '25×12×6.5 cm' }, { label: 'Strength', labelAr: 'قوة التحمل', value: '7 MPa' }, { label: 'Absorption', labelAr: 'الامتصاص', value: '< 15%' }] },
+  { id: 'prod-brick-cement', slug: 'cement-block-20cm', name: 'Cement Block 20cm', nameAr: 'بلوك أسمنتي ٢٠سم', description: 'Load-bearing concrete hollow blocks, 20cm width. For exterior walls and structural partitions.', descriptionAr: 'بلوك خرساني مفرغ حامل للأحمال عرض ٢٠سم. للحوائط الخارجية والقواطع الإنشائية.', category: 'bricks', unitOfMeasure: 'piece', priceRangeMin: 5, priceRangeMax: 8, availabilityStatus: 'available', imageUrl: imgFor('bricks'), specs: [{ label: 'Width', labelAr: 'العرض', value: '20 cm' }, { label: 'Type', labelAr: 'النوع', value: 'Hollow' }, { label: 'Load Bearing', labelAr: 'حامل أحمال', value: 'Yes' }, { label: 'Strength', labelAr: 'قوة التحمل', value: '5 MPa' }] },
+  { id: 'prod-plywood-18', slug: 'plywood-18mm', name: 'Plywood 18mm', nameAr: 'خشب أبلكاش ١٨مم', description: 'Multi-layer plywood sheets, 18mm thickness. For formwork, furniture, and general construction.', descriptionAr: 'ألواح خشب أبلكاش متعددة الطبقات سمك ١٨مم. للشدات والأثاث والبناء العام.', category: 'wood', unitOfMeasure: 'sheet', priceRangeMin: 450, priceRangeMax: 600, availabilityStatus: 'available', imageUrl: imgFor('wood'), specs: [{ label: 'Thickness', labelAr: 'السمك', value: '18 mm' }, { label: 'Sheet Size', labelAr: 'مقاس اللوح', value: '2440×1220 mm' }, { label: 'Layers', labelAr: 'الطبقات', value: '13' }] },
+  { id: 'prod-plywood-12', slug: 'plywood-12mm', name: 'Plywood 12mm', nameAr: 'خشب أبلكاش ١٢مم', description: 'Multi-layer plywood sheets, 12mm thickness. For partitions, ceilings, and light formwork.', descriptionAr: 'ألواح خشب أبلكاش سمك ١٢مم. للقواطع والأسقف والشدات الخفيفة.', category: 'wood', unitOfMeasure: 'sheet', priceRangeMin: 350, priceRangeMax: 480, availabilityStatus: 'limited', imageUrl: imgFor('wood'), specs: [{ label: 'Thickness', labelAr: 'السمك', value: '12 mm' }, { label: 'Sheet Size', labelAr: 'مقاس اللوح', value: '2440×1220 mm' }, { label: 'Layers', labelAr: 'الطبقات', value: '9' }] },
+  { id: 'prod-paint-white', slug: 'acrylic-paint-white-18l', name: 'Acrylic Paint White 18L', nameAr: 'طلاء أكريليك أبيض ١٨ل', description: 'Interior/exterior acrylic emulsion paint. Washable, low VOC, excellent coverage.', descriptionAr: 'طلاء أكريليك مائي للداخل والخارج. قابل للغسيل، منخفض المركبات العضوية.', category: 'paints', unitOfMeasure: 'bucket', priceRangeMin: 800, priceRangeMax: 1200, availabilityStatus: 'available', imageUrl: imgFor('paints'), specs: [{ label: 'Volume', labelAr: 'الحجم', value: '18 L' }, { label: 'Finish', labelAr: 'اللمعة', value: 'Matt' }, { label: 'Coverage', labelAr: 'التغطية', value: '12 m²/L' }, { label: 'VOC', labelAr: 'المركبات العضوية', value: 'Low' }] },
+  { id: 'prod-waterproofing', slug: 'bitumen-waterproofing-membrane', name: 'Bitumen Waterproofing Membrane', nameAr: 'عزل بيتوميني', description: 'Self-adhesive modified bitumen membrane for roof and foundation waterproofing. 4mm thick.', descriptionAr: 'رول عزل بيتوميني معدل ذاتي اللصق للأسطح والأساسات. سمك ٤مم.', category: 'waterproofing', unitOfMeasure: 'roll', priceRangeMin: 250, priceRangeMax: 400, availabilityStatus: 'available', imageUrl: imgFor('waterproofing'), specs: [{ label: 'Thickness', labelAr: 'السمك', value: '4 mm' }, { label: 'Roll Size', labelAr: 'مقاس الرول', value: '1×10 m' }, { label: 'Type', labelAr: 'النوع', value: 'Modified bitumen' }] },
+  { id: 'prod-pvc-pipe', slug: 'pvc-pipe-110mm-6m', name: 'PVC Pipe 110mm 6m', nameAr: 'ماسورة PVC ١١٠مم', description: 'Rigid PVC drainage pipe, 110mm diameter, 6m length. For sewage and rainwater systems.', descriptionAr: 'ماسورة صرف PVC صلبة قطر ١١٠مم طول ٦ متر. لشبكات الصرف ومياه الأمطار.', category: 'plumbing', unitOfMeasure: 'piece', priceRangeMin: 120, priceRangeMax: 180, availabilityStatus: 'available', imageUrl: imgFor('plumbing'), specs: [{ label: 'Diameter', labelAr: 'القطر', value: '110 mm' }, { label: 'Length', labelAr: 'الطول', value: '6 m' }, { label: 'Pressure', labelAr: 'الضغط', value: 'SN4' }] },
+  { id: 'prod-wire-2-5', slug: 'copper-wire-2-5mm', name: 'Copper Wire 2.5mm²', nameAr: 'سلك نحاس ٢.٥مم²', description: 'Single-core copper conductor, PVC insulated, 2.5mm² cross-section. For power circuits.', descriptionAr: 'سلك نحاس أحادي النواة معزول PVC مقطع ٢.٥مم². لدوائر القوى.', category: 'electrical', unitOfMeasure: 'meter', priceRangeMin: 15, priceRangeMax: 25, availabilityStatus: 'available', imageUrl: imgFor('electrical'), specs: [{ label: 'Cross-section', labelAr: 'المقطع', value: '2.5 mm²' }, { label: 'Insulation', labelAr: 'العزل', value: 'PVC' }, { label: 'Cores', labelAr: 'الأنوية', value: '1' }, { label: 'Voltage', labelAr: 'الفولت', value: '450/750V' }] },
+  { id: 'prod-tiles-ceramic', slug: 'ceramic-floor-tile-60x60', name: 'Ceramic Floor Tile 60×60', nameAr: 'بلاط سيراميك ٦٠×٦٠', description: 'Glazed ceramic floor tile, 60×60cm. Suitable for residential and commercial floors.', descriptionAr: 'بلاط سيراميك أرضي مزجج ٦٠×٦٠سم. مناسب للأرضيات السكنية والتجارية.', category: 'tiles', unitOfMeasure: 'sqm', priceRangeMin: 80, priceRangeMax: 150, availabilityStatus: 'available', imageUrl: imgFor('tiles'), specs: [{ label: 'Size', labelAr: 'المقاس', value: '60×60 cm' }, { label: 'Finish', labelAr: 'السطح', value: 'Glazed' }, { label: 'Slip Rating', labelAr: 'مقاومة الانزلاق', value: 'R9' }] },
+  { id: 'prod-insulation-xps', slug: 'xps-insulation-board-50mm', name: 'XPS Insulation Board 50mm', nameAr: 'لوح عزل XPS ٥٠مم', description: 'Extruded polystyrene insulation board, 50mm thick. High compressive strength for roofs and floors.', descriptionAr: 'لوح عزل بوليسترين مبثوق سمك ٥٠مم. قوة ضغط عالية للأسطح والأرضيات.', category: 'insulation', unitOfMeasure: 'sqm', priceRangeMin: 60, priceRangeMax: 90, availabilityStatus: 'limited', imageUrl: imgFor('insulation'), specs: [{ label: 'Thickness', labelAr: 'السمك', value: '50 mm' }, { label: 'R-value', labelAr: 'قيمة العزل', value: '1.75 m²K/W' }, { label: 'Density', labelAr: 'الكثافة', value: '32 kg/m³' }] },
+  { id: 'prod-concrete-mix', slug: 'ready-mix-concrete-c30', name: 'Ready Mix Concrete C30', nameAr: 'خرسانة جاهزة C30', description: 'Factory-batched ready mix concrete, C30 grade. Delivered by mixer truck, minimum 6 m³ order.', descriptionAr: 'خرسانة جاهزة من المصنع درجة C30. التوصيل بسيارة خلاطة، حد أدنى ٦ م³.', category: 'concrete', unitOfMeasure: 'cubic_meter', priceRangeMin: 1200, priceRangeMax: 1600, availabilityStatus: 'available', imageUrl: imgFor('concrete'), specs: [{ label: 'Grade', labelAr: 'الدرجة', value: 'C30' }, { label: 'Slump', labelAr: 'الهبوط', value: '100-150 mm' }, { label: 'Min Order', labelAr: 'أقل طلب', value: '6 m³' }] },
+  { id: 'prod-gypsum-board', slug: 'gypsum-board-12mm', name: 'Gypsum Board 12mm', nameAr: 'ألواح جبس بورد ١٢مم', description: 'Standard gypsum plasterboard, 12mm thick. For interior walls, ceilings, and dry lining.', descriptionAr: 'ألواح جبس بورد قياسية سمك ١٢مم. للحوائط الداخلية والأسقف.', category: 'drywall', unitOfMeasure: 'sheet', priceRangeMin: 120, priceRangeMax: 180, availabilityStatus: 'available', imageUrl: imgFor('drywall'), specs: [{ label: 'Thickness', labelAr: 'السمك', value: '12 mm' }, { label: 'Sheet Size', labelAr: 'مقاس اللوح', value: '2400×1200 mm' }, { label: 'Weight', labelAr: 'الوزن', value: '8.5 kg/m²' }] },
+  { id: 'prod-mesh-wire', slug: 'welded-wire-mesh-4mm', name: 'Welded Wire Mesh 4mm', nameAr: 'شبك حديد ملحوم ٤مم', description: 'Welded steel wire mesh sheets for slab reinforcement. Wire diameter 4mm, grid 200×200mm.', descriptionAr: 'ألواح شبك حديد ملحوم لتسليح البلاطات. قطر السلك ٤مم، شبكة ٢٠٠×٢٠٠مم.', category: 'reinforcing_steel', unitOfMeasure: 'sheet', priceRangeMin: 250, priceRangeMax: 350, availabilityStatus: 'available', imageUrl: imgFor('reinforcing_steel'), specs: [{ label: 'Wire Diameter', labelAr: 'قطر السلك', value: '4 mm' }, { label: 'Grid', labelAr: 'الشبكة', value: '200×200 mm' }, { label: 'Sheet Size', labelAr: 'مقاس اللوح', value: '2.4×6 m' }] },
+  { id: 'prod-adhesive-tile', slug: 'tile-adhesive-25kg', name: 'Tile Adhesive 25kg', nameAr: 'لاصق بلاط ٢٥كج', description: 'Cement-based tile adhesive for floor and wall tiles. Suitable for interior and exterior use.', descriptionAr: 'لاصق بلاط أسمنتي للأرضيات والحوائط. مناسب للاستخدام الداخلي والخارجي.', category: 'adhesives', unitOfMeasure: 'bag', priceRangeMin: 80, priceRangeMax: 130, availabilityStatus: 'available', imageUrl: imgFor('adhesives'), specs: [{ label: 'Weight', labelAr: 'الوزن', value: '25 kg' }, { label: 'Coverage', labelAr: 'التغطية', value: '4-5 m²' }, { label: 'Open Time', labelAr: 'وقت العمل', value: '20 min' }] },
+  { id: 'prod-steel-angle', slug: 'steel-angle-50x50x5', name: 'Steel Angle 50×50×5mm', nameAr: 'زاوية حديد ٥٠×٥٠×٥مم', description: 'Hot-rolled equal angle steel, 50×50×5mm. 6m standard length. For frames and structural supports.', descriptionAr: 'زاوية حديد متساوية مدرفلة على الساخن ٥٠×٥٠×٥مم. طول ٦ متر.', category: 'structural_steel', unitOfMeasure: 'piece', priceRangeMin: 180, priceRangeMax: 250, availabilityStatus: 'available', imageUrl: imgFor('structural_steel'), specs: [{ label: 'Dimensions', labelAr: 'الأبعاد', value: '50×50×5 mm' }, { label: 'Length', labelAr: 'الطول', value: '6 m' }, { label: 'Weight', labelAr: 'الوزن', value: '3.77 kg/m' }] },
 ]
 
 // ============================================================================
@@ -365,7 +150,8 @@ export const getMarketProducts = createServerFn()
         }
 
         if (input.category) {
-          filtered = filtered.filter((p) => p.category === input.category)
+          const cats = input.category.split(',').map((c) => c.trim())
+          filtered = filtered.filter((p) => cats.includes(p.category))
         }
 
         const total = filtered.length

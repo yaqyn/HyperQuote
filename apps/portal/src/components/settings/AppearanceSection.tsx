@@ -20,7 +20,7 @@ interface AppearanceSectionProps {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 export function AppearanceSection({
   currentLocale,

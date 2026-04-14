@@ -20,25 +20,25 @@ export function BuildListStep() {
         >
           <Tab
             id="search"
-            className="h-9 px-3 text-xs cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
+            className="h-9 px-3 text-[13px] cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
           >
             {t('quoteBuilder.tabSearchAdd')}
           </Tab>
           <Tab
             id="upload"
-            className="h-9 px-3 text-xs cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
+            className="h-9 px-3 text-[13px] cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
           >
             {t('quoteBuilder.tabUpload')}
           </Tab>
           <Tab
             id="quickpad"
-            className="h-9 px-3 text-xs cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
+            className="h-9 px-3 text-[13px] cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
           >
             {t('quoteBuilder.tabQuickPad')}
           </Tab>
           <Tab
             id="ai"
-            className="h-9 px-3 text-xs cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
+            className="h-9 px-3 text-[13px] cursor-pointer outline-none transition-colors text-[var(--color-text-muted)] data-[selected]:text-[var(--color-text)] data-[selected]:border-b-2 data-[selected]:border-[var(--color-primary)] -mb-px"
           >
             {t('quoteBuilder.tabAIAssist')}
           </Tab>

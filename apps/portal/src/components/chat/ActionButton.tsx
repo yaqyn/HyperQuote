@@ -26,7 +26,7 @@ export function ActionButton({ data }: ActionButtonProps) {
   return (
     <Button
       onPress={handlePress}
-      className="h-8 px-3 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] text-xs font-semibold cursor-pointer hover:bg-[var(--color-primary)]/5 transition-colors"
+      className="h-8 px-3 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] text-[13px] font-semibold cursor-pointer hover:bg-[var(--color-primary)]/5 transition-colors"
     >
       {label}
     </Button>

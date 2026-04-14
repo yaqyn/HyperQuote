@@ -182,7 +182,7 @@ export function AIChatInput({ chat: chatProp, hasMessages = false }: AIChatInput
       {rateWarning && (
         <div className="flex items-center justify-center gap-1.5 mb-3">
           <AlertTriangle size={12} className="text-[var(--color-warning)] shrink-0" />
-          <span className="text-[10px] text-[var(--color-warning)]">
+          <span className="text-[13px] text-[var(--color-warning)]">
             {t('chat.rateWarning')}
             {rateLimited && cooldownSeconds > 0 && (
               <span className="font-mono ms-1">{cooldownSeconds}s</span>

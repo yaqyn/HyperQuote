@@ -1,18 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useForm } from 'react-hook-form'
-import { useWatch } from 'react-hook-form'
 import { z } from 'zod'
-import { standardSchemaResolver } from '@hyperquote/forms'
-import {
-  TextField,
-  Input,
-  Label,
-  FieldError,
-  Button,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
+import { LampContainer } from '@hyperquote/ui'
+import { FloatingParticles } from '../components/login/FloatingParticles'
+import { usePortalStore } from '../stores/portal'
 import {
   sendOTP,
   verifyOTP,
@@ -49,11 +43,6 @@ type AuthStep = 'phone' | 'otp' | 'create' | 'claiming'
 
 // ============================================================================
 // Login Page
-//
-// "Data is the design" — the interface elements ARE the aesthetic.
-// No cards, no containers, no elevation. Content emerges from the surface.
-// Blue (#2563EB) as the sole accent. Text in soft charcoal, not hard black.
-// Every pixel is intentional.
 // ============================================================================
 
 function LoginPage() {
@@ -64,109 +53,238 @@ function LoginPage() {
   const [phone, setPhone] = useState('')
   const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
 
+  // Reset sign-out state if coming from portal
+  const setSigningOut = usePortalStore((s) => s.setSigningOut)
+  useEffect(() => { setSigningOut(false) }, [setSigningOut])
+
+  // Cinematic stages: darkness → logo → reveal (lamp + glass) → leaving
+  const [stage, setStage] = useState<'dark' | 'logo' | 'reveal' | 'leaving'>('dark')
+  const [glassContent, setGlassContent] = useState<'welcome' | 'form'>('welcome')
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage('logo'), 500)
+    const t2 = setTimeout(() => setStage('reveal'), 2000)
+    const t3 = setTimeout(() => setGlassContent('form'), 2500)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [])
+
+  const [glassExiting, setGlassExiting] = useState(false)
+
   function handleAuthComplete(redirectPath?: string) {
     const target = search.redirect ?? redirectPath ?? '/'
-    navigate({ to: target })
+    // 1. Glass fades out top-to-bottom (1s)
+    setGlassExiting(true)
+    // 2. Lamp fades out (starts at 0.8s, overlaps slightly)
+    setTimeout(() => setStage('leaving'), 800)
+    // 3. Navigate after everything is dark
+    setTimeout(() => navigate({ to: target }), 2000)
   }
 
   return (
-    <div className="flex min-h-dvh bg-[var(--color-base)]">
-      <div className="flex w-full flex-col px-6 py-10 sm:px-12 md:mx-auto md:max-w-[480px] md:px-0 lg:mx-0 lg:ms-[16vw]">
-        {/* Wordmark — part of the surface, not a header */}
-        <div className="mb-auto">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--color-text-subtle)]">
-            HyperQuote
-          </span>
-        </div>
+    <div className="min-h-dvh bg-[#060606] flex items-center justify-center overflow-hidden">
+      {/* Dust particles — fade in with lamp, gradient mask: bright at top, invisible at bottom */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: stage === 'reveal' || stage === 'leaving' ? (stage === 'leaving' ? 0 : 1) : 0 }}
+        transition={{ duration: stage === 'leaving' ? 1 : 2, delay: stage === 'leaving' ? 0 : 1, ease: 'easeOut' }}
+        className="fixed inset-0 z-10 pointer-events-none"
+        style={{
+          maskImage: 'linear-gradient(180deg, white 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 60%, transparent 85%)',
+          WebkitMaskImage: 'linear-gradient(180deg, white 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 60%, transparent 85%)',
+        }}
+      >
+        <FloatingParticles className="absolute inset-0" />
+      </motion.div>
+      <AnimatePresence mode="wait">
+        {/* ── Stage 1: Logo in darkness ── */}
+        {stage === 'logo' && (
+          <motion.div
+            key="logo"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.8 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="flex flex-col items-center"
+          >
+            <div
+              className="w-48 h-48 md:w-64 md:h-64"
+              style={{
+                maskImage: 'linear-gradient(180deg, white 30%, rgba(255,255,255,0.3) 70%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(180deg, white 30%, rgba(255,255,255,0.3) 70%, transparent 100%)',
+                filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.06))',
+              }}
+            >
+              <img
+                src="/brand/LyonWhite.svg"
+                alt="HyperQuote"
+                className="w-full h-full object-contain"
+                draggable={false}
+              />
+            </div>
+          </motion.div>
+        )}
 
-        {/* Form — vertically centered in remaining space */}
-        <div className="my-auto">
-          <AnimatePresence mode="wait">
-            {step === 'phone' && (
-              <StepMotion key="phone">
-                <PhoneStep
-                  phone={phone}
-                  setPhone={setPhone}
-                  onNext={() => setStep('otp')}
-                />
-              </StepMotion>
-            )}
-            {step === 'otp' && (
-              <StepMotion key="otp">
-                <OTPStep
-                  phone={phone}
-                  onVerified={(result) => {
-                    if (result.claimableCompany) {
-                      setClaimableCompany(result.claimableCompany)
-                      setStep('claiming')
-                    } else if (result.needsAccount) {
-                      setStep('create')
-                    } else {
-                      handleAuthComplete()
-                    }
-                  }}
-                  onBack={() => setStep('phone')}
-                />
-              </StepMotion>
-            )}
-            {step === 'create' && (
-              <StepMotion key="create">
-                <AccountCreationStep
-                  phone={phone}
-                  onComplete={() => handleAuthComplete()}
-                />
-              </StepMotion>
-            )}
-            {step === 'claiming' && (
-              <StepMotion key="claiming">
-                <AccountClaimingStep
-                  phone={phone}
-                  claimableCompany={claimableCompany}
-                  onComplete={() => handleAuthComplete()}
-                  onCreateNew={() => setStep('create')}
-                />
-              </StepMotion>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* ── Stage 2: Lamp + Glass Window ── */}
+        {(stage === 'reveal' || stage === 'leaving') && (
+          <motion.div
+            key="reveal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: stage === 'leaving' ? 0 : 1 }}
+            transition={{ duration: stage === 'leaving' ? 1 : 0.8, ease: 'easeOut' }}
+            className="w-full h-dvh flex flex-col overflow-hidden"
+          >
+            {/* Lamp — top of viewport, fixed height, never moves */}
+            <div className="h-[40vh] shrink-0">
+              <LampContainer className="h-full" />
+            </div>
 
-        {/* Legal — whisper-quiet at the bottom */}
-        <div className="mt-auto pt-8">
-          <p className="text-[10px] leading-relaxed text-[var(--color-text-subtle)]">
-            {t('login.legalPrefix', 'By continuing you agree to our')}{' '}
-            <a href="/legal/terms" className="underline decoration-[var(--color-text-subtle)]/40 underline-offset-2 transition-colors hover:text-[var(--color-text-muted)]">
-              {t('login.termsLink', 'Terms')}
-            </a>
-            {' '}{t('login.and', '&')}{' '}
-            <a href="/legal/privacy" className="underline decoration-[var(--color-text-subtle)]/40 underline-offset-2 transition-colors hover:text-[var(--color-text-muted)]">
-              {t('login.privacyLink', 'Privacy')}
-            </a>
-          </p>
-        </div>
-      </div>
+            {/* Glass window — below lamp, centered in remaining space */}
+            <div className="flex-1 flex items-start justify-center px-6 -mt-16">
+              <div
+                className={`w-full max-w-[400px] rounded-2xl p-8 glass-border-glow ${glassExiting ? 'fade-exit-up' : 'fade-reveal-down'}`}
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
+                  backdropFilter: 'blur(48px) saturate(1.2)',
+                  WebkitBackdropFilter: 'blur(48px) saturate(1.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: '0 8px 40px rgba(0, 0, 0, 0.5), 0 0 80px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 rgba(255, 255, 255, 0.03)',
+                }}
+              >
+                <AutoHeight>
+                <AnimatePresence mode="wait">
+                  {glassContent === 'welcome' && (
+                    <motion.div
+                      key="welcome"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="flex flex-col items-center justify-center py-8"
+                    >
+                      <h1 className="text-xl md:text-2xl font-medium text-[var(--p-text)] tracking-tight text-center">
+                        {t('login.welcomeGlass', 'Welcome to HyperQuote')}
+                      </h1>
+                    </motion.div>
+                  )}
+
+                  {glassContent === 'form' && (
+                    <motion.div
+                      key="form"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        {step === 'phone' && (
+                          <StepMotion key="phone">
+                            <PhoneStep phone={phone} setPhone={setPhone} onNext={() => setStep('otp')} />
+                          </StepMotion>
+                        )}
+                        {step === 'otp' && (
+                          <StepMotion key="otp">
+                            <OTPStep
+                              phone={phone}
+                              onVerified={(result) => {
+                                if (result.claimableCompany) {
+                                  setClaimableCompany(result.claimableCompany)
+                                  setStep('claiming')
+                                } else if (result.needsAccount) {
+                                  setStep('create')
+                                } else {
+                                  handleAuthComplete()
+                                }
+                              }}
+                              onBack={() => setStep('phone')}
+                            />
+                          </StepMotion>
+                        )}
+                        {step === 'create' && (
+                          <StepMotion key="create">
+                            <AccountCreationStep phone={phone} onComplete={() => handleAuthComplete()} />
+                          </StepMotion>
+                        )}
+                        {step === 'claiming' && (
+                          <StepMotion key="claiming">
+                            <AccountClaimingStep
+                              phone={phone}
+                              claimableCompany={claimableCompany}
+                              onComplete={() => handleAuthComplete()}
+                              onCreateNew={() => setStep('create')}
+                            />
+                          </StepMotion>
+                        )}
+                      </AnimatePresence>
+
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                </AutoHeight>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Legal — fixed at bottom, fades in after glass reveal */}
+      {(stage === 'reveal' || stage === 'leaving') && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: stage === 'leaving' ? 0 : 1 }}
+        transition={{ duration: stage === 'leaving' ? 0.6 : 1, delay: stage === 'leaving' ? 0 : 1, ease: 'easeOut' }}
+        className="fixed bottom-0 inset-x-0 z-[60] pb-5 pt-3 flex justify-center pointer-events-none"
+      >
+        <p className="text-[13px] leading-relaxed text-[var(--p-text-muted)] text-center pointer-events-auto">
+          {t('login.legalPrefix', 'By creating an account, you agree to HyperQuote')}{' '}
+          <a href="/legal/terms" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
+            {t('login.termsLink', 'Terms of Use')}
+          </a>
+          {' '}{t('login.and', 'and')}{' '}
+          <a href="/legal/privacy" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
+            {t('login.privacyLink', 'Privacy Policy')}
+          </a>
+        </p>
+      </motion.div>
+      )}
     </div>
   )
 }
 
 // ============================================================================
-// Step transition — gentle, no overshoot
+// Auto-height animated container
+// ============================================================================
+
+function AutoHeight({ children }: { children: React.ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number | 'auto'>('auto')
+
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setHeight(el.scrollHeight)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  return (
+    <motion.div
+      animate={{ height }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      style={{ overflow: 'hidden' }}
+    >
+      <div ref={contentRef}>{children}</div>
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// Step transition
 // ============================================================================
 
 function StepMotion({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{
-        type: 'spring',
-        stiffness: 200,
-        damping: 20,
-      }}
-    >
-      {children}
-    </motion.div>
-  )
+  return <div>{children}</div>
 }
 
 // ============================================================================
@@ -183,13 +301,17 @@ function PhoneStep({
   onNext: () => void
 }) {
   const { t } = useTranslation('portal')
-  const [error, setError] = useState<string | null>(null)
+  const [hintKey, setHintKey] = useState(0)
   const [loading, setLoading] = useState(false)
   const [sendingMethod, setSendingMethod] = useState<'whatsapp' | 'sms' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  function triggerHint() {
+    setHintKey((k) => k + 1)
+    inputRef.current?.focus()
+  }
+
   useEffect(() => {
-    // Delay focus slightly so the spring animation settles
     const id = setTimeout(() => inputRef.current?.focus(), 100)
     return () => clearTimeout(id)
   }, [])
@@ -197,39 +319,26 @@ function PhoneStep({
   const phoneRegex = /^(10|11|12|15)\d{8}$/
 
   function validatePhone(value: string): boolean {
-    if (!value) {
-      setError(t('login.phoneRequired', 'Phone number is required'))
+    if (!value || !phoneRegex.test(value)) {
+      triggerHint()
       return false
     }
-    if (!phoneRegex.test(value)) {
-      setError(t('login.phoneInvalid', 'Enter a valid Egyptian mobile number'))
-      return false
-    }
-    setError(null)
     return true
   }
 
   async function handleSend(method: 'whatsapp' | 'sms') {
     if (!validatePhone(phone)) return
-
     setLoading(true)
     setSendingMethod(method)
-    setError(null)
-
     try {
       const result = await sendOTP({ data: { phone, method } })
-
       if (!result.success) {
-        setError(
-          result.error === 'rate_limited'
-            ? t('login.rateLimit', 'Too many attempts. Wait a moment.')
-            : t('login.sendFailed', 'Could not send code. Try again.'),
-        )
+        triggerHint()
         return
       }
       onNext()
     } catch {
-      setError(t('login.sendFailed', 'Could not send code. Try again.'))
+      triggerHint()
     } finally {
       setLoading(false)
       setSendingMethod(null)
@@ -238,51 +347,41 @@ function PhoneStep({
 
   return (
     <div className="flex flex-col">
-      {/* Heading — light weight, not aggressive */}
-      <h1 className="text-[clamp(1.375rem,3.5vw,1.75rem)] font-normal leading-snug text-[var(--color-text)]">
+      <h1 className="text-lg font-semibold text-[var(--p-text)] tracking-tight">
         {t('login.step1.heading', 'Sign in to your account')}
       </h1>
 
-      {/* Phone input — underline, part of the surface */}
-      <div className="mt-12">
-        <TextField
-          isInvalid={!!error}
-          value={phone}
-          onChange={(value) => {
-            const digits = value.replace(/\D/g, '').slice(0, 10)
-            setPhone(digits)
-            if (error) setError(null)
-          }}
-        >
-          <Label className="mb-3 block text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+      <div className="mt-6">
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
             {t('login.phoneLabel', 'Phone')}
-          </Label>
-          <div className="flex items-baseline gap-2.5 border-b border-[var(--color-border)] pb-2.5 transition-colors duration-200 focus-within:border-[var(--color-primary)]">
-            <span className="font-mono text-[var(--text-lg)] font-normal text-[var(--color-text-subtle)]">
-              +20
-            </span>
-            <Input
+          </label>
+          <div key={hintKey} className={`flex items-center gap-2.5 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-4 py-3 transition-colors focus-within:border-[var(--p-border-strong)] ${hintKey > 0 ? 'border-hint' : ''}`}>
+            <span className="font-mono text-sm text-[var(--p-text-muted)]">+20</span>
+            <input
               ref={inputRef}
               type="tel"
               inputMode="numeric"
+              value={phone}
+              onChange={(e) => {
+                let digits = e.target.value.replace(/\D/g, '')
+                if (/^20(10|11|12|15)/.test(digits)) digits = digits.slice(2)
+                if (digits.startsWith('0')) digits = digits.slice(1)
+                setPhone(digits.slice(0, 10))
+              }}
               placeholder="10 xxxx xxxx"
-              className="w-full bg-transparent font-mono text-[var(--text-lg)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-border)]"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSend('whatsapp') }}
+              className="w-full bg-transparent font-mono text-sm text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-muted)]"
             />
           </div>
-          {error && (
-            <FieldError className="mt-2.5 text-[var(--text-xs)] text-[var(--color-error)]">
-              {error}
-            </FieldError>
-          )}
-        </TextField>
+        </div>
       </div>
 
-      {/* CTA — blue accent, the only color on the page */}
-      <div className="mt-10 flex flex-col gap-2">
+      <div className="mt-6 flex flex-col gap-1.5">
         <Button
           onPress={() => handleSend('whatsapp')}
           isDisabled={loading}
-          className="flex h-11 w-full items-center justify-center rounded-lg bg-[#0F172A] text-[var(--text-sm)] font-medium text-white transition-opacity duration-150 hover:opacity-80 pressed:opacity-70 disabled:opacity-40 dark:bg-[#FAFAFA] dark:text-[#09090B]"
+          className="flex h-10 w-full items-center justify-center rounded-xl bg-[var(--p-text)] text-[13px] font-medium text-[var(--p-bg)] transition-opacity hover:opacity-90 pressed:opacity-80 disabled:opacity-40"
         >
           {loading && sendingMethod === 'whatsapp' ? (
             <Spinner />
@@ -294,7 +393,7 @@ function PhoneStep({
           type="button"
           onClick={() => handleSend('sms')}
           disabled={loading}
-          className="flex h-9 items-center justify-center text-[var(--text-xs)] text-[var(--color-text-muted)] transition-colors duration-150 hover:text-[var(--color-text)] disabled:opacity-40"
+          className="flex h-9 items-center justify-center text-[13px] text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text-secondary)] disabled:opacity-40"
         >
           {loading && sendingMethod === 'sms' ? (
             <Spinner accent />
@@ -353,13 +452,10 @@ function OTPStep({
     async (digits: string[]) => {
       const fullCode = digits.join('')
       if (fullCode.length !== OTP_LENGTH) return
-
       setLoading(true)
       setError(null)
-
       try {
         const result = await verifyOTP({ data: { phone, code: fullCode } })
-
         if (!result.success) {
           setError(
             result.error === 'rate_limited'
@@ -374,7 +470,6 @@ function OTPStep({
           }, 400)
           return
         }
-
         onVerified({
           needsAccount: result.needsAccount ?? false,
           claimableCompany: result.claimableCompany ?? null,
@@ -399,7 +494,6 @@ function OTPStep({
     const newCode = [...code]
     newCode[index] = digit
     setCode(newCode)
-
     if (digit && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus()
     }
@@ -418,14 +512,12 @@ function OTPStep({
     e.preventDefault()
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '')
     if (!pasted.length) return
-
     const chars = pasted.slice(0, OTP_LENGTH).split('')
     const newCode = [...code]
     for (let i = 0; i < chars.length; i++) {
       newCode[i] = chars[i]
     }
     setCode(newCode)
-
     const nextEmpty = newCode.findIndex((d) => !d)
     if (nextEmpty >= 0) {
       inputRefs.current[nextEmpty]?.focus()
@@ -447,19 +539,17 @@ function OTPStep({
 
   return (
     <div className="flex flex-col">
-      {/* Heading */}
-      <h1 className="text-[clamp(1.375rem,3.5vw,1.75rem)] font-normal leading-snug text-[var(--color-text)]">
+      <h1 className="text-xl font-semibold text-[var(--p-text)] tracking-tight">
         {t('login.step2.heading', 'Enter the code')}
       </h1>
-      <p className="mt-2 text-[var(--text-sm)] text-[var(--color-text-muted)]">
+      <p className="mt-2 text-[13px] text-[var(--p-text-muted)]">
         {t('login.codeSent', 'Sent to')}{' '}
-        <span className="font-mono text-[var(--color-text)]">+20 {phone}</span>
+        <span className="font-mono text-[var(--p-text)]">+20 {phone}</span>
       </p>
 
-      {/* OTP digits — clean underlines, generous spacing */}
       <motion.div
         dir="ltr"
-        className="mt-12 flex gap-2.5 sm:gap-3.5"
+        className="mt-8 flex gap-2"
         animate={shaking ? { x: [0, -5, 5, -5, 5, 0] } : { x: 0 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         onPaste={handlePaste}
@@ -467,9 +557,7 @@ function OTPStep({
         {Array.from({ length: OTP_LENGTH }).map((_, i) => (
           <input
             key={i}
-            ref={(el) => {
-              inputRefs.current[i] = el
-            }}
+            ref={(el) => { inputRefs.current[i] = el }}
             type="tel"
             inputMode="numeric"
             maxLength={1}
@@ -478,41 +566,35 @@ function OTPStep({
             onKeyDown={(e) => handleKeyDown(i, e)}
             disabled={loading}
             aria-label={`Digit ${i + 1}`}
-            className="w-full border-b border-[var(--color-border)] bg-transparent pb-2.5 text-center font-mono text-[clamp(1.25rem,4vw,1.75rem)] text-[var(--color-text)] outline-none transition-colors duration-200 focus:border-[var(--color-primary)] disabled:opacity-40"
+            className="w-full aspect-square max-w-[48px] rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] text-center font-mono text-lg text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-border-strong)] disabled:opacity-40"
           />
         ))}
       </motion.div>
 
-      {/* Error */}
       {error && (
-        <p className="mt-4 text-[var(--text-xs)] text-[var(--color-error)]">{error}</p>
+        <p className="mt-3 text-[13px] text-[var(--p-error)]">{error}</p>
       )}
-
-      {/* Loading */}
       {loading && (
-        <div className="mt-4">
-          <Spinner accent />
-        </div>
+        <div className="mt-3"><Spinner accent /></div>
       )}
 
-      {/* Footer actions — spaced apart, quiet */}
-      <div className="mt-10 flex items-center justify-between text-[var(--text-xs)]">
+      <div className="mt-8 flex items-center justify-between text-[13px]">
         <button
           type="button"
           onClick={onBack}
-          className="text-[var(--color-text-subtle)] transition-colors duration-150 hover:text-[var(--color-text-muted)]"
+          className="text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text-secondary)]"
         >
           {t('login.changePhone', 'Change number')}
         </button>
         {resendCountdown > 0 ? (
-          <span className="font-mono tabular-nums text-[var(--color-text-subtle)]">
+          <span className="font-mono tabular-nums text-[var(--p-text-muted)]">
             {String(resendCountdown).padStart(2, '0')}
           </span>
         ) : (
           <button
             type="button"
             onClick={handleResend}
-            className="text-[var(--color-primary)] transition-colors duration-150 hover:text-[var(--color-primary-hover)]"
+            className="text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)]"
           >
             {t('login.resend', 'Resend code')}
           </button>
@@ -526,13 +608,6 @@ function OTPStep({
 // Account Creation Step
 // ============================================================================
 
-const accountSchema = z.object({
-  companyName: z.string().min(1).max(200),
-  fullName: z.string().min(1).max(100),
-})
-
-type AccountFormData = z.infer<typeof accountSchema>
-
 function AccountCreationStep({
   phone,
   onComplete,
@@ -541,38 +616,37 @@ function AccountCreationStep({
   onComplete: () => void
 }) {
   const { t } = useTranslation('portal')
-  const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [companyName, setCompanyName] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [hintKey, setHintKey] = useState(0)
+  const fullNameRef = useRef<HTMLInputElement>(null)
+  const companyRef = useRef<HTMLInputElement>(null)
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm<AccountFormData>({
-    resolver: standardSchemaResolver(accountSchema),
-    defaultValues: { companyName: '', fullName: '' },
-  })
+  useEffect(() => {
+    const id = setTimeout(() => fullNameRef.current?.focus(), 100)
+    return () => clearTimeout(id)
+  }, [])
 
-  const _companyName = useWatch({ control, name: 'companyName' })
-  const _fullName = useWatch({ control, name: 'fullName' })
+  function triggerHint() { setHintKey((k) => k + 1) }
 
-  async function onSubmit(data: AccountFormData) {
+  async function handleCreate() {
+    if (!companyName.trim() || !fullName.trim()) {
+      triggerHint()
+      return
+    }
     setLoading(true)
-    setServerError(null)
-
     try {
       const result = await createAccount({
-        data: { phone, companyName: data.companyName, fullName: data.fullName },
+        data: { phone, companyName: companyName.trim(), fullName: fullName.trim() },
       })
-
       if (!result.success) {
-        setServerError(t('login.createFailed', 'Could not create account. Try again.'))
+        triggerHint()
         return
       }
       onComplete()
     } catch {
-      setServerError(t('login.createFailed', 'Could not create account. Try again.'))
+      triggerHint()
     } finally {
       setLoading(false)
     }
@@ -580,55 +654,54 @@ function AccountCreationStep({
 
   return (
     <div className="flex flex-col">
-      <h1 className="text-[clamp(1.375rem,3.5vw,1.75rem)] font-normal leading-snug text-[var(--color-text)]">
+      <h1 className="text-lg font-semibold text-[var(--p-text)] tracking-tight">
         {t('login.step3.heading', 'Create your account')}
       </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-12 flex flex-col gap-10" noValidate>
-        {/* Company */}
-        <TextField isInvalid={!!errors.companyName}>
-          <Label className="mb-3 block text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
-            {t('login.companyName', 'Company')}
-          </Label>
-          <Input
-            {...register('companyName')}
-            className="w-full border-b border-[var(--color-border)] bg-transparent pb-2.5 text-[var(--text-lg)] text-[var(--color-text)] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]"
+      <div className="mt-6 flex flex-col gap-4">
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
+            {t('login.fullName', 'Full name')}
+          </label>
+          <input
+            ref={fullNameRef}
+            key={`name-${hintKey}`}
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (!companyName.trim()) { companyRef.current?.focus() }
+                else { handleCreate() }
+              }
+            }}
+            className={`w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-4 py-3 text-sm text-[var(--p-text)] outline-none focus-within:border-[var(--p-border-strong)] ${hintKey > 0 && !fullName.trim() ? 'border-hint' : ''}`}
           />
-          {errors.companyName && (
-            <FieldError className="mt-2 text-[var(--text-xs)] text-[var(--color-error)]">
-              {errors.companyName.message}
-            </FieldError>
-          )}
-        </TextField>
+        </div>
 
-        {/* Name */}
-        <TextField isInvalid={!!errors.fullName}>
-          <Label className="mb-3 block text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
-            {t('login.fullName', 'Your name')}
-          </Label>
-          <Input
-            {...register('fullName')}
-            className="w-full border-b border-[var(--color-border)] bg-transparent pb-2.5 text-[var(--text-lg)] text-[var(--color-text)] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]"
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
+            {t('login.companyName', 'Company name')}
+          </label>
+          <input
+            ref={companyRef}
+            key={`company-${hintKey}`}
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+            className={`w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-4 py-3 text-sm text-[var(--p-text)] outline-none focus-within:border-[var(--p-border-strong)] ${hintKey > 0 && !companyName.trim() ? 'border-hint' : ''}`}
           />
-          {errors.fullName && (
-            <FieldError className="mt-2 text-[var(--text-xs)] text-[var(--color-error)]">
-              {errors.fullName.message}
-            </FieldError>
-          )}
-        </TextField>
-
-        {serverError && (
-          <p className="text-[var(--text-xs)] text-[var(--color-error)]">{serverError}</p>
-        )}
+        </div>
 
         <Button
-          type="submit"
+          onPress={handleCreate}
           isDisabled={loading}
-          className="flex h-11 w-full items-center justify-center rounded-lg bg-[#0F172A] text-[var(--text-sm)] font-medium text-white transition-opacity duration-150 hover:opacity-80 pressed:opacity-70 disabled:opacity-40 dark:bg-[#FAFAFA] dark:text-[#09090B]"
+          className="flex h-10 w-full items-center justify-center rounded-xl bg-[var(--p-text)] text-[13px] font-medium text-[var(--p-bg)] transition-opacity hover:opacity-90 pressed:opacity-80 disabled:opacity-40"
         >
-          {loading ? <Spinner /> : t('login.createButton', 'Continue')}
+          {loading ? <Spinner /> : t('login.createButton', 'Create Account')}
         </Button>
-      </form>
+      </div>
     </div>
   )
 }
@@ -669,7 +742,6 @@ function AccountClaimingStep({
   async function handleClaim() {
     setLoading(true)
     setError(null)
-
     try {
       const result = await claimAccount({ data: { phone } })
       if (!result.success) {
@@ -686,29 +758,28 @@ function AccountClaimingStep({
 
   return (
     <div className="flex flex-col">
-      <h1 className="text-[clamp(1.375rem,3.5vw,1.75rem)] font-normal leading-snug text-[var(--color-text)]">
+      <h1 className="text-xl font-semibold text-[var(--p-text)] tracking-tight">
         {t('login.claiming.heading', 'Is this you?')}
       </h1>
-      <p className="mt-2 text-[var(--text-sm)] text-[var(--color-text-muted)]">
+      <p className="mt-2 text-[13px] text-[var(--p-text-muted)]">
         {t('login.claiming.sub', 'We found an existing account for this number')}
       </p>
 
-      {/* Masked company — monospace, the data speaks */}
-      <div className="mt-12 border-b border-[var(--color-border)] pb-3">
-        <p className="font-mono text-[clamp(1.125rem,3vw,1.5rem)] tracking-wider text-[var(--color-text)]">
+      <div className="mt-8 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-4 py-3">
+        <p className="font-mono text-lg tracking-wider text-[var(--p-text)]">
           {maskedCompany}
         </p>
       </div>
 
       {error && (
-        <p className="mt-4 text-[var(--text-xs)] text-[var(--color-error)]">{error}</p>
+        <p className="mt-3 text-[13px] text-[var(--p-error)]">{error}</p>
       )}
 
-      <div className="mt-10 flex flex-col gap-2">
+      <div className="mt-8 flex flex-col gap-2">
         <Button
           onPress={handleClaim}
           isDisabled={loading}
-          className="flex h-11 w-full items-center justify-center rounded-lg bg-[#0F172A] text-[var(--text-sm)] font-medium text-white transition-opacity duration-150 hover:opacity-80 pressed:opacity-70 disabled:opacity-40 dark:bg-[#FAFAFA] dark:text-[#09090B]"
+          className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--p-text)] text-sm font-medium text-[var(--p-bg)] transition-opacity hover:opacity-90 pressed:opacity-80 disabled:opacity-40"
         >
           {loading ? <Spinner /> : t('login.claiming.confirm', "Yes, that's me")}
         </Button>
@@ -716,7 +787,7 @@ function AccountClaimingStep({
           type="button"
           onClick={onCreateNew}
           disabled={loading}
-          className="flex h-9 items-center justify-center text-[var(--text-xs)] text-[var(--color-text-muted)] transition-colors duration-150 hover:text-[var(--color-text)] disabled:opacity-40"
+          className="flex h-9 items-center justify-center text-[13px] text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text-secondary)] disabled:opacity-40"
         >
           {t('login.claiming.deny', 'No, create a new account')}
         </button>
@@ -731,8 +802,8 @@ function AccountClaimingStep({
 
 function Spinner({ accent }: { accent?: boolean }) {
   const color = accent
-    ? 'border-[var(--color-primary)]/20 border-t-[var(--color-primary)]'
-    : 'border-white/30 border-t-white'
+    ? 'border-[var(--p-text-secondary)]/20 border-t-[var(--p-text-secondary)]'
+    : 'border-[var(--p-bg)]/30 border-t-[var(--p-bg)]'
   return (
     <span
       className={`inline-block h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] ${color}`}

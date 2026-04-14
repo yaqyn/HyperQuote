@@ -44,7 +44,7 @@ function UnmatchedBadge() {
   return (
     <span
       ref={badgeRef}
-      className="inline-block rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-xs text-[var(--color-warning)]"
+      className="inline-block rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-[13px] text-[var(--color-warning)]"
     >
       {t('quoteBuilder.unmatched', 'Unmatched -- please verify')}
     </span>
@@ -79,16 +79,16 @@ function ProductSelector({
     >
       <Input
         placeholder="Search product..."
-        className="h-9 w-full rounded-lg border border-[var(--color-border)] px-sm text-xs outline-none focus:border-[var(--color-primary)]"
+        className="h-9 w-full rounded-lg border border-[var(--color-border)] px-sm text-[13px] outline-none focus:border-[var(--color-primary)]"
       />
       <Popover className="w-[var(--trigger-width)] rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] shadow-lg">
         <ListBox className="max-h-48 overflow-auto p-xs">
           {isLoading ? (
-            <ListBoxItem id="loading" className="px-sm py-xs text-xs text-[var(--color-text-subtle)]">
+            <ListBoxItem id="loading" className="px-sm py-xs text-[13px] text-[var(--color-text-subtle)]">
               Loading...
             </ListBoxItem>
           ) : results.length === 0 ? (
-            <ListBoxItem id="empty" className="px-sm py-xs text-xs text-[var(--color-text-subtle)]">
+            <ListBoxItem id="empty" className="px-sm py-xs text-[13px] text-[var(--color-text-subtle)]">
               No products found
             </ListBoxItem>
           ) : (
@@ -96,7 +96,7 @@ function ProductSelector({
               <ListBoxItem
                 key={product.id}
                 id={product.id}
-                className="cursor-pointer rounded-lg px-sm py-xs text-xs hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
+                className="cursor-pointer rounded-lg px-sm py-xs text-[13px] hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
               >
                 {product.name} {product.sku ? `(${product.sku})` : ''}
               </ListBoxItem>
@@ -219,7 +219,7 @@ export function UploadValidation({
 
       {/* Error table */}
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
-        <table className="w-full text-xs">
+        <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
               <th className="px-sm py-xs text-start font-semibold">Row</th>
@@ -243,7 +243,7 @@ export function UploadValidation({
                     type="text"
                     value={error.value}
                     onChange={(e) => handleErrorValueChange(idx, e.target.value)}
-                    className="h-7 w-full rounded border border-[var(--color-border)] bg-[var(--color-base)] px-xs text-xs outline-none focus:border-[var(--color-primary)]"
+                    className="h-7 w-full rounded border border-[var(--color-border)] bg-[var(--color-base)] px-xs text-[13px] outline-none focus:border-[var(--color-primary)]"
                   />
                 </td>
                 <td className="px-sm py-xs text-[var(--color-text-subtle)]">
@@ -258,7 +258,7 @@ export function UploadValidation({
       {/* Unmatched items section */}
       {unmatchedItems.length > 0 && (
         <div className="flex flex-col gap-sm">
-          <Text className="text-xs font-semibold text-[var(--color-text-subtle)]">
+          <Text className="text-[13px] font-semibold text-[var(--color-text-subtle)]">
             {t('quoteBuilder.unmatchedItems', 'Unmatched Items')}
           </Text>
           {unmatchedItems.map((item) => (
@@ -266,10 +266,10 @@ export function UploadValidation({
               key={item.rowNumber}
               className="flex items-center gap-sm rounded-lg border border-[var(--color-border)] p-sm"
             >
-              <span className="font-[family-name:var(--font-geist-mono)] text-xs text-[var(--color-text-subtle)]">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[13px] text-[var(--color-text-subtle)]">
                 #{item.rowNumber}
               </span>
-              <span className="text-xs">{item.productName}</span>
+              <span className="text-[13px]">{item.productName}</span>
               <UnmatchedBadge />
               <div className="ms-auto w-48">
                 <ProductSelector
@@ -287,13 +287,13 @@ export function UploadValidation({
       <div className="flex items-center gap-sm">
         <Button
           onPress={handleFixAndContinue}
-          className="h-9 rounded-xl border border-[var(--color-primary)] px-md text-xs font-semibold text-[var(--color-primary)] outline-none hover:bg-[var(--color-primary)] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="h-9 rounded-xl border border-[var(--color-primary)] px-md text-[13px] font-semibold text-[var(--color-primary)] outline-none hover:bg-[var(--color-primary)] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         >
           {t('quoteBuilder.fixAndContinue', 'Fix & Continue')}
         </Button>
         <Button
           onPress={onReupload}
-          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-xs font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="h-9 rounded-xl border border-[var(--color-border)] px-md text-[13px] font-semibold text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         >
           {t('quoteBuilder.reupload', 'Re-upload')}
         </Button>

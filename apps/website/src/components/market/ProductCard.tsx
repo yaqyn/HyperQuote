@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Plus, Check } from 'lucide-react'
+import { Plus, Pencil, Undo2 } from 'lucide-react'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 
 interface Product {
@@ -38,13 +38,14 @@ function AddPopover({
 	onClose: () => void
 	anchorRef: React.RefObject<HTMLButtonElement | null>
 }) {
-	const { t } = useTranslation('website')
-	const { add, items } = useQuoteCart()
+	const { t, i18n } = useTranslation('website')
+	const isAr = i18n.language === 'ar'
+	const { add, remove, updateQuantity, items } = useQuoteCart()
 	const existingItem = items.find((i) => i.productId === product.id)
-	const [qty, setQty] = useState(existingItem?.quantity ?? 1)
+	const [qtyStr, setQtyStr] = useState(String(existingItem?.quantity ?? 1))
+	const qty = parseInt(qtyStr, 10) || 0
 	const inputRef = useRef<HTMLInputElement>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
-	const unit = t(`units.${product.unit_of_measure}`, product.unit_of_measure)
 	const weight = product.weight_kg
 
 	useEffect(() => {
@@ -68,18 +69,22 @@ function AddPopover({
 
 	const handleSubmit = () => {
 		if (qty > 0) {
-			add(
-				{
-					productId: product.id,
-					slug: product.slug,
-					name: product.name,
-					category: product.category,
-					unitOfMeasure: product.unit_of_measure,
-					imageUrl: product.image_urls?.[0] ?? null,
-				},
-				qty,
-			)
 			onClose()
+			if (existingItem) {
+				updateQuantity(product.id, qty)
+			} else {
+				add(
+					{
+						productId: product.id,
+						slug: product.slug,
+						name: product.name,
+						category: product.category,
+						unitOfMeasure: product.unit_of_measure,
+						imageUrl: product.image_urls?.[0] ?? null,
+					},
+					qty,
+				)
+			}
 		}
 	}
 
@@ -108,27 +113,30 @@ function AddPopover({
 			onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
 		>
 			<p className="text-[12px] font-medium text-white line-clamp-1 mb-2">
-				{product.name}
+				{isAr ? product.name_ar || product.name : product.name}
 			</p>
 
-			<div className="flex items-center gap-2 mb-2">
+			<div className="relative mb-2">
 				<input
 					ref={inputRef}
-					type="number"
-					value={qty}
-					onChange={(e) => {
-						const v = parseInt(e.target.value, 10)
-						if (!isNaN(v) && v >= 0) setQty(v)
-					}}
+					type="text"
+					inputMode="numeric"
+					value={qtyStr}
+					onChange={(e) => setQtyStr(e.target.value.replace(/[^0-9]/g, ''))}
 					onKeyDown={(e) => {
-						if (e.key === 'Enter') handleSubmit()
+						e.stopPropagation()
+						if (e.key === 'Enter') {
+							e.preventDefault()
+							if (qty <= 0) { remove(product.id); onClose() }
+							else handleSubmit()
+						}
 						if (e.key === 'Escape') onClose()
 					}}
 					min={1}
-					className="w-full h-8 rounded-lg border border-white/15 bg-white/10 px-2.5 font-mono text-[14px] text-white outline-none focus:border-white/40 transition-colors text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					className="w-full h-8 rounded-lg border border-white/15 bg-white/10 ps-2.5 pe-12 font-mono text-[14px] text-white outline-none focus:border-white/40 transition-colors text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 				/>
-				<span className="text-[12px] text-white/50 shrink-0">
-					{unit}
+				<span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] text-white/40 pointer-events-none">
+					{product.unit_of_measure}
 				</span>
 			</div>
 
@@ -138,13 +146,24 @@ function AddPopover({
 				</p>
 			)}
 
-			<button
-				type="button"
-				onClick={handleSubmit}
-				className="w-full h-8 rounded-lg bg-white text-black text-[13px] font-semibold hover:bg-white/90 transition-colors"
-			>
-				{t('market.addToQuote')}
-			</button>
+			<div className="flex items-center gap-2">
+				{existingItem && (
+					<button
+						type="button"
+						onClick={() => { remove(product.id); onClose() }}
+						className="w-8 h-8 shrink-0 rounded-lg border border-white/15 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+					>
+						<Undo2 size={14} />
+					</button>
+				)}
+				<button
+					type="button"
+					onClick={handleSubmit}
+					className="flex-1 h-8 rounded-lg bg-white text-black text-[13px] font-semibold hover:bg-white/90 transition-colors"
+				>
+					{existingItem ? t('market.confirm') : t('market.addToQuote')}
+				</button>
+			</div>
 		</motion.div>,
 		document.body,
 	)
@@ -185,8 +204,9 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 						type="button"
 						onClick={handleBtnClick}
 						className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors backdrop-blur-sm ${inCart ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20' : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)] hover:ring-[var(--color-primary)]/30 hover:text-[var(--color-primary)]'}`}
+						aria-label={inCart ? t('market.editQuantity') : t('market.addToQuote')}
 					>
-						{inCart ? <Check size={14} /> : <Plus size={14} />}
+						{inCart ? <Pencil size={12} /> : <Plus size={14} />}
 					</button>
 					{popoverOpen && (
 						<AddPopover product={product} onClose={() => setPopoverOpen(false)} anchorRef={btnRef} />
@@ -215,12 +235,12 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					onClick={handleBtnClick}
 					className={`absolute bottom-3 end-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ring-1 shadow-lg ${
 						inCart
-							? 'backdrop-blur-md bg-white/25 ring-white/20'
+							? 'backdrop-blur-md bg-white ring-white/40'
 							: 'backdrop-blur-xl bg-black/20 ring-white/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:bg-black/35'
 					}`}
-					aria-label={t('market.addToQuote')}
+					aria-label={inCart ? t('market.editQuantity') : t('market.addToQuote')}
 				>
-					{inCart ? <Check size={16} className="text-[#2563EB]" /> : <Plus size={16} className="text-white" />}
+					{inCart ? <Pencil size={14} className="text-black" /> : <Plus size={16} className="text-white" />}
 				</button>
 			</div>
 			<AnimatePresence>

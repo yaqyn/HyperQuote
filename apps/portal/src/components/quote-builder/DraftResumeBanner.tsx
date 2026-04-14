@@ -26,7 +26,7 @@ export function DraftResumeBanner({ onStartFresh }: DraftResumeBannerProps) {
       <div className="flex items-center gap-3">
         <Button
           onPress={onStartFresh}
-          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+          className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
         >
           {t('quoteBuilder.startFresh')}
         </Button>

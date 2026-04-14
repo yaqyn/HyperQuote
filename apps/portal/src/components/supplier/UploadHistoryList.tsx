@@ -97,10 +97,10 @@ export default function UploadHistoryList({ locale }: UploadHistoryListProps) {
                 </StatusBadge>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                   {dateFormatter.format(new Date(upload.uploadedAt))}
                 </span>
-                <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                   {upload.itemsParsed}{' '}
                   {locale === 'ar' ? 'عنصر' : 'items'}
                 </span>

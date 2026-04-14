@@ -120,7 +120,7 @@ export function StockTable({
                     <span className="text-sm font-medium text-[var(--color-text)]">
                       {locale === 'ar' ? product.nameAr : product.name}
                     </span>
-                    <span className="text-xs text-[var(--color-text-muted)]">
+                    <span className="text-[13px] text-[var(--color-text-muted)]">
                       {locale === 'ar' ? product.name : product.nameAr}
                     </span>
                   </div>

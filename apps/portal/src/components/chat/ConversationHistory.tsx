@@ -210,7 +210,7 @@ export function ConversationHistory() {
                           <div key={group}>
                             {/* Group header */}
                             <div className="ps-4 py-2">
-                              <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
+                              <span className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase">
                                 {getGroupLabel(group, t)}
                               </span>
                             </div>
@@ -232,7 +232,7 @@ export function ConversationHistory() {
                                     {conv.preview}
                                   </p>
                                   {conv.entityRef && (
-                                    <span className="font-[family-name:var(--font-geist-mono)] text-xs text-[var(--color-text-muted)]">
+                                    <span className="font-[family-name:var(--font-geist-mono)] text-[13px] text-[var(--color-text-muted)]">
                                       {conv.entityRef}
                                     </span>
                                   )}
@@ -244,7 +244,7 @@ export function ConversationHistory() {
                                       className="text-[var(--color-primary)]"
                                     />
                                   )}
-                                  <span className="text-xs text-[var(--color-text-muted)]">
+                                  <span className="text-[13px] text-[var(--color-text-muted)]">
                                     {getRelativeTime(conv.createdAt, isArabic)}
                                   </span>
                                 </div>

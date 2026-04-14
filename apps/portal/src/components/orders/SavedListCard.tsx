@@ -38,10 +38,10 @@ export function SavedListCard({
         <span className="text-sm font-medium text-[var(--color-text)] truncate">
           {list.name}
         </span>
-        <span className="font-mono text-xs text-[var(--color-text-muted)]">
+        <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
           {list.items.length} {t('orders.items')}
         </span>
-        <span className="font-mono text-xs text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[13px] text-[var(--color-text-subtle)]">
           {t('orders.lastUsed', { date: formattedDate })}
         </span>
       </div>
@@ -50,14 +50,14 @@ export function SavedListCard({
       <div className="flex items-center gap-2 shrink-0">
         <Button
           onPress={onReorder}
-          className="h-9 px-4 rounded-lg border border-[var(--color-primary)] text-xs text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary)]/5 cursor-pointer transition-colors"
+          className="h-9 px-4 rounded-lg border border-[var(--color-primary)] text-[13px] text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary)]/5 cursor-pointer transition-colors"
         >
           {t('orders.reorder')}
         </Button>
 
         <Button
           onPress={onEdit}
-          className="text-xs text-[var(--color-primary)] cursor-pointer hover:underline"
+          className="text-[13px] text-[var(--color-primary)] cursor-pointer hover:underline"
         >
           {t('orders.edit')}
         </Button>
@@ -69,13 +69,13 @@ export function SavedListCard({
                 onDelete()
                 setConfirmDelete(false)
               }}
-              className="h-8 px-2 rounded-lg text-xs text-[var(--color-error)] cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              className="h-8 px-2 rounded-lg text-[13px] text-[var(--color-error)] cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
             >
               {t('orders.confirmDelete')}
             </Button>
             <Button
               onPress={() => setConfirmDelete(false)}
-              className="h-8 px-2 rounded-lg text-xs text-[var(--color-text-muted)] cursor-pointer"
+              className="h-8 px-2 rounded-lg text-[13px] text-[var(--color-text-muted)] cursor-pointer"
             >
               {t('orders.cancel')}
             </Button>

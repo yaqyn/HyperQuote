@@ -31,7 +31,7 @@ const resources = {
  */
 export function initI18n(locale: 'ar' | 'en' = 'en') {
   if (i18n.isInitialized) {
-    if (i18n.language !== locale) i18n.changeLanguage(locale)
+    if (i18n.language !== locale) return i18n.changeLanguage(locale)
     return Promise.resolve(i18n.t)
   }
   return i18n.use(initReactI18next).init({

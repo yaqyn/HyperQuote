@@ -148,7 +148,7 @@ export function PODetail({ po, locale }: PODetailProps) {
               {po.status}
             </StatusBadge>
           </div>
-          <span className="text-xs text-[var(--color-text-muted)]">
+          <span className="text-[13px] text-[var(--color-text-muted)]">
             {formattedDate} &middot; from HyperQuote
           </span>
         </div>
@@ -156,7 +156,7 @@ export function PODetail({ po, locale }: PODetailProps) {
 
       {/* Line items table header */}
       <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
-        <div className="grid grid-cols-[40px_1fr_100px_100px_100px_60px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-muted)] max-md:grid-cols-[40px_1fr_80px_60px]">
+        <div className="grid grid-cols-[40px_1fr_100px_100px_100px_60px] items-center gap-2 px-4 py-2 bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-muted)] max-md:grid-cols-[40px_1fr_80px_60px]">
           <span>#</span>
           <span>{t('supplier.productName')}</span>
           <span className="text-end max-md:hidden">{t('supplier.qtyRequested')}</span>
@@ -273,7 +273,7 @@ export function PODetail({ po, locale }: PODetailProps) {
                   onChange={setRejectReason}
                   className="flex flex-col gap-1"
                 >
-                  <Label className="text-xs text-[var(--color-text-muted)]">
+                  <Label className="text-[13px] text-[var(--color-text-muted)]">
                     {t('supplier.reason')}
                   </Label>
                   <TextArea className="min-h-[100px] px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] resize-y" />

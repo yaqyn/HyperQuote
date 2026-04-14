@@ -35,7 +35,7 @@ export function KPICard({ label, value, trend, locale, format }: KPICardProps) {
 
   return (
     <div className="bg-[var(--color-surface)] rounded-xl p-5 min-w-[200px]">
-      <p className="font-medium text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
+      <p className="font-medium text-[13px] text-[var(--color-text-muted)] uppercase tracking-widest">
         {label}
       </p>
       <p className="font-mono font-semibold text-[28px] text-[var(--color-text)] mt-1">
@@ -43,7 +43,7 @@ export function KPICard({ label, value, trend, locale, format }: KPICardProps) {
       </p>
       <div className={`flex items-center gap-1 mt-1 ${trendColor}`}>
         <TrendIcon size={14} />
-        <span className="font-mono text-xs">
+        <span className="font-mono text-[13px]">
           {new Intl.NumberFormat(numLocale, {
             maximumFractionDigits: 1,
           }).format(Math.abs(trend))}

@@ -46,7 +46,7 @@ export function ProgressBar5Stage({ currentStage }: ProgressBar5StageProps) {
               <div
                 className={[
                   'relative w-8 h-8 rounded-full flex items-center justify-center',
-                  'font-mono text-xs font-semibold',
+                  'font-mono text-[13px] font-semibold',
                   isCompleted
                     ? 'bg-[var(--color-success)] text-white'
                     : isCurrent
@@ -58,7 +58,7 @@ export function ProgressBar5Stage({ currentStage }: ProgressBar5StageProps) {
               </div>
               <span
                 className={[
-                  'text-xs text-center max-w-[80px]',
+                  'text-[13px] text-center max-w-[80px]',
                   isCurrent
                     ? 'text-[var(--color-primary)] font-medium'
                     : isCompleted

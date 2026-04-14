@@ -68,11 +68,11 @@ export function ApprovalBanner({ approval }: ApprovalBannerProps) {
               count: approval.quoteRequest.itemCount,
             }).replace(String(approval.quoteRequest.itemCount), '')}
           </p>
-          <p className="text-xs text-[var(--color-text-muted)]">{timeAgo}</p>
+          <p className="text-[13px] text-[var(--color-text-muted)]">{timeAgo}</p>
         </div>
 
         {/* Status badge */}
-        <span className="shrink-0 px-2.5 py-0.5 rounded-full text-xs font-normal bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[13px] font-normal bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
           Pending Approval
         </span>
       </div>
@@ -92,14 +92,14 @@ export function ApprovalBanner({ approval }: ApprovalBannerProps) {
                 setShowNotes(false)
                 setNotes('')
               }}
-              className="h-9 px-3 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
+              className="h-9 px-3 rounded-lg text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
             >
               Cancel
             </Button>
             <Button
               onPress={() => changesMutation.mutate()}
               isDisabled={changesMutation.isPending}
-              className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-50"
+              className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-[13px] text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-50"
             >
               {changesMutation.isPending ? '...' : t('quoteBuilder.requestChanges')}
             </Button>

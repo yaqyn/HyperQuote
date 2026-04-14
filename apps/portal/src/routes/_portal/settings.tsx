@@ -232,7 +232,7 @@ const SettingsBlock = forwardRef<
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
       className="scroll-mt-20"
     >
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-6">
+      <h2 className="text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-6">
         {title}
       </h2>
       {children}

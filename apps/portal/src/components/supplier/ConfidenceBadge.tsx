@@ -21,7 +21,7 @@ export function ConfidenceBadge({ confidence }: ConfidenceBadgeProps) {
 
   return (
     <span
-      className={`font-mono text-xs px-2 py-0.5 rounded-full ${colorClasses[level]}`}
+      className={`font-mono text-[13px] px-2 py-0.5 rounded-full ${colorClasses[level]}`}
     >
       {confidence}%
     </span>

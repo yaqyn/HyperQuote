@@ -53,7 +53,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
                 ) : (
                   <span
                     className={[
-                      'font-mono text-xs leading-none',
+                      'font-mono text-[13px] leading-none',
                       isActive
                         ? 'text-white'
                         : 'text-[var(--color-text-muted)]',
@@ -67,7 +67,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               {/* Label -- hidden on mobile */}
               <span
                 className={[
-                  'text-xs hidden sm:block transition-colors',
+                  'text-[13px] hidden sm:block transition-colors',
                   isActive
                     ? 'text-[var(--color-text)]'
                     : 'text-[var(--color-text-muted)]',

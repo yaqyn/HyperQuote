@@ -20,7 +20,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { confirmDropShipDelivery, disputeDropShipDelivery } from '../../lib/server/deliveries'
 import type { PODDetails } from '../../lib/server/deliveries'
-import { useToastStore } from '../../stores/toast'
+import { useToastStore } from '../../stores/toast-store'
 
 interface PODConfirmFlowProps {
   deliveryId: string
@@ -70,7 +70,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
   if (pod.status === 'auto_confirmed') {
     return (
       <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface)] rounded-xl">
-        <span className="px-2 py-1 text-xs font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
+        <span className="px-2 py-1 text-[13px] font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
           {t('tracking.autoConfirmed')}
         </span>
       </div>
@@ -81,7 +81,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
   if (pod.status === 'confirmed') {
     return (
       <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface)] rounded-xl">
-        <span className="px-2 py-1 text-xs font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
+        <span className="px-2 py-1 text-[13px] font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
           {t('tracking.delivered')}
         </span>
       </div>
@@ -109,7 +109,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
           <p className="text-sm font-medium text-[var(--color-text)]">
             {t('tracking.podBanner')}
           </p>
-          <p className="font-mono text-xs text-[var(--color-text-muted)] mt-0.5">
+          <p className="font-mono text-[13px] text-[var(--color-text-muted)] mt-0.5">
             {hoursRemaining}h {t('tracking.remaining')}
           </p>
         </div>
@@ -175,7 +175,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
                       />
                     </TextField>
 
-                    <p className="text-xs text-[var(--color-text-muted)]">
+                    <p className="text-[13px] text-[var(--color-text-muted)]">
                       {t('tracking.disputePhotoLabel')}
                     </p>
 

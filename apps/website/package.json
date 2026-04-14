@@ -11,6 +11,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@fontsource/spectral": "^5.2.8",
 		"@hookform/resolvers": "^5.2.2",
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",

@@ -43,7 +43,7 @@ interface TicketFormProps {
   isSubmitting?: boolean
 }
 
-const labelClass = 'mb-3 block text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+const labelClass = 'mb-3 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 const inputClass = 'w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB]'
 
 export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
@@ -128,7 +128,7 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
       <button
         type="submit"
         disabled={isSubmitting || !subject.trim() || !message.trim()}
-        className="self-start h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-30"
+        className="self-start h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-[13px] font-medium transition-opacity hover:opacity-80 disabled:opacity-30"
       >
         {isSubmitting ? t('support.submitting') : t('support.submitTicket')}
       </button>

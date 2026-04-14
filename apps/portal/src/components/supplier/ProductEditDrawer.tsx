@@ -146,7 +146,7 @@ export default function ProductEditDrawer({
             <div className="flex flex-col gap-6 p-6 flex-1">
               {/* Product name (read-only) */}
               <div>
-                <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-widest mb-1 block">
+                <label className="text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-widest mb-1 block">
                   {t('supplier.productName')}
                 </label>
                 <div className="px-3 py-2 rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text)]">
@@ -197,7 +197,7 @@ export default function ProductEditDrawer({
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-widest mb-1 block">
+                <label className="text-[13px] font-medium text-[var(--color-text-muted)] uppercase tracking-widest mb-1 block">
                   {t('supplier.notes')}
                 </label>
                 <TextArea

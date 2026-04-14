@@ -82,7 +82,7 @@ export function SubtotalsSection({
       </div>
 
       {/* Price disclaimer */}
-      <p className="text-xs text-[var(--color-text-muted)] italic max-w-xs text-end">
+      <p className="text-[13px] text-[var(--color-text-muted)] italic max-w-xs text-end">
         {t('quoteDetail.priceDisclaimer', { date: validUntil })}
       </p>
     </div>

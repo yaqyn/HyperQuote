@@ -69,7 +69,7 @@ export function ProductCard({ data }: ProductCardProps) {
           {name}
         </p>
         {specsSummary && (
-          <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">
+          <p className="text-[13px] text-[var(--color-text-muted)] truncate mt-0.5">
             {specsSummary}
           </p>
         )}
@@ -81,7 +81,7 @@ export function ProductCard({ data }: ProductCardProps) {
       {/* Add to Quote button */}
       <Button
         onPress={handleAddToQuote}
-        className="shrink-0 h-8 px-3 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] text-xs font-semibold cursor-pointer hover:bg-[var(--color-primary)]/5 transition-colors"
+        className="shrink-0 h-8 px-3 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] text-[13px] font-semibold cursor-pointer hover:bg-[var(--color-primary)]/5 transition-colors"
         aria-label={`${t('chat.addToQuote')} ${name}`}
       >
         {t('chat.addToQuote')}

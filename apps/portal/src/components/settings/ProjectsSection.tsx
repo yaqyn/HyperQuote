@@ -31,7 +31,7 @@ interface ProjectFormValues {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
   'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
@@ -101,13 +101,13 @@ export function ProjectsSection({ projects }: ProjectsSectionProps) {
                 </p>
               )}
               <div className="flex items-center gap-4 mt-1">
-                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
                   {t('settings.projects.orders')}{' '}
                   <span className="font-mono">
                     {project.orderCount}
                   </span>
                 </span>
-                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                <span className="text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
                   {t('settings.projects.created')}{' '}
                   <span className="font-mono">
                     {new Date(project.createdAt).toLocaleDateString()}
@@ -118,13 +118,13 @@ export function ProjectsSection({ projects }: ProjectsSectionProps) {
             <div className="flex items-center gap-4">
               <Button
                 onPress={() => handleEdit(project)}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.projects.edit')}
               </Button>
               <Button
                 onPress={() => setArchivingId(project.id)}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+                className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
               >
                 {t('settings.projects.archive')}
               </Button>

@@ -1,205 +1,229 @@
 /**
- * Support — data is the design.
- * Three ways to get help: WhatsApp, Chat, Ticket.
- * Ticket list as clean rows. Thread as text conversation (like chat).
+ * Support — premium bento grid.
+ * Section 1: 4 tall service cards with icon showcase + text below
+ * Section 2: Wide resource cards for address, docs, FAQ
  */
-import { useState, useEffect, useCallback } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { motion, AnimatePresence } from 'motion/react'
-import { WindowShell } from '../../components/windows/WindowShell'
-import { TicketList } from '../../components/support/TicketList'
-import { TicketForm } from '../../components/support/TicketForm'
-import { TicketThread } from '../../components/support/TicketThread'
-import {
-  getTickets,
-  getTicketDetail,
-  submitSupportTicket,
-  replySupportTicket,
-} from '../../lib/server/support'
-import type { Ticket, TicketReply } from '../../types/support'
+import { motion } from 'motion/react'
+import { Mail, MessageCircle, TicketPlus, Phone, MapPin, FileText, HelpCircle, ExternalLink } from 'lucide-react'
 
 export const Route = createFileRoute('/_portal/support')({
-  component: SupportWindow,
+  component: SupportPage,
 })
 
-type SupportView = 'list' | 'form' | 'thread'
+const stagger = (i: number) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, delay: 0.05 + i * 0.06, ease: [0.22, 1, 0.36, 1] },
+})
 
-function SupportWindow() {
+function SupportPage() {
   const { t } = useTranslation('portal')
-  const [view, setView] = useState<SupportView>('list')
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [replying, setReplying] = useState(false)
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [replies, setReplies] = useState<TicketReply[]>([])
 
-  const fetchTickets = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await getTickets({ data: { page: 1, limit: 20 } })
-      setTickets(result.tickets)
-    } catch {
-      setTickets([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  return (
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
+      <div className="w-full max-w-[960px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
 
-  useEffect(() => {
-    fetchTickets()
-  }, [fetchTickets])
+        {/* Header */}
+        <motion.div {...stagger(0)} className="mb-10">
+          <h1
+            className="text-[22px] font-semibold tracking-tight"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            {t('support.pageTitle')}
+          </h1>
+        </motion.div>
 
-  async function handleSelectTicket(ticketId: string) {
-    try {
-      const result = await getTicketDetail({ data: { ticketId } })
-      setSelectedTicket(result.ticket)
-      setReplies(result.replies)
-      setView('thread')
-    } catch {}
-  }
+        {/* Service Grid — 4 tall cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <ServiceCard
+            index={0}
+            icon={Mail}
+            labelKey="support.contactUs"
+            descKey="support.contactDesc"
+            href="mailto:support@hyperquote.net"
+          />
+          <ServiceCard
+            index={1}
+            icon={MessageCircle}
+            labelKey="support.liveChat"
+            descKey="support.liveChatDesc"
+            href="https://wa.me/201000000000"
+          />
+          <ServiceCard
+            index={2}
+            icon={TicketPlus}
+            labelKey="support.submitTicket"
+            descKey="support.ticketDesc"
+          />
+          <ServiceCard
+            index={3}
+            icon={Phone}
+            labelKey="support.directCall"
+            descKey="support.callDesc"
+            href="tel:+201000000000"
+          />
+        </div>
 
-  async function handleSubmitTicket(data: {
-    subject: string
-    category: 'order_issue' | 'delivery_problem' | 'billing' | 'account' | 'other'
-    message: string
-    orderId?: string
-  }) {
-    setSubmitting(true)
-    try {
-      await submitSupportTicket({ data })
-      await fetchTickets()
-      setView('list')
-    } catch {} finally {
-      setSubmitting(false)
-    }
-  }
+        {/* Resources — wide cards */}
+        <motion.div {...stagger(5)} className="mb-10">
+          <h2 className="text-[13px] uppercase tracking-[0.15em] text-[var(--p-text-muted)] mb-4">
+            {t('support.resources')}
+          </h2>
 
-  async function handleReply(message: string) {
-    if (!selectedTicket) return
-    setReplying(true)
-    try {
-      await replySupportTicket({ data: { ticketId: selectedTicket.id, message } })
-      const result = await getTicketDetail({ data: { ticketId: selectedTicket.id } })
-      setSelectedTicket(result.ticket)
-      setReplies(result.replies)
-    } catch {} finally {
-      setReplying(false)
-    }
+          {/* Two-column row for docs + faq */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <ResourceCard
+              index={6}
+              icon={FileText}
+              labelKey="support.docs"
+              descKey="support.docsDesc"
+              href="https://www.hyperquote.net/docs"
+            />
+            <ResourceCard
+              index={7}
+              icon={HelpCircle}
+              labelKey="support.faq"
+              descKey="support.faqDesc"
+              href="https://www.hyperquote.net/support#faq"
+            />
+          </div>
+
+          {/* Full-width address card */}
+          <motion.a
+            {...stagger(8)}
+            href="https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-5 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[var(--p-elevated)] border border-[var(--p-border)] flex items-center justify-center shrink-0">
+              <MapPin size={20} strokeWidth={1.5} className="text-[var(--p-text-muted)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[var(--p-text)]">{t('support.address')}</p>
+              <p className="text-[13px] text-[var(--p-text-muted)] mt-0.5">{t('support.addressValue')}</p>
+            </div>
+            <ExternalLink size={14} strokeWidth={1.5} className="text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+          </motion.a>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Service Card — tall with icon showcase
+// ============================================================================
+
+function ServiceCard({
+  index,
+  icon: Icon,
+  labelKey,
+  descKey,
+  href,
+}: {
+  index: number
+  icon: typeof Mail
+  labelKey: string
+  descKey: string
+  href?: string
+}) {
+  const { t } = useTranslation('portal')
+
+  const content = (
+    <>
+      {/* Top glow */}
+      <div
+        className="absolute inset-x-0 top-0 h-px rounded-t-xl"
+        style={{
+          background: 'linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.06) 50%, transparent 90%)',
+        }}
+      />
+
+      {/* Icon */}
+      <div className="flex items-center justify-center h-28 mb-4">
+        <Icon
+          size={38}
+          strokeWidth={1}
+          className="text-[var(--p-text-secondary)] group-hover:text-[var(--p-text)] transition-all duration-500 ease-out group-hover:scale-110"
+        />
+      </div>
+
+      {/* Text */}
+      <h3 className="text-[14px] font-medium text-[var(--p-text)] mb-1.5">{t(labelKey)}</h3>
+      <p className="text-[13px] text-[var(--p-text-muted)] leading-relaxed">{t(descKey)}</p>
+    </>
+  )
+
+  const className = "group relative flex flex-col rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 pb-6 transition-all duration-500 ease-out hover:bg-[var(--p-elevated)] hover:border-[var(--p-border-strong)] cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)]"
+
+  if (href) {
+    return (
+      <motion.a
+        {...stagger(1 + index)}
+        href={href}
+        target={href.startsWith('http') ? '_blank' : undefined}
+        rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+        className={className}
+      >
+        {content}
+      </motion.a>
+    )
   }
 
   return (
-    <WindowShell title={t('support.windowTitle')}>
-      <div className="py-8">
-        <AnimatePresence mode="wait">
-          {view === 'list' && (
-            <motion.div
-              key="list"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className="flex flex-col gap-12"
-            >
-              {/* Contact options — three text links, not cards */}
-              <div className="flex items-center gap-8">
-                <a
-                  href="https://wa.me/201000000000"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
-                  {t('support.whatsappOption')}
-                </a>
-                <span className="text-[var(--color-border)]" aria-hidden>·</span>
-                <button
-                  type="button"
-                  className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
-                  {t('support.chatOption')}
-                </button>
-                <span className="text-[var(--color-border)]" aria-hidden>·</span>
-                <button
-                  type="button"
-                  onClick={() => setView('form')}
-                  className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
-                  {t('support.submitTicketOption')}
-                </button>
-              </div>
+    <motion.button
+      {...stagger(1 + index)}
+      type="button"
+      className={`${className} text-start`}
+    >
+      {content}
+    </motion.button>
+  )
+}
 
-              {/* Tickets */}
-              {loading ? (
-                <div className="flex flex-col">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="py-5 border-b border-[var(--color-border)] animate-pulse">
-                      <div className="h-3.5 w-48 bg-[var(--color-surface)] rounded-sm mb-2" />
-                      <div className="h-2.5 w-32 bg-[var(--color-surface)] rounded-sm" />
-                    </div>
-                  ))}
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm text-[var(--color-text)]">{t('support.emptyHeading')}</p>
-                  <p className="text-sm text-[var(--color-text-subtle)] mt-1">{t('support.emptyBody')}</p>
-                  <button
-                    type="button"
-                    onClick={() => setView('form')}
-                    className="mt-6 h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-xs font-medium transition-opacity hover:opacity-80"
-                  >
-                    {t('support.submitTicketOption')}
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-4 block">
-                    {t('support.activeTickets')}
-                  </span>
-                  <TicketList tickets={tickets} onSelect={handleSelectTicket} />
-                </div>
-              )}
-            </motion.div>
-          )}
+// ============================================================================
+// Resource Card
+// ============================================================================
 
-          {view === 'form' && (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            >
-              <button
-                type="button"
-                onClick={() => setView('list')}
-                className="text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors mb-8"
-              >
-                {t('support.backToTickets')}
-              </button>
-              <TicketForm onSubmit={handleSubmitTicket} isSubmitting={submitting} />
-            </motion.div>
-          )}
+function ResourceCard({
+  index,
+  icon: Icon,
+  labelKey,
+  descKey,
+  href,
+}: {
+  index: number
+  icon: typeof FileText
+  labelKey: string
+  descKey: string
+  href: string
+}) {
+  const { t } = useTranslation('portal')
 
-          {view === 'thread' && selectedTicket && (
-            <motion.div
-              key="thread"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            >
-              <TicketThread
-                ticket={selectedTicket}
-                replies={replies}
-                onReply={handleReply}
-                onBack={() => setView('list')}
-                isReplying={replying}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+  return (
+    <motion.a
+      {...stagger(index)}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-4 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] transition-all group"
+    >
+      <div className="w-10 h-10 rounded-lg bg-[var(--p-elevated)] border border-[var(--p-border)] flex items-center justify-center shrink-0">
+        <Icon size={16} strokeWidth={1.5} className="text-[var(--p-text-muted)]" />
       </div>
-    </WindowShell>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[var(--p-text)]">{t(labelKey)}</p>
+        <p className="text-[13px] text-[var(--p-text-muted)] mt-0.5">{t(descKey)}</p>
+      </div>
+      <ExternalLink size={14} strokeWidth={1.5} className="text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+    </motion.a>
   )
 }

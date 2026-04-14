@@ -107,7 +107,7 @@ export function ProductListTable() {
       aria-label={t('quoteBuilder.materialListLabel')}
     >
       {/* Desktop header -- hidden on mobile */}
-      <div className="hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 px-2 py-2 text-xs text-[var(--color-text-muted)] border-b border-[var(--color-border)]">
+      <div className="hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 px-2 py-2 text-[13px] text-[var(--color-text-muted)] border-b border-[var(--color-border)]">
         <div />
         <div>#</div>
         <div>Product</div>
@@ -159,7 +159,7 @@ export function ProductListTable() {
                   </Button>
 
                   {/* Row number */}
-                  <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                  <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
                     {item.sortOrder + 1}
                   </span>
 
@@ -189,7 +189,7 @@ export function ProductListTable() {
                   </AriaNumberField>
 
                   {/* UOM */}
-                  <span className="text-xs text-[var(--color-text-muted)]">
+                  <span className="text-[13px] text-[var(--color-text-muted)]">
                     {item.unitOfMeasure}
                   </span>
 
@@ -224,7 +224,7 @@ export function ProductListTable() {
                       <div className="text-sm font-medium text-[var(--color-text)] truncate">
                         {item.customerDescription}
                       </div>
-                      <span className="text-xs text-[var(--color-text-muted)]">
+                      <span className="text-[13px] text-[var(--color-text-muted)]">
                         #{item.sortOrder + 1}
                       </span>
                     </div>
@@ -259,7 +259,7 @@ export function ProductListTable() {
                     </AriaNumberField>
 
                     {/* UOM */}
-                    <span className="text-xs text-[var(--color-text-muted)] self-center">
+                    <span className="text-[13px] text-[var(--color-text-muted)] self-center">
                       {item.unitOfMeasure}
                     </span>
                   </div>

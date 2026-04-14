@@ -117,7 +117,7 @@ export default function PriceHistoryTable({ locale }: PriceHistoryTableProps) {
                         : entry.productName}
                     </span>
                     {entry.status === 'pending_review' && (
-                      <span className="text-[var(--color-text-muted)] text-xs mt-1">
+                      <span className="text-[var(--color-text-muted)] text-[13px] mt-1">
                         {t('supplier.priceReviewNote')}
                       </span>
                     )}

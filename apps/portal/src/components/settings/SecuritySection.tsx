@@ -15,7 +15,7 @@ interface SecuritySectionProps {
 }
 
 const labelClass =
-  'text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+  'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 export function SecuritySection({ sessions }: SecuritySectionProps) {
   const { t } = useTranslation('portal')
@@ -50,10 +50,10 @@ export function SecuritySection({ sessions }: SecuritySectionProps) {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-[var(--color-text-subtle)]">
+                <span className="text-[13px] font-mono text-[var(--color-text-subtle)]">
                   {session.location}
                 </span>
-                <span className="text-xs font-mono text-[var(--color-text-subtle)]">
+                <span className="text-[13px] font-mono text-[var(--color-text-subtle)]">
                   {new Date(session.lastActive).toLocaleString()}
                 </span>
               </div>
@@ -64,7 +64,7 @@ export function SecuritySection({ sessions }: SecuritySectionProps) {
               <Button
                 onPress={() => signOutMutation.mutate(session.id)}
                 isDisabled={signOutMutation.isPending}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded disabled:opacity-50"
+                className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded disabled:opacity-50"
               >
                 {t('settings.security.signOut')}
               </Button>
@@ -78,7 +78,7 @@ export function SecuritySection({ sessions }: SecuritySectionProps) {
         <span className={labelClass}>
           {t('settings.security.mfaTitle')}
         </span>
-        <p className="text-[11px] text-[var(--color-text-subtle)]">
+        <p className="text-[13px] text-[var(--color-text-subtle)]">
           {t('settings.security.mfaDescription')}
         </p>
         <Button className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">

@@ -38,7 +38,7 @@ export function TicketThread({ ticket, replies, onReply, onBack, isReplying }: T
         <button
           type="button"
           onClick={onBack}
-          className="text-[11px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors shrink-0"
+          className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors shrink-0"
           aria-label={t('support.backToTickets')}
         >
           &larr;
@@ -47,7 +47,7 @@ export function TicketThread({ ticket, replies, onReply, onBack, isReplying }: T
           <h2 className="text-sm font-normal text-[var(--color-text)]">
             {ticket.subject}
           </h2>
-          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+          <span className="text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
             {ticket.status.replace('_', ' ').toUpperCase()}
           </span>
         </div>
@@ -91,7 +91,7 @@ export function TicketThread({ ticket, replies, onReply, onBack, isReplying }: T
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-[var(--color-text-subtle)] underline underline-offset-2 hover:text-[var(--color-text-muted)]"
+                      className="text-[13px] text-[var(--color-text-subtle)] underline underline-offset-2 hover:text-[var(--color-text-muted)]"
                     >
                       {t('support.attachment')} {i + 1}
                     </a>
@@ -100,7 +100,7 @@ export function TicketThread({ ticket, replies, onReply, onBack, isReplying }: T
               )}
 
               {/* Time — hover reveal */}
-              <span className="font-mono text-[10px] text-[var(--color-text-subtle)] mt-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
+              <span className="font-mono text-[13px] text-[var(--color-text-subtle)] mt-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
                 {time}
               </span>
             </motion.div>

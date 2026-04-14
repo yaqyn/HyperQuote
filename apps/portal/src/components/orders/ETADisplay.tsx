@@ -22,7 +22,7 @@ export function ETADisplay({ eta, lastUpdated }: ETADisplayProps) {
       <span className="font-mono text-sm font-medium text-[var(--color-text)]">
         {t('tracking.eta', { time: eta })}
       </span>
-      <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[13px] text-[var(--color-text-subtle)]">
         {t('tracking.lastUpdated', { time: formattedLastUpdated })}
       </span>
     </div>
