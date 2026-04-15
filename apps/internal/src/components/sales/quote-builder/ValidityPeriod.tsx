@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { PillGroup, Pill } from '../../ui'
-import type { QuoteFormValues } from './LineItemsTable'
+import type { QuoteFormValues } from './types'
 
 // ─── Volatile Material Detection ──────────────────────────
 

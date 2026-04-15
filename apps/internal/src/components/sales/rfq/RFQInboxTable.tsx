@@ -1,36 +1,39 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button as AriaButton } from 'react-aria-components'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, AlertTriangle } from 'lucide-react'
 import { getRFQQueue, autoAssignRFQ } from '../../../lib/server/sales-rfq'
 import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 import type { RFQ } from '../../../types/sales'
 import { DeclineRFQDialog } from './DeclineRFQDialog'
+import { OutdatedPricesCard } from '../home/OutdatedPricesCard'
+import { ReportViewerModal } from '../../shared/ReportViewer'
 
 // ─── Stage filter config ────────────────────────────────
+// Submitted now merges new requests + awaiting clarification. The tab
+// renders two section headers inside so the user still sees the split.
 const STAGE_FILTERS = [
-  { id: 'inbox' as const, label: 'Inbox' },
-  { id: 'in-progress' as const, label: 'Active' },
-  { id: 'sent' as const, label: 'Sent' },
-  { id: 'negotiating' as const, label: 'Counter' },
-  { id: 'closed' as const, label: 'Closed' },
+  { id: 'submitted' as const, label: 'Submitted' },
+  { id: 'evaluated' as const, label: 'Evaluated' },
+  { id: 'canceled' as const, label: 'Canceled' },
 ] as const
 
-const STAGE_STATUS_MAP: Record<string, string[]> = {
-  inbox: ['submitted', 'assigned'],
-  'in-progress': ['reviewing', 'quoting', 'awaiting_clarification'],
-  sent: ['quoted'],
-  negotiating: ['negotiating', 'countered'],
-  closed: ['won', 'lost', 'declined', 'expired'],
-}
+const SUBMITTED_STATUSES = ['submitted', 'assigned', 'awaiting_clarification'] as const
+const EVALUATED_STATUSES = [
+  'reviewing',
+  'quoting',
+  'quoted',
+  'negotiating',
+  'countered',
+  'won',
+] as const
+const CANCELED_STATUSES = ['lost', 'declined', 'expired'] as const
 
 const STAGE_FILTER_FN: Record<string, (rfq: RFQ) => boolean> = {
-  inbox: (rfq) => STAGE_STATUS_MAP.inbox.includes(rfq.status),
-  'in-progress': (rfq) => STAGE_STATUS_MAP['in-progress'].includes(rfq.status),
-  sent: (rfq) => STAGE_STATUS_MAP.sent.includes(rfq.status),
-  negotiating: (rfq) => STAGE_STATUS_MAP.negotiating.includes(rfq.status),
-  closed: (rfq) => STAGE_STATUS_MAP.closed.includes(rfq.status),
+  submitted: (rfq) => (SUBMITTED_STATUSES as readonly string[]).includes(rfq.status),
+  evaluated: (rfq) => (EVALUATED_STATUSES as readonly string[]).includes(rfq.status),
+  canceled: (rfq) => (CANCELED_STATUSES as readonly string[]).includes(rfq.status),
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -87,6 +90,7 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
 
   const [showDecline, setShowDecline] = useState(false)
   const [declineRfqId, setDeclineRfqId] = useState<string | null>(null)
+  const [reportRfqId, setReportRfqId] = useState<string | null>(null)
 
   const claimMutation = useMutation({
     mutationFn: (rfqId: string) => autoAssignRFQ({ data: { rfqId } }),
@@ -101,6 +105,13 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
     const stageFn = STAGE_FILTER_FN[rfqStageFilter] ?? (() => true)
     return rfqs.filter(stageFn).sort((a, b) => b.priorityScore - a.priorityScore)
   }, [rfqs, rfqStageFilter])
+
+  // Submitted tab splits into two sections: new requests + awaiting clarification.
+  const submittedSections = useMemo(() => {
+    const newOnes = filteredRfqs.filter((r) => r.status === 'submitted' || r.status === 'assigned')
+    const onHold = filteredRfqs.filter((r) => r.status === 'awaiting_clarification')
+    return { newOnes, onHold }
+  }, [filteredRfqs])
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -188,23 +199,8 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
 
         <div className="flex-1" />
 
-        {/* Pipeline metrics */}
-        <div className="flex items-center gap-5 me-5">
-          {[
-            { value: formatValue(pipelineSummary.totalPipeline), label: 'Pipeline' },
-            { value: formatValue(pipelineSummary.weightedForecast), label: 'Forecast' },
-            { value: String(pipelineSummary.activeDeals), label: 'Deals' },
-            { value: `${pipelineSummary.winRate}%`, label: 'Win' },
-          ].map((m) => (
-            <div key={m.label} className="text-end">
-              <p className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-                {m.value}
-              </p>
-              <p className="text-[8px] uppercase tracking-widest text-black/25 dark:text-white/25">
-                {m.label}
-              </p>
-            </div>
-          ))}
+        <div className="me-3">
+          <OutdatedPricesCard />
         </div>
 
         {/* Create Quote */}
@@ -221,68 +217,116 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
       </div>
 
       {/* RFQ list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3" data-module-content>
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5" data-module-content>
         {filteredRfqs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 gap-2">
             <p className="text-[13px] text-black/30 dark:text-white/30">No RFQs in this stage</p>
           </div>
-        ) : (
-          <div className="grid gap-2">
+        ) : rfqStageFilter === 'evaluated' ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredRfqs.map((rfq) => {
               const sla = getSlaRemaining(rfq.slaDeadline)
-              const isClosed = ['won', 'lost', 'declined', 'expired'].includes(rfq.status)
-
+              const previewItems = rfq.previewItems ?? []
+              const extraCount = Math.max(0, rfq.lineItemCount - previewItems.length)
               return (
-                <button
+                <div
                   key={rfq.id}
-                  type="button"
-                  onClick={() => !isClosed && handleStartQuote(rfq)}
-                  disabled={isClosed}
-                  className={`group w-full text-start rounded-xl px-5 py-4 transition-all outline-none ${
-                    isClosed
-                      ? 'opacity-40 cursor-default'
-                      : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer'
-                  }`}
+                  className="relative aspect-square rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 flex flex-col"
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Customer initial */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
-                      <span className="text-[14px] font-semibold text-black/30 dark:text-white/30">
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
+                      <span className="text-[13px] font-semibold text-black/40 dark:text-white/40">
                         {rfq.customerName.charAt(0)}
                       </span>
                     </div>
-
-                    {/* Customer + meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-[14px] font-semibold text-[var(--color-text)] truncate">{rfq.customerName}</p>
-                        <span className="shrink-0 text-[10px] text-black/25 dark:text-white/25">{getAge(rfq.createdAt)}</span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-[11px] text-black/35 dark:text-white/35">
-                          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{rfq.lineItemCount}</span> items
+                    <div className="flex items-center gap-1.5">
+                      {rfq.hasOutdatedPrices && (
+                        <span
+                          title="Contains items with outdated prices"
+                          className="inline-flex items-center text-amber-500"
+                        >
+                          <AlertTriangle size={11} strokeWidth={2.5} />
                         </span>
-                        <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${sla.urgent ? 'text-[var(--color-primary)] font-medium' : 'text-black/25 dark:text-white/25'}`}>
-                          {sla.text}
-                        </span>
-                      </div>
+                      )}
+                      <span className="text-[9px] uppercase tracking-widest text-black/30 dark:text-white/30">
+                        {rfq.status.replace('_', ' ')}
+                      </span>
                     </div>
+                  </div>
 
-                    {/* Value */}
-                    <div className="shrink-0 text-end me-2">
-                      <p className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
-                        {formatValue(rfq.estimatedValue)}
+                  {/* Customer + contact + location */}
+                  <div className="mt-3">
+                    <p className="text-[13px] font-semibold text-[var(--color-text)] leading-tight line-clamp-1">
+                      {rfq.customerName}
+                    </p>
+                    {rfq.contactName && (
+                      <p className="mt-0.5 text-[11px] text-black/45 dark:text-white/45 truncate">
+                        {rfq.contactName}
                       </p>
-                    </div>
-
-                    {/* Arrow */}
-                    {!isClosed && (
-                      <ArrowRight size={16} strokeWidth={1.5} className="shrink-0 text-black/15 dark:text-white/15 group-hover:text-[var(--color-primary)] transition-colors" />
+                    )}
+                    {rfq.deliveryCity && (
+                      <p className="mt-1 text-[10px] text-black/35 dark:text-white/35 truncate">
+                        {rfq.deliveryCity}
+                      </p>
                     )}
                   </div>
-                </button>
+
+                  {/* Items preview */}
+                  <div className="mt-3 flex-1 min-h-0 overflow-hidden">
+                    <p className="text-[9px] uppercase tracking-widest text-black/25 dark:text-white/25 mb-1.5">Items</p>
+                    <ul className="space-y-0.5">
+                      {previewItems.map((item, i) => (
+                        <li key={i} className="flex items-baseline gap-1.5 text-[11px] text-black/55 dark:text-white/55 truncate">
+                          <span className="font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-black/25 dark:text-white/25">{i + 1}</span>
+                          <span className="truncate">{item}</span>
+                        </li>
+                      ))}
+                      {extraCount > 0 && (
+                        <li className="text-[10px] text-black/35 dark:text-white/35 ps-3.5">
+                          +{extraCount} more
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  {/* Footer: SLA + value */}
+                  <div className="flex items-end justify-between pt-3 border-t border-black/[0.05] dark:border-white/[0.05]">
+                    <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${sla.urgent ? 'text-[var(--color-primary)] font-medium' : 'text-black/30 dark:text-white/30'}`}>
+                      {sla.text}
+                    </span>
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[14px] font-semibold tabular-nums text-[var(--color-text)] leading-none">
+                      {formatValue(rfq.estimatedValue)}
+                    </p>
+                  </div>
+                </div>
               )
             })}
+          </div>
+        ) : rfqStageFilter === 'submitted' ? (
+          <div className="flex flex-col gap-5">
+            <SubmittedSection
+              label="New requests"
+              rfqs={submittedSections.newOnes}
+              onOpen={handleStartQuote}
+            />
+            <SubmittedSection
+              label="Awaiting clarification"
+              rfqs={submittedSections.onHold}
+              onOpen={handleStartQuote}
+            />
+          </div>
+        ) : rfqStageFilter === 'canceled' ? (
+          <div className="grid gap-3">
+            {filteredRfqs.map((rfq) => (
+              <CanceledRow key={rfq.id} rfq={rfq} onOpenReport={setReportRfqId} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {filteredRfqs.map((rfq) => (
+              <RfqRow key={rfq.id} rfq={rfq} onOpen={() => handleStartQuote(rfq)} />
+            ))}
           </div>
         )}
       </div>
@@ -295,6 +339,117 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
           onClose={() => { setShowDecline(false); setDeclineRfqId(null) }}
         />
       )}
+
+      <ReportViewerModal
+        rfqId={reportRfqId}
+        onClose={() => setReportRfqId(null)}
+      />
     </div>
   )
 }
+
+// ─── Inline row templates ───────────────────────────────
+
+function SubmittedSection({
+  label,
+  rfqs,
+  onOpen,
+}: {
+  label: string
+  rfqs: RFQ[]
+  onOpen: (rfq: RFQ) => void
+}) {
+  if (rfqs.length === 0) return null
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
+          {label}
+        </span>
+        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30 dark:text-white/30">
+          {rfqs.length}
+        </span>
+        <span className="h-[1px] flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
+      </div>
+      <div className="grid gap-3">
+        {rfqs.map((rfq) => (
+          <RfqRow key={rfq.id} rfq={rfq} onOpen={() => onOpen(rfq)} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function RfqRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
+  const sla = getSlaRemaining(rfq.slaDeadline)
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative w-full text-start rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.02] px-5 py-4 transition-all outline-none cursor-pointer hover:border-black/[0.12] dark:hover:border-white/[0.12] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] hover:-translate-y-px"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06] group-hover:bg-[var(--color-primary)]/[0.08] transition-colors">
+          <span className="text-[14px] font-semibold text-black/40 dark:text-white/40 group-hover:text-[var(--color-primary)] transition-colors">
+            {rfq.customerName.charAt(0)}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-[14px] font-semibold text-[var(--color-text)] truncate">{rfq.customerName}</p>
+            {rfq.hasOutdatedPrices && (
+              <span
+                title="Contains items with outdated prices — request update from inventory"
+                className="inline-flex items-center text-amber-500 shrink-0"
+              >
+                <AlertTriangle size={12} strokeWidth={2.5} />
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            <span className={`font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${sla.urgent ? 'text-[var(--color-primary)] font-medium' : 'text-black/30 dark:text-white/30'}`}>
+              {sla.text}
+            </span>
+          </div>
+        </div>
+        <ArrowRight size={18} strokeWidth={1.5} className="shrink-0 text-black/20 dark:text-white/20 group-hover:text-[var(--color-primary)] group-hover:translate-x-0.5 transition-all" />
+      </div>
+    </button>
+  )
+}
+
+function CanceledRow({
+  rfq,
+  onOpenReport,
+}: {
+  rfq: RFQ
+  onOpenReport: (rfqId: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenReport(rfq.id)}
+      className="group relative w-full text-start rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.02] px-5 py-4 transition-all outline-none cursor-pointer opacity-60 hover:opacity-100 hover:border-black/[0.12] dark:hover:border-white/[0.12]"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
+          <span className="text-[14px] font-semibold text-black/35 dark:text-white/35">
+            {rfq.customerName.charAt(0)}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold text-[var(--color-text)] truncate">
+            {rfq.customerName}
+          </p>
+          <div className="mt-1 text-[10px] uppercase tracking-wider text-black/35 dark:text-white/35">
+            {rfq.status.replace('_', ' ')}
+          </div>
+        </div>
+        <span className="text-[10px] font-medium text-[var(--color-primary)] group-hover:underline">
+          View report
+        </span>
+      </div>
+    </button>
+  )
+}
+

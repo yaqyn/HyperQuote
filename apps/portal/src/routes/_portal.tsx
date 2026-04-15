@@ -58,8 +58,8 @@ function PortalLayout() {
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={isSigningOut
-          ? { opacity: 0, scale: 0.96, filter: 'blur(8px)' }
-          : { opacity: 1, scale: 1, filter: 'blur(0px)' }
+          ? { opacity: 0, scale: 0.96 }
+          : { opacity: 1, scale: 1 }
         }
         transition={isSigningOut
           ? { duration: 0.7, ease: [0.36, 0, 0.66, -0.2] }

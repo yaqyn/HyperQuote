@@ -7,19 +7,40 @@ interface SearchMenuProps {
   isOpen: boolean
   onClose: () => void
   placeholder?: string
+  onEnter?: (search: string) => void
   children: (search: string) => ReactNode
 }
 
-export function SearchMenu({ isOpen, onClose, placeholder = 'Search...', children }: SearchMenuProps) {
+export function SearchMenu({ isOpen, onClose, placeholder = 'Search...', onEnter, children }: SearchMenuProps) {
   const [search, setSearch] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100)
       setSearch('')
+      setActiveIndex(0)
     }
   }, [isOpen])
+
+  // Reset active index when search changes
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [search])
+
+  const getItems = () =>
+    Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('button[type="button"]') ?? [])
+
+  // Highlight active item visually + scroll into view
+  useEffect(() => {
+    const items = getItems()
+    items.forEach((btn, i) => {
+      btn.dataset.active = i === activeIndex ? 'true' : 'false'
+      if (i === activeIndex) btn.scrollIntoView({ block: 'nearest' })
+    })
+  })
 
   return (
     <AnimatePresence>
@@ -47,7 +68,26 @@ export function SearchMenu({ isOpen, onClose, placeholder = 'Search...', childre
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') onClose()
+                  else if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    const count = getItems().length
+                    if (count > 0) setActiveIndex((i) => (i + 1) % count)
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    const count = getItems().length
+                    if (count > 0) setActiveIndex((i) => (i - 1 + count) % count)
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const items = getItems()
+                    if (items[activeIndex]) {
+                      items[activeIndex].click()
+                    } else if (onEnter) {
+                      onEnter(search)
+                    }
+                  }
+                }}
                 placeholder={placeholder}
                 className="flex-1 bg-transparent text-[14px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/50"
               />
@@ -60,7 +100,11 @@ export function SearchMenu({ isOpen, onClose, placeholder = 'Search...', childre
             </div>
 
             {/* Results — rendered by caller */}
-            <div className="flex-1 min-h-0 overflow-y-auto" data-module-content>
+            <div
+              ref={listRef}
+              className="flex-1 min-h-0 overflow-y-auto [&_button[data-active=true]]:bg-[var(--color-primary)]/[0.06] [&_button[data-active=true]]:text-[var(--color-primary)]"
+              data-module-content
+            >
               {children(search)}
             </div>
           </motion.div>

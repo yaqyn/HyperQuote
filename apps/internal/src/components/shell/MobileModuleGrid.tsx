@@ -20,7 +20,7 @@ export function MobileModuleGrid({ auth }: MobileModuleGridProps) {
         <Button
           key={mod.id}
           onPress={() => setActiveModule(mod.id)}
-          className="backdrop-blur-xl bg-[rgba(255,255,255,0.80)] dark:bg-[rgba(0,0,0,0.80)] rounded-xl p-4 shadow-sm flex flex-col items-start gap-2 cursor-pointer"
+          className=" bg-[rgba(255,255,255,0.80)] dark:bg-[rgba(0,0,0,0.80)] rounded-xl p-4 shadow-sm flex flex-col items-start gap-2 cursor-pointer"
         >
           <mod.icon size={32} className="text-[var(--color-text-muted)]" />
           <span className="text-sm font-medium text-[var(--color-text)]">

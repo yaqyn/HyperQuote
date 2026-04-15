@@ -79,7 +79,7 @@ export function FinanceShortcuts() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            className="w-full max-w-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-5 shadow-2xl"
+            className="w-full max-w-xs rounded-lg border border-black/10 dark:border-white/10 bg-white/95 dark:bg-black/95 p-5 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs uppercase tracking-wider text-black/40 dark:text-white/40">

@@ -7,13 +7,17 @@ interface GlassWindowProps {
   onClose: () => void
   children: ReactNode
   className?: string
+  closeOnBackdropClick?: boolean
 }
 
-export function GlassWindow({ isOpen, onClose, children, className }: GlassWindowProps) {
+export function GlassWindow({ isOpen, onClose, children, className, closeOnBackdropClick = true }: GlassWindowProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-3 md:p-6" onClick={onClose}>
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center p-3 md:p-6"
+          onClick={closeOnBackdropClick ? onClose : undefined}
+        >
           <motion.div
             key="glass-panel"
             initial={{ opacity: 0, scale: 0.96 }}

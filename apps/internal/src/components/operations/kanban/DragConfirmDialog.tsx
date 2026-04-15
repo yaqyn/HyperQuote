@@ -54,13 +54,13 @@ export function DragConfirmDialog({
       isOpen={isOpen}
       onOpenChange={(open) => { if (!open) handleClose() }}
       isDismissable={false}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <Modal className="w-full max-w-md">
         <Dialog
           aria-label={t('operations.kanban.confirmMove', 'Confirm Stage Move')}
           isKeyboardDismissDisabled
-          className="rounded-2xl border border-black/8 bg-white/95 p-6 shadow-xl outline-none backdrop-blur-2xl dark:border-white/8 dark:bg-black/95"
+          className="rounded-2xl border border-black/8 bg-white/95 p-6 shadow-xl outline-none dark:border-white/8 dark:bg-black/95"
         >
           <Heading slot="title" className="text-[15px] font-semibold mb-5">
             {t('operations.kanban.confirmMoveTitle', 'Confirm Stage Move')}

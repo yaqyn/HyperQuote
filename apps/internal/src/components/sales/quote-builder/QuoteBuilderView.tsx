@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { ClientOnly } from '../../../lib/client-only'
 import { QuoteBuilderHeader } from './QuoteBuilderHeader'
-import { LineItemsTable } from './LineItemsTable'
+import { OutdatedPricesBanner } from './OutdatedPricesBanner'
+import { PriceStatusBadge } from './PriceStatusBadge'
 import { ProductSearchMenu } from './ProductSearchMenu'
 import { SourceSearchMenu } from './SourceSearchMenu'
 import { MarginControlPanel } from './MarginControlPanel'
@@ -14,12 +16,17 @@ import { DeliveryTerms } from './DeliveryTerms'
 import { DeliveryMap } from './DeliveryMap'
 import { PaymentTerms } from './PaymentTerms'
 import { ValidityPeriod } from './ValidityPeriod'
-import { QuotePreviewModal } from './QuotePreviewModal'
 import { SendQuote } from './SendQuote'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
 import { Button } from '../../ui/Button'
-import { getQuoteBuilderData, saveQuoteDraft } from '../../../lib/server/sales-quotes'
-import type { QuoteFormValues } from './LineItemsTable'
+import {
+  getQuoteBuilderData,
+  requestInventoryPriceUpdate,
+  saveQuoteDraft,
+} from '../../../lib/server/sales-quotes'
+import { addCustomer } from '../../../lib/server/sales-customers'
+import { PhoneInput, isValidEGPhone } from '../../shared/PhoneInput'
+import type { QuoteFormValues, LineItemFormValues } from './types'
 import type { MarginThresholds, FreshnessIndicator, QuoteStatus } from '../../../types/sales'
 
 interface QuoteBuilderViewProps {
@@ -102,7 +109,6 @@ const MOCK_SUPPLIERS_FOR_SOURCING = ALL_SUPPLIERS
 // Customer phone number is NEVER exposed to the frontend.
 // Calls are initiated via server-side endpoint: /api/call/:rfqId
 // The server resolves the number, initiates VoIP/SIP, and connects the employee.
-const defaultDeliveryAddress = '15 \u0634\u0627\u0631\u0639 \u0627\u0644\u062C\u0632\u064A\u0631\u0629\u060C \u0627\u0644\u0645\u0639\u0627\u062F\u064A\u060C \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
 
 // --- Step indicator ---
 
@@ -221,11 +227,12 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     currentExposure: number
     availableCredit: number
   } | null>(null)
-  const [customerName, setCustomerName] = useState(initialCustomerName ?? 'Al-Nour Construction')
-  const [customerTier, setCustomerTier] = useState(isNewCustomer ? 'New' : 'A')
+  // Customer fields start empty; they hydrate from getQuoteBuilderData once
+  // the loader resolves. No hardcoded defaults — no fake names / addresses.
+  const [customerName, setCustomerName] = useState(initialCustomerName ?? '')
+  const [customerTier, setCustomerTier] = useState<string>(isNewCustomer ? 'New' : '')
   const [rfqReference] = useState(() => `QR-2026-${rfqId.slice(-5).padStart(5, '0')}`)
-  const [deliveryAddress, setDeliveryAddress] = useState(isNewCustomer ? '' : defaultDeliveryAddress)
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const [deliveryAddress, setDeliveryAddress] = useState('')
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Customer form fields (Step 1)
@@ -239,7 +246,13 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(isFromRfq ? new Set([1]) : new Set())
   const [sourcingDone, setSourcingDone] = useState(false)
   const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
-  const [sortBySource, setSortBySource] = useState(false)
+  // Defer MapLibre init until after the quote builder's open animation finishes
+  // so the map's heavy first-paint doesn't stutter the overlay transition.
+  const [mapReady, setMapReady] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMapReady(true), 320)
+    return () => clearTimeout(t)
+  }, [])
 
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
@@ -267,6 +280,36 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
   const subtotal = watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
   const vatAmount = Math.round(subtotal * 14) / 100
   const total = subtotal + vatAmount
+
+  // Outdated price tracking — drives the quote-level banner + per-line flag
+  const outdatedItems = useMemo(
+    () => (watchedItems ?? []).filter((item) => item.priceStatus === 'outdated'),
+    [watchedItems],
+  )
+  const [requestedPriceIds, setRequestedPriceIds] = useState<Set<string>>(new Set())
+  const requestUpdateMutation = useMutation({ mutationFn: requestInventoryPriceUpdate })
+  const handleRequestPriceUpdate = useCallback(
+    (items: LineItemFormValues[]) => {
+      if (items.length === 0) return
+      requestUpdateMutation.mutate({
+        data: {
+          rfqId,
+          items: items.map((i) => ({
+            productId: i.id,
+            productName: i.productName,
+            supplierName: i.supplierName,
+          })),
+        },
+      })
+      setRequestedPriceIds((prev) => {
+        const next = new Set(prev)
+        for (const it of items) next.add(it.id)
+        return next
+      })
+    },
+    [requestUpdateMutation, rfqId],
+  )
+  const unrequestedOutdatedItems = outdatedItems.filter((i) => !requestedPriceIds.has(i.id))
 
   // Build sourcing state when items load/change
   const itemCount = watchedItems?.length ?? 0
@@ -331,15 +374,16 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
 
     if (step === 1) {
       if (!customerName.trim()) errors.push('Customer name is required')
-      if (!custPhone.trim() && !isFromRfq) errors.push('Phone number is required')
+      if (!isFromRfq) {
+        if (!custPhone.trim()) errors.push('Phone number is required')
+        else if (!isValidEGPhone(custPhone)) errors.push('Phone number is not a valid Egyptian mobile')
+      }
     }
 
     if (step === 2) {
       if (!values.lineItems || values.lineItems.length === 0) errors.push('Add at least one item')
       if (!deliveryAddress.trim()) errors.push('Please enter a delivery address')
       if (!values.deliveryDate) errors.push('Please select a delivery date')
-      const unassigned = sourcingState.filter((s) => !s.sourceId).length
-      if (unassigned > 0) errors.push(`${unassigned} item${unassigned !== 1 ? 's' : ''} still need a source`)
       const hasZeroPrice = (values.lineItems ?? []).some((item) => !item.sellPrice || item.sellPrice <= 0)
       if (hasZeroPrice) errors.push('Some items are missing a sell price')
     }
@@ -347,11 +391,34 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     return errors
   }
 
-  const tryGoToStep = (nextStep: number) => {
+  const [persistedCustomerId, setPersistedCustomerId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const tryGoToStep = async (nextStep: number) => {
     const errors = validateStep(currentStep)
     if (errors.length > 0) {
       setValidationErrors(errors)
       return
+    }
+    // When leaving Step 1 on a brand-new customer flow, persist the customer
+    // to the DB so they show up on subsequent searches.
+    if (currentStep === 1 && isNewCustomer && !persistedCustomerId) {
+      try {
+        const result = await addCustomer({
+          data: {
+            phone: `+20 ${custPhone}`,
+            companyName: custCompany || customerName,
+            contactName: customerName,
+            email: custEmail || undefined,
+            deliveryAddress: deliveryAddress || undefined,
+          },
+        })
+        setPersistedCustomerId(result.customerId)
+        queryClient.invalidateQueries({ queryKey: ['sales-customer-list'] })
+      } catch {
+        setValidationErrors(['Failed to save customer. Try again.'])
+        return
+      }
     }
     goToStep(nextStep)
   }
@@ -368,25 +435,44 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
         setMarginThresholds(data.marginThresholds)
         setCustomerCredit(data.customerCredit)
 
+        if (!isNewCustomer && data.customer) {
+          setCustomerName(data.customer.name)
+          setCustomerTier(data.customer.tier === 'new' ? 'New' : data.customer.tier)
+          setCustPhone(data.customer.phone ?? '')
+          setCustEmail(data.customer.email ?? '')
+          setCustCompany(data.customer.company ?? data.customer.name)
+        }
+        if (!isNewCustomer && data.deliveryAddress) {
+          setDeliveryAddress(data.deliveryAddress)
+        }
+
         if (data.suggestedProducts && data.suggestedProducts.length > 0) {
           const getTargetMargin = (category?: string) => {
             const threshold = data.marginThresholds.find(t => t.productCategory === category)
             return threshold?.target ?? data.marginThresholds[0]?.target ?? 18
           }
 
-          const items = data.suggestedProducts.map((p, i) => ({
-            id: p.id ?? `item-${i}`,
-            productName: p.productName,
-            specification: p.specification,
-            quantity: 100,
-            unit: 'piece',
-            supplierCost: p.supplierCost,
-            marginPercent: getTargetMargin(p.category),
-            sellPrice: Math.round((p.supplierCost / (1 - getTargetMargin(p.category) / 100)) * 100) / 100,
-            lineTotal: Math.round((p.supplierCost / (1 - getTargetMargin(p.category) / 100)) * 100),
-            freshnessIndicator: p.freshness as FreshnessIndicator,
-            supplierName: p.supplierName,
-          }))
+          const items = data.suggestedProducts.map((p, i) => {
+            const margin = getTargetMargin(p.category)
+            const sellPrice = p.supplierCost > 0
+              ? Math.round((p.supplierCost / (1 - margin / 100)) * 100) / 100
+              : 0
+            return {
+              id: p.id ?? `item-${i}`,
+              productName: p.productName,
+              specification: p.specification,
+              quantity: p.quantity,
+              unit: p.unit,
+              supplierCost: p.supplierCost,
+              marginPercent: margin,
+              sellPrice,
+              lineTotal: Math.round(sellPrice * p.quantity * 100) / 100,
+              freshnessIndicator: p.freshness as FreshnessIndicator,
+              priceStatus: p.priceStatus,
+              recentlyOrdered: p.recentlyOrdered,
+              supplierName: p.supplierName,
+            }
+          })
           methods.reset({ ...methods.getValues(), lineItems: items })
         }
       } catch (err) {
@@ -444,12 +530,6 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
       {/* Header — back + meta + save/preview */}
       <div className="flex items-center border-b border-black/[0.06] px-5 py-2 dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
-          {onBack && (
-            <button type="button" onClick={onBack} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-black/40 outline-none transition-colors hover:bg-black/[0.04] hover:text-black/70 dark:text-white/40 dark:hover:bg-white/[0.04] dark:hover:text-white/70">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              RFQs
-            </button>
-          )}
           <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
             {quoteNumber} · v{version} · {status === 'draft' ? 'Draft' : status}
           </span>
@@ -458,12 +538,29 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
           )}
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={handleAutoSave} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 5.5V13H3V3h7.5L13 5.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><path d="M5.5 3v3h4V3" stroke="currentColor" strokeWidth="1" /></svg>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              // TODO: mark as rejected in DB
+              onBack?.()
+            }}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-black/50 outline-none transition-colors hover:bg-black/[0.04] hover:text-black/80 dark:text-white/50 dark:hover:bg-white/[0.04] dark:hover:text-white/80"
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            Reject
           </button>
-          <button type="button" onClick={() => setPreviewOpen(true)} className="text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 outline-none">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2" /><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1" /></svg>
+          <button
+            type="button"
+            onClick={async () => {
+              // TODO: mark as saved in DB
+              await handleAutoSave()
+              onBack?.()
+            }}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] outline-none transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M11.5 4.5L5.75 10.25 2.5 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Save
           </button>
         </div>
       </div>
@@ -474,7 +571,6 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
         <div className="flex-1 overflow-y-auto px-8 pb-16" data-module-content>
           <FormProvider {...methods}>
             <AnimatePresence mode="wait">
-              {/* ==================== STEP 1: Build Quote ==================== */}
               {/* ==================== STEP 1: Customer ==================== */}
               {currentStep === 1 && (
                 <motion.div
@@ -483,104 +579,127 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                   animate={{ opacity: 1 }}
                   exit={stepExit}
                   transition={stepTransition}
-                  className="flex items-start justify-center pt-12"
+                  className="flex items-start justify-center pt-16"
                 >
-                  <div className="w-full max-w-lg">
-                    {/* Avatar + heading */}
-                    <div className="flex items-center gap-4 mb-8">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-primary)]/[0.08]">
-                        <span className="text-[22px] font-bold text-[var(--color-primary)]">
-                          {customerName?.charAt(0) || '?'}
-                        </span>
-                      </div>
-                      <div>
-                        <h2 className="text-[18px] font-semibold text-[var(--color-text)]">
-                          {isFromRfq ? customerName : 'New Customer'}
-                        </h2>
-                        <p className="text-[12px] text-black/30 dark:text-white/30 mt-0.5">
-                          {isFromRfq ? 'Confirm details before quoting' : 'Add customer details to start quoting'}
-                        </p>
-                      </div>
+                  <div
+                    className="w-full max-w-2xl"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        tryGoToStep(2)
+                      }
+                    }}
+                  >
+                    {/* Eyebrow */}
+                    <div className="flex items-center gap-3 mb-10">
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-black/35 dark:text-white/35">
+                        {isFromRfq ? '01 · Confirm Customer' : '01 · New Customer'}
+                      </span>
+                      <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
+                        {rfqReference}
+                      </span>
                     </div>
 
-                    {/* Form grid */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                      {/* Name — full width */}
-                      <div className="col-span-2">
-                        <label className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1.5 block">Name</label>
-                        <input
-                          type="text"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full bg-transparent text-[15px] font-medium text-[var(--color-text)] outline-none border-b-2 border-black/[0.06] focus:border-[var(--color-primary)] dark:border-white/[0.06] py-2 transition-colors"
-                          placeholder="Contact name"
-                          autoFocus={!isFromRfq}
-                        />
+                    {/* Editable headline name */}
+                    <div className="mb-2 flex items-center gap-2">
+                      {isFromRfq && (
+                        <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/[0.06] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-primary)]">
+                          Tier {customerTier}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Customer name"
+                      autoFocus={!isFromRfq}
+                      className="w-full bg-transparent text-[38px] font-semibold tracking-tight text-[var(--color-text)] outline-none placeholder:text-black/15 dark:placeholder:text-white/15"
+                    />
+                    <p className="mt-1 text-[13px] text-black/35 dark:text-white/35">
+                      {isFromRfq
+                        ? 'Review the details below. Any edits here only apply to this quote.'
+                        : 'Start with a name. Everything else is optional until you send.'}
+                    </p>
+
+                    {/* Divider */}
+                    <div className="my-10 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
+
+                    {/* Two-column details */}
+                    <div className="grid grid-cols-[160px_1fr] gap-x-10 gap-y-7">
+                      {/* Contact section */}
+                      <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-2">
+                        Contact
                       </div>
-                      {/* Phone */}
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1.5 block">Phone</label>
-                        <input
-                          type="tel"
-                          value={custPhone}
-                          onChange={(e) => setCustPhone(e.target.value)}
-                          className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b-2 border-black/[0.06] focus:border-[var(--color-primary)] dark:border-white/[0.06] py-2 font-[family-name:var(--font-geist-mono)] tabular-nums transition-colors"
-                          placeholder="+20 1xx xxx xxxx"
-                        />
+                      <div className="space-y-6">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 block mb-1.5">Phone</label>
+                          <div className="border-b border-black/[0.08] dark:border-white/[0.08] focus-within:border-[var(--color-primary)] py-1.5 transition-colors">
+                            <PhoneInput value={custPhone} onChange={setCustPhone} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-6">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 block mb-1.5">Email</label>
+                            <input
+                              type="email"
+                              value={custEmail}
+                              onChange={(e) => setCustEmail(e.target.value)}
+                              placeholder="—"
+                              className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b border-black/[0.08] focus:border-[var(--color-primary)] dark:border-white/[0.08] py-1.5 transition-colors placeholder:text-black/15 dark:placeholder:text-white/15"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 block mb-1.5">Company</label>
+                            <input
+                              type="text"
+                              value={custCompany}
+                              onChange={(e) => setCustCompany(e.target.value)}
+                              placeholder="—"
+                              className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b border-black/[0.08] focus:border-[var(--color-primary)] dark:border-white/[0.08] py-1.5 transition-colors placeholder:text-black/15 dark:placeholder:text-white/15"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      {/* Email */}
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1.5 block">Email</label>
-                        <input
-                          type="email"
-                          value={custEmail}
-                          onChange={(e) => setCustEmail(e.target.value)}
-                          className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b-2 border-black/[0.06] focus:border-[var(--color-primary)] dark:border-white/[0.06] py-2 transition-colors"
-                          placeholder="Optional"
-                        />
+
+                      {/* Delivery section */}
+                      <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-2">
+                        Delivery
                       </div>
-                      {/* Company */}
                       <div>
-                        <label className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1.5 block">Company</label>
-                        <input
-                          type="text"
-                          value={custCompany}
-                          onChange={(e) => setCustCompany(e.target.value)}
-                          className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b-2 border-black/[0.06] focus:border-[var(--color-primary)] dark:border-white/[0.06] py-2 transition-colors"
-                          placeholder="Optional"
-                        />
-                      </div>
-                      {/* Address */}
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-1.5 block">Address</label>
+                        <label className="text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30 block mb-1.5">Site address</label>
                         <input
                           type="text"
                           value={deliveryAddress}
                           onChange={(e) => setDeliveryAddress(e.target.value)}
-                          className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b-2 border-black/[0.06] focus:border-[var(--color-primary)] dark:border-white/[0.06] py-2 transition-colors"
-                          placeholder="Optional"
+                          placeholder="Where the order ships to"
+                          className="w-full bg-transparent text-[14px] text-[var(--color-text)] outline-none border-b border-black/[0.08] focus:border-[var(--color-primary)] dark:border-white/[0.08] py-1.5 transition-colors placeholder:text-black/20 dark:placeholder:text-white/20"
                         />
                       </div>
                     </div>
 
                     {/* Validation errors */}
                     {validationErrors.length > 0 && (
-                      <div className="mt-5 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/[0.04] px-4 py-3">
+                      <div className="mt-8 border-s-2 border-[var(--color-primary)] ps-4">
                         {validationErrors.map((err) => (
                           <p key={err} className="text-[13px] text-[var(--color-primary)]">{err}</p>
                         ))}
                       </div>
                     )}
 
-                    {/* Next */}
-                    <div className="flex items-center justify-end pt-8">
+                    {/* Action bar */}
+                    <div className="mt-12 flex items-center justify-between border-t border-black/[0.06] pt-5 dark:border-white/[0.06]">
+                      <p className="text-[11px] text-black/30 dark:text-white/30">
+                        Press <kbd className="font-[family-name:var(--font-geist-mono)] text-[10px] text-black/50 dark:text-white/50">Enter</kbd> to continue
+                      </p>
                       <button
                         type="button"
                         onClick={() => tryGoToStep(2)}
-                        className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90"
+                        className="group flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[var(--color-primary)]/90 hover:gap-3.5"
                       >
                         Build Quote
-                        <ArrowRight size={14} strokeWidth={2} />
+                        <ArrowRight size={14} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
                       </button>
                     </div>
                   </div>
@@ -596,9 +715,9 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                   exit={stepExit}
                   transition={stepTransition}
                 >
-                {/* Unified source + pricing table */}
+                {/* Unified pricing table */}
                 <div className="mt-6 overflow-visible ps-2">
-                  {/* Customer + sort toggle bar */}
+                  {/* Customer bar */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold">{customerName}</span>
@@ -611,20 +730,24 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                         Call
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setSortBySource((v) => !v)}
-                      className={`text-[11px] font-medium transition-colors ${
-                        sortBySource ? 'text-[var(--color-primary)]' : 'text-black/30 dark:text-white/30 hover:text-black/50 dark:hover:text-white/50'
-                      }`}
-                    >
-                      {sortBySource ? '● Grouped by source' : '○ Group by source'}
-                    </button>
                   </div>
+
+                  {outdatedItems.length > 0 && (
+                    <div className="mb-3">
+                      <OutdatedPricesBanner
+                        outdatedCount={outdatedItems.length}
+                        urgentCount={outdatedItems.filter((it) => it.recentlyOrdered).length}
+                        pendingRequest={unrequestedOutdatedItems.length}
+                        isRequesting={requestUpdateMutation.isPending}
+                        allRequested={unrequestedOutdatedItems.length === 0}
+                        onRequestAll={() => handleRequestPriceUpdate(unrequestedOutdatedItems)}
+                      />
+                    </div>
+                  )}
+
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
-                        <th className="w-16 py-2.5 text-center text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Source</th>
                         <th className="py-2.5 px-3 text-start text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Item</th>
                         <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Qty</th>
                         <th className="py-2.5 px-3 text-end text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">Cost</th>
@@ -635,81 +758,28 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        const allItems = (watchedItems ?? []).map((item, i) => ({ item, i }))
-                        // Sort by source group when toggled
-                        const sorted = sortBySource
-                          ? [...allItems].sort((a, b) => {
-                              const aSource = sourcingState[a.i]?.sourceId ?? ''
-                              const bSource = sourcingState[b.i]?.sourceId ?? ''
-                              if (aSource === bSource) return 0
-                              if (!aSource) return 1  // unassigned last
-                              if (!bSource) return -1
-                              if (aSource === 'warehouse') return -1
-                              if (bSource === 'warehouse') return 1
-                              return aSource.localeCompare(bSource)
-                            })
-                          : allItems
-
-                        let lastSourceId: string | null = null
-                        const result = sorted.flatMap(({ item, i }) => {
-                        const sourcing = sourcingState[i]
-                        const isStock = sourcing?.sourceId === 'warehouse'
-                        const isUnassigned = !sourcing?.sourceId
-                        const supplier = !isUnassigned && !isStock ? ALL_SUPPLIERS.find((s) => s.id === sourcing?.sourceId) : null
-                        const initials = supplier ? supplier.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('') : ''
-                        const currentSourceId = sourcing?.sourceId ?? ''
-
-                        // Group divider at bottom of each group when sorting by source
-                        const rows: React.ReactNode[] = []
-                        if (sortBySource && currentSourceId !== lastSourceId) {
-                          // Insert divider for the *previous* group (not the first)
-                          if (lastSourceId !== null && lastSourceId !== '') {
-                            const prevLabel = lastSourceId === 'warehouse' ? 'Warehouse' : ALL_SUPPLIERS.find((s) => s.id === lastSourceId)?.name ?? 'Supplier'
-                            const prevCount = sorted.filter(({ i: idx }) => (sourcingState[idx]?.sourceId ?? '') === lastSourceId).length
-                            rows.push(
-                              <tr key={`group-${lastSourceId || 'none'}`}>
-                                <td colSpan={8} className="py-1.5">
-                                  <div className="flex items-center gap-3">
-                                    <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-                                    <span className="text-[10px] text-black/30 dark:text-white/30">{prevLabel} <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{prevCount}</span></span>
-                                    <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-                                  </div>
-                                </td>
-                              </tr>,
-                            )
-                          }
-                          lastSourceId = currentSourceId
-                        }
-
-                        rows.push(
-                          <tr key={item.id || i} className="transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
-                            {/* Source — initials avatar, opens search modal */}
-                            <td className="w-16 py-4 text-center">
-                              <button
-                                type="button"
-                                onClick={() => { setTableSourceOpen(i) }}
-                                title={supplier?.name}
-                                className={`inline-flex items-center justify-center rounded-full transition-all ${
-                                  isUnassigned
-                                    ? 'h-7 w-7 border border-dashed border-black/15 text-[10px] text-black/30 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] dark:border-white/15 dark:text-white/30'
-                                    : isStock
-                                      ? 'h-7 w-7 bg-[var(--color-primary)]/10 text-[10px] font-semibold text-[var(--color-primary)]'
-                                      : 'h-7 w-7 bg-black/[0.05] text-[10px] font-semibold text-black/50 dark:bg-white/[0.08] dark:text-white/50'
-                                }`}
-                              >
-                                {isUnassigned ? '?' : isStock ? 'W' : initials}
-                              </button>
-                            </td>
+                      {(watchedItems ?? []).map((item, i) => {
+                        const rowTint =
+                          item.priceStatus === 'outdated'
+                            ? 'bg-black/[0.02] hover:bg-black/[0.03] dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
+                            : 'hover:bg-black/[0.01] dark:hover:bg-white/[0.01]'
+                        return (
+                          <tr key={item.id || i} className={`transition-colors ${rowTint}`}>
                             {/* Item — prominent, clickable */}
                             <td className="py-4 px-3">
-                              <button
-                                type="button"
-                                onClick={() => { setSearchOpen(true); (window as any).__replaceItemIndex = i }}
-                                className="text-start text-[14px] font-semibold text-[var(--color-text)] outline-none hover:text-[var(--color-primary)] transition-colors"
-                              >
-                                {item.productName}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSearchOpen(true); (window as any).__replaceItemIndex = i }}
+                                  className="text-start text-[14px] font-semibold text-[var(--color-text)] outline-none hover:text-[var(--color-primary)] transition-colors"
+                                >
+                                  {item.productName}
+                                </button>
+                                <PriceStatusBadge
+                                  priceStatus={item.priceStatus ?? 'updated'}
+                                  recentlyOrdered={item.recentlyOrdered ?? false}
+                                />
+                              </div>
                               {item.specification && (
                                 <div className="mt-0.5 text-[11px] text-black/30 dark:text-white/30">{item.specification}</div>
                               )}
@@ -792,28 +862,9 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                               <button type="button" onClick={() => removeItem(i)}
                                 className="text-[14px] text-black/15 outline-none hover:text-black/40 dark:text-white/15 dark:hover:text-white/40 transition-colors">×</button>
                             </td>
-                          </tr>,
-                        )
-                        return rows
-                      })
-                      // Append divider for the last group
-                      if (sortBySource && lastSourceId !== null && lastSourceId !== '') {
-                        const lastLabel = lastSourceId === 'warehouse' ? 'Warehouse' : ALL_SUPPLIERS.find((s) => s.id === lastSourceId)?.name ?? 'Supplier'
-                        const lastCount = sorted.filter(({ i: idx }) => (sourcingState[idx]?.sourceId ?? '') === lastSourceId).length
-                        return [...result, (
-                          <tr key={`group-${lastSourceId || 'none'}`}>
-                            <td colSpan={8} className="py-1.5">
-                              <div className="flex items-center gap-3">
-                                <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-                                <span className="text-[10px] text-black/30 dark:text-white/30">{lastLabel} <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{lastCount}</span></span>
-                                <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-                              </div>
-                            </td>
                           </tr>
-                        )]
-                      }
-                      return result
-                      })()}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -845,6 +896,8 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                       sellPrice,
                       lineTotal: Math.round(sellPrice * quantity * 100) / 100,
                       freshnessIndicator: product.freshness,
+                      priceStatus: product.priceStatus,
+                      recentlyOrdered: product.recentlyOrdered,
                       supplierName: product.supplierName,
                     }
                     const replaceIdx = (window as any).__replaceItemIndex
@@ -886,15 +939,12 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                   <DeliveryTerms
                     deliveryAddress={deliveryAddress}
                     totalWeightTons={12}
-                    leadTimeDays={3}
+                    leadTimeDays={2}
                   />
                 </div>
 
-                {/* Footer — terms + totals, single line */}
-                <div className="flex items-baseline justify-between border-t border-black/[0.06] pt-3 dark:border-white/[0.06]">
-                  <span className="text-[11px] text-black/30 dark:text-white/30">
-                    Bank transfer / cash · Valid <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{methods.getValues('validityDays') ?? 14}d</span> · VAT <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}</span>
-                  </span>
+                {/* Footer — totals, single line */}
+                <div className="flex items-baseline justify-end border-t border-black/[0.06] pt-3 dark:border-white/[0.06]">
                   <span className="flex items-baseline gap-3">
                     <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/30 dark:text-white/30">
                       {subtotal.toLocaleString('en-EG', { minimumFractionDigits: 2 })} + {vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
@@ -929,7 +979,9 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                   <button
                     type="button"
                     onClick={() => tryGoToStep(3)}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90"
+                    disabled={outdatedItems.length > 0}
+                    title={outdatedItems.length > 0 ? 'All prices must be updated before submitting' : undefined}
+                    className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:bg-black/20 dark:disabled:bg-white/15 disabled:hover:bg-black/20 dark:disabled:hover:bg-white/15"
                   >
                     Review & Submit
                     <ArrowRight size={14} strokeWidth={2} />
@@ -938,169 +990,216 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
               </motion.div>
             )}
 
-            {/* ==================== STEP 3: Submit for Approval ==================== */}
+            {/* ==================== STEP 3: Review & Submit ==================== */}
             {currentStep === 3 && (
               <motion.div
                 key="step-3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' } }}
-                transition={springTransition}
-                className="pt-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={stepExit}
+                transition={stepTransition}
+                className="flex items-start justify-center pt-16"
               >
-                {/* Quote header */}
-                <div className="mb-6">
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-[14px] font-semibold text-[var(--color-text)]">{customerName}</span>
-                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">{quoteNumber} · v{version}</span>
-                  </div>
-                  <p className="text-[11px] text-black/30 dark:text-white/30">
-                    {customerTier === 'A' ? 'Tier A' : customerTier} · {rfqReference}
-                  </p>
-                </div>
-
-                {/* Items table */}
-                <div className="border-t border-black/[0.04] pt-4 dark:border-white/[0.04]">
-                  <p className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-2">Items · {watchedItems?.length ?? 0}</p>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-black/[0.04] dark:border-white/[0.04]">
-                        <th className="py-1.5 text-start text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Item</th>
-                        <th className="py-1.5 text-start text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Source</th>
-                        <th className="py-1.5 text-end text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Qty</th>
-                        <th className="py-1.5 text-end text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Cost</th>
-                        <th className="py-1.5 text-end text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Margin</th>
-                        <th className="py-1.5 text-end text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Price</th>
-                        <th className="py-1.5 text-end text-[10px] uppercase tracking-wider text-black/25 dark:text-white/25">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(watchedItems ?? []).map((item, idx) => {
-                        const src = sourcingState[idx]
-                        const srcLabel = !src?.sourceId ? '—' : src.sourceId === 'warehouse' ? 'Warehouse' : ALL_SUPPLIERS.find((s) => s.id === src.sourceId)?.name ?? 'Supplier'
-                        return (
-                          <tr key={item.id || idx}>
-                            <td className="py-1.5 text-[12px] text-[var(--color-text)]">{item.productName}</td>
-                            <td className="py-1.5 text-[11px] text-black/40 dark:text-white/40">{srcLabel}</td>
-                            <td className="py-1.5 text-end font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">{item.quantity}</td>
-                            <td className="py-1.5 text-end font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">{item.supplierCost?.toLocaleString('en-EG') ?? '—'}</td>
-                            <td className="py-1.5 text-end font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/40 dark:text-white/40">{item.marginPercent}%</td>
-                            <td className="py-1.5 text-end font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)]">{item.sellPrice?.toLocaleString('en-EG')}</td>
-                            <td className="py-1.5 text-end font-[family-name:var(--font-geist-mono)] text-[12px] font-medium tabular-nums text-[var(--color-text)]">{(item.lineTotal || 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                  {/* Totals */}
-                  <div className="flex items-baseline justify-between border-t border-black/[0.04] pt-2 mt-1 dark:border-white/[0.04]">
-                    <span className="text-[11px] text-black/30 dark:text-white/30">
-                      Blended margin <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{blendedMargin}%</span> · VAT <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">{vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}</span>
+                <div className="w-full max-w-3xl">
+                  {/* Eyebrow */}
+                  <div className="flex items-center gap-3 mb-10">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-black/35 dark:text-white/35">
+                      03 · Review & Submit
                     </span>
-                    <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">EGP {total.toLocaleString('en-EG', { minimumFractionDigits: 2 })}</span>
+                    <div className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
+                      {quoteNumber} · v{version}
+                    </span>
                   </div>
-                </div>
 
-                {/* Delivery */}
-                <div className="border-t border-black/[0.04] pt-4 mt-4 dark:border-white/[0.04]">
-                  <p className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-2">Delivery</p>
-                  <div className="space-y-1.5 text-[12px]">
-                    <div className="flex items-center gap-2">
-                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-black/30 dark:text-white/30"><path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" stroke="currentColor" strokeWidth="1" /><circle cx="7" cy="6" r="1.25" stroke="currentColor" strokeWidth="1" /></svg>
-                      <span className="text-[var(--color-text)]">{deliveryAddress}</span>
+                  {/* Customer headline */}
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/[0.06] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-primary)]">
+                      Tier {customerTier}
+                    </span>
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25 dark:text-white/25">
+                      {rfqReference}
+                    </span>
+                  </div>
+                  <div className="flex items-end justify-between gap-6">
+                    <div className="min-w-0">
+                      <h2 className="text-[38px] font-semibold tracking-tight text-[var(--color-text)] truncate">
+                        {customerName}
+                      </h2>
+                      <p className="mt-1 text-[13px] text-black/35 dark:text-white/35">
+                        Final review. Confirm the figures below, then submit for evaluation.
+                      </p>
                     </div>
-                    {methods.getValues('deliveryDate') && (
-                      <div className="flex items-center gap-2 text-black/40 dark:text-white/40">
-                        <span className="w-3" />
-                        <span>Date: <span className="text-[var(--color-text)]">{methods.getValues('deliveryDate')}</span></span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-black/40 dark:text-white/40">
-                      <span className="w-3" />
-                      <span>Window: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('deliveryWindow') ?? '08:00-17:00'}</span></span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatus('pending_approval' as QuoteStatus)
+                        onBack?.()
+                      }}
+                      className="group shrink-0 flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[var(--color-primary)]/90 hover:gap-3.5"
+                    >
+                      Evaluate
+                      <ArrowRight size={14} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+
+                  <div className="my-10 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
+
+                  {/* Items — hanging label */}
+                  <div className="grid grid-cols-[160px_1fr] gap-x-10 gap-y-2 mb-10">
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-3">
+                      Items
+                      <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums text-black/25 dark:text-white/25">
+                        · {watchedItems?.length ?? 0}
+                      </span>
                     </div>
-                    {methods.getValues('specialInstructions') && (
-                      <div className="flex items-center gap-2 text-black/40 dark:text-white/40">
-                        <span className="w-3" />
-                        <span>Notes: <span className="text-[var(--color-text)]">{methods.getValues('specialInstructions')}</span></span>
+                    <div>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-black/[0.06] dark:border-white/[0.06]">
+                            <th className="py-2 text-start text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Item</th>
+                            <th className="py-2 text-end text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Qty</th>
+                            <th className="py-2 text-end text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Cost</th>
+                            <th className="py-2 text-end text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Margin</th>
+                            <th className="py-2 text-end text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Price</th>
+                            <th className="py-2 text-end text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(watchedItems ?? []).map((item, idx) => (
+                            <tr key={item.id || idx} className="border-b border-black/[0.03] dark:border-white/[0.03]">
+                              <td className="py-3 text-[13px] text-[var(--color-text)]">{item.productName}</td>
+                              <td className="py-3 text-end font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40">{item.quantity}</td>
+                              <td className="py-3 text-end font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40">{item.supplierCost?.toLocaleString('en-EG') ?? '—'}</td>
+                              <td className="py-3 text-end font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-black/40 dark:text-white/40">{item.marginPercent}%</td>
+                              <td className="py-3 text-end font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text)]">{item.sellPrice?.toLocaleString('en-EG')}</td>
+                              <td className="py-3 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">{(item.lineTotal || 0).toLocaleString('en-EG', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Totals row */}
+                      <div className="mt-4 flex items-baseline justify-between">
+                        <span className="text-[11px] text-black/35 dark:text-white/35">
+                          Blended margin <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{blendedMargin}%</span>
+                          <span className="mx-2 text-black/20 dark:text-white/20">·</span>
+                          VAT <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{vatAmount.toLocaleString('en-EG', { minimumFractionDigits: 2 })}</span>
+                        </span>
+                        <div className="text-end">
+                          <p className="text-[9px] uppercase tracking-widest text-black/25 dark:text-white/25">Total</p>
+                          <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)] leading-none mt-1">
+                            EGP {total.toLocaleString('en-EG', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Terms */}
-                <div className="border-t border-black/[0.04] pt-4 mt-4 dark:border-white/[0.04]">
-                  <p className="text-[10px] uppercase tracking-widest text-black/30 dark:text-white/30 mb-2">Terms</p>
-                  <div className="flex gap-6 text-[12px] text-black/40 dark:text-white/40">
-                    <span>Payment: <span className="text-[var(--color-text)]">Bank transfer / cash</span></span>
-                    <span>Valid: <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('validityDays') ?? 14} days</span></span>
+                  <div className="h-px bg-black/[0.06] dark:bg-white/[0.06]" />
+
+                  {/* Delivery + Terms — hanging labels */}
+                  <div className="grid grid-cols-[160px_1fr] gap-x-10 gap-y-7 py-10">
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-1">
+                      Delivery
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[14px] text-[var(--color-text)]">{deliveryAddress}</p>
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-black/40 dark:text-white/40">
+                        {methods.getValues('deliveryDate') && (
+                          <span>
+                            Date <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('deliveryDate')}</span>
+                          </span>
+                        )}
+                        {(() => {
+                          const WINDOW_LABELS: Record<string, string> = {
+                            '08:00-13:00': 'Morning · 08:00–13:00',
+                            '13:00-17:00': 'Midday · 13:00–17:00',
+                            '17:00-20:00': 'Evening · 17:00–20:00',
+                          }
+                          const win = methods.getValues('deliveryWindow') ?? '08:00-13:00'
+                          return (
+                            <span>
+                              Window <span className="ms-1 text-[var(--color-text)]">{WINDOW_LABELS[win] ?? win}</span>
+                            </span>
+                          )
+                        })()}
+                        {methods.getValues('specialInstructions') && (
+                          <span>
+                            Notes <span className="ms-1 text-[var(--color-text)]">{methods.getValues('specialInstructions')}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-1">
+                      Terms
+                    </div>
+                    <div className="flex gap-8 text-[12px] text-black/40 dark:text-white/40">
+                      <span>
+                        Payment <span className="ms-1 text-[var(--color-text)]">Bank transfer / cash</span>
+                      </span>
+                      <span>
+                        Valid for <span className="ms-1 font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">{methods.getValues('validityDays') ?? 14} days</span>
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-black/40 dark:text-white/40 pt-1">
+                      Evaluation
+                    </div>
+                    <div>
+                      <ApprovalWorkflow
+                        quoteId={quoteId ?? 'new'}
+                        marginPercent={blendedMargin}
+                        totalValue={total}
+                        customerTier="A"
+                        thresholds={marginThresholds}
+                        status={status === 'pending_approval' ? 'pending_approval' : status === 'approved' ? 'approved' : 'draft'}
+                        onStatusChange={(newStatus) => setStatus(newStatus as QuoteStatus)}
+                      />
+                      {status === 'pending_approval' && (
+                        <p className="mt-3 text-[12px] text-black/40 dark:text-white/40">
+                          Submitted for evaluation. Your manager will review and send to the customer.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Approval routing */}
-                <div className="border-t border-black/[0.04] pt-5 dark:border-white/[0.04]">
-                  <ApprovalWorkflow
-                    quoteId={quoteId ?? 'new'}
-                    marginPercent={blendedMargin}
-                    totalValue={total}
-                    customerTier="A"
-                    thresholds={marginThresholds}
-                    status={status === 'pending_approval' ? 'pending_approval' : status === 'approved' ? 'approved' : 'draft'}
-                    onStatusChange={(newStatus) => setStatus(newStatus as QuoteStatus)}
-                  />
-                </div>
-
-                {status === 'pending_approval' && (
-                  <div className="mt-6 rounded-lg bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
-                    <p className="text-[12px] text-black/40 dark:text-white/40">
-                      Submitted for approval. Your manager will review and send to the customer.
-                    </p>
+                  {/* Action bar */}
+                  <div className="flex items-center justify-between border-t border-black/[0.06] pt-5 dark:border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(2)}
+                      className="flex items-center gap-1.5 text-[12px] text-black/40 outline-none hover:text-black/70 dark:text-white/40 dark:hover:text-white/70 transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180">
+                        <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Back to Quote
+                    </button>
                   </div>
-                )}
-
-                {/* Back */}
-                <div className="pt-6">
-                  <button
-                    type="button"
-                    onClick={() => goToStep(2)}
-                    className="flex items-center gap-1.5 text-[12px] text-black/30 hover:text-black/60 dark:text-white/30 dark:hover:text-white/60 transition-colors"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    Back to Quote
-                  </button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Preview modal (available from any step) */}
-          <QuotePreviewModal
-            quoteNumber={quoteNumber}
-            version={version}
-            customerName={customerName}
-            validityDays={methods.getValues('validityDays') ?? 14}
-            isOpen={previewOpen}
-            onOpenChange={setPreviewOpen}
-          />
         </FormProvider>
         </div>
 
-        {/* Right panel — map only, Step 2 (Build Quote), wide screens */}
-        <AnimatePresence>
+        {/* Right panel — map only, Step 2 (Build Quote), wide screens.
+            Deferred mount: MapLibre GL initializes expensively, so we wait for
+            the quote builder's entry animation to finish before mounting it. */}
         {currentStep === 2 && (
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40, transition: { duration: 0.1 } }}
-            transition={{ duration: 0.3, ease: 'easeOut', delay: 0.15 }}
-            className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:flex lg:flex-col dark:border-white/[0.06]"
-          >
-            <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map...</div>}>
-              <DeliveryMap address={deliveryAddress} onAddressChange={setDeliveryAddress} />
-            </ClientOnly>
-          </motion.div>
+          <div className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:flex lg:flex-col dark:border-white/[0.06]">
+            {mapReady ? (
+              <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map...</div>}>
+                <DeliveryMap address={deliveryAddress} onAddressChange={setDeliveryAddress} />
+              </ClientOnly>
+            ) : (
+              <div className="flex h-full items-center justify-center text-[13px] text-black/30" />
+            )}
+          </div>
         )}
-        </AnimatePresence>
       </div>
     </div>
   )

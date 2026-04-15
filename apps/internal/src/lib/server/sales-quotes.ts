@@ -1,309 +1,338 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import { getBroadCategory, type CatalogProduct, type BroadCategory } from '@hyperquote/types'
+import { db, hoursSince } from '../db/db'
 import type { Quote, QuoteItem, MarginThresholds, FreshnessIndicator } from '../../types/sales'
 
-function isSupabaseConfigured(): boolean {
-  return !!import.meta.env.VITE_SUPABASE_URL
-}
+// Re-exported so every sales UI that already imports from here keeps working
+// while the canonical definitions live in inventory.ts.
+export {
+  requestInventoryPriceUpdate,
+  getOutdatedPricesSummary,
+} from './inventory'
 
-// ─── Mock Data ─────────────────────────────────────────────
+// ─── Config ───────────────────────────────────────────────
 
-const PROCUREMENT_BUFFER = 0.025 // 2.5% buffer on supplier cost
+const PROCUREMENT_BUFFER = 0.025
 
-/** Apply procurement buffer — sales rep NEVER sees raw supplier cost */
 function bufferCost(rawCost: number): number {
   return Math.round(rawCost * (1 + PROCUREMENT_BUFFER) * 100) / 100
 }
 
+/** Maps broad catalog categories to the sales pricing_rules buckets. */
+function marginCategoryFor(product: CatalogProduct): string {
+  if (product.category === 'waterproofing' || product.category === 'roofing') return 'roofing'
+  const broad: BroadCategory = getBroadCategory(product.category)
+  const map: Record<BroadCategory, string> = {
+    cement: 'cement_concrete',
+    aggregates: 'cement_concrete',
+    bricks: 'cement_concrete',
+    steel: 'steel_rebar',
+    timber: 'lumber_timber',
+    finishing: 'specialty_custom',
+  }
+  return map[broad]
+}
+
+const MARGIN_THRESHOLDS: MarginThresholds[] = [
+  { productCategory: 'cement_concrete', target: 20, floor: 14, absoluteMin: 8 },
+  { productCategory: 'steel_rebar', target: 15, floor: 10, absoluteMin: 6 },
+  { productCategory: 'lumber_timber', target: 18, floor: 12, absoluteMin: 8 },
+  { productCategory: 'roofing', target: 25, floor: 18, absoluteMin: 12 },
+  { productCategory: 'specialty_custom', target: 38, floor: 25, absoluteMin: 15 },
+]
+
+// ─── Derived freshness helpers ────────────────────────────
+
+function freshnessFor(lastUpdatedAt: string): FreshnessIndicator {
+  const hours = hoursSince(lastUpdatedAt)
+  if (hours < 24) return 'fresh'
+  if (hours < 72) return 'aging'
+  return 'stale'
+}
+
+function isRecentlyOrderedSlug(slug: string): boolean {
+  return db.rfqs
+    .list()
+    .filter((r) => r.status !== 'declined' && r.status !== 'expired')
+    .some((r) => r.items.some((i) => i.productSlug === slug))
+}
+
+// ─── Quote builder data ───────────────────────────────────
+
+function buildSuggestedProduct(slug: string, quantity: number, rfqId: string, index: number) {
+  const product = db.products.findBySlug(slug)
+  if (!product) return null
+  const primary = db.supplierPrices.primaryForProduct(slug)
+  const lastUpdatedAt = primary?.lastQuotedAt ?? new Date(0).toISOString()
+  const freshness = primary ? freshnessFor(lastUpdatedAt) : ('missing' as FreshnessIndicator)
+  const priceStatus = freshness === 'fresh' ? 'updated' : 'outdated'
+  return {
+    id: `sp-${rfqId}-${index + 1}`,
+    productName: product.name,
+    specification: product.subcategory.replace(/_/g, ' '),
+    supplierName: primary?.supplierName ?? '',
+    supplierCost: bufferCost(primary?.rawCost ?? 0),
+    quantity,
+    unit: product.unit_of_measure,
+    freshness,
+    priceStatus,
+    recentlyOrdered: isRecentlyOrderedSlug(slug),
+    lastQuotedAt: lastUpdatedAt,
+    category: marginCategoryFor(product),
+  }
+}
+
 function getMockQuoteBuilderData(rfqId: string) {
-  const rawCosts = [45.85, 3_170, 12.50, 78.30, 165.00]
-  const bufferedCosts = rawCosts.map(bufferCost) // [47.00, 3249.25, 12.81, 80.26, 169.13]
+  const rfq = db.rfqs.get(rfqId)
+  const customer = rfq ? db.customers.findByName(rfq.customerName) : undefined
 
-  const suggestedProducts: {
-    id: string
-    productName: string
-    specification: string
-    supplierName: string
-    supplierCost: number
-    freshness: FreshnessIndicator
-    lastQuotedAt: string
-    category: string
-  }[] = [
-    { id: 'sp-1', productName: 'Portland Cement CEM I 42.5N', specification: '50kg bags', supplierName: 'Suez Cement', supplierCost: bufferedCosts[0], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 6 * 3_600_000).toISOString(), category: 'cement_concrete' },
-    { id: 'sp-2', productName: 'Steel Rebar 16mm', specification: 'Grade 60, 12m', supplierName: 'Ezz Steel', supplierCost: bufferedCosts[1], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 12 * 3_600_000).toISOString(), category: 'steel_rebar' },
-    { id: 'sp-3', productName: 'Concrete Blocks 20cm', specification: 'Hollow, load-bearing', supplierName: 'Arabian Cement', supplierCost: bufferedCosts[2], freshness: 'aging', lastQuotedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), category: 'cement_concrete' },
-    { id: 'sp-4', productName: 'Plywood Shuttering 18mm', specification: 'Birch, film-faced', supplierName: 'Misr Wood', supplierCost: bufferedCosts[3], freshness: 'stale', lastQuotedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), category: 'lumber_timber' },
-    { id: 'sp-5', productName: 'PVC Pipes 110mm', specification: 'Class D, 6m length', supplierName: 'Elswedy Plastics', supplierCost: bufferedCosts[4], freshness: 'fresh', lastQuotedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(), category: 'specialty_custom' },
-  ]
-
-  // Margin thresholds from pricing_rules (mock — configurable, NOT hardcoded in components)
-  const marginThresholds: MarginThresholds[] = [
-    { productCategory: 'cement_concrete', target: 20, floor: 14, absoluteMin: 8 },
-    { productCategory: 'steel_rebar', target: 15, floor: 10, absoluteMin: 6 },
-    { productCategory: 'lumber_timber', target: 18, floor: 12, absoluteMin: 8 },
-    { productCategory: 'roofing', target: 25, floor: 18, absoluteMin: 12 },
-    { productCategory: 'specialty_custom', target: 38, floor: 25, absoluteMin: 15 },
-  ]
+  const suggestedProducts = rfq
+    ? rfq.items
+        .map((item, i) => buildSuggestedProduct(item.productSlug, item.quantity, rfqId, i))
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+    : []
 
   return {
     rfqId,
+    customer: {
+      name: rfq?.customerName ?? 'Unknown Customer',
+      tier: rfq?.customerTier ?? ('new' as const),
+      contactName: rfq?.contactName ?? customer?.contactName ?? '',
+      phone: customer?.phone ?? '',
+      email: customer?.email ?? '',
+      company: customer?.companyName ?? rfq?.customerName ?? '',
+    },
+    deliveryAddress: rfq?.deliveryAddress ?? customer?.address ?? '',
     customerCredit: {
-      creditLimit: 5_000_000,
-      currentExposure: 2_100_000,
-      availableCredit: 2_900_000,
-      paymentHistory: 'excellent' as const,
+      creditLimit: customer?.creditLimit ?? 0,
+      currentExposure: customer?.currentExposure ?? 0,
+      availableCredit: (customer?.creditLimit ?? 0) - (customer?.currentExposure ?? 0),
+      paymentHistory: customer?.paymentHistory ?? ('good' as const),
     },
     suggestedProducts,
     recentPrices: suggestedProducts.map((p) => ({
       productName: p.productName,
-      supplierCost: p.supplierCost, // Already buffered
+      supplierCost: p.supplierCost,
       freshness: p.freshness,
       lastQuotedAt: p.lastQuotedAt,
     })),
-    marginThresholds,
+    marginThresholds: MARGIN_THRESHOLDS,
   }
 }
 
+// ─── Persisted quote read (for PDF preview etc.) ──────────
+
 function getMockQuote(quoteId: string): Quote {
-  const items: QuoteItem[] = [
-    {
-      id: 'qi-1',
-      productName: 'Portland Cement CEM I 42.5N',
-      specification: '50kg bags',
-      quantity: 500,
-      unit: 'bag',
-      supplierCost: bufferCost(45.85),
-      marginPercent: 20,
-      sellPrice: 56.40,
-      lineTotal: 28_200,
-      freshnessIndicator: 'fresh',
-      supplierName: 'Suez Cement',
-      customerCounterPrice: null,
-    },
-    {
-      id: 'qi-2',
-      productName: 'Steel Rebar 16mm',
-      specification: 'Grade 60, 12m length',
-      quantity: 200,
-      unit: 'bundle',
-      supplierCost: bufferCost(3_170),
-      marginPercent: 15,
-      sellPrice: 3_738,
-      lineTotal: 747_600,
-      freshnessIndicator: 'fresh',
-      supplierName: 'Ezz Steel',
-      customerCounterPrice: null,
-    },
-    {
-      id: 'qi-3',
-      productName: 'Concrete Blocks 20cm',
-      specification: 'Hollow, load-bearing',
-      quantity: 5000,
-      unit: 'piece',
-      supplierCost: bufferCost(12.50),
-      marginPercent: 22,
-      sellPrice: 15.63,
-      lineTotal: 78_150,
-      freshnessIndicator: 'aging',
-      supplierName: 'Arabian Cement',
-      customerCounterPrice: null,
-    },
-    {
-      id: 'qi-4',
-      productName: 'Plywood Shuttering 18mm',
-      specification: 'Birch, film-faced',
-      quantity: 100,
-      unit: 'sheet',
-      supplierCost: bufferCost(78.30),
-      marginPercent: 18,
-      sellPrice: 94.72,
-      lineTotal: 9_472,
-      freshnessIndicator: 'stale',
-      supplierName: 'Misr Wood',
-      customerCounterPrice: null,
-    },
-  ]
+  const row = db.quotes.get(quoteId) ?? db.quotes.list()[0]
+  const customer = db.customers.get(row.customerId)
+  const items: QuoteItem[] = row.items
+    .map((i) => {
+      const product = db.products.findBySlug(i.productSlug)
+      const primary = db.supplierPrices.primaryForProduct(i.productSlug)
+      if (!product) return null
+      const supplierCost = bufferCost(primary?.rawCost ?? 0)
+      const lineTotal = Math.round(i.sellPrice * i.quantity * 100) / 100
+      const freshness = primary ? freshnessFor(primary.lastQuotedAt) : ('missing' as FreshnessIndicator)
+      return {
+        id: `qi-${i.productSlug}`,
+        productName: product.name,
+        specification: product.subcategory.replace(/_/g, ' '),
+        quantity: i.quantity,
+        unit: product.unit_of_measure,
+        supplierCost,
+        marginPercent: i.marginPercent,
+        sellPrice: i.sellPrice,
+        lineTotal,
+        freshnessIndicator: freshness,
+        priceStatus: freshness === 'fresh' ? ('updated' as const) : ('outdated' as const),
+        recentlyOrdered: isRecentlyOrderedSlug(i.productSlug),
+        supplierName: primary?.supplierName ?? '',
+        customerCounterPrice: null,
+      } satisfies QuoteItem
+    })
+    .filter((x): x is QuoteItem => x !== null)
 
   const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0)
   const vatAmount = Math.round(subtotal * 14) / 100
 
   return {
-    id: quoteId,
-    rfqId: 'rfq-001',
-    quoteNumber: 'QT-2026-00523',
-    version: 1,
-    status: 'draft',
+    id: row.id,
+    rfqId: row.rfqId,
+    quoteNumber: row.quoteNumber,
+    version: row.version,
+    status: row.status,
     items,
     subtotal,
     vatAmount,
     total: subtotal + vatAmount,
-    validUntil: new Date(Date.now() + 14 * 86_400_000).toISOString(),
-    marginPercent: 18.2,
-    sentAt: null,
-    sentVia: null,
+    validUntil: row.validUntil,
+    marginPercent: row.marginPercent,
+    sentAt: row.sentAt,
+    sentVia: row.sentVia,
     scheduledSendAt: null,
-    previousVersionId: null,
-    customerPoNumber: null,
+    previousVersionId: row.previousVersionId,
+    customerPoNumber: row.customerPoNumber,
   }
 }
 
-// ─── Server Functions ──────────────────────────────────────
-
-const createQuoteInput = z.object({
-  rfqId: z.string(),
-  lines: z.array(
-    z.object({
-      productName: z.string(),
-      specification: z.string(),
-      quantity: z.number().positive(),
-      unit: z.string(),
-      supplierCost: z.number().nonnegative(),
-      marginPercent: z.number(),
-      sellPrice: z.number().nonnegative(),
-    }),
-  ),
-  validUntil: z.string(),
-  terms: z.string().optional(),
-})
+// ─── Server Functions ─────────────────────────────────────
 
 export const createQuote = createServerFn({ method: 'POST' })
-  .inputValidator(createQuoteInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return { quoteId: `qt-${Date.now()}` }
-    }
+  .inputValidator(
+    z.object({
+      rfqId: z.string(),
+      customerId: z.string().optional(),
+      lines: z.array(
+        z.object({
+          productSlug: z.string(),
+          quantity: z.number().positive(),
+          marginPercent: z.number(),
+          sellPrice: z.number().nonnegative(),
+        }),
+      ),
+      validUntil: z.string(),
+      terms: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const rfq = db.rfqs.get(data.rfqId)
+    const customer = data.customerId
+      ? db.customers.get(data.customerId)
+      : rfq
+      ? db.customers.findByName(rfq.customerName)
+      : undefined
+    const avgMargin =
+      data.lines.reduce((sum, l) => sum + l.marginPercent, 0) / Math.max(1, data.lines.length)
 
-    // TODO: INSERT into quotes + quote_items
-    // TODO: Set status to 'draft' via validate_state_transition
-    return { quoteId: `qt-${Date.now()}` }
+    const row = db.quotes.insert({
+      quoteNumber: `QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
+      rfqId: data.rfqId,
+      customerId: customer?.id ?? 'cust-unknown',
+      version: 1,
+      status: 'draft',
+      marginPercent: Math.round(avgMargin * 10) / 10,
+      sentAt: null,
+      validUntil: data.validUntil,
+      sentVia: null,
+      customerPoNumber: null,
+      previousVersionId: null,
+      items: data.lines.map((l) => ({
+        productSlug: l.productSlug,
+        quantity: l.quantity,
+        marginPercent: l.marginPercent,
+        sellPrice: l.sellPrice,
+      })),
+    })
+    return { quoteId: row.id }
   })
 
-const saveQuoteDraftInput = z.object({
-  quoteId: z.string(),
-  lineItems: z.array(
-    z.object({
-      id: z.string().optional(),
-      productName: z.string(),
-      specification: z.string(),
-      quantity: z.number().positive(),
-      unit: z.string(),
-      supplierCost: z.number().nonnegative(),
-      marginPercent: z.number(),
-      sellPrice: z.number().nonnegative(),
-    }),
-  ),
-  terms: z.string().optional(),
-})
-
 export const saveQuoteDraft = createServerFn({ method: 'POST' })
-  .inputValidator(saveQuoteDraftInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return { success: true }
-    }
-
-    // TODO: UPSERT quote_items, update quotes.updated_at
+  .inputValidator(
+    z.object({
+      quoteId: z.string(),
+      lineItems: z.array(
+        z.object({
+          id: z.string().optional(),
+          productSlug: z.string().optional(),
+          productName: z.string(),
+          specification: z.string(),
+          quantity: z.number().positive(),
+          unit: z.string(),
+          supplierCost: z.number().nonnegative(),
+          marginPercent: z.number(),
+          sellPrice: z.number().nonnegative(),
+        }),
+      ),
+      terms: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    // Resolve items → slugs so the draft references catalog rows, then
+    // patch the existing quote row. If the quoteId isn't a real row
+    // (e.g. new draft), no-op — createQuote handles fresh creation.
+    const items = data.lineItems
+      .map((li) => {
+        const slug = li.productSlug ?? db.products.findByName(li.productName)?.slug
+        if (!slug) return null
+        return {
+          productSlug: slug,
+          quantity: li.quantity,
+          marginPercent: li.marginPercent,
+          sellPrice: li.sellPrice,
+        }
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+    db.quotes.update(data.quoteId, { items })
     return { success: true }
   })
 
-const getQuoteBuilderDataInput = z.object({
-  rfqId: z.string(),
-})
-
 export const getQuoteBuilderData = createServerFn({ method: 'GET' })
-  .inputValidator(getQuoteBuilderDataInput)
-  .handler(async ({ data: input }) => {
-    if (!isSupabaseConfigured()) {
-      return getMockQuoteBuilderData(input.rfqId)
-    }
-
-    // TODO: Real Supabase query:
-    // 1. Fetch RFQ + items from quote_requests / quote_request_items
-    // 2. Fetch customer credit from customers table
-    // 3. Fetch suggested products from products + supplier_products
-    // 4. Fetch recent prices with freshness from quote_items (last 3 days fresh, 3-7 aging, >7 stale)
-    // 5. Fetch margin thresholds from pricing_rules per product_category
-    // CRITICAL: Apply PROCUREMENT_BUFFER to all supplier costs before returning
-    return getMockQuoteBuilderData(input.rfqId)
+  .inputValidator(z.object({ rfqId: z.string() }))
+  .handler(async ({ data }) => {
+    return getMockQuoteBuilderData(data.rfqId)
   })
 
-const requestApprovalInput = z.object({
-  quoteId: z.string(),
-  approverRole: z.enum(['sales_manager', 'vp_sales', 'ceo']),
-  justification: z.string().optional(),
-  urgencyNote: z.string().optional(),
-})
-
 export const requestApproval = createServerFn({ method: 'POST' })
-  .inputValidator(requestApprovalInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return { approvalId: `appr-${Date.now()}` }
-    }
-
-    // TODO: INSERT into approvals with entity_type = 'quote'
-    // TODO: Update quotes.status to 'pending_approval'
-    // TODO: Send push notification to approver with quote summary
-    // TODO: Schedule 2h escalation check
+  .inputValidator(
+    z.object({
+      quoteId: z.string(),
+      approverRole: z.enum(['sales_manager', 'vp_sales', 'ceo']),
+      justification: z.string().optional(),
+      urgencyNote: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    // Flip quote into pending_approval; approver info tracked separately later.
+    db.quotes.updateStatus(data.quoteId, 'pending_approval')
     return { approvalId: `appr-${Date.now()}` }
   })
 
-const approveQuoteInput = z.object({
-  approvalId: z.string(),
-  notes: z.string().optional(),
-})
-
 export const approveQuote = createServerFn({ method: 'POST' })
-  .inputValidator(approveQuoteInput)
-  .handler(async ({ data: _input }) => {
-    if (!isSupabaseConfigured()) {
-      return { success: true }
+  .inputValidator(
+    z.object({
+      approvalId: z.string(),
+      quoteId: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    // If a quoteId is provided, flip it into approved status so sending
+    // downstream is unblocked.
+    if (data.quoteId) {
+      db.quotes.updateStatus(data.quoteId, 'approved')
     }
-
-    // TODO: Update approvals.status to 'approved'
-    // TODO: Update quotes.status to 'approved' via validate_state_transition
-    // TODO: Log approval with timestamp for audit
     return { success: true }
   })
 
-const previewQuotePDFInput = z.object({
-  quoteId: z.string(),
-})
-
 export const previewQuotePDF = createServerFn({ method: 'GET' })
-  .inputValidator(previewQuotePDFInput)
-  .handler(async ({ data: input }) => {
-    if (!isSupabaseConfigured()) {
-      // Mock: return the quote data for client-side preview rendering
-      return {
-        quote: getMockQuote(input.quoteId),
-        pdfUrl: null as string | null, // PDF generation deferred to Phase 28
-      }
-    }
-
-    // TODO: Generate PDF or return pre-generated URL from R2
-    return { quote: getMockQuote(input.quoteId), pdfUrl: null }
+  .inputValidator(z.object({ quoteId: z.string() }))
+  .handler(async ({ data }) => {
+    return { quote: getMockQuote(data.quoteId), pdfUrl: null as string | null }
   })
 
-// ─── Product Catalog ──────────────────────────────────────
+// ─── Product Catalog (consumed by the quote builder search menu) ──
 
 export const getProductCatalog = createServerFn({ method: 'GET' })
   .inputValidator(z.object({}))
   .handler(async () => {
     return {
-      products: [
-        { id: 'prod-001', name: 'Portland Cement CEM I 42.5N', specification: '50kg bags', unit: 'bag', category: 'Cement', supplierCost: 47.00, freshness: 'fresh' as const, supplierName: 'Suez Cement' },
-        { id: 'prod-002', name: 'Steel Rebar 16mm', specification: 'Grade 60, 12m', unit: 'bundle', category: 'Steel', supplierCost: 3249.25, freshness: 'fresh' as const, supplierName: 'Ezz Steel' },
-        { id: 'prod-003', name: 'Concrete Blocks 20cm', specification: 'Hollow, load-bearing', unit: 'piece', category: 'Blocks', supplierCost: 12.81, freshness: 'aging' as const, supplierName: 'National Blocks' },
-        { id: 'prod-004', name: 'Plywood Shuttering 18mm', specification: 'Birch, film-faced', unit: 'sheet', category: 'Timber', supplierCost: 80.26, freshness: 'stale' as const, supplierName: 'Delta Timber' },
-        { id: 'prod-005', name: 'PVC Pipes 110mm', specification: 'Class D, 6m length', unit: 'piece', category: 'Pipes', supplierCost: 169.12, freshness: 'fresh' as const, supplierName: 'El Sewedy Pipes' },
-        { id: 'prod-006', name: 'Steel Rebar 12mm', specification: 'Grade 60, 12m', unit: 'bundle', category: 'Steel', supplierCost: 2150.00, freshness: 'fresh' as const, supplierName: 'Ezz Steel' },
-        { id: 'prod-007', name: 'Portland Cement CEM II 32.5N', specification: '50kg bags', unit: 'bag', category: 'Cement', supplierCost: 38.50, freshness: 'fresh' as const, supplierName: 'Arabian Cement' },
-        { id: 'prod-008', name: 'Sand (Fine)', specification: 'Washed, per ton', unit: 'ton', category: 'Aggregates', supplierCost: 120.00, freshness: 'aging' as const, supplierName: 'Cairo Sand' },
-        { id: 'prod-009', name: 'Gravel 20mm', specification: 'Crushed, per ton', unit: 'ton', category: 'Aggregates', supplierCost: 95.00, freshness: 'fresh' as const, supplierName: 'Cairo Sand' },
-        { id: 'prod-010', name: 'Waterproofing Membrane', specification: '4mm SBS modified bitumen', unit: 'roll', category: 'Roofing', supplierCost: 450.00, freshness: 'fresh' as const, supplierName: 'Sika Egypt' },
-        { id: 'prod-011', name: 'Ceramic Tiles 60x60', specification: 'Grade A, polished', unit: 'sqm', category: 'Tiles', supplierCost: 85.00, freshness: 'fresh' as const, supplierName: 'Cleopatra Ceramics' },
-        { id: 'prod-012', name: 'Paint (White Interior)', specification: '18L bucket, washable', unit: 'bucket', category: 'Paint', supplierCost: 320.00, freshness: 'fresh' as const, supplierName: 'Jotun Egypt' },
-      ],
+      products: db.products.list().map((product) => {
+        const primary = db.supplierPrices.primaryForProduct(product.slug)
+        const lastUpdatedAt = primary?.lastQuotedAt ?? new Date(0).toISOString()
+        const freshness = primary ? freshnessFor(lastUpdatedAt) : ('missing' as FreshnessIndicator)
+        return {
+          id: product.id,
+          name: product.name,
+          specification: product.subcategory.replace(/_/g, ' '),
+          unit: product.unit_of_measure,
+          category: product.category,
+          supplierCost: bufferCost(primary?.rawCost ?? 0),
+          freshness,
+          priceStatus: freshness === 'fresh' ? ('updated' as const) : ('outdated' as const),
+          recentlyOrdered: isRecentlyOrderedSlug(product.slug),
+          supplierName: primary?.supplierName ?? '',
+        }
+      }),
     }
   })

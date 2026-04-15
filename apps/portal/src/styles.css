@@ -150,9 +150,9 @@ input::placeholder {
 }
 
 .fade-reveal-down {
-  mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, rgba(255,255,255,0.6) 40%, rgba(255,255,255,0.2) 70%, transparent 100%);
-  -webkit-mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, rgba(255,255,255,0.6) 40%, rgba(255,255,255,0.2) 70%, transparent 100%);
-  animation: radial-reveal 8s ease-out 0.5s both;
+  mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, white 50%, rgba(255,255,255,0.4) 70%, rgba(255,255,255,0.1) 85%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, white 50%, rgba(255,255,255,0.4) 70%, rgba(255,255,255,0.1) 85%, transparent 100%);
+  animation: radial-reveal 6s ease-out 0.4s both;
 }
 
 /* Glass exit — fades from bottom to top (bottom disappears first) */

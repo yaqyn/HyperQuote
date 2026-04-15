@@ -96,8 +96,8 @@ export function WarehouseShortcuts() {
   if (!showHelp) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 p-6 shadow-2xl backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-sm rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h3 className="text-xs font-medium text-black/40 dark:text-white/40 uppercase tracking-wider">
             Keyboard Shortcuts

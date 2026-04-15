@@ -76,7 +76,7 @@ function EventTooltip({ event }: { event: CalendarEvent }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
-      className="pointer-events-none absolute start-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-xl border border-black/[0.06] bg-white/90 p-3 shadow-lg backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
+      className="pointer-events-none absolute start-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-xl border border-black/[0.06] bg-white/90 p-3 shadow-lg dark:border-white/[0.06] dark:bg-black/90"
     >
       <div className="flex items-start gap-2">
         <span className={`mt-1 size-2 shrink-0 rounded-full ${dot.color}`} />

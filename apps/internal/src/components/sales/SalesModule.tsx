@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
 import { useSalesStore } from '../../stores/sales'
+import { getCustomerList } from '../../lib/server/sales-customers'
 import { SalesTabStrip } from './SalesTabStrip'
 import { RFQInboxTable } from './rfq/RFQInboxTable'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
@@ -7,29 +10,40 @@ import { NegotiationView } from './negotiation/NegotiationView'
 import { SalesShortcuts } from './SalesShortcuts'
 import { SearchMenu } from './quote-builder/SearchMenu'
 
-// Mock customer list — in production this comes from the server
-const MOCK_CUSTOMERS = [
-  { id: 'cust-001', name: 'Al-Nour Construction', tier: 'A', address: '15 شارع الجزيرة، المعادي، القاهرة' },
-  { id: 'cust-002', name: 'Heliopolis Contractors', tier: 'B', address: '22 شارع الأهرام، الجيزة' },
-  { id: 'cust-003', name: 'Pyramid Builders', tier: 'A', address: '8 شارع التحرير، الدقي' },
-  { id: 'cust-004', name: 'Suez Industrial Group', tier: 'B', address: 'المنطقة الصناعية، السويس' },
-  { id: 'cust-005', name: 'Alexandria Building Materials', tier: 'C', address: '45 طريق الحرية، الإسكندرية' },
-  { id: 'cust-006', name: 'Maadi Engineering', tier: 'A', address: '3 شارع 9، المعادي الجديدة' },
-  { id: 'cust-007', name: 'New Valley Development', tier: 'C', address: 'الوادي الجديد، الداخلة' },
-  { id: 'cust-008', name: 'Delta Construction Co.', tier: 'B', address: '17 شارع الجمهورية، المنصورة' },
-]
+const QUOTE_ENTER = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const }
+const QUOTE_EXIT = { duration: 0.16, ease: [0.4, 0, 1, 1] as const }
 
 export function SalesModule() {
   const activeTab = useSalesStore((s) => s.activeTab)
   const editingRfqId = useSalesStore((s) => s.editingRfqId)
   const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
+  const newQuoteCustomer = useSalesStore((s) => s.newQuoteCustomer)
+  const setNewQuoteCustomer = useSalesStore((s) => s.setNewQuoteCustomer)
   const setActiveTab = useSalesStore((s) => s.setActiveTab)
   const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(null)
 
+  const creatingQuote = !!newQuoteCustomer
+
   // New quote creation flow
-  const [creatingQuote, setCreatingQuote] = useState(false)
   const [customerSelectOpen, setCustomerSelectOpen] = useState(false)
-  const [newQuoteCustomer, setNewQuoteCustomer] = useState<{ id: string; name: string } | null>(null)
+
+  // Customer list from db — loaded once, cached aggressively since the
+  // customer set doesn't change between RFQ creations.
+  const { data: customerData } = useQuery({
+    queryKey: ['sales-customer-list'],
+    queryFn: () => getCustomerList({ data: { page: 1, limit: 100 } }),
+    staleTime: 5 * 60_000,
+  })
+  const customers = useMemo(
+    () =>
+      (customerData?.customers ?? []).map((c) => ({
+        id: c.id,
+        name: c.companyName,
+        tier: c.tier,
+        address: c.address ?? '',
+      })),
+    [customerData],
+  )
 
   // Listen for negotiate events from RFQ inbox
   useEffect(() => {
@@ -48,15 +62,13 @@ export function SalesModule() {
   const handleSelectCustomer = (customer: { id: string; name: string }) => {
     setCustomerSelectOpen(false)
     setNewQuoteCustomer(customer)
-    setCreatingQuote(true)
   }
 
   const handleBackFromNewQuote = () => {
-    setCreatingQuote(false)
     setNewQuoteCustomer(null)
   }
 
-  // Negotiation overlay
+  // Negotiation overlay (no animation — separate flow)
   if (negotiatingQuoteId) {
     return (
       <div className="flex flex-col h-full">
@@ -81,54 +93,73 @@ export function SalesModule() {
     )
   }
 
-  // New quote flow — customer form is now Step 1 inside QuoteBuilderView
-  if (creatingQuote && newQuoteCustomer) {
-    const isNew = newQuoteCustomer.id.startsWith('new-') || newQuoteCustomer.id.startsWith('cust-')
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
-          <QuoteBuilderView
-            rfqId={`new-${newQuoteCustomer.id}`}
-            isNewCustomer={isNew}
-            initialCustomerName={newQuoteCustomer.name}
-            onBack={handleBackFromNewQuote}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  // RFQ quote builder (from Start Quote on an RFQ row)
-  if (editingRfqId) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
-          <QuoteBuilderView rfqId={editingRfqId} onBack={() => setEditingRfqId(null)} />
-        </div>
-      </div>
-    )
-  }
+  const quoteBuilderVisible = (creatingQuote && newQuoteCustomer) || !!editingRfqId
+  // Only ids prefixed `new-` are brand-new customers — existing customers
+  // come in with `cust-*` ids from the db.
+  const isNew = !!(creatingQuote && newQuoteCustomer?.id.startsWith('new-'))
 
   return (
-    <div className="flex flex-col h-full">
-      <SalesShortcuts />
-
-      {/* Content — no tab bar, single view */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
-        <RFQInboxTable onCreateQuote={handleCreateQuote} />
+    <div className="relative flex flex-col h-full">
+      {/* Inbox (always mounted underneath) */}
+      <div
+        className={`flex flex-col h-full transition-opacity duration-200 ${quoteBuilderVisible ? 'opacity-0' : 'opacity-100'}`}
+        style={{ pointerEvents: quoteBuilderVisible ? 'none' : 'auto' }}
+      >
+        <SalesShortcuts />
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+          <RFQInboxTable onCreateQuote={handleCreateQuote} />
+        </div>
       </div>
+
+      {/* Quote builder overlay */}
+      <AnimatePresence>
+        {quoteBuilderVisible && (
+          <motion.div
+            key="quote-builder"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: QUOTE_ENTER }}
+            exit={{ opacity: 0, transition: QUOTE_EXIT }}
+            className="absolute inset-0 bg-[var(--color-bg)] z-10 flex flex-col"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" data-module-content>
+              {creatingQuote && newQuoteCustomer ? (
+                <QuoteBuilderView
+                  rfqId={`new-${newQuoteCustomer.id}`}
+                  isNewCustomer={isNew}
+                  initialCustomerName={newQuoteCustomer.name}
+                  onBack={handleBackFromNewQuote}
+                />
+              ) : editingRfqId ? (
+                <QuoteBuilderView rfqId={editingRfqId} onBack={() => setEditingRfqId(null)} />
+              ) : null}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Customer select modal */}
       <SearchMenu
         isOpen={customerSelectOpen}
         onClose={() => setCustomerSelectOpen(false)}
         placeholder="Search customers or enter new..."
+        onEnter={(search) => {
+          const q = search.toLowerCase().trim()
+          if (!q) return
+          const match =
+            customers.find((c) => c.name.toLowerCase() === q) ??
+            customers.find((c) => c.name.toLowerCase().includes(q))
+          if (match) {
+            handleSelectCustomer(match)
+          } else {
+            handleSelectCustomer({ id: `new-${Date.now()}`, name: search.trim() })
+          }
+        }}
       >
         {(search) => {
           const q = search.toLowerCase()
           const filtered = q
-            ? MOCK_CUSTOMERS.filter((c) => c.name.toLowerCase().includes(q))
-            : MOCK_CUSTOMERS
+            ? customers.filter((c) => c.name.toLowerCase().includes(q))
+            : customers
 
           return (
             <div className="flex flex-col py-1">

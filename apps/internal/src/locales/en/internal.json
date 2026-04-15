@@ -8,7 +8,7 @@
   "urgentItemsLabel": "items need attention",
   "modules": {
     "sales": "Sales",
-    "procurement": "Procurement",
+    "procurement": "Inventory",
     "orders": "Orders",
     "operations": "Operations",
     "warehouse": "Warehouse",

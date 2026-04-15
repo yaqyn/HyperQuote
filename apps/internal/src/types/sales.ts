@@ -27,6 +27,10 @@ export interface RFQ {
   createdAt: string
   slaDeadline: string
   deliveryUrgency: number // days until requested delivery
+  previewItems?: string[]
+  deliveryCity?: string
+  contactName?: string
+  hasOutdatedPrices?: boolean
 }
 
 export interface RFQItem {
@@ -92,6 +96,29 @@ export type QuoteStatus =
 
 export type FreshnessIndicator = 'fresh' | 'aging' | 'stale' | 'missing'
 
+/**
+ * Two-dimensional price state for catalog items:
+ * - priceStatus: whether inventory has recently updated the supplier price
+ * - recentlyOrdered: whether a customer recently ordered this item (demand signal)
+ *
+ * Combined urgency:
+ *   updated                  → good (normal)
+ *   updated + recentlyOrdered → hot  (selling, price is fresh)
+ *   outdated                 → stale (ignore until demand appears)
+ *   outdated + recentlyOrdered → urgent (MUST update — inventory needs to act)
+ */
+export type PriceStatus = 'updated' | 'outdated'
+
+export type PriceUrgency = 'normal' | 'hot' | 'stale' | 'urgent'
+
+export function getPriceUrgency(
+  priceStatus: PriceStatus,
+  recentlyOrdered: boolean,
+): PriceUrgency {
+  if (priceStatus === 'updated') return recentlyOrdered ? 'hot' : 'normal'
+  return recentlyOrdered ? 'urgent' : 'stale'
+}
+
 export interface QuoteItem {
   id: string
   productName: string
@@ -103,6 +130,8 @@ export interface QuoteItem {
   sellPrice: number
   lineTotal: number
   freshnessIndicator: FreshnessIndicator
+  priceStatus: PriceStatus
+  recentlyOrdered: boolean
   supplierName: string
   customerCounterPrice: number | null
 }

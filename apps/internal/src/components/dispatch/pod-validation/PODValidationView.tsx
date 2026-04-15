@@ -169,7 +169,7 @@ export function PODValidationView() {
     <div className="flex h-full flex-col overflow-auto p-6">
       {/* Stats banner */}
       {deliveries.length > 0 && (
-        <div className="mb-4 flex items-center gap-4 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="mb-4 flex items-center gap-4 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 dark:border-white/[0.06] dark:bg-black/60">
           <div className="flex items-center gap-2">
             <span className="font-[family-name:var(--font-geist-mono)] text-lg font-semibold tabular-nums">
               {confirmedCount}/{deliveries.length}

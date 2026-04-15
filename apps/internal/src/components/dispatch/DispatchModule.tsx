@@ -37,7 +37,7 @@ export function DispatchModule() {
               <Button
                 onPress={() => setRosterSidebarOpen(true)}
                 aria-label="Open driver roster"
-                className="absolute top-3 end-3 z-10 flex items-center gap-1.5 rounded-xl bg-white/80 dark:bg-black/80 backdrop-blur-xl px-3 py-2 text-[13px] font-medium text-black/60 dark:text-white/60 shadow-sm border border-black/[0.06] dark:border-white/[0.06] cursor-pointer outline-none transition-colors hover:text-black dark:hover:text-white data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
+                className="absolute top-3 end-3 z-10 flex items-center gap-1.5 rounded-xl bg-white/80 dark:bg-black/80 px-3 py-2 text-[13px] font-medium text-black/60 dark:text-white/60 shadow-sm border border-black/[0.06] dark:border-white/[0.06] cursor-pointer outline-none transition-colors hover:text-black dark:hover:text-white data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40"
               >
                 <Users size={15} strokeWidth={1.5} />
                 Roster
@@ -45,7 +45,7 @@ export function DispatchModule() {
             )}
             {/* Roster sidebar panel */}
             {rosterSidebarOpen && (
-              <div className="w-80 shrink-0 border-s border-black/[0.06] dark:border-white/[0.06] bg-white/60 dark:bg-black/60 backdrop-blur-xl overflow-y-auto">
+              <div className="w-80 shrink-0 border-s border-black/[0.06] dark:border-white/[0.06] bg-white/60 dark:bg-black/60 overflow-y-auto">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04]">
                   <span className="text-[11px] font-semibold uppercase tracking-widest text-black/30 dark:text-white/30">
                     Driver Roster

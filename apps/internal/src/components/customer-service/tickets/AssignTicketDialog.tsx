@@ -46,7 +46,7 @@ export function AssignTicketDialog() {
           isOpen={open}
           onOpenChange={setOpen}
           isDismissable
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
           <Modal
             isOpen={open}
@@ -64,7 +64,7 @@ export function AssignTicketDialog() {
                     stiffness: 200,
                     damping: 20,
                   }}
-                  className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-white/90 backdrop-blur-2xl shadow-2xl dark:bg-black/90"
+                  className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-white/90 shadow-2xl dark:bg-black/90"
                 >
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[var(--color-border)]">

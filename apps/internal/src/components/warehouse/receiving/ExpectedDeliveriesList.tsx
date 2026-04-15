@@ -130,8 +130,8 @@ export function ExpectedDeliveriesList() {
             <Plus size={16} />
             {t('warehouse.receiving.unscheduled', 'Unscheduled')}
           </Button>
-          <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center">
-            <Modal className="w-full max-w-md rounded-t-2xl bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 shadow-xl sm:rounded-2xl" isKeyboardDismissDisabled>
+          <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+            <Modal className="w-full max-w-md rounded-t-2xl bg-white/90 dark:bg-black/90 p-6 shadow-xl sm:rounded-2xl" isKeyboardDismissDisabled>
               <Dialog className="outline-none flex flex-col gap-5">
                 <Heading slot="title" className="text-lg font-bold text-black/90 dark:text-white/90">
                   {t('warehouse.receiving.unscheduledDelivery', 'Unscheduled Delivery')}

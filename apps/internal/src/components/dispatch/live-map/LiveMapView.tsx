@@ -162,7 +162,7 @@ export function LiveMapView() {
           <Button
             aria-label={sidebarOpen ? t('closeSidebar', 'Close sidebar') : t('openSidebar', 'Open sidebar')}
             onPress={() => setSidebarOpen((c: boolean) => !c)}
-            className="flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/90 px-3 text-xs font-medium text-black/60 shadow-sm backdrop-blur-xl transition-colors hover:text-black dark:border-white/[0.08] dark:bg-black/90 dark:text-white/60 dark:hover:text-white"
+            className="flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/90 px-3 text-xs font-medium text-black/60 shadow-sm transition-colors hover:text-black dark:border-white/[0.08] dark:bg-black/90 dark:text-white/60 dark:hover:text-white"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -205,9 +205,9 @@ export function LiveMapView() {
           isOpen
           onOpenChange={(open) => { if (!open) setMessageTarget(null) }}
           isDismissable
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
         >
-          <Modal className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/95 p-5 shadow-2xl backdrop-blur-2xl dark:border-white/[0.08] dark:bg-black/95">
+          <Modal className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/95 p-5 shadow-2xl dark:border-white/[0.08] dark:bg-black/95">
             <Dialog className="outline-none">
               {({ close }) => (
                 <>

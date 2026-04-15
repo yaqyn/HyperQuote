@@ -52,7 +52,7 @@ export function PickExceptions({
   onCancel,
 }: PickExceptionsProps) {
   return (
-    <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center">
+    <ModalOverlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
       <Modal className="w-full max-w-md rounded-t-2xl bg-white dark:bg-black p-6 shadow-2xl sm:rounded-2xl border border-black/10 dark:border-white/10" isKeyboardDismissDisabled>
         <Dialog className="outline-none flex flex-col gap-5">
           {type === 'short_pick' && (

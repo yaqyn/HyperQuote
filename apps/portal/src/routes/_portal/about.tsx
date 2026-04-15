@@ -31,7 +31,7 @@ function AboutPage() {
     } else {
       // Turning on — random flicker like a lamp warming up
       setFlickering(true)
-      const count = Math.floor(Math.random() * 4) // 0-3 flickers
+      const count = 2 + Math.floor(Math.random() * 2) // 2-3 flickers
       let delay = 0
       for (let i = 0; i < count; i++) {
         const gap = 30 + Math.floor(Math.random() * 120)
@@ -89,7 +89,7 @@ function AboutPage() {
           {/* Content */}
           <div className="flex-1 flex items-start justify-center px-6 max-md:px-4 -mt-12">
             <motion.div
-              animate={{ opacity: lightsOff ? 0.4 : 1 }}
+              animate={{ opacity: lightsOff ? 0.55 : 1 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="w-full max-w-[360px] flex flex-col items-center text-center fade-reveal-down"
             >
@@ -100,21 +100,14 @@ function AboutPage() {
                 className="relative w-40 h-40 mb-6 cursor-pointer outline-none group"
                 aria-label="Toggle lights"
               >
-                <img
+                <motion.img
                   src="/brand/LyonWhite.svg"
                   alt="HyperQuote"
                   className="w-full h-full object-contain"
                   draggable={false}
-                  style={{ opacity: 1, filter: 'brightness(1.2)' }}
-                />
-                {/* Darkness overlay — top dark, bottom visible */}
-                <motion.div
-                  animate={{ opacity: lightsOff ? 1 : 0 }}
+                  animate={{ opacity: lightsOff ? 0.25 : 1 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(180deg, rgba(6,6,6,0.9) 0%, rgba(6,6,6,0.75) 30%, rgba(6,6,6,0.4) 60%, rgba(6,6,6,0.05) 90%, transparent 100%)',
-                  }}
+                  style={{ filter: 'brightness(1.2)' }}
                 />
               </button>
 

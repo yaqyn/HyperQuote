@@ -78,12 +78,12 @@ export function ClarificationForm({ rfqId, isOpen, onClose }: ClarificationFormP
       isOpen={isOpen}
       onOpenChange={(open) => { if (!open) onClose() }}
       isDismissable={false}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <Modal className="w-full max-w-lg mx-4">
         <Dialog
           isKeyboardDismissDisabled
-          className="rounded-xl bg-[var(--color-surface)]/95 dark:bg-black/95 backdrop-blur-2xl shadow-2xl outline-none"
+          className="rounded-xl bg-[var(--color-surface)]/95 dark:bg-black/95 shadow-2xl outline-none"
         >
           {({ close }) => (
             <div className="p-6">

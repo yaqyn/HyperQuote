@@ -237,25 +237,14 @@ export function ApprovalWorkflow({
         ))}
       </div>
 
-      {/* Justification + submit */}
-      <div className="flex items-end gap-4">
-        <UnderlineTextArea
-          label="Justification"
-          className="flex-1"
-          placeholder="Strategic account, competitor priced at..."
-          value={justification}
-          onChange={setJustification}
-          rows={1}
-        />
-        <Button
-          variant="subtle"
-          className="shrink-0"
-          onPress={handleRequestApproval}
-          isDisabled={submitting}
-        >
-          {submitting ? 'Submitting...' : 'Request Approval'}
-        </Button>
-      </div>
+      {/* Justification */}
+      <UnderlineTextArea
+        label="Justification"
+        placeholder="Strategic account, competitor priced at..."
+        value={justification}
+        onChange={setJustification}
+        rows={1}
+      />
     </div>
   )
 }

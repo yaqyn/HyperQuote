@@ -273,9 +273,9 @@ export function MarginRules() {
           isOpen
           onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
           isDismissable
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
         >
-          <Modal className="w-full max-w-sm rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
+          <Modal className="w-full max-w-sm rounded-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
             <Dialog className="outline-none" isKeyboardDismissDisabled>
               {() => (
                 <div className="space-y-4">
@@ -397,9 +397,9 @@ function AddMarginRuleDialog({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       isOpen={isOpen}
       onOpenChange={(open) => { if (!open) handleClose() }}
       isDismissable
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
-      <Modal className="w-full max-w-md rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
+      <Modal className="w-full max-w-md rounded-2xl bg-white/90 dark:bg-black/90 border border-black/6 dark:border-white/6 p-6 shadow-xl">
         <Dialog className="outline-none" isKeyboardDismissDisabled>
           {() => (
             <div className="space-y-5">

@@ -145,9 +145,9 @@ export function AddCustomerDialog({ onCustomerCreated }: AddCustomerDialogProps)
       <Button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#2563EB] border border-[#2563EB]/30 rounded-lg hover:bg-[#2563EB]/5 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/50">
         + {t('sales.addCustomer.button')}
       </Button>
-      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <Modal className="w-full max-w-lg mx-4">
-          <Dialog className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-6 shadow-2xl outline-none">
+          <Dialog className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 p-6 shadow-2xl outline-none">
             {({ close }) => (
               <form onSubmit={handleSubmit(onSubmit)}>
                 <Heading slot="title" className="text-lg font-bold text-black dark:text-white mb-4">

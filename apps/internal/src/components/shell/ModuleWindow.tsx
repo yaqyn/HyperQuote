@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
 import { keyboardScopeStore } from '../../stores/keyboard-scope'
 import { useInternalStore } from '../../stores/internal'
+import { useSalesStore } from '../../stores/sales'
 import { MODULES } from '../../lib/modules'
 import { WindowHeader } from './WindowHeader'
 
@@ -57,6 +58,15 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
   }, [isOpen, moduleId, getWindowState])
 
   function handleClose() {
+    // In the sales module, if the quote builder is open, closing the panel
+    // should dismiss the builder first — then the next close dismisses the panel.
+    if (moduleId === 'sales') {
+      const sales = useSalesStore.getState()
+      if (sales.editingRfqId || sales.newQuoteCustomer) {
+        sales.closeQuoteBuilder()
+        return
+      }
+    }
     if (contentRef.current) {
       saveWindowState(moduleId, { scrollTop: contentRef.current.scrollTop })
     }
@@ -64,7 +74,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
   }
 
   return (
-    <GlassWindow isOpen={isOpen} onClose={handleClose}>
+    <GlassWindow isOpen={isOpen} onClose={handleClose} closeOnBackdropClick={false}>
       {/* Header — pinned at top, never scrolls */}
       <WindowHeader moduleId={moduleId} onClose={handleClose} />
 

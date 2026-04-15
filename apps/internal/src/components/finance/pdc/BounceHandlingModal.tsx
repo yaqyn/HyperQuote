@@ -48,7 +48,7 @@ type ModalStep = 'form' | 'confirming' | 'success'
 /**
  * Serious bounce handling modal — warning icon, bounce details,
  * action options (re-present, replace, legal), customer notification toggle.
- * Elevated glass tier: backdrop-blur-2xl bg-white/90.
+ * Elevated glass tier: bg-white/90.
  */
 export function BounceHandlingModal({
   cheque,
@@ -110,10 +110,10 @@ export function BounceHandlingModal({
       }}
       isDismissable={step !== 'confirming'}
       isKeyboardDismissDisabled
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
     >
       <Modal className="w-full max-w-md mx-4">
-        <Dialog className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl p-0 outline-none">
+        <Dialog className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 p-0 outline-none">
           {({ close }) => (
             <>
               {step === 'success' ? (

@@ -328,9 +328,9 @@ export function InquiryBuilder() {
 
       {/* ── Confirmation Dialog ── */}
       <DialogTrigger isOpen={confirmOpen} onOpenChange={setConfirmOpen}>
-        <Modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <Modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <Dialog
-            className="w-full max-w-md rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl backdrop-blur-2xl outline-none dark:bg-black/90"
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl outline-none dark:bg-black/90"
             isKeyboardDismissDisabled
           >
             <Heading slot="title" className="mb-4 text-[15px] font-semibold tracking-tight">

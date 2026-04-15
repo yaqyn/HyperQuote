@@ -51,7 +51,7 @@ export function UrgentSection() {
       urgent: expiringQuotes > 0,
       onPress: () => {
         setActiveTab('rfq-inbox')
-        useSalesStore.getState().setRfqStageFilter('sent')
+        useSalesStore.getState().setRfqStageFilter('evaluated')
       },
     },
     {
@@ -60,7 +60,7 @@ export function UrgentSection() {
       urgent: overdueFollowups > 0,
       onPress: () => {
         setActiveTab('rfq-inbox')
-        useSalesStore.getState().setRfqStageFilter('negotiating')
+        useSalesStore.getState().setRfqStageFilter('submitted')
       },
     },
   ]

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { getProductCatalog } from '../../../lib/server/sales-quotes'
+import { PriceStatusBadge } from './PriceStatusBadge'
 import { SearchMenu } from './SearchMenu'
 
 export interface CatalogProduct {
@@ -12,6 +13,8 @@ export interface CatalogProduct {
   category: string
   supplierCost: number
   freshness: 'fresh' | 'aging' | 'stale' | 'missing'
+  priceStatus: 'updated' | 'outdated'
+  recentlyOrdered: boolean
   supplierName: string
 }
 
@@ -84,6 +87,11 @@ export function ProductSearchMenu({ isOpen, onClose, onAddProduct }: ProductSear
                     <span className="text-[9px] uppercase tracking-wider text-[var(--color-text-subtle)] shrink-0">
                       {product.category}
                     </span>
+                    <PriceStatusBadge
+                      priceStatus={product.priceStatus}
+                      recentlyOrdered={product.recentlyOrdered}
+                      size="xs"
+                    />
                   </div>
                   <p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">
                     {product.specification} · {product.unit}

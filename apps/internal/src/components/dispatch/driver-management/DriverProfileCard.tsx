@@ -126,13 +126,13 @@ export function DriverProfileCard({ driver, performance }: DriverProfileCardProp
       <PerformanceMetrics performance={performance} />
 
       {/* Compliance */}
-      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
         <ComplianceStatus items={complianceItems} />
       </div>
 
       {/* Type-specific sections */}
       {driver.type === 'CONTRACTED' && (
-        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
           <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
             {t('driver.contracted.title', 'Contractor Details')}
           </h4>
@@ -153,7 +153,7 @@ export function DriverProfileCard({ driver, performance }: DriverProfileCardProp
       )}
 
       {driver.type === 'ON_DEMAND' && (
-        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
           <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
             {t('driver.onDemand.title', 'On-Demand Details')}
           </h4>
@@ -171,7 +171,7 @@ export function DriverProfileCard({ driver, performance }: DriverProfileCardProp
       )}
 
       {/* Recent deliveries */}
-      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
         <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
           {t('driver.recentDeliveries', 'Recent Deliveries')}
         </h4>

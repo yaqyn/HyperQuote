@@ -167,7 +167,7 @@ function FlagIssueDialog({
         isKeyboardDismissDisabled
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       >
-        <Dialog className="w-full max-w-md rounded-2xl border border-black/[0.08] bg-white/95 p-6 shadow-xl backdrop-blur-2xl outline-none dark:border-white/[0.08] dark:bg-black/95">
+        <Dialog className="w-full max-w-md rounded-2xl border border-black/[0.08] bg-white/95 p-6 shadow-xl outline-none dark:border-white/[0.08] dark:bg-black/95">
           <Heading slot="title" className="mb-4 text-lg font-semibold">
             {t('pod.flagDialog.title', 'Flag Delivery Issue')}
           </Heading>

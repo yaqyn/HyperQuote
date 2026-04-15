@@ -41,8 +41,8 @@ export function HRShortcuts() {
   if (!showHelp) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-white/90 p-6 shadow-2xl dark:bg-black/90">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--color-text)]">Keyboard Shortcuts</h3>
           <Button

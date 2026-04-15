@@ -180,7 +180,7 @@ export function CSVImporter({ onImportComplete }: CSVImporterProps) {
             <SelectValue className="flex-1" placeholder={t('recon.selectBank', 'Select bank account...')} />
             <span className="ms-2 text-black/20 dark:text-white/20 text-[10px]">&#9662;</span>
           </Button>
-          <Popover className="w-[--trigger-width] rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-xl shadow-lg">
+          <Popover className="w-[--trigger-width] rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 shadow-lg">
             <ListBox className="p-1 outline-none">
               {MOCK_BANK_ACCOUNTS.map((account) => (
                 <ListBoxItem

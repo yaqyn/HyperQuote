@@ -63,10 +63,15 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
   const [reverseResult, setReverseResult] = useState<string | null>(null)
   const [isReversing, setIsReversing] = useState(false)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Addresses we committed from a click — forward geocoding these would drift,
+  // so we skip re-geocoding them (the marker is already at the exact clicked coord).
+  const committedFromClickRef = useRef<Set<string>>(new Set())
 
   // Forward geocode: address text → map position (debounced)
   useEffect(() => {
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+
+    if (committedFromClickRef.current.has(address)) return
 
     geocodeTimerRef.current = setTimeout(async () => {
       if (!address.trim()) return
@@ -80,7 +85,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
           duration: 1200,
         })
       }
-    }, 800) // debounce 800ms — don't geocode on every keystroke
+    }, 800)
 
     return () => {
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
@@ -99,9 +104,10 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
     setIsReversing(false)
   }, [])
 
-  // "Change delivery here" → update address field
+  // "Change delivery here" → commit clicked coord as the new marker + address
   const handleChangeDelivery = useCallback(() => {
     if (!clickedPoint || !reverseResult) return
+    committedFromClickRef.current.add(reverseResult)
     setMarkerPos(clickedPoint)
     onAddressChange(reverseResult)
     setClickedPoint(null)
@@ -118,7 +124,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
         </div>
       )}
-      <div className={`h-full w-full transition-opacity duration-500 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`h-full w-full transition-opacity duration-500 dark:[&_.maplibregl-canvas]:invert dark:[&_.maplibregl-canvas]:hue-rotate-180 dark:[&_.maplibregl-canvas]:brightness-95 dark:[&_.maplibregl-canvas]:contrast-90 dark:[&_.maplibregl-canvas]:saturate-50 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}>
       <Map
         ref={mapRef}
         mapStyle={MAP_STYLE as any}
@@ -131,50 +137,45 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
         onClick={handleMapClick}
         cursor="crosshair"
         onLoad={() => setMapLoaded(true)}
+        attributionControl={false}
+        minZoom={3}
+        maxZoom={18}
       >
         <NavigationControl position="top-right" showCompass={false} />
 
         {/* Delivery address marker */}
-        <Marker latitude={markerPos.lat} longitude={markerPos.lng}>
-          <div className="flex flex-col items-center">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] shadow-lg">
-              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z" fill="white" stroke="white" strokeWidth="0.5" />
-                <circle cx="7" cy="6" r="1.25" fill="#2563EB" />
-              </svg>
-            </div>
-            <div className="mt-1 rounded-md bg-black/80 px-2 py-0.5 text-[10px] font-medium text-white whitespace-nowrap">
-              Delivery
-            </div>
-          </div>
+        <Marker latitude={markerPos.lat} longitude={markerPos.lng} anchor="center">
+          <div className="h-4 w-4 rounded-full border-[3px] border-[#2563EB] bg-white shadow-md ring-4 ring-[#2563EB]/15" />
         </Marker>
 
         {/* Clicked point marker + Change button */}
         {clickedPoint && (
-          <Marker latitude={clickedPoint.lat} longitude={clickedPoint.lng}>
-            <div className="flex flex-col items-center">
+          <Marker latitude={clickedPoint.lat} longitude={clickedPoint.lng} anchor="center">
+            <div className="relative">
               <div className="h-4 w-4 rounded-full border-2 border-[#2563EB] bg-white shadow-md" />
-              {isReversing ? (
-                <div className="mt-2 rounded-lg bg-white/90 px-3 py-1.5 text-[11px] text-black/40 shadow-lg backdrop-blur-xl">
-                  Finding address...
-                </div>
-              ) : reverseResult ? (
-                <div className="mt-2 flex flex-col items-center gap-1.5">
-                  <div className="max-w-[220px] rounded-lg bg-white/95 px-3 py-1.5 text-[11px] leading-tight text-black/60 shadow-lg backdrop-blur-xl dark:bg-black/90 dark:text-white/60">
-                    {reverseResult.split(',').slice(0, 3).join(',')}
+              <div className="absolute left-1/2 top-full -translate-x-1/2 mt-2 flex flex-col items-center gap-1.5 antialiased subpixel-antialiased">
+                {isReversing ? (
+                  <div className="rounded-lg bg-white px-3 py-1.5 text-[12px] text-black/50 shadow-lg whitespace-nowrap">
+                    Finding address...
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleChangeDelivery()
-                    }}
-                    className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-[12px] font-medium text-white shadow-lg outline-none transition-all hover:bg-[#2563EB]/90 active:scale-95"
-                  >
-                    Change delivery here
-                  </button>
-                </div>
-              ) : null}
+                ) : reverseResult ? (
+                  <>
+                    <div className="max-w-[240px] rounded-lg bg-white px-3 py-2 text-[12px] font-medium leading-snug text-black/80 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.25)] dark:bg-[#0f0f0f] dark:text-white/85">
+                      {reverseResult.split(',').slice(0, 3).join(',')}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleChangeDelivery()
+                      }}
+                      className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-[12px] font-medium text-white shadow-lg outline-none transition-all hover:bg-[#2563EB]/90 active:scale-95 whitespace-nowrap"
+                    >
+                      Change delivery here
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           </Marker>
         )}

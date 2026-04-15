@@ -10,6 +10,7 @@ import { POList } from './po/POList'
 import { PODetail } from './po/PODetail'
 import { SupplierDirectory } from './supplier/SupplierDirectory'
 import { SupplierScorecard } from './supplier/SupplierScorecard'
+import { InventoryView } from './inventory/InventoryView'
 
 export function ProcurementModule() {
   const activeTab = useProcurementStore((s) => s.activeTab)
@@ -96,6 +97,7 @@ export function ProcurementModule() {
   )
 
   const tabContent: Record<string, React.ReactNode> = {
+    inventory: <InventoryView />,
     sourcing: sourcingContent,
     'po-management': <POList />,
     suppliers: <SupplierDirectory />,

@@ -8,7 +8,7 @@
   "urgentItemsLabel": "عناصر تحتاج انتباهك",
   "modules": {
     "sales": "المبيعات",
-    "procurement": "المشتريات",
+    "procurement": "المخزون",
     "orders": "الطلبات",
     "warehouse": "المخزن",
     "finance": "المالية",

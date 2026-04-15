@@ -136,11 +136,11 @@ export function CreatePODialog({ isOpen, onOpenChange }: CreatePODialogProps) {
     <ModalOverlay
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <Modal className="w-full max-w-lg mx-4" isKeyboardDismissDisabled>
         <Dialog
-          className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none"
+          className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none"
         >
           {({ close }) => (
             <motion.div

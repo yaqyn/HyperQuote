@@ -109,7 +109,7 @@ export function SupplierSelector({ productId, selectedIds, onSelectionChange }: 
           placeholder={t('procurement.inquiry.searchSuppliers')}
           className="w-full border-b border-black/[0.06] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] dark:border-white/[0.06]"
         />
-        <Popover className="w-[var(--trigger-width)] rounded-xl border border-black/[0.06] bg-white/95 shadow-xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/95">
+        <Popover className="w-[var(--trigger-width)] rounded-xl border border-black/[0.06] bg-white/95 shadow-xl dark:border-white/[0.06] dark:bg-black/95">
           <ListBox
             className="max-h-60 overflow-auto p-1"
             renderEmptyState={() => (

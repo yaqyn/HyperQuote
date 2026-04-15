@@ -202,7 +202,7 @@ export function MentionInput({ onSubmit, isSubmitting = false }: MentionInputPro
 
         {/* Mention autocomplete popover */}
         {showMention && mentionResults.length > 0 && (
-          <div className="absolute bottom-full mb-1 start-0 z-50 w-64 rounded-lg border border-[var(--color-border)] bg-white/90 shadow-md backdrop-blur-xl dark:bg-black/90">
+          <div className="absolute bottom-full mb-1 start-0 z-50 w-64 rounded-lg border border-[var(--color-border)] bg-white/90 shadow-md dark:bg-black/90">
             {mentionResults.map((target, i) => (
               <button
                 key={target.id}

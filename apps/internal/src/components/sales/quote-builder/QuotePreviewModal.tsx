@@ -9,7 +9,7 @@ import {
   Heading,
 } from 'react-aria-components'
 import { Button, Toggle } from '../../ui'
-import type { QuoteFormValues } from './LineItemsTable'
+import type { QuoteFormValues } from './types'
 
 interface QuotePreviewModalProps {
   quoteNumber: string
@@ -62,11 +62,11 @@ export function QuotePreviewModal({
       onOpenChange={onOpenChange}
       isDismissable
       isKeyboardDismissDisabled
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <Modal className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl">
         <Dialog
-          className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white/90 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
+          className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white/90 shadow-2xl outline-none dark:border-white/[0.06] dark:bg-black/90"
         >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-3.5 dark:border-white/[0.06]">

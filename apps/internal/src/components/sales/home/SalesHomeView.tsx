@@ -1,3 +1,4 @@
+import { OutdatedPricesCard } from './OutdatedPricesCard'
 import { UrgentSection } from './UrgentSection'
 import { PipelineSnapshot } from './PipelineSnapshot'
 import { SalesActivityFeed } from './SalesActivityFeed'
@@ -8,6 +9,7 @@ export function SalesHomeView() {
       {/* Left — metrics & pipeline */}
       <div className="flex flex-col gap-6 min-w-0">
         <UrgentSection />
+        <OutdatedPricesCard />
         <PipelineSnapshot />
       </div>
 

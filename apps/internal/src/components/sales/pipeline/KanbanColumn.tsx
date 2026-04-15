@@ -172,7 +172,7 @@ export function KanbanColumn({ stage, deals, onSelectDeal, onMoveDeal }: KanbanC
                 ? t('sales.pipeline.confirmWon', 'Confirm Won')
                 : t('sales.pipeline.confirmLost', 'Confirm Lost')
             }
-            className="w-full max-w-sm rounded-xl bg-white/95 p-5 shadow-2xl backdrop-blur-2xl dark:bg-black/95"
+            className="w-full max-w-sm rounded-xl bg-white/95 p-5 shadow-2xl dark:bg-black/95"
             onKeyDown={(e) => {
               // isKeyboardDismissDisabled -- do NOT close on Escape
               if (e.key === 'Escape') e.stopPropagation()

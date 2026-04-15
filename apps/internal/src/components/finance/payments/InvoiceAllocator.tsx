@@ -143,7 +143,7 @@ export function InvoiceAllocator() {
       </div>
 
       {/* Running balance — sticky, live-updating mono display */}
-      <div className="sticky top-0 z-10 flex items-center justify-between py-3 border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 flex items-center justify-between py-3 border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80">
         <div className="flex items-center gap-5 font-[family-name:var(--font-geist-mono)] tabular-nums text-xs">
           <span className="text-black/40 dark:text-white/40">
             {t('payments.paymentAmount', 'Payment')}

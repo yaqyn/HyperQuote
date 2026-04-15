@@ -59,11 +59,11 @@ function ConfirmDialog({
     <DialogTrigger>
       {children}
       <ModalOverlay
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
         isDismissable
       >
         <Modal
-          className="mx-4 w-full max-w-sm rounded-xl border border-black/[0.06] bg-white/95 p-6 shadow-xl backdrop-blur-2xl
+          className="mx-4 w-full max-w-sm rounded-xl border border-black/[0.06] bg-white/95 p-6 shadow-xl
             dark:border-white/[0.06] dark:bg-black/95"
           isKeyboardDismissDisabled
         >

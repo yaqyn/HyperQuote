@@ -358,7 +358,7 @@ export function RFQDetailView({ rfqId }: RFQDetailViewProps) {
       )}
 
       {/* Actions bar (bottom, sticky) */}
-      <div className="sticky bottom-0 border-t border-black/[0.06] dark:border-white/[0.06] bg-[var(--color-surface)]/95 dark:bg-black/95 backdrop-blur-sm px-4 py-3">
+      <div className="sticky bottom-0 border-t border-black/[0.06] dark:border-white/[0.06] bg-[var(--color-surface)]/95 dark:bg-black/95 px-4 py-3">
         <div className="flex flex-wrap gap-2">
           {/* 1. Start Quote (primary) */}
           <Button

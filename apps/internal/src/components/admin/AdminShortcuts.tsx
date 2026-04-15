@@ -68,8 +68,8 @@ export function AdminShortcuts() {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/95 dark:bg-black/95 p-5 shadow-2xl backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/95 dark:bg-black/95 p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-widest text-black/40 dark:text-white/40">
             Shortcuts

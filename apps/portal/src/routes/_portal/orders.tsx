@@ -136,14 +136,14 @@ function OrderSection({ type, orders }: { type: OrderType; orders: Order[] }) {
 
 const STATUS_DOT: Record<OrderType, string> = {
   saved: 'bg-[var(--p-text-muted)]',
-  submitted: 'bg-[var(--p-accent)]',
-  confirmed: 'bg-[var(--p-success)]',
+  submitted: 'bg-[var(--p-text-secondary)]',
+  confirmed: 'bg-[var(--p-text)]',
 }
 
 const GLOW_COLOR: Record<OrderType, string> = {
   saved: 'rgba(255,255,255,0.06)',
-  submitted: 'rgba(59,130,246,0.15)',
-  confirmed: 'rgba(74,222,128,0.15)',
+  submitted: 'rgba(255,255,255,0.08)',
+  confirmed: 'rgba(255,255,255,0.1)',
 }
 
 function OrderCard({ order }: { order: Order }) {
@@ -354,7 +354,7 @@ function ActionButton({
   const base = 'flex items-center gap-1.5 h-7 px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)] disabled:opacity-40'
   const variants = {
     default: 'text-[var(--p-text-secondary)] hover:text-[var(--p-text)] hover:bg-[var(--p-hover)]',
-    primary: 'text-[var(--p-accent)] hover:bg-[var(--p-accent-dim)]',
+    primary: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]',
   }
 
   return (

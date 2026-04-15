@@ -96,8 +96,8 @@ export function PublishButton({ routes }: PublishButtonProps) {
         }
       </Button>
 
-      <ModalOverlay isDismissable className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <Modal className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/95 p-6 shadow-2xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-black/95">
+      <ModalOverlay isDismissable className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <Modal className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/95 p-6 shadow-2xl dark:border-white/[0.08] dark:bg-black/95">
           <Dialog className="outline-none" role="alertdialog">
             {({ close }) => (
               <>

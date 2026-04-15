@@ -16,10 +16,14 @@ import {
   Popover,
   Dialog,
   Group,
+  Select,
+  SelectValue,
+  ListBox,
+  ListBoxItem,
 } from 'react-aria-components'
 import { PillGroup, Pill, UnderlineInput } from '../../ui'
 import { today, getLocalTimeZone, parseDate } from '@internationalized/date'
-import type { QuoteFormValues } from './LineItemsTable'
+import type { QuoteFormValues } from './types'
 
 // ─── Cairo Truck Ban Logic ────────────────────────────────
 
@@ -93,6 +97,8 @@ export function DeliveryTerms({
     return d.add({ days: leadTimeDays })
   }, [leadTimeDays])
 
+  const latestDate = useMemo(() => today(getLocalTimeZone()).add({ months: 1 }), [])
+
   const deliveryZone = DELIVERY_ZONES[0]
   const weightSurcharge = totalWeightTons > 10 ? Math.round((totalWeightTons - 10) * 150) : 0
   const baseCost = deliveryZone.baseCost + weightSurcharge
@@ -109,6 +115,7 @@ export function DeliveryTerms({
             <DatePicker
               aria-label="Delivery date"
               minValue={earliestDate}
+              maxValue={latestDate}
               value={field.value ? parseDate(field.value) : null}
               onChange={(date) => field.onChange(date?.toString() ?? '')}
               className="relative z-10"
@@ -157,7 +164,7 @@ export function DeliveryTerms({
                         {(date) => (
                           <CalendarCell
                             date={date}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:text-black/15 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06] dark:data-[unavailable]:text-white/15"
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:text-black/15 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06] dark:data-[unavailable]:text-white/15"
                           />
                         )}
                       </CalendarGridBody>
@@ -171,66 +178,60 @@ export function DeliveryTerms({
 
         <span className="text-[12px] text-black/40 dark:text-white/40">{leadTimeDays}d lead</span>
 
-        {truckBanActive ? (
-          <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
-            00:00–06:00
-          </span>
-        ) : (
-          <Controller
-            control={control}
-            name="deliveryWindow"
-            render={({ field }) => (
-              <select
-                value={field.value ?? '08:00-17:00'}
-                onChange={(e) => field.onChange(e.target.value)}
-                className="appearance-none bg-transparent font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)] outline-none cursor-pointer"
+        <Controller
+          control={control}
+          name="deliveryWindow"
+          render={({ field }) => {
+            const windows = [
+              { id: '08:00-13:00', label: 'Morning', range: '08:00–13:00' },
+              { id: '13:00-17:00', label: 'Midday', range: '13:00–17:00' },
+              { id: '17:00-20:00', label: 'Evening', range: '17:00–20:00' },
+            ]
+            const value = field.value ?? '08:00-13:00'
+            const current = windows.find((w) => w.id === value) ?? windows[0]
+            return (
+              <Select
+                selectedKey={value}
+                onSelectionChange={(key) => field.onChange(String(key))}
+                aria-label="Delivery window"
               >
-                <option value="08:00-12:00">08:00–12:00</option>
-                <option value="12:00-17:00">12:00–17:00</option>
-                <option value="08:00-17:00">08:00–17:00</option>
-                <option value="00:00-06:00">00:00–06:00</option>
-              </select>
-            )}
-          />
-        )}
+                <AriaButton className="group inline-flex items-baseline gap-2 outline-none cursor-pointer">
+                  <SelectValue>
+                    {() => (
+                      <span className="inline-flex items-baseline gap-2">
+                        <span className="text-[14px] font-medium text-[var(--color-text)]">{current.label}</span>
+                        <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/30 dark:text-white/30">{current.range}</span>
+                      </span>
+                    )}
+                  </SelectValue>
+                  <svg width="8" height="8" viewBox="0 0 14 14" fill="none" className="text-black/25 dark:text-white/25 transition-transform group-data-[open]:rotate-180">
+                    <path d="M3.5 5l3.5 3.5L10.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </AriaButton>
+                <Popover>
+                  <Dialog className="outline-none">
+                    <ListBox
+                      items={windows}
+                      className="min-w-[200px] rounded-lg border border-black/[0.06] bg-white p-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)] outline-none dark:border-white/[0.08] dark:bg-[#0f0f0f]"
+                    >
+                      {(item) => (
+                        <ListBoxItem
+                          id={item.id}
+                          textValue={`${item.label} ${item.range}`}
+                          className="flex cursor-pointer items-baseline justify-between gap-4 rounded-md px-3 py-2 outline-none transition-colors hover:bg-black/[0.03] selected:bg-black/[0.04] dark:hover:bg-white/[0.03] dark:selected:bg-white/[0.05]"
+                        >
+                          <span className="text-[13px] font-medium text-[var(--color-text)]">{item.label}</span>
+                          <span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/35 dark:text-white/35">{item.range}</span>
+                        </ListBoxItem>
+                      )}
+                    </ListBox>
+                  </Dialog>
+                </Popover>
+              </Select>
+            )
+          }}
+        />
 
-        {truckBanActive && (
-          <span className="text-[12px] text-black/40 dark:text-white/40">Night only — Cairo ban</span>
-        )}
-      </div>
-
-      {/* Row 3: Metadata — zone, cost, free delivery */}
-      <div className="flex items-center gap-2 text-[12px] text-black/40 dark:text-white/40">
-        <span>
-          Zone {deliveryZone.zone}
-          <span className="mx-1">·</span>
-          <span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[var(--color-text)]">
-            {qualifiesForFreeDelivery ? (
-              <span className="text-green-700 dark:text-green-400">Free</span>
-            ) : (
-              fmt.format(baseCost)
-            )}
-          </span>
-        </span>
-
-        {weightSurcharge > 0 && (
-          <span>
-            · +{fmt.format(weightSurcharge)}
-            <span className="ms-0.5 font-[family-name:var(--font-geist-mono)] tabular-nums">
-              ({totalWeightTons.toFixed(1)}t)
-            </span>
-          </span>
-        )}
-
-        {!qualifiesForFreeDelivery && subtotal > FREE_DELIVERY_THRESHOLD * 0.7 && (
-          <span>
-            ·{' '}
-            <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-              {fmt.format(FREE_DELIVERY_THRESHOLD - subtotal)}
-            </span>
-            {' '}to free delivery
-          </span>
-        )}
       </div>
 
       {/* Row 4: Notes */}

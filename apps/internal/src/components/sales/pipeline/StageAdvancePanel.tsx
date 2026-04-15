@@ -112,7 +112,7 @@ export function StageAdvancePanel({ deal, onClose, onMoveDeal }: StageAdvancePan
   }
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-s border-black/10 bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-black/95">
+    <div className="flex h-full w-80 shrink-0 flex-col border-s border-black/10 bg-white/95 dark:border-white/10 dark:bg-black/95">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
         <h3 className="text-sm font-semibold">
@@ -251,7 +251,7 @@ export function StageAdvancePanel({ deal, onClose, onMoveDeal }: StageAdvancePan
             role="dialog"
             aria-modal="true"
             aria-label={t('sales.pipeline.convertToOrder', 'Convert to Order')}
-            className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-black/90"
+            className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl dark:border-white/10 dark:bg-black/90"
             onKeyDown={(e) => {
               if (e.key === 'Escape') e.stopPropagation()
             }}
@@ -306,7 +306,7 @@ export function StageAdvancePanel({ deal, onClose, onMoveDeal }: StageAdvancePan
             role="dialog"
             aria-modal="true"
             aria-label={t('sales.pipeline.markAsLostTitle', 'Mark as Lost')}
-            className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-black/90"
+            className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl dark:border-white/10 dark:bg-black/90"
             onKeyDown={(e) => {
               if (e.key === 'Escape') e.stopPropagation()
             }}

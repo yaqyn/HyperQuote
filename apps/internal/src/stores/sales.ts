@@ -7,7 +7,7 @@ type SalesTab =
 
 type PipelineView = 'kanban' | 'list' | 'funnel' | 'timeline'
 type PipelineScope = 'my' | 'team'
-type RfqStageFilter = 'inbox' | 'in-progress' | 'sent' | 'negotiating' | 'closed'
+type RfqStageFilter = 'submitted' | 'evaluated' | 'canceled'
 type RfqInboxTab = 'all' | 'my' | 'unassigned' | 'needs-clarification' | 'urgent'
 type RfqViewMode = 'list' | 'board'
 
@@ -33,11 +33,17 @@ interface SalesStore {
   rfqViewMode: RfqViewMode
   selectedRfqId: string | null
   editingRfqId: string | null
+  newQuoteCustomer: { id: string; name: string } | null
   setRfqStageFilter: (stage: RfqStageFilter) => void
   setRfqInboxTab: (tab: RfqInboxTab) => void
   setRfqViewMode: (mode: RfqViewMode) => void
   setSelectedRfqId: (id: string | null) => void
   setEditingRfqId: (id: string | null) => void
+  setNewQuoteCustomer: (c: { id: string; name: string } | null) => void
+  // True when the quote builder is showing (either editing an RFQ or creating a new quote).
+  // Used by ModuleWindow so clicking the X / backdrop closes the builder first, then the panel.
+  isQuoteBuilderOpen: () => boolean
+  closeQuoteBuilder: () => void
 
   // Customer 360
   selectedCustomerId: string | null
@@ -69,16 +75,23 @@ export const useSalesStore = create<SalesStore>()(
       }),
 
     // RFQ Inbox
-    rfqStageFilter: 'inbox',
+    rfqStageFilter: 'submitted',
     rfqInboxTab: 'all',
     rfqViewMode: 'list',
     selectedRfqId: null,
     editingRfqId: null,
+    newQuoteCustomer: null,
     setRfqStageFilter: (stage) => set({ rfqStageFilter: stage }),
     setRfqInboxTab: (tab) => set({ rfqInboxTab: tab }),
     setRfqViewMode: (mode) => set({ rfqViewMode: mode }),
     setSelectedRfqId: (id) => set({ selectedRfqId: id }),
     setEditingRfqId: (id) => set({ editingRfqId: id }),
+    setNewQuoteCustomer: (c) => set({ newQuoteCustomer: c }),
+    isQuoteBuilderOpen: () => {
+      const s = (useSalesStore as unknown as { getState: () => SalesStore }).getState()
+      return !!s.editingRfqId || !!s.newQuoteCustomer
+    },
+    closeQuoteBuilder: () => set({ editingRfqId: null, newQuoteCustomer: null }),
 
     // Customer 360
     selectedCustomerId: null,

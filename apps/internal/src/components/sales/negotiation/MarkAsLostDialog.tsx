@@ -65,7 +65,7 @@ export function MarkAsLostDialog({
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <span />
       <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <Modal className="w-full max-w-md rounded-2xl bg-white/90 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
+        <Modal className="w-full max-w-md rounded-2xl bg-white/90 shadow-2xl dark:bg-black/90">
           <Dialog isKeyboardDismissDisabled className="p-6 outline-none">
             {/* Header with small warning icon -- NOT red-themed */}
             <div className="flex items-center gap-2.5">

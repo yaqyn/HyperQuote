@@ -108,7 +108,7 @@ export function YardManagement() {
       <DialogTrigger isOpen={dialogOpen} onOpenChange={setDialogOpen}>
         <Button variant="primary">Log Vehicle</Button>
         <ModalOverlay
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
           isDismissable
         >
           <Modal className="w-full max-w-md">
@@ -204,7 +204,7 @@ function LogVehicleDialog({ zones, onClose }: LogVehicleDialogProps) {
   }, [plateNumber, vehicleType, action, zoneId, notes, selectedZone, addVehicle, removeVehicle, vehiclesOnSite, onClose])
 
   return (
-    <Dialog className="rounded-2xl border border-[var(--color-border)] bg-white/90 backdrop-blur-2xl p-6 outline-none" aria-label="Log vehicle">
+    <Dialog className="rounded-2xl border border-[var(--color-border)] bg-white/90 p-6 outline-none" aria-label="Log vehicle">
       <Heading slot="title" className="text-lg font-bold text-[var(--color-text-primary)] mb-6">
         Log Vehicle
       </Heading>

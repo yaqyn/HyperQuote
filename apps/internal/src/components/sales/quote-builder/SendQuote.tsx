@@ -11,7 +11,7 @@ import {
 } from 'react-aria-components'
 import { PillGroup, Pill, UnderlineInput, Button as UiButton } from '../../ui'
 import { sendQuote } from '../../../lib/server/sales-send'
-import type { QuoteFormValues } from './LineItemsTable'
+import type { QuoteFormValues } from './types'
 
 interface SendQuoteProps {
   quoteId: string
@@ -164,11 +164,11 @@ export function SendQuote({
         isOpen={showConfirm}
         onOpenChange={setShowConfirm}
         isKeyboardDismissDisabled
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       >
         <Modal className="w-full max-w-md rounded-2xl">
           <Dialog
-            className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90"
+            className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl outline-none dark:border-white/[0.06] dark:bg-black/90"
           >
             <Heading slot="title" className="text-[16px] font-semibold">
               Send to {customerName}?

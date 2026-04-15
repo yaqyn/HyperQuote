@@ -1,56 +1,92 @@
 import { Button, TooltipTrigger, Tooltip } from 'react-aria-components'
-import type { FreshnessIndicator } from '../../../types/sales'
+import { Flame } from 'lucide-react'
+import type { PriceStatus, PriceUrgency } from '../../../types/sales'
+import { getPriceUrgency } from '../../../types/sales'
 
 interface CostLookupProps {
-  freshness: FreshnessIndicator
+  priceStatus: PriceStatus
+  recentlyOrdered: boolean
+  onRequestUpdate?: () => void
 }
 
-const FRESHNESS_CONFIG: Record<
-  FreshnessIndicator,
-  { letter: string; dotClass: string; tooltipLabel: string; showVerify?: boolean }
+const URGENCY_CONFIG: Record<
+  PriceUrgency,
+  {
+    dotClass: string
+    label: string
+    tooltipLabel: string
+    actionable: boolean
+  }
 > = {
-  fresh: {
-    letter: 'F',
-    dotClass: 'text-green-600 dark:text-green-400',
-    tooltipLabel: 'Fresh -- updated < 24h ago',
+  normal: {
+    dotClass: 'bg-emerald-500/70',
+    label: 'Updated',
+    tooltipLabel: 'Price is up to date',
+    actionable: false,
   },
-  aging: {
-    letter: 'A',
-    dotClass: 'text-yellow-600 dark:text-yellow-400',
-    tooltipLabel: 'Aging -- 1-3 days old, click to verify',
-    showVerify: true,
+  hot: {
+    dotClass: 'bg-emerald-500',
+    label: 'Updated · Hot',
+    tooltipLabel: 'Updated price · recently ordered',
+    actionable: false,
   },
   stale: {
-    letter: 'S',
-    dotClass: 'text-red-600 dark:text-red-400',
-    tooltipLabel: 'Stale -- awaiting procurement input',
+    dotClass: 'bg-amber-500/80',
+    label: 'Outdated',
+    tooltipLabel: 'Price outdated — click to request update',
+    actionable: true,
   },
-  missing: {
-    letter: 'M',
-    dotClass: 'text-[var(--color-text-subtle)]',
-    tooltipLabel: 'Missing -- no price available',
+  urgent: {
+    dotClass: 'bg-red-500',
+    label: 'Urgent',
+    tooltipLabel: 'Outdated AND recently ordered — request update now',
+    actionable: true,
   },
 }
 
 /**
- * Freshness indicator for supplier cost per line item.
- * Single-letter indicator (F/A/S/M) with tooltip -- not a full badge.
- * Aging costs show a clickable verify action.
+ * Two-axis price indicator for a quote line.
+ * - Dot color: urgency derived from (priceStatus × recentlyOrdered)
+ * - Flame icon: appears when item was recently ordered by a customer
+ * - Actionable urgencies (stale/urgent) render as a button that triggers onRequestUpdate.
  */
-export function CostLookup({ freshness }: CostLookupProps) {
-  const config = FRESHNESS_CONFIG[freshness]
+export function CostLookup({ priceStatus, recentlyOrdered, onRequestUpdate }: CostLookupProps) {
+  const urgency = getPriceUrgency(priceStatus, recentlyOrdered)
+  const config = URGENCY_CONFIG[urgency]
 
-  if (config.showVerify) {
+  const dot = (
+    <span className="relative inline-flex items-center justify-center">
+      <span className={`block h-2 w-2 rounded-full ${config.dotClass}`} />
+      {urgency === 'urgent' && (
+        <span className="absolute inline-flex h-2 w-2 rounded-full bg-red-500 opacity-60 animate-ping" />
+      )}
+    </span>
+  )
+
+  const flame = recentlyOrdered ? (
+    <Flame
+      size={10}
+      strokeWidth={2}
+      className={urgency === 'urgent' ? 'text-red-500' : 'text-amber-500'}
+    />
+  ) : null
+
+  const content = (
+    <span className="inline-flex items-center gap-1">
+      {dot}
+      {flame}
+    </span>
+  )
+
+  if (config.actionable && onRequestUpdate) {
     return (
       <TooltipTrigger delay={300}>
         <Button
-          className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-medium outline-none ${config.dotClass}`}
-          onPress={() => {
-            // Placeholder: trigger price refresh from procurement
-          }}
-          aria-label="Verify cost freshness"
+          className="outline-none cursor-pointer transition-opacity hover:opacity-70"
+          onPress={onRequestUpdate}
+          aria-label={config.tooltipLabel}
         >
-          {config.letter}
+          {content}
         </Button>
         <Tooltip
           className="rounded-md bg-black/90 px-2.5 py-1 text-[11px] text-white shadow-lg dark:bg-white/90 dark:text-black"
@@ -64,12 +100,8 @@ export function CostLookup({ freshness }: CostLookupProps) {
 
   return (
     <TooltipTrigger delay={300}>
-      <span
-        className={`font-[family-name:var(--font-geist-mono)] text-[11px] font-medium ${config.dotClass}`}
-        role="img"
-        aria-label={config.tooltipLabel}
-      >
-        {config.letter}
+      <span role="img" aria-label={config.tooltipLabel}>
+        {content}
       </span>
       <Tooltip
         className="rounded-md bg-black/90 px-2.5 py-1 text-[11px] text-white shadow-lg dark:bg-white/90 dark:text-black"

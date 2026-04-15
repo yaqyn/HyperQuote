@@ -76,12 +76,12 @@ export function SplitSourceDialog({
       {children}
       <ModalOverlay
         isDismissable
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
       >
         <Modal className="w-full max-w-md">
           <Dialog
             isKeyboardDismissDisabled
-            className="rounded-2xl border border-black/[0.06] bg-white/95 p-6 shadow-2xl outline-none backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/95"
+            className="rounded-2xl border border-black/[0.06] bg-white/95 p-6 shadow-2xl outline-none dark:border-white/[0.06] dark:bg-black/95"
           >
             {({ close }) => (
               <>

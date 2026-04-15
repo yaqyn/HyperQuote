@@ -159,7 +159,7 @@ export function PriceComparisonMatrix({ items, onCreatePO }: PriceComparisonMatr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.15 }}
-        className="mt-4 flex items-center justify-between rounded-xl bg-white/60 px-6 py-4 backdrop-blur-xl dark:bg-white/[0.04]"
+        className="mt-4 flex items-center justify-between rounded-xl bg-white/60 px-6 py-4 dark:bg-white/[0.04]"
       >
         <div>
           <div className="text-[11px] uppercase tracking-wider text-black/30 dark:text-white/30">

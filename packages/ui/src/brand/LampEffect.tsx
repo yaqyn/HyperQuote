@@ -4,28 +4,31 @@ import { cn } from '../utils/cn'
 
 const BG = '#060606'
 
+// Starts at normal speed, decelerates heavily near the end
+const lampEase = [0.15, 0.85, 0.05, 1] as const
+
 const beam = {
   initial: { opacity: 0, width: '0rem' },
   animate: { opacity: 1, width: '30rem' },
-  transition: { delay: 0.3, duration: 1.2, ease: 'easeInOut' as const },
+  transition: { delay: 0.3, duration: 6, ease: lampEase },
 }
 
 const glow = {
   initial: { opacity: 0, width: '0rem' },
   animate: { opacity: 0.5, width: '28rem' },
-  transition: { delay: 0.3, duration: 1.2, ease: 'easeInOut' as const },
+  transition: { delay: 0.3, duration: 6, ease: lampEase },
 }
 
 const innerGlow = {
   initial: { opacity: 0, width: '0rem' },
   animate: { opacity: 1, width: '16rem' },
-  transition: { delay: 0.3, duration: 1.2, ease: 'easeInOut' as const },
+  transition: { delay: 0.3, duration: 6, ease: lampEase },
 }
 
 const horizon = {
   initial: { opacity: 0, width: '0rem' },
   animate: { opacity: 1, width: '30rem' },
-  transition: { delay: 0.3, duration: 1.2, ease: 'easeInOut' as const },
+  transition: { delay: 0.3, duration: 6, ease: lampEase },
 }
 
 export const LampContainer = ({

@@ -75,7 +75,7 @@ export function ConvertToOrderDialog({
     <DialogTrigger isOpen={isOpen} onOpenChange={(open) => { if (!open) handleClose(); else onOpenChange(true) }}>
       <span />
       <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <Modal className="w-full max-w-lg rounded-2xl bg-white/90 shadow-2xl backdrop-blur-2xl dark:bg-black/90">
+        <Modal className="w-full max-w-lg rounded-2xl bg-white/90 shadow-2xl dark:bg-black/90">
           <Dialog isKeyboardDismissDisabled className="p-6 outline-none">
             {successResult ? (
               <>

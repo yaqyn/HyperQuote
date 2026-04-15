@@ -77,11 +77,11 @@ export function CreditNoteModal({ invoice, onClose }: CreditNoteModalProps) {
       isDismissable
       isOpen
       onOpenChange={(open) => { if (!open) onClose() }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <Modal className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <Dialog
-          className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 backdrop-blur-2xl p-0 outline-none"
+          className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-black/95 p-0 outline-none"
         >
           {({ close }) => (
             <motion.div

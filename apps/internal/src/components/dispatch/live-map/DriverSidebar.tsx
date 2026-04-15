@@ -69,7 +69,7 @@ export function DriverSidebar({
 
   return (
     <div
-      className="flex h-full flex-col overflow-hidden border-s border-black/[0.06] bg-white/80 backdrop-blur-xl transition-[width] duration-300 ease-in-out dark:border-white/[0.06] dark:bg-black/80"
+      className="flex h-full flex-col overflow-hidden border-s border-black/[0.06] bg-white/80 transition-[width] duration-300 ease-in-out dark:border-white/[0.06] dark:bg-black/80"
       style={{ width: open ? 280 : 0 }}
       aria-label={t('driverSidebar', 'Driver sidebar')}
     >

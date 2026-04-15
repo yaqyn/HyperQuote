@@ -42,7 +42,7 @@ export function VehiclePopup({ position, driver, route, onClose }: VehiclePopupP
 
   return (
     <div
-      className="w-56 rounded-xl border border-black/[0.08] bg-white/95 shadow-xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-black/95"
+      className="w-56 rounded-xl border border-black/[0.08] bg-white/95 shadow-xl dark:border-white/[0.08] dark:bg-black/95"
       role="dialog"
       aria-label={`${driver.name} vehicle details`}
     >

@@ -5,7 +5,6 @@ import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
 import { LampContainer } from '@hyperquote/ui'
-import { FloatingParticles } from '../components/login/FloatingParticles'
 import { usePortalStore } from '../stores/portal'
 import {
   sendOTP,
@@ -62,9 +61,9 @@ function LoginPage() {
   const [glassContent, setGlassContent] = useState<'welcome' | 'form'>('welcome')
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage('logo'), 500)
-    const t2 = setTimeout(() => setStage('reveal'), 2000)
-    const t3 = setTimeout(() => setGlassContent('form'), 2500)
+    const t1 = setTimeout(() => setStage('logo'), 300)
+    const t2 = setTimeout(() => setStage('reveal'), 1200)
+    const t3 = setTimeout(() => setGlassContent('form'), 1700)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [])
 
@@ -82,38 +81,18 @@ function LoginPage() {
 
   return (
     <div className="min-h-dvh bg-[#060606] flex items-center justify-center overflow-hidden">
-      {/* Dust particles — fade in with lamp, gradient mask: bright at top, invisible at bottom */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: stage === 'reveal' || stage === 'leaving' ? (stage === 'leaving' ? 0 : 1) : 0 }}
-        transition={{ duration: stage === 'leaving' ? 1 : 2, delay: stage === 'leaving' ? 0 : 1, ease: 'easeOut' }}
-        className="fixed inset-0 z-10 pointer-events-none"
-        style={{
-          maskImage: 'linear-gradient(180deg, white 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 60%, transparent 85%)',
-          WebkitMaskImage: 'linear-gradient(180deg, white 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 60%, transparent 85%)',
-        }}
-      >
-        <FloatingParticles className="absolute inset-0" />
-      </motion.div>
       <AnimatePresence mode="wait">
         {/* ── Stage 1: Logo in darkness ── */}
         {stage === 'logo' && (
           <motion.div
             key="logo"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.8 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
             className="flex flex-col items-center"
           >
-            <div
-              className="w-48 h-48 md:w-64 md:h-64"
-              style={{
-                maskImage: 'linear-gradient(180deg, white 30%, rgba(255,255,255,0.3) 70%, transparent 100%)',
-                WebkitMaskImage: 'linear-gradient(180deg, white 30%, rgba(255,255,255,0.3) 70%, transparent 100%)',
-                filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.06))',
-              }}
-            >
+            <div className="w-24 h-24 md:w-32 md:h-32">
               <img
                 src="/brand/LyonWhite.svg"
                 alt="HyperQuote"
@@ -236,11 +215,11 @@ function LoginPage() {
       >
         <p className="text-[13px] leading-relaxed text-[var(--p-text-muted)] text-center pointer-events-auto">
           {t('login.legalPrefix', 'By creating an account, you agree to HyperQuote')}{' '}
-          <a href="/legal/terms" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
+          <a href="https://www.hyperquote.net/docs/legal/terms-of-service" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
             {t('login.termsLink', 'Terms of Use')}
           </a>
           {' '}{t('login.and', 'and')}{' '}
-          <a href="/legal/privacy" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
+          <a href="https://www.hyperquote.net/docs/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--p-text-secondary)] transition-colors">
             {t('login.privacyLink', 'Privacy Policy')}
           </a>
         </p>

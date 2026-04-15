@@ -34,7 +34,7 @@ export function PerformanceMetrics({ performance }: PerformanceMetricsProps) {
 
   if (!performance) {
     return (
-      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+      <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
         <h4 className="text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
           {t('driver.performance.title', 'Performance')}
         </h4>
@@ -79,7 +79,7 @@ export function PerformanceMetrics({ performance }: PerformanceMetricsProps) {
   ]
 
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
       <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
         {t('driver.performance.title', 'Performance')}
       </h4>

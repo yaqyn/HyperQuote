@@ -51,7 +51,7 @@ interface ProcurementStore {
 export const useProcurementStore = create<ProcurementStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'sourcing',
+    activeTab: 'inventory',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Inquiry state

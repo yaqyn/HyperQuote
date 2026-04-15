@@ -28,6 +28,7 @@ export type StockFreshness = 'fresh' | 'aging' | 'stale' | 'suppressed'
 export type MatchStatus = 'matched' | 'partial_match' | 'mismatch' | 'pending'
 
 export type ProcurementTab =
+  | 'inventory'
   | 'sourcing'
   | 'po-management'
   | 'suppliers'

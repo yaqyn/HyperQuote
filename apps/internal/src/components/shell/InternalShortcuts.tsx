@@ -1,6 +1,7 @@
 import { hasPermission, type AuthSession } from '@hyperquote/auth'
 import { MODULES } from '../../lib/modules'
 import { useInternalStore } from '../../stores/internal'
+import { useSalesStore } from '../../stores/sales'
 import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import { useShortcut } from '../../hooks/useShortcut'
 
@@ -39,11 +40,21 @@ export function InternalShortcuts({
     enabled: scope !== 'input',
   })
 
-  // Escape: close command palette first, then module window
+  // Escape: close command palette → sales quote builder → module window
   useShortcut('Escape', () => {
     if (commandPaletteOpen) {
       onCloseCommandPalette()
-    } else if (activeModule) {
+      return
+    }
+    // If the sales quote builder is open, close it first — next Escape closes the panel.
+    if (activeModule === 'sales') {
+      const sales = useSalesStore.getState()
+      if (sales.editingRfqId || sales.newQuoteCustomer) {
+        sales.closeQuoteBuilder()
+        return
+      }
+    }
+    if (activeModule) {
       setActiveModule(null)
     }
   }, {

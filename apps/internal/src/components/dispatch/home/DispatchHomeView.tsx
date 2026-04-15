@@ -78,7 +78,7 @@ export function DispatchHomeView() {
       {/* Two-column: delivery breakdown + alerts */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Delivery breakdown */}
-        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
             {t('home.todayDeliveries', "Today's Deliveries")}
           </h3>
@@ -113,7 +113,7 @@ export function DispatchHomeView() {
         </div>
 
         {/* Alerts */}
-        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
             {t('home.alerts', 'Alerts')}
           </h3>
@@ -154,7 +154,7 @@ export function DispatchHomeView() {
 
       {/* Weather / Khamsin */}
       {board.weather.khamsinActive ? (
-        <div className="mt-4 rounded-xl border border-red-300/40 bg-red-50/60 p-4 backdrop-blur-sm dark:border-red-700/30 dark:bg-red-900/20">
+        <div className="mt-4 rounded-xl border border-red-300/40 bg-red-50/60 p-4 dark:border-red-700/30 dark:bg-red-900/20">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-red-500" aria-hidden="true">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -178,7 +178,7 @@ export function DispatchHomeView() {
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 dark:border-white/[0.06] dark:bg-black/60">
           <span className="text-black/30 dark:text-white/30">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" />
@@ -199,7 +199,7 @@ export function DispatchHomeView() {
       )}
 
       {/* Fleet status strip */}
-      <div className="mt-4 flex flex-wrap gap-3 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+      <div className="mt-4 flex flex-wrap gap-3 rounded-xl border border-black/[0.06] bg-white/60 px-4 py-3 dark:border-white/[0.06] dark:bg-black/60">
         <FleetStat label={t('home.available', 'Available')} value={board.fleetStatus.available} dot="bg-green-500" />
         <FleetStat label={t('home.inTransit', 'In Transit')} value={board.fleetStatus.inTransit} dot="bg-[#2563EB]" />
         <FleetStat label={t('home.loading', 'Loading')} value={board.fleetStatus.loading} dot="bg-amber-500" />
@@ -233,7 +233,7 @@ function HeroStat({
           : ''
 
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
       <div
         className={`font-[family-name:var(--font-geist-mono)] text-4xl font-light tabular-nums leading-none ${accentClass}`}
       >
@@ -263,7 +263,7 @@ function TimelineBar({ board }: { board: ReturnType<typeof getDispatchBoard> ext
   const maxCount = Math.max(1, ...hourCounts.values())
 
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-black/60">
+    <div className="rounded-xl border border-black/[0.06] bg-white/60 p-4 dark:border-white/[0.06] dark:bg-black/60">
       <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
         Today&apos;s Timeline
       </h3>

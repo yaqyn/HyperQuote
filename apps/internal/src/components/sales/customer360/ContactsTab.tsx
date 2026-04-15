@@ -148,9 +148,9 @@ function AddContactDialog({
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       {/* Hidden trigger -- dialog is opened programmatically */}
       <AriaButton className="hidden" />
-      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <Modal className="w-full max-w-md mx-4" isKeyboardDismissDisabled>
-          <Dialog className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none">
+          <Dialog className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none">
             {({ close }) => (
               <div className="space-y-5">
                 <Heading slot="title" className="text-[16px] font-semibold text-black dark:text-white">

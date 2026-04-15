@@ -95,7 +95,7 @@ export function PODMiniMap({ actualLat, actualLng, expectedLat, expectedLng }: P
       </Map>
 
       {/* Distance label */}
-      <div className="absolute bottom-3 start-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm dark:bg-black/90">
+      <div className="absolute bottom-3 start-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm dark:bg-black/90">
         <span className="font-[family-name:var(--font-geist-mono)] text-xs font-medium tabular-nums">
           {Math.round(distance)}m
         </span>

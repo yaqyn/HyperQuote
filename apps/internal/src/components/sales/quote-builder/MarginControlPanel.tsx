@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from 'react-aria-components'
 import type { MarginThresholds } from '../../../types/sales'
 import { getMarginLevel } from '../../../types/sales'
-import type { LineItemFormValues } from './LineItemsTable'
+import type { LineItemFormValues } from './types'
 
 interface MarginControlPanelProps {
   lineItems: LineItemFormValues[]
