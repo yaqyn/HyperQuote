@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
-import { ToolsPanel } from '../components/tools/ToolsPanel'
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
 import { useInternalStore } from '../stores/internal'
 import { useNotificationStore } from '../stores/notifications'
@@ -42,7 +41,15 @@ function InternalLayout() {
   const { auth } = Route.useRouteContext()
   const activeModule = useInternalStore((s) => s.activeModule)
   const setActiveModule = useInternalStore((s) => s.setActiveModule)
-  const [toolsOpen, setToolsOpen] = useState(false)
+
+  // Keep the most recently opened module id around during the exit fade
+  // so ModuleWindow still has content to render while it animates out.
+  // Without this, ModuleWindow would be unmounted before AnimatePresence
+  // can play the exit.
+  const [lastOpenedModule, setLastOpenedModule] = useState<string | null>(null)
+  useEffect(() => {
+    if (activeModule) setLastOpenedModule(activeModule)
+  }, [activeModule])
 
   // Notification store
   const isWindowOpen = useNotificationStore((s) => s.isWindowOpen)
@@ -94,32 +101,20 @@ function InternalLayout() {
       <InternalShortcuts
         auth={auth}
         commandPaletteOpen={false}
-        onToggleCommandPalette={() => setToolsOpen((p) => !p)}
-        onCloseCommandPalette={() => setToolsOpen(false)}
+        onToggleCommandPalette={() => {}}
+        onCloseCommandPalette={() => {}}
       />
 
       {/* Notifications window */}
       <NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
 
-      {/* Tools panel — right side, hover trigger */}
-      <ToolsPanel isOpen={toolsOpen} onClose={() => setToolsOpen(false)} />
-
-      {/* Left-edge hover trigger for tools */}
-      <div className="fixed top-0 left-0 bottom-0 z-40 w-2">
-        <button
-          type="button"
-          onClick={() => setToolsOpen(true)}
-          className="absolute top-1/2 -translate-y-1/2 left-0 w-6 h-12 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-          aria-label="Open tools"
-        >
-          <div className="w-1 h-8 rounded-full bg-black/15 dark:bg-white/15" />
-        </button>
-      </div>
-
-      {/* Module window system */}
-      {activeModule && (
+      {/* Module window system — always mounted so GlassWindow can run its
+          open/close fade. `isOpen` drives visibility; `moduleId` falls back
+          to the last opened module so content stays stable during the
+          exit animation. */}
+      {(activeModule || lastOpenedModule) && (
         <ModuleWindow
-          moduleId={activeModule}
+          moduleId={activeModule ?? lastOpenedModule ?? ''}
           isOpen={!!activeModule}
           onClose={() => setActiveModule(null)}
         />

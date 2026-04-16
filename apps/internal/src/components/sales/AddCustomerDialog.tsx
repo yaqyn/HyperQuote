@@ -17,6 +17,7 @@ import {
 } from 'react-aria-components'
 import { addCustomer, getCustomerList } from '../../lib/server/sales-customers'
 import { useSalesStore } from '../../stores/sales'
+import { isValidText } from '../../lib/inputs'
 
 interface AddCustomerDialogProps {
   onCustomerCreated?: (customerId: string) => void
@@ -204,6 +205,8 @@ export function AddCustomerDialog({ onCustomerCreated }: AddCustomerDialogProps)
                     control={control}
                     rules={{
                       required: t('sales.addCustomer.companyRequired'),
+                      validate: (v) =>
+                        isValidText(v, 2, 120) || 'Company name is not valid',
                     }}
                     render={({ field }) => (
                       <TextField
@@ -242,6 +245,8 @@ export function AddCustomerDialog({ onCustomerCreated }: AddCustomerDialogProps)
                     control={control}
                     rules={{
                       required: t('sales.addCustomer.contactRequired'),
+                      validate: (v) =>
+                        isValidText(v, 2, 80) || 'Contact name is not valid',
                     }}
                     render={({ field }) => (
                       <TextField

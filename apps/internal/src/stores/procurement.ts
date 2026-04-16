@@ -46,12 +46,19 @@ interface ProcurementStore {
   // Sourcing view (inquiry list vs comparison matrix)
   sourcingView: SourcingView
   setSourcingView: (view: SourcingView) => void
+
+  // Slide-in overlay dismissal handler. Each view that renders a side
+  // panel (RefillPanel, ProductDetailModal, SupplierProfileModal) registers
+  // a closer here; ModuleWindow.handleClose calls it first so the outer
+  // panel X dismisses the overlay before dismissing the whole panel.
+  overlayCloseHandler: (() => boolean) | null
+  setOverlayCloseHandler: (fn: (() => boolean) | null) => void
 }
 
 export const useProcurementStore = create<ProcurementStore>()(
   (set) => ({
     // Tab navigation
-    activeTab: 'inventory',
+    activeTab: 'stock',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Inquiry state
@@ -86,6 +93,9 @@ export const useProcurementStore = create<ProcurementStore>()(
     // Sourcing view
     sourcingView: 'inquiry',
     setSourcingView: (view) => set({ sourcingView: view }),
+
+    overlayCloseHandler: null,
+    setOverlayCloseHandler: (fn) => set({ overlayCloseHandler: fn }),
   }),
   // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option

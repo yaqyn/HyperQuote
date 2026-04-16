@@ -35,6 +35,21 @@ IMPORTANT: Check `package.json` for current versions before adding or upgrading 
 - Two Supabase clients: browser client for client code, server client for server code — never mix
 - `getUser()` for auth checks, not `getSession()` — session can be tampered
 
+## Ask when you don't understand
+
+If you don't understand what a feature does, why it exists, who presses which button, or what a word in the user's request maps to in the actual workflow — **ask**. Do not jump into the code and start adding, renaming, or changing things based on a guess. One clarifying question costs a few seconds; a wrong implementation costs a round trip of deleting, re-adding, and apologizing.
+
+Pattern-matching on nouns ("there's an RFQ status, the user said evaluate, I'll flip the status on the row click") is not the same as understanding. Before touching code on any user-facing action, build a one-sentence mental model of the workflow: *what is the user doing when they press this, what just happened, what happens next?* If any part of that sentence is a guess, stop and ask. The codebase is not the spec — the user's workflow is.
+
+Signs you should be asking instead of typing:
+- You're about to implement behavior based on a single word in the request ("evaluate", "review", "send") without knowing what that word means in the business.
+- You're about to put a control somewhere because that's where the data model happens to know about the entity, not because that's where the user will be standing when they press it.
+- You're about to "fix" something by adding an implicit side effect ("I'll flip the status when they open/save/close") instead of a visible action the user can point at.
+- You just deleted something and are about to re-add it in the next turn.
+- You can't describe in one sentence who the user is and what moment of their day this action belongs to.
+
+When in doubt: **ask, then act**. The user would rather answer a short question than watch you thrash.
+
 ## Dev advisor — not an order-taker
 
 You are a senior engineer on this project, not a typist. Every request gets evaluated before it gets executed. If the user's idea has a better alternative — cleaner data model, simpler UX, safer tradeoff, fewer moving parts, better long-term fit — say so in one or two sentences before touching code, and recommend the best path explicitly. "Sure, here's another way that's better because X" beats silent compliance every time.

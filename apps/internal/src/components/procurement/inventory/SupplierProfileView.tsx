@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { PriceConfirmDialog } from './PriceConfirmDialog'
+import { sanitizeCost } from '../../../lib/inputs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button as AriaButton } from 'react-aria-components'
 import {
@@ -71,7 +73,11 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
 
   const profileMutation = useMutation({
     mutationFn: updateSupplierProfile,
-    onSuccess: () => qc.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey })
+      qc.invalidateQueries({ queryKey: ['inventory-overview'] })
+      qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
+    },
   })
 
   const priceMutation = useMutation({
@@ -79,6 +85,7 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey })
       qc.invalidateQueries({ queryKey: ['inventory-overview'] })
+      qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
       qc.invalidateQueries({ queryKey: ['inventory-product-detail'] })
       qc.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
     },
@@ -87,6 +94,14 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
   const [quoteDraft, setQuoteDraft] = useState('')
   const [addBadgeOpen, setAddBadgeOpen] = useState(false)
+  const [pendingEdit, setPendingEdit] = useState<{
+    slug: string
+    supplierRowId: string
+    productName: string
+    unit: string
+    oldCost: number
+    newCost: number
+  } | null>(null)
 
   if (isLoading || !data) {
     return (
@@ -111,13 +126,35 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
     profileMutation.mutate({ data: { name, removeBadge: badge } })
   }
 
-  const savePrice = (slug: string, supplierRowId: string) => {
-    const v = parseFloat(quoteDraft.replace(/,/g, ''))
-    if (!isNaN(v) && v >= 0) {
-      priceMutation.mutate({ data: { slug, supplierRowId, rawCost: v } })
+  // Stage the price edit; the mutation fires only after the user confirms
+  // in the PriceConfirmDialog.
+  const savePrice = (slug: string, supplierRowId: string, productName: string, oldCost: number, unit: string) => {
+    const v = sanitizeCost(quoteDraft)
+    if (v !== null && v !== oldCost) {
+      setPendingEdit({
+        slug,
+        supplierRowId,
+        productName,
+        unit,
+        oldCost,
+        newCost: v,
+      })
     }
     setEditingQuoteId(null)
     setQuoteDraft('')
+  }
+
+  const commitPendingEdit = (_proof?: string) => {
+    // _proof will be piped into the price_change_log accessor once that lands.
+    if (!pendingEdit) return
+    priceMutation.mutate({
+      data: {
+        slug: pendingEdit.slug,
+        supplierRowId: pendingEdit.supplierRowId,
+        rawCost: pendingEdit.newCost,
+      },
+    })
+    setPendingEdit(null)
   }
 
   const availableBadges = SUGGESTED_BADGES.filter((b) => !supplier.customBadges.includes(b))
@@ -328,9 +365,9 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
                           autoFocus
                           value={quoteDraft}
                           onChange={(e) => setQuoteDraft(e.target.value)}
-                          onBlur={() => savePrice(q.productSlug, q.supplierRowId)}
+                          onBlur={() => savePrice(q.productSlug, q.supplierRowId, q.productName, q.rawCost, q.unit)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') savePrice(q.productSlug, q.supplierRowId)
+                            if (e.key === 'Enter') savePrice(q.productSlug, q.supplierRowId, q.productName, q.rawCost, q.unit)
                             if (e.key === 'Escape') {
                               setEditingQuoteId(null)
                               setQuoteDraft('')
@@ -396,6 +433,17 @@ export function SupplierProfileView({ name, onBack }: SupplierProfileViewProps) 
           Back to product
         </AriaButton>
       </div>
+
+      <PriceConfirmDialog
+        isOpen={pendingEdit !== null}
+        productName={pendingEdit?.productName ?? ''}
+        supplierName={name}
+        unit={pendingEdit?.unit ?? ''}
+        oldCost={pendingEdit?.oldCost ?? 0}
+        newCost={pendingEdit?.newCost ?? 0}
+        onConfirm={commitPendingEdit}
+        onCancel={() => setPendingEdit(null)}
+      />
     </div>
   )
 }

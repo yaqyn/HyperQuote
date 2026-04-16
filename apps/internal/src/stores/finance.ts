@@ -1,91 +1,44 @@
 import { create } from 'zustand'
-import type { FinanceTab, PaymentMethod } from '../types/finance'
 
-interface ARFilters {
-  tier?: string
-  salesRep?: string
-  dateRange?: { start: string; end: string }
-  amountRange?: { min: number; max: number }
-  groupBy?: 'customer' | 'region' | 'salesperson'
-}
+export type FinanceTab = 'deals-orders' | 'history'
 
-interface PaymentFlowState {
-  step: 'select_method' | 'details' | 'allocate' | 'confirm'
-  method?: PaymentMethod
-  amount?: number
-}
+export type FinanceInboxFilter = 'unpaid' | 'partial' | 'paid'
 
 interface FinanceStore {
-  // Tab navigation
   activeTab: FinanceTab
   setActiveTab: (tab: FinanceTab) => void
 
-  // Entity selection
-  selectedInvoiceId: string | null
-  setSelectedInvoiceId: (id: string | null) => void
+  inboxFilter: FinanceInboxFilter
+  setInboxFilter: (filter: FinanceInboxFilter) => void
 
-  selectedCustomerId: string | null
-  setSelectedCustomerId: (id: string | null) => void
+  selectedOrderId: string | null
+  setSelectedOrderId: (id: string | null) => void
 
-  selectedChequeId: string | null
-  setSelectedChequeId: (id: string | null) => void
+  selectedDealId: string | null
+  setSelectedDealId: (id: string | null) => void
 
-  // Dispute detail drill-down (merged into AR)
-  selectedDisputeId: string | null
-  setSelectedDisputeId: (id: string | null) => void
-
-  // AR filters
-  arFilters: ARFilters
-  setARFilters: (filters: Partial<ARFilters>) => void
-  clearARFilters: () => void
-
-  // Payment recording flow
-  paymentFlow: PaymentFlowState
-  setPaymentFlowStep: (step: PaymentFlowState['step'], method?: PaymentMethod) => void
-  resetPaymentFlow: () => void
-}
-
-const DEFAULT_AR_FILTERS: ARFilters = {}
-
-const DEFAULT_PAYMENT_FLOW: PaymentFlowState = {
-  step: 'select_method',
+  // Slide-in overlay dismissal handler — mirrors procurement store.
+  overlayCloseHandler: (() => boolean) | null
+  setOverlayCloseHandler: (fn: (() => boolean) | null) => void
 }
 
 export const useFinanceStore = create<FinanceStore>()(
   (set) => ({
-    // Tab navigation
-    activeTab: 'receivables',
+    activeTab: 'deals-orders',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
-    // Entity selection
-    selectedInvoiceId: null,
-    setSelectedInvoiceId: (id) => set({ selectedInvoiceId: id }),
+    inboxFilter: 'unpaid',
+    setInboxFilter: (filter) => set({ inboxFilter: filter }),
 
-    selectedCustomerId: null,
-    setSelectedCustomerId: (id) => set({ selectedCustomerId: id }),
+    selectedOrderId: null,
+    setSelectedOrderId: (id) => set({ selectedOrderId: id, selectedDealId: null }),
 
-    selectedChequeId: null,
-    setSelectedChequeId: (id) => set({ selectedChequeId: id }),
+    selectedDealId: null,
+    setSelectedDealId: (id) => set({ selectedDealId: id, selectedOrderId: null }),
 
-    // Dispute detail drill-down (merged into AR)
-    selectedDisputeId: null,
-    setSelectedDisputeId: (id) => set({ selectedDisputeId: id }),
-
-    // AR filters
-    arFilters: DEFAULT_AR_FILTERS,
-    setARFilters: (filters) =>
-      set((state) => ({ arFilters: { ...state.arFilters, ...filters } })),
-    clearARFilters: () => set({ arFilters: DEFAULT_AR_FILTERS }),
-
-    // Payment recording flow
-    paymentFlow: DEFAULT_PAYMENT_FLOW,
-    setPaymentFlowStep: (step, method) =>
-      set((state) => ({
-        paymentFlow: { ...state.paymentFlow, step, ...(method !== undefined ? { method } : {}) },
-      })),
-    resetPaymentFlow: () => set({ paymentFlow: DEFAULT_PAYMENT_FLOW }),
+    overlayCloseHandler: null,
+    setOverlayCloseHandler: (fn) => set({ overlayCloseHandler: fn }),
   }),
-  // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
   // @ts-expect-error -- skipHydration is a valid persist middleware option
   { skipHydration: true },
 )

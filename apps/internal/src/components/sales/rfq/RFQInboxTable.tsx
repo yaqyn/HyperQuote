@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button as AriaButton } from 'react-aria-components'
 import { ArrowRight, AlertTriangle } from 'lucide-react'
-import { getRFQQueue, autoAssignRFQ } from '../../../lib/server/sales-rfq'
+import { getRFQQueue } from '../../../lib/server/sales-rfq'
 import { getSalesPipeline } from '../../../lib/server/sales-pipeline'
 import { useSalesStore } from '../../../stores/sales'
 import type { RFQ } from '../../../types/sales'
@@ -92,12 +92,6 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
   const [declineRfqId, setDeclineRfqId] = useState<string | null>(null)
   const [reportRfqId, setReportRfqId] = useState<string | null>(null)
 
-  const claimMutation = useMutation({
-    mutationFn: (rfqId: string) => autoAssignRFQ({ data: { rfqId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
-    },
-  })
 
   const rfqs = data?.rfqs ?? []
 
@@ -148,9 +142,9 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
   )
 
   const handleStartQuote = (rfq: RFQ) => {
-    if (!rfq.assignedRep) {
-      claimMutation.mutate(rfq.id)
-    }
+    // Open the quote builder. No status flip — Evaluate lives inside
+    // the builder header as an explicit commit action after the rep
+    // has reviewed, called the customer, edited items, gathered prices.
     setEditingRfqId(rfq.id)
   }
 

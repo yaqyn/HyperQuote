@@ -2,9 +2,6 @@ import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import {
-  DatePicker,
-  DateInput,
-  DateSegment,
   Calendar,
   CalendarGrid,
   CalendarGridBody,
@@ -15,7 +12,7 @@ import {
   Button as AriaButton,
   Popover,
   Dialog,
-  Group,
+  DialogTrigger,
   Select,
   SelectValue,
   ListBox,
@@ -111,69 +108,82 @@ export function DeliveryTerms({
         <Controller
           control={control}
           name="deliveryDate"
-          render={({ field }) => (
-            <DatePicker
-              aria-label="Delivery date"
-              minValue={earliestDate}
-              maxValue={latestDate}
-              value={field.value ? parseDate(field.value) : null}
-              onChange={(date) => field.onChange(date?.toString() ?? '')}
-              className="relative z-10"
-            >
-              <Group className="flex items-center gap-1.5">
-                <DateInput className="flex items-center">
-                  {(segment) => (
-                    <DateSegment
-                      segment={segment}
-                      className="rounded px-0.5 font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums outline-none
-                        data-[focused]:bg-[var(--color-primary)]/10
-                        data-[placeholder]:text-black/15 dark:data-[placeholder]:text-white/15"
-                    />
-                  )}
-                </DateInput>
-                <AriaButton className="rounded-md p-1 text-black/40 outline-none transition-colors
-                  data-[hovered]:text-black/60 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                  dark:text-white/40 dark:data-[hovered]:text-white/60">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          render={({ field }) => {
+            const parsed = field.value ? parseDate(field.value) : null
+            const formatted = parsed
+              ? parsed.toDate(getLocalTimeZone()).toLocaleDateString(locale, {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : null
+            return (
+              <DialogTrigger>
+                <AriaButton
+                  aria-label="Delivery date"
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 outline-none transition-colors
+                    data-[hovered]:bg-black/[0.04] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
+                    dark:data-[hovered]:bg-white/[0.06]"
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true" className="text-black/40 dark:text-white/40">
                     <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
                     <path d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
                   </svg>
+                  {formatted ? (
+                    <span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
+                      {formatted}
+                    </span>
+                  ) : (
+                    <span className="text-[13px] italic text-black/40 dark:text-white/40">Pick a date</span>
+                  )}
                 </AriaButton>
-              </Group>
-              <Popover>
-                <Dialog className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl dark:border-white/[0.06] dark:bg-black">
-                  <Calendar>
-                    <header className="mb-2 flex items-center justify-between">
-                      <AriaButton slot="previous" className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">
-                        &lt;
-                      </AriaButton>
-                      <Heading className="text-[13px] font-semibold" />
-                      <AriaButton slot="next" className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">
-                        &gt;
-                      </AriaButton>
-                    </header>
-                    <CalendarGrid>
-                      <CalendarGridHeader>
-                        {(day) => (
-                          <CalendarHeaderCell className="pb-2 text-[11px] font-medium text-[var(--color-text-subtle)]">
-                            {day}
-                          </CalendarHeaderCell>
-                        )}
-                      </CalendarGridHeader>
-                      <CalendarGridBody>
-                        {(date) => (
-                          <CalendarCell
-                            date={date}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:text-black/15 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06] dark:data-[unavailable]:text-white/15"
-                          />
-                        )}
-                      </CalendarGridBody>
-                    </CalendarGrid>
-                  </Calendar>
-                </Dialog>
-              </Popover>
-            </DatePicker>
-          )}
+                <Popover placement="bottom start">
+                  <Dialog className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl outline-none dark:border-white/[0.06] dark:bg-black">
+                    {({ close }) => (
+                      <Calendar
+                        aria-label="Delivery date"
+                        minValue={earliestDate}
+                        maxValue={latestDate}
+                        value={parsed}
+                        onChange={(date) => {
+                          field.onChange(date?.toString() ?? '')
+                          close()
+                        }}
+                      >
+                        <header className="mb-2 flex items-center justify-between">
+                          <AriaButton slot="previous" className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">
+                            &lt;
+                          </AriaButton>
+                          <Heading className="text-[13px] font-semibold" />
+                          <AriaButton slot="next" className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]">
+                            &gt;
+                          </AriaButton>
+                        </header>
+                        <CalendarGrid>
+                          <CalendarGridHeader>
+                            {(day) => (
+                              <CalendarHeaderCell className="pb-2 text-[11px] font-medium text-[var(--color-text-subtle)]">
+                                {day}
+                              </CalendarHeaderCell>
+                            )}
+                          </CalendarGridHeader>
+                          <CalendarGridBody>
+                            {(date) => (
+                              <CalendarCell
+                                date={date}
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:text-black/15 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06] dark:data-[unavailable]:text-white/15"
+                              />
+                            )}
+                          </CalendarGridBody>
+                        </CalendarGrid>
+                      </Calendar>
+                    )}
+                  </Dialog>
+                </Popover>
+              </DialogTrigger>
+            )
+          }}
         />
 
         <span className="text-[12px] text-black/40 dark:text-white/40">{leadTimeDays}d lead</span>

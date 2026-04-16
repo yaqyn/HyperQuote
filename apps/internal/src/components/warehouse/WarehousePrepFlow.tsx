@@ -1,0 +1,1259 @@
+import { useState } from 'react'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useWarehouseStore } from '../../stores/warehouse'
+import {
+  getWarehouseOrderDetail,
+  getAvailableTrucks,
+  getWarehouseEmployees,
+  assignTruckToOrder,
+  removeTruckFromOrder,
+  toggleItemLoaded,
+  markReadyForSignoff,
+  recordWarehouseSignoff,
+  logFailedInspection,
+  passOrderToDispatch,
+  resetWarehouseOrder,
+  type WarehouseOrderDetailView,
+  type SecurityMethod,
+} from '../../lib/server/warehouse'
+
+/**
+ * 4-stage resumable prep wizard.
+ *
+ * The stage is derived from what's already persisted on the order report,
+ * NOT from React state. If the advisor drops their tablet mid-load and
+ * someone else picks it up, they see the same screen the first advisor
+ * left on — all truck assignments and loaded item checks are already
+ * written to `order_reports.sections.warehouse`.
+ */
+export function WarehousePrepFlow({ quoteId }: { quoteId: string | null }) {
+  const reduce = useReducedMotion()
+  return (
+    <AnimatePresence mode="wait">
+      {quoteId ? (
+        <motion.div
+          key={quoteId}
+          initial={reduce ? false : { x: 40, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={reduce ? undefined : { x: 40, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+          className="hidden h-full w-[55%] shrink-0 md:flex"
+        >
+          <PrepFlowInner quoteId={quoteId} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="empty"
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduce ? undefined : { opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="hidden h-full w-[55%] shrink-0 md:flex"
+        >
+          <EmptyPanel />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function EmptyPanel() {
+  return (
+    <aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+      <div className="flex flex-col items-center gap-3 px-10 text-center">
+        <span
+          aria-hidden="true"
+          className="font-[family-name:var(--font-geist-mono)] text-[120px] font-bold leading-none text-black/10"
+        >
+          ←
+        </span>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[13px] font-bold uppercase tracking-[0.22em] text-black/40">
+          Pick an order from the queue
+        </p>
+        <p className="text-[12px] text-black/40 max-w-[340px]">
+          Tap a card on the left to start or resume a prep flow. Everything
+          you do is saved as you go — you can walk away and come back.
+        </p>
+      </div>
+    </aside>
+  )
+}
+
+function PrepFlowInner({ quoteId }: { quoteId: string }) {
+  const qc = useQueryClient()
+  const { data: order, isLoading } = useQuery({
+    queryKey: ['warehouse-order', quoteId],
+    queryFn: () => getWarehouseOrderDetail({ data: { quoteId } }),
+    staleTime: 5_000,
+  })
+
+  const setSelectedQuoteId = useWarehouseStore((s) => s.setSelectedQuoteId)
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['warehouse-order', quoteId] })
+    qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+    qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+  }
+
+  if (isLoading || !order) {
+    return (
+      <aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+        <p className="font-[family-name:var(--font-geist-mono)] text-[12px] uppercase tracking-[0.22em] text-black/40">
+          Loading order…
+        </p>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className="flex h-full w-full flex-col border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+      <PrepHeader order={order} onClose={() => setSelectedQuoteId(null)} onReset={invalidate} />
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={order.stage}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <StageRouter order={order} onChange={invalidate} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </aside>
+  )
+}
+
+// ─── Header ──────────────────────────────────────────────
+
+function PrepHeader({
+  order,
+  onClose,
+  onReset,
+}: {
+  order: WarehouseOrderDetailView
+  onClose: () => void
+  onReset: () => void
+}) {
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const qc = useQueryClient()
+  const resetMutation = useMutation({
+    mutationFn: () => resetWarehouseOrder({ data: { quoteId: order.quoteId } }),
+    onSuccess: () => {
+      setResetConfirmOpen(false)
+      qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+      onReset()
+    },
+  })
+
+  return (
+    <header className="shrink-0 border-b-[3px] border-[#0A0A0A] px-8 pt-6 pb-5">
+      <div className="flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.3em] text-black/50">
+            Order in prep · {order.quoteNumber}
+            {order.customerPoNumber ? ` · ${order.customerPoNumber}` : ''}
+          </p>
+          <h2 className="mt-2 truncate text-[34px] font-bold leading-none">
+            {order.customerName}
+          </h2>
+          <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.14em] text-black/55">
+            {order.deliveryCity || '—'} · {order.itemCount} items
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <motion.button
+            type="button"
+            onClick={onClose}
+            whileTap={{ scale: 0.96 }}
+            aria-label="Close order"
+            className="border-[3px] border-[#0A0A0A] bg-white px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#0A0A0A] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+          >
+            Close
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={() => setResetConfirmOpen(true)}
+            whileTap={{ scale: 0.96 }}
+            className="border-[3px] border-[#CC3300] bg-white px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#F4F4EC]"
+          >
+            Reset
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Stage rail */}
+      <div className="mt-5 grid grid-cols-4 gap-2">
+        <StageTick label="Truck" active={order.stage !== 'unstarted'} current={order.stage === 'unstarted'} />
+        <StageTick
+          label="Load"
+          active={order.stage === 'awaiting_signoff' || order.stage === 'complete'}
+          current={order.stage === 'loading'}
+        />
+        <StageTick
+          label="Signoff"
+          active={order.stage === 'complete'}
+          current={order.stage === 'awaiting_signoff'}
+        />
+        <StageTick label="Dispatch" active={false} current={order.stage === 'complete'} />
+      </div>
+
+      <AnimatePresence>
+        {resetConfirmOpen && (
+          <ResetConfirmDialog
+            onCancel={() => setResetConfirmOpen(false)}
+            onConfirm={() => resetMutation.mutate()}
+            isPending={resetMutation.isPending}
+          />
+        )}
+      </AnimatePresence>
+    </header>
+  )
+}
+
+function StageTick({
+  label,
+  active,
+  current,
+}: {
+  label: string
+  active: boolean
+  current: boolean
+}) {
+  const bg = current ? '#E6B400' : active ? '#0A0A0A' : 'rgba(0,0,0,0.04)'
+  const textColor = current ? '#0A0A0A' : active ? '#F4F4EC' : '#0A0A0A'
+  return (
+    <motion.div
+      layout
+      animate={{ backgroundColor: bg, color: textColor }}
+      transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+      className="flex h-9 items-center justify-center border-[3px] border-[#0A0A0A] font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em]"
+    >
+      {label}
+    </motion.div>
+  )
+}
+
+// ─── Reset confirm dialog ────────────────────────────────
+
+function ResetConfirmDialog({
+  onCancel,
+  onConfirm,
+  isPending,
+}: {
+  onCancel: () => void
+  onConfirm: () => void
+  isPending: boolean
+}) {
+  return (
+    <>
+      <motion.button
+        type="button"
+        aria-label="Cancel reset"
+        onClick={onCancel}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[70] cursor-default bg-black/40"
+      />
+      <motion.div
+        role="dialog"
+        aria-label="Reset order"
+        initial={{ opacity: 0, scale: 0.94, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="fixed left-1/2 top-1/2 z-[80] w-[min(440px,90vw)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-[#CC3300] bg-white p-7 shadow-[10px_10px_0_0_#0A0A0A]"
+      >
+        <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.24em] text-[#CC3300]">
+          Reset order
+        </p>
+        <h3 className="mt-2 text-[22px] font-bold leading-tight">
+          Start this order over?
+        </h3>
+        <p className="mt-3 text-[13px] leading-relaxed text-black/65">
+          This clears every truck assignment, un-checks every item, and
+          drops the signoff if it was pending. Use this only if something
+          went wrong — the inventory reservation stays, so you won't lose
+          the order.
+        </p>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <motion.button
+            type="button"
+            onClick={onCancel}
+            whileTap={{ scale: 0.96 }}
+            className="border-[3px] border-[#0A0A0A] bg-white py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            whileTap={{ scale: 0.96 }}
+            className="border-[3px] border-[#0A0A0A] bg-[#CC3300] py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#F4F4EC] transition-all hover:shadow-[4px_4px_0_0_#0A0A0A] disabled:opacity-50"
+          >
+            {isPending ? 'Resetting…' : 'Reset'}
+          </motion.button>
+        </div>
+      </motion.div>
+    </>
+  )
+}
+
+// ─── Stage router ────────────────────────────────────────
+
+function StageRouter({
+  order,
+  onChange,
+}: {
+  order: WarehouseOrderDetailView
+  onChange: () => void
+}) {
+  switch (order.stage) {
+    case 'unstarted':
+    case 'loading':
+      return <LoadStage order={order} onChange={onChange} />
+    case 'awaiting_signoff':
+      return <SignoffStage order={order} onChange={onChange} />
+    case 'complete':
+      return <CompleteStage order={order} onChange={onChange} />
+  }
+}
+
+// ─── STAGE 1 + 2: Pick truck + load items + Next ─────────
+
+function LoadStage({
+  order,
+  onChange,
+}: {
+  order: WarehouseOrderDetailView
+  onChange: () => void
+}) {
+  const [showTruckPicker, setShowTruckPicker] = useState(
+    order.truckAssignments.length === 0,
+  )
+  const qc = useQueryClient()
+
+  const loadedSet = new Set(
+    order.truckAssignments.flatMap((a) => a.itemsLoaded),
+  )
+  const allLoaded =
+    order.itemCount > 0 &&
+    order.items.every((i) => loadedSet.has(i.productSlug))
+  const emptyTruck = order.truckAssignments.find((a) => a.itemsLoaded.length === 0)
+  const hasEmptyTruck = !!emptyTruck
+  const canAdvance = allLoaded && !hasEmptyTruck
+
+  const nextMutation = useMutation({
+    mutationFn: () => markReadyForSignoff({ data: { quoteId: order.quoteId } }),
+    onSuccess: (res) => {
+      if (res.success) {
+        qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+        qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+        onChange()
+      }
+    },
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: (truckId: string) =>
+      removeTruckFromOrder({ data: { quoteId: order.quoteId, truckId } }),
+    onSuccess: (res) => {
+      if (res.success) {
+        qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+        qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+        qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+        onChange()
+      }
+    },
+  })
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Assigned trucks strip */}
+      {order.truckAssignments.length > 0 && (
+        <section>
+          <SectionHeading index="01" title="Assigned trucks" />
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {order.truckAssignments.map((a, idx) => {
+              const isEmpty = a.itemsLoaded.length === 0
+              return (
+                <motion.div
+                  key={a.truckId}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    borderColor: isEmpty ? '#CC3300' : '#0A0A0A',
+                    backgroundColor: isEmpty ? '#FFF4F0' : '#FFFFFF',
+                  }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{
+                    duration: 0.28,
+                    ease: [0.2, 0.8, 0.2, 1],
+                    delay: idx * 0.04,
+                  }}
+                  className="border-[3px] px-5 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
+                        {a.plateNumber}
+                      </p>
+                      <p className="mt-1 text-[16px] font-bold">{a.driverName}</p>
+                    </div>
+                    <div className="text-end">
+                      <motion.span
+                        key={a.itemsLoaded.length}
+                        initial={{ scale: 0.8, opacity: 0.4 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+                        className="font-[family-name:var(--font-geist-mono)] text-[22px] font-bold leading-none tabular-nums"
+                      >
+                        {a.itemsLoaded.length}
+                      </motion.span>
+                      <p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.18em] text-black/50">
+                        items
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/50">
+                      {a.capacityTons}T capacity
+                    </p>
+                    {isEmpty && (
+                      <motion.button
+                        type="button"
+                        onClick={() => removeMutation.mutate(a.truckId)}
+                        disabled={removeMutation.isPending}
+                        whileTap={{ scale: 0.95 }}
+                        className="border-[3px] border-[#CC3300] bg-white px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#F4F4EC] disabled:opacity-50"
+                      >
+                        Remove
+                      </motion.button>
+                    )}
+                  </div>
+                  {isEmpty && (
+                    <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[#CC3300]">
+                      Empty — load items or remove
+                    </p>
+                  )}
+                </motion.div>
+              )
+            })}
+          </div>
+          <motion.button
+            type="button"
+            onClick={() => setShowTruckPicker((v) => !v)}
+            whileTap={{ scale: 0.97 }}
+            className="mt-3 border-[3px] border-[#0A0A0A] bg-white px-4 py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+          >
+            {showTruckPicker ? '− Close truck picker' : '+ Need another truck'}
+          </motion.button>
+        </section>
+      )}
+
+      <AnimatePresence>
+        {showTruckPicker && (
+          <motion.div
+            key="truck-picker"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.24 }}
+          >
+            <TruckPicker
+              order={order}
+              onAssigned={() => {
+                setShowTruckPicker(false)
+                onChange()
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Checklist */}
+      {order.truckAssignments.length > 0 && (
+        <section>
+          <SectionHeading
+            index={order.truckAssignments.length > 0 ? '02' : '01'}
+            title="Load checklist"
+          />
+          <p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
+            Tap an item to assign it to a truck. Tap again to unload. Every
+            item must be on a truck before you can move to signoff.
+          </p>
+          <ItemChecklist order={order} onChange={onChange} />
+
+          {/* Next → Signoff gate — ONLY enabled when every item is loaded
+              AND no assigned truck is empty. Pressing it is explicit;
+              the stage never auto-advances. */}
+          <motion.button
+            type="button"
+            onClick={() => nextMutation.mutate()}
+            disabled={!canAdvance || nextMutation.isPending}
+            whileTap={canAdvance ? { scale: 0.98 } : undefined}
+            animate={{
+              backgroundColor: canAdvance ? '#E6B400' : 'rgba(0,0,0,0.05)',
+              color: canAdvance ? '#0A0A0A' : 'rgba(0,0,0,0.3)',
+            }}
+            transition={{ duration: 0.25 }}
+            className="mt-5 w-full border-[3px] border-[#0A0A0A] py-5 font-[family-name:var(--font-geist-mono)] text-[13px] font-bold uppercase tracking-[0.22em] transition-all enabled:hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:cursor-not-allowed"
+          >
+            {nextMutation.isPending
+              ? 'Advancing…'
+              : canAdvance
+                ? 'Next → Signoff'
+                : hasEmptyTruck
+                  ? `Truck ${emptyTruck?.plateNumber} is empty — load or remove it`
+                  : `${loadedSet.size}/${order.itemCount} loaded — load every item first`}
+          </motion.button>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function SectionHeading({ index, title }: { index: string; title: string }) {
+  return (
+    <div className="flex items-baseline gap-4">
+      <span className="font-[family-name:var(--font-geist-mono)] text-[26px] font-bold leading-none tabular-nums text-black/20">
+        {index}
+      </span>
+      <h3 className="font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.2em]">
+        {title}
+      </h3>
+    </div>
+  )
+}
+
+function TruckPicker({
+  order,
+  onAssigned,
+}: {
+  order: WarehouseOrderDetailView
+  onAssigned: () => void
+}) {
+  const qc = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['warehouse-trucks'],
+    queryFn: () => getAvailableTrucks({ data: {} }),
+    staleTime: 10_000,
+  })
+
+  const mutation = useMutation({
+    mutationFn: (truckId: string) =>
+      assignTruckToOrder({ data: { quoteId: order.quoteId, truckId } }),
+    onSuccess: (res) => {
+      if (res.success) {
+        qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+        onAssigned()
+      }
+    },
+  })
+
+  const assignedIds = new Set(order.truckAssignments.map((a) => a.truckId))
+  const trucks = (data?.trucks ?? [])
+    .filter((t) => !assignedIds.has(t.id))
+    .filter((t) => t.status === 'available' || t.status === 'loading')
+
+  return (
+    <section>
+      <SectionHeading index="01" title="Choose truck" />
+      <p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
+        Only available trucks show up here. The admin panel (coming soon)
+        is where new trucks land.
+      </p>
+      <motion.div
+        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.04 } },
+        }}
+      >
+        {trucks.length === 0 && (
+          <div className="col-span-full border-[3px] border-dashed border-black/20 px-5 py-6 text-center font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.18em] text-black/45">
+            No trucks available right now
+          </div>
+        )}
+        {trucks.map((t) => (
+          <motion.button
+            key={t.id}
+            type="button"
+            onClick={() => mutation.mutate(t.id)}
+            disabled={mutation.isPending}
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              visible: { opacity: 1, y: 0 },
+            }}
+            transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            className="group border-[3px] border-[#0A0A0A] bg-white px-5 py-4 text-start transition-shadow hover:shadow-[4px_4px_0_0_#0A0A0A] disabled:opacity-40"
+            style={{ minHeight: '100px' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
+                  {t.plateNumber}
+                </p>
+                <p className="mt-1 text-[18px] font-bold leading-tight">
+                  {t.driverName}
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/50">
+                  {t.bodyType} · {t.capacityTons}T
+                </p>
+              </div>
+              <span className="shrink-0 bg-[#E6B400] px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.2em]">
+                Tap to pick
+              </span>
+            </div>
+          </motion.button>
+        ))}
+      </motion.div>
+    </section>
+  )
+}
+
+// ─── Checklist (one row per line item) ───────────────────
+
+function ItemChecklist({
+  order,
+  onChange,
+}: {
+  order: WarehouseOrderDetailView
+  onChange: () => void
+}) {
+  const qc = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: (input: { truckId: string; productSlug: string }) =>
+      toggleItemLoaded({
+        data: {
+          quoteId: order.quoteId,
+          truckId: input.truckId,
+          productSlug: input.productSlug,
+        },
+      }),
+    onSuccess: (res) => {
+      if (res.success) {
+        qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+        qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+        onChange()
+      }
+    },
+  })
+
+  return (
+    <motion.div
+      className="mt-4 flex flex-col gap-3"
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: { transition: { staggerChildren: 0.03 } },
+      }}
+    >
+      {order.items.map((item) => (
+        <motion.div
+          key={item.productSlug}
+          variants={{
+            hidden: { opacity: 0, x: -8 },
+            visible: { opacity: 1, x: 0 },
+          }}
+          transition={{ duration: 0.22 }}
+          animate={{
+            borderColor: item.loadedOnTruckId ? '#0A5C2E' : 'rgba(10,10,10,0.2)',
+            backgroundColor: item.loadedOnTruckId ? '#F0F7F0' : '#FFFFFF',
+          }}
+          className="flex flex-wrap items-center gap-3 border-[3px] px-5 py-4"
+          style={{ minHeight: '72px' }}
+        >
+          {/* Big check indicator */}
+          <motion.div
+            animate={{
+              backgroundColor: item.loadedOnTruckId ? '#0A5C2E' : 'transparent',
+            }}
+            transition={{ duration: 0.22 }}
+            className="flex h-12 w-12 shrink-0 items-center justify-center border-[3px] border-[#0A0A0A]"
+          >
+            <AnimatePresence>
+              {item.loadedOnTruckId && (
+                <motion.svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 22 22"
+                  fill="none"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.28 }}
+                  aria-hidden="true"
+                >
+                  <motion.path
+                    d="M4 11l5 5 9-10"
+                    stroke="#F4F4EC"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                  />
+                </motion.svg>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[16px] font-bold leading-tight">{item.productName}</p>
+            <p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-black/55">
+              {item.sku} · {item.quantity} {item.unit}
+            </p>
+          </div>
+
+          {/* Truck buttons — one per assigned truck */}
+          <div className="flex flex-wrap gap-2">
+            {order.truckAssignments.map((a) => {
+              const isHere = item.loadedOnTruckId === a.truckId
+              return (
+                <motion.button
+                  key={a.truckId}
+                  type="button"
+                  onClick={() =>
+                    mutation.mutate({ truckId: a.truckId, productSlug: item.productSlug })
+                  }
+                  disabled={mutation.isPending}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{
+                    backgroundColor: isHere ? '#0A5C2E' : '#FFFFFF',
+                    color: isHere ? '#F4F4EC' : '#0A0A0A',
+                  }}
+                  transition={{ duration: 0.2 }}
+                  className="border-[3px] border-[#0A0A0A] px-3 py-2 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.16em] disabled:opacity-40"
+                  style={{ minHeight: '44px', minWidth: '88px' }}
+                >
+                  {isHere ? '✓ ' : ''}
+                  {a.plateNumber.split('-').pop()}
+                </motion.button>
+              )
+            })}
+          </div>
+        </motion.div>
+      ))}
+    </motion.div>
+  )
+}
+
+// ─── STAGE 3: Signoff ────────────────────────────────────
+
+function SignoffStage({
+  order,
+  onChange,
+}: {
+  order: WarehouseOrderDetailView
+  onChange: () => void
+}) {
+  const [advisorId, setAdvisorId] = useState<string | null>(null)
+  const [qualityPass, setQualityPass] = useState<boolean | null>(null)
+  const [proofUrl, setProofUrl] = useState('')
+  const [failReason, setFailReason] = useState('')
+  const [securityMethod, setSecurityMethod] = useState<SecurityMethod>('password')
+  const [securityToken, setSecurityToken] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const qc = useQueryClient()
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['warehouse-employees'],
+    queryFn: () => getWarehouseEmployees({ data: {} }),
+    staleTime: 60_000,
+  })
+  const employees = employeesData?.employees ?? []
+  const selectedAdvisor = employees.find((e) => e.id === advisorId) ?? null
+
+  const passMutation = useMutation({
+    mutationFn: () => {
+      if (!advisorId) throw new Error('Pick an advisor')
+      return recordWarehouseSignoff({
+        data: {
+          quoteId: order.quoteId,
+          advisorId,
+          proofUrl: proofUrl.trim(),
+          securityMethod,
+          securityToken: securityToken.trim(),
+        },
+      })
+    },
+    onSuccess: (res) => {
+      if (!res.success) {
+        setError(res.error)
+        return
+      }
+      qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+      qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+      onChange()
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const failMutation = useMutation({
+    mutationFn: () => {
+      if (!advisorId) throw new Error('Pick an advisor')
+      return logFailedInspection({
+        data: {
+          quoteId: order.quoteId,
+          advisorId,
+          reason: failReason.trim(),
+          proofUrl: proofUrl.trim(),
+          securityMethod,
+          securityToken: securityToken.trim(),
+        },
+      })
+    },
+    onSuccess: (res) => {
+      if (!res.success) {
+        setError(res.error)
+        return
+      }
+      qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+      qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+      onChange()
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const nameOk = advisorId !== null
+  const proofOk = proofUrl.trim().length > 0
+  const tokenOk = securityToken.trim().length >= 4
+  const reasonOk = failReason.trim().length >= 3
+
+  const readyPass = qualityPass === true && nameOk && proofOk && tokenOk
+  const readyFail = qualityPass === false && nameOk && proofOk && tokenOk && reasonOk
+  const pending = passMutation.isPending || failMutation.isPending
+
+  const submit = () => {
+    setError(null)
+    if (qualityPass === true) passMutation.mutate()
+    else if (qualityPass === false) failMutation.mutate()
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div>
+        <SectionHeading index="03" title="Advisor + quality signoff" />
+        <p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
+          Every item is on a truck. Confirm who you are, inspect the load,
+          and lock it before it leaves the dock. A fail bounces the order
+          back to loading so you can fix and retry.
+        </p>
+      </div>
+
+      {order.failedInspections.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border-[3px] border-[#CC3300] bg-[#FFF4F0] px-5 py-3"
+        >
+          <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[#CC3300]">
+            Previous failed inspections · {order.failedInspections.length}
+          </p>
+          <p className="mt-1 text-[11px] text-black/60">
+            Most recent:{' '}
+            <span className="font-semibold">
+              {order.failedInspections[order.failedInspections.length - 1].reason}
+            </span>
+          </p>
+        </motion.div>
+      )}
+
+      {/* Advisor picker — employees.md seed, HR panel will add role
+          filtering later. For now the full payroll is selectable. */}
+      <div>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
+          Advisor
+        </p>
+        <p className="mt-1 text-[11px] text-black/55 max-w-[480px]">
+          Pick whoever is actually doing the signoff. Name comes from the
+          employee directory — the admin panel will manage who's on the list.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+          {employees.length === 0 && (
+            <div className="col-span-full border-[3px] border-dashed border-black/20 px-5 py-6 text-center font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.18em] text-black/45">
+              Loading employees…
+            </div>
+          )}
+          {employees.map((e) => {
+            const active = advisorId === e.id
+            return (
+              <motion.button
+                key={e.id}
+                type="button"
+                onClick={() => setAdvisorId(e.id)}
+                whileTap={{ scale: 0.97 }}
+                animate={{
+                  backgroundColor: active ? '#0A0A0A' : '#FFFFFF',
+                  color: active ? '#F4F4EC' : '#0A0A0A',
+                }}
+                transition={{ duration: 0.18 }}
+                className="border-[3px] border-[#0A0A0A] px-4 py-3 text-start"
+                style={{ minHeight: '56px' }}
+              >
+                <p className="text-[14px] font-bold leading-tight">{e.name}</p>
+                <p
+                  className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em]"
+                  style={{ opacity: active ? 0.7 : 0.45 }}
+                >
+                  {e.id}
+                </p>
+              </motion.button>
+            )
+          })}
+        </div>
+        {selectedAdvisor && (
+          <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[#0A5C2E]">
+            ✓ Signing as {selectedAdvisor.name}
+          </p>
+        )}
+      </div>
+
+      {/* Your credential — advisor's personal password or QR badge. The
+          point is to stop a co-worker from pressing Pass while the
+          tablet is unattended. Don't share it. */}
+      <div>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
+          Your credential
+        </p>
+        <p className="mt-1 text-[11px] text-black/55 max-w-[480px]">
+          Type <strong>your own</strong> password or scan <strong>your badge</strong>.
+          The signoff is locked to whoever authenticates here — don't let
+          anyone press pass behind your back.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <SecurityMethodTab
+            active={securityMethod === 'password'}
+            onPress={() => {
+              setSecurityMethod('password')
+              setSecurityToken('')
+            }}
+            label="Password"
+          />
+          <SecurityMethodTab
+            active={securityMethod === 'qr'}
+            onPress={() => {
+              setSecurityMethod('qr')
+              setSecurityToken('')
+            }}
+            label="QR Scan"
+          />
+        </div>
+        <input
+          type={securityMethod === 'password' ? 'password' : 'text'}
+          value={securityToken}
+          onChange={(e) => setSecurityToken(e.target.value)}
+          placeholder={
+            securityMethod === 'password'
+              ? 'Your password'
+              : 'Scan your badge'
+          }
+          autoComplete="off"
+          className="mt-3 w-full border-[3px] border-[#0A0A0A] bg-white px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30"
+          style={{ minHeight: '56px' }}
+        />
+        <p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45">
+          {securityMethod === 'qr'
+            ? 'Point your personal badge at the reader — the scanner types it in for you'
+            : 'Dev mock · type 1234 to authenticate'}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
+          Quality check
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <ToggleButton
+            active={qualityPass === true}
+            accent="#0A5C2E"
+            onPress={() => setQualityPass(true)}
+            label="Pass"
+            sub="All items inspected"
+          />
+          <ToggleButton
+            active={qualityPass === false}
+            accent="#CC3300"
+            onPress={() => setQualityPass(false)}
+            label="Fail"
+            sub="Something is off"
+          />
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {qualityPass === false && (
+          <motion.div
+            key="fail-reason"
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -6, height: 0 }}
+            transition={{ duration: 0.24 }}
+            className="overflow-hidden"
+          >
+            <Field
+              label="What failed?"
+              hint="Brief note for the audit trail — min 3 characters"
+              value={failReason}
+              onChange={setFailReason}
+              placeholder="e.g. 3 bags of cement damaged in transit to dock"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Field
+        label="Proof of load"
+        hint="Filename of the photo / signed manifest"
+        value={proofUrl}
+        onChange={setProofUrl}
+        placeholder="e.g. load-photo-bay01.jpg"
+      />
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="border-[3px] border-[#CC3300] bg-[#FFF0ED] px-4 py-3 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.16em] text-[#CC3300]"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        type="button"
+        onClick={submit}
+        disabled={(!readyPass && !readyFail) || pending}
+        whileTap={readyPass || readyFail ? { scale: 0.98 } : undefined}
+        animate={{
+          backgroundColor: readyPass
+            ? '#E6B400'
+            : readyFail
+              ? '#CC3300'
+              : 'rgba(0,0,0,0.05)',
+          color: readyPass
+            ? '#0A0A0A'
+            : readyFail
+              ? '#F4F4EC'
+              : 'rgba(0,0,0,0.3)',
+        }}
+        transition={{ duration: 0.25 }}
+        className="w-full border-[3px] border-[#0A0A0A] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:cursor-not-allowed"
+      >
+        {pending
+          ? qualityPass === false
+            ? 'Logging fail…'
+            : 'Recording…'
+          : readyFail
+            ? 'Log fail + retry'
+            : readyPass
+              ? 'Lock signoff'
+              : qualityPass === null
+                ? 'Pick pass or fail'
+                : qualityPass === false
+                  ? 'Fill reason + security to log'
+                  : 'Fill security to lock'}
+      </motion.button>
+    </div>
+  )
+}
+
+function SecurityMethodTab({
+  active,
+  onPress,
+  label,
+}: {
+  active: boolean
+  onPress: () => void
+  label: string
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onPress}
+      whileTap={{ scale: 0.97 }}
+      animate={{
+        backgroundColor: active ? '#0A0A0A' : '#FFFFFF',
+        color: active ? '#F4F4EC' : '#0A0A0A',
+      }}
+      transition={{ duration: 0.2 }}
+      className="border-[3px] border-[#0A0A0A] py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.2em]"
+    >
+      {label}
+    </motion.button>
+  )
+}
+
+function Field({
+  label,
+  hint,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string
+  hint?: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="border-[3px] border-[#0A0A0A] bg-white px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30 focus:bg-[#FFFFFF]"
+        style={{ minHeight: '56px' }}
+      />
+      {hint && (
+        <span className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45">
+          {hint}
+        </span>
+      )}
+    </label>
+  )
+}
+
+function ToggleButton({
+  active,
+  accent,
+  onPress,
+  label,
+  sub,
+}: {
+  active: boolean
+  accent: string
+  onPress: () => void
+  label: string
+  sub: string
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onPress}
+      whileTap={{ scale: 0.97 }}
+      animate={{
+        backgroundColor: active ? accent : '#FFFFFF',
+        color: active ? '#F4F4EC' : '#0A0A0A',
+      }}
+      transition={{ duration: 0.22 }}
+      className="border-[3px] border-[#0A0A0A] px-5 py-5 text-start"
+      style={{ minHeight: '88px' }}
+    >
+      <p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-bold uppercase tracking-[0.08em]">
+        {label}
+      </p>
+      <p
+        className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.18em]"
+        style={{ opacity: active ? 0.75 : 0.5 }}
+      >
+        {sub}
+      </p>
+    </motion.button>
+  )
+}
+
+// ─── STAGE 4: Complete — pass to dispatch ────────────────
+
+function CompleteStage({
+  order,
+  onChange,
+}: {
+  order: WarehouseOrderDetailView
+  onChange: () => void
+}) {
+  const qc = useQueryClient()
+  const setSelectedQuoteId = useWarehouseStore((s) => s.setSelectedQuoteId)
+  const mutation = useMutation({
+    mutationFn: () => passOrderToDispatch({ data: { quoteId: order.quoteId } }),
+    onSuccess: (res) => {
+      if (!res.success) return
+      qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+      qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+      setSelectedQuoteId(null)
+      onChange()
+    },
+  })
+
+  return (
+    <div className="flex flex-col gap-6">
+      <SectionHeading index="04" title="Ready for dispatch" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28 }}
+        className="border-[3px] border-[#0A5C2E] bg-[#F0F7F0] px-6 py-5"
+      >
+        <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-[#0A5C2E]">
+          Signed off
+        </p>
+        <p className="mt-2 text-[18px] font-bold leading-tight">
+          {order.signoff?.advisorName}
+        </p>
+        <p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.16em] text-black/60">
+          {order.signoff?.qualityPass ? 'Quality · Pass' : 'Quality · Fail'} ·{' '}
+          {order.signoff?.signedAt
+            ? new Date(order.signoff.signedAt).toLocaleString('en-EG')
+            : ''}
+        </p>
+        <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/50 truncate">
+          Proof: {order.signoff?.proofUrl}
+        </p>
+      </motion.div>
+
+      <div className="grid gap-3">
+        {order.truckAssignments.map((a) => (
+          <div
+            key={a.truckId}
+            className="flex items-center justify-between border-[3px] border-[#0A0A0A] bg-white px-5 py-3"
+          >
+            <div>
+              <p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
+                {a.plateNumber}
+              </p>
+              <p className="mt-0.5 text-[14px] font-bold">{a.driverName}</p>
+            </div>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[18px] font-bold tabular-nums">
+              {a.itemsLoaded.length}
+              <span className="ms-1 text-[10px] text-black/50">ITEMS</span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <motion.button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        whileTap={{ scale: 0.98 }}
+        className="w-full border-[3px] border-[#0A0A0A] bg-[#0A0A0A] py-6 font-[family-name:var(--font-geist-mono)] text-[16px] font-bold uppercase tracking-[0.22em] text-[#F4F4EC] transition-all hover:bg-[#E6B400] hover:text-[#0A0A0A] hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:opacity-40"
+      >
+        {mutation.isPending ? 'Passing…' : 'Pass to dispatch →'}
+      </motion.button>
+    </div>
+  )
+}

@@ -22,6 +22,25 @@
   --color-surface: #0A0A0A;
 }
 
+/* Kill the I-beam cursor everywhere except where typing actually happens.
+   The app is read-first; text fields re-enable the text cursor themselves. */
+html,
+body {
+  cursor: default;
+}
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input:not([type]),
+textarea,
+[contenteditable="true"],
+[contenteditable=""] {
+  cursor: text;
+}
+
 /* Custom scrollbar — Chromium (webkit) */
 ::-webkit-scrollbar {
   width: 8px;

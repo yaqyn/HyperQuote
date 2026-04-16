@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Button as AriaButton,
   Dialog,
@@ -28,8 +28,14 @@ export function OutdatedPricesCard() {
     staleTime: 0,
   })
 
+  const qc = useQueryClient()
   const notifyMutation = useMutation({
     mutationFn: requestInventoryPriceUpdate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-overview'] })
+      qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
+      qc.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
+    },
   })
 
   const items = summary.data?.items ?? []

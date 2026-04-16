@@ -117,14 +117,14 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
   const [mapLoaded, setMapLoaded] = useState(false)
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full bg-[#e6e8eb] dark:bg-[#0f1114]">
       {/* Loading placeholder */}
       {!mapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-10">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
         </div>
       )}
-      <div className={`h-full w-full transition-opacity duration-500 dark:[&_.maplibregl-canvas]:invert dark:[&_.maplibregl-canvas]:hue-rotate-180 dark:[&_.maplibregl-canvas]:brightness-95 dark:[&_.maplibregl-canvas]:contrast-90 dark:[&_.maplibregl-canvas]:saturate-50 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`h-full w-full bg-[#e6e8eb] transition-opacity duration-500 dark:bg-[#0f1114] dark:[&_.maplibregl-canvas]:invert dark:[&_.maplibregl-canvas]:hue-rotate-180 dark:[&_.maplibregl-canvas]:brightness-95 dark:[&_.maplibregl-canvas]:contrast-90 dark:[&_.maplibregl-canvas]:saturate-50 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}>
       <Map
         ref={mapRef}
         mapStyle={MAP_STYLE as any}

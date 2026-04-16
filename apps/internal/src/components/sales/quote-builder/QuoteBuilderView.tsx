@@ -17,17 +17,24 @@ import { DeliveryMap } from './DeliveryMap'
 import { PaymentTerms } from './PaymentTerms'
 import { ValidityPeriod } from './ValidityPeriod'
 import { SendQuote } from './SendQuote'
+import { LineMarginPanel } from './LineMarginPopover'
+import { SlidePanel } from '../../shared/SlidePanel'
 import { CreditStatusBanner } from '../shared/CreditStatusBanner'
+import { DeclineRFQDialog } from '../rfq/DeclineRFQDialog'
 import { Button } from '../../ui/Button'
 import {
   getQuoteBuilderData,
   requestInventoryPriceUpdate,
   saveQuoteDraft,
 } from '../../../lib/server/sales-quotes'
+import { markAsWon } from '../../../lib/server/sales-pipeline'
 import { addCustomer } from '../../../lib/server/sales-customers'
 import { PhoneInput, isValidEGPhone } from '../../shared/PhoneInput'
+import { useSalesStore } from '../../../stores/sales'
+import { isValidEmail, isValidText, sanitizeIntQty } from '../../../lib/inputs'
 import type { QuoteFormValues, LineItemFormValues } from './types'
 import type { MarginThresholds, FreshnessIndicator, QuoteStatus } from '../../../types/sales'
+import { getMarginLevel } from '../../../types/sales'
 
 interface QuoteBuilderViewProps {
   quoteId?: string
@@ -37,74 +44,49 @@ interface QuoteBuilderViewProps {
   onBack?: () => void
 }
 
-// --- Mock supplier database (in production: server query with search) ---
+// --- Supplier directory type (populated live from getQuoteBuilderData) ---
 
 interface SupplierRecord {
   id: string
   name: string
   tier: string
   score: number
-  categories: string[] // what they supply
+  categories: string[]
 }
 
-const ALL_SUPPLIERS: SupplierRecord[] = [
-  { id: 'sup-001', name: 'Cairo Steel Co.', tier: 'Preferred', score: 92, categories: ['steel', 'rebar', 'metal'] },
-  { id: 'sup-002', name: 'Delta Cement Group', tier: 'Approved', score: 90, categories: ['cement', 'concrete'] },
-  { id: 'sup-003', name: 'Alexandria Rebar Factory', tier: 'Approved', score: 85, categories: ['steel', 'rebar'] },
-  { id: 'sup-004', name: 'Nile Building Supplies', tier: 'Conditional', score: 72, categories: ['wood', 'plywood', 'pipes', 'blocks'] },
-  { id: 'sup-005', name: 'Port Said Iron Works', tier: 'Preferred', score: 95, categories: ['steel', 'rebar', 'metal'] },
-  { id: 'sup-006', name: 'Suez Cement Industries', tier: 'Approved', score: 88, categories: ['cement', 'concrete', 'blocks'] },
-  { id: 'sup-007', name: 'Upper Egypt Steel', tier: 'Conditional', score: 68, categories: ['steel', 'rebar'] },
-  { id: 'sup-008', name: 'Sinai White Cement', tier: 'Approved', score: 80, categories: ['cement'] },
-  { id: 'sup-009', name: 'Aswan Quarry Materials', tier: 'New', score: 58, categories: ['aggregates', 'blocks', 'concrete'] },
-  { id: 'sup-010', name: 'Mansoura Wood Trading', tier: 'Approved', score: 82, categories: ['wood', 'plywood', 'shuttering'] },
-  { id: 'sup-011', name: 'Tanta Pipes & Fittings', tier: 'Preferred', score: 91, categories: ['pipes', 'pvc', 'plumbing'] },
-  { id: 'sup-012', name: 'Giza Building Materials', tier: 'Conditional', score: 74, categories: ['cement', 'blocks', 'aggregates'] },
-  { id: 'sup-013', name: 'Red Sea Timber', tier: 'Approved', score: 83, categories: ['wood', 'plywood', 'shuttering'] },
-  { id: 'sup-014', name: 'Helwan Steel Mills', tier: 'Preferred', score: 93, categories: ['steel', 'rebar', 'metal'] },
-  { id: 'sup-015', name: 'Ismailia Concrete Works', tier: 'Approved', score: 79, categories: ['concrete', 'blocks', 'cement'] },
-]
+/**
+ * Build a search function bound to the supplier list returned by the
+ * server. This replaces the old hardcoded ALL_SUPPLIERS constant — every
+ * supplier, tier, score, and category now comes from db.suppliers /
+ * db.supplierPrices via getQuoteBuilderData.
+ */
+function makeSearchSuppliers(pool: SupplierRecord[]) {
+  return function searchSuppliers(query: string, itemName?: string): SupplierRecord[] {
+    const q = query.toLowerCase().trim()
+    const itemLower = (itemName ?? '').toLowerCase()
 
-// Search suppliers — returns relevant ones first, then name matches
-function searchSuppliers(query: string, itemName?: string): SupplierRecord[] {
-  const q = query.toLowerCase()
-  const itemLower = (itemName ?? '').toLowerCase()
+    // Pull category keywords from the product name so the search ranks
+    // suppliers who actually carry the item being sourced.
+    const keywords = itemLower
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3)
 
-  // Determine item category keywords
-  const categoryKeywords: string[] = []
-  if (itemLower.includes('steel') || itemLower.includes('rebar')) categoryKeywords.push('steel', 'rebar')
-  if (itemLower.includes('cement')) categoryKeywords.push('cement')
-  if (itemLower.includes('concrete')) categoryKeywords.push('concrete')
-  if (itemLower.includes('wood') || itemLower.includes('plywood') || itemLower.includes('shuttering')) categoryKeywords.push('wood', 'plywood', 'shuttering')
-  if (itemLower.includes('pipe') || itemLower.includes('pvc')) categoryKeywords.push('pipes', 'pvc')
-  if (itemLower.includes('block')) categoryKeywords.push('blocks')
-
-  let results = ALL_SUPPLIERS
-
-  // Filter by search query
-  if (q) {
-    results = results.filter((s) => s.name.toLowerCase().includes(q) || s.categories.some((c) => c.includes(q)))
+    let results = pool
+    if (q) {
+      results = results.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.categories.some((c) => c.toLowerCase().includes(q)),
+      )
+    }
+    return [...results].sort((a, b) => {
+      const aRelevant = keywords.some((k) => a.categories.some((c) => c.includes(k))) ? 1 : 0
+      const bRelevant = keywords.some((k) => b.categories.some((c) => c.includes(k))) ? 1 : 0
+      if (aRelevant !== bRelevant) return bRelevant - aRelevant
+      return b.score - a.score
+    })
   }
-
-  // Sort: relevant categories first, then by score
-  return [...results].sort((a, b) => {
-    const aRelevant = categoryKeywords.some((k) => a.categories.includes(k)) ? 1 : 0
-    const bRelevant = categoryKeywords.some((k) => b.categories.includes(k)) ? 1 : 0
-    if (aRelevant !== bRelevant) return bRelevant - aRelevant
-    return b.score - a.score
-  })
 }
-
-const MOCK_RESPONSES: { supplierId: string; status: 'responded' | 'waiting'; pricePerUnit?: number }[] = [
-  { supplierId: 'sup-001', status: 'responded', pricePerUnit: 28500 },
-  { supplierId: 'sup-005', status: 'responded', pricePerUnit: 29200 },
-  { supplierId: 'sup-002', status: 'waiting' },
-]
-
-// Keep legacy reference for left panel source name resolution
-const MOCK_SUPPLIERS_FOR_SOURCING = ALL_SUPPLIERS
-
-// --- Customer mock data ---
 
 // Customer phone number is NEVER exposed to the frontend.
 // Calls are initiated via server-side endpoint: /api/call/:rfqId
@@ -197,13 +179,6 @@ function StepIndicator({
 
 // --- Step 2: Source Items (Inventory + Suppliers) ---
 
-// Mock inventory data
-const MOCK_INVENTORY: Record<string, { available: number; wac: number; location: string }> = {
-  'Steel Rebar 16mm': { available: 150, wac: 27000, location: 'Base A' },
-  'Steel Rebar 12mm': { available: 0, wac: 0, location: '' },
-  'Steel Rebar 10mm': { available: 100, wac: 22000, location: 'Base A' },
-}
-
 interface ItemSourcingState {
   productName: string
   quantity: number
@@ -215,8 +190,9 @@ interface ItemSourcingState {
 
 // --- Main view ---
 
-export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initialCustomerName, onBack }: QuoteBuilderViewProps) {
+export function QuoteBuilderView({ quoteId: initialQuoteId, rfqId, isNewCustomer = false, initialCustomerName, onBack }: QuoteBuilderViewProps) {
   const { t } = useTranslation('internal')
+  const [quoteId, setQuoteId] = useState<string | undefined>(initialQuoteId)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [status, setStatus] = useState<QuoteStatus>('draft')
   const [quoteNumber] = useState(() => `QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`)
@@ -246,6 +222,13 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(isFromRfq ? new Set([1]) : new Set())
   const [sourcingDone, setSourcingDone] = useState(false)
   const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
+  const [declineOpen, setDeclineOpen] = useState(false)
+  const [marginIndex, setMarginIndex] = useState<number | null>(null)
+  const [mapOpen, setMapOpen] = useState(false)
+
+  // Shared SlidePanel handles escape-key + outer-X dismissal via its
+  // `scope="sales"` registration — no manual handler needed here.
+
   // Defer MapLibre init until after the quote builder's open animation finishes
   // so the map's heavy first-paint doesn't stutter the overlay transition.
   const [mapReady, setMapReady] = useState(false)
@@ -256,6 +239,16 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
 
   // Sourcing state — built from line items + inventory
   const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
+  // Live reference data loaded from getQuoteBuilderData — no hardcoded
+  // inventory, supplier directory, or source ID rotations.
+  const [stockByName, setStockByName] = useState<
+    Record<string, { available: number; physical: number; reserved: number }>
+  >({})
+  const [suppliersPool, setSuppliersPool] = useState<SupplierRecord[]>([])
+  const searchSuppliers = useMemo(
+    () => makeSearchSuppliers(suppliersPool),
+    [suppliersPool],
+  )
 
   const methods = useForm<QuoteFormValues>({
     defaultValues: {
@@ -286,8 +279,65 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     () => (watchedItems ?? []).filter((item) => item.priceStatus === 'outdated'),
     [watchedItems],
   )
+  // RFQ + quote status, hydrated from getQuoteBuilderData. Drives whether
+  // the Evaluate button is shown — hidden once the order is already
+  // committed (quote accepted) or dead (rfq declined/expired).
+  const [rfqStatus, setRfqStatus] = useState<string>('submitted')
+  const canEvaluate =
+    status !== 'accepted' &&
+    status !== 'declined' &&
+    rfqStatus !== 'declined' &&
+    rfqStatus !== 'expired'
+
+  // Evaluate = phone-confirmed order. Saves the draft so a quote row
+  // exists, flips quote.status → 'accepted', freezes totalDue, seeds
+  // payment state as unpaid. The order then shows up in the Finance
+  // inbox for partial payment collection.
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const handleEvaluate = async () => {
+    if (!canEvaluate || isEvaluating) return
+    setIsEvaluating(true)
+    try {
+      // 1. Persist the current draft (items + delivery + terms) and
+      //    capture the quote id — markAsWon needs a concrete row.
+      const savedId = await persistDraftAndGetId()
+      if (!savedId) {
+        setIsEvaluating(false)
+        return
+      }
+      // 2. Commit to Finance. markAsWon flips quote.status='accepted',
+      //    freezes totalDue, seeds payment state unpaid, walks rfq to
+      //    'quoted'. Everything downstream (Finance inbox, inventory
+      //    gate, living report) derives from those writes.
+      await markAsWon({ data: { quoteId: savedId } })
+      // 3. Refresh every affected query so the inbox, pipeline, and
+      //    finance inbox all see the new state immediately.
+      queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-pipeline-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['finance-inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['customer-orders'] })
+      // 4. Back to inbox — the order is Finance's problem now.
+      onBack?.()
+    } catch (err) {
+      console.error('Failed to evaluate:', err)
+      setIsEvaluating(false)
+    }
+  }
+
   const [requestedPriceIds, setRequestedPriceIds] = useState<Set<string>>(new Set())
-  const requestUpdateMutation = useMutation({ mutationFn: requestInventoryPriceUpdate })
+  const requestUpdateMutation = useMutation({
+    mutationFn: requestInventoryPriceUpdate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-overview'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
+      // Re-pull the quote builder payload so any line items whose price
+      // was refreshed in the background flip from 'outdated' back to
+      // 'updated' — the banner and outdated-items list derive from this.
+      queryClient.invalidateQueries({ queryKey: ['quote-builder-data', rfqId] })
+    },
+  })
   const handleRequestPriceUpdate = useCallback(
     (items: LineItemFormValues[]) => {
       if (items.length === 0) return
@@ -311,7 +361,8 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
   )
   const unrequestedOutdatedItems = outdatedItems.filter((i) => !requestedPriceIds.has(i.id))
 
-  // Build sourcing state when items load/change
+  // Build sourcing state when items load/change — availability sourced
+  // from the live stockByName map returned by getQuoteBuilderData.
   const itemCount = watchedItems?.length ?? 0
   useEffect(() => {
     if (itemCount === 0) return
@@ -320,7 +371,7 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
       const items = watchedItems ?? []
       setSourcingState(
         items.map((item) => {
-          const inv = MOCK_INVENTORY[item.productName]
+          const stock = stockByName[item.productName]
           // Preserve existing sourceId if available
           const existing = sourcingState.find((s) => s.productName === item.productName)
           return {
@@ -328,13 +379,13 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
             quantity: item.quantity,
             unit: item.unit || 'unit',
             sourceId: existing?.sourceId ?? '',
-            stockAvailable: inv?.available ?? 0,
-            stockWac: inv?.wac ?? 0,
+            stockAvailable: stock?.available ?? 0,
+            stockWac: item.supplierCost || 0,
           }
         }),
       )
     }
-  }, [itemCount]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemCount, stockByName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Assign item to a specific source
   const assignItemSource = (itemIndex: number, sourceId: string) => {
@@ -343,15 +394,18 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     )
   }
 
-  // Legacy toggle for left panel (cycles: warehouse → sup-001 → sup-002 → sup-005 → warehouse)
-  const SOURCE_IDS = ['warehouse', 'sup-001', 'sup-002', 'sup-005']
+  // Cycle through sources: warehouse → first three suppliers → warehouse.
+  // Supplier IDs come from the live pool, not hardcoded slugs.
   const toggleItemSource = (index: number) => {
+    const topSupplierIds = suppliersPool.slice(0, 3).map((s) => s.id)
+    const sourceIds = ['warehouse', ...topSupplierIds]
+    if (sourceIds.length === 1) return
     setSourcingState((prev) =>
       prev.map((s, i) => {
         if (i !== index) return s
-        const currentIdx = SOURCE_IDS.indexOf(s.sourceId)
-        const nextIdx = (currentIdx + 1) % SOURCE_IDS.length
-        return { ...s, sourceId: SOURCE_IDS[nextIdx] }
+        const currentIdx = sourceIds.indexOf(s.sourceId)
+        const nextIdx = (currentIdx + 1) % sourceIds.length
+        return { ...s, sourceId: sourceIds[nextIdx] }
       }),
     )
   }
@@ -373,19 +427,27 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     const values = methods.getValues()
 
     if (step === 1) {
-      if (!customerName.trim()) errors.push('Customer name is required')
+      if (!isValidText(customerName))
+        errors.push('Customer name is required (min 2 characters)')
       if (!isFromRfq) {
         if (!custPhone.trim()) errors.push('Phone number is required')
         else if (!isValidEGPhone(custPhone)) errors.push('Phone number is not a valid Egyptian mobile')
+        if (custEmail.trim() && !isValidEmail(custEmail))
+          errors.push('Email address is not valid')
+        if (custCompany.trim() && !isValidText(custCompany))
+          errors.push('Company name is not valid')
       }
     }
 
     if (step === 2) {
       if (!values.lineItems || values.lineItems.length === 0) errors.push('Add at least one item')
-      if (!deliveryAddress.trim()) errors.push('Please enter a delivery address')
+      if (!isValidText(deliveryAddress, 4, 300))
+        errors.push('Please enter a full delivery address')
       if (!values.deliveryDate) errors.push('Please select a delivery date')
       const hasZeroPrice = (values.lineItems ?? []).some((item) => !item.sellPrice || item.sellPrice <= 0)
       if (hasZeroPrice) errors.push('Some items are missing a sell price')
+      const hasBadQty = (values.lineItems ?? []).some((item) => !item.quantity || item.quantity <= 0)
+      if (hasBadQty) errors.push('Every line needs a positive quantity')
     }
 
     return errors
@@ -434,6 +496,14 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
 
         setMarginThresholds(data.marginThresholds)
         setCustomerCredit(data.customerCredit)
+        if (data.rfqStatus) setRfqStatus(data.rfqStatus)
+        // Hydrate the quote status from the existing draft (if any) so
+        // the Evaluate button knows whether the order has already been
+        // committed to Finance.
+        if (data.quoteStatus) setStatus(data.quoteStatus as QuoteStatus)
+        // Live reference payloads — no hardcoded mock constants here.
+        setStockByName(data.stockByName ?? {})
+        setSuppliersPool((data.suppliers ?? []) as SupplierRecord[])
 
         if (!isNewCustomer && data.customer) {
           setCustomerName(data.customer.name)
@@ -445,6 +515,18 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
         if (!isNewCustomer && data.deliveryAddress) {
           setDeliveryAddress(data.deliveryAddress)
         }
+        // Rehydrate any saved delivery/terms overrides from the draft row
+        // so the rep picks up where they left off without retyping.
+        const draftDefaults = methods.getValues()
+        methods.reset({
+          ...draftDefaults,
+          deliveryDate: data.deliveryDate || draftDefaults.deliveryDate || '',
+          deliveryWindow: data.deliveryWindow || draftDefaults.deliveryWindow || '08:00-17:00',
+          specialInstructions: data.specialInstructions || draftDefaults.specialInstructions || '',
+          paymentTerms: data.paymentTerms || draftDefaults.paymentTerms || '',
+          earlyPaymentDiscount: data.earlyPaymentDiscount || draftDefaults.earlyPaymentDiscount || '',
+          coverNote: data.coverNote || draftDefaults.coverNote || '',
+        })
 
         if (data.suggestedProducts && data.suggestedProducts.length > 0) {
           const getTargetMargin = (category?: string) => {
@@ -453,10 +535,14 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
           }
 
           const items = data.suggestedProducts.map((p, i) => {
-            const margin = getTargetMargin(p.category)
-            const sellPrice = p.supplierCost > 0
+            // If the saved draft already has a margin/price (hydrated by the
+            // server), respect it; otherwise fall back to the category target.
+            const savedMargin = (p as { marginPercent?: number }).marginPercent
+            const savedSellPrice = (p as { sellPrice?: number }).sellPrice
+            const margin = savedMargin ?? getTargetMargin(p.category)
+            const sellPrice = savedSellPrice ?? (p.supplierCost > 0
               ? Math.round((p.supplierCost / (1 - margin / 100)) * 100) / 100
-              : 0
+              : 0)
             return {
               id: p.id ?? `item-${i}`,
               productName: p.productName,
@@ -483,14 +569,18 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
     return () => { cancelled = true }
   }, [rfqId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-save every 30 seconds
-  const handleAutoSave = useCallback(async () => {
+  // Shared draft-save path returning the id of the upserted row. Used
+  // by both the 30s autosave tick and the Evaluate commit — Evaluate
+  // needs the id to pass into markAsWon.
+  const persistDraftAndGetId = useCallback(async (): Promise<string | null> => {
     const values = methods.getValues()
-    if (values.lineItems.length === 0) return
+    if (values.lineItems.length === 0) return quoteId ?? null
     try {
-      await saveQuoteDraft({
+      const result = await saveQuoteDraft({
         data: {
-          quoteId: quoteId ?? 'new',
+          quoteId,
+          rfqId,
+          customerId: persistedCustomerId ?? undefined,
           lineItems: values.lineItems.map((item) => ({
             id: item.id,
             productName: item.productName,
@@ -501,14 +591,66 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
             marginPercent: item.marginPercent,
             sellPrice: item.sellPrice,
           })),
-          terms: values.paymentTerms || undefined,
+          deliveryAddress: deliveryAddress || null,
+          deliveryDate: values.deliveryDate || null,
+          deliveryWindow: values.deliveryWindow || null,
+          specialInstructions: values.specialInstructions || null,
+          paymentTerms: values.paymentTerms || null,
+          earlyPaymentDiscount: values.earlyPaymentDiscount || null,
+          coverNote: values.coverNote || null,
         },
       })
+      if (result.quoteId && result.quoteId !== quoteId) {
+        setQuoteId(result.quoteId)
+      }
+      setLastSavedAt(new Date())
+      return result.quoteId ?? quoteId ?? null
+    } catch (err) {
+      console.error('Save failed:', err)
+      return null
+    }
+  }, [methods, quoteId, rfqId, persistedCustomerId, deliveryAddress])
+
+  // Auto-save every 30 seconds — upserts draft via rfqId
+  const handleAutoSave = useCallback(async () => {
+    const values = methods.getValues()
+    if (values.lineItems.length === 0) return
+    try {
+      const result = await saveQuoteDraft({
+        data: {
+          quoteId,
+          rfqId,
+          customerId: persistedCustomerId ?? undefined,
+          lineItems: values.lineItems.map((item) => ({
+            id: item.id,
+            productName: item.productName,
+            specification: item.specification,
+            quantity: item.quantity,
+            unit: item.unit,
+            supplierCost: item.supplierCost,
+            marginPercent: item.marginPercent,
+            sellPrice: item.sellPrice,
+          })),
+          // Override fields — sent as-is when the user has edited them.
+          // Null means "no explicit value yet", which the server treats as
+          // a fallback to the RFQ's field at render time.
+          deliveryAddress: deliveryAddress || null,
+          deliveryDate: values.deliveryDate || null,
+          deliveryWindow: values.deliveryWindow || null,
+          specialInstructions: values.specialInstructions || null,
+          paymentTerms: values.paymentTerms || null,
+          earlyPaymentDiscount: values.earlyPaymentDiscount || null,
+          coverNote: values.coverNote || null,
+        },
+      })
+      if (result.quoteId && result.quoteId !== quoteId) {
+        setQuoteId(result.quoteId)
+      }
       setLastSavedAt(new Date())
     } catch (err) {
-      console.error('Auto-save failed:', err)
+      console.error('Save failed:', err)
     }
-  }, [methods, quoteId])
+  }, [methods, quoteId, rfqId, persistedCustomerId, deliveryAddress])
 
   useEffect(() => {
     autoSaveTimerRef.current = setInterval(handleAutoSave, 30_000)
@@ -516,6 +658,10 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
       if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current)
     }
   }, [handleAutoSave])
+
+  const marginFloor = marginThresholds.length > 0
+    ? Math.min(...marginThresholds.map((t) => t.absoluteMin))
+    : 0
 
   const blendedMargin = subtotal > 0
     ? Math.round((1 - (watchedItems ?? []).reduce((s, i) => s + i.supplierCost * i.quantity, 0) / subtotal) * 10000) / 100
@@ -541,11 +687,8 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => {
-              // TODO: mark as rejected in DB
-              onBack?.()
-            }}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-black/50 outline-none transition-colors hover:bg-black/[0.04] hover:text-black/80 dark:text-white/50 dark:hover:bg-white/[0.04] dark:hover:text-white/80"
+            onClick={() => setDeclineOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-orange-600/90 outline-none transition-colors hover:bg-orange-500/[0.08] hover:text-orange-700 dark:text-orange-400/90 dark:hover:bg-orange-500/[0.12] dark:hover:text-orange-300"
           >
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
             Reject
@@ -553,7 +696,6 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
           <button
             type="button"
             onClick={async () => {
-              // TODO: mark as saved in DB
               await handleAutoSave()
               onBack?.()
             }}
@@ -792,66 +934,41 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                             <td className="py-4 px-3 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/40 dark:text-white/40">
                               {item.supplierCost ? item.supplierCost.toLocaleString('en-EG') : '—'}
                             </td>
-                            {/* Margin — editable with +/- */}
+                            {/* Margin — click to open rich editor popover */}
                             <td className="py-4 px-3 text-end">
-                              <div className="inline-flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const margin = Math.max(0, (item.marginPercent || 0) - 1)
-                                    const cost = item.supplierCost || 0
-                                    const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
-                                    methods.setValue(`lineItems.${i}.marginPercent`, margin)
-                                    methods.setValue(`lineItems.${i}.sellPrice`, price)
-                                    methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
-                                  }}
-                                  className="flex h-5 w-5 items-center justify-center rounded text-[11px] text-black/20 hover:bg-black/[0.04] hover:text-black/50 dark:text-white/20 dark:hover:bg-white/[0.04] dark:hover:text-white/50 transition-colors"
-                                >−</button>
-                                <input
-                                  type="number"
-                                  value={item.marginPercent || ''}
-                                  onChange={(e) => {
-                                    const margin = Number(e.target.value) || 0
-                                    const cost = item.supplierCost || 0
-                                    const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
-                                    methods.setValue(`lineItems.${i}.marginPercent`, margin)
-                                    methods.setValue(`lineItems.${i}.sellPrice`, price)
-                                    methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
-                                  }}
-                                  className="w-10 bg-transparent text-center font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)] outline-none"
-                                  placeholder="18"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const margin = Math.min(99, (item.marginPercent || 0) + 1)
-                                    const cost = item.supplierCost || 0
-                                    const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
-                                    methods.setValue(`lineItems.${i}.marginPercent`, margin)
-                                    methods.setValue(`lineItems.${i}.sellPrice`, price)
-                                    methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
-                                  }}
-                                  className="flex h-5 w-5 items-center justify-center rounded text-[11px] text-black/20 hover:bg-black/[0.04] hover:text-black/50 dark:text-white/20 dark:hover:bg-white/[0.04] dark:hover:text-white/50 transition-colors"
-                                >+</button>
-                                <span className="text-[11px] text-black/30 dark:text-white/30">%</span>
-                              </div>
+                              {(() => {
+                                const level = marginThresholds.length > 0
+                                  ? getMarginLevel(item.marginPercent || 0, marginThresholds[0])
+                                  : 'green'
+                                const dot = {
+                                  green: 'bg-green-500',
+                                  yellow: 'bg-yellow-500',
+                                  red: 'bg-red-500',
+                                  blocked: 'bg-red-600',
+                                }[level]
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMapOpen(false)
+                                      setMarginIndex(i)
+                                    }}
+                                    className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)] outline-none transition-all hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/[0.05] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+                                  >
+                                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                                    {(item.marginPercent || 0)}%
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-black/25 transition-colors group-hover:text-[var(--color-primary)] dark:text-white/25" aria-hidden="true">
+                                      <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  </button>
+                                )
+                              })()}
                             </td>
-                            {/* Price — editable, prominent */}
+                            {/* Price — derived, prominent, read-only */}
                             <td className="py-4 px-3 text-end">
-                              <input
-                                type="number"
-                                value={item.sellPrice || ''}
-                                onChange={(e) => {
-                                  const price = Number(e.target.value) || 0
-                                  const cost = item.supplierCost || 0
-                                  const margin = cost > 0 && price > 0 ? Math.round((1 - cost / price) * 10000) / 100 : 0
-                                  methods.setValue(`lineItems.${i}.sellPrice`, price)
-                                  methods.setValue(`lineItems.${i}.marginPercent`, margin)
-                                  methods.setValue(`lineItems.${i}.lineTotal`, Math.round(price * item.quantity * 100) / 100)
-                                }}
-                                className="w-24 bg-transparent text-end font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)] outline-none border-b border-black/[0.06] focus:border-[var(--color-primary)]/40 dark:border-white/[0.06]"
-                                placeholder="0"
-                              />
+                              <span className="font-[family-name:var(--font-geist-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)]">
+                                {item.sellPrice ? item.sellPrice.toLocaleString('en-EG') : '—'}
+                              </span>
                             </td>
                             {/* Total — bold, largest */}
                             <td className="py-4 px-3 text-end font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
@@ -932,9 +1049,18 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                       type="text"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
-                      /* map is always visible on the right */
-                      className="flex-1 bg-transparent text-[13px] text-[var(--color-text)] outline-none border-b border-black/[0.04] focus:border-[var(--color-primary)]/30 dark:border-white/[0.04]"
+                      onFocus={() => { setMarginIndex(null); setMapOpen(true) }}
+                      placeholder="Click to pick on map"
+                      className="flex-1 bg-transparent text-[13px] text-[var(--color-text)] outline-none border-b border-black/[0.04] focus:border-[var(--color-primary)]/30 dark:border-white/[0.04] placeholder:text-black/30 dark:placeholder:text-white/30"
                     />
+                    <button
+                      type="button"
+                      onClick={() => { setMarginIndex(null); setMapOpen((open) => !open) }}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--color-text-muted)] outline-none transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1.5 3.5l4-1.5 3 1.5 4-1.5v8.5l-4 1.5-3-1.5-4 1.5v-8.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><path d="M5.5 2v8.5M8.5 3.5V12" stroke="currentColor" strokeWidth="1.2" /></svg>
+                      {mapOpen ? 'Hide map' : 'Pick on map'}
+                    </button>
                   </div>
                   <DeliveryTerms
                     deliveryAddress={deliveryAddress}
@@ -1032,13 +1158,11 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setStatus('pending_approval' as QuoteStatus)
-                        onBack?.()
-                      }}
-                      className="group shrink-0 flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[var(--color-primary)]/90 hover:gap-3.5"
+                      onClick={handleEvaluate}
+                      disabled={!canEvaluate || isEvaluating}
+                      className="group shrink-0 flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[var(--color-primary)]/90 hover:gap-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Evaluate
+                      {isEvaluating ? 'Evaluating…' : 'Evaluate'}
                       <ArrowRight size={14} strokeWidth={2.25} className="transition-transform group-hover:translate-x-0.5" />
                     </button>
                   </div>
@@ -1186,21 +1310,80 @@ export function QuoteBuilderView({ quoteId, rfqId, isNewCustomer = false, initia
         </FormProvider>
         </div>
 
-        {/* Right panel — map only, Step 2 (Build Quote), wide screens.
-            Deferred mount: MapLibre GL initializes expensively, so we wait for
-            the quote builder's entry animation to finish before mounting it. */}
-        {currentStep === 2 && (
-          <div className="hidden w-[40%] min-w-[320px] max-w-[500px] border-s border-black/[0.06] lg:flex lg:flex-col dark:border-white/[0.06]">
-            {mapReady ? (
-              <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map...</div>}>
-                <DeliveryMap address={deliveryAddress} onAddressChange={setDeliveryAddress} />
-              </ClientOnly>
-            ) : (
-              <div className="flex h-full items-center justify-center text-[13px] text-black/30" />
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Map side panel — shared SlidePanel inherits all visual rules. */}
+      <SlidePanel
+        isOpen={mapOpen && currentStep === 2}
+        onClose={() => setMapOpen(false)}
+        maxWidth={520}
+        panelKey="map-overlay"
+        ariaLabel="Pick delivery location"
+        scope="sales"
+      >
+        <div className="flex h-12 items-center border-b border-black/[0.06] px-5 dark:border-white/[0.06]">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+            Pick delivery location
+          </span>
+        </div>
+        <div className="h-[calc(100%-3rem)] bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
+          <ClientOnly fallback={<div className="flex h-full items-center justify-center text-[13px] text-black/40">Loading map…</div>}>
+            <DeliveryMap address={deliveryAddress} onAddressChange={setDeliveryAddress} />
+          </ClientOnly>
+        </div>
+      </SlidePanel>
+
+      {/* Line margin side panel. */}
+      <SlidePanel
+        isOpen={marginIndex !== null && !!(watchedItems ?? [])[marginIndex]}
+        onClose={() => setMarginIndex(null)}
+        maxWidth={460}
+        panelKey="margin-overlay"
+        ariaLabel="Adjust line margin"
+        scope="sales"
+      >
+        {marginIndex !== null && (
+          <LineMarginPanel
+            items={(watchedItems ?? []).map((it) => ({
+              productName: it.productName,
+              supplierCost: it.supplierCost || 0,
+              quantity: it.quantity || 0,
+              marginPercent: it.marginPercent || 0,
+            }))}
+            currentIndex={marginIndex}
+            onSelectIndex={setMarginIndex}
+            marginFloor={marginFloor}
+            thresholds={marginThresholds[0] ?? null}
+            onChange={(index, margin) => {
+              const it = (watchedItems ?? [])[index]
+              if (!it) return
+              const cost = it.supplierCost || 0
+              const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
+              methods.setValue(`lineItems.${index}.marginPercent`, margin)
+              methods.setValue(`lineItems.${index}.sellPrice`, price)
+              methods.setValue(`lineItems.${index}.lineTotal`, Math.round(price * it.quantity * 100) / 100)
+            }}
+            onApplyToAll={(margin) => {
+              ;(watchedItems ?? []).forEach((it, idx) => {
+                const cost = it.supplierCost || 0
+                const price = cost > 0 ? Math.round((cost / (1 - margin / 100)) * 100) / 100 : 0
+                methods.setValue(`lineItems.${idx}.marginPercent`, margin)
+                methods.setValue(`lineItems.${idx}.sellPrice`, price)
+                methods.setValue(`lineItems.${idx}.lineTotal`, Math.round(price * it.quantity * 100) / 100)
+              })
+            }}
+            onClose={() => setMarginIndex(null)}
+          />
+        )}
+      </SlidePanel>
+
+      <DeclineRFQDialog
+        rfqId={rfqId}
+        isOpen={declineOpen}
+        onClose={() => setDeclineOpen(false)}
+        onDeclined={() => onBack?.()}
+      />
+
     </div>
   )
 }

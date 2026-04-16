@@ -69,6 +69,7 @@ export interface InventoryProductView {
   image: string
   broadCategory: BroadCategory
   supplierName: string
+  allSupplierNames: string[]
   rawCost: number
   supplierCost: number
   lastUpdatedAt: string
@@ -128,6 +129,7 @@ function buildInventoryProductView(slug: string): InventoryProductView | null {
     image: BROAD_CATEGORY_IMAGES[broad],
     broadCategory: broad,
     supplierName: primary?.supplierName ?? '—',
+    allSupplierNames: db.supplierPrices.forProduct(slug).map((p) => p.supplierName),
     rawCost,
     supplierCost: bufferCost(rawCost),
     lastUpdatedAt,
@@ -329,19 +331,46 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
+    let inserted = 0
+    let skippedFresh = 0
+    let skippedDuplicate = 0
     for (const item of data.items) {
-      const product = db.products.findBySlug(item.productId) ?? db.products.findByName(item.productName)
+      const product =
+        db.products.findBySlug(item.productId) ??
+        db.products.findByName(item.productName)
       if (!product) continue
-      const existing = db.priceUpdateRequests.forProduct(product.slug)
-      if (existing.length === 0) {
-        db.priceUpdateRequests.insert(
-          product.slug,
-          item.supplierName ? `Sales rep (${item.supplierName})` : 'Sales rep',
-          data.rfqId,
-        )
+
+      // Authoritative freshness gate — the client's form state can be
+      // stale (quote builder loaded when the price was outdated, then
+      // inventory updated it in the background). The server is the
+      // source of truth, so re-check against live db.supplierPrices and
+      // refuse to create a request for a currently-fresh product.
+      const primary = db.supplierPrices.primaryForProduct(product.slug)
+      const lastUpdatedAt = primary?.lastQuotedAt ?? new Date(0).toISOString()
+      const { priceStatus } = productFreshnessFor(lastUpdatedAt)
+      if (priceStatus === 'updated') {
+        skippedFresh += 1
+        continue
       }
+
+      const existing = db.priceUpdateRequests.forProduct(product.slug)
+      if (existing.length > 0) {
+        skippedDuplicate += 1
+        continue
+      }
+      db.priceUpdateRequests.insert(
+        product.slug,
+        item.supplierName ? `Sales rep (${item.supplierName})` : 'Sales rep',
+        data.rfqId,
+      )
+      inserted += 1
     }
-    return { success: true, requestedCount: data.items.length }
+    return {
+      success: true,
+      requestedCount: inserted,
+      skippedFresh,
+      skippedDuplicate,
+    }
   })
 
 // ─── Outdated price summary (used by sales home card) ────
@@ -503,6 +532,10 @@ export interface TopSupplier {
 export const getTopSuppliers = createServerFn({ method: 'GET' })
   .inputValidator(z.object({ limit: z.number().int().min(1).max(20).default(5) }))
   .handler(async ({ data }) => {
+    // Use the SAME freshness signals as the inventory overview so this strip
+    // stays in lock-step with the Urgent/Outdated stats. A row counts as:
+    //   outdated  →  its product row shows priceStatus='outdated' (>24h)
+    //   urgent    →  outdated AND (recently ordered OR has a pending request)
     const ranked: TopSupplier[] = db.suppliers
       .list()
       .map((supplier) => {
@@ -518,12 +551,17 @@ export const getTopSuppliers = createServerFn({ method: 'GET' })
           if (!product) continue
           categories.add(db.products.broadCategoryFor(product))
           if (row.isPrimary) primaryFor += 1
-          const fresh = quoteFreshnessFor(row.lastQuotedAt)
-          if (fresh !== 'confirmed') {
-            outdatedQuotes += 1
-            if (fresh === 'needs_quote') urgentQuotes += 1
-            if (row.isPrimary) primaryForOutdatedCount += 1
-          }
+
+          const { priceStatus } = productFreshnessFor(row.lastQuotedAt)
+          const isOutdated = priceStatus === 'outdated'
+          if (!isOutdated) continue
+
+          outdatedQuotes += 1
+          if (row.isPrimary) primaryForOutdatedCount += 1
+
+          const pending = db.priceUpdateRequests.forProduct(row.productSlug).length
+          const recentlyOrdered = isRecentlyOrderedSlug(row.productSlug)
+          if (pending > 0 || recentlyOrdered) urgentQuotes += 1
         }
 
         return {

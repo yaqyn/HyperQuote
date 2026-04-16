@@ -51,7 +51,9 @@ export function SendQuote({
         data: {
           quoteId,
           method: sendMethod,
-          recipientIds: ['primary-contact'],
+          // Recipients default to the customer's primary contact — the
+          // server resolves it off db.customers. When multi-recipient
+          // selection ships, pass the selected ids here.
           coverNote: coverNote || undefined,
           scheduledAt: scheduleSend && scheduledDate ? scheduledDate : undefined,
         },
@@ -81,15 +83,6 @@ export function SendQuote({
         <span className="text-[12px] font-medium text-[var(--color-text)]">
           Primary Contact
         </span>
-        <UiButton
-          variant="ghost"
-          onPress={() => {
-            console.log('Add CC recipient')
-          }}
-        >
-          + CC
-        </UiButton>
-
         {/* Send via pills */}
         <PillGroup
           aria-label="Send method"

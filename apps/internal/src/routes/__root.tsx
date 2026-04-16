@@ -38,7 +38,18 @@ function RootComponent() {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000,
+            // Real-time defaults: every query is instantly stale, refetches
+            // on mount + window focus, and polls every 3s so writes from
+            // any panel show up in every other panel within one tick.
+            // Individual queries can still override if they need a longer
+            // cadence.
+            staleTime: 0,
+            gcTime: 5 * 60 * 1000,
+            refetchOnMount: 'always',
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
+            refetchInterval: 3000,
+            refetchIntervalInBackground: false,
             retry: 1,
           },
         },

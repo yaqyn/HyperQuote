@@ -14,20 +14,16 @@ export function GlassWindow({ isOpen, onClose, children, className, closeOnBackd
   return (
     <AnimatePresence>
       {isOpen && (
-        <div
+        <motion.div
+          key="glass-window"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
           className="fixed inset-0 z-40 flex items-center justify-center p-3 md:p-6"
           onClick={closeOnBackdropClick ? onClose : undefined}
         >
-          <motion.div
-            key="glass-panel"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.97 }}
-            transition={{
-              type: 'spring',
-              stiffness: 200,
-              damping: 20,
-            }}
+          <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
               'flex flex-col w-full h-full',
@@ -40,8 +36,8 @@ export function GlassWindow({ isOpen, onClose, children, className, closeOnBackd
             role="dialog"
           >
             {children}
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )

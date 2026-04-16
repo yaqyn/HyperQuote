@@ -2,10 +2,9 @@ import { useProcurementStore } from '../../stores/procurement'
 import { ModuleTabStrip } from '../shell/ModuleTabStrip'
 
 const TABS = [
-  { id: 'inventory', label: 'Inventory' },
-  { id: 'sourcing', label: 'Sourcing · Archived' },
-  { id: 'po-management', label: 'PO Management · Archived' },
-  { id: 'suppliers', label: 'Suppliers · Archived' },
+  { id: 'stock', label: 'Inventory' },
+  { id: 'procurement', label: 'Procurement' },
+  { id: 'orders', label: 'Orders' },
 ]
 
 export function ProcurementTabStrip() {

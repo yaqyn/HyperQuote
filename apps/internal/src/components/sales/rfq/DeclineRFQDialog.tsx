@@ -28,9 +28,10 @@ interface DeclineRFQDialogProps {
   rfqId: string
   isOpen: boolean
   onClose: () => void
+  onDeclined?: () => void
 }
 
-export function DeclineRFQDialog({ rfqId, isOpen, onClose }: DeclineRFQDialogProps) {
+export function DeclineRFQDialog({ rfqId, isOpen, onClose, onDeclined }: DeclineRFQDialogProps) {
   const { t } = useTranslation('internal')
   const queryClient = useQueryClient()
 
@@ -56,6 +57,7 @@ export function DeclineRFQDialog({ rfqId, isOpen, onClose }: DeclineRFQDialogPro
       setNote('')
       setShowConfirm(false)
       onClose()
+      onDeclined?.()
     },
   })
 

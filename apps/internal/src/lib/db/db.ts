@@ -124,6 +124,8 @@ export interface QuoteItemRow {
   sellPrice: number
 }
 
+export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
+
 export interface QuoteRow {
   id: string
   quoteNumber: string
@@ -149,6 +151,26 @@ export interface QuoteRow {
   customerPoNumber: string | null
   previousVersionId: string | null
   items: QuoteItemRow[]
+  // ── Delivery + commercial terms ────────────────────────
+  // All nullable: when a draft is built from an RFQ these fall back to
+  // the RFQ's delivery fields at read time. Once the rep edits them in
+  // the quote builder the override persists on the quote row.
+  deliveryAddress: string | null
+  deliveryCity: string | null
+  deliveryDate: string | null
+  deliveryWindow: string | null
+  specialInstructions: string | null
+  paymentTerms: string | null
+  earlyPaymentDiscount: string | null
+  coverNote: string | null
+  // ── Payment state (orthogonal to quote.status, set on acceptance) ──
+  paymentStatus: PaymentStatus
+  amountPaid: number
+  totalDue: number
+  partialPaidAt: string | null
+  fullPaidAt: string | null
+  partialProofUrl: string | null
+  fullProofUrl: string | null
 }
 
 export interface PriceUpdateRequestRow {
@@ -189,8 +211,120 @@ export interface OrderReportRow {
   rfqId: string
   currentStage: OrderReportStage
   canceledReason: string | null
+  canceledNote: string | null
   canceledAt: string | null
   sections: Partial<Record<OrderReportStage, Record<string, unknown>>>
+}
+
+// ─── Trucks ──────────────────────────────────────────────
+
+export type TruckStatus = 'available' | 'loading' | 'dispatched' | 'maintenance'
+export type TruckBodyType = 'flatbed' | 'curtain-side' | 'box' | 'tipper'
+
+export interface TruckRow {
+  id: string
+  plateNumber: string
+  driverName: string
+  driverPhone: string
+  capacityTons: number
+  bodyType: TruckBodyType
+  status: TruckStatus
+}
+
+// ─── Employees ───────────────────────────────────────────
+
+/**
+ * Every person on the payroll. The HR panel (future phase) will add
+ * role assignments, schedules, and attendance. For now the list is
+ * role-less — downstream panels that need role filtering (e.g. which
+ * employees are warehouse advisors) show the full list until the
+ * role column lands.
+ */
+export interface EmployeeRow {
+  id: string
+  name: string
+  name_ar: string
+  phone: string
+}
+
+// ─── Stock + Deals ────────────────────────────────────────
+
+export interface StockRow {
+  productSlug: string
+  /** Physical on-hand stock in the warehouse. */
+  stockLevel: number
+  /**
+   * Stock that is physically present but committed to an approved order
+   * that hasn't been delivered yet. `availableLevel = stockLevel -
+   * reservedLevel`. On approve: `reserve`. On cancel after approve:
+   * `release`. On delivered: `consume` (drops both numbers by the qty).
+   */
+  reservedLevel: number
+  lowStockThreshold: number
+}
+
+export type DealStatus =
+  | 'pending_finance'
+  | 'approved_by_finance'
+  | 'approved_for_warehouse'
+  | 'delivered'
+  | 'closed'
+
+/**
+ * One product line inside a supplier deal. The inventory rep negotiates
+ * one or more lines in a single call — "I want 10 tons of rebar, and
+ * while you're at it, 200 bags of cement" — and the whole thing becomes
+ * one DealRow with an `items` array.
+ */
+export interface DealItemRow {
+  productSlug: string
+  agreedQty: number
+  agreedRawCost: number
+  /** Warehouse-side receive state — flips true once physically received. */
+  received: boolean
+  receivedAt: string | null
+}
+
+/**
+ * Audit record for each warehouse receiving attempt on a deal. Appended
+ * on every commit from the Receiving flow — successful or partial.
+ * Rejected slugs stay on the deal waiting for the next delivery attempt.
+ */
+export interface ReceivingAttempt {
+  attemptedAt: string
+  advisorId: string
+  advisorName: string
+  acceptedSlugs: string[]
+  rejectedSlugs: string[]
+  rejectionReason: string | null
+  proofUrl: string
+  securityMethod: 'password' | 'qr'
+  securityToken: string
+}
+
+export interface DealRow {
+  id: string
+  supplierName: string
+  /**
+   * Every product negotiated in this call. Always at least one item.
+   * Finance views the full list on click so they can confirm they're
+   * paying for the right things before releasing money.
+   */
+  items: DealItemRow[]
+  status: DealStatus
+  notes: string | null
+  createdAt: string
+  // ── Payment state (supplier-side, same shape as QuoteRow) ──
+  paymentStatus: PaymentStatus
+  amountPaid: number
+  totalDue: number
+  partialPaidAt: string | null
+  fullPaidAt: string | null
+  partialProofUrl: string | null
+  fullProofUrl: string | null
+  // ── Warehouse receiving state ─────────────────────────────
+  receivingAttempts: ReceivingAttempt[]
+  fullyReceivedAt: string | null
 }
 
 // ─── Raw seed types (pre-expansion) ───────────────────────
@@ -266,6 +400,9 @@ interface RawQuote {
   customerPoNumber: string | null
   previousVersionId: string | null
   items: QuoteItemRow[]
+  paymentStatus?: PaymentStatus
+  amountPaid?: number
+  totalDue?: number
 }
 
 interface RawPriceUpdateRequest {
@@ -290,98 +427,216 @@ interface RawOrderReport {
   rfqId: string
   currentStage: OrderReportStage
   canceledReason: string | null
+  canceledNote?: string | null
   canceledAtHoursAgo: number | null
   sections: Partial<Record<OrderReportStage, Record<string, unknown>>>
 }
 
+interface RawStock {
+  productSlug: string
+  stockLevel: number
+  lowStockThreshold: number
+  reservedLevel?: number
+}
+
+interface RawDeal {
+  id: string
+  supplierName: string
+  items: DealItemRow[]
+  status: DealStatus
+  notes?: string | null
+  createdAtHoursAgo: number
+  paymentStatus?: PaymentStatus
+  amountPaid?: number
+  totalDue?: number
+}
+
 // ─── In-memory tables ─────────────────────────────────────
+//
+// Tables are pinned on globalThis so Vite HMR reloads of this module (which
+// happen on any server file edit in dev) don't wipe user mutations. In prod,
+// the globalThis key is still used but the module only loads once, so the
+// initializer runs exactly once — no behavioral difference.
 
-const rawSuppliers = loadSeed<RawSupplier[]>('suppliers')
-const rawPrices = loadSeed<RawSupplierPrice[]>('supplier_prices')
-const rawRfqs = loadSeed<RawRfq[]>('rfqs')
-const rawCustomers = loadSeed<RawCustomer[]>('customers')
-const rawQuotes = loadSeed<RawQuote[]>('quotes')
-const rawRequests = loadSeed<RawPriceUpdateRequest[]>('price_update_requests')
-const rawSalesReps = loadSeed<RawSalesRep[]>('sales_reps')
-const rawOrderReports = loadSeed<RawOrderReport[]>('order_reports')
+interface HqDbState {
+  suppliers: Map<string, SupplierRow>
+  supplierPrices: SupplierPriceRow[]
+  rfqs: RfqRow[]
+  customers: Map<string, CustomerRow>
+  quotes: QuoteRow[]
+  priceUpdateRequests: PriceUpdateRequestRow[]
+  salesReps: SalesRepRow[]
+  orderReports: OrderReportRow[]
+  stock: StockRow[]
+  deals: DealRow[]
+  trucks: TruckRow[]
+  employees: EmployeeRow[]
+}
 
-const suppliers = new Map<string, SupplierRow>(
-  rawSuppliers.map((s) => [
-    s.name,
-    { ...s, joinedAt: daysAgoIso(120) },
-  ]),
-)
+const HQ_DB_KEY = '__hqInternalDb_v11__' as const
+type GlobalWithDb = typeof globalThis & { [HQ_DB_KEY]?: HqDbState }
+const g = globalThis as GlobalWithDb
 
-const supplierPrices: SupplierPriceRow[] = rawPrices.map((r) => ({
-  id: `${r.productSlug}::${r.supplierName}`,
-  productSlug: r.productSlug,
-  supplierName: r.supplierName,
-  rawCost: r.rawCost,
-  leadTimeDays: r.leadTimeDays,
-  minOrderQty: r.minOrderQty,
-  lastQuotedAt: daysAgoIso(r.lastQuotedAtDaysAgo),
-  isPrimary: r.isPrimary,
-  notes: r.notes,
-}))
+function buildInitialState(): HqDbState {
+  const rawSuppliers = loadSeed<RawSupplier[]>('suppliers')
+  const rawPrices = loadSeed<RawSupplierPrice[]>('supplier_prices')
+  const rawRfqs = loadSeed<RawRfq[]>('rfqs')
+  const rawCustomers = loadSeed<RawCustomer[]>('customers')
+  const rawQuotes = loadSeed<RawQuote[]>('quotes')
+  const rawRequests = loadSeed<RawPriceUpdateRequest[]>('price_update_requests')
+  const rawSalesReps = loadSeed<RawSalesRep[]>('sales_reps')
+  const rawOrderReports = loadSeed<RawOrderReport[]>('order_reports')
+  const rawStock = loadSeed<RawStock[]>('inventory_stock')
+  const rawDeals = loadSeed<RawDeal[]>('deals')
+  const rawTrucks = loadSeed<TruckRow[]>('trucks')
+  const rawEmployees = loadSeed<EmployeeRow[]>('employees')
 
-const rfqs: RfqRow[] = rawRfqs.map((r) => ({
-  id: r.id,
-  customerName: r.customerName,
-  customerTier: r.customerTier,
-  contactName: r.contactName,
-  deliveryAddress: r.deliveryAddress,
-  deliveryCity: r.deliveryCity,
-  estimatedValue: r.estimatedValue,
-  lineItemCount: r.lineItemCount,
-  status: r.status,
-  assignedRep: r.assignedRep,
-  createdAt: hoursAgoIso(r.createdAtHoursAgo),
-  slaDeadline: hoursFromNowIso(r.slaHoursFromNow),
-  deliveryUrgency: r.deliveryUrgencyDays,
-  items: r.items,
-}))
+  return {
+    suppliers: new Map<string, SupplierRow>(
+      rawSuppliers.map((s) => [s.name, { ...s, joinedAt: daysAgoIso(120) }]),
+    ),
+    supplierPrices: rawPrices.map((r) => ({
+      id: `${r.productSlug}::${r.supplierName}`,
+      productSlug: r.productSlug,
+      supplierName: r.supplierName,
+      rawCost: r.rawCost,
+      leadTimeDays: r.leadTimeDays,
+      minOrderQty: r.minOrderQty,
+      lastQuotedAt: daysAgoIso(r.lastQuotedAtDaysAgo),
+      isPrimary: r.isPrimary,
+      notes: r.notes,
+    })),
+    rfqs: rawRfqs.map((r) => ({
+      id: r.id,
+      customerName: r.customerName,
+      customerTier: r.customerTier,
+      contactName: r.contactName,
+      deliveryAddress: r.deliveryAddress,
+      deliveryCity: r.deliveryCity,
+      estimatedValue: r.estimatedValue,
+      lineItemCount: r.lineItemCount,
+      status: r.status,
+      assignedRep: r.assignedRep,
+      createdAt: hoursAgoIso(r.createdAtHoursAgo),
+      slaDeadline: hoursFromNowIso(r.slaHoursFromNow),
+      deliveryUrgency: r.deliveryUrgencyDays,
+      items: r.items,
+    })),
+    customers: new Map<string, CustomerRow>(
+      rawCustomers.map((c) => [c.id, { ...c, joinedAt: daysAgoIso(c.joinedAtDaysAgo) }]),
+    ),
+    quotes: rawQuotes.map((q) => {
+      const derivedTotal = q.items.reduce(
+        (s, i) => s + i.sellPrice * i.quantity,
+        0,
+      )
+      const totalDue = Math.round((q.totalDue ?? derivedTotal) * 100) / 100
+      // Accepted quotes with no explicit payment state default to unpaid
+      // so Finance has something to work on; other statuses default to
+      // unpaid too but never surface through the finance inbox.
+      const paymentStatus: PaymentStatus = q.paymentStatus ?? 'unpaid'
+      return {
+        id: q.id,
+        quoteNumber: q.quoteNumber,
+        rfqId: q.rfqId,
+        customerId: q.customerId,
+        version: q.version,
+        status: q.status,
+        marginPercent: q.marginPercent,
+        sentAt: q.sentAtHoursAgo == null ? null : hoursAgoIso(q.sentAtHoursAgo),
+        validUntil: daysFromNowIso(q.validUntilDaysFromNow),
+        sentVia: q.sentVia,
+        customerPoNumber: q.customerPoNumber,
+        previousVersionId: q.previousVersionId,
+        items: q.items,
+        deliveryAddress: null,
+        deliveryCity: null,
+        deliveryDate: null,
+        deliveryWindow: null,
+        specialInstructions: null,
+        paymentTerms: null,
+        earlyPaymentDiscount: null,
+        coverNote: null,
+        paymentStatus,
+        amountPaid: q.amountPaid ?? 0,
+        totalDue,
+        partialPaidAt: null,
+        fullPaidAt: null,
+        partialProofUrl: null,
+        fullProofUrl: null,
+      }
+    }),
+    priceUpdateRequests: rawRequests.map((r) => ({
+      id: r.id,
+      productSlug: r.productSlug,
+      customerContext: r.customerContext,
+      requestedAt: hoursAgoIso(r.requestedAtHoursAgo),
+      status: r.status,
+    })),
+    salesReps: rawSalesReps.map((r) => ({ ...r })),
+    orderReports: rawOrderReports.map((r) => ({
+      id: r.id,
+      rfqId: r.rfqId,
+      currentStage: r.currentStage,
+      canceledReason: r.canceledReason,
+      canceledNote: r.canceledNote ?? null,
+      canceledAt: r.canceledAtHoursAgo == null ? null : hoursAgoIso(r.canceledAtHoursAgo),
+      sections: r.sections,
+    })),
+    stock: rawStock.map((r) => ({
+      productSlug: r.productSlug,
+      stockLevel: r.stockLevel,
+      reservedLevel: r.reservedLevel ?? 0,
+      lowStockThreshold: r.lowStockThreshold,
+    })),
+    deals: rawDeals.map((r) => {
+      const derivedTotal = r.items.reduce(
+        (s, i) => s + i.agreedQty * i.agreedRawCost,
+        0,
+      )
+      return {
+        id: r.id,
+        supplierName: r.supplierName,
+        items: r.items.map((i) => ({
+          productSlug: i.productSlug,
+          agreedQty: i.agreedQty,
+          agreedRawCost: i.agreedRawCost,
+          received: false,
+          receivedAt: null,
+        })),
+        status: r.status,
+        notes: r.notes ?? null,
+        createdAt: hoursAgoIso(r.createdAtHoursAgo),
+        paymentStatus: r.paymentStatus ?? 'unpaid',
+        amountPaid: r.amountPaid ?? 0,
+        totalDue: Math.round((r.totalDue ?? derivedTotal) * 100) / 100,
+        partialPaidAt: null,
+        fullPaidAt: null,
+        partialProofUrl: null,
+        fullProofUrl: null,
+        receivingAttempts: [],
+        fullyReceivedAt: null,
+      }
+    }),
+    trucks: rawTrucks.map((t) => ({ ...t })),
+    employees: rawEmployees.map((e) => ({ ...e })),
+  }
+}
 
-const customers = new Map<string, CustomerRow>(
-  rawCustomers.map((c) => [
-    c.id,
-    { ...c, joinedAt: daysAgoIso(c.joinedAtDaysAgo) },
-  ]),
-)
+const state: HqDbState = g[HQ_DB_KEY] ?? (g[HQ_DB_KEY] = buildInitialState())
 
-const quotes: QuoteRow[] = rawQuotes.map((q) => ({
-  id: q.id,
-  quoteNumber: q.quoteNumber,
-  rfqId: q.rfqId,
-  customerId: q.customerId,
-  version: q.version,
-  status: q.status,
-  marginPercent: q.marginPercent,
-  sentAt: q.sentAtHoursAgo == null ? null : hoursAgoIso(q.sentAtHoursAgo),
-  validUntil: daysFromNowIso(q.validUntilDaysFromNow),
-  sentVia: q.sentVia,
-  customerPoNumber: q.customerPoNumber,
-  previousVersionId: q.previousVersionId,
-  items: q.items,
-}))
-
-const priceUpdateRequests: PriceUpdateRequestRow[] = rawRequests.map((r) => ({
-  id: r.id,
-  productSlug: r.productSlug,
-  customerContext: r.customerContext,
-  requestedAt: hoursAgoIso(r.requestedAtHoursAgo),
-  status: r.status,
-}))
-
-const salesReps: SalesRepRow[] = rawSalesReps.map((r) => ({ ...r }))
-
-const orderReports: OrderReportRow[] = rawOrderReports.map((r) => ({
-  id: r.id,
-  rfqId: r.rfqId,
-  currentStage: r.currentStage,
-  canceledReason: r.canceledReason,
-  canceledAt: r.canceledAtHoursAgo == null ? null : hoursAgoIso(r.canceledAtHoursAgo),
-  sections: r.sections,
-}))
+const suppliers = state.suppliers
+const supplierPrices = state.supplierPrices
+const rfqs = state.rfqs
+const customers = state.customers
+const quotes = state.quotes
+const priceUpdateRequests = state.priceUpdateRequests
+const salesReps = state.salesReps
+const orderReports = state.orderReports
+const stock = state.stock
+const deals = state.deals
+const trucks = state.trucks
+const employees = state.employees
 
 // ─── Accessors ────────────────────────────────────────────
 
@@ -532,9 +787,71 @@ export const db = {
     forCustomer(customerId: string): QuoteRow[] {
       return quotes.filter((q) => q.customerId === customerId)
     },
-    insert(row: Omit<QuoteRow, 'id'>): QuoteRow {
+    insert(
+      row: Omit<
+        QuoteRow,
+        | 'id'
+        | 'paymentStatus'
+        | 'amountPaid'
+        | 'totalDue'
+        | 'partialPaidAt'
+        | 'fullPaidAt'
+        | 'partialProofUrl'
+        | 'fullProofUrl'
+        | 'deliveryAddress'
+        | 'deliveryCity'
+        | 'deliveryDate'
+        | 'deliveryWindow'
+        | 'specialInstructions'
+        | 'paymentTerms'
+        | 'earlyPaymentDiscount'
+        | 'coverNote'
+      > &
+        Partial<
+          Pick<
+            QuoteRow,
+            | 'paymentStatus'
+            | 'amountPaid'
+            | 'totalDue'
+            | 'partialPaidAt'
+            | 'fullPaidAt'
+            | 'partialProofUrl'
+            | 'fullProofUrl'
+            | 'deliveryAddress'
+            | 'deliveryCity'
+            | 'deliveryDate'
+            | 'deliveryWindow'
+            | 'specialInstructions'
+            | 'paymentTerms'
+            | 'earlyPaymentDiscount'
+            | 'coverNote'
+          >
+        >,
+    ): QuoteRow {
       const id = `qt-${Date.now()}`
-      const full: QuoteRow = { ...row, id }
+      const derivedTotal = row.items.reduce(
+        (s, i) => s + i.sellPrice * i.quantity,
+        0,
+      )
+      const full: QuoteRow = {
+        ...row,
+        id,
+        deliveryAddress: row.deliveryAddress ?? null,
+        deliveryCity: row.deliveryCity ?? null,
+        deliveryDate: row.deliveryDate ?? null,
+        deliveryWindow: row.deliveryWindow ?? null,
+        specialInstructions: row.specialInstructions ?? null,
+        paymentTerms: row.paymentTerms ?? null,
+        earlyPaymentDiscount: row.earlyPaymentDiscount ?? null,
+        coverNote: row.coverNote ?? null,
+        paymentStatus: row.paymentStatus ?? 'unpaid',
+        amountPaid: row.amountPaid ?? 0,
+        totalDue: row.totalDue ?? Math.round(derivedTotal * 100) / 100,
+        partialPaidAt: row.partialPaidAt ?? null,
+        fullPaidAt: row.fullPaidAt ?? null,
+        partialProofUrl: row.partialProofUrl ?? null,
+        fullProofUrl: row.fullProofUrl ?? null,
+      }
       quotes.push(full)
       return full
     },
@@ -621,6 +938,7 @@ export const db = {
         rfqId,
         currentStage: 'submitted',
         canceledReason: null,
+        canceledNote: null,
         canceledAt: null,
         sections: {
           submitted: {
@@ -649,13 +967,167 @@ export const db = {
       row.currentStage = stage
       return row
     },
-    markCanceled(rfqId: string, reason: string): OrderReportRow | undefined {
+    markCanceled(rfqId: string, reason: string, note?: string | null): OrderReportRow | undefined {
       const row = orderReports.find((r) => r.rfqId === rfqId)
       if (!row) return undefined
       row.currentStage = 'canceled'
       row.canceledReason = reason
+      row.canceledNote = note ?? null
       row.canceledAt = new Date().toISOString()
       return row
+    },
+  },
+
+  // ── Stock (inventory on-hand + reservations) ──
+  stock: {
+    list(): StockRow[] {
+      return stock
+    },
+    forProduct(productSlug: string): StockRow | undefined {
+      return stock.find((r) => r.productSlug === productSlug)
+    },
+    /** Unconstrained physical adjustment — use for refills arriving, etc. */
+    adjust(productSlug: string, delta: number): StockRow | undefined {
+      const row = stock.find((r) => r.productSlug === productSlug)
+      if (!row) return undefined
+      row.stockLevel = Math.max(0, row.stockLevel + delta)
+      return row
+    },
+    setLevel(productSlug: string, level: number): StockRow | undefined {
+      const row = stock.find((r) => r.productSlug === productSlug)
+      if (!row) return undefined
+      row.stockLevel = Math.max(0, level)
+      return row
+    },
+    /**
+     * Lock `qty` units against new orders without removing them from the
+     * warehouse. Approving an order calls this. `availableLevel` drops;
+     * `stockLevel` stays. Clamps to physical stock so we never reserve
+     * more than we actually have.
+     */
+    reserve(productSlug: string, qty: number): StockRow | undefined {
+      const row = stock.find((r) => r.productSlug === productSlug)
+      if (!row) return undefined
+      const maxNew = Math.max(0, row.stockLevel - row.reservedLevel)
+      row.reservedLevel += Math.min(qty, maxNew)
+      return row
+    },
+    /**
+     * Give reserved stock back to available — used when an approved order
+     * is canceled before delivery.
+     */
+    release(productSlug: string, qty: number): StockRow | undefined {
+      const row = stock.find((r) => r.productSlug === productSlug)
+      if (!row) return undefined
+      row.reservedLevel = Math.max(0, row.reservedLevel - qty)
+      return row
+    },
+    /**
+     * Permanently remove reserved stock from the warehouse — used when the
+     * order is physically delivered. Drops both `stockLevel` and
+     * `reservedLevel` by `qty`.
+     */
+    consume(productSlug: string, qty: number): StockRow | undefined {
+      const row = stock.find((r) => r.productSlug === productSlug)
+      if (!row) return undefined
+      const take = Math.min(qty, row.reservedLevel, row.stockLevel)
+      row.stockLevel -= take
+      row.reservedLevel -= take
+      return row
+    },
+  },
+
+  // ── Deals (supplier phone-call outcomes) ──
+  deals: {
+    list(): DealRow[] {
+      return deals
+    },
+    forProduct(productSlug: string): DealRow[] {
+      return deals.filter((d) => d.items.some((i) => i.productSlug === productSlug))
+    },
+    forStatus(status: DealStatus): DealRow[] {
+      return deals.filter((d) => d.status === status)
+    },
+    insert(
+      row: {
+        supplierName: string
+        items: Array<{
+          productSlug: string
+          agreedQty: number
+          agreedRawCost: number
+        }>
+        status: DealStatus
+        notes: string | null
+      } & Partial<{
+        paymentStatus: PaymentStatus
+        amountPaid: number
+        totalDue: number
+      }>,
+    ): DealRow {
+      const derivedTotal = row.items.reduce(
+        (s, i) => s + i.agreedQty * i.agreedRawCost,
+        0,
+      )
+      const full: DealRow = {
+        id: `deal-${Date.now().toString(36)}-${deals.length + 1}`,
+        supplierName: row.supplierName,
+        items: row.items.map((i) => ({
+          productSlug: i.productSlug,
+          agreedQty: i.agreedQty,
+          agreedRawCost: i.agreedRawCost,
+          received: false,
+          receivedAt: null,
+        })),
+        status: row.status,
+        notes: row.notes,
+        createdAt: new Date().toISOString(),
+        paymentStatus: row.paymentStatus ?? 'unpaid',
+        amountPaid: row.amountPaid ?? 0,
+        totalDue: row.totalDue ?? Math.round(derivedTotal * 100) / 100,
+        partialPaidAt: null,
+        fullPaidAt: null,
+        partialProofUrl: null,
+        fullProofUrl: null,
+        receivingAttempts: [],
+        fullyReceivedAt: null,
+      }
+      deals.push(full)
+      return full
+    },
+    updateStatus(id: string, status: DealStatus): DealRow | undefined {
+      const row = deals.find((d) => d.id === id)
+      if (!row) return undefined
+      row.status = status
+      return row
+    },
+  },
+
+  // ── Trucks (warehouse dock fleet) ──
+  trucks: {
+    list(): TruckRow[] {
+      return trucks
+    },
+    get(id: string): TruckRow | undefined {
+      return trucks.find((t) => t.id === id)
+    },
+    available(): TruckRow[] {
+      return trucks.filter((t) => t.status === 'available')
+    },
+    setStatus(id: string, status: TruckStatus): TruckRow | undefined {
+      const row = trucks.find((t) => t.id === id)
+      if (!row) return undefined
+      row.status = status
+      return row
+    },
+  },
+
+  // ── Employees (payroll directory) ──
+  employees: {
+    list(): EmployeeRow[] {
+      return employees
+    },
+    get(id: string): EmployeeRow | undefined {
+      return employees.find((e) => e.id === id)
     },
   },
 } as const

@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { SlidePanel } from '../../shared/SlidePanel'
 import {
-  Dialog,
-  Modal,
-  ModalOverlay,
-  Button as AriaButton,
-  Heading,
-} from 'react-aria-components'
-import { X, Flame, Check, Clock, Truck, Bell, Loader2, Pencil, Phone, ChevronRight } from 'lucide-react'
+  Flame,
+  Check,
+  Clock,
+  Truck,
+  Bell,
+  Loader2,
+  Pencil,
+  Phone,
+  ChevronRight,
+} from 'lucide-react'
 import {
   getInventoryProductDetail,
   updateSupplierQuote,
 } from '../../../lib/server/inventory'
 import type { QuoteFreshness } from '../../../lib/server/inventory'
 import { SupplierProfileView } from './SupplierProfileView'
+import { PriceConfirmDialog } from './PriceConfirmDialog'
+import { sanitizeCost } from '../../../lib/inputs'
 
 interface ProductDetailModalProps {
   slug: string | null
@@ -34,7 +40,6 @@ const TIER_TONE = {
   new: 'bg-black/[0.06] text-black/60 dark:bg-white/[0.08] dark:text-white/60 ring-black/10 dark:ring-white/10',
 } as const
 
-/** Supplier-friendly freshness pill: none of these labels imply a crisis. */
 const QUOTE_LABEL: Record<QuoteFreshness, string> = {
   confirmed: 'Confirmed',
   reconfirm: 'Re-confirm',
@@ -55,17 +60,29 @@ function formatRelative(iso: string | null): string {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+// ─── Panel (slide-in side window) ────────────────────────
+
 export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
-  const isOpen = !!slug
+  const isOpen = slug !== null
   const qc = useQueryClient()
 
-  // View mode — flip to supplier profile when a supplier row is clicked.
+  // Drill-down state — supplier row opens the full supplier profile inline.
   const [activeSupplier, setActiveSupplier] = useState<string | null>(null)
 
-  // Reset the supplier view whenever the product changes or modal closes.
+  // Pending confirmation for supplier price edits.
+  const [pendingEdit, setPendingEdit] = useState<{
+    supplierId: string
+    supplierName: string
+    oldCost: number
+    newCost: number
+  } | null>(null)
+
   useEffect(() => {
-    if (!slug) setActiveSupplier(null)
-  }, [slug])
+    if (!isOpen) {
+      setActiveSupplier(null)
+      setPendingEdit(null)
+    }
+  }, [isOpen, slug])
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory-product-detail', slug],
@@ -79,13 +96,35 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-product-detail', slug] })
       qc.invalidateQueries({ queryKey: ['inventory-overview'] })
+      qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
       qc.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
     },
   })
 
+  // Queue the edit; the mutation fires only after the user confirms.
   const handleSaveQuote = (supplierId: string, rawCost: number) => {
-    if (!slug) return
-    quoteMutation.mutate({ data: { slug, supplierId, rawCost } })
+    if (!slug || !data) return
+    const supplier = data.suppliers.find((s) => s.id === supplierId)
+    if (!supplier) return
+    setPendingEdit({
+      supplierId,
+      supplierName: supplier.name,
+      oldCost: supplier.rawCost,
+      newCost: rawCost,
+    })
+  }
+
+  const commitPendingEdit = (_proof?: string) => {
+    // _proof will feed into the price_change_log accessor once that lands.
+    if (!slug || !pendingEdit) return
+    quoteMutation.mutate({
+      data: {
+        slug,
+        supplierId: pendingEdit.supplierId,
+        rawCost: pendingEdit.newCost,
+      },
+    })
+    setPendingEdit(null)
   }
 
   const best = data?.suppliers
@@ -93,228 +132,229 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
     : null
 
   return (
-    <ModalOverlay
+    <>
+    <PriceConfirmDialog
+      isOpen={pendingEdit !== null}
+      productName={data?.name ?? ''}
+      supplierName={pendingEdit?.supplierName}
+      unit={data?.unit ?? ''}
+      oldCost={pendingEdit?.oldCost ?? 0}
+      newCost={pendingEdit?.newCost ?? 0}
+      onConfirm={commitPendingEdit}
+      onCancel={() => setPendingEdit(null)}
+    />
+    <SlidePanel
       isOpen={isOpen}
-      onOpenChange={(open) => !open && onClose()}
-      isDismissable
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClose={onClose}
+      maxWidth={620}
+      panelKey="product-panel"
+      ariaLabel="Product details"
+      scope="procurement"
     >
-      <Modal className="w-full max-w-4xl mx-4">
-        <Dialog
-          isKeyboardDismissDisabled
-          className="rounded-2xl bg-[var(--color-surface)] dark:bg-[#0A0A0A] shadow-2xl outline-none overflow-hidden border border-black/[0.08] dark:border-white/[0.08]"
-        >
-          {() => (
-            <div className="flex flex-col max-h-[85vh]">
-              {/* Close button — always visible */}
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="absolute top-3 right-3 z-30 rounded-md p-1.5 bg-white dark:bg-[#161616] border border-black/10 dark:border-white/10 text-black/50 dark:text-white/50 hover:text-[var(--color-text)] transition-colors outline-none cursor-pointer"
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
-
-              {isLoading || !data ? (
-                <div className="flex items-center justify-center py-32">
-                  <Loader2 size={20} strokeWidth={1.5} className="animate-spin text-[var(--color-text-subtle)]" />
+      {isLoading || !data ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 size={20} strokeWidth={1.5} className="animate-spin text-[var(--color-text-subtle)]" />
+              </div>
+            ) : activeSupplier ? (
+              <div className="flex h-full flex-col">
+                <button
+                  type="button"
+                  onClick={() => setActiveSupplier(null)}
+                  className="mx-5 mt-4 mb-2 inline-flex w-fit items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
+                >
+                  ← back to product
+                </button>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <SupplierProfileView
+                    name={activeSupplier}
+                    onBack={() => setActiveSupplier(null)}
+                  />
                 </div>
-              ) : activeSupplier ? (
-                <SupplierProfileView
-                  name={activeSupplier}
-                  onBack={() => setActiveSupplier(null)}
-                />
-              ) : (
-                <>
-                  {/* Two-column body */}
-                  <div className="grid grid-cols-[1.15fr_1fr] min-h-0">
-                    {/* ── LEFT: product info (reworked) ─────────── */}
-                    <div className="flex flex-col min-h-0 overflow-y-auto border-e border-black/[0.06] dark:border-white/[0.06]">
-                      {/* Compact hero */}
-                      <div className="relative h-44 shrink-0 overflow-hidden">
-                        <img
-                          src={data.image}
-                          alt={data.name}
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                        <div className="absolute bottom-3 left-5 right-5">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/80">
-                              {data.broadCategory}
-                            </span>
-                            <span className="h-[1px] w-6 bg-white/40" />
-                            <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-white/70">
-                              {data.sku}
-                            </span>
-                          </div>
-                          <Heading
-                            slot="title"
-                            className="text-[20px] font-semibold leading-tight text-white"
-                          >
-                            {data.name}
-                          </Heading>
-                          <p className="mt-0.5 text-[11px] text-white/60">
-                            {data.name_ar}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Cost band — the thing the inventory employee cares about */}
-                      <div className="shrink-0 px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
-                        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/40">
-                          Current supplier cost
-                        </div>
-                        <div className="mt-1 flex items-baseline gap-2">
-                          <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
-                            {data.currentRawCost > 0
-                              ? data.currentRawCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })
-                              : '—'}
-                          </span>
-                          <span className="text-[11px] text-black/40 dark:text-white/40">
-                            EGP / {data.unit}
-                          </span>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-black/45 dark:text-white/45">
-                          <span>Sell-ready: {data.currentSupplierCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })} EGP (incl. buffer)</span>
-                          {data.lastUpdatedAt && (
-                            <>
-                              <span>·</span>
-                              <span>updated {formatRelative(data.lastUpdatedAt)}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Meta + description */}
-                      <div className="flex-1 px-5 py-4 space-y-5">
-                        {/* Compact meta row */}
-                        <dl className="flex items-center gap-5 text-[11px] text-black/55 dark:text-white/55">
-                          <div>
-                            <dt className="text-[8px] uppercase tracking-[0.14em] text-black/35 dark:text-white/35">Unit</dt>
-                            <dd className="mt-0.5 text-[var(--color-text)] font-medium">{data.unit}</dd>
-                          </div>
-                          <div className="h-8 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
-                          <div>
-                            <dt className="text-[8px] uppercase tracking-[0.14em] text-black/35 dark:text-white/35">Weight</dt>
-                            <dd className="mt-0.5 text-[var(--color-text)] font-medium font-[family-name:var(--font-geist-mono)] tabular-nums">
-                              {data.weight_kg} kg
-                            </dd>
-                          </div>
-                          <div className="h-8 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
-                          <div className="min-w-0">
-                            <dt className="text-[8px] uppercase tracking-[0.14em] text-black/35 dark:text-white/35">Brand</dt>
-                            <dd className="mt-0.5 text-[var(--color-text)] font-medium truncate">{data.brand ?? '—'}</dd>
-                          </div>
-                        </dl>
-
-                        {/* Description */}
-                        <p className="text-[12px] leading-relaxed text-black/65 dark:text-white/65">
-                          {data.description}
-                        </p>
-
-                        {/* Specifications */}
-                        <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/40 mb-2">
-                            Specifications
-                          </div>
-                          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                            {Object.entries(data.specifications).map(([k, v]) => (
-                              <div
-                                key={k}
-                                className="flex items-baseline justify-between gap-2 border-b border-dashed border-black/[0.05] dark:border-white/[0.05] pb-1"
-                              >
-                                <dt className="text-[10px] text-black/45 dark:text-white/45 capitalize">
-                                  {k.replace(/_/g, ' ')}
-                                </dt>
-                                <dd className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)] text-end">
-                                  {String(v)}
-                                </dd>
-                              </div>
-                            ))}
-                          </dl>
-                        </div>
-
-                        {/* Tags */}
-                        {data.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {data.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center rounded-full bg-black/[0.05] dark:bg-white/[0.05] px-2 py-0.5 text-[10px] text-black/55 dark:text-white/55"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+              </div>
+            ) : (
+              <div className="flex h-full flex-col min-h-0">
+                {/* Compact image hero */}
+                <div className="relative h-40 shrink-0 overflow-hidden">
+                  <img
+                    src={data.image}
+                    alt={data.name}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute bottom-3 start-5 end-5">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/75">
+                        {data.broadCategory}
+                      </span>
+                      <span className="h-px w-6 bg-white/40" />
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-white/65">
+                        {data.sku}
+                      </span>
                     </div>
+                    <h2 className="text-[19px] font-semibold leading-tight text-white">
+                      {data.name}
+                    </h2>
+                    <p className="mt-0.5 text-[11px] text-white/55">
+                      {data.name_ar}
+                    </p>
+                  </div>
+                </div>
 
-                    {/* ── RIGHT: supplier list ─────────────────── */}
-                    <div className="flex flex-col min-h-0 overflow-y-auto">
-                      <div className="sticky top-0 z-10 px-5 py-4 bg-[var(--color-surface)] dark:bg-[#0A0A0A] border-b border-black/[0.05] dark:border-white/[0.05]">
-                        <div className="flex items-baseline justify-between">
-                          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/40">
-                            Suppliers
-                          </div>
-                          <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/35 dark:text-white/35">
-                            {data.suppliers.length}
-                          </span>
-                        </div>
-                        {data.pendingRequests.length > 0 && (
-                          <div className="mt-2 flex items-center gap-1.5 rounded-md bg-red-500/[0.07] dark:bg-red-500/10 px-2.5 py-1.5">
-                            <Bell size={11} strokeWidth={2.5} className="text-red-500 shrink-0" />
-                            <span className="text-[10px] text-red-700 dark:text-red-300">
-                              {data.pendingRequests.length} active request · {data.pendingRequests.map((r) => r.customerContext).join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <ul className="flex flex-col divide-y divide-black/[0.05] dark:divide-white/[0.05] px-2 pb-4">
-                        {data.suppliers.map((s) => (
-                          <SupplierRow
-                            key={s.id}
-                            supplier={s}
-                            unit={data.unit}
-                            isBest={best?.id === s.id}
-                            isSaving={
-                              quoteMutation.isPending &&
-                              quoteMutation.variables?.data.supplierId === s.id
-                            }
-                            onSave={(rawCost) => handleSaveQuote(s.id, rawCost)}
-                            onOpenProfile={() => setActiveSupplier(s.name)}
-                          />
-                        ))}
-                      </ul>
-
-                      <div className="mt-auto px-5 py-3 border-t border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.02]">
-                        <div className="flex items-center justify-between text-[10px] text-black/50 dark:text-white/50">
-                          <span className="inline-flex items-center gap-1">
-                            <Check size={10} strokeWidth={2.5} className="text-emerald-500" />
-                            Price last saved {formatRelative(data.lastUpdatedAt)}
-                          </span>
-                          <AriaButton
-                            className="inline-flex items-center gap-1 text-[var(--color-primary)] hover:underline outline-none cursor-pointer"
-                            onPress={onClose}
-                          >
-                            Close
-                          </AriaButton>
-                        </div>
-                      </div>
+                {/* Scrollable body */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  {/* Cost band */}
+                  <div className="border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
+                    <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+                      Current supplier cost
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[28px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
+                        {data.currentRawCost > 0
+                          ? data.currentRawCost.toLocaleString('en-EG', {
+                              minimumFractionDigits: 2,
+                            })
+                          : '—'}
+                      </span>
+                      <span className="text-[11px] text-[var(--color-text-subtle)]">
+                        EGP / {data.unit}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
+                      <span>
+                        Sell-ready:{' '}
+                        {data.currentSupplierCost.toLocaleString('en-EG', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        EGP (incl. buffer)
+                      </span>
+                      {data.lastUpdatedAt && (
+                        <>
+                          <span>·</span>
+                          <span>updated {formatRelative(data.lastUpdatedAt)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                </>
-              )}
-            </div>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+
+                  {/* Meta row */}
+                  <dl className="flex items-center gap-5 border-b border-black/[0.05] px-5 py-3 dark:border-white/[0.06]">
+                    <div>
+                      <dt className="text-[8px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+                        Unit
+                      </dt>
+                      <dd className="mt-0.5 text-[11px] font-medium text-[var(--color-text)]">
+                        {data.unit}
+                      </dd>
+                    </div>
+                    <div className="h-8 w-px bg-black/[0.06] dark:bg-white/[0.07]" />
+                    <div>
+                      <dt className="text-[8px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+                        Weight
+                      </dt>
+                      <dd className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] font-medium tabular-nums text-[var(--color-text)]">
+                        {data.weight_kg} kg
+                      </dd>
+                    </div>
+                    <div className="h-8 w-px bg-black/[0.06] dark:bg-white/[0.07]" />
+                    <div className="min-w-0">
+                      <dt className="text-[8px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+                        Brand
+                      </dt>
+                      <dd className="mt-0.5 truncate text-[11px] font-medium text-[var(--color-text)]">
+                        {data.brand ?? '—'}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {/* Description + specs */}
+                  <div className="border-b border-black/[0.05] px-5 py-4 dark:border-white/[0.06]">
+                    <p className="text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+                      {data.description}
+                    </p>
+                    <div className="mt-4">
+                      <div className="mb-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+                        Specifications
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        {Object.entries(data.specifications).map(([k, v]) => (
+                          <div
+                            key={k}
+                            className="flex items-baseline justify-between gap-2 border-b border-dashed border-black/[0.05] pb-1 dark:border-white/[0.06]"
+                          >
+                            <dt className="text-[10px] capitalize text-[var(--color-text-subtle)]">
+                              {k.replace(/_/g, ' ')}
+                            </dt>
+                            <dd className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)] text-end">
+                              {String(v)}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  </div>
+
+                  {/* Suppliers */}
+                  <div className="px-3 py-4">
+                    <div className="flex items-baseline justify-between px-2 pb-2">
+                      <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+                        Suppliers
+                      </div>
+                      <span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+                        {data.suppliers.length}
+                      </span>
+                    </div>
+
+                    {data.pendingRequests.length > 0 && (
+                      <div className="mx-2 mb-3 flex items-center gap-1.5 rounded-md bg-red-500/[0.07] px-2.5 py-1.5 dark:bg-red-500/10">
+                        <Bell size={11} strokeWidth={2.5} className="shrink-0 text-red-500" />
+                        <span className="text-[10px] text-red-700 dark:text-red-300">
+                          {data.pendingRequests.length} active request ·{' '}
+                          {data.pendingRequests.map((r) => r.customerContext).join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    <ul className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
+                      {data.suppliers.map((s) => (
+                        <SupplierRow
+                          key={s.id}
+                          supplier={s}
+                          unit={data.unit}
+                          isBest={best?.id === s.id}
+                          isSaving={
+                            quoteMutation.isPending &&
+                            quoteMutation.variables?.data.supplierId === s.id
+                          }
+                          onSave={(rawCost) => handleSaveQuote(s.id, rawCost)}
+                          onOpenProfile={() => setActiveSupplier(s.name)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-auto flex items-center justify-between border-t border-black/[0.05] bg-black/[0.015] px-5 py-3 dark:border-white/[0.06] dark:bg-white/[0.02]">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-subtle)]">
+                    <Check size={10} strokeWidth={2.5} className="text-emerald-500" />
+                    Price last saved {formatRelative(data.lastUpdatedAt)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="text-[10px] font-medium text-[var(--color-primary)] transition-colors hover:text-[var(--color-primary)]/80"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+      )}
+    </SlidePanel>
+    </>
   )
 }
+
+// ─── Supplier row (unchanged structure) ──────────────────
 
 interface SupplierRowProps {
   supplier: {
@@ -337,7 +377,14 @@ interface SupplierRowProps {
   onOpenProfile: () => void
 }
 
-function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }: SupplierRowProps) {
+function SupplierRow({
+  supplier,
+  unit,
+  isBest,
+  isSaving,
+  onSave,
+  onOpenProfile,
+}: SupplierRowProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -346,8 +393,8 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
     setEditing(true)
   }
   const commit = () => {
-    const v = parseFloat(draft.replace(/,/g, ''))
-    if (!isNaN(v) && v >= 0 && v !== supplier.rawCost) {
+    const v = sanitizeCost(draft)
+    if (v !== null && v !== supplier.rawCost) {
       onSave(v)
     }
     setEditing(false)
@@ -366,18 +413,18 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={onOpenProfile}
-              className="group/name inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--color-text)] truncate outline-none cursor-pointer hover:text-[var(--color-primary)] transition-colors"
+              className="group/name inline-flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--color-text)] outline-none transition-colors hover:text-[var(--color-primary)]"
             >
               {supplier.name}
               <ChevronRight
                 size={11}
                 strokeWidth={2.5}
-                className="text-black/25 dark:text-white/25 opacity-0 group-hover/name:opacity-100 transition-opacity"
+                className="text-[var(--color-text-subtle)] opacity-0 transition-opacity group-hover/name:opacity-100"
               />
             </button>
             {supplier.isPrimary && (
@@ -403,15 +450,14 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
             >
               {TIER_LABEL[supplier.tier]}
             </span>
-            <span className="text-[10px] text-black/40 dark:text-white/40">
+            <span className="text-[10px] text-[var(--color-text-subtle)]">
               {supplier.paymentTerms}
             </span>
           </div>
         </div>
 
-        {/* Last price — click to edit */}
         <div className="shrink-0 text-end">
-          <div className="text-[8px] font-semibold uppercase tracking-[0.14em] text-black/35 dark:text-white/35 mb-0.5">
+          <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
             Last price
           </div>
           {editing ? (
@@ -431,11 +477,15 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
               type="button"
               onClick={beginEdit}
               disabled={isSaving}
-              className="group/price inline-flex items-baseline gap-1 outline-none cursor-pointer disabled:cursor-wait"
+              className="group/price inline-flex items-baseline gap-1 outline-none disabled:cursor-wait"
             >
-              <span className="font-[family-name:var(--font-geist-mono)] text-[16px] font-semibold tabular-nums text-[var(--color-text)] leading-none">
+              <span className="font-[family-name:var(--font-geist-mono)] text-[16px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
                 {isSaving ? (
-                  <Loader2 size={14} strokeWidth={2.5} className="inline animate-spin text-[var(--color-primary)]" />
+                  <Loader2
+                    size={14}
+                    strokeWidth={2.5}
+                    className="inline animate-spin text-[var(--color-primary)]"
+                  />
                 ) : (
                   supplier.rawCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })
                 )}
@@ -443,17 +493,17 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
               <Pencil
                 size={10}
                 strokeWidth={2}
-                className="text-black/25 dark:text-white/25 opacity-0 group-hover/price:opacity-100 transition-opacity"
+                className="text-[var(--color-text-subtle)] opacity-0 transition-opacity group-hover/price:opacity-100"
               />
             </button>
           )}
-          <div className="mt-0.5 text-[9px] text-black/35 dark:text-white/35">
+          <div className="mt-0.5 text-[9px] text-[var(--color-text-subtle)]">
             EGP / {unit}
           </div>
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-3 text-[10px] text-black/45 dark:text-white/45 flex-wrap">
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-text-subtle)]">
         <span className="inline-flex items-center gap-1">
           <Truck size={10} strokeWidth={2} />
           {supplier.leadTimeDays}d lead
@@ -466,7 +516,7 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
           MOQ {supplier.minOrderQty}
         </span>
         {supplier.quoteFreshness !== 'confirmed' && (
-          <span className="inline-flex items-center gap-1 text-black/50 dark:text-white/50">
+          <span className="inline-flex items-center gap-1 text-[var(--color-text-muted)]">
             <Phone size={10} strokeWidth={2} />
             call to re-confirm
           </span>
@@ -474,11 +524,10 @@ function SupplierRow({ supplier, unit, isBest, isSaving, onSave, onOpenProfile }
       </div>
 
       {supplier.notes && (
-        <p className="mt-1.5 text-[10px] italic text-black/45 dark:text-white/45">
+        <p className="mt-1.5 text-[10px] italic text-[var(--color-text-subtle)]">
           {supplier.notes}
         </p>
       )}
     </li>
   )
 }
-

@@ -20,6 +20,7 @@ export interface ResolvedReport {
   rfqId: string
   currentStage: OrderReportStage
   canceledReason: string | null
+  canceledNote: string | null
   canceledAt: string | null
   sections: {
     submitted?: {
@@ -75,6 +76,7 @@ function resolveReport(row: OrderReportRow): ResolvedReport {
     rfqId: row.rfqId,
     currentStage: row.currentStage,
     canceledReason: row.canceledReason,
+    canceledNote: row.canceledNote,
     canceledAt: row.canceledAt,
     sections: {},
   }

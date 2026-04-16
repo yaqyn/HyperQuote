@@ -83,27 +83,108 @@ function buildSuggestedProduct(slug: string, quantity: number, rfqId: string, in
   }
 }
 
-function getMockQuoteBuilderData(rfqId: string) {
+function buildQuoteBuilderData(rfqId: string) {
   const rfq = db.rfqs.get(rfqId)
   const customer = rfq ? db.customers.findByName(rfq.customerName) : undefined
 
-  const suggestedProducts = rfq
+  // If a draft quote already exists for this rfq, hydrate from it so
+  // saved margins/quantities aren't silently overwritten by the RFQ rebuild.
+  const existingDraft = db.quotes
+    .forRfq(rfqId)
+    .filter((q) => q.status === 'draft')
+    .slice(-1)[0]
+
+  const suggestedProducts = existingDraft
+    ? existingDraft.items
+        .map((item, i) => {
+          const base = buildSuggestedProduct(item.productSlug, item.quantity, rfqId, i)
+          if (!base) return null
+          return { ...base, marginPercent: item.marginPercent, sellPrice: item.sellPrice }
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+    : rfq
     ? rfq.items
         .map((item, i) => buildSuggestedProduct(item.productSlug, item.quantity, rfqId, i))
         .filter((p): p is NonNullable<typeof p> => p !== null)
     : []
 
+  // Real stock lookup per product — Quote builder uses this to drive the
+  // "warehouse" source option with live availability, no mocks. Keyed by
+  // both slug and display name so the client can hit it from either side.
+  const stockBySlug: Record<string, { available: number; physical: number; reserved: number }> = {}
+  const stockByName: Record<string, { available: number; physical: number; reserved: number }> = {}
+  const relevantSlugs = new Set<string>()
+  if (rfq) rfq.items.forEach((i) => relevantSlugs.add(i.productSlug))
+  if (existingDraft) existingDraft.items.forEach((i) => relevantSlugs.add(i.productSlug))
+  for (const slug of relevantSlugs) {
+    const row = db.stock.forProduct(slug)
+    const physical = row?.stockLevel ?? 0
+    const reserved = row?.reservedLevel ?? 0
+    const entry = {
+      physical,
+      reserved,
+      available: Math.max(0, physical - reserved),
+    }
+    stockBySlug[slug] = entry
+    const product = db.products.findBySlug(slug)
+    if (product) stockByName[product.name] = entry
+  }
+
+  // Real supplier directory pulled from db.suppliers so the sourcing menu
+  // search is backed by actual rows. Scores/categories derive from existing
+  // supplier data (rating, custom badges) — no hardcoded supplier list.
+  const suppliers = db.suppliers.list().map((s) => ({
+    id: s.name, // name is the stable key in the mock DB
+    name: s.name,
+    tier:
+      s.tier === 'preferred'
+        ? 'Preferred'
+        : s.tier === 'approved'
+          ? 'Approved'
+          : s.tier === 'conditional'
+            ? 'Conditional'
+            : 'New',
+    score: Math.round(s.rating * 20), // rating is 0-5, score is 0-100
+    // Category keywords derived from the actual products they supply —
+    // one entry per unique broad category slug.
+    categories: Array.from(
+      new Set(
+        db.supplierPrices
+          .forSupplier(s.name)
+          .map((sp) => db.products.findBySlug(sp.productSlug))
+          .filter((p): p is NonNullable<typeof p> => p !== null)
+          .map((p) => db.products.broadCategoryFor(p).toLowerCase()),
+      ),
+    ),
+  }))
+
   return {
     rfqId,
+    rfqStatus: rfq?.status ?? ('submitted' as const),
+    quoteStatus: existingDraft?.status ?? ('draft' as const),
     customer: {
-      name: rfq?.customerName ?? 'Unknown Customer',
-      tier: rfq?.customerTier ?? ('new' as const),
+      // Empty-not-fake: if there's no resolved customer the builder shows
+      // empty headers and the rep fills them in — we never render a
+      // placeholder string that looks real.
+      name: rfq?.customerName ?? customer?.companyName ?? '',
+      tier: rfq?.customerTier ?? customer?.tier ?? ('new' as const),
       contactName: rfq?.contactName ?? customer?.contactName ?? '',
       phone: customer?.phone ?? '',
       email: customer?.email ?? '',
       company: customer?.companyName ?? rfq?.customerName ?? '',
     },
-    deliveryAddress: rfq?.deliveryAddress ?? customer?.address ?? '',
+    // Draft overrides win over the RFQ fallback, so a rep's edit survives
+    // a reload; if neither is set, we fall back to the customer's address.
+    deliveryAddress:
+      existingDraft?.deliveryAddress ?? rfq?.deliveryAddress ?? customer?.address ?? '',
+    deliveryCity:
+      existingDraft?.deliveryCity ?? rfq?.deliveryCity ?? customer?.city ?? '',
+    deliveryDate: existingDraft?.deliveryDate ?? '',
+    deliveryWindow: existingDraft?.deliveryWindow ?? '',
+    specialInstructions: existingDraft?.specialInstructions ?? '',
+    paymentTerms: existingDraft?.paymentTerms ?? '',
+    earlyPaymentDiscount: existingDraft?.earlyPaymentDiscount ?? '',
+    coverNote: existingDraft?.coverNote ?? '',
     customerCredit: {
       creditLimit: customer?.creditLimit ?? 0,
       currentExposure: customer?.currentExposure ?? 0,
@@ -117,6 +198,9 @@ function getMockQuoteBuilderData(rfqId: string) {
       freshness: p.freshness,
       lastQuotedAt: p.lastQuotedAt,
     })),
+    stockBySlug,
+    stockByName,
+    suppliers,
     marginThresholds: MARGIN_THRESHOLDS,
   }
 }
@@ -230,7 +314,9 @@ export const createQuote = createServerFn({ method: 'POST' })
 export const saveQuoteDraft = createServerFn({ method: 'POST' })
   .inputValidator(
     z.object({
-      quoteId: z.string(),
+      quoteId: z.string().optional(),
+      rfqId: z.string(),
+      customerId: z.string().optional(),
       lineItems: z.array(
         z.object({
           id: z.string().optional(),
@@ -244,13 +330,20 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
           sellPrice: z.number().nonnegative(),
         }),
       ),
-      terms: z.string().optional(),
+      // Every field below is a user-typed override of the defaults inherited
+      // from the source RFQ / customer. Null = leave the DB row alone,
+      // empty string = explicit clear.
+      deliveryAddress: z.string().nullable().optional(),
+      deliveryCity: z.string().nullable().optional(),
+      deliveryDate: z.string().nullable().optional(),
+      deliveryWindow: z.string().nullable().optional(),
+      specialInstructions: z.string().nullable().optional(),
+      paymentTerms: z.string().nullable().optional(),
+      earlyPaymentDiscount: z.string().nullable().optional(),
+      coverNote: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ data }) => {
-    // Resolve items → slugs so the draft references catalog rows, then
-    // patch the existing quote row. If the quoteId isn't a real row
-    // (e.g. new draft), no-op — createQuote handles fresh creation.
     const items = data.lineItems
       .map((li) => {
         const slug = li.productSlug ?? db.products.findByName(li.productName)?.slug
@@ -263,14 +356,82 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
         }
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-    db.quotes.update(data.quoteId, { items })
-    return { success: true }
+
+    const avgMargin = items.length > 0
+      ? Math.round((items.reduce((s, i) => s + i.marginPercent, 0) / items.length) * 10) / 10
+      : 0
+
+    // Build a patch from only the fields the caller actually sent, so the
+    // caller can autosave incrementally without clobbering existing values.
+    const overridesPatch: Partial<
+      Pick<
+        import('../db/db').QuoteRow,
+        | 'deliveryAddress'
+        | 'deliveryCity'
+        | 'deliveryDate'
+        | 'deliveryWindow'
+        | 'specialInstructions'
+        | 'paymentTerms'
+        | 'earlyPaymentDiscount'
+        | 'coverNote'
+      >
+    > = {}
+    if (data.deliveryAddress !== undefined) overridesPatch.deliveryAddress = data.deliveryAddress
+    if (data.deliveryCity !== undefined) overridesPatch.deliveryCity = data.deliveryCity
+    if (data.deliveryDate !== undefined) overridesPatch.deliveryDate = data.deliveryDate
+    if (data.deliveryWindow !== undefined) overridesPatch.deliveryWindow = data.deliveryWindow
+    if (data.specialInstructions !== undefined) overridesPatch.specialInstructions = data.specialInstructions
+    if (data.paymentTerms !== undefined) overridesPatch.paymentTerms = data.paymentTerms
+    if (data.earlyPaymentDiscount !== undefined) overridesPatch.earlyPaymentDiscount = data.earlyPaymentDiscount
+    if (data.coverNote !== undefined) overridesPatch.coverNote = data.coverNote
+
+    // 1. Update by explicit quoteId if the row exists
+    if (data.quoteId) {
+      const existing = db.quotes.get(data.quoteId)
+      if (existing) {
+        db.quotes.update(data.quoteId, { items, marginPercent: avgMargin, ...overridesPatch })
+        return { quoteId: existing.id }
+      }
+    }
+
+    // 2. Update an existing draft for this RFQ if one is already on file
+    const drafts = db.quotes.forRfq(data.rfqId).filter((q) => q.status === 'draft')
+    if (drafts.length > 0) {
+      const row = drafts[drafts.length - 1]
+      db.quotes.update(row.id, { items, marginPercent: avgMargin, ...overridesPatch })
+      return { quoteId: row.id }
+    }
+
+    // 3. Otherwise insert a fresh draft row
+    const rfq = db.rfqs.get(data.rfqId)
+    const customer = data.customerId
+      ? db.customers.get(data.customerId)
+      : rfq
+      ? db.customers.findByName(rfq.customerName)
+      : undefined
+
+    const row = db.quotes.insert({
+      quoteNumber: `QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
+      rfqId: data.rfqId,
+      customerId: customer?.id ?? 'cust-unknown',
+      version: 1,
+      status: 'draft',
+      marginPercent: avgMargin,
+      sentAt: null,
+      validUntil: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+      sentVia: null,
+      customerPoNumber: null,
+      previousVersionId: null,
+      items,
+      ...overridesPatch,
+    })
+    return { quoteId: row.id }
   })
 
 export const getQuoteBuilderData = createServerFn({ method: 'GET' })
   .inputValidator(z.object({ rfqId: z.string() }))
   .handler(async ({ data }) => {
-    return getMockQuoteBuilderData(data.rfqId)
+    return buildQuoteBuilderData(data.rfqId)
   })
 
 export const requestApproval = createServerFn({ method: 'POST' })

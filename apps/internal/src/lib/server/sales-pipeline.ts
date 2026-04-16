@@ -267,13 +267,37 @@ export const markAsWon = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     // Flip the quote's status — everything downstream derives from it.
     const quote = db.quotes.updateStatus(data.quoteId, 'accepted')
-    if (quote?.customerPoNumber !== data.customerPONumber) {
-      db.quotes.update(data.quoteId, { customerPoNumber: data.customerPONumber ?? null })
+    if (!quote) return { success: false as const, error: 'Quote not found' }
+    // Freeze totalDue from current items at the moment of acceptance, and
+    // seed payment state so the finance inbox immediately surfaces it as
+    // "unpaid". Finance records the first 50% partial here before the order
+    // can flow into the Inventory Orders tab.
+    const frozenTotal =
+      Math.round(
+        quote.items.reduce((s, i) => s + i.sellPrice * i.quantity, 0) * 100,
+      ) / 100
+    db.quotes.update(data.quoteId, {
+      customerPoNumber: data.customerPONumber ?? quote.customerPoNumber ?? null,
+      totalDue: frozenTotal,
+      amountPaid: 0,
+      paymentStatus: 'unpaid',
+      partialPaidAt: null,
+      fullPaidAt: null,
+      partialProofUrl: null,
+      fullProofUrl: null,
+    })
+    // Ensure the underlying RFQ has been walked forward — if the rep jumped
+    // straight from reviewing to won without an explicit send, pull the RFQ
+    // up to 'quoted' so the pipeline view and RFQ inbox are consistent.
+    const rfq = db.rfqs.get(quote.rfqId)
+    const forward = new Set(['quoted', 'negotiating', 'declined', 'expired'])
+    if (rfq && !forward.has(rfq.status)) {
+      db.rfqs.updateStatus(quote.rfqId, 'quoted')
     }
     return {
       success: true,
-      orderId: quote?.id ?? data.quoteId,
-      orderNumber: quote?.quoteNumber ?? data.quoteId,
+      orderId: quote.id,
+      orderNumber: quote.quoteNumber,
     }
   })
 
@@ -286,8 +310,36 @@ export const markAsLost = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    db.quotes.updateStatus(data.quoteId, 'declined')
-    return { success: true }
+    const quote = db.quotes.updateStatus(data.quoteId, 'declined')
+    if (!quote) return { success: false as const, error: 'Quote not found' }
+
+    // Walk the RFQ forward to 'declined' so every panel downstream sees
+    // the closed state consistently. Skip if the rfq is already on a
+    // terminal bucket.
+    const rfq = db.rfqs.get(quote.rfqId)
+    if (rfq && rfq.status !== 'declined' && rfq.status !== 'expired') {
+      db.rfqs.updateStatus(quote.rfqId, 'declined')
+    }
+
+    // Stamp the living document so the report viewer tells the whole
+    // story including competitor + reason.
+    db.orderReports.ensureForRfq(quote.rfqId)
+    db.orderReports.markCanceled(
+      quote.rfqId,
+      data.lossReason,
+      data.competitorName ?? null,
+    )
+
+    // If the order had already been approved for warehouse, release the
+    // reserved stock back to available so inventory isn't phantom-locked.
+    const report = db.orderReports.forRfq(quote.rfqId)
+    if (report?.sections.inventory_orders) {
+      for (const i of quote.items) {
+        db.stock.release(i.productSlug, i.quantity)
+      }
+    }
+
+    return { success: true as const }
   })
 
 export const convertQuoteToOrder = createServerFn({ method: 'POST' })
@@ -296,6 +348,27 @@ export const convertQuoteToOrder = createServerFn({ method: 'POST' })
     // Status flip — accepting a quote is the signal. Downstream panels
     // watch for `status === 'accepted'` and pick up the order from there.
     db.quotes.updateStatus(data.quoteId, 'accepted')
+    const accepted = db.quotes.get(data.quoteId)
+    if (accepted) {
+      // Freeze totalDue + seed payment state so Finance can collect the
+      // first partial before Inventory Orders surfaces it.
+      const frozenTotal =
+        Math.round(
+          accepted.items.reduce(
+            (s, i) => s + i.sellPrice * i.quantity,
+            0,
+          ) * 100,
+        ) / 100
+      db.quotes.update(data.quoteId, {
+        totalDue: frozenTotal,
+        amountPaid: 0,
+        paymentStatus: 'unpaid',
+        partialPaidAt: null,
+        fullPaidAt: null,
+        partialProofUrl: null,
+        fullProofUrl: null,
+      })
+    }
     if (data.poNumber) db.quotes.update(data.quoteId, { customerPoNumber: data.poNumber })
     const quote = db.quotes.get(data.quoteId) ?? db.quotes.list()[0]
     const orderId = `ord-${Date.now()}`

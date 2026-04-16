@@ -44,6 +44,12 @@ interface SalesStore {
   // Used by ModuleWindow so clicking the X / backdrop closes the builder first, then the panel.
   isQuoteBuilderOpen: () => boolean
   closeQuoteBuilder: () => void
+  // When the quote builder has a slide-in overlay open (map / line margin),
+  // it registers a handler here. ModuleWindow calls it on panel X click;
+  // the handler returns `true` if it dismissed an overlay (swallowing the
+  // close), or `false` if nothing was open (letting the panel close).
+  overlayCloseHandler: (() => boolean) | null
+  setOverlayCloseHandler: (fn: (() => boolean) | null) => void
 
   // Customer 360
   selectedCustomerId: string | null
@@ -92,6 +98,8 @@ export const useSalesStore = create<SalesStore>()(
       return !!s.editingRfqId || !!s.newQuoteCustomer
     },
     closeQuoteBuilder: () => set({ editingRfqId: null, newQuoteCustomer: null }),
+    overlayCloseHandler: null,
+    setOverlayCloseHandler: (fn) => set({ overlayCloseHandler: fn }),
 
     // Customer 360
     selectedCustomerId: null,

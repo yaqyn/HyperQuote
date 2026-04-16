@@ -40,6 +40,13 @@ const STAGE_ORDER: OrderReportStage[] = [
   'delivered',
 ]
 
+const DECLINE_REASON_LABEL: Record<string, string> = {
+  outside_service_area: 'Outside service area',
+  cannot_source: 'Cannot source requested materials',
+  customer_blacklisted: 'Customer blacklisted',
+  expired: 'Expired',
+}
+
 const STAGE_LABEL: Record<OrderReportStage, string> = {
   submitted: 'Submitted',
   evaluated: 'Evaluated',
@@ -131,9 +138,16 @@ function ReportViewer({ report }: { report: ResolvedReport }) {
           {report.sections.submitted?.customerName ?? 'Report'}
         </Heading>
         {isCanceled && (
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black/60 dark:text-white/60">
-            <XCircle size={11} strokeWidth={2.5} />
-            Canceled · {report.canceledReason?.replace(/_/g, ' ')} · {formatRelative(report.canceledAt)}
+          <div className="mt-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/[0.1] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-700 dark:text-orange-300">
+              <XCircle size={11} strokeWidth={2.5} />
+              Canceled · {(report.canceledReason && DECLINE_REASON_LABEL[report.canceledReason]) ?? report.canceledReason?.replace(/_/g, ' ')} · {formatRelative(report.canceledAt)}
+            </div>
+            {report.canceledNote && (
+              <p className="mt-2 max-w-xl text-[12px] italic leading-relaxed text-[var(--color-text-muted)]">
+                “{report.canceledNote}”
+              </p>
+            )}
           </div>
         )}
       </div>

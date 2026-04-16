@@ -192,8 +192,9 @@ export const declineRFQ = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    // Canceling = flipping the status. That's it.
     db.rfqs.updateStatus(data.rfqId, 'declined')
+    db.orderReports.ensureForRfq(data.rfqId)
+    db.orderReports.markCanceled(data.rfqId, data.reason, data.note ?? null)
     return {
       success: true,
       rfqId: data.rfqId,
