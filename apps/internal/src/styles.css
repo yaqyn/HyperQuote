@@ -22,12 +22,13 @@
   --color-surface: #0A0A0A;
 }
 
-/* Kill the I-beam cursor everywhere except where typing actually happens.
-   The app is read-first; text fields re-enable the text cursor themselves. */
-html,
-body {
-  cursor: default;
+/* Single cursor everywhere — minimalistic arrow */
+*,
+*::before,
+*::after {
+  cursor: url('/cursors/normal.png') 4 1, default !important;
 }
+/* I-beam only in text fields */
 input[type="text"],
 input[type="number"],
 input[type="search"],
@@ -38,13 +39,19 @@ input:not([type]),
 textarea,
 [contenteditable="true"],
 [contenteditable=""] {
-  cursor: text;
+  cursor: url('/cursors/text.png') 16 16, text !important;
+}
+
+/* Selection highlight — brand blue */
+::selection {
+  background: rgba(37, 99, 235, 0.25);
+  color: inherit;
 }
 
 /* Custom scrollbar — Chromium (webkit) */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0px;
+  height: 0px;
 }
 
 ::-webkit-scrollbar-track {
@@ -88,11 +95,7 @@ textarea,
 /* Custom scrollbar — Firefox only */
 @-moz-document url-prefix() {
   * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
-  }
-  [data-theme="dark"] * {
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-width: none;
   }
 }
 

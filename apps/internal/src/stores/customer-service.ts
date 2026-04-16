@@ -1,71 +1,35 @@
 import { create } from 'zustand'
-import type { CSTab } from '../types/customer-service'
+import type { ChannelType, ConversationStatus } from '../types/customer-service'
 
-interface CustomerServiceStore {
-  // Tab navigation
-  activeTab: CSTab
-  setActiveTab: (tab: CSTab) => void
-
-  // Entity selection
-  selectedTicketId: string | null
-  setSelectedTicketId: (id: string | null) => void
-
+interface SupportStore {
+  // Selected conversation
   selectedConversationId: string | null
-  setSelectedConversationId: (id: string | null) => void
+  setSelectedConversation: (id: string | null) => void
 
-  selectedClaimId: string | null
-  setSelectedClaimId: (id: string | null) => void
+  // Filters
+  channelFilter: ChannelType | 'all'
+  statusFilter: ConversationStatus | 'all'
+  searchQuery: string
+  setChannelFilter: (filter: ChannelType | 'all') => void
+  setStatusFilter: (filter: ConversationStatus | 'all') => void
+  setSearchQuery: (query: string) => void
 
-  // Channel filter for unified conversations tab (includes returns)
-  channelFilter: 'all' | 'email' | 'whatsapp' | 'phone' | 'returns'
-  setChannelFilter: (filter: 'all' | 'email' | 'whatsapp' | 'phone' | 'returns') => void
-
-  // Knowledge Base panel (inline within conversations)
-  kbPanelOpen: boolean
-  setKbPanelOpen: (open: boolean) => void
-
-  // Create ticket dialog
-  createTicketOpen: boolean
-  setCreateTicketOpen: (open: boolean) => void
-
-  // Assign dialog
-  assignDialogOpen: boolean
-  setAssignDialogOpen: (open: boolean) => void
+  // Close ladder for ModuleWindow
+  overlayCloseHandler: (() => boolean) | null
+  setOverlayCloseHandler: (handler: (() => boolean) | null) => void
 }
 
-export const useCustomerServiceStore = create<CustomerServiceStore>()(
-  (set) => ({
-    // Tab navigation
-    activeTab: 'conversations',
-    setActiveTab: (tab) => set({ activeTab: tab }),
+export const useSupportStore = create<SupportStore>()((set) => ({
+  selectedConversationId: null,
+  setSelectedConversation: (id) => set({ selectedConversationId: id }),
 
-    // Entity selection
-    selectedTicketId: null,
-    setSelectedTicketId: (id) => set({ selectedTicketId: id }),
+  channelFilter: 'all',
+  statusFilter: 'all',
+  searchQuery: '',
+  setChannelFilter: (filter) => set({ channelFilter: filter }),
+  setStatusFilter: (filter) => set({ statusFilter: filter }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
-    selectedConversationId: null,
-    setSelectedConversationId: (id) => set({ selectedConversationId: id }),
-
-    selectedClaimId: null,
-    setSelectedClaimId: (id) => set({ selectedClaimId: id }),
-
-    // Channel filter
-    channelFilter: 'all',
-    setChannelFilter: (filter) => set({ channelFilter: filter }),
-
-    // Knowledge Base panel
-    kbPanelOpen: false,
-    setKbPanelOpen: (open) => set({ kbPanelOpen: open }),
-
-    // Create ticket dialog
-    createTicketOpen: false,
-    setCreateTicketOpen: (open) => set({ createTicketOpen: open }),
-
-    // Assign dialog
-    assignDialogOpen: false,
-    setAssignDialogOpen: (open) => set({ assignDialogOpen: open }),
-  }),
-  // SSR safety: skip auto-hydration so Zustand doesn't read localStorage during SSR
-  // @ts-expect-error -- skipHydration is a valid persist middleware option
-  { skipHydration: true },
-)
+  overlayCloseHandler: null,
+  setOverlayCloseHandler: (handler) => set({ overlayCloseHandler: handler }),
+}))

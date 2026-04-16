@@ -4,13 +4,34 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin 'tailwindcss-react-aria-components';
 
+/* Single cursor everywhere — minimalistic arrow (dark variant) */
+*,
+*::before,
+*::after {
+  cursor: url('/cursors/normal.png') 4 1, default !important;
+}
+/* I-beam only in text fields */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input:not([type]),
+textarea,
+[contenteditable="true"],
+[contenteditable=""] {
+  cursor: url('/cursors/text.png') 16 16, text !important;
+}
+
+
 /* RTL: flip directional icons */
 [dir="rtl"] .icon-end { transform: scaleX(-1); }
 
 ::selection,
 *::selection {
-  background: rgba(255, 255, 255, 0.15) !important;
-  color: inherit !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
 }
 
 /* ================================================================

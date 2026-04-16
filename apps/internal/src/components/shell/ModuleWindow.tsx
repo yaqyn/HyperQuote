@@ -8,6 +8,7 @@ import { useProcurementStore } from '../../stores/procurement'
 import { useFinanceStore } from '../../stores/finance'
 import { useWarehouseStore } from '../../stores/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
+import { useSupportStore } from '../../stores/customer-service'
 import { useAIChatStore } from '../../stores/ai-chat'
 import { MODULES } from '../../lib/modules'
 import { WindowHeader } from './WindowHeader'
@@ -17,14 +18,10 @@ import { PanelHostProvider } from '../shared/SlidePanel'
 const MODULE_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   sales: lazy(() => import('../sales/SalesModule').then((m) => ({ default: m.SalesModule }))),
   procurement: lazy(() => import('../procurement/ProcurementModule').then((m) => ({ default: m.ProcurementModule }))),
-  orders: lazy(() => import('../operations/OperationsModule').then((m) => ({ default: m.OperationsModule }))),
   warehouse: lazy(() => import('../warehouse/WarehouseModule').then((m) => ({ default: m.WarehouseModule }))),
   finance: lazy(() => import('../finance/FinanceModule').then((m) => ({ default: m.FinanceModule }))),
   dispatch: lazy(() => import('../dispatch/DispatchModule').then((m) => ({ default: m.DispatchModule }))),
-  'customer-service': lazy(() => import('../customer-service/CustomerServiceModule').then((m) => ({ default: m.CustomerServiceModule }))),
-  hr: lazy(() => import('../hr/HRModule').then((m) => ({ default: m.HRModule }))),
-  admin: lazy(() => import('../admin/AdminModule').then((m) => ({ default: m.AdminModule }))),
-  reports: lazy(() => import('../reports/ReportsModule').then((m) => ({ default: m.ReportsModule }))),
+  'customer-service': lazy(() => import('../customer-service/SupportModule').then((m) => ({ default: m.CustomerServiceModule }))),
 }
 
 interface ModuleWindowProps {
@@ -91,7 +88,8 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
       if (sales.overlayCloseHandler?.()) {
         return
       }
-      if (sales.editingRfqId || sales.newQuoteCustomer) {
+      // New quote in progress → discard it first, keep module open
+      if (sales.newQuoteCustomer) {
         sales.closeQuoteBuilder()
         return
       }
@@ -121,6 +119,12 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
     if (moduleId === 'dispatch') {
       const dispatch = useDispatchStore.getState()
       if (dispatch.overlayCloseHandler?.()) {
+        return
+      }
+    }
+    if (moduleId === 'customer-service') {
+      const support = useSupportStore.getState()
+      if (support.overlayCloseHandler?.()) {
         return
       }
     }

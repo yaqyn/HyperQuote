@@ -101,6 +101,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
           <Popover
             placement="bottom end"
             offset={4}
+            aria-label="Profile menu"
             className="rounded-xl p-1.5 min-w-[180px] outline-none bg-[var(--color-surface)] shadow-xl shadow-black/10 border border-black/[0.06] dark:border-white/[0.06]"
           >
             <div className="px-3 py-2 mb-1">
@@ -161,16 +162,16 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
           transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.05 }}
           className="flex items-baseline gap-1"
         >
-          <span className="text-8xl lg:text-[120px] font-medium tracking-tight text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] leading-none">
+          <span suppressHydrationWarning className="text-8xl lg:text-[120px] font-medium tracking-tight text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] leading-none">
             {time.hours}
           </span>
           <span className="text-6xl lg:text-7xl font-light text-[var(--color-primary)] font-[family-name:var(--font-geist-mono)] leading-none mx-1">
             :
           </span>
-          <span className="text-8xl lg:text-[120px] font-medium tracking-tight text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] leading-none">
+          <span suppressHydrationWarning className="text-8xl lg:text-[120px] font-medium tracking-tight text-[var(--color-text)] font-[family-name:var(--font-geist-mono)] leading-none">
             {time.minutes}
           </span>
-          <span className="text-3xl lg:text-4xl font-normal text-[var(--color-text-subtle)] font-[family-name:var(--font-geist-mono)] leading-none self-end mb-2 ml-2 w-[2ch]">
+          <span suppressHydrationWarning className="text-3xl lg:text-4xl font-normal text-[var(--color-text-subtle)] font-[family-name:var(--font-geist-mono)] leading-none self-end mb-2 ml-2 w-[2ch]">
             {time.seconds}
           </span>
         </motion.div>

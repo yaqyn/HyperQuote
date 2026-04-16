@@ -42,6 +42,7 @@ interface QuoteBuilderViewProps {
   isNewCustomer?: boolean
   initialCustomerName?: string
   onBack?: () => void
+  onSave?: () => void
 }
 
 // --- Supplier directory type (populated live from getQuoteBuilderData) ---
@@ -190,7 +191,7 @@ interface ItemSourcingState {
 
 // --- Main view ---
 
-export function QuoteBuilderView({ quoteId: initialQuoteId, rfqId, isNewCustomer = false, initialCustomerName, onBack }: QuoteBuilderViewProps) {
+export function QuoteBuilderView({ quoteId: initialQuoteId, rfqId, isNewCustomer = false, initialCustomerName, onBack, onSave }: QuoteBuilderViewProps) {
   const { t } = useTranslation('internal')
   const [quoteId, setQuoteId] = useState<string | undefined>(initialQuoteId)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
@@ -697,7 +698,11 @@ export function QuoteBuilderView({ quoteId: initialQuoteId, rfqId, isNewCustomer
             type="button"
             onClick={async () => {
               await handleAutoSave()
-              onBack?.()
+              if (onSave) {
+                onSave()
+              } else {
+                onBack?.()
+              }
             }}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] outline-none transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
           >

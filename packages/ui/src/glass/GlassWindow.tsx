@@ -20,7 +20,8 @@ export function GlassWindow({ isOpen, onClose, children, className, closeOnBackd
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="fixed inset-0 z-40 flex items-center justify-center p-3 md:p-6"
+          className="fixed inset-0 flex items-center justify-center p-3 md:p-6"
+          style={{ zIndex: 40 }}
           onClick={closeOnBackdropClick ? onClose : undefined}
         >
           <div

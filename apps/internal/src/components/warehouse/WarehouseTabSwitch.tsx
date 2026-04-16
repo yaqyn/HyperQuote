@@ -49,7 +49,7 @@ function Tab({
       onClick={onPress}
       whileTap={{ scale: 0.98 }}
       animate={{
-        backgroundColor: active ? '#0A0A0A' : 'transparent',
+        backgroundColor: active ? '#0A0A0A' : 'rgba(0,0,0,0)',
         color: active ? '#F4F4EC' : '#0A0A0A',
       }}
       transition={{ duration: 0.2 }}

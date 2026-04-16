@@ -1,177 +1,106 @@
-// Customer Service domain types — contracts for the entire CS module
-// Tickets, WhatsApp conversations, damage claims, returns, SLA, and AI triage
+// ---------------------------------------------------------------------------
+// Support Panel — Unified conversation model across 3 channels
+// Ticket is a tracking layer on conversations, not a channel.
+// ---------------------------------------------------------------------------
 
-// ─── Tab Navigation ──────────────────────────────────────
+export type ChannelType = 'email' | 'whatsapp' | 'chat'
 
-export type CSTab =
-  | 'conversations'
-  | 'claims'
+export type ConversationStatus = 'open' | 'pending' | 'resolved' | 'closed'
 
-// ─── Ticket Types ────────────────────────────────────────
+export type Priority = 'low' | 'medium' | 'high' | 'urgent'
 
-export type TicketPriority = 'critical' | 'high' | 'medium' | 'low'
+export type MessageDirection = 'inbound' | 'outbound'
 
-export type TicketStatus =
-  | 'new'
-  | 'open'
-  | 'in_progress'
-  | 'awaiting_customer'
-  | 'awaiting_internal'
-  | 'awaiting_supplier'
-  | 'escalated'
-  | 'resolved'
-  | 'closed'
-  | 'reopened'
+// ── Customer ────────────────────────────────────────────────────────────────
 
-export type TicketCategory =
-  | 'order'
-  | 'quote'
-  | 'delivery'
-  | 'payment'
-  | 'account'
-  | 'product'
-  | 'platform'
-
-export interface Ticket {
+export interface Customer {
   id: string
-  /** Geist Mono */ number: string
-  customerName: string
+  name: string
+  nameAr: string
+  email: string | null
+  phone: string | null
+  company: string | null
+  companyAr: string | null
+  totalConversations: number
+  firstContactAt: string
+  satisfactionAvg: number | null
+}
+
+// ── Linked entities ─────────────────────────────────────────────────────────
+
+export interface LinkedOrder {
+  id: string
+  displayId: string
+  rfqId: string | null
+  status: string
+  totalAmount: number
+  currency: string
+  createdAt: string
+}
+
+export interface LinkedQuote {
+  id: string
+  displayId: string
+  status: string
+  totalAmount: number
+  currency: string
+  createdAt: string
+}
+
+// ── Message ─────────────────────────────────────────────────────────────────
+
+export interface Attachment {
+  id: string
+  name: string
+  type: string
+  sizeBytes: number
+  url: string
+}
+
+export interface Message {
+  id: string
+  conversationId: string
+  channel: ChannelType
+  direction: MessageDirection
+  content: string
+  senderName: string
+  timestamp: string
+  attachments: Attachment[]
+  read: boolean
+  metadata: Record<string, unknown>
+}
+
+// ── Conversation ────────────────────────────────────────────────────────────
+
+export interface Conversation {
+  id: string
+  customer: Customer
+  channel: ChannelType
+  status: ConversationStatus
+  priority: Priority
   subject: string
-  priority: TicketPriority
-  status: TicketStatus
-  category: TicketCategory
-  assignedAgent: string | null
-  /** Geist Mono */ slaDeadline: string
+  lastMessagePreview: string
+  lastMessageAt: string
+  unreadCount: number
+  assignedTo: string | null
+  assignedToName: string | null
+  tags: string[]
+  messages: Message[]
+  linkedOrders: LinkedOrder[]
+  linkedQuotes: LinkedQuote[]
   createdAt: string
-  updatedAt: string
+  /** Ticket number when this conversation is formally tracked (e.g. TKT-2026-0001). Null if untracked. */
+  ticketId: string | null
+  slaDeadline: string | null
+  slaBreached: boolean
 }
 
-export interface TicketActivity {
-  id: string
-  type: 'status_change' | 'comment' | 'note' | 'assignment' | 'escalation'
-  author: string
-  content: string
-  timestamp: string
-  isInternal: boolean
-}
+// ── Inbox metrics ───────────────────────────────────────────────────────────
 
-export interface TicketDetail extends Ticket {
-  description: string
-  attachments: string[]
-  activities: TicketActivity[]
-  linkedOrders: string[]
-  linkedQuotes: string[]
-  linkedInvoices: string[]
-  internalNotes: string[]
-  subTickets: SubTicket[]
-}
-
-export interface SubTicket {
-  id: string
-  department: string
-  subject: string
-  status: TicketStatus
-  assignedAgent: string | null
-}
-
-// ─── WhatsApp Types ──────────────────────────────────────
-
-export type AITriageTier = 0 | 1 | 2
-
-export interface WhatsAppMessage {
-  id: string
-  sender: 'customer' | 'agent' | 'ai'
-  content: string
-  timestamp: string
-}
-
-export interface WhatsAppConversation {
-  id: string
-  customerName: string
-  customerPhone: string
-  lastMessage: string
-  timestamp: string
-  unresolved: boolean
-  unread: boolean
-  aiTier: AITriageTier
-  messages: WhatsAppMessage[]
-  orderCount: number
-  openQuotes: number
-  outstandingInvoices: number
-}
-
-// ─── Returns & Claims Types ──────────────────────────────
-
-export type ClaimTier = 'minor' | 'moderate' | 'major'
-
-export type ClaimStatus =
-  | 'reported'
-  | 'under_review'
-  | 'inspection_scheduled'
-  | 'resolution_proposed'
-  | 'settled'
-
-export type ReturnStatus =
-  | 'requested'
-  | 'rma_issued'
-  | 'received'
-  | 'inspected'
-  | 'credit_issued'
-
-export type ResolutionType =
-  | 'partial_replacement'
-  | 'credit_note'
-  | 'price_reduction'
-  | 'full_replacement'
-  | 'full_refund'
-  | 'return_and_reorder'
-
-export interface DamageClaim {
-  id: string
-  deliveryId: string
-  orderId: string
-  customerName: string
-  claimTier: ClaimTier
-  status: ClaimStatus
-  photos: string[]
-  resolution: ResolutionType | null
-  /** Geist Mono */ damagePercent: number
-  createdAt: string
-}
-
-export interface ReturnRequest {
-  id: string
-  orderId: string
-  customerName: string
-  items: string[]
-  status: ReturnStatus
-  /** Geist Mono */ rmaNumber: string
-  createdAt: string
-}
-
-// ─── Knowledge Base ──────────────────────────────────────
-
-export interface KBArticle {
-  id: string
-  title: string
-  content: string
-  category: TicketCategory
-}
-
-// ─── SLA Configuration ───────────────────────────────────
-
-/** SLA targets in minutes */
-export const SLA_CONFIG: Record<TicketPriority, { firstResponse: number; resolution: number }> = {
-  critical: { firstResponse: 15, resolution: 240 },
-  high: { firstResponse: 60, resolution: 480 },
-  medium: { firstResponse: 240, resolution: 1440 },
-  low: { firstResponse: 480, resolution: 2880 },
-}
-
-// ─── Damage Tier Configuration ───────────────────────────
-
-export const DAMAGE_TIERS: Record<ClaimTier, { maxPercent: number; autoApprove: boolean; inspectionHours: number | null }> = {
-  minor: { maxPercent: 5, autoApprove: true, inspectionHours: null },
-  moderate: { maxPercent: 20, autoApprove: false, inspectionHours: 48 },
-  major: { maxPercent: 100, autoApprove: false, inspectionHours: 24 },
+export interface InboxMetrics {
+  openCount: number
+  pendingCount: number
+  urgentCount: number
+  avgResponseMinutes: number
+  slaCompliancePercent: number
 }

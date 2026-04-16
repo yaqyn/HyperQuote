@@ -22,7 +22,7 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
   return (
     <div className="flex items-center justify-between h-12 px-5 shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]">
       <div className="flex items-center gap-4">
-        <TooltipTrigger delay={400}>
+        <TooltipTrigger delay={3000}>
           <Button
             onPress={toggleAIChat}
             aria-label="Ask Lyon AI"

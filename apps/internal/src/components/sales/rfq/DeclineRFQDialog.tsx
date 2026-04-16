@@ -52,6 +52,7 @@ export function DeclineRFQDialog({ rfqId, isOpen, onClose, onDeclined }: Decline
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
       queryClient.invalidateQueries({ queryKey: ['rfq-detail', rfqId] })
       setReason(null)
       setNote('')
@@ -118,7 +119,7 @@ export function DeclineRFQDialog({ rfqId, isOpen, onClose, onDeclined }: Decline
                         </SelectValue>
                         <span className="text-[var(--color-text-subtle)] ms-2">&#x25BE;</span>
                       </Button>
-                      <Popover className="w-[var(--trigger-width)] rounded-lg bg-[var(--color-surface)] dark:bg-black shadow-lg border border-black/[0.06] dark:border-white/[0.06]">
+                      <Popover aria-label="Decline reason" className="w-[var(--trigger-width)] rounded-lg bg-[var(--color-surface)] dark:bg-black shadow-lg border border-black/[0.06] dark:border-white/[0.06]">
                         <ListBox className="p-1 outline-none">
                           {DECLINE_REASONS.map((r) => (
                             <ListBoxItem

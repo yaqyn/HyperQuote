@@ -90,7 +90,7 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
             <Button className="flex items-center gap-2 px-3 py-1.5 text-[11px] border border-black/[0.06] dark:border-white/[0.06] rounded-lg text-black/50 dark:text-white/50 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#2563EB]/40">
               <SelectValue />
             </Button>
-            <Popover className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[var(--color-surface)] shadow-lg p-1">
+            <Popover aria-label="Filter quotes" className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[var(--color-surface)] shadow-lg p-1">
               <ListBox className="outline-none">
                 <ListBoxItem id="all" className="px-3 py-1.5 text-[11px] rounded-md cursor-pointer outline-none data-[focused]:bg-[#2563EB]/[0.08] data-[focused]:text-[#2563EB]">
                   {t('sales.customer360.quotes.all')}

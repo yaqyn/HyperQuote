@@ -139,7 +139,7 @@ export function DeliveryTerms({
                   )}
                 </AriaButton>
                 <Popover placement="bottom start">
-                  <Dialog className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl outline-none dark:border-white/[0.06] dark:bg-black">
+                  <Dialog aria-label="Delivery date picker" className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl outline-none dark:border-white/[0.06] dark:bg-black">
                     {({ close }) => (
                       <Calendar
                         aria-label="Delivery date"
@@ -219,7 +219,7 @@ export function DeliveryTerms({
                   </svg>
                 </AriaButton>
                 <Popover>
-                  <Dialog className="outline-none">
+                  <Dialog aria-label="Delivery location" className="outline-none">
                     <ListBox
                       items={windows}
                       className="min-w-[200px] rounded-lg border border-black/[0.06] bg-white p-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)] outline-none dark:border-white/[0.08] dark:bg-[#0f0f0f]"

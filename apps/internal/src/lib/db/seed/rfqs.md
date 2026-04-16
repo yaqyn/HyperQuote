@@ -36,6 +36,107 @@ createdAtHoursAgo, slaHoursFromNow, deliveryUrgencyDays, items[] }`
     ]
   },
   {
+    "id": "rfq-009",
+    "customerName": "Pyramid Builders",
+    "customerTier": "A",
+    "contactName": "Mostafa El-Sayed",
+    "deliveryAddress": "8 Tahrir Street, Dokki, Giza",
+    "deliveryCity": "Giza, 6th October",
+    "estimatedValue": 2800000,
+    "lineItemCount": 4,
+    "status": "submitted",
+    "assignedRep": null,
+    "createdAtHoursAgo": 2,
+    "slaHoursFromNow": 6,
+    "deliveryUrgencyDays": 8,
+    "items": [
+      { "productSlug": "steel-rebar-10mm-grade-60", "quantity": 10 },
+      { "productSlug": "steel-rebar-16mm-grade-60", "quantity": 8 },
+      { "productSlug": "welded-wire-mesh-6mm-200x200", "quantity": 120 },
+      { "productSlug": "crushed-gravel-size-1", "quantity": 150 }
+    ]
+  },
+  {
+    "id": "rfq-010",
+    "customerName": "Maadi Engineering",
+    "customerTier": "new",
+    "contactName": "Reem Abdelaziz",
+    "deliveryAddress": "22 Road 9, Maadi, Cairo",
+    "deliveryCity": "Cairo, Maadi",
+    "estimatedValue": 540000,
+    "lineItemCount": 3,
+    "status": "submitted",
+    "assignedRep": null,
+    "createdAtHoursAgo": 4,
+    "slaHoursFromNow": 4,
+    "deliveryUrgencyDays": 14,
+    "items": [
+      { "productSlug": "porcelain-floor-tile-60x60-beige", "quantity": 300 },
+      { "productSlug": "tile-adhesive-c2-white-25kg", "quantity": 80 },
+      { "productSlug": "cement-based-grout-grey-5kg", "quantity": 40 }
+    ]
+  },
+  {
+    "id": "rfq-011",
+    "customerName": "Al-Nour Construction",
+    "customerTier": "A",
+    "contactName": "Hossam El-Din",
+    "deliveryAddress": "15 Tahrir Street, Dokki, Giza",
+    "deliveryCity": "Giza, Dokki",
+    "estimatedValue": 5100000,
+    "lineItemCount": 4,
+    "status": "submitted",
+    "assignedRep": null,
+    "createdAtHoursAgo": 6,
+    "slaHoursFromNow": 2,
+    "deliveryUrgencyDays": 3,
+    "items": [
+      { "productSlug": "portland-cement-cemi-42-5n", "quantity": 800 },
+      { "productSlug": "washed-sand-fine", "quantity": 200 },
+      { "productSlug": "crushed-gravel-size-1", "quantity": 300 },
+      { "productSlug": "concrete-hollow-blocks-20cm", "quantity": 8000 }
+    ]
+  },
+  {
+    "id": "rfq-012",
+    "customerName": "Pyramid Builders",
+    "customerTier": "A",
+    "contactName": "Mostafa El-Sayed",
+    "deliveryAddress": "8 Tahrir Street, Dokki, Giza",
+    "deliveryCity": "Giza, 6th October",
+    "estimatedValue": 920000,
+    "lineItemCount": 3,
+    "status": "submitted",
+    "assignedRep": null,
+    "createdAtHoursAgo": 9,
+    "slaHoursFromNow": -1,
+    "deliveryUrgencyDays": 15,
+    "items": [
+      { "productSlug": "interior-acrylic-paint-white-18l", "quantity": 60 },
+      { "productSlug": "gypsum-board-12-5mm-standard", "quantity": 200 },
+      { "productSlug": "marine-plywood-18mm", "quantity": 80 }
+    ]
+  },
+  {
+    "id": "rfq-013",
+    "customerName": "Maadi Engineering",
+    "customerTier": "new",
+    "contactName": "Reem Abdelaziz",
+    "deliveryAddress": "22 Road 9, Maadi, Cairo",
+    "deliveryCity": "Cairo, Maadi",
+    "estimatedValue": 310000,
+    "lineItemCount": 2,
+    "status": "submitted",
+    "assignedRep": null,
+    "createdAtHoursAgo": 14,
+    "slaHoursFromNow": -6,
+    "deliveryUrgencyDays": 25,
+    "items": [
+      { "productSlug": "pvc-pressure-pipe-110mm-6bar", "quantity": 100 },
+      { "productSlug": "clear-float-glass-6mm", "quantity": 50 }
+    ]
+  },
+  {
     "id": "rfq-002",
     "customerName": "Pyramid Builders",
     "customerTier": "A",

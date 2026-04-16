@@ -90,10 +90,13 @@ export interface RfqRow {
     | 'negotiating'
     | 'declined'
     | 'expired'
+    | 'saved'
   assignedRep: string | null
   createdAt: string
   slaDeadline: string
   deliveryUrgency: number
+  /** ISO timestamp — when a saved order should revert to submitted */
+  savedUntil: string | null
   items: RfqItemRow[]
 }
 
@@ -520,6 +523,7 @@ function buildInitialState(): HqDbState {
       createdAt: hoursAgoIso(r.createdAtHoursAgo),
       slaDeadline: hoursFromNowIso(r.slaHoursFromNow),
       deliveryUrgency: r.deliveryUrgencyDays,
+      savedUntil: null,
       items: r.items,
     })),
     customers: new Map<string, CustomerRow>(

@@ -88,7 +88,7 @@ function IconButton({
   variant?: 'ghost' | 'primary'
 }) {
   return (
-    <TooltipTrigger delay={400}>
+    <TooltipTrigger delay={3000}>
       <Button
         className={`rounded-lg p-2 outline-none transition-colors
           data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50

@@ -14,6 +14,7 @@ import { useProcurementStore } from '../../stores/procurement'
 import { useFinanceStore } from '../../stores/finance'
 import { useWarehouseStore } from '../../stores/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
+import { useSupportStore } from '../../stores/customer-service'
 
 /**
  * Context holding:
@@ -92,7 +93,7 @@ export function PanelHostProvider({
  * right-side X, whatever — changing it here updates every panel at once.
  */
 
-export type SlidePanelScope = 'sales' | 'procurement' | 'finance' | 'warehouse' | 'dispatch'
+export type SlidePanelScope = 'sales' | 'procurement' | 'finance' | 'warehouse' | 'dispatch' | 'customer-service'
 export type SlidePanelSide = 'start' | 'end'
 
 interface SlidePanelProps {
@@ -168,6 +169,7 @@ export function SlidePanel({
   const setFinanceHandler = useFinanceStore((s) => s.setOverlayCloseHandler)
   const setWarehouseHandler = useWarehouseStore((s) => s.setOverlayCloseHandler)
   const setDispatchHandler = useDispatchStore((s) => s.setOverlayCloseHandler)
+  const setSupportHandler = useSupportStore((s) => s.setOverlayCloseHandler)
 
   useEffect(() => {
     if (!scope) return
@@ -180,7 +182,9 @@ export function SlidePanel({
             ? setFinanceHandler
             : scope === 'warehouse'
               ? setWarehouseHandler
-              : setDispatchHandler
+              : scope === 'dispatch'
+                ? setDispatchHandler
+                : setSupportHandler
     if (!isOpen) {
       // When this panel closes, drop any handler *it* registered. If another
       // panel in the same module is open, its own effect will have already
@@ -201,6 +205,7 @@ export function SlidePanel({
     setFinanceHandler,
     setWarehouseHandler,
     setDispatchHandler,
+    setSupportHandler,
   ])
 
   // Escape dismisses whichever panel is currently open.

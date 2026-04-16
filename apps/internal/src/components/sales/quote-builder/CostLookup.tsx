@@ -80,7 +80,7 @@ export function CostLookup({ priceStatus, recentlyOrdered, onRequestUpdate }: Co
 
   if (config.actionable && onRequestUpdate) {
     return (
-      <TooltipTrigger delay={300}>
+      <TooltipTrigger delay={3000}>
         <Button
           className="outline-none cursor-pointer transition-opacity hover:opacity-70"
           onPress={onRequestUpdate}
@@ -99,7 +99,7 @@ export function CostLookup({ priceStatus, recentlyOrdered, onRequestUpdate }: Co
   }
 
   return (
-    <TooltipTrigger delay={300}>
+    <TooltipTrigger delay={3000}>
       <span role="img" aria-label={config.tooltipLabel}>
         {content}
       </span>

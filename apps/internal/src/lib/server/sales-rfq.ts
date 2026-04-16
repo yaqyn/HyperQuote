@@ -69,6 +69,14 @@ export const getRFQQueue = createServerFn({ method: 'GET' })
     }),
   )
   .handler(async ({ data: input }) => {
+    // Revert any saved orders whose timer has expired
+    const now = Date.now()
+    for (const rfq of db.rfqs.list()) {
+      if (rfq.status === 'saved' && rfq.savedUntil && new Date(rfq.savedUntil).getTime() <= now) {
+        rfq.status = 'submitted'
+        rfq.savedUntil = null
+      }
+    }
     let rfqs = db.rfqs.list().map(projectRfq)
     if (input.status) rfqs = rfqs.filter((r) => r.status === input.status)
     if (input.assignedTo) rfqs = rfqs.filter((r) => r.assignedRep === input.assignedTo)
@@ -202,6 +210,50 @@ export const declineRFQ = createServerFn({ method: 'POST' })
       reason: data.reason,
       note: data.note ?? null,
       declinedAt: new Date().toISOString(),
+    }
+  })
+
+/**
+ * Save/hold an RFQ for later. Changes status to 'saved'.
+ * After `returnInMinutes`, a real system would schedule a job to revert to 'submitted'.
+ * Action is recorded in the order report.
+ */
+export const saveRFQForLater = createServerFn({ method: 'POST' })
+  .inputValidator(
+    z.object({
+      rfqId: z.string(),
+      returnInMinutes: z.number(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const rfq = db.rfqs.get(data.rfqId)
+    if (rfq) {
+      rfq.status = 'saved'
+      rfq.savedUntil = new Date(Date.now() + 10_000).toISOString() // DEV: 10s. Production: data.returnInMinutes * 60_000
+    }
+    db.orderReports.ensureForRfq(data.rfqId)
+    return {
+      success: true,
+      rfqId: data.rfqId,
+      status: 'saved' as const,
+      returnsAt: rfq?.savedUntil ?? null,
+    }
+  })
+
+/**
+ * Evaluate an RFQ — marks it as quoted. The quote has been built and sent.
+ * Action is recorded in the order report.
+ */
+export const evaluateRFQ = createServerFn({ method: 'POST' })
+  .inputValidator(z.object({ rfqId: z.string() }))
+  .handler(async ({ data }) => {
+    db.rfqs.updateStatus(data.rfqId, 'quoted')
+    db.orderReports.ensureForRfq(data.rfqId)
+    return {
+      success: true,
+      rfqId: data.rfqId,
+      status: 'quoted' as const,
+      evaluatedAt: new Date().toISOString(),
     }
   })
 

@@ -153,6 +153,7 @@ export function Sidebar({ auth, onNotificationsPress }: SidebarProps) {
                   <Popover
                     placement="end"
                     offset={8}
+                    aria-label="More modules"
                     className="rounded-2xl p-2 min-w-[200px] outline-none"
                     style={{
                       background: 'rgba(255,255,255,0.85)',

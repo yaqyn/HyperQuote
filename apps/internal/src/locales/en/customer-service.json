@@ -1,163 +1,72 @@
 {
-  "tabs": {
-    "home": "Home",
-    "whatsapp": "WhatsApp Inbox",
-    "tickets": "Tickets",
-    "returns": "Returns / Claims",
-    "knowledgeBase": "Knowledge Base"
+  "inbox": {
+    "search": "Search conversations",
+    "searchPlaceholder": "Search…",
+    "noResults": "No conversations found",
+    "conversations": "conversations"
   },
-  "home": {
-    "title": "Customer Service",
-    "openTickets": "Open Tickets",
-    "unreadWhatsApp": "Unread WhatsApp",
-    "slaStatus": "SLA Status",
-    "activeReturns": "Active Returns",
-    "onTrack": "On Track",
-    "atRisk": "At Risk",
-    "breached": "Breached",
-    "byPriority": "By Priority",
-    "oldestAge": "Oldest",
-    "allClear": "All Clear",
-    "avgResponse": "Avg Response",
-    "priorityQueue": "Priority Queue",
-    "resolutionRate": "Resolution Rate"
-  },
-  "tickets": {
-    "title": "Tickets",
-    "number": "#",
-    "customer": "Customer",
-    "subject": "Subject",
-    "priority": "Priority",
-    "status": "Status",
-    "assignedTo": "Assigned To",
-    "slaCountdown": "SLA",
-    "created": "Created",
-    "description": "Description",
-    "attachments": "Attachments",
-    "internalNotes": "Internal Notes",
-    "customerVisible": "Customer Visible",
-    "linkedOrders": "Linked Orders",
-    "linkedQuotes": "Linked Quotes",
-    "linkedInvoices": "Linked Invoices",
-    "subTickets": "Sub-Tickets",
-    "department": "Department",
-    "activityTimeline": "Activity Timeline",
-    "back": "Back to Tickets",
-    "respond": "Respond",
-    "escalate": "Escalate",
-    "unassigned": "Unassigned",
-    "breached": "SLA Breached",
-    "channelAll": "All Channels",
-    "channelEmail": "Email",
-    "channelPhone": "Phone",
-    "channelWhatsApp": "WhatsApp",
-    "filterAll": "All",
-    "filterOpen": "Open",
-    "filterResolved": "Resolved",
-    "filterWaiting": "Waiting",
-    "noTickets": "No tickets found",
-    "replyPlaceholder": "Type a reply...",
-    "send": "Send"
-  },
-  "whatsapp": {
-    "title": "WhatsApp Inbox",
-    "conversations": "Conversations",
-    "aiResolved": "AI Resolved",
-    "needsHuman": "Needs Human",
-    "unread": "Unread",
+  "channels": {
     "all": "All",
-    "selectConversation": "Select a conversation",
-    "aiTriage": "AI Triage",
-    "tier": "Tier",
-    "customerContext": "Customer Context",
-    "orders": "Orders",
-    "openQuotes": "Open Quotes",
-    "outstandingInvoices": "Outstanding Invoices",
-    "quickActions": "Quick Actions",
-    "checkOrderStatus": "Check Order Status",
-    "lookUpInvoice": "Look Up Invoice",
-    "createTicket": "Create Ticket",
-    "escalateAction": "Escalate",
-    "typeMessage": "Type a message...",
-    "send": "Send"
+    "email": "Email",
+    "whatsapp": "WhatsApp",
+    "chat": "Chat"
   },
-  "returns": {
-    "title": "Returns & Claims",
-    "damageClaims": "Damage Claims",
-    "returnRequests": "Return Requests",
-    "damageClaim": "Damage Claim",
-    "rma": "RMA",
-    "tier": "Tier",
-    "resolution": "Resolution",
-    "photos": "Photos",
-    "noCases": "No cases found",
-    "newClaim": "New Damage Claim",
-    "newRma": "New RMA",
-    "claimId": "Claim ID",
-    "delivery": "Delivery",
-    "order": "Order",
-    "customer": "Customer",
-    "damagePercent": "Damage %",
-    "rmaNumber": "RMA Number",
-    "items": "Items",
-    "status": "Status",
-    "created": "Created",
-    "claimFlow": "Claim Flow",
-    "step1": "Customer Reports",
-    "step2": "Claim Created",
-    "step3": "Tier Classification",
-    "step4": "Resolution Proposed",
-    "step5": "Settlement"
+  "empty": {
+    "selectConversation": "No conversation selected",
+    "selectConversationDesc": "Choose a conversation from the inbox"
   },
-  "knowledgeBase": {
-    "title": "Knowledge Base",
-    "search": "Search articles...",
-    "noResults": "No articles match your search",
-    "categories": "Categories"
+  "header": {
+    "slaBreached": "SLA Breached"
   },
-  "priority": {
-    "critical": "Critical",
-    "high": "High",
-    "medium": "Medium",
-    "low": "Low"
+  "profile": {
+    "title": "Customer",
+    "close": "Close",
+    "orders": "orders",
+    "ticketRef": "Ticket"
   },
   "status": {
-    "new": "New",
     "open": "Open",
-    "inProgress": "In Progress",
-    "awaitingCustomer": "Awaiting Customer",
-    "awaitingInternal": "Awaiting Internal",
-    "awaitingSupplier": "Awaiting Supplier",
-    "escalated": "Escalated",
+    "pending": "Pending",
     "resolved": "Resolved",
-    "closed": "Closed",
-    "reopened": "Reopened"
+    "closed": "Closed"
   },
-  "claimStatus": {
-    "reported": "Reported",
-    "underReview": "Under Review",
-    "inspectionScheduled": "Inspection Scheduled",
-    "resolutionProposed": "Resolution Proposed",
-    "settled": "Settled"
+  "priority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "urgent": "Urgent"
   },
-  "returnStatus": {
-    "requested": "Requested",
-    "rmaIssued": "RMA Issued",
-    "received": "Received",
-    "inspected": "Inspected",
-    "creditIssued": "Credit Issued"
+  "composer": {
+    "placeholder": "Write a reply…",
+    "send": "Send reply",
+    "sendShortcut": "Send · ⌘↵",
+    "attach": "Attach file"
   },
-  "tierLabel": {
-    "minor": "Minor",
-    "moderate": "Moderate",
-    "major": "Major"
+  "email": {
+    "reply": "Reply",
+    "replyAll": "Reply All",
+    "forward": "Forward",
+    "expand": "Expand email",
+    "collapse": "Collapse email",
+    "to": "To",
+    "cc": "CC",
+    "bcc": "BCC",
+    "subject": "Subj",
+    "showCcBcc": "Show CC/BCC",
+    "send": "Send",
+    "saveDraft": "Save draft",
+    "draftSaved": "Draft saved",
+    "discard": "Discard",
+    "bodyPlaceholder": "Write your email…",
+    "clickToReply": "Click to reply…"
   },
-  "resolutionType": {
-    "partialReplacement": "Partial Replacement",
-    "creditNote": "Credit Note",
-    "priceReduction": "Price Reduction",
-    "fullReplacement": "Full Replacement",
-    "fullRefund": "Full Refund",
-    "returnAndReorder": "Return & Reorder"
+  "context": {
+    "customerSince": "Customer since",
+    "conversations": "conversations",
+    "email": "Email",
+    "call": "Call",
+    "orders": "Orders",
+    "quotes": "Quotes",
+    "linkedTotal": "Linked total"
   }
 }

@@ -40,7 +40,7 @@ export function MarginGuardrails({ marginPercent, thresholds }: MarginGuardrails
   }[level]
 
   return (
-    <TooltipTrigger delay={300}>
+    <TooltipTrigger delay={3000}>
       <span
         className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-1.5 py-0.5 ${config.bg}`}
         role="img"

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SelectionCopy } from '../components/shared/SelectionCopy'
 import {
   HeadContent,
   Outlet,
@@ -41,9 +42,20 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'title', content: 'HyperQuote' },
-      { name: 'theme-color', content: '#060606' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+      { name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
+      { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' },
+      { name: 'theme-color', content: '#060606', media: '(prefers-color-scheme: dark)' },
     ],
-    links: [{ rel: 'stylesheet', href: styles }],
+    links: [
+      { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' },
+      { rel: 'icon', type: 'image/svg+xml', sizes: 'any', href: '/favicon.svg' },
+      { rel: 'icon', href: '/favicon.ico' },
+      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      { rel: 'manifest', href: '/site.webmanifest' },
+      { rel: 'stylesheet', href: styles },
+    ],
   }),
   component: RootComponent,
 })
@@ -59,7 +71,18 @@ function RootComponent() {
       <head>
         <HeadContent />
       </head>
-      <body className={`bg-[var(--p-bg)] text-[var(--p-text)] antialiased ${locale === 'ar' ? 'font-arabic' : 'font-sans'}`}>
+      <body
+        className={`bg-[var(--p-bg)] text-[var(--p-text)] antialiased ${locale === 'ar' ? 'font-arabic' : 'font-sans'}`}
+        onContextMenu={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+            const tag = (e.target as HTMLElement).tagName
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !(e.target as HTMLElement).isContentEditable) {
+              e.preventDefault()
+            }
+          }
+        }}
+      >
         <QueryClientProvider client={queryClient}>
           <a
             href="#main"
@@ -71,6 +94,7 @@ function RootComponent() {
             <Outlet />
           </I18nProvider>
         </QueryClientProvider>
+        <SelectionCopy />
         <Scripts />
       </body>
     </html>
