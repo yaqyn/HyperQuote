@@ -99,5 +99,82 @@ Only the sections listed here have been filled; the viewer greys out the rest.
       }
     }
   }
+  ,
+  {
+    "id": "rep-004",
+    "rfqId": "rfq-002",
+    "currentStage": "warehouse",
+    "canceledReason": null,
+    "canceledAtHoursAgo": null,
+    "sections": {
+      "submitted": {
+        "customerName": "Pyramid Builders",
+        "customerTier": "A",
+        "contactName": "Mostafa El-Sayed",
+        "phone": "+20 2 3382 4410",
+        "deliveryAddress": "8 Tahrir Street, Dokki, Giza",
+        "deliveryCity": "Giza, 6th October",
+        "deliveryUrgencyDays": 7,
+        "items": [
+          { "productSlug": "sulfate-resistant-cement-cem-v", "quantity": 1200 },
+          { "productSlug": "steel-rebar-10mm-grade-60", "quantity": 8 },
+          { "productSlug": "steel-rebar-16mm-grade-60", "quantity": 5 },
+          { "productSlug": "crushed-gravel-size-1", "quantity": 220 },
+          { "productSlug": "bituminous-membrane-4mm-sbs", "quantity": 80 }
+        ]
+      },
+      "evaluated": {
+        "quoteId": "qt-003",
+        "quoteNumber": "QT-2026-00812",
+        "marginPercent": 21.0,
+        "subtotal": 762800,
+        "total": 762800,
+        "sentAtHoursAgo": 32,
+        "sentVia": "portal",
+        "validUntilDaysFromNow": 10
+      },
+      "finance_partial": {
+        "paidAmount": 381400,
+        "proofUrl": "bank-transfer-receipt-pyr-2218.pdf",
+        "paidAtHoursAgo": 20
+      },
+      "inventory_orders": {
+        "approvedAtHoursAgo": 16,
+        "readyItems": 5,
+        "totalItems": 5
+      },
+      "warehouse": {
+        "truckAssignments": [
+          {
+            "truckId": "trk-003",
+            "plateNumber": "GIZ-0915",
+            "driverName": "Youssef Khaled",
+            "capacityTons": 18,
+            "itemsLoaded": ["sulfate-resistant-cement-cem-v", "steel-rebar-10mm-grade-60", "steel-rebar-16mm-grade-60", "crushed-gravel-size-1"],
+            "assignedAt": "2026-04-15T20:00:00.000Z"
+          },
+          {
+            "truckId": "trk-007",
+            "plateNumber": "GIZ-2004",
+            "driverName": "Khaled Zaki",
+            "capacityTons": 15,
+            "itemsLoaded": ["bituminous-membrane-4mm-sbs"],
+            "assignedAt": "2026-04-15T20:00:00.000Z"
+          }
+        ],
+        "advisorMarkedReady": true,
+        "failedInspections": [],
+        "signoff": {
+          "advisorName": "Fatma El-Zahraa",
+          "qualityPass": true,
+          "proofUrl": "signoff-photo-bay02.jpg",
+          "securityMethod": "password",
+          "securityToken": "1234",
+          "signedAt": "2026-04-15T21:00:00.000Z"
+        },
+        "passedAt": "2026-04-15T21:30:00.000Z"
+      }
+    }
+  }
 ]
 ```

@@ -473,7 +473,7 @@ interface HqDbState {
   employees: EmployeeRow[]
 }
 
-const HQ_DB_KEY = '__hqInternalDb_v11__' as const
+const HQ_DB_KEY = '__hqInternalDb_v12__' as const
 type GlobalWithDb = typeof globalThis & { [HQ_DB_KEY]?: HqDbState }
 const g = globalThis as GlobalWithDb
 

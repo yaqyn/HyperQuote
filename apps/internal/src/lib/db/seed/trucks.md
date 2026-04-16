@@ -39,7 +39,7 @@ Schema: `{ id, plateNumber, driverName, driverPhone, capacityTons, bodyType, sta
     "driverPhone": "+20 103 456 7890",
     "capacityTons": 18,
     "bodyType": "flatbed",
-    "status": "available"
+    "status": "dispatched"
   },
   {
     "id": "trk-004",

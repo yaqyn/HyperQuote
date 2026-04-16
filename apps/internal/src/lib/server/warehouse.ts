@@ -665,6 +665,14 @@ export const passOrderToDispatch = createServerFn({ method: 'POST' })
     writeWarehouseSection(quote.rfqId, next)
     // Advance the report's currentStage so dispatch picks it up.
     db.orderReports.appendSection(quote.rfqId, 'warehouse', next as unknown as Record<string, unknown>)
+    // Clear any prior returned section so dispatch's filter
+    // (`!sections.returned`) doesn't block the re-dispatched order.
+    // The return audit is preserved in the warehouse section's
+    // failedInspections array for history.
+    const report = db.orderReports.forRfq(quote.rfqId)
+    if (report?.sections.returned) {
+      delete report.sections.returned
+    }
     // Trucks stay `dispatched` — they were locked at signoff and stay
     // busy until dispatch marks the order as delivered or retreated.
     return { success: true as const }
