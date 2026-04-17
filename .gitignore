@@ -6,3 +6,8 @@ dist
 .wrangler
 .dev.vars
 .claude/worktrees/
+
+# Environment files — never commit real secrets
+.env
+.env.local
+.env.*.local

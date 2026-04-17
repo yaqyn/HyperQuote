@@ -1,11 +1,11 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(ls \"/home/qv/Documents/New Vision/.claude/settings\"*)",
-      "WebSearch"
-    ]
-  },
-  "outputStyle": "default",
-  "prefersReducedMotion": false,
-  "spinnerTipsEnabled": false
+	"permissions": {
+		"allow": [
+			"Bash(ls \"/home/qv/Documents/New Vision/.claude/settings\"*)",
+			"WebSearch"
+		]
+	},
+	"outputStyle": "default",
+	"prefersReducedMotion": false,
+	"spinnerTipsEnabled": false
 }
