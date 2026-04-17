@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -67,7 +68,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 										: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
 								}`}
 							>
-								{t(heading.textKey)}
+								{t(heading.textKey as ParseKeys<'website'>)}
 							</a>
 						</li>
 					)

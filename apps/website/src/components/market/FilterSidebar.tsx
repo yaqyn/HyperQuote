@@ -1,6 +1,6 @@
+import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react'
 
 interface FilterSidebarProps {
 	category?: string[]
@@ -15,19 +15,50 @@ interface FilterSidebarProps {
 const CATEGORY_GROUPS = [
 	{
 		labelKey: 'market.groupStructural',
-		items: ['cement', 'reinforcing_steel', 'structural_steel', 'aggregates', 'sand', 'ready_mix_concrete', 'bricks', 'blocks'],
+		items: [
+			'cement',
+			'reinforcing_steel',
+			'structural_steel',
+			'aggregates',
+			'sand',
+			'ready_mix_concrete',
+			'bricks',
+			'blocks',
+		],
 	},
 	{
 		labelKey: 'market.groupFinishing',
-		items: ['tiles_ceramic', 'tiles_porcelain', 'marble', 'granite', 'paint', 'glass', 'gypsum_board'],
+		items: [
+			'tiles_ceramic',
+			'tiles_porcelain',
+			'marble',
+			'granite',
+			'paint',
+			'glass',
+			'gypsum_board',
+		],
 	},
 	{
 		labelKey: 'market.groupMEP',
-		items: ['pipes_pvc', 'pipes_metal', 'electrical_cable', 'electrical_conduit'],
+		items: [
+			'pipes_pvc',
+			'pipes_metal',
+			'electrical_cable',
+			'electrical_conduit',
+		],
 	},
 	{
 		labelKey: 'market.groupOther',
-		items: ['lumber', 'plywood', 'insulation', 'waterproofing', 'roofing', 'aluminum_profiles', 'adhesives', 'hardware_fasteners'],
+		items: [
+			'lumber',
+			'plywood',
+			'insulation',
+			'waterproofing',
+			'roofing',
+			'aluminum_profiles',
+			'adhesives',
+			'hardware_fasteners',
+		],
 	},
 ] as const
 
@@ -42,7 +73,9 @@ export function FilterSidebar({
 	hasActiveFilters,
 }: FilterSidebarProps) {
 	const { t } = useTranslation('website')
-	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['market.groupStructural']))
+	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+		new Set(['market.groupStructural']),
+	)
 
 	const activeCount =
 		(category?.length ?? 0) + (availability ? 1 : 0) + (priceTier?.length ?? 0)
@@ -107,7 +140,9 @@ export function FilterSidebar({
 				<div className="space-y-1">
 					{CATEGORY_GROUPS.map((group) => {
 						const isOpen = expandedGroups.has(group.labelKey)
-						const activeInGroup = group.items.filter((c) => category?.includes(c)).length
+						const activeInGroup = group.items.filter((c) =>
+							category?.includes(c),
+						).length
 
 						return (
 							<div key={group.labelKey}>

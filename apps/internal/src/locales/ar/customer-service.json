@@ -1,72 +1,70 @@
 {
-  "inbox": {
-    "search": "البحث في المحادثات",
-    "searchPlaceholder": "بحث…",
-    "noResults": "لا توجد محادثات",
-    "conversations": "محادثات"
-  },
-  "channels": {
-    "all": "الكل",
-    "email": "بريد",
-    "whatsapp": "واتساب",
-    "chat": "محادثة"
-  },
-  "empty": {
-    "selectConversation": "لم يتم اختيار محادثة",
-    "selectConversationDesc": "اختر محادثة من صندوق الوارد"
-  },
-  "header": {
-    "slaBreached": "تم تجاوز مستوى الخدمة"
-  },
-  "profile": {
-    "title": "العميل",
-    "close": "إغلاق",
-    "orders": "طلب",
-    "ticketRef": "التذكرة"
-  },
-  "status": {
-    "open": "مفتوح",
-    "pending": "قيد الانتظار",
-    "resolved": "تم الحل",
-    "closed": "مغلق"
-  },
-  "priority": {
-    "low": "منخفض",
-    "medium": "متوسط",
-    "high": "عالي",
-    "urgent": "عاجل"
-  },
-  "composer": {
-    "placeholder": "اكتب ردّاً…",
-    "send": "إرسال الرد",
-    "sendShortcut": "إرسال · ⌘↵",
-    "attach": "إرفاق ملف"
-  },
-  "email": {
-    "reply": "رد",
-    "replyAll": "رد للجميع",
-    "forward": "إعادة توجيه",
-    "expand": "توسيع البريد",
-    "collapse": "طي البريد",
-    "to": "إلى",
-    "cc": "نسخة",
-    "bcc": "نسخة مخفية",
-    "subject": "الموضوع",
-    "showCcBcc": "إظهار النسخة",
-    "send": "إرسال",
-    "saveDraft": "حفظ المسودة",
-    "draftSaved": "تم حفظ المسودة",
-    "discard": "تجاهل",
-    "bodyPlaceholder": "اكتب بريدك الإلكتروني…",
-    "clickToReply": "اضغط للرد…"
-  },
-  "context": {
-    "customerSince": "عميل منذ",
-    "conversations": "محادثة",
-    "email": "بريد",
-    "call": "اتصال",
-    "orders": "الطلبات",
-    "quotes": "عروض الأسعار",
-    "linkedTotal": "الإجمالي المرتبط"
-  }
+	"inbox": {
+		"search": "البحث في المحادثات",
+		"searchPlaceholder": "بحث…",
+		"noResults": "لا توجد محادثات",
+		"conversations": "محادثات"
+	},
+	"channels": {
+		"email": "بريد",
+		"live": "محادثة مباشرة"
+	},
+	"empty": {
+		"selectConversation": "لم يتم اختيار محادثة",
+		"selectConversationDesc": "اختر محادثة من صندوق الوارد"
+	},
+	"header": {
+		"slaBreached": "تم تجاوز مستوى الخدمة"
+	},
+	"profile": {
+		"title": "العميل",
+		"close": "إغلاق",
+		"orders": "طلب",
+		"ticketRef": "التذكرة"
+	},
+	"status": {
+		"open": "مفتوح",
+		"pending": "قيد الانتظار",
+		"resolved": "تم الحل",
+		"closed": "مغلق"
+	},
+	"priority": {
+		"low": "منخفض",
+		"medium": "متوسط",
+		"high": "عالي",
+		"urgent": "عاجل"
+	},
+	"composer": {
+		"placeholder": "اكتب ردّاً…",
+		"send": "إرسال الرد",
+		"sendShortcut": "إرسال · ⌘↵",
+		"attach": "إرفاق ملف"
+	},
+	"email": {
+		"reply": "رد",
+		"replyAll": "رد للجميع",
+		"forward": "إعادة توجيه",
+		"expand": "توسيع البريد",
+		"collapse": "طي البريد",
+		"to": "إلى",
+		"cc": "نسخة",
+		"bcc": "نسخة مخفية",
+		"subject": "الموضوع",
+		"showCcBcc": "إظهار النسخة",
+		"send": "إرسال",
+		"saveDraft": "حفظ المسودة",
+		"draftSaved": "تم حفظ المسودة",
+		"discard": "تجاهل",
+		"bodyPlaceholder": "اكتب بريدك الإلكتروني…",
+		"clickToReply": "اضغط للرد…"
+	},
+	"context": {
+		"customerSince": "عميل منذ",
+		"conversations": "محادثة",
+		"email": "بريد",
+		"call": "اتصال",
+		"orders": "الطلبات",
+		"quotes": "عروض الأسعار",
+		"linkedTotal": "الإجمالي المرتبط"
+	}
 }

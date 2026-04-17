@@ -16,28 +16,28 @@ import { createStore } from '@xstate/store'
  * a stack or counter.
  */
 export const keyboardScopeStore = createStore({
-  context: {
-    scope: 'canvas' as 'canvas' | 'panel' | 'input',
-    panelOpen: false,
-  },
-  on: {
-    openPanel: (ctx) => ({
-      ...ctx,
-      scope: 'panel' as const,
-      panelOpen: true,
-    }),
-    closePanel: (ctx) => ({
-      ...ctx,
-      scope: 'canvas' as const,
-      panelOpen: false,
-    }),
-    focusInput: (ctx) => ({
-      ...ctx,
-      scope: 'input' as const,
-    }),
-    blurInput: (ctx) => ({
-      ...ctx,
-      scope: ctx.panelOpen ? ('panel' as const) : ('canvas' as const),
-    }),
-  },
+	context: {
+		scope: 'canvas' as 'canvas' | 'panel' | 'input',
+		panelOpen: false,
+	},
+	on: {
+		openPanel: (ctx) => ({
+			...ctx,
+			scope: 'panel' as const,
+			panelOpen: true,
+		}),
+		closePanel: (ctx) => ({
+			...ctx,
+			scope: 'canvas' as const,
+			panelOpen: false,
+		}),
+		focusInput: (ctx) => ({
+			...ctx,
+			scope: 'input' as const,
+		}),
+		blurInput: (ctx) => ({
+			...ctx,
+			scope: ctx.panelOpen ? ('panel' as const) : ('canvas' as const),
+		}),
+	},
 })

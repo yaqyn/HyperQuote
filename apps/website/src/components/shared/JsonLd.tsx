@@ -30,8 +30,7 @@ export function WebsiteJsonLd() {
 			'@type': 'SearchAction',
 			target: {
 				'@type': 'EntryPoint',
-				urlTemplate:
-					'https://hyperquote.net/market?q={search_term_string}',
+				urlTemplate: 'https://hyperquote.net/market?q={search_term_string}',
 			},
 			'query-input': 'required name=search_term_string',
 		},

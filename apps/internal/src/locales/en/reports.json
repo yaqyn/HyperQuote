@@ -1,123 +1,123 @@
 {
-  "tabs": {
-    "reports": "Reports",
-    "sales": "Sales",
-    "procurement": "Procurement",
-    "operations": "Operations",
-    "finance": "Finance",
-    "warehouse": "Warehouse",
-    "dispatch": "Dispatch",
-    "cs": "Customer Service"
-  },
-  "filters": {
-    "mtd": "MTD",
-    "qtd": "QTD",
-    "ytd": "YTD",
-    "custom": "Custom",
-    "dateRange": "Date Range",
-    "department": "Department",
-    "team": "Team",
-    "individual": "Individual",
-    "customerTier": "Customer Tier",
-    "category": "Category",
-    "region": "Region"
-  },
-  "export": {
-    "csv": "CSV",
-    "pdf": "PDF",
-    "schedule": "Schedule",
-    "daily": "Daily",
-    "weekly": "Weekly",
-    "monthly": "Monthly"
-  },
-  "csv": "CSV",
-  "pdf": "PDF",
-  "loading": "Loading...",
-  "kpi": {
-    "pipeline_value": "Pipeline Value",
-    "conversion_rate": "Conversion Rate",
-    "avg_response_time": "Avg Response Time",
-    "win_rate": "Win Rate",
-    "revenue_mtd": "Revenue MTD",
-    "revenue_target": "Revenue Target",
-    "revenue_vs_target": "Revenue vs Target",
-    "pending_inquiries": "Pending Inquiries",
-    "response_rate": "Response Rate",
-    "po_pending": "PO Pending",
-    "po_approved": "PO Approved",
-    "cost_savings_mtd": "Cost Savings MTD",
-    "orders_in_pipeline": "Orders in Pipeline",
-    "on-time_delivery": "On-Time Delivery",
-    "completion_rate": "Completion Rate",
-    "avg_cycle_time": "Avg Cycle Time",
-    "resource_utilization": "Resource Utilization",
-    "ar_outstanding": "AR Outstanding",
-    "overdue_ar": "Overdue AR",
-    "cash_position": "Cash Position",
-    "margin_trend": "Margin Trend",
-    "inventory_accuracy": "Inventory Accuracy",
-    "pick_accuracy": "Pick Accuracy",
-    "on-time_shipment": "On-Time Shipment",
-    "receiving_cycle_time": "Receiving Cycle Time",
-    "capacity_utilization": "Capacity Utilization",
-    "slow-moving_value": "Slow-Moving Value",
-    "deliveries_today": "Deliveries Today",
-    "first-attempt_success": "First-Attempt Success",
-    "avg_stops/driver": "Avg Stops/Driver",
-    "route_efficiency": "Route Efficiency",
-    "cairo_night_count": "Cairo Night Count",
-    "open_tickets_-_high": "Open Tickets - High",
-    "open_tickets_-_medium": "Open Tickets - Medium",
-    "open_tickets_-_low": "Open Tickets - Low",
-    "sla_compliance": "SLA Compliance",
-    "avg_resolution_time": "Avg Resolution Time",
-    "nps_score": "NPS Score"
-  },
-  "table": {
-    "customer": "Customer",
-    "deal": "Deal",
-    "value": "Value",
-    "stage": "Stage",
-    "rep": "Rep",
-    "supplier": "Supplier",
-    "response_rate": "Response Rate",
-    "avg_response_time": "Avg Response",
-    "active_pos": "Active POs",
-    "rating": "Rating",
-    "bucket": "Bucket",
-    "amount": "Amount",
-    "count": "Count",
-    "item": "Item",
-    "sku": "SKU",
-    "qty": "Qty",
-    "unit": "Unit",
-    "turnover": "Turnover",
-    "driver": "Driver",
-    "vehicle": "Vehicle",
-    "stops": "Stops",
-    "completed": "Completed",
-    "status": "Status"
-  },
-  "sales": {
-    "top_deals": "Top 10 Deals"
-  },
-  "procurement": {
-    "supplier_rankings": "Supplier Rankings"
-  },
-  "operations": {
-    "orders_by_stage": "Orders by Stage"
-  },
-  "finance": {
-    "ar_aging": "AR Aging Breakdown",
-    "payment_distribution": "Payment Distribution"
-  },
-  "warehouse": {
-    "inventory_overview": "Inventory Overview"
-  },
-  "dispatch": {
-    "driver_status": "Driver Status"
-  },
-  "cs": {
-    "top_issues": "Top Issue Categories"
-  }
+	"tabs": {
+		"reports": "Reports",
+		"sales": "Sales",
+		"procurement": "Procurement",
+		"operations": "Operations",
+		"finance": "Finance",
+		"warehouse": "Warehouse",
+		"dispatch": "Dispatch",
+		"cs": "Customer Service"
+	},
+	"filters": {
+		"mtd": "MTD",
+		"qtd": "QTD",
+		"ytd": "YTD",
+		"custom": "Custom",
+		"dateRange": "Date Range",
+		"department": "Department",
+		"team": "Team",
+		"individual": "Individual",
+		"customerTier": "Customer Tier",
+		"category": "Category",
+		"region": "Region"
+	},
+	"export": {
+		"csv": "CSV",
+		"pdf": "PDF",
+		"schedule": "Schedule",
+		"daily": "Daily",
+		"weekly": "Weekly",
+		"monthly": "Monthly"
+	},
+	"csv": "CSV",
+	"pdf": "PDF",
+	"loading": "Loading...",
+	"kpi": {
+		"pipeline_value": "Pipeline Value",
+		"conversion_rate": "Conversion Rate",
+		"avg_response_time": "Avg Response Time",
+		"win_rate": "Win Rate",
+		"revenue_mtd": "Revenue MTD",
+		"revenue_target": "Revenue Target",
+		"revenue_vs_target": "Revenue vs Target",
+		"pending_inquiries": "Pending Inquiries",
+		"response_rate": "Response Rate",
+		"po_pending": "PO Pending",
+		"po_approved": "PO Approved",
+		"cost_savings_mtd": "Cost Savings MTD",
+		"orders_in_pipeline": "Orders in Pipeline",
+		"on-time_delivery": "On-Time Delivery",
+		"completion_rate": "Completion Rate",
+		"avg_cycle_time": "Avg Cycle Time",
+		"resource_utilization": "Resource Utilization",
+		"ar_outstanding": "AR Outstanding",
+		"overdue_ar": "Overdue AR",
+		"cash_position": "Cash Position",
+		"margin_trend": "Margin Trend",
+		"inventory_accuracy": "Inventory Accuracy",
+		"pick_accuracy": "Pick Accuracy",
+		"on-time_shipment": "On-Time Shipment",
+		"receiving_cycle_time": "Receiving Cycle Time",
+		"capacity_utilization": "Capacity Utilization",
+		"slow-moving_value": "Slow-Moving Value",
+		"deliveries_today": "Deliveries Today",
+		"first-attempt_success": "First-Attempt Success",
+		"avg_stops/driver": "Avg Stops/Driver",
+		"route_efficiency": "Route Efficiency",
+		"cairo_night_count": "Cairo Night Count",
+		"open_tickets_-_high": "Open Tickets - High",
+		"open_tickets_-_medium": "Open Tickets - Medium",
+		"open_tickets_-_low": "Open Tickets - Low",
+		"sla_compliance": "SLA Compliance",
+		"avg_resolution_time": "Avg Resolution Time",
+		"nps_score": "NPS Score"
+	},
+	"table": {
+		"customer": "Customer",
+		"deal": "Deal",
+		"value": "Value",
+		"stage": "Stage",
+		"rep": "Rep",
+		"supplier": "Supplier",
+		"response_rate": "Response Rate",
+		"avg_response_time": "Avg Response",
+		"active_pos": "Active POs",
+		"rating": "Rating",
+		"bucket": "Bucket",
+		"amount": "Amount",
+		"count": "Count",
+		"item": "Item",
+		"sku": "SKU",
+		"qty": "Qty",
+		"unit": "Unit",
+		"turnover": "Turnover",
+		"driver": "Driver",
+		"vehicle": "Vehicle",
+		"stops": "Stops",
+		"completed": "Completed",
+		"status": "Status"
+	},
+	"sales": {
+		"top_deals": "Top 10 Deals"
+	},
+	"procurement": {
+		"supplier_rankings": "Supplier Rankings"
+	},
+	"operations": {
+		"orders_by_stage": "Orders by Stage"
+	},
+	"finance": {
+		"ar_aging": "AR Aging Breakdown",
+		"payment_distribution": "Payment Distribution"
+	},
+	"warehouse": {
+		"inventory_overview": "Inventory Overview"
+	},
+	"dispatch": {
+		"driver_status": "Driver Status"
+	},
+	"cs": {
+		"top_issues": "Top Issue Categories"
+	}
 }

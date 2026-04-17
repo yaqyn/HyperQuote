@@ -1,42 +1,42 @@
 import { createRouter } from '@tanstack/react-router'
 import { Route as rootRoute } from './routes/__root'
-import { Route as loginRoute } from './routes/login'
-import { Route as homeRoute } from './routes/home'
-import { Route as shiftStartRoute } from './routes/shift-start'
-import { Route as routeOverviewRoute } from './routes/route-overview'
-import { Route as stopDetailRoute } from './routes/stop-detail'
-import { Route as loadingRoute } from './routes/loading'
 import { Route as deliveryRoute } from './routes/delivery'
-import { Route as podRoute } from './routes/pod'
-import { Route as exceptionRoute } from './routes/exception'
-import { Route as endOfDayRoute } from './routes/end-of-day'
-import { Route as jobOffersRoute } from './routes/job-offers'
-import { Route as jobDetailRoute } from './routes/job-detail'
 import { Route as earningsRoute } from './routes/earnings'
+import { Route as endOfDayRoute } from './routes/end-of-day'
+import { Route as exceptionRoute } from './routes/exception'
+import { Route as homeRoute } from './routes/home'
+import { Route as jobDetailRoute } from './routes/job-detail'
+import { Route as jobOffersRoute } from './routes/job-offers'
+import { Route as loadingRoute } from './routes/loading'
+import { Route as loginRoute } from './routes/login'
+import { Route as podRoute } from './routes/pod'
+import { Route as routeOverviewRoute } from './routes/route-overview'
+import { Route as shiftStartRoute } from './routes/shift-start'
+import { Route as stopDetailRoute } from './routes/stop-detail'
 
 const routeTree = rootRoute.addChildren([
-  loginRoute,
-  homeRoute,
-  shiftStartRoute,
-  routeOverviewRoute,
-  stopDetailRoute,
-  loadingRoute,
-  deliveryRoute,
-  podRoute,
-  exceptionRoute,
-  endOfDayRoute,
-  jobOffersRoute,
-  jobDetailRoute,
-  earningsRoute,
-])
+	loginRoute,
+	homeRoute,
+	shiftStartRoute,
+	routeOverviewRoute,
+	stopDetailRoute,
+	loadingRoute,
+	deliveryRoute,
+	podRoute,
+	exceptionRoute,
+	endOfDayRoute,
+	jobOffersRoute,
+	jobDetailRoute,
+	earningsRoute,
+] as const)
 
 export const router = createRouter({
-  routeTree,
-  defaultPreload: 'intent',
+	routeTree,
+	defaultPreload: 'intent',
 })
 
 declare module '@tanstack/react-router' {
-  interface Register {
-    router: typeof router
-  }
+	interface Register {
+		router: typeof router
+	}
 }

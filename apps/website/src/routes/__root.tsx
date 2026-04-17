@@ -1,25 +1,25 @@
-import { useEffect } from 'react'
 import {
+	createRootRoute,
 	HeadContent,
 	Outlet,
 	Scripts,
-	createRootRoute,
 } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
+import { useEffect } from 'react'
 import { I18nProvider } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { OfflineBanner } from '../components/layout/OfflineBanner'
-
 import { ChatWidget } from '../components/chat/ChatWidget'
+import { OfflineBanner } from '../components/layout/OfflineBanner'
+import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { ChatProvider } from '../hooks/ChatProvider'
-import styles from '../styles.css?url'
 import { setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
+import styles from '../styles.css?url'
 
 const getServerLocale = createServerFn().handler(async () => {
 	const { getCookie } = await import('@tanstack/react-start/server')
 	const locale = getCookie('hq-locale')
-	return (locale === 'ar' || locale === 'en') ? locale : 'en'
+	return locale === 'ar' || locale === 'en' ? locale : 'en'
 })
 
 function detectClientLocale(): 'ar' | 'en' {
@@ -53,12 +53,30 @@ export const Route = createRootRoute({
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
-			{ name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' },
-			{ name: 'theme-color', content: '#0A0A0A', media: '(prefers-color-scheme: dark)' },
+			{
+				name: 'theme-color',
+				content: '#ffffff',
+				media: '(prefers-color-scheme: light)',
+			},
+			{
+				name: 'theme-color',
+				content: '#0A0A0A',
+				media: '(prefers-color-scheme: dark)',
+			},
 		],
 		links: [
-			{ rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' },
-			{ rel: 'icon', type: 'image/svg+xml', sizes: 'any' as string, href: '/favicon.svg' },
+			{
+				rel: 'icon',
+				type: 'image/png',
+				sizes: '96x96',
+				href: '/favicon-96x96.png',
+			},
+			{
+				rel: 'icon',
+				type: 'image/svg+xml',
+				sizes: 'any' as string,
+				href: '/favicon.svg',
+			},
 			{ rel: 'icon', href: '/favicon.ico' },
 			{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
 			{ rel: 'manifest', href: '/site.webmanifest' },
@@ -94,7 +112,23 @@ function RootComponent() {
 					}}
 				/>
 			</head>
-			<body className="bg-[var(--color-base)] text-[var(--color-text)] transition-colors">
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: global UX polish on <body> — cannot be swapped for a button */}
+			<body
+				className="bg-[var(--color-base)] text-[var(--color-text)] transition-colors"
+				onContextMenu={(e) => e.preventDefault()}
+				onKeyDown={(e) => {
+					if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+						const tag = (e.target as HTMLElement).tagName
+						if (
+							tag !== 'INPUT' &&
+							tag !== 'TEXTAREA' &&
+							!(e.target as HTMLElement).isContentEditable
+						) {
+							e.preventDefault()
+						}
+					}
+				}}
+			>
 				<OfflineBanner />
 				<a
 					href="#main"
@@ -106,6 +140,7 @@ function RootComponent() {
 					<ChatProvider>
 						<Outlet />
 						<ChatWidget />
+						<SelectionCopy />
 					</ChatProvider>
 				</I18nProvider>
 				<Scripts />

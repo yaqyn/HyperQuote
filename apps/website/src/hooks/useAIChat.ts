@@ -8,19 +8,20 @@
  * Uses stream() adapter which wraps a function returning AsyncIterable<StreamChunk>.
  * The server function returns AG-UI chunks as an array; client converts to iterable.
  */
-import { useChat, stream } from '@tanstack/ai-react'
-import type { UseChatReturn, UIMessage } from '@tanstack/ai-react'
+
 import type { StreamChunk } from '@tanstack/ai'
+import type { UIMessage, UseChatReturn } from '@tanstack/ai-react'
+import { stream, useChat } from '@tanstack/ai-react'
 import { chatStreamFn } from '../lib/chat'
 
 interface ChatOptions {
-  onError?: (error: Error) => void
+	onError?: (error: Error) => void
 }
 
 export interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
+	id: string
+	role: 'user' | 'assistant'
+	content: string
 }
 
 /**
@@ -28,70 +29,90 @@ export interface ChatMessage {
  * Server function returns array (serialized over RPC); stream() needs iterable
  */
 async function* arrayToAsyncIterable(
-  chunks: StreamChunk[],
+	chunks: StreamChunk[],
 ): AsyncIterable<StreamChunk> {
-  for (const chunk of chunks) {
-    yield chunk
-  }
+	for (const chunk of chunks) {
+		yield chunk
+	}
 }
 
 export function useAIChat(options?: ChatOptions) {
-  const chat: UseChatReturn = useChat({
-    connection: stream(async function* (messages) {
-      // Convert UIMessage[] to simple format for server function
-      const simpleMessages = (messages as UIMessage[]).map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content:
-          m.parts
-            ?.filter((p) => p.type === 'text')
-            .map((p) => (p as { type: 'text'; text: string }).text)
-            .join('') ?? '',
-      }))
+	const chat: UseChatReturn = useChat({
+		connection: stream(async function* (messages) {
+			// Convert UIMessage[] to simple format for server function
+			const simpleMessages = (messages as UIMessage[]).map((m) => ({
+				role: m.role as 'user' | 'assistant',
+				content:
+					m.parts
+						?.filter(
+							(p): p is { type: 'text'; content: string } =>
+								p.type === 'text' &&
+								typeof (p as { content?: unknown }).content === 'string',
+						)
+						.map((p) => p.content)
+						.join('') ?? '',
+			}))
 
-      // Call server function — returns StreamChunk[] (serialized)
-      const chunks = await chatStreamFn({
-        data: { messages: simpleMessages },
-      })
+			// Call server function — returns StreamChunk[] (serialized)
+			const chunks = (await chatStreamFn({
+				data: { messages: simpleMessages },
+			})) as StreamChunk[]
 
-      // Yield chunks as async iterable for the stream() adapter
-      yield* arrayToAsyncIterable(chunks)
-    }),
-    onError: options?.onError,
-  })
+			// Yield chunks as async iterable for the stream() adapter
+			yield* arrayToAsyncIterable(chunks)
+		}),
+		onError: options?.onError,
+	})
 
-  // Map UIMessage to simplified ChatMessage for consumers
-  // TanStack AI 0.x stores text in parts[].text, but fallback to every
-  // known property so content is never silently empty.
-  const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => {
-    const m = msg as any
+	// Map UIMessage to simplified ChatMessage for consumers
+	// TanStack AI 0.x stores text in parts[].text, but fallback to every
+	// known property so content is never silently empty.
+	const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => {
+		const m = msg as unknown as {
+			parts?: unknown
+			content?: unknown
+			text?: unknown
+		}
 
-    // 1. Try parts with type 'text'
-    let content = ''
-    if (Array.isArray(m.parts) && m.parts.length > 0) {
-      content = m.parts
-        .map((p: any) => {
-          if (typeof p === 'string') return p
-          return p.text ?? p.content ?? p.delta ?? ''
-        })
-        .join('')
-    }
+		// 1. Try parts with type 'text'
+		let content = ''
+		if (Array.isArray(m.parts) && m.parts.length > 0) {
+			content = m.parts
+				.map((p: unknown) => {
+					if (typeof p === 'string') return p
+					if (p && typeof p === 'object') {
+						const part = p as {
+							text?: unknown
+							content?: unknown
+							delta?: unknown
+						}
+						const value = part.text ?? part.content ?? part.delta
+						return typeof value === 'string' ? value : ''
+					}
+					return ''
+				})
+				.join('')
+		}
 
-    // 2. Fallback: direct content / text property
-    if (!content) content = m.content ?? m.text ?? ''
+		// 2. Fallback: direct content / text property
+		if (!content) {
+			if (typeof m.content === 'string') content = m.content
+			else if (typeof m.text === 'string') content = m.text
+		}
 
-    return {
-      id: msg.id,
-      role: msg.role as 'user' | 'assistant',
-      content,
-    }
-  })
+		return {
+			id: msg.id,
+			role: msg.role as 'user' | 'assistant',
+			content,
+		}
+	})
 
-  return {
-    messages,
-    sendMessage: chat.sendMessage,
-    isLoading: chat.isLoading,
-    error: chat.error,
-    clear: chat.clear,
-    stop: chat.stop,
-  }
+	return {
+		messages,
+		sendMessage: chat.sendMessage,
+		isLoading: chat.isLoading,
+		error: chat.error,
+		clear: chat.clear,
+		stop: chat.stop,
+	}
 }

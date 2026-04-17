@@ -1,34 +1,21 @@
-import { useState, useEffect } from 'react'
+import { Skeleton } from '@hyperquote/ui'
+import { ChevronsUpDown, LayoutGrid, List } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
-	Select,
-	SelectValue,
 	Button,
-	Popover,
+	Label,
 	ListBox,
 	ListBoxItem,
-	Label,
+	Popover,
+	Select,
+	SelectValue,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { ChevronsUpDown, LayoutGrid, List } from 'lucide-react'
-import { Skeleton } from '@hyperquote/ui'
+import type { PublicProduct } from '../../lib/catalog'
 import { ProductCard } from './ProductCard'
 
-interface Product {
-	id: string
-	slug: string
-	name: string
-	name_ar: string | null
-	category: string
-	unit_of_measure: string
-	price_range_min: number | null
-	price_range_max: number | null
-	availability_status: string | null
-	image_urls: string[] | null
-	[key: string]: unknown
-}
-
 interface ProductGridProps {
-	items: Product[]
+	items: PublicProduct[]
 	total: number
 	sort: string
 	view?: string
@@ -94,7 +81,11 @@ export function ProductGrid({
 						<Label className="sr-only">{t('market.sortLabel')}</Label>
 						<Button className="flex items-center gap-1.5 px-3 h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-sm text-[var(--color-text)]">
 							<SelectValue />
-							<ChevronsUpDown size={16} className="text-[var(--color-text-muted)]" aria-hidden="true" />
+							<ChevronsUpDown
+								size={16}
+								className="text-[var(--color-text-muted)]"
+								aria-hidden="true"
+							/>
 						</Button>
 						<Popover className="w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg overflow-hidden z-50">
 							<ListBox className="p-1">
@@ -146,21 +137,13 @@ export function ProductGrid({
 				currentView === 'grid' ? (
 					<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-7">
 						{items.map((item) => (
-							<ProductCard
-								key={item.id}
-								product={item}
-								variant="grid"
-							/>
+							<ProductCard key={item.id} product={item} variant="grid" />
 						))}
 					</div>
 				) : (
 					<div className="flex flex-col gap-2">
 						{items.map((item) => (
-							<ProductCard
-								key={item.id}
-								product={item}
-								variant="list"
-							/>
+							<ProductCard key={item.id} product={item} variant="list" />
 						))}
 					</div>
 				)
@@ -169,20 +152,29 @@ export function ProductGrid({
 	)
 }
 
+const LIST_SKELETON_KEYS = Array.from(
+	{ length: 8 },
+	(_, i) => `product-skeleton-row-${i}`,
+)
+const GRID_SKELETON_KEYS = Array.from(
+	{ length: 6 },
+	(_, i) => `product-skeleton-card-${i}`,
+)
+
 export function ProductGridSkeleton({ view = 'grid' }: { view?: string }) {
 	if (view === 'list') {
 		return (
 			<div className="flex flex-col gap-2">
-				{Array.from({ length: 8 }).map((_, i) => (
-					<Skeleton key={i} className="h-20 rounded-lg" />
+				{LIST_SKELETON_KEYS.map((k) => (
+					<Skeleton key={k} className="h-20 rounded-lg" />
 				))}
 			</div>
 		)
 	}
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			{Array.from({ length: 6 }).map((_, i) => (
-				<div key={i} className="rounded-xl overflow-hidden">
+			{GRID_SKELETON_KEYS.map((k) => (
+				<div key={k} className="rounded-xl overflow-hidden">
 					<Skeleton className="aspect-[4/3]" />
 					<div className="p-4 space-y-2">
 						<Skeleton className="h-4 w-20" />

@@ -5,4 +5,4 @@
 //   @hyperquote/auth/session → getServerSession
 export { createSupabaseBrowserClient } from './client'
 export { hasPermission } from './permissions'
-export type { AuthSession, AuthGuardOptions } from './types'
+export type { AuthGuardOptions, AuthSession } from './types'

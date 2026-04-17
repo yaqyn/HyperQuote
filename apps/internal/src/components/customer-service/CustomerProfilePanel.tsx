@@ -1,260 +1,321 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'react-aria-components'
-import { X, Mail, Phone, MessageCircle } from 'lucide-react'
-import { SlidePanel } from '../shared/SlidePanel'
+import type {
+	Conversation,
+	LinkedOrder,
+	LinkedQuote,
+} from '../../types/customer-service'
 import { ReportViewerModal } from '../shared/ReportViewer'
-import type { Conversation, LinkedOrder, LinkedQuote } from '../../types/customer-service'
+import { SlidePanel } from '../shared/SlidePanel'
 
 interface CustomerProfilePanelProps {
-  conversation: Conversation | null
-  isOpen: boolean
-  onClose: () => void
+	conversation: Conversation | null
+	isOpen: boolean
+	onClose: () => void
 }
 
 function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-EG', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+	return new Intl.NumberFormat('en-EG', {
+		style: 'currency',
+		currency,
+		minimumFractionDigits: 0,
+		maximumFractionDigits: 0,
+	}).format(amount)
 }
 
 function formatRelativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const days = Math.floor(diff / 86_400_000)
-  if (days < 1) return 'today'
-  if (days < 30) return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  const years = Math.floor(months / 12)
-  return `${years}y ago`
+	const diff = Date.now() - new Date(iso).getTime()
+	const days = Math.floor(diff / 86_400_000)
+	if (days < 1) return 'today'
+	if (days < 30) return `${days}d ago`
+	const months = Math.floor(days / 30)
+	if (months < 12) return `${months}mo ago`
+	const years = Math.floor(months / 12)
+	return `${years}y ago`
 }
 
-export function CustomerProfilePanel({ conversation, isOpen, onClose }: CustomerProfilePanelProps) {
-  const { t, i18n } = useTranslation('customer-service')
-  const [reportRfqId, setReportRfqId] = useState<string | null>(null)
+/**
+ * The dossier — a switchboard operator's reference card for whoever's
+ * on the line. Big Bricolage name at the top, mono grid of particulars,
+ * followed by indexed lists of linked orders and quotes. No avatars
+ * (they'd feel off-key here); just typography and hairlines.
+ */
+export function CustomerProfilePanel({
+	conversation,
+	isOpen,
+	onClose,
+}: CustomerProfilePanelProps) {
+	const { t, i18n } = useTranslation('customer-service')
+	const [reportRfqId, setReportRfqId] = useState<string | null>(null)
 
-  if (!conversation) return null
+	if (!conversation) return null
 
-  const customer = conversation.customer
-  const name = i18n.language === 'ar' ? customer.nameAr : customer.name
-  const company = i18n.language === 'ar' ? customer.companyAr : customer.company
-  const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+	const customer = conversation.customer
+	const name = i18n.language === 'ar' ? customer.nameAr : customer.name
+	const company = i18n.language === 'ar' ? customer.companyAr : customer.company
 
-  return (
-    <>
-    <SlidePanel
-      isOpen={isOpen}
-      onClose={onClose}
-      maxWidth={400}
-      panelKey="customer-profile"
-      ariaLabel={`${name} — ${t('profile.title')}`}
-      scope="customer-service"
-    >
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
-        <span className="text-[13px] font-semibold text-[var(--color-text)]">
-          {t('profile.title')}
-        </span>
-        <Button
-          onPress={onClose}
-          aria-label={t('profile.close')}
-          className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
-        >
-          <X size={15} strokeWidth={1.5} />
-        </Button>
-      </div>
+	return (
+		<>
+			<SlidePanel
+				isOpen={isOpen}
+				onClose={onClose}
+				maxWidth={400}
+				panelKey="customer-profile"
+				ariaLabel={`${name} — ${t('profile.title')}`}
+				scope="customer-service"
+			>
+				{/* ── Header bar ─────────────────────────────────────
+            No inner X — the module's outer close button dismisses this
+            panel first via the SlidePanel scope='customer-service'
+            overlay-close handler. */}
+				<div className="px-8 pt-7 pb-4 shrink-0">
+					<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-subtle)]">
+						dossier · {t('profile.title').toLowerCase()}
+					</span>
+				</div>
 
-      {/* ── Scrollable content ─────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Identity */}
-        <div className="px-5 pt-5 pb-4">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center shrink-0">
-              <span className="text-[13px] font-bold text-[var(--color-primary)]">{initials}</span>
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-[16px] font-semibold text-[var(--color-text)] leading-tight">
-                {name}
-              </h3>
-              {company && (
-                <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{company}</p>
-              )}
-              <p className="font-[var(--font-geist-mono)] text-[10px] text-[var(--color-text-subtle)] mt-1.5 tabular-nums">
-                {t('context.customerSince')} {formatRelativeDate(customer.firstContactAt)} · {customer.totalConversations} {t('profile.orders')}
-              </p>
-            </div>
-          </div>
-        </div>
+				{/* ── Scrollable content ─────────────────────────── */}
+				<div className="flex-1 overflow-y-auto min-h-0">
+					{/* Identity */}
+					<div className="px-8 pb-5">
+						<h3
+							className="font-[family-name:var(--font-bricolage)] text-[32px] leading-[1.05] tracking-[-0.015em] text-[var(--color-text)]"
+							style={{ fontVariationSettings: '"opsz" 72, "wght" 520' }}
+						>
+							{name}
+						</h3>
+						{company && (
+							<p
+								className="mt-1.5 font-[family-name:var(--font-literata)] italic text-[14px] text-[var(--color-text-muted)]"
+								style={{ fontVariationSettings: '"opsz" 16, "wght" 420' }}
+							>
+								{company}
+							</p>
+						)}
+						<p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)] flex items-center gap-2">
+							<span>
+								{t('context.customerSince')}{' '}
+								{formatRelativeDate(customer.firstContactAt)}
+							</span>
+							<span aria-hidden className="text-[var(--color-border)]">
+								·
+							</span>
+							<span className="tabular-nums">
+								{customer.totalConversations} {t('profile.orders')}
+							</span>
+						</p>
+					</div>
 
-        {/* Contact actions */}
-        <div className="px-5 pb-4">
-          <div className="flex items-center gap-1.5">
-            {customer.email && (
-              <a
-                href={`mailto:${customer.email}`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] hover:bg-[var(--color-primary)]/8 transition-colors group"
+					{/* Particulars grid */}
+					<div className="mx-8 border-y border-[var(--color-border)]/60 py-4 space-y-2.5">
+						{customer.email && (
+							<DetailRow
+								label="email"
+								value={customer.email}
+								href={`mailto:${customer.email}`}
+							/>
+						)}
+						{customer.phone && (
+							<DetailRow
+								label="phone"
+								value={customer.phone}
+								href={`tel:${customer.phone.replace(/\s/g, '')}`}
+								mono
+							/>
+						)}
+						{customer.phone && (
+							<DetailRow
+								label="whatsapp"
+								value={customer.phone}
+								href={`https://wa.me/${customer.phone.replace(/[^0-9+]/g, '')}`}
+								mono
+								external
+							/>
+						)}
+					</div>
 
-              >
-                <Mail size={12} strokeWidth={1.5} className="text-[var(--color-text-subtle)] group-hover:text-[var(--color-primary)] transition-colors" />
-                <span className="text-[10px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
-                  {t('context.email')}
-                </span>
-              </a>
-            )}
-            {customer.phone && (
-              <a
-                href={`tel:${customer.phone.replace(/\s/g, '')}`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] hover:bg-[var(--color-primary)]/8 transition-colors group"
+					{/* Linked orders */}
+					{conversation.linkedOrders.length > 0 && (
+						<section className="px-8 pt-6">
+							<SectionHeader label={t('context.orders')} />
+							<ul className="divide-y divide-[var(--color-border)]/60">
+								{conversation.linkedOrders.map((order: LinkedOrder) => (
+									<li key={order.id}>
+										<button
+											type="button"
+											disabled={!order.rfqId}
+											onClick={() => order.rfqId && setReportRfqId(order.rfqId)}
+											className={`w-full text-start flex items-baseline justify-between gap-3 py-3 transition-colors
+                        ${
+													order.rfqId
+														? 'hover:bg-black/[0.015] dark:hover:bg-white/[0.02]'
+														: ''
+												}`}
+										>
+											<div className="min-w-0">
+												<span className="font-[family-name:var(--font-jetbrains-mono)] text-[12px] font-medium text-[var(--color-text)] tabular-nums">
+													{order.displayId}
+												</span>
+												<div className="mt-1 flex items-center gap-2">
+													<span
+														className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.16em] ${
+															order.status === 'delivered'
+																? 'text-[var(--color-text-muted)]'
+																: order.status === 'in_transit'
+																	? 'text-[var(--color-primary)]'
+																	: 'text-[var(--color-text-subtle)]'
+														}`}
+													>
+														{order.status.replace('_', ' ')}
+													</span>
+													<span
+														aria-hidden
+														className="text-[var(--color-border)]"
+													>
+														·
+													</span>
+													<span className="font-[family-name:var(--font-jetbrains-mono)] text-[9.5px] tabular-nums text-[var(--color-text-subtle)]">
+														{formatRelativeDate(order.createdAt)}
+													</span>
+												</div>
+											</div>
+											<span
+												className="font-[family-name:var(--font-bricolage)] text-[14.5px] tabular-nums text-[var(--color-text)] shrink-0"
+												style={{
+													fontVariationSettings: '"opsz" 14, "wght" 500',
+												}}
+											>
+												{formatCurrency(order.totalAmount, order.currency)}
+											</span>
+										</button>
+									</li>
+								))}
+							</ul>
+						</section>
+					)}
 
-              >
-                <Phone size={12} strokeWidth={1.5} className="text-[var(--color-text-subtle)] group-hover:text-[var(--color-primary)] transition-colors" />
-                <span className="text-[10px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
-                  {t('context.call')}
-                </span>
-              </a>
-            )}
-            {customer.phone && (
-              <a
-                href={`https://wa.me/${customer.phone.replace(/[^0-9+]/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md bg-black/[0.03] dark:bg-white/[0.04] hover:bg-[var(--color-primary)]/8 transition-colors group"
-              >
-                <MessageCircle size={12} strokeWidth={1.5} className="text-[var(--color-text-subtle)] group-hover:text-[var(--color-primary)] transition-colors" />
-                <span className="text-[10px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
-                  WhatsApp
-                </span>
-              </a>
-            )}
-          </div>
-        </div>
+					{/* Linked quotes */}
+					{conversation.linkedQuotes.length > 0 && (
+						<section className="px-8 pt-6">
+							<SectionHeader label={t('context.quotes')} />
+							<ul className="divide-y divide-[var(--color-border)]/60">
+								{conversation.linkedQuotes.map((quote: LinkedQuote) => (
+									<li
+										key={quote.id}
+										className="flex items-baseline justify-between gap-3 py-3"
+									>
+										<div className="min-w-0">
+											<span className="font-[family-name:var(--font-jetbrains-mono)] text-[12px] font-medium text-[var(--color-text)] tabular-nums">
+												{quote.displayId}
+											</span>
+											<div className="mt-1 flex items-center gap-2">
+												<span
+													className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.16em] ${
+														quote.status === 'accepted'
+															? 'text-[var(--color-primary)]'
+															: 'text-[var(--color-text-subtle)]'
+													}`}
+												>
+													{quote.status}
+												</span>
+												<span
+													aria-hidden
+													className="text-[var(--color-border)]"
+												>
+													·
+												</span>
+												<span className="font-[family-name:var(--font-jetbrains-mono)] text-[9.5px] tabular-nums text-[var(--color-text-subtle)]">
+													{formatRelativeDate(quote.createdAt)}
+												</span>
+											</div>
+										</div>
+										<span
+											className="font-[family-name:var(--font-bricolage)] text-[14.5px] tabular-nums text-[var(--color-text)] shrink-0"
+											style={{ fontVariationSettings: '"opsz" 14, "wght" 500' }}
+										>
+											{formatCurrency(quote.totalAmount, quote.currency)}
+										</span>
+									</li>
+								))}
+							</ul>
+						</section>
+					)}
 
-        {/* Contact details */}
-        <div className="px-5 pb-4 flex flex-col gap-2">
-          {customer.email && (
-            <div className="flex items-center gap-2">
-              <Mail size={11} strokeWidth={1.5} className="text-[var(--color-text-subtle)] shrink-0" />
-              <span className="font-[var(--font-geist-mono)] text-[11px] text-[var(--color-text-muted)] truncate">
-                {customer.email}
-              </span>
-            </div>
-          )}
-          {customer.phone && (
-            <div className="flex items-center gap-2">
-              <Phone size={11} strokeWidth={1.5} className="text-[var(--color-text-subtle)] shrink-0" />
-              <span className="font-[var(--font-geist-mono)] text-[11px] text-[var(--color-text-muted)] tabular-nums" dir="ltr">
-                {customer.phone}
-              </span>
-            </div>
-          )}
-        </div>
+					{/* Ticket reference footer */}
+					{conversation.ticketId && (
+						<div className="mt-8 mx-8 border-t border-[var(--color-border)]/60 py-5 flex items-center justify-between">
+							<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
+								{t('profile.ticketRef')}
+							</span>
+							<span className="font-[family-name:var(--font-jetbrains-mono)] text-[12px] font-medium tabular-nums text-[var(--color-text)]">
+								{conversation.ticketId}
+							</span>
+						</div>
+					)}
+				</div>
+			</SlidePanel>
+			<ReportViewerModal
+				rfqId={reportRfqId}
+				onClose={() => setReportRfqId(null)}
+			/>
+		</>
+	)
+}
 
-        {/* Divider */}
-        <div className="border-t border-black/[0.04] dark:border-white/[0.04]" />
+function SectionHeader({ label }: { label: string }) {
+	return (
+		<div className="mb-2 flex items-baseline gap-3">
+			<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
+				{label}
+			</span>
+			<span className="flex-1 h-px bg-[var(--color-border)]/60" />
+		</div>
+	)
+}
 
-        {/* Linked Orders */}
-        {conversation.linkedOrders.length > 0 && (
-          <div className="px-5 pt-4 pb-2">
-            <h4 className="font-[var(--font-geist-mono)] text-[10px] font-semibold text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
-              {t('context.orders')}
-            </h4>
-            <div className="flex flex-col">
-              {conversation.linkedOrders.map((order: LinkedOrder) => (
-                <button
-                  key={order.id}
-                  type="button"
-                  onClick={() => order.rfqId && setReportRfqId(order.rfqId)}
-                  className={`flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md transition-colors border-b border-black/[0.03] dark:border-white/[0.03] last:border-0 ${
-                    order.rfqId
-                      ? 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03] cursor-pointer'
-                      : 'cursor-default'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <span className="font-[var(--font-geist-mono)] text-[12px] font-medium text-[var(--color-text)]">
-                      {order.displayId}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`font-[var(--font-geist-mono)] text-[9px] uppercase tracking-wider px-1 py-px rounded ${
-                        order.status === 'delivered'
-                          ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                          : order.status === 'in_transit'
-                            ? 'bg-[var(--color-info-bg)] text-[var(--color-info)]'
-                            : 'bg-black/[0.04] dark:bg-white/[0.04] text-[var(--color-text-subtle)]'
-                      }`}>
-                        {order.status.replace('_', ' ')}
-                      </span>
-                      <span className="font-[var(--font-geist-mono)] text-[10px] text-[var(--color-text-subtle)] tabular-nums">
-                        {formatRelativeDate(order.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="font-[var(--font-geist-mono)] text-[12px] font-medium text-[var(--color-text)] tabular-nums shrink-0">
-                    {formatCurrency(order.totalAmount, order.currency)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Linked Quotes */}
-        {conversation.linkedQuotes.length > 0 && (
-          <div className="px-5 pt-3 pb-2">
-            <h4 className="font-[var(--font-geist-mono)] text-[10px] font-semibold text-[var(--color-text-subtle)] uppercase tracking-wider mb-2">
-              {t('context.quotes')}
-            </h4>
-            <div className="flex flex-col">
-              {conversation.linkedQuotes.map((quote: LinkedQuote) => (
-                <div
-                  key={quote.id}
-                  className="flex items-center justify-between py-2.5 border-b border-black/[0.03] dark:border-white/[0.03] last:border-0"
-                >
-                  <div className="min-w-0">
-                    <span className="font-[var(--font-geist-mono)] text-[12px] font-medium text-[var(--color-text)]">
-                      {quote.displayId}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`font-[var(--font-geist-mono)] text-[9px] uppercase tracking-wider px-1 py-px rounded ${
-                        quote.status === 'accepted'
-                          ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                          : 'bg-black/[0.04] dark:bg-white/[0.04] text-[var(--color-text-subtle)]'
-                      }`}>
-                        {quote.status}
-                      </span>
-                      <span className="font-[var(--font-geist-mono)] text-[10px] text-[var(--color-text-subtle)] tabular-nums">
-                        {formatRelativeDate(quote.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="font-[var(--font-geist-mono)] text-[12px] font-medium text-[var(--color-text)] tabular-nums shrink-0">
-                    {formatCurrency(quote.totalAmount, quote.currency)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Ticket ID if tracked */}
-        {conversation.ticketId && (
-          <div className="px-5 py-3 border-t border-black/[0.04] dark:border-white/[0.04]">
-            <div className="flex items-center justify-between">
-              <span className="font-[var(--font-geist-mono)] text-[10px] text-[var(--color-text-subtle)] uppercase tracking-wider">
-                {t('profile.ticketRef')}
-              </span>
-              <span className="font-[var(--font-geist-mono)] text-[12px] font-medium text-[var(--color-text)] tabular-nums">
-                {conversation.ticketId}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    </SlidePanel>
-    <ReportViewerModal rfqId={reportRfqId} onClose={() => setReportRfqId(null)} />
-    </>
-  )
+function DetailRow({
+	label,
+	value,
+	href,
+	mono,
+	external,
+}: {
+	label: string
+	value: string
+	href?: string
+	mono?: boolean
+	external?: boolean
+}) {
+	const valueClass = mono
+		? 'font-[family-name:var(--font-jetbrains-mono)] text-[12px] tabular-nums'
+		: 'font-[family-name:var(--font-inter)] text-[13px]'
+	const inner = (
+		<span
+			className={`text-[var(--color-text)] ${valueClass} ${
+				href ? 'hover:text-[var(--color-primary)] transition-colors' : ''
+			}`}
+			dir={mono ? 'ltr' : undefined}
+		>
+			{value}
+		</span>
+	)
+	return (
+		<div className="flex items-baseline justify-between gap-4">
+			<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)] w-20 shrink-0">
+				{label}
+			</span>
+			{href ? (
+				<a
+					href={href}
+					target={external ? '_blank' : undefined}
+					rel={external ? 'noopener noreferrer' : undefined}
+					className="truncate"
+				>
+					{inner}
+				</a>
+			) : (
+				<span className="truncate">{inner}</span>
+			)}
+		</div>
+	)
 }

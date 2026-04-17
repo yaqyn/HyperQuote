@@ -1,15 +1,33 @@
-import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
 const categories = [
-	{ slug: 'cement', image: 'https://websiteassets.hyperquote.net/Images/cement.webp' },
-	{ slug: 'steel', image: 'https://websiteassets.hyperquote.net/Images/steel.webp' },
-	{ slug: 'aggregates', image: 'https://websiteassets.hyperquote.net/Images/Aggregates.webp' },
-	{ slug: 'bricks', image: 'https://websiteassets.hyperquote.net/Images/bricks.webp' },
-	{ slug: 'timber', image: 'https://websiteassets.hyperquote.net/Images/wood.webp' },
-	{ slug: 'finishing', image: 'https://websiteassets.hyperquote.net/Images/finish.webp' },
+	{
+		slug: 'cement',
+		image: 'https://websiteassets.hyperquote.net/Images/cement.webp',
+	},
+	{
+		slug: 'steel',
+		image: 'https://websiteassets.hyperquote.net/Images/steel.webp',
+	},
+	{
+		slug: 'aggregates',
+		image: 'https://websiteassets.hyperquote.net/Images/Aggregates.webp',
+	},
+	{
+		slug: 'bricks',
+		image: 'https://websiteassets.hyperquote.net/Images/bricks.webp',
+	},
+	{
+		slug: 'timber',
+		image: 'https://websiteassets.hyperquote.net/Images/wood.webp',
+	},
+	{
+		slug: 'finishing',
+		image: 'https://websiteassets.hyperquote.net/Images/finish.webp',
+	},
 ] as const
 
 export function MarketPreviewSection() {

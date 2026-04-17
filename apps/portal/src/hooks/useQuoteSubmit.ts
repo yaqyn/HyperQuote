@@ -5,17 +5,17 @@
  * On error: returns error message for toast.
  */
 import { useMutation } from '@tanstack/react-query'
+import { clearLocalDraft } from '../lib/quote-draft'
 import { submitQuoteRequest } from '../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../stores/quote-builder'
-import { clearLocalDraft } from '../lib/quote-draft'
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface SubmitResult {
-  requestId: string
-  reference: string
+	requestId: string
+	reference: string
 }
 
 // ============================================================================
@@ -23,49 +23,49 @@ export interface SubmitResult {
 // ============================================================================
 
 export function useQuoteSubmit() {
-  const mutation = useMutation({
-    mutationFn: async (): Promise<SubmitResult> => {
-      const state = useQuoteBuilderStore.getState()
+	const mutation = useMutation({
+		mutationFn: async (): Promise<SubmitResult> => {
+			const state = useQuoteBuilderStore.getState()
 
-      if (state.items.length === 0) {
-        throw new Error('No items in the quote request')
-      }
+			if (state.items.length === 0) {
+				throw new Error('No items in the quote request')
+			}
 
-      const result = await submitQuoteRequest({
-        data: {
-          items: state.items.map((item) => ({
-            productId: item.productId,
-            customerDescription: item.customerDescription,
-            quantity: item.quantity,
-            unitOfMeasure: item.unitOfMeasure,
-            notes: item.notes,
-            sortOrder: item.sortOrder,
-            matchConfidence: item.matchConfidence,
-            isUnmatched: item.isUnmatched,
-          })),
-          deliveryAddressId: state.deliveryAddressId ?? undefined,
-          deliveryDate: state.deliveryDate ?? undefined,
-          notes: state.notes || undefined,
-          projectId: state.projectId ?? undefined,
-          idempotencyKey: crypto.randomUUID(),
-        },
-      })
+			const result = await submitQuoteRequest({
+				data: {
+					items: state.items.map((item) => ({
+						productId: item.productId,
+						customerDescription: item.customerDescription,
+						quantity: item.quantity,
+						unitOfMeasure: item.unitOfMeasure,
+						notes: item.notes,
+						sortOrder: item.sortOrder,
+						matchConfidence: item.matchConfidence,
+						isUnmatched: item.isUnmatched,
+					})),
+					deliveryAddressId: state.deliveryAddressId ?? undefined,
+					deliveryDate: state.deliveryDate ?? undefined,
+					notes: state.notes || undefined,
+					projectId: state.projectId ?? undefined,
+					idempotencyKey: crypto.randomUUID(),
+				},
+			})
 
-      return result
-    },
-    onSuccess: () => {
-      // Clear draft from both localStorage and store
-      clearLocalDraft()
-      useQuoteBuilderStore.getState().reset()
-    },
-  })
+			return result
+		},
+		onSuccess: () => {
+			// Clear draft from both localStorage and store
+			clearLocalDraft()
+			useQuoteBuilderStore.getState().reset()
+		},
+	})
 
-  return {
-    submit: mutation.mutate,
-    submitAsync: mutation.mutateAsync,
-    isSubmitting: mutation.isPending,
-    error: mutation.error?.message ?? null,
-    data: mutation.data ?? null,
-    reset: mutation.reset,
-  }
+	return {
+		submit: mutation.mutate,
+		submitAsync: mutation.mutateAsync,
+		isSubmitting: mutation.isPending,
+		error: mutation.error?.message ?? null,
+		data: mutation.data ?? null,
+		reset: mutation.reset,
+	}
 }

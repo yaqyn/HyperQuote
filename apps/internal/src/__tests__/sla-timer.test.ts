@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 describe('SLA Timer', () => {
-  it('placeholder -- will test business-hour countdown, tier-based deadlines', () => {
-    expect(true).toBe(true)
-  })
+	it('placeholder -- will test business-hour countdown, tier-based deadlines', () => {
+		expect(true).toBe(true)
+	})
 })

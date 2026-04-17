@@ -1,12 +1,15 @@
-import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
 export function CTASection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section dir="ltr" className="bg-[#101010] py-28 max-md:py-20 px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32">
+		<section
+			dir="ltr"
+			className="bg-[#101010] py-28 max-md:py-20 px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32"
+		>
 			<SectionReveal>
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
 					<div>

@@ -1,121 +1,121 @@
 {
-  "warehouse": {
-    "tabs": {
-      "home": "الرئيسية",
-      "receiving": "الاستلام",
-      "putaway": "التخزين",
-      "picking": "التجميع",
-      "staging": "التحميل",
-      "count": "الجرد الدوري",
-      "lookup": "المخزون",
-      "yard": "الساحة"
-    },
-    "tiles": {
-      "receive": "استلام",
-      "putaway": "تخزين",
-      "pick": "تجميع",
-      "load": "تحميل",
-      "count": "جرد",
-      "transfer": "نقل",
-      "lookup": "بحث",
-      "returns": "مرتجعات",
-      "alerts": "تنبيهات"
-    },
-    "receiving": {
-      "expected": "الشحنات المتوقعة",
-      "unscheduled": "وصول غير مجدول",
-      "truckInfo": "بيانات الشاحنة",
-      "lineItems": "بنود الطلب",
-      "quality": "قائمة فحص الجودة",
-      "complete": "إتمام الاستلام",
-      "reject": "رفض",
-      "discrepancy": "تباين",
-      "condition": {
-        "good": "جيد",
-        "minorDamage": "ضرر بسيط",
-        "majorDamage": "ضرر كبير",
-        "rejected": "مرفوض"
-      },
-      "discrepancyReason": {
-        "supplierShort": "نقص من المورد",
-        "damagedInTransit": "تلف أثناء النقل",
-        "wrongProduct": "منتج خاطئ",
-        "wrongSpec": "مواصفات خاطئة",
-        "overshipment": "شحنة زائدة"
-      }
-    },
-    "putaway": {
-      "scanSource": "مسح موقع المصدر",
-      "scanDestination": "مسح موقع الوجهة",
-      "override": "تجاوز الموقع",
-      "confirm": "تأكيد التخزين",
-      "overrideReason": {
-        "locationFull": "الموقع ممتلئ",
-        "blocked": "محجوز",
-        "equipmentIssue": "مشكلة معدات"
-      }
-    },
-    "picking": {
-      "queue": "قائمة التجميع",
-      "directed": "تجميع موجه",
-      "shortPick": "تجميع ناقص",
-      "skip": "تخطي",
-      "substitute": "بديل",
-      "confirm": "تأكيد التجميع"
-    },
-    "staging": {
-      "loadPlan": "خطة التحميل",
-      "scanTruck": "مسح الشاحنة",
-      "scanItems": "مسح البنود",
-      "verifyWeight": "تأكيد الوزن",
-      "photos": "صور",
-      "signOff": "توقيع الخروج",
-      "blocked": "محجوب",
-      "clearance": "تصريح"
-    },
-    "count": {
-      "blind": "عد أعمى",
-      "submit": "تقديم الجرد",
-      "recount": "إعادة الجرد",
-      "approve": "اعتماد",
-      "investigate": "تحقيق",
-      "addUnexpected": "إضافة صنف غير متوقع",
-      "reason": {
-        "receivingError": "خطأ استلام",
-        "pickError": "خطأ تجميع",
-        "damage": "تلف",
-        "theft": "سرقة",
-        "miscount": "خطأ في العد",
-        "locationError": "خطأ موقع"
-      }
-    },
-    "inventory": {
-      "search": "بحث المخزون",
-      "belowReorder": "أقل من نقطة إعادة الطلب",
-      "detail": "تفاصيل المخزون",
-      "movements": "سجل الحركات",
-      "daysOfSupply": "أيام التغطية"
-    },
-    "yard": {
-      "zones": "مناطق الساحة",
-      "weatherAlert": "تنبيه طقس",
-      "khamsinWarning": "تحذير خماسين",
-      "sheetBlocked": "تم حجب توريد المواد اللوحية",
-      "outdoorPaused": "إيقاف العمليات الخارجية",
-      "capacity": "السعة"
-    },
-    "kpi": {
-      "pickAccuracy": "دقة التجميع",
-      "onTimeShipment": "الشحن في الموعد",
-      "receivingCycleTime": "زمن دورة الاستلام",
-      "inventoryAccuracy": "دقة المخزون"
-    },
-    "common": {
-      "scanLocation": "مسح الموقع",
-      "scanProduct": "مسح المنتج",
-      "photo": "صورة",
-      "signature": "توقيع",
-      "note": "ملاحظة"
-    }
-  }
+	"warehouse": {
+		"tabs": {
+			"home": "الرئيسية",
+			"receiving": "الاستلام",
+			"putaway": "التخزين",
+			"picking": "التجميع",
+			"staging": "التحميل",
+			"count": "الجرد الدوري",
+			"lookup": "المخزون",
+			"yard": "الساحة"
+		},
+		"tiles": {
+			"receive": "استلام",
+			"putaway": "تخزين",
+			"pick": "تجميع",
+			"load": "تحميل",
+			"count": "جرد",
+			"transfer": "نقل",
+			"lookup": "بحث",
+			"returns": "مرتجعات",
+			"alerts": "تنبيهات"
+		},
+		"receiving": {
+			"expected": "الشحنات المتوقعة",
+			"unscheduled": "وصول غير مجدول",
+			"truckInfo": "بيانات الشاحنة",
+			"lineItems": "بنود الطلب",
+			"quality": "قائمة فحص الجودة",
+			"complete": "إتمام الاستلام",
+			"reject": "رفض",
+			"discrepancy": "تباين",
+			"condition": {
+				"good": "جيد",
+				"minorDamage": "ضرر بسيط",
+				"majorDamage": "ضرر كبير",
+				"rejected": "مرفوض"
+			},
+			"discrepancyReason": {
+				"supplierShort": "نقص من المورد",
+				"damagedInTransit": "تلف أثناء النقل",
+				"wrongProduct": "منتج خاطئ",
+				"wrongSpec": "مواصفات خاطئة",
+				"overshipment": "شحنة زائدة"
+			}
+		},
+		"putaway": {
+			"scanSource": "مسح موقع المصدر",
+			"scanDestination": "مسح موقع الوجهة",
+			"override": "تجاوز الموقع",
+			"confirm": "تأكيد التخزين",
+			"overrideReason": {
+				"locationFull": "الموقع ممتلئ",
+				"blocked": "محجوز",
+				"equipmentIssue": "مشكلة معدات"
+			}
+		},
+		"picking": {
+			"queue": "قائمة التجميع",
+			"directed": "تجميع موجه",
+			"shortPick": "تجميع ناقص",
+			"skip": "تخطي",
+			"substitute": "بديل",
+			"confirm": "تأكيد التجميع"
+		},
+		"staging": {
+			"loadPlan": "خطة التحميل",
+			"scanTruck": "مسح الشاحنة",
+			"scanItems": "مسح البنود",
+			"verifyWeight": "تأكيد الوزن",
+			"photos": "صور",
+			"signOff": "توقيع الخروج",
+			"blocked": "محجوب",
+			"clearance": "تصريح"
+		},
+		"count": {
+			"blind": "عد أعمى",
+			"submit": "تقديم الجرد",
+			"recount": "إعادة الجرد",
+			"approve": "اعتماد",
+			"investigate": "تحقيق",
+			"addUnexpected": "إضافة صنف غير متوقع",
+			"reason": {
+				"receivingError": "خطأ استلام",
+				"pickError": "خطأ تجميع",
+				"damage": "تلف",
+				"theft": "سرقة",
+				"miscount": "خطأ في العد",
+				"locationError": "خطأ موقع"
+			}
+		},
+		"inventory": {
+			"search": "بحث المخزون",
+			"belowReorder": "أقل من نقطة إعادة الطلب",
+			"detail": "تفاصيل المخزون",
+			"movements": "سجل الحركات",
+			"daysOfSupply": "أيام التغطية"
+		},
+		"yard": {
+			"zones": "مناطق الساحة",
+			"weatherAlert": "تنبيه طقس",
+			"khamsinWarning": "تحذير خماسين",
+			"sheetBlocked": "تم حجب توريد المواد اللوحية",
+			"outdoorPaused": "إيقاف العمليات الخارجية",
+			"capacity": "السعة"
+		},
+		"kpi": {
+			"pickAccuracy": "دقة التجميع",
+			"onTimeShipment": "الشحن في الموعد",
+			"receivingCycleTime": "زمن دورة الاستلام",
+			"inventoryAccuracy": "دقة المخزون"
+		},
+		"common": {
+			"scanLocation": "مسح الموقع",
+			"scanProduct": "مسح المنتج",
+			"photo": "صورة",
+			"signature": "توقيع",
+			"note": "ملاحظة"
+		}
+	}
 }

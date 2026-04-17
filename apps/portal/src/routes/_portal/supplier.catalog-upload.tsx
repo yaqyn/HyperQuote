@@ -4,22 +4,22 @@
  */
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { WindowShell } from '../../components/windows/WindowShell'
-import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { CatalogUploadModal } from '../../components/supplier/CatalogUploadModal'
+import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
+import { WindowShell } from '../../components/windows/WindowShell'
 
 export const Route = createFileRoute('/_portal/supplier/catalog-upload')({
-  component: CatalogUploadPage,
+	component: CatalogUploadPage,
 })
 
 function CatalogUploadPage() {
-  const { t, i18n } = useTranslation('portal')
-  const locale = (i18n.language?.startsWith('ar') ? 'ar' : 'en') as 'ar' | 'en'
+	const { t, i18n } = useTranslation('portal')
+	const locale = (i18n.language?.startsWith('ar') ? 'ar' : 'en') as 'ar' | 'en'
 
-  return (
-    <WindowShell title={t('supplier.catalogUploadTitle')}>
-      <CatalogUploadModal locale={locale} />
-      <FloatingAIButton />
-    </WindowShell>
-  )
+	return (
+		<WindowShell title={t('supplier.catalogUploadTitle')}>
+			<CatalogUploadModal locale={locale} />
+			<FloatingAIButton />
+		</WindowShell>
+	)
 }

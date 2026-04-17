@@ -1,25 +1,22 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
-import { Menu, ShoppingCart, X, Minus, Plus, Trash2, Copy, StickyNote, ChevronDown, ArrowLeft, Check } from 'lucide-react'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { ArrowLeft, Menu, Minus, Plus, ShoppingCart, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useScrolled } from '../../hooks/useScrolled'
-import { LanguageToggle } from './LanguageToggle'
-import { ThemeToggle } from './ThemeToggle'
-import { MobileNavOverlay } from './MobileNavOverlay'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
-import { useNavigate } from '@tanstack/react-router'
+import { useScrolled } from '../../hooks/useScrolled'
 import { sendOTP, verifyOTP } from '../../lib/auth'
+import { LanguageToggle } from './LanguageToggle'
+import { MobileNavOverlay } from './MobileNavOverlay'
+import { ThemeToggle } from './ThemeToggle'
 
 export function WebsiteHeader() {
 	const { t } = useTranslation('website')
 	const scrolled = useScrolled(8)
 	const [mobileNavOpen, setMobileNavOpen] = useState(false)
 	const [cartOpen, setCartOpen] = useState(false)
-	const [isDark, setIsDark] = useState(false)
-	const { items, updateQuantity, updateNote, remove, clear, duplicate, globalNote, setGlobalNote } = useQuoteCart()
+	const [, setIsDark] = useState(false)
+	const { items, updateQuantity, remove } = useQuoteCart()
 	const navigateTo = useNavigate()
-	const [showGlobalNote, setShowGlobalNote] = useState(false)
-	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 	const routerState = useRouterState()
 	const isHome = routerState.location.pathname === '/'
 	const wasHome = useRef(isHome)
@@ -72,17 +69,31 @@ export function WebsiteHeader() {
 				>
 					<button
 						type="button"
-						onClick={() => document.getElementById('process')?.scrollIntoView({ behavior: 'smooth' })}
+						onClick={() =>
+							document
+								.getElementById('process')
+								?.scrollIntoView({ behavior: 'smooth' })
+						}
 						className="pointer-events-auto transition-transform duration-700 ease-out"
 						style={{
 							transform: scrolled ? 'translateY(-100%)' : 'translateY(0)',
 						}}
 					>
 						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)] block overflow-hidden">
-							<span className="block" style={{
-								transform: introDone && !scrolled ? 'translateY(0)' : 'translateY(110%)',
-								transition: introDone ? 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s' : 'none',
-							}}>HyperQuote</span>
+							<span
+								className="block"
+								style={{
+									transform:
+										introDone && !scrolled
+											? 'translateY(0)'
+											: 'translateY(110%)',
+									transition: introDone
+										? 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s'
+										: 'none',
+								}}
+							>
+								HyperQuote
+							</span>
 						</span>
 					</button>
 					<div
@@ -119,7 +130,11 @@ export function WebsiteHeader() {
 						</span>
 					</button>
 				) : (
-					<Link to="/" aria-label={t('a11y.home')} className="flex items-center gap-3">
+					<Link
+						to="/"
+						aria-label={t('a11y.home')}
+						className="flex items-center gap-3"
+					>
 						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-white">
 							HyperQuote
 						</span>
@@ -128,16 +143,32 @@ export function WebsiteHeader() {
 
 				{/* Desktop Nav — absolute center, unaffected by siblings */}
 				<nav className="hidden md:flex items-center gap-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-					<Link to="/market" className={navLinkClass} activeProps={{ className: navLinkActiveClass }}>
+					<Link
+						to="/market"
+						className={navLinkClass}
+						activeProps={{ className: navLinkActiveClass }}
+					>
 						{t('nav.market')}
 					</Link>
-					<Link to="/about" className={navLinkClass} activeProps={{ className: navLinkActiveClass }}>
+					<Link
+						to="/about"
+						className={navLinkClass}
+						activeProps={{ className: navLinkActiveClass }}
+					>
 						{t('nav.about')}
 					</Link>
-					<Link to="/support" className={navLinkClass} activeProps={{ className: navLinkActiveClass }}>
+					<Link
+						to="/support"
+						className={navLinkClass}
+						activeProps={{ className: navLinkActiveClass }}
+					>
 						{t('nav.support')}
 					</Link>
-					<Link to="/docs" className={navLinkClass} activeProps={{ className: navLinkActiveClass }}>
+					<Link
+						to="/docs"
+						className={navLinkClass}
+						activeProps={{ className: navLinkActiveClass }}
+					>
 						{t('nav.docs')}
 					</Link>
 				</nav>
@@ -154,7 +185,10 @@ export function WebsiteHeader() {
 						className="relative p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
 						aria-label={t('cart.label')}
 					>
-						<ShoppingCart size={18} className="text-[var(--color-text-muted)]" />
+						<ShoppingCart
+							size={18}
+							className="text-[var(--color-text-muted)]"
+						/>
 						{items.length > 0 && (
 							<span className="absolute -top-0.5 -end-0.5 min-w-[16px] h-[16px] rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center justify-center px-0.5">
 								{items.length}
@@ -184,11 +218,11 @@ export function WebsiteHeader() {
 			{/* Cart dropdown panel */}
 			{cartOpen && (
 				<>
-					<div
+					<button
+						type="button"
+						aria-label={t('a11y.close')}
 						className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px]"
 						onClick={() => setCartOpen(false)}
-						onKeyDown={() => {}}
-						role="presentation"
 					/>
 					<div className="fixed top-14 right-4 z-50 w-[360px] max-h-[75vh] bg-[var(--color-base)] rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col border border-[var(--color-text)]/[0.06]">
 						{/* Header */}
@@ -196,7 +230,11 @@ export function WebsiteHeader() {
 							<span className="text-[15px] font-semibold text-[var(--color-text)]">
 								{t('cart.title')}
 							</span>
-							<button type="button" onClick={() => setCartOpen(false)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">
+							<button
+								type="button"
+								onClick={() => setCartOpen(false)}
+								className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors"
+							>
 								<X size={15} />
 							</button>
 						</div>
@@ -204,7 +242,9 @@ export function WebsiteHeader() {
 						{/* Items */}
 						{items.length === 0 ? (
 							<div className="px-5 pb-6 pt-4 text-center">
-								<p className="text-[13px] text-[var(--color-text-muted)] mb-4">{t('cart.empty')}</p>
+								<p className="text-[13px] text-[var(--color-text-muted)] mb-4">
+									{t('cart.empty')}
+								</p>
 								<Link
 									to="/market"
 									onClick={() => setCartOpen(false)}
@@ -217,20 +257,38 @@ export function WebsiteHeader() {
 							<>
 								<div className="flex-1 overflow-y-auto">
 									{items.map((item, idx) => (
-										<div key={item.productId} className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}>
+										<div
+											key={item.productId}
+											className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
+										>
 											{/* Name + remove */}
 											<div className="flex items-start justify-between gap-3">
-												<Link to="/market/$productSlug" params={{ productSlug: item.slug }} onClick={() => setCartOpen(false)} className="text-[13px] font-medium text-[var(--color-text)] line-clamp-1 hover:text-[var(--color-primary)] transition-colors">
+												<Link
+													to="/market/$productSlug"
+													params={{ productSlug: item.slug }}
+													onClick={() => setCartOpen(false)}
+													className="text-[13px] font-medium text-[var(--color-text)] line-clamp-1 hover:text-[var(--color-primary)] transition-colors"
+												>
 													{item.name}
 												</Link>
-												<button type="button" onClick={() => remove(item.productId)} className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5">
+												<button
+													type="button"
+													onClick={() => remove(item.productId)}
+													className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5"
+												>
 													<X size={13} />
 												</button>
 											</div>
 
 											{/* Unified stepper — matches product page */}
 											<div className="flex items-center rounded-xl border border-[var(--color-text)]/[0.06] bg-[var(--color-surface)] overflow-hidden mt-3 h-10">
-												<button type="button" onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]">
+												<button
+													type="button"
+													onClick={() =>
+														updateQuantity(item.productId, item.quantity - 1)
+													}
+													className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]"
+												>
 													<Minus size={13} />
 												</button>
 												<div className="flex flex-1 items-center justify-center gap-2">
@@ -239,16 +297,26 @@ export function WebsiteHeader() {
 														value={item.quantity}
 														onChange={(e) => {
 															const v = parseInt(e.target.value, 10)
-															if (!isNaN(v) && v >= 0) updateQuantity(item.productId, v)
+															if (!Number.isNaN(v) && v >= 0)
+																updateQuantity(item.productId, v)
 														}}
 														className="w-12 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 														min={1}
 													/>
 													<span className="text-[12px] text-[var(--color-text-subtle)]">
-														{t(`units.${item.unitOfMeasure}`, item.unitOfMeasure)}
+														{t(
+															`units.${item.unitOfMeasure}`,
+															item.unitOfMeasure,
+														)}
 													</span>
 												</div>
-												<button type="button" onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]">
+												<button
+													type="button"
+													onClick={() =>
+														updateQuantity(item.productId, item.quantity + 1)
+													}
+													className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]"
+												>
 													<Plus size={13} />
 												</button>
 											</div>
@@ -278,6 +346,10 @@ export function WebsiteHeader() {
 
 const PHONE_REGEX = /^(10|11|12|15)\d{8}$/
 const OTP_LENGTH = 6
+const OTP_SLOTS = Array.from(
+	{ length: OTP_LENGTH },
+	(_, i) => `otp-slot-${i}` as const,
+)
 const RESEND_COOLDOWN = 30
 
 type CartAuthStep = 'submit' | 'phone' | 'otp'
@@ -295,7 +367,10 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 
 	useEffect(() => {
 		if (resendCountdown <= 0) return
-		const timer = setInterval(() => setResendCountdown((p) => Math.max(0, p - 1)), 1000)
+		const timer = setInterval(
+			() => setResendCountdown((p) => Math.max(0, p - 1)),
+			1000,
+		)
 		return () => clearInterval(timer)
 	}, [resendCountdown])
 
@@ -305,36 +380,56 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	}, [step])
 
 	async function handleSendOTP() {
-		if (!PHONE_REGEX.test(phone)) { setError(t('login.phoneInvalid')); return }
-		setLoading(true); setError(null)
+		if (!PHONE_REGEX.test(phone)) {
+			setError(t('login.phoneInvalid'))
+			return
+		}
+		setLoading(true)
+		setError(null)
 		try {
 			const result = await sendOTP({ data: { phone, method: 'whatsapp' } })
-			if (!result.success) { setError(result.error === 'rate_limited' ? t('login.rateLimit') : t('login.sendFailed')); return }
+			if (!result.success) {
+				setError(
+					result.error === 'rate_limited'
+						? t('login.rateLimit')
+						: t('login.sendFailed'),
+				)
+				return
+			}
 			setResendCountdown(RESEND_COOLDOWN)
 			setStep('otp')
-		} catch { setError(t('login.sendFailed')) }
-		finally { setLoading(false) }
+		} catch {
+			setError(t('login.sendFailed'))
+		} finally {
+			setLoading(false)
+		}
 	}
 
-	const submitCode = useCallback(async (digits: string[]) => {
-		const fullCode = digits.join('')
-		if (fullCode.length !== OTP_LENGTH) return
-		setLoading(true); setError(null)
-		try {
-			const result = await verifyOTP({ data: { phone, code: fullCode } })
-			if (!result.success) {
+	const submitCode = useCallback(
+		async (digits: string[]) => {
+			const fullCode = digits.join('')
+			if (fullCode.length !== OTP_LENGTH) return
+			setLoading(true)
+			setError(null)
+			try {
+				const result = await verifyOTP({ data: { phone, code: fullCode } })
+				if (!result.success) {
+					setError(t('login.wrongCode'))
+					setCode(Array(OTP_LENGTH).fill(''))
+					otpRefs.current[0]?.focus()
+					return
+				}
+				window.location.reload()
+			} catch {
 				setError(t('login.wrongCode'))
 				setCode(Array(OTP_LENGTH).fill(''))
 				otpRefs.current[0]?.focus()
-				return
+			} finally {
+				setLoading(false)
 			}
-			window.location.reload()
-		} catch {
-			setError(t('login.wrongCode'))
-			setCode(Array(OTP_LENGTH).fill(''))
-			otpRefs.current[0]?.focus()
-		} finally { setLoading(false) }
-	}, [phone, t])
+		},
+		[phone, t],
+	)
 
 	function handleOTPInput(index: number, value: string) {
 		const digit = value.replace(/\D/g, '').slice(-1)
@@ -346,7 +441,8 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	}
 
 	function handleOTPKeyDown(index: number, e: React.KeyboardEvent) {
-		if (e.key === 'Backspace' && !code[index] && index > 0) otpRefs.current[index - 1]?.focus()
+		if (e.key === 'Backspace' && !code[index] && index > 0)
+			otpRefs.current[index - 1]?.focus()
 	}
 
 	function handleOTPPaste(e: React.ClipboardEvent) {
@@ -359,13 +455,20 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 		setCode(newCode)
 		const next = newCode.findIndex((d) => !d)
 		if (next >= 0) otpRefs.current[next]?.focus()
-		else { otpRefs.current[OTP_LENGTH - 1]?.focus(); submitCode(newCode) }
+		else {
+			otpRefs.current[OTP_LENGTH - 1]?.focus()
+			submitCode(newCode)
+		}
 	}
 
 	async function handleResend() {
-		setError(null); setResendCountdown(RESEND_COOLDOWN)
-		try { await sendOTP({ data: { phone, method: 'whatsapp' } }) }
-		catch { setError(t('login.sendFailed')) }
+		setError(null)
+		setResendCountdown(RESEND_COOLDOWN)
+		try {
+			await sendOTP({ data: { phone, method: 'whatsapp' } })
+		} catch {
+			setError(t('login.sendFailed'))
+		}
 	}
 
 	if (step === 'submit') {
@@ -389,10 +492,19 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 		return (
 			<div className="px-4 py-3 border-t border-[var(--color-border)]">
 				<div className="flex items-center gap-2 mb-3">
-					<button type="button" onClick={() => { setStep('submit'); setError(null) }} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+					<button
+						type="button"
+						onClick={() => {
+							setStep('submit')
+							setError(null)
+						}}
+						className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+					>
 						<ArrowLeft size={14} />
 					</button>
-					<span className="text-[13px] font-medium text-[var(--color-text)]">{t('login.step1.heading')}</span>
+					<span className="text-[13px] font-medium text-[var(--color-text)]">
+						{t('login.step1.heading')}
+					</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<span className="flex h-9 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-[12px] text-[var(--color-text-muted)] shrink-0">
@@ -404,12 +516,19 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 						type="tel"
 						inputMode="numeric"
 						value={phone}
-						onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); if (error) setError(null) }}
-						onKeyDown={(e) => { if (e.key === 'Enter') handleSendOTP() }}
+						onChange={(e) => {
+							setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
+							if (error) setError(null)
+						}}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') handleSendOTP()
+						}}
 						className="h-9 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 font-mono text-[14px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
 					/>
 				</div>
-				{error && <p className="mt-2 text-[11px] text-[var(--color-error)]">{error}</p>}
+				{error && (
+					<p className="mt-2 text-[11px] text-[var(--color-error)]">{error}</p>
+				)}
 				<button
 					type="button"
 					onClick={handleSendOTP}
@@ -420,7 +539,15 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 						<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 					) : (
 						<>
-							<svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+							<svg
+								width={14}
+								height={14}
+								viewBox="0 0 24 24"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+							</svg>
 							{t('login.whatsappCTA')}
 						</>
 					)}
@@ -432,17 +559,35 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	return (
 		<div className="px-4 py-3 border-t border-[var(--color-border)]">
 			<div className="flex items-center gap-2 mb-3">
-				<button type="button" onClick={() => { setStep('phone'); setError(null); setCode(Array(OTP_LENGTH).fill('')) }} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+				<button
+					type="button"
+					onClick={() => {
+						setStep('phone')
+						setError(null)
+						setCode(Array(OTP_LENGTH).fill(''))
+					}}
+					className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+				>
 					<ArrowLeft size={14} />
 				</button>
-				<span className="text-[13px] font-medium text-[var(--color-text)]">{t('login.step2.heading')}</span>
-				<span className="font-mono text-[11px] text-[var(--color-text-subtle)] ms-auto">+20{phone}</span>
+				<span className="text-[13px] font-medium text-[var(--color-text)]">
+					{t('login.step2.heading')}
+				</span>
+				<span className="font-mono text-[11px] text-[var(--color-text-subtle)] ms-auto">
+					+20{phone}
+				</span>
 			</div>
-			<div dir="ltr" className="flex justify-center gap-1.5" onPaste={handleOTPPaste}>
-				{Array.from({ length: OTP_LENGTH }).map((_, i) => (
+			<div
+				dir="ltr"
+				className="flex justify-center gap-1.5"
+				onPaste={handleOTPPaste}
+			>
+				{OTP_SLOTS.map((slot, i) => (
 					<input
-						key={i}
-						ref={(el) => { otpRefs.current[i] = el }}
+						key={slot}
+						ref={(el) => {
+							otpRefs.current[i] = el
+						}}
 						type="tel"
 						inputMode="numeric"
 						maxLength={1}
@@ -454,7 +599,11 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					/>
 				))}
 			</div>
-			{error && <p className="mt-2 text-center text-[11px] text-[var(--color-error)]">{error}</p>}
+			{error && (
+				<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
+					{error}
+				</p>
+			)}
 			{loading && (
 				<div className="mt-2 flex justify-center">
 					<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)]" />
@@ -462,9 +611,18 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 			)}
 			<div className="mt-2 text-center text-[11px]">
 				{resendCountdown > 0 ? (
-					<span className="text-[var(--color-text-subtle)]">{t('login.resendIn')} <span className="font-mono">{resendCountdown}s</span></span>
+					<span className="text-[var(--color-text-subtle)]">
+						{t('login.resendIn')}{' '}
+						<span className="font-mono">{resendCountdown}s</span>
+					</span>
 				) : (
-					<button type="button" onClick={handleResend} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">{t('login.resend')}</button>
+					<button
+						type="button"
+						onClick={handleResend}
+						className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+					>
+						{t('login.resend')}
+					</button>
 				)}
 			</div>
 		</div>

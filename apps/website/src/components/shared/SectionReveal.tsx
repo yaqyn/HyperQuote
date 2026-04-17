@@ -1,6 +1,6 @@
-import { useRef } from 'react'
 import { motion, useInView } from 'motion/react'
 import type { ReactNode } from 'react'
+import { useRef } from 'react'
 
 interface SectionRevealProps {
 	children: ReactNode

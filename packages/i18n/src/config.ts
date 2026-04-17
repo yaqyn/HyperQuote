@@ -11,18 +11,18 @@ import enUnits from './locales/en/units.json'
 import enWebsite from './locales/en/website.json'
 
 const resources = {
-  en: {
-    common: enCommon,
-    portal: enPortal,
-    units: enUnits,
-    website: enWebsite,
-  },
-  ar: {
-    common: arCommon,
-    portal: arPortal,
-    units: arUnits,
-    website: arWebsite,
-  },
+	en: {
+		common: enCommon,
+		portal: enPortal,
+		units: enUnits,
+		website: enWebsite,
+	},
+	ar: {
+		common: arCommon,
+		portal: arPortal,
+		units: arUnits,
+		website: arWebsite,
+	},
 } as const
 
 /**
@@ -30,19 +30,19 @@ const resources = {
  * Call once at app startup.
  */
 export function initI18n(locale: 'ar' | 'en' = 'en') {
-  if (i18n.isInitialized) {
-    if (i18n.language !== locale) return i18n.changeLanguage(locale)
-    return Promise.resolve(i18n.t)
-  }
-  return i18n.use(initReactI18next).init({
-    resources,
-    lng: locale,
-    fallbackLng: 'en',
-    defaultNS: 'common',
-    ns: ['common', 'portal', 'units', 'website'],
-    interpolation: {
-      escapeValue: false, // React already escapes
-    },
-    initImmediate: false, // Sync init — resources are bundled, no backend needed
-  })
+	if (i18n.isInitialized) {
+		if (i18n.language !== locale) return i18n.changeLanguage(locale)
+		return Promise.resolve(i18n.t)
+	}
+	return i18n.use(initReactI18next).init({
+		resources,
+		lng: locale,
+		fallbackLng: 'en',
+		defaultNS: 'common',
+		ns: ['common', 'portal', 'units', 'website'],
+		interpolation: {
+			escapeValue: false, // React already escapes
+		},
+		initImmediate: false, // Sync init — resources are bundled, no backend needed
+	})
 }

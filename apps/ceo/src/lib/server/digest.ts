@@ -10,12 +10,12 @@ import { z } from 'zod'
 // ============================================================================
 
 function isSupabaseConfigured(): boolean {
-  return !!(
-    process.env.SUPABASE_URL &&
-    process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
-    process.env.SUPABASE_ANON_KEY &&
-    process.env.SUPABASE_ANON_KEY !== 'placeholder'
-  )
+	return !!(
+		process.env.SUPABASE_URL &&
+		process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
+		process.env.SUPABASE_ANON_KEY &&
+		process.env.SUPABASE_ANON_KEY !== 'placeholder'
+	)
 }
 
 // ============================================================================
@@ -23,52 +23,52 @@ function isSupabaseConfigured(): boolean {
 // ============================================================================
 
 export interface CEODigest {
-  date: string
-  revenue: {
-    yesterday: number
-    target: number
-    mtd: number
-    mtdTarget: number
-  }
-  pipeline: {
-    totalValue: number
-    newQuotes: number
-    quotesExpiring: number
-  }
-  cash: {
-    balance: number
-    inflow: number
-    outflow: number
-  }
-  arAging: {
-    current: number
-    overdue30: number
-    overdue60: number
-    overdue90Plus: number
-  }
-  deliveryPerformance: {
-    completed: number
-    failed: number
-    onTimeRate: number
-  }
-  supplierUpdates: string[]
-  hr: {
-    attendance: number
-    onLeave: number
-  }
+	date: string
+	revenue: {
+		yesterday: number
+		target: number
+		mtd: number
+		mtdTarget: number
+	}
+	pipeline: {
+		totalValue: number
+		newQuotes: number
+		quotesExpiring: number
+	}
+	cash: {
+		balance: number
+		inflow: number
+		outflow: number
+	}
+	arAging: {
+		current: number
+		overdue30: number
+		overdue60: number
+		overdue90Plus: number
+	}
+	deliveryPerformance: {
+		completed: number
+		failed: number
+		onTimeRate: number
+	}
+	supplierUpdates: string[]
+	hr: {
+		attendance: number
+		onLeave: number
+	}
 }
 
 export interface RecommendedAction {
-  action: string
-  entityType: string
-  entityId: string
+	action: string
+	entityType: string
+	entityId: string
 }
 
 export interface CEOWeeklyInsight {
-  weekOf: string
-  performanceSummary: string
-  keyObservations: string[]
-  recommendedActions: RecommendedAction[]
+	weekOf: string
+	performanceSummary: string
+	keyObservations: string[]
+	recommendedActions: RecommendedAction[]
 }
 
 // ============================================================================
@@ -76,75 +76,77 @@ export interface CEOWeeklyInsight {
 // ============================================================================
 
 function getMockDigest(date: string): CEODigest {
-  return {
-    date,
-    revenue: {
-      yesterday: 4200000,
-      target: 5000000,
-      mtd: 68000000,
-      mtdTarget: 75000000,
-    },
-    pipeline: {
-      totalValue: 42000000,
-      newQuotes: 8,
-      quotesExpiring: 3,
-    },
-    cash: {
-      balance: 12500000,
-      inflow: 6800000,
-      outflow: 5200000,
-    },
-    arAging: {
-      current: 18000000,
-      overdue30: 4200000,
-      overdue60: 1800000,
-      overdue90Plus: 1200000,
-    },
-    deliveryPerformance: {
-      completed: 14,
-      failed: 1,
-      onTimeRate: 93,
-    },
-    supplierUpdates: [
-      'El-Nasr Steel: price increase 3% effective Apr 1',
-      'Alexandria Cement: new product line available (white cement)',
-    ],
-    hr: {
-      attendance: 47,
-      onLeave: 3,
-    },
-  }
+	return {
+		date,
+		revenue: {
+			yesterday: 4200000,
+			target: 5000000,
+			mtd: 68000000,
+			mtdTarget: 75000000,
+		},
+		pipeline: {
+			totalValue: 42000000,
+			newQuotes: 8,
+			quotesExpiring: 3,
+		},
+		cash: {
+			balance: 12500000,
+			inflow: 6800000,
+			outflow: 5200000,
+		},
+		arAging: {
+			current: 18000000,
+			overdue30: 4200000,
+			overdue60: 1800000,
+			overdue90Plus: 1200000,
+		},
+		deliveryPerformance: {
+			completed: 14,
+			failed: 1,
+			onTimeRate: 93,
+		},
+		supplierUpdates: [
+			'El-Nasr Steel: price increase 3% effective Apr 1',
+			'Alexandria Cement: new product line available (white cement)',
+		],
+		hr: {
+			attendance: 47,
+			onLeave: 3,
+		},
+	}
 }
 
 function getMockWeeklyInsight(weekOf: string): CEOWeeklyInsight {
-  return {
-    weekOf,
-    performanceSummary:
-      'Revenue reached 91% of weekly target with strong cement sales driving growth. Margin improved 0.4pp week-over-week despite supplier price pressure. Cash position strengthened by EGP 1.6M net inflow.',
-    keyObservations: [
-      'Cement category outperformed by 12% -- consider increasing supplier allocation',
-      'Steel margins compressed to 9.2% average -- below 10% floor on 3 orders',
-      'Al-Masriya Construction overdue balance grew to EGP 1.2M -- credit review recommended',
-      'New customer acquisition: 4 new accounts this week vs 2 last week',
-    ],
-    recommendedActions: [
-      {
-        action: 'Review Al-Masriya credit limit -- overdue balance approaching limit',
-        entityType: 'customer',
-        entityId: 'cust-001',
-      },
-      {
-        action: 'Approve margin override for ORD-1210 or escalate to procurement',
-        entityType: 'order',
-        entityId: 'ord-1210',
-      },
-      {
-        action: 'Schedule call with El-Nasr Steel to negotiate Q2 pricing',
-        entityType: 'supplier',
-        entityId: 'sup-001',
-      },
-    ],
-  }
+	return {
+		weekOf,
+		performanceSummary:
+			'Revenue reached 91% of weekly target with strong cement sales driving growth. Margin improved 0.4pp week-over-week despite supplier price pressure. Cash position strengthened by EGP 1.6M net inflow.',
+		keyObservations: [
+			'Cement category outperformed by 12% -- consider increasing supplier allocation',
+			'Steel margins compressed to 9.2% average -- below 10% floor on 3 orders',
+			'Al-Masriya Construction overdue balance grew to EGP 1.2M -- credit review recommended',
+			'New customer acquisition: 4 new accounts this week vs 2 last week',
+		],
+		recommendedActions: [
+			{
+				action:
+					'Review Al-Masriya credit limit -- overdue balance approaching limit',
+				entityType: 'customer',
+				entityId: 'cust-001',
+			},
+			{
+				action:
+					'Approve margin override for ORD-1210 or escalate to procurement',
+				entityType: 'order',
+				entityId: 'ord-1210',
+			},
+			{
+				action: 'Schedule call with El-Nasr Steel to negotiate Q2 pricing',
+				entityType: 'supplier',
+				entityId: 'sup-001',
+			},
+		],
+	}
 }
 
 // ============================================================================
@@ -152,11 +154,11 @@ function getMockWeeklyInsight(weekOf: string): CEOWeeklyInsight {
 // ============================================================================
 
 const digestInput = z.object({
-  date: z.string(),
+	date: z.string(),
 })
 
 const insightInput = z.object({
-  weekOf: z.string(),
+	weekOf: z.string(),
 })
 
 // ============================================================================
@@ -164,29 +166,25 @@ const insightInput = z.object({
 // ============================================================================
 
 export const getCEODigest = createServerFn({ method: 'GET' })
-  .inputValidator(digestInput)
-  .handler(
-    async ({ data: input }): Promise<CEODigest> => {
-      if (isSupabaseConfigured()) {
-        // TODO: Real query from ceo_digests table
-      }
+	.inputValidator(digestInput)
+	.handler(async ({ data: input }): Promise<CEODigest> => {
+		if (isSupabaseConfigured()) {
+			// TODO: Real query from ceo_digests table
+		}
 
-      return getMockDigest(input.date)
-    },
-  )
+		return getMockDigest(input.date)
+	})
 
 // ============================================================================
 // getCEOWeeklyInsight
 // ============================================================================
 
 export const getCEOWeeklyInsight = createServerFn({ method: 'GET' })
-  .inputValidator(insightInput)
-  .handler(
-    async ({ data: input }): Promise<CEOWeeklyInsight> => {
-      if (isSupabaseConfigured()) {
-        // TODO: Real query -- weekly insight generated by Claude via pg_cron
-      }
+	.inputValidator(insightInput)
+	.handler(async ({ data: input }): Promise<CEOWeeklyInsight> => {
+		if (isSupabaseConfigured()) {
+			// TODO: Real query -- weekly insight generated by Claude via pg_cron
+		}
 
-      return getMockWeeklyInsight(input.weekOf)
-    },
-  )
+		return getMockWeeklyInsight(input.weekOf)
+	})

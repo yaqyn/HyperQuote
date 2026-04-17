@@ -1,19 +1,19 @@
+import { PRODUCT_CATEGORIES } from '@hyperquote/types'
+import { SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import {
+	Checkbox,
+	CheckboxGroup,
+	Dialog,
 	DialogTrigger,
+	Heading,
+	Label,
 	Modal,
 	ModalOverlay,
-	Dialog,
-	Heading,
-	CheckboxGroup,
-	Checkbox,
-	RadioGroup,
 	Radio,
-	Label,
+	RadioGroup,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { SlidersHorizontal } from 'lucide-react'
-import { PRODUCT_CATEGORIES } from '@hyperquote/types'
 
 interface MobileFilterSheetProps {
 	category?: string[]
@@ -44,14 +44,9 @@ export function MobileFilterSheet({
 
 	const handleApply = () => {
 		onFilterChange({
-			category: localCategory.length
-				? localCategory.join(',')
-				: undefined,
-			availability:
-				localAvailability === 'all' ? undefined : localAvailability,
-			price_tier: localPriceTier.length
-				? localPriceTier.join(',')
-				: undefined,
+			category: localCategory.length ? localCategory.join(',') : undefined,
+			availability: localAvailability === 'all' ? undefined : localAvailability,
+			price_tier: localPriceTier.length ? localPriceTier.join(',') : undefined,
 		})
 		setIsOpen(false)
 	}
@@ -77,11 +72,11 @@ export function MobileFilterSheet({
 				isDismissable
 				className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
 			>
-				<Modal className="w-full max-w-lg max-h-[80vh] rounded-t-2xl bg-[var(--color-base)] overflow-y-auto">
-					<Dialog
-						className="p-6 outline-none"
-						isKeyboardDismissDisabled
-					>
+				<Modal
+					className="w-full max-w-lg max-h-[80vh] rounded-t-2xl bg-[var(--color-base)] overflow-y-auto"
+					isKeyboardDismissDisabled
+				>
+					<Dialog className="p-6 outline-none">
 						<Heading
 							slot="title"
 							className="text-lg font-semibold text-[var(--color-text)] mb-6"
@@ -91,10 +86,7 @@ export function MobileFilterSheet({
 
 						<div className="space-y-6">
 							{/* Category filter */}
-							<CheckboxGroup
-								value={localCategory}
-								onChange={setLocalCategory}
-							>
+							<CheckboxGroup value={localCategory} onChange={setLocalCategory}>
 								<Label className="text-sm font-semibold text-[var(--color-text)] mb-2 block">
 									{t('market.sortCategory')}
 								</Label>
@@ -107,6 +99,7 @@ export function MobileFilterSheet({
 										>
 											<div className="w-4 h-4 rounded border border-[var(--color-border)] flex items-center justify-center group-data-[selected]:bg-[var(--color-primary)] group-data-[selected]:border-[var(--color-primary)] transition-colors">
 												<svg
+													aria-hidden="true"
 													viewBox="0 0 12 10"
 													className="w-3 h-2.5 text-white opacity-0 group-data-[selected]:opacity-100"
 													fill="none"
@@ -171,6 +164,7 @@ export function MobileFilterSheet({
 										>
 											<div className="w-4 h-4 rounded border border-[var(--color-border)] flex items-center justify-center group-data-[selected]:bg-[var(--color-primary)] group-data-[selected]:border-[var(--color-primary)] transition-colors">
 												<svg
+													aria-hidden="true"
 													viewBox="0 0 12 10"
 													className="w-3 h-2.5 text-white opacity-0 group-data-[selected]:opacity-100"
 													fill="none"

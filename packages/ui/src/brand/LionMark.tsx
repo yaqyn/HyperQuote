@@ -1,8 +1,8 @@
 import { cn } from '../utils/cn'
 
 interface LionMarkProps {
-  className?: string
-  opacity?: number
+	className?: string
+	opacity?: number
 }
 
 /**
@@ -11,18 +11,18 @@ interface LionMarkProps {
  * Renders at barely-perceptible opacity (default 0.03-0.05).
  */
 export function LionMark({ className, opacity = 0.04 }: LionMarkProps) {
-  return (
-    <svg
-      viewBox="0 0 200 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={cn('text-[var(--color-text)]', className)}
-      style={{ opacity }}
-      aria-hidden="true"
-    >
-      {/* Simplified geometric lion silhouette */}
-      <path
-        d="M100 20
+	return (
+		<svg
+			viewBox="0 0 200 200"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={cn('text-[var(--color-text)]', className)}
+			style={{ opacity }}
+			aria-hidden="true"
+		>
+			{/* Simplified geometric lion silhouette */}
+			<path
+				d="M100 20
            C80 20, 60 35, 55 55
            C45 50, 35 55, 30 65
            C25 75, 30 85, 35 90
@@ -41,11 +41,11 @@ export function LionMark({ className, opacity = 0.04 }: LionMarkProps) {
            C170 85, 175 75, 170 65
            C165 55, 155 50, 145 55
            C140 35, 120 20, 100 20Z"
-        fill="currentColor"
-      />
-      {/* Mane detail */}
-      <path
-        d="M70 45
+				fill="currentColor"
+			/>
+			{/* Mane detail */}
+			<path
+				d="M70 45
            C65 30, 80 15, 100 15
            C120 15, 135 30, 130 45
            C140 40, 150 50, 148 60
@@ -55,9 +55,9 @@ export function LionMark({ className, opacity = 0.04 }: LionMarkProps) {
            C60 55, 50 65, 45 75
            C40 65, 45 55, 52 50
            C55 42, 65 38, 70 45Z"
-        fill="currentColor"
-        fillOpacity="0.5"
-      />
-    </svg>
-  )
+				fill="currentColor"
+				fillOpacity="0.5"
+			/>
+		</svg>
+	)
 }

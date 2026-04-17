@@ -1,7 +1,7 @@
-export { QuoteBuilderShell } from './QuoteBuilderShell'
 export { ConfigurableLineItemsTable } from './ConfigurableLineItemsTable'
+export { QuoteBuilderShell } from './QuoteBuilderShell'
 export type {
-  TabConfig,
-  ColumnConfig,
-  QuoteBuilderShellProps,
+	ColumnConfig,
+	QuoteBuilderShellProps,
+	TabConfig,
 } from './types'

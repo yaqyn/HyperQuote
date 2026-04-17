@@ -6,12 +6,12 @@ export type ISODateTime = string & { readonly __brand: 'ISODateTime' }
 
 /** Base entity with UUID primary key and timestamps */
 export interface BaseEntity {
-  id: string
-  created_at: ISODateTime
-  updated_at: ISODateTime
+	id: string
+	created_at: ISODateTime
+	updated_at: ISODateTime
 }
 
 /** Tenant-scoped entity with tenant_id */
 export interface TenantEntity extends BaseEntity {
-  tenant_id: string
+	tenant_id: string
 }

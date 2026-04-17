@@ -1,29 +1,29 @@
-import { Controller, useFormContext } from 'react-hook-form'
 import { Checkbox } from 'react-aria-components'
+import { Controller, useFormContext } from 'react-hook-form'
 
 interface CheckboxFieldProps {
-  name: string
-  label: string
-  className?: string
+	name: string
+	label: string
+	className?: string
 }
 
 export function CheckboxField({ name, label, className }: CheckboxFieldProps) {
-  const { control } = useFormContext()
+	const { control } = useFormContext()
 
-  return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field }) => (
-        <Checkbox
-          isSelected={field.value ?? false}
-          onChange={field.onChange}
-          onBlur={field.onBlur}
-          className={className}
-        >
-          {label}
-        </Checkbox>
-      )}
-    />
-  )
+	return (
+		<Controller
+			name={name}
+			control={control}
+			render={({ field }) => (
+				<Checkbox
+					isSelected={field.value ?? false}
+					onChange={field.onChange}
+					onBlur={field.onBlur}
+					className={className}
+				>
+					{label}
+				</Checkbox>
+			)}
+		/>
+	)
 }

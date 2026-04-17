@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
 import { ArrowRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
 export function CareersCTA() {

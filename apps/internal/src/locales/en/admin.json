@@ -1,147 +1,203 @@
 {
-  "tabs": {
-    "admin": "Admin",
-    "users": "Users & Roles",
-    "permissions": "Permissions",
-    "settings": "System Settings",
-    "margins": "Margin Rules",
-    "approvals": "Approval Thresholds",
-    "holidays": "Holiday Calendar",
-    "integrations": "Integrations",
-    "audit": "Audit Log"
-  },
-  "users": {
-    "title": "User Management",
-    "searchPlaceholder": "Search by name or email...",
-    "addUser": "Add User",
-    "editPermissions": "Edit Permissions",
-    "name": "Name",
-    "email": "Email",
-    "roles": "Roles",
-    "status": "Status",
-    "lastLogin": "Last Login",
-    "mfa": "MFA",
-    "mfaEnabled": "Enabled",
-    "mfaDisabled": "Disabled",
-    "active": "Active",
-    "suspended": "Suspended",
-    "inactive": "Inactive",
-    "suspend": "Suspend",
-    "activate": "Activate",
-    "createdAt": "Created",
-    "userDetail": "User Details",
-    "assignedRoles": "Assigned Roles",
-    "permissionSet": "Permission Set (derived from roles)",
-    "loginHistory": "Login History",
-    "deviceSessions": "Device Sessions"
-  },
-  "roles": {
-    "title": "Role & Permission Management",
-    "roleList": "Roles",
-    "permissions": "Permissions",
-    "userCount": "users",
-    "temporaryDelegation": "Temporary Delegation",
-    "delegateRole": "Delegate Role",
-    "expiryDate": "Expiry Date",
-    "reason": "Reason",
-    "vacationCoverage": "Vacation coverage",
-    "frontendNote": "Frontend permission checks are UX only — gateway validates on every API call"
-  },
-  "settings": {
-    "title": "System Settings",
-    "save": "Save",
-    "saved": "Saved",
-    "company": "Company",
-    "locale": "Locale",
-    "workingHours": "Working Hours",
-    "paymentTerms": "Payment Terms",
-    "notification": "Notifications",
-    "prayerTimes": "Prayer Times",
-    "ramadan": "Ramadan Mode",
-    "quoteValidity": "Quote Validity",
-    "companyNameEn": "Company Name (English)",
-    "companyNameAr": "Company Name (Arabic)",
-    "crNumber": "CR Number",
-    "trn": "Tax Registration Number",
-    "currency": "Currency",
-    "defaultLanguage": "Default Language",
-    "workingDays": "Working Days",
-    "startTime": "Start Time",
-    "endTime": "End Time",
-    "prayerApiEnabled": "Prayer Time API",
-    "ramadanMode": "Ramadan Mode Active",
-    "ramadanHours": "Adjusted Hours",
-    "defaultPaymentDays": "Default Payment Terms (days)",
-    "quoteChannels": "Quote Notification Channels",
-    "defaultQuoteValidity": "Default Quote Validity (days)"
-  },
-  "margins": {
-    "title": "Margin Rules",
-    "category": "Category",
-    "target": "Target %",
-    "floor": "Floor %",
-    "minimum": "Min (EGP)",
-    "approvalBelow": "Approval Below %",
-    "tierOverrides": "Tier Overrides",
-    "applyToAll": "Apply to All",
-    "setGlobalFloor": "Set Global Floor %",
-    "platinum": "Platinum",
-    "gold": "Gold",
-    "silver": "Silver"
-  },
-  "approvals": {
-    "title": "Approval Thresholds",
-    "type": "Type",
-    "condition": "Condition",
-    "approvers": "Approver(s)",
-    "escalation": "Escalation",
-    "escalationTarget": "Escalation Target",
-    "quoteMargin": "Quote Margin",
-    "creditLimit": "Credit Limit Increase",
-    "poApproval": "PO Approval",
-    "returnCredit": "Return/Credit Note",
-    "inventoryAdjustment": "Inventory Adjustment",
-    "edit": "Edit",
-    "save": "Save",
-    "addRule": "Add Rule"
-  },
-  "holidays": {
-    "title": "Holiday Calendar",
-    "year": "Year",
-    "name": "Holiday",
-    "estimatedDate": "Estimated Date",
-    "confirmedDate": "Confirmed Date",
-    "pendingConfirmation": "Pending confirmation",
-    "islamic": "Islamic",
-    "fixed": "Fixed",
-    "addHoliday": "Add Holiday",
-    "confirmDate": "Confirm Date",
-    "calendarView": "Calendar View",
-    "listView": "List View",
-    "moonSightingNote": "Islamic dates are estimated until government announces based on moon sighting"
-  },
-  "audit": {
-    "title": "Audit Log",
-    "search": "Search audit log...",
-    "filterUser": "Filter by user",
-    "filterAction": "Filter by action",
-    "filterEntity": "Filter by entity type",
-    "dateFrom": "From",
-    "dateTo": "To",
-    "timestamp": "Timestamp",
-    "user": "User",
-    "action": "Action",
-    "entityType": "Entity Type",
-    "entityId": "Entity ID",
-    "changeSummary": "Change Summary",
-    "oldValue": "Old Value",
-    "newValue": "New Value",
-    "exportCsv": "Export CSV",
-    "exportStarted": "Export started",
-    "showing": "Showing",
-    "of": "of",
-    "entries": "entries",
-    "noResults": "No audit entries found",
-    "wormNote": "WORM pattern: Write Once Read Many. This viewer is strictly read-only. Audit entries are created by database triggers, never by this UI."
-  }
+	"masthead": {
+		"eyebrow": "The Registry",
+		"caption": "A developer's index of the living record",
+		"metaVolume": "Vol.",
+		"metaEntries": "{{count}} entries",
+		"metaReadOnly": "read-only"
+	},
+	"rail": {
+		"title": "Volumes",
+		"entryCount": "{{count}} entries"
+	},
+	"volumes": {
+		"customers": {
+			"title": "Customers",
+			"subtitle": "Companies on the receiving end of every quote",
+			"columns": {
+				"company": "Company",
+				"tier": "Tier",
+				"status": "Status",
+				"city": "City",
+				"orders": "Orders",
+				"joinedAt": "Joined"
+			}
+		},
+		"products": {
+			"title": "Products",
+			"subtitle": "Every SKU quoted, stocked, or sold",
+			"columns": {
+				"thumb": " ",
+				"name": "Name",
+				"category": "Category",
+				"unit": "Unit",
+				"sku": "SKU",
+				"price": "Price range"
+			}
+		},
+		"employees": {
+			"title": "Employees",
+			"subtitle": "The payroll directory",
+			"columns": {
+				"id": "ID",
+				"name": "Name",
+				"nameAr": "Arabic name",
+				"phone": "Phone"
+			}
+		},
+		"drivers": {
+			"title": "Drivers",
+			"subtitle": "Trucks on the dock and the drivers behind the wheel",
+			"columns": {
+				"plate": "Plate",
+				"driver": "Driver",
+				"phone": "Phone",
+				"capacity": "Capacity",
+				"body": "Body",
+				"status": "Status"
+			}
+		},
+		"suppliers": {
+			"title": "Suppliers",
+			"subtitle": "Who we buy from, and on what terms",
+			"columns": {
+				"name": "Name",
+				"tier": "Tier",
+				"paymentTerms": "Terms",
+				"rating": "Rating",
+				"items": "Items",
+				"phone": "Phone"
+			}
+		}
+	},
+	"items": {
+		"title": "Items sold",
+		"empty": "No items yet.",
+		"add": "Add item",
+		"remove": "Remove item",
+		"confirmRemove": "Remove this item from the supplier?",
+		"togglePrimary": "Toggle primary supplier",
+		"saveFirst": "Save the supplier first to add items",
+		"columns": {
+			"product": "Product",
+			"cost": "Cost",
+			"lead": "Lead",
+			"minQty": "Min qty"
+		}
+	},
+	"search": {
+		"placeholder": "Filter entries…"
+	},
+	"actions": {
+		"new": "New entry",
+		"edit": "Edit",
+		"save": "Save",
+		"cancel": "Cancel",
+		"delete": "Delete",
+		"confirmDelete": "Delete this entry?",
+		"close": "Close"
+	},
+	"editor": {
+		"titleCreate": "New entry",
+		"titleView": "Entry · {{id}}",
+		"titleEdit": "Editing · {{id}}",
+		"caption": "Fields map directly to the underlying table",
+		"requiredMark": "Required",
+		"section": {
+			"identity": "Identity",
+			"commercial": "Commercial",
+			"operational": "Operational",
+			"contact": "Contact",
+			"address": "Address",
+			"assignment": "Assignment",
+			"vehicle": "Vehicle",
+			"taxonomy": "Taxonomy",
+			"specifications": "Specifications",
+			"badges": "Badges"
+		},
+		"fields": {
+			"companyName": "Company name",
+			"tier": "Tier",
+			"status": "Status",
+			"contactName": "Contact",
+			"phone": "Phone",
+			"email": "Email",
+			"address": "Address",
+			"city": "City",
+			"creditLimit": "Credit limit",
+			"currentExposure": "Current exposure",
+			"orderCount": "Order count",
+			"lifetimeValue": "Lifetime value",
+			"avgMargin": "Avg. margin",
+			"paymentHistory": "Payment history",
+			"assignedSalesRep": "Assigned sales rep",
+			"name": "Name (English)",
+			"nameAr": "Name (Arabic)",
+			"plateNumber": "Plate number",
+			"driverName": "Driver name",
+			"driverPhone": "Driver phone",
+			"capacityTons": "Capacity (tons)",
+			"bodyType": "Body type",
+			"supplierName": "Supplier name",
+			"paymentTerms": "Payment terms",
+			"rating": "Rating",
+			"customBadges": "Custom badges",
+			"category": "Category",
+			"subcategory": "Subcategory",
+			"sku": "SKU",
+			"slug": "Slug",
+			"unitOfMeasure": "Unit of measure",
+			"weightKg": "Weight (kg)",
+			"priceRangeMin": "Price min",
+			"priceRangeMax": "Price max",
+			"priceTier": "Price tier",
+			"availabilityStatus": "Availability",
+			"brand": "Brand",
+			"manufacturer": "Manufacturer",
+			"description": "Description",
+			"descriptionAr": "Description (Arabic)",
+			"tags": "Tags",
+			"isStockable": "Stockable",
+			"pictureUrl": "Picture URL"
+		},
+		"enums": {
+			"tier": { "A": "A", "B": "B", "C": "C", "new": "New" },
+			"customerStatus": {
+				"unclaimed": "Unclaimed",
+				"claimed": "Claimed",
+				"active": "Active",
+				"inactive": "Inactive"
+			},
+			"paymentHistory": {
+				"excellent": "Excellent",
+				"good": "Good",
+				"fair": "Fair",
+				"poor": "Poor"
+			},
+			"supplierTier": {
+				"preferred": "Preferred",
+				"approved": "Approved",
+				"conditional": "Conditional",
+				"new": "New"
+			},
+			"truckStatus": {
+				"available": "Available",
+				"loading": "Loading",
+				"dispatched": "Dispatched",
+				"maintenance": "Maintenance"
+			},
+			"bodyType": {
+				"flatbed": "Flatbed",
+				"curtain-side": "Curtain-side",
+				"box": "Box",
+				"tipper": "Tipper"
+			}
+		}
+	},
+	"empty": {
+		"volume": "Registry · empty",
+		"volumeSub": "No entries in this volume yet",
+		"selection": "Select an entry to inspect it",
+		"selectionSub": "Or press New entry to add one"
+	}
 }

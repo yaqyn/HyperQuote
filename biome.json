@@ -1,7 +1,20 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
 	"files": {
-		"ignore": ["node_modules", "dist", ".output", "*.gen.ts"]
+		"includes": [
+			"**",
+			"!**/node_modules",
+			"!**/dist",
+			"!**/.output",
+			"!**/.turbo",
+			"!**/.wrangler",
+			"!**/.tanstack",
+			"!**/.tmp",
+			"!**/*.gen.ts",
+			"!**/routeTree.gen.ts",
+			"!**/bun.lock",
+			"!**/public"
+		]
 	},
 	"formatter": {
 		"indentStyle": "tab",
@@ -18,5 +31,35 @@
 			"quoteStyle": "single",
 			"semicolons": "asNeeded"
 		}
-	}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		},
+		"linter": {
+			"enabled": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/__root.tsx", "**/JsonLd.tsx"],
+			"linter": {
+				"rules": {
+					"security": {
+						"noDangerouslySetInnerHtml": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/styles.css"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noImportantStyles": "off"
+					}
+				}
+			}
+		}
+	]
 }

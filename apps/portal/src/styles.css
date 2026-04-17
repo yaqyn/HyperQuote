@@ -2,13 +2,15 @@
 @import "../../../essential/brand/fonts/font-face.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-@plugin 'tailwindcss-react-aria-components';
+@plugin "tailwindcss-react-aria-components";
 
 /* Single cursor everywhere — minimalistic arrow (dark variant) */
 *,
 *::before,
 *::after {
-  cursor: url('/cursors/normal.png') 4 1, default !important;
+	cursor:
+		url("/cursors/normal.png") 0 0,
+		default !important;
 }
 /* I-beam only in text fields */
 input[type="text"],
@@ -21,17 +23,20 @@ input:not([type]),
 textarea,
 [contenteditable="true"],
 [contenteditable=""] {
-  cursor: url('/cursors/text.png') 16 16, text !important;
+	cursor:
+		url("/cursors/text.png") 16 16,
+		text !important;
 }
 
-
 /* RTL: flip directional icons */
-[dir="rtl"] .icon-end { transform: scaleX(-1); }
+[dir="rtl"] .icon-end {
+	transform: scaleX(-1);
+}
 
 ::selection,
 *::selection {
-  background: rgba(255, 255, 255, 0.2) !important;
-  color: #fff !important;
+	background: rgba(255, 255, 255, 0.2) !important;
+	color: #fff !important;
 }
 
 /* ================================================================
@@ -40,204 +45,255 @@ textarea,
    ================================================================ */
 
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-arabic: 'Tajawal', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, monospace;
-  --spacing: 0.25rem;
-  --radius-none: 0px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-full: 9999px;
+	--font-sans: "Inter", system-ui, sans-serif;
+	--font-arabic: "Tajawal", system-ui, sans-serif;
+	--font-mono: "Geist Mono", ui-monospace, monospace;
+	--spacing: 0.25rem;
+	--radius-none: 0px;
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
+	--radius-2xl: 16px;
+	--radius-full: 9999px;
 }
 
-[dir="rtl"] { --_rtl-flip: 1; }
-[dir="ltr"] { --_rtl-flip: -1; }
+[dir="rtl"] {
+	--_rtl-flip: 1;
+}
+[dir="ltr"] {
+	--_rtl-flip: -1;
+}
 
 :root {
-  --p-bg: #060606;
-  --p-sidebar: #060606;
-  --p-surface: #060606;
-  --p-card: #141414;
-  --p-elevated: #1A1A1A;
-  --p-input: #0E0E0E;
-  --p-border: rgba(255, 255, 255, 0.08);
-  --p-border-strong: rgba(255, 255, 255, 0.14);
-  --p-text: #CCCCCC;
-  --p-text-secondary: #9A9A9A;
-  --p-text-muted: #5A5A5A;
-  --p-accent: #3B82F6;
-  --p-accent-dim: rgba(59, 130, 246, 0.12);
-  --p-glow: rgba(255, 255, 255, 0.02);
-  --p-hover: rgba(255, 255, 255, 0.04);
-  --p-active: rgba(255, 255, 255, 0.06);
+	--p-bg: #060606;
+	--p-sidebar: #060606;
+	--p-surface: #060606;
+	--p-card: #141414;
+	--p-elevated: #1a1a1a;
+	--p-input: #0e0e0e;
+	--p-border: rgba(255, 255, 255, 0.08);
+	--p-border-strong: rgba(255, 255, 255, 0.14);
+	--p-text: #cccccc;
+	--p-text-secondary: #9a9a9a;
+	--p-text-muted: #5a5a5a;
+	--p-accent: #3b82f6;
+	--p-accent-dim: rgba(59, 130, 246, 0.12);
+	--p-glow: rgba(255, 255, 255, 0.02);
+	--p-hover: rgba(255, 255, 255, 0.04);
+	--p-active: rgba(255, 255, 255, 0.06);
 
-  /* Semantic */
-  --p-success: #4ADE80;
-  --p-warning: #FACC15;
-  --p-error: #F87171;
+	/* Semantic */
+	--p-success: #4ade80;
+	--p-warning: #facc15;
+	--p-error: #f87171;
 
-  /* Type scale */
-  --p-text-xs: 0.6875rem;
-  --p-text-sm: 0.75rem;
-  --p-text-base: 0.875rem;
-  --p-text-lg: 1rem;
+	/* Type scale */
+	--p-text-xs: 0.6875rem;
+	--p-text-sm: 0.75rem;
+	--p-text-base: 0.875rem;
+	--p-text-lg: 1rem;
 }
-
 
 /* View Transition — language crossfade (text only, not background) */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+	animation: none;
+	mix-blend-mode: normal;
 }
 ::view-transition-old(lang-content),
 ::view-transition-new(lang-content) {
-  animation-duration: 0.3s;
-  animation-timing-function: ease-in-out;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in-out;
 }
 ::view-transition-image-pair(lang-content) {
-  isolation: auto;
+	isolation: auto;
 }
 ::view-transition-old(lang-content) {
-  animation-name: fade-out;
+	animation-name: fade-out;
 }
 ::view-transition-new(lang-content) {
-  animation-name: fade-in;
-  mix-blend-mode: normal;
+	animation-name: fade-in;
+	mix-blend-mode: normal;
 }
 @keyframes fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
 }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 /* Scrollbar — hidden globally */
 ::-webkit-scrollbar {
-  display: none;
+	display: none;
 }
 * {
-  scrollbar-width: none;
+	scrollbar-width: none;
 }
 
 /* Selection */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: #FAFAFA;
+	background: rgba(59, 130, 246, 0.3);
+	color: #fafafa;
 }
 
 /* Focus ring — only on interactive elements, never on inputs */
 :focus-visible {
-  outline: 1px solid rgba(255, 255, 255, 0.15);
-  outline-offset: 2px;
+	outline: 1px solid rgba(255, 255, 255, 0.15);
+	outline-offset: 2px;
 }
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: none;
+	outline: none;
 }
 
 /* Placeholder color */
 textarea::placeholder,
 input::placeholder {
-  color: var(--p-text-muted);
+	color: var(--p-text-muted);
 }
 
 /* Subtle blue border pulse for validation feedback */
 @keyframes border-hint {
-  0% { border-color: rgba(255, 255, 255, 0.08); }
-  25% { border-color: rgba(37, 99, 235, 0.6); }
-  100% { border-color: rgba(255, 255, 255, 0.08); }
+	0% {
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+	25% {
+		border-color: rgba(37, 99, 235, 0.6);
+	}
+	100% {
+		border-color: rgba(255, 255, 255, 0.08);
+	}
 }
 .border-hint {
-  animation: border-hint 1s ease-out;
+	animation: border-hint 1s ease-out;
 }
 
 /* Radial reveal from top-center */
 @property --reveal-radius {
-  syntax: "<length>";
-  initial-value: 0px;
-  inherits: false;
+	syntax: "<length>";
+	initial-value: 0px;
+	inherits: false;
 }
 
 @keyframes radial-reveal {
-  from { --reveal-radius: 0px; }
-  to { --reveal-radius: 120vh; }
+	from {
+		--reveal-radius: 0px;
+	}
+	to {
+		--reveal-radius: 120vh;
+	}
 }
 
 .fade-reveal-down {
-  mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, white 50%, rgba(255,255,255,0.4) 70%, rgba(255,255,255,0.1) 85%, transparent 100%);
-  -webkit-mask-image: radial-gradient(circle var(--reveal-radius) at 50% 0%, white 0%, white 50%, rgba(255,255,255,0.4) 70%, rgba(255,255,255,0.1) 85%, transparent 100%);
-  animation: radial-reveal 6s ease-out 0.4s both;
+	mask-image: radial-gradient(
+		circle var(--reveal-radius) at 50% 0%,
+		white 0%,
+		white 50%,
+		rgba(255, 255, 255, 0.4) 70%,
+		rgba(255, 255, 255, 0.1) 85%,
+		transparent 100%
+	);
+	-webkit-mask-image: radial-gradient(
+		circle var(--reveal-radius) at 50% 0%,
+		white 0%,
+		white 50%,
+		rgba(255, 255, 255, 0.4) 70%,
+		rgba(255, 255, 255, 0.1) 85%,
+		transparent 100%
+	);
+	animation: radial-reveal 6s ease-out 0.4s both;
 }
 
 /* Glass exit — fades from bottom to top (bottom disappears first) */
 @property --exit-radius {
-  syntax: "<length>";
-  initial-value: 120vh;
-  inherits: false;
+	syntax: "<length>";
+	initial-value: 120vh;
+	inherits: false;
 }
 
 @keyframes radial-exit {
-  from { --exit-radius: 120vh; }
-  to { --exit-radius: 0px; }
+	from {
+		--exit-radius: 120vh;
+	}
+	to {
+		--exit-radius: 0px;
+	}
 }
 
 .fade-exit-up {
-  mask-image: radial-gradient(ellipse 115% var(--exit-radius) at 50% 0%, white 15%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 115% var(--exit-radius) at 50% 0%, white 15%, transparent 70%);
-  animation: radial-exit 1s ease-in both !important;
+	mask-image: radial-gradient(
+		ellipse 115% var(--exit-radius) at 50% 0%,
+		white 15%,
+		transparent 70%
+	);
+	-webkit-mask-image: radial-gradient(
+		ellipse 115% var(--exit-radius) at 50% 0%,
+		white 15%,
+		transparent 70%
+	);
+	animation: radial-exit 1s ease-in both !important;
 }
 
 /* Animated border glow — orbits top half only */
 @property --border-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
+	syntax: "<angle>";
+	initial-value: 0deg;
+	inherits: false;
 }
 
 @keyframes border-orbit {
-  from { --border-angle: 0deg; }
-  to { --border-angle: 360deg; }
+	from {
+		--border-angle: 0deg;
+	}
+	to {
+		--border-angle: 360deg;
+	}
 }
 
 .glass-border-glow {
-  position: relative;
+	position: relative;
 }
 
 .glass-border-glow::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(
-    from var(--border-angle) at 50% 50%,
-    transparent 0%,
-    transparent 35%,
-    rgba(255,255,255,0.1) 42%,
-    rgba(255,255,255,0.5) 48%,
-    rgba(255,255,255,0.8) 50%,
-    rgba(255,255,255,0.5) 52%,
-    rgba(255,255,255,0.1) 58%,
-    transparent 65%,
-    transparent 100%
-  );
-  mask:
-    linear-gradient(to bottom, white 15%, transparent 45%) intersect,
-    linear-gradient(#fff 0 0) content-box exclude,
-    linear-gradient(#fff 0 0);
-  -webkit-mask:
-    linear-gradient(to bottom, white 15%, transparent 45%),
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: source-in, xor;
-  animation: border-orbit 50s linear infinite;
-  pointer-events: none;
-  z-index: 60;
+	content: "";
+	position: absolute;
+	inset: -1px;
+	border-radius: inherit;
+	padding: 1.5px;
+	background: conic-gradient(
+		from var(--border-angle) at 50% 50%,
+		transparent 0%,
+		transparent 35%,
+		rgba(255, 255, 255, 0.1) 42%,
+		rgba(255, 255, 255, 0.5) 48%,
+		rgba(255, 255, 255, 0.8) 50%,
+		rgba(255, 255, 255, 0.5) 52%,
+		rgba(255, 255, 255, 0.1) 58%,
+		transparent 65%,
+		transparent 100%
+	);
+	mask:
+		linear-gradient(to bottom, white 15%, transparent 45%) intersect,
+		linear-gradient(#fff 0 0) content-box exclude,
+		linear-gradient(#fff 0 0);
+	-webkit-mask:
+		linear-gradient(to bottom, white 15%, transparent 45%),
+		linear-gradient(#fff 0 0) content-box,
+		linear-gradient(#fff 0 0);
+	-webkit-mask-composite: source-in, xor;
+	animation: border-orbit 50s linear infinite;
+	pointer-events: none;
+	z-index: 60;
 }

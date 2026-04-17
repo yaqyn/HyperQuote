@@ -1,24 +1,24 @@
 {
-  "chat": {
-    "placeholder": "اسألني أي شيء...",
-    "send": "إرسال",
-    "attach": "إرفاق",
-    "history": "السجل"
-  },
-  "safety": {
-    "readOnlyDb": "قاعدة بيانات للقراءة فقط",
-    "draftReviewConfirm": "مسودة-مراجعة-تأكيد",
-    "auditLogged": "مسجل للتدقيق"
-  },
-  "prompts": {
-    "title": "أسئلة مقترحة",
-    "subtitle": "انقر على أي سؤال للبدء"
-  },
-  "draft": {
-    "badge": "مسودة",
-    "review": "مراجعة",
-    "confirm": "تأكيد",
-    "reviewed": "تمت المراجعة",
-    "confirmed": "تم التأكيد"
-  }
+	"chat": {
+		"placeholder": "اسألني أي شيء...",
+		"send": "إرسال",
+		"attach": "إرفاق",
+		"history": "السجل"
+	},
+	"safety": {
+		"readOnlyDb": "قاعدة بيانات للقراءة فقط",
+		"draftReviewConfirm": "مسودة-مراجعة-تأكيد",
+		"auditLogged": "مسجل للتدقيق"
+	},
+	"prompts": {
+		"title": "أسئلة مقترحة",
+		"subtitle": "انقر على أي سؤال للبدء"
+	},
+	"draft": {
+		"badge": "مسودة",
+		"review": "مراجعة",
+		"confirm": "تأكيد",
+		"reviewed": "تمت المراجعة",
+		"confirmed": "تم التأكيد"
+	}
 }

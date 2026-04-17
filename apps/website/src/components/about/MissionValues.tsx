@@ -1,7 +1,8 @@
+import type { ParseKeys } from 'i18next'
+import type { LucideIcon } from 'lucide-react'
+import { Clock, Eye, Shield } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
-import { Clock, Eye, Shield } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 
 const values: { key: string; icon: LucideIcon }[] = [
 	{ key: 'value1', icon: Clock },
@@ -36,10 +37,12 @@ export function MissionValues() {
 									/>
 								</div>
 								<h3 className="text-[20px] font-bold text-white mb-3">
-									{t(`about.mission.${v.key}.title`)}
+									{t(`about.mission.${v.key}.title` as ParseKeys<'website'>)}
 								</h3>
 								<p className="text-[15px] text-white/50 leading-relaxed">
-									{t(`about.mission.${v.key}.description`)}
+									{t(
+										`about.mission.${v.key}.description` as ParseKeys<'website'>,
+									)}
 								</p>
 							</div>
 						</SectionReveal>

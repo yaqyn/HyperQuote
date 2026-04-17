@@ -20,7 +20,10 @@ export function TeamGrid() {
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 				{MEMBER_KEYS.map((key, i) => {
 					const name = t(`about.team.${key}.name`)
-					const initials = name.split(' ').map((w: string) => w[0]).join('')
+					const initials = name
+						.split(' ')
+						.map((w: string) => w[0])
+						.join('')
 					return (
 						<SectionReveal key={key} delay={i * 0.08}>
 							<div className="group">

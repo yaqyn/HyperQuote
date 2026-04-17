@@ -1,20 +1,20 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { ArrowUp } from 'lucide-react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
+import { useSharedChat } from '../../hooks/ChatProvider'
 import { useChatWidget } from '../../hooks/useChatWidget'
+import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
-import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
-import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
-import { useSharedChat } from '../../hooks/ChatProvider'
-import { ArrowUp } from 'lucide-react'
 
 const MAPS_URL = 'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
 
 type HeroMode = 'hero' | 'contact' | 'docs' | 'chat'
 
-const transition = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }
+const transition = { duration: 0.5, ease: cubicBezier(0.25, 0.1, 0.25, 1) }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
@@ -36,7 +36,11 @@ export function HeroSection() {
 		const t1 = setTimeout(() => setStage(1), 500)
 		const t2 = setTimeout(() => setStage(2), 650)
 		const t3 = setTimeout(() => setStage(3), 1200)
-		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+		return () => {
+			clearTimeout(t1)
+			clearTimeout(t2)
+			clearTimeout(t3)
+		}
 	}, [])
 
 	const isExpanded = mode !== 'hero'
@@ -74,11 +78,23 @@ export function HeroSection() {
 				}}
 			>
 				{/* Rings */}
-				<div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+				<div
+					className="absolute inset-0 flex items-center justify-center pointer-events-none"
+					aria-hidden="true"
+				>
 					<div className="relative w-[800px] h-[800px]">
-						<div className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]" style={{ animation: 'hero-ring 12s linear infinite' }} />
-						<div className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]" style={{ animation: 'hero-ring 12s linear infinite 4s' }} />
-						<div className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]" style={{ animation: 'hero-ring 12s linear infinite 8s' }} />
+						<div
+							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
+							style={{ animation: 'hero-ring 12s linear infinite' }}
+						/>
+						<div
+							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
+							style={{ animation: 'hero-ring 12s linear infinite 4s' }}
+						/>
+						<div
+							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
+							style={{ animation: 'hero-ring 12s linear infinite 8s' }}
+						/>
 					</div>
 				</div>
 
@@ -99,8 +115,10 @@ export function HeroSection() {
 										<span
 											className="block text-[var(--color-text)]"
 											style={{
-												transform: stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
-												transition: 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)',
+												transform:
+													stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
+												transition:
+													'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)',
 											}}
 										>
 											{t('hero.headlinePart1')}
@@ -110,9 +128,12 @@ export function HeroSection() {
 										<span
 											className="block bg-clip-text text-transparent"
 											style={{
-												backgroundImage: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #1D4ED8 100%)',
-												transform: stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
-												transition: 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s',
+												backgroundImage:
+													'linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #1D4ED8 100%)',
+												transform:
+													stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
+												transition:
+													'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s',
 											}}
 										>
 											{t('hero.headlinePart2')}
@@ -126,19 +147,43 @@ export function HeroSection() {
 									className="mt-8 flex items-center justify-center gap-1"
 									style={{
 										opacity: stage >= 3 ? 1 : 0,
-										transform: stage >= 3 ? 'translateY(0)' : 'translateY(12px)',
-										transition: 'opacity 0.5s ease-out 0.1s, transform 0.5s ease-out 0.1s',
+										transform:
+											stage >= 3 ? 'translateY(0)' : 'translateY(12px)',
+										transition:
+											'opacity 0.5s ease-out 0.1s, transform 0.5s ease-out 0.1s',
 									}}
 								>
-									<button type="button" onClick={() => { setMode('contact'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]">
+									<button
+										type="button"
+										onClick={() => {
+											setMode('contact')
+											window.scrollTo({ top: 0, behavior: 'smooth' })
+										}}
+										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]"
+									>
 										{t('support.sectionContact')}
 									</button>
-									<span className="text-[var(--color-border)] text-[10px]">|</span>
-									<button type="button" onClick={() => { setMode('docs'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]">
+									<span className="text-[var(--color-border)] text-[10px]">
+										|
+									</span>
+									<button
+										type="button"
+										onClick={() => {
+											setMode('docs')
+											window.scrollTo({ top: 0, behavior: 'smooth' })
+										}}
+										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]"
+									>
 										{t('nav.docs')}
 									</button>
-									<span className="text-[var(--color-border)] text-[10px]">|</span>
-									<button type="button" onClick={() => openChat()} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-subtle)]">
+									<span className="text-[var(--color-border)] text-[10px]">
+										|
+									</span>
+									<button
+										type="button"
+										onClick={() => openChat()}
+										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-subtle)]"
+									>
 										{t('chat.header')}
 									</button>
 								</div>
@@ -158,7 +203,9 @@ export function HeroSection() {
 									<div className="max-w-[1200px] mx-auto px-6 lg:px-12 pt-24 pb-12">
 										{/* Header */}
 										<div className="mb-12">
-											<p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-2">{t('support.sectionContact')}</p>
+											<p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-2">
+												{t('support.sectionContact')}
+											</p>
 											<h2 className="text-[32px] lg:text-[44px] font-extrabold text-[var(--color-text)] tracking-[-0.02em] leading-[1.05]">
 												{t('support.formHeading')}
 											</h2>
@@ -191,7 +238,8 @@ export function HeroSection() {
 										{t('docs.heroSubheading')}
 									</p>
 									<p className="mt-2 font-mono text-[12px] text-[var(--color-text-subtle)] tracking-wide">
-										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)} {t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
+										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)}{' '}
+										{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
 									</p>
 									<div className="mt-10 flex justify-center">
 										<div className="w-full max-w-[480px]">
@@ -248,14 +296,20 @@ export function HeroSection() {
 									<div className="flex items-center gap-1">
 										<button
 											type="button"
-											onClick={() => { setMode('contact'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+											onClick={() => {
+												setMode('contact')
+												window.scrollTo({ top: 0, behavior: 'smooth' })
+											}}
 											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'contact' ? 'text-[var(--color-text)] font-semibold bg-[var(--color-surface)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
 										>
 											{t('support.sectionContact')}
 										</button>
 										<button
 											type="button"
-											onClick={() => { setMode('docs'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+											onClick={() => {
+												setMode('docs')
+												window.scrollTo({ top: 0, behavior: 'smooth' })
+											}}
 											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'docs' ? 'text-[var(--color-text)] font-semibold bg-[var(--color-surface)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
 										>
 											{t('nav.docs')}
@@ -279,16 +333,27 @@ export function HeroSection() {
 									className="flex items-center justify-between max-sm:flex-col max-sm:gap-4"
 								>
 									<div className="flex items-center gap-4">
-										<Link to="/support" hash="faq" className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+										<Link
+											to="/support"
+											hash="faq"
+											className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+										>
 											{t('support.sectionFaq')}
 										</Link>
 										<AddressCycle />
 									</div>
 									<div className="flex items-center gap-4">
-										<Link to="/market" className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors">
+										<Link
+											to="/market"
+											className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors"
+										>
 											{t('cta.browseMarket')}
 										</Link>
-										<button type="button" onClick={() => navigateTo({ to: '/login' })} className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+										<button
+											type="button"
+											onClick={() => navigateTo({ to: '/login' })}
+											className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+										>
 											{t('login.step1.heading')}
 										</button>
 									</div>
@@ -311,7 +376,9 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 	const messagesRef = useRef<HTMLDivElement>(null)
 	const sentInitial = useRef(false)
 
-	useEffect(() => { inputRef.current?.focus() }, [])
+	useEffect(() => {
+		inputRef.current?.focus()
+	}, [])
 
 	useEffect(() => {
 		if (!initialMessage || sentInitial.current) return
@@ -322,7 +389,7 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 	useEffect(() => {
 		if (!messagesRef.current) return
 		messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-	}, [messages.length, isLoading])
+	}, [])
 
 	async function send() {
 		const trimmed = input.trim()
@@ -362,12 +429,16 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 								{msg.role === 'user' ? (
 									<div className="flex justify-end">
 										<div className="bg-[var(--color-surface)] rounded-2xl rounded-br-sm px-5 py-3 max-w-[75%]">
-											<p className="text-[15px] leading-[1.6] text-[var(--color-text)]">{msg.content}</p>
+											<p className="text-[15px] leading-[1.6] text-[var(--color-text)]">
+												{msg.content}
+											</p>
 										</div>
 									</div>
 								) : (
 									<div className="pe-12">
-										<p className="text-[15px] leading-[1.8] text-[var(--color-text)]">{msg.content}</p>
+										<p className="text-[15px] leading-[1.8] text-[var(--color-text)]">
+											{msg.content}
+										</p>
 									</div>
 								)}
 							</div>
@@ -392,8 +463,16 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 							ref={inputRef}
 							dir="auto"
 							value={input}
-							onChange={(e) => { setInput(e.target.value); handleInput() }}
-							onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+							onChange={(e) => {
+								setInput(e.target.value)
+								handleInput()
+							}}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter' && !e.shiftKey) {
+									e.preventDefault()
+									send()
+								}
+							}}
 							placeholder={t('chat.inputPlaceholder')}
 							rows={1}
 							className="flex-1 min-h-[24px] max-h-[160px] bg-transparent text-[15px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none"
@@ -430,7 +509,10 @@ function AddressCycle() {
 	useEffect(() => {
 		if (!ready) return
 		const id = setInterval(() => {
-			setIndex((p) => { setPrevIndex(p); return (p + 1) % items.length })
+			setIndex((p) => {
+				setPrevIndex(p)
+				return (p + 1) % items.length
+			})
 		}, 3000)
 		return () => clearInterval(id)
 	}, [items.length, ready])
@@ -453,10 +535,19 @@ function AddressCycle() {
 				const isLeaving = i === prevIndex
 				let y = '100%'
 				let t2 = 'none'
-				if (isActive) { y = '0%'; t2 = 'transform 0.5s ease-in-out' }
-				else if (isLeaving) { y = '-100%'; t2 = 'transform 0.5s ease-in-out' }
+				if (isActive) {
+					y = '0%'
+					t2 = 'transform 0.5s ease-in-out'
+				} else if (isLeaving) {
+					y = '-100%'
+					t2 = 'transform 0.5s ease-in-out'
+				}
 				return (
-					<span key={text} className={`block ${i === 0 ? '' : 'absolute inset-x-0'}`} style={{ transform: `translateY(${y})`, transition: t2 }}>
+					<span
+						key={text}
+						className={`block ${i === 0 ? '' : 'absolute inset-x-0'}`}
+						style={{ transform: `translateY(${y})`, transition: t2 }}
+					>
 						{text}
 					</span>
 				)

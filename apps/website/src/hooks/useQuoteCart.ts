@@ -65,7 +65,11 @@ export const useQuoteCart = create<QuoteCartState>((set, get) => ({
 		set((state) => {
 			const item = state.items.find((i) => i.productId === productId)
 			if (!item) return state
-			const clone = { ...item, productId: `${item.productId}-${Date.now()}`, note: '' }
+			const clone = {
+				...item,
+				productId: `${item.productId}-${Date.now()}`,
+				note: '',
+			}
 			return { items: [...state.items, clone] }
 		}),
 	clear: () => set({ items: [], globalNote: '' }),

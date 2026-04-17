@@ -1,4 +1,5 @@
 import { formatCurrency } from '@hyperquote/i18n'
+import type { ParseKeys, TFunction } from 'i18next'
 
 /**
  * Format a price range for public display.
@@ -9,21 +10,22 @@ import { formatCurrency } from '@hyperquote/i18n'
  * Uses formatCurrency which outputs Arabic-Indic numerals in AR locale.
  */
 export function formatPriceRange(
-  minPrice: number | null | undefined,
-  maxPrice: number | null | undefined,
-  uom: string,
-  locale: 'ar' | 'en',
-  t: (key: string) => string,
+	minPrice: number | null | undefined,
+	maxPrice: number | null | undefined,
+	uom: string,
+	locale: 'ar' | 'en',
+	t: TFunction<'website'>,
 ): string {
-  if (!minPrice && !maxPrice) {
-    return t('market.priceOnRequest')
-  }
+	const price = minPrice ?? maxPrice
+	if (!price) {
+		return t('market.priceOnRequest')
+	}
 
-  const formatted = formatCurrency(minPrice ?? maxPrice!, locale)
-  const unit = t(`units.${uom}`)
+	const formatted = formatCurrency(price, locale)
+	const unit = t(`units.${uom}` as ParseKeys<'website'>)
 
-  if (locale === 'ar') {
-    return `من ${formatted}/${unit}`
-  }
-  return `From ${formatted}/${unit}`
+	if (locale === 'ar') {
+		return `من ${formatted}/${unit}`
+	}
+	return `From ${formatted}/${unit}`
 }

@@ -1,85 +1,117 @@
-import { useState, useRef, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
+import { Paperclip } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
-import { ArrowUp, Paperclip } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { sendReply } from '../../lib/server/customer-service'
 import type { Conversation } from '../../types/customer-service'
 
 interface ResponseComposerProps {
-  conversation: Conversation
+	conversation: Conversation
 }
 
+/**
+ * Letterhead — narrow outbound column on the switchboard. The textarea
+ * has no visible border until you type; the send action reads as prose
+ * ("Transmit →") rather than a button. Enter commits; Shift+Enter
+ * inserts a line break.
+ */
 export function ResponseComposer({ conversation }: ResponseComposerProps) {
-  const { t } = useTranslation('customer-service')
-  const [content, setContent] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const { t } = useTranslation('customer-service')
+	const [content, setContent] = useState('')
+	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const queryClient = useQueryClient()
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        handleSend()
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [content],
-  )
+	useEffect(() => {
+		textareaRef.current?.focus()
+	}, [])
 
-  function handleSend() {
-    if (!content.trim()) return
-    setContent('')
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
-  }
+	const handleSend = useCallback(async () => {
+		if (!content.trim()) return
+		const text = content.trim()
+		setContent('')
+		if (textareaRef.current) {
+			textareaRef.current.style.height = 'auto'
+		}
+		await sendReply({
+			data: {
+				conversationId: conversation.id,
+				channel: conversation.channel,
+				content: text,
+			},
+		})
+		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+	}, [content, conversation.id, conversation.channel, queryClient])
 
-  function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setContent(e.target.value)
-    const el = e.target
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
-  }
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault()
+				handleSend()
+			}
+		},
+		[handleSend],
+	)
 
-  const hasContent = content.trim().length > 0
+	function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+		setContent(e.target.value)
+		const el = e.target
+		el.style.height = 'auto'
+		el.style.height = `${Math.min(el.scrollHeight, 180)}px`
+	}
 
-  return (
-    <div className="shrink-0 px-5 py-3">
-      <div className="relative rounded-xl border border-black/[0.08] dark:border-white/[0.08] focus-within:border-[var(--color-primary)]/30 transition-colors">
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          placeholder={t('composer.placeholder')}
-          rows={1}
-          className="w-full resize-none text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] px-4 pt-3 pb-10 outline-none bg-transparent leading-relaxed"
-        />
+	const hasContent = content.trim().length > 0
 
-        {/* Bottom bar — inside the container */}
-        <div className="absolute bottom-0 inset-x-0 flex items-center justify-between px-2.5 py-2">
-          <Button
-            aria-label={t('composer.attach')}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
-          >
-            <Paperclip size={14} strokeWidth={1.5} />
-          </Button>
+	return (
+		<div className="shrink-0 border-t border-black/[0.06] dark:border-white/[0.08] px-10 py-4">
+			{/* Letterhead eyebrow */}
+			<div className="flex items-center justify-between mb-2">
+				<p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
+					broadcasting · support
+				</p>
+				<Button
+					aria-label={t('composer.attach')}
+					className="flex items-center justify-center w-6 h-6 text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
+				>
+					<Paperclip size={13} strokeWidth={1.5} />
+				</Button>
+			</div>
 
-          <Button
-            onPress={handleSend}
-            isDisabled={!hasContent}
-            aria-label={t('composer.send')}
-            className={`
-              flex items-center justify-center w-7 h-7 rounded-full transition-all cursor-default
-              ${hasContent
-                ? 'text-[var(--color-primary)] !cursor-pointer'
-                : 'text-[var(--color-text-subtle)]'
-              }
-            `}
-          >
-            <ArrowUp size={14} strokeWidth={2} />
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+			{/* Textarea — no border except an on-focus hairline */}
+			<textarea
+				ref={textareaRef}
+				value={content}
+				onChange={handleInput}
+				onKeyDown={handleKeyDown}
+				placeholder={t('composer.placeholder')}
+				rows={1}
+				className="w-full resize-none bg-transparent outline-none py-1
+          font-[family-name:var(--font-literata)] text-[14.5px] leading-[1.7]
+          text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)]
+          placeholder:italic border-b border-transparent
+          focus:border-[var(--color-text)]/30 transition-colors"
+				style={{ fontVariationSettings: '"opsz" 16, "wght" 400' }}
+			/>
+
+			{/* Transmit line */}
+			<div className="flex items-center justify-between mt-2.5">
+				<span className="font-[family-name:var(--font-jetbrains-mono)] text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+					{t('composer.sendShortcut')}
+				</span>
+				<Button
+					onPress={handleSend}
+					isDisabled={!hasContent}
+					aria-label={t('composer.send')}
+					className={`font-[family-name:var(--font-inter)] text-[13px] font-medium transition-colors outline-none border-b border-transparent focus-visible:border-[var(--color-primary)]
+            ${
+							hasContent
+								? 'text-[var(--color-primary)] hover:border-[var(--color-primary)]'
+								: 'text-[var(--color-text-subtle)]/60'
+						}`}
+				>
+					Transmit →
+				</Button>
+			</div>
+		</div>
+	)
 }

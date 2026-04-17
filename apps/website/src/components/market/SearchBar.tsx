@@ -1,6 +1,6 @@
-import { useRef, useCallback } from 'react'
-import { SearchField, Input, Button } from 'react-aria-components'
 import { X } from 'lucide-react'
+import { useCallback, useRef } from 'react'
+import { Button, Input, SearchField } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 
 interface SearchBarProps {

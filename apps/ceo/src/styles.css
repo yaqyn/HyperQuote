@@ -1,40 +1,70 @@
-@import 'tailwindcss';
-@plugin 'tailwindcss-react-aria-components';
+@import "tailwindcss";
+@plugin "tailwindcss-react-aria-components";
 
 :root {
-  --color-bg: #ffffff;
-  --color-text: #0f172a;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #9ca3af;
-  --color-border: #e5e7eb;
-  --color-surface: #f9fafb;
-  /* NO --color-primary / --color-accent -- intentionally absent */
-  /* Semantic status colors for DATA only */
-  --color-success: #16a34a;
-  --color-success-bg: #f0fdf4;
-  --color-warning: #d97706;
-  --color-warning-bg: #fefce8;
-  --color-error: #dc2626;
-  --color-error-bg: #fef2f2;
-  --color-info: #6b7280;
-  --color-info-bg: #f3f4f6;
+	--color-bg: #ffffff;
+	--color-text: #0f172a;
+	--color-text-muted: #6b7280;
+	--color-text-subtle: #9ca3af;
+	--color-border: #e5e7eb;
+	--color-surface: #f9fafb;
+	/* NO --color-primary / --color-accent -- intentionally absent */
+	/* Semantic status colors for DATA only */
+	--color-success: #16a34a;
+	--color-success-bg: #f0fdf4;
+	--color-warning: #d97706;
+	--color-warning-bg: #fefce8;
+	--color-error: #dc2626;
+	--color-error-bg: #fef2f2;
+	--color-info: #6b7280;
+	--color-info-bg: #f3f4f6;
 }
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Single cursor everywhere — minimalistic arrow (black variant) */
+*,
+*::before,
+*::after {
+	cursor:
+		url("/cursors/normal.png") 0 0,
+		default !important;
+}
+/* I-beam only in text fields */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input:not([type]),
+textarea,
+[contenteditable="true"],
+[contenteditable=""] {
+	cursor:
+		url("/cursors/text.png") 16 16,
+		text !important;
+}
+
+/* Selection highlight — brand blue on dark */
+::selection {
+	background: rgba(37, 99, 235, 0.4);
+	color: #fff;
+}
+
 :root:where([data-theme="dark"]) {
-  --color-bg: #09090b;
-  --color-text: #fafafa;
-  --color-text-muted: #a1a1aa;
-  --color-text-subtle: #71717a;
-  --color-border: #27272a;
-  --color-surface: #18181b;
-  --color-success: #22c55e;
-  --color-success-bg: rgba(74, 222, 128, 0.1);
-  --color-warning: #f59e0b;
-  --color-warning-bg: rgba(250, 204, 21, 0.1);
-  --color-error: #ef4444;
-  --color-error-bg: rgba(248, 113, 113, 0.1);
-  --color-info: #a1a1aa;
-  --color-info-bg: rgba(161, 161, 170, 0.1);
+	--color-bg: #09090b;
+	--color-text: #fafafa;
+	--color-text-muted: #a1a1aa;
+	--color-text-subtle: #71717a;
+	--color-border: #27272a;
+	--color-surface: #18181b;
+	--color-success: #22c55e;
+	--color-success-bg: rgba(74, 222, 128, 0.1);
+	--color-warning: #f59e0b;
+	--color-warning-bg: rgba(250, 204, 21, 0.1);
+	--color-error: #ef4444;
+	--color-error-bg: rgba(248, 113, 113, 0.1);
+	--color-info: #a1a1aa;
+	--color-info-bg: rgba(161, 161, 170, 0.1);
 }

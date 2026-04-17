@@ -20,5 +20,8 @@
 	"peerDependencies": {
 		"@tanstack/react-router": "^1.168.0",
 		"@tanstack/react-start": "^1.167.12"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20260416.2"
 	}
 }

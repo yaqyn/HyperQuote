@@ -1,72 +1,70 @@
 {
-  "inbox": {
-    "search": "Search conversations",
-    "searchPlaceholder": "Search…",
-    "noResults": "No conversations found",
-    "conversations": "conversations"
-  },
-  "channels": {
-    "all": "All",
-    "email": "Email",
-    "whatsapp": "WhatsApp",
-    "chat": "Chat"
-  },
-  "empty": {
-    "selectConversation": "No conversation selected",
-    "selectConversationDesc": "Choose a conversation from the inbox"
-  },
-  "header": {
-    "slaBreached": "SLA Breached"
-  },
-  "profile": {
-    "title": "Customer",
-    "close": "Close",
-    "orders": "orders",
-    "ticketRef": "Ticket"
-  },
-  "status": {
-    "open": "Open",
-    "pending": "Pending",
-    "resolved": "Resolved",
-    "closed": "Closed"
-  },
-  "priority": {
-    "low": "Low",
-    "medium": "Medium",
-    "high": "High",
-    "urgent": "Urgent"
-  },
-  "composer": {
-    "placeholder": "Write a reply…",
-    "send": "Send reply",
-    "sendShortcut": "Send · ⌘↵",
-    "attach": "Attach file"
-  },
-  "email": {
-    "reply": "Reply",
-    "replyAll": "Reply All",
-    "forward": "Forward",
-    "expand": "Expand email",
-    "collapse": "Collapse email",
-    "to": "To",
-    "cc": "CC",
-    "bcc": "BCC",
-    "subject": "Subj",
-    "showCcBcc": "Show CC/BCC",
-    "send": "Send",
-    "saveDraft": "Save draft",
-    "draftSaved": "Draft saved",
-    "discard": "Discard",
-    "bodyPlaceholder": "Write your email…",
-    "clickToReply": "Click to reply…"
-  },
-  "context": {
-    "customerSince": "Customer since",
-    "conversations": "conversations",
-    "email": "Email",
-    "call": "Call",
-    "orders": "Orders",
-    "quotes": "Quotes",
-    "linkedTotal": "Linked total"
-  }
+	"inbox": {
+		"search": "Search conversations",
+		"searchPlaceholder": "Search…",
+		"noResults": "No conversations found",
+		"conversations": "conversations"
+	},
+	"channels": {
+		"email": "Email",
+		"live": "Live Chat"
+	},
+	"empty": {
+		"selectConversation": "No conversation selected",
+		"selectConversationDesc": "Choose a conversation from the inbox"
+	},
+	"header": {
+		"slaBreached": "SLA Breached"
+	},
+	"profile": {
+		"title": "Customer",
+		"close": "Close",
+		"orders": "orders",
+		"ticketRef": "Ticket"
+	},
+	"status": {
+		"open": "Open",
+		"pending": "Pending",
+		"resolved": "Resolved",
+		"closed": "Closed"
+	},
+	"priority": {
+		"low": "Low",
+		"medium": "Medium",
+		"high": "High",
+		"urgent": "Urgent"
+	},
+	"composer": {
+		"placeholder": "Write a reply…",
+		"send": "Send reply",
+		"sendShortcut": "Send · ⌘↵",
+		"attach": "Attach file"
+	},
+	"email": {
+		"reply": "Reply",
+		"replyAll": "Reply All",
+		"forward": "Forward",
+		"expand": "Expand email",
+		"collapse": "Collapse email",
+		"to": "To",
+		"cc": "CC",
+		"bcc": "BCC",
+		"subject": "Subj",
+		"showCcBcc": "Show CC/BCC",
+		"send": "Send",
+		"saveDraft": "Save draft",
+		"draftSaved": "Draft saved",
+		"discard": "Discard",
+		"bodyPlaceholder": "Write your email…",
+		"clickToReply": "Click to reply…"
+	},
+	"context": {
+		"customerSince": "Customer since",
+		"conversations": "conversations",
+		"email": "Email",
+		"call": "Call",
+		"orders": "Orders",
+		"quotes": "Quotes",
+		"linkedTotal": "Linked total"
+	}
 }

@@ -1,121 +1,121 @@
 {
-  "warehouse": {
-    "tabs": {
-      "home": "Home",
-      "receiving": "Receiving",
-      "putaway": "Putaway",
-      "picking": "Picking",
-      "staging": "Staging",
-      "count": "Cycle Count",
-      "lookup": "Inventory",
-      "yard": "Yard"
-    },
-    "tiles": {
-      "receive": "Receive",
-      "putaway": "Putaway",
-      "pick": "Pick",
-      "load": "Load",
-      "count": "Count",
-      "transfer": "Transfer",
-      "lookup": "Lookup",
-      "returns": "Returns",
-      "alerts": "Alerts"
-    },
-    "receiving": {
-      "expected": "Expected Deliveries",
-      "unscheduled": "Unscheduled Arrival",
-      "truckInfo": "Truck Information",
-      "lineItems": "Line Items",
-      "quality": "Quality Checklist",
-      "complete": "Complete Receiving",
-      "reject": "Reject",
-      "discrepancy": "Discrepancy",
-      "condition": {
-        "good": "Good",
-        "minorDamage": "Minor Damage",
-        "majorDamage": "Major Damage",
-        "rejected": "Rejected"
-      },
-      "discrepancyReason": {
-        "supplierShort": "Supplier Short",
-        "damagedInTransit": "Damaged in Transit",
-        "wrongProduct": "Wrong Product",
-        "wrongSpec": "Wrong Specification",
-        "overshipment": "Overshipment"
-      }
-    },
-    "putaway": {
-      "scanSource": "Scan Source Location",
-      "scanDestination": "Scan Destination Location",
-      "override": "Override Location",
-      "confirm": "Confirm Putaway",
-      "overrideReason": {
-        "locationFull": "Location Full",
-        "blocked": "Blocked",
-        "equipmentIssue": "Equipment Issue"
-      }
-    },
-    "picking": {
-      "queue": "Pick Queue",
-      "directed": "Directed Picking",
-      "shortPick": "Short Pick",
-      "skip": "Skip",
-      "substitute": "Substitute",
-      "confirm": "Confirm Pick"
-    },
-    "staging": {
-      "loadPlan": "Load Plan",
-      "scanTruck": "Scan Truck",
-      "scanItems": "Scan Items",
-      "verifyWeight": "Verify Weight",
-      "photos": "Photos",
-      "signOff": "Sign Off",
-      "blocked": "Blocked",
-      "clearance": "Clearance"
-    },
-    "count": {
-      "blind": "Blind Count",
-      "submit": "Submit Count",
-      "recount": "Recount",
-      "approve": "Approve",
-      "investigate": "Investigate",
-      "addUnexpected": "Add Unexpected Item",
-      "reason": {
-        "receivingError": "Receiving Error",
-        "pickError": "Pick Error",
-        "damage": "Damage",
-        "theft": "Theft",
-        "miscount": "Miscount",
-        "locationError": "Location Error"
-      }
-    },
-    "inventory": {
-      "search": "Search Inventory",
-      "belowReorder": "Below Reorder Point",
-      "detail": "Inventory Detail",
-      "movements": "Movement History",
-      "daysOfSupply": "Days of Supply"
-    },
-    "yard": {
-      "zones": "Yard Zones",
-      "weatherAlert": "Weather Alert",
-      "khamsinWarning": "Khamsin Warning",
-      "sheetBlocked": "Sheet Material Deliveries Blocked",
-      "outdoorPaused": "Outdoor Operations Paused",
-      "capacity": "Capacity"
-    },
-    "kpi": {
-      "pickAccuracy": "Pick Accuracy",
-      "onTimeShipment": "On-Time Shipment",
-      "receivingCycleTime": "Receiving Cycle Time",
-      "inventoryAccuracy": "Inventory Accuracy"
-    },
-    "common": {
-      "scanLocation": "Scan Location",
-      "scanProduct": "Scan Product",
-      "photo": "Photo",
-      "signature": "Signature",
-      "note": "Note"
-    }
-  }
+	"warehouse": {
+		"tabs": {
+			"home": "Home",
+			"receiving": "Receiving",
+			"putaway": "Putaway",
+			"picking": "Picking",
+			"staging": "Staging",
+			"count": "Cycle Count",
+			"lookup": "Inventory",
+			"yard": "Yard"
+		},
+		"tiles": {
+			"receive": "Receive",
+			"putaway": "Putaway",
+			"pick": "Pick",
+			"load": "Load",
+			"count": "Count",
+			"transfer": "Transfer",
+			"lookup": "Lookup",
+			"returns": "Returns",
+			"alerts": "Alerts"
+		},
+		"receiving": {
+			"expected": "Expected Deliveries",
+			"unscheduled": "Unscheduled Arrival",
+			"truckInfo": "Truck Information",
+			"lineItems": "Line Items",
+			"quality": "Quality Checklist",
+			"complete": "Complete Receiving",
+			"reject": "Reject",
+			"discrepancy": "Discrepancy",
+			"condition": {
+				"good": "Good",
+				"minorDamage": "Minor Damage",
+				"majorDamage": "Major Damage",
+				"rejected": "Rejected"
+			},
+			"discrepancyReason": {
+				"supplierShort": "Supplier Short",
+				"damagedInTransit": "Damaged in Transit",
+				"wrongProduct": "Wrong Product",
+				"wrongSpec": "Wrong Specification",
+				"overshipment": "Overshipment"
+			}
+		},
+		"putaway": {
+			"scanSource": "Scan Source Location",
+			"scanDestination": "Scan Destination Location",
+			"override": "Override Location",
+			"confirm": "Confirm Putaway",
+			"overrideReason": {
+				"locationFull": "Location Full",
+				"blocked": "Blocked",
+				"equipmentIssue": "Equipment Issue"
+			}
+		},
+		"picking": {
+			"queue": "Pick Queue",
+			"directed": "Directed Picking",
+			"shortPick": "Short Pick",
+			"skip": "Skip",
+			"substitute": "Substitute",
+			"confirm": "Confirm Pick"
+		},
+		"staging": {
+			"loadPlan": "Load Plan",
+			"scanTruck": "Scan Truck",
+			"scanItems": "Scan Items",
+			"verifyWeight": "Verify Weight",
+			"photos": "Photos",
+			"signOff": "Sign Off",
+			"blocked": "Blocked",
+			"clearance": "Clearance"
+		},
+		"count": {
+			"blind": "Blind Count",
+			"submit": "Submit Count",
+			"recount": "Recount",
+			"approve": "Approve",
+			"investigate": "Investigate",
+			"addUnexpected": "Add Unexpected Item",
+			"reason": {
+				"receivingError": "Receiving Error",
+				"pickError": "Pick Error",
+				"damage": "Damage",
+				"theft": "Theft",
+				"miscount": "Miscount",
+				"locationError": "Location Error"
+			}
+		},
+		"inventory": {
+			"search": "Search Inventory",
+			"belowReorder": "Below Reorder Point",
+			"detail": "Inventory Detail",
+			"movements": "Movement History",
+			"daysOfSupply": "Days of Supply"
+		},
+		"yard": {
+			"zones": "Yard Zones",
+			"weatherAlert": "Weather Alert",
+			"khamsinWarning": "Khamsin Warning",
+			"sheetBlocked": "Sheet Material Deliveries Blocked",
+			"outdoorPaused": "Outdoor Operations Paused",
+			"capacity": "Capacity"
+		},
+		"kpi": {
+			"pickAccuracy": "Pick Accuracy",
+			"onTimeShipment": "On-Time Shipment",
+			"receivingCycleTime": "Receiving Cycle Time",
+			"inventoryAccuracy": "Inventory Accuracy"
+		},
+		"common": {
+			"scanLocation": "Scan Location",
+			"scanProduct": "Scan Product",
+			"photo": "Photo",
+			"signature": "Signature",
+			"note": "Note"
+		}
+	}
 }

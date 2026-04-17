@@ -6,24 +6,24 @@ import { useCEOStore } from '../stores/ceo'
  * Syncs status to the Zustand store.
  */
 export function useOnlineStatus() {
-  const isOnline = useCEOStore((s) => s.isOnline)
-  const setOnline = useCEOStore((s) => s.setOnline)
+	const isOnline = useCEOStore((s) => s.isOnline)
+	const setOnline = useCEOStore((s) => s.setOnline)
 
-  useEffect(() => {
-    const handleOnline = () => setOnline(true)
-    const handleOffline = () => setOnline(false)
+	useEffect(() => {
+		const handleOnline = () => setOnline(true)
+		const handleOffline = () => setOnline(false)
 
-    // Sync initial state
-    setOnline(navigator.onLine)
+		// Sync initial state
+		setOnline(navigator.onLine)
 
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+		window.addEventListener('online', handleOnline)
+		window.addEventListener('offline', handleOffline)
 
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [setOnline])
+		return () => {
+			window.removeEventListener('online', handleOnline)
+			window.removeEventListener('offline', handleOffline)
+		}
+	}, [setOnline])
 
-  return { isOnline }
+	return { isOnline }
 }

@@ -1,5 +1,5 @@
+import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 
 export function QuoteCartPanel() {
@@ -74,7 +74,9 @@ export function QuoteCartPanel() {
 						<div className="flex items-center gap-1 shrink-0">
 							<button
 								type="button"
-								onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+								onClick={() =>
+									updateQuantity(item.productId, item.quantity - 1)
+								}
 								className="w-6 h-6 rounded flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
 							>
 								<Minus size={12} />
@@ -84,7 +86,9 @@ export function QuoteCartPanel() {
 							</span>
 							<button
 								type="button"
-								onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+								onClick={() =>
+									updateQuantity(item.productId, item.quantity + 1)
+								}
 								className="w-6 h-6 rounded flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
 							>
 								<Plus size={12} />

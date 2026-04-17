@@ -1,14 +1,15 @@
-import { useTranslation } from 'react-i18next'
+import type { ParseKeys } from 'i18next'
+import type { LucideIcon } from 'lucide-react'
 import {
+	BadgePercent,
 	Bot,
 	Clock,
-	MapPin,
 	FolderOpen,
-	BadgePercent,
+	MapPin,
 	MessageCircle,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
-import type { LucideIcon } from 'lucide-react'
 
 interface ValueProp {
 	slug: string
@@ -58,10 +59,12 @@ export function ValuePropsSection() {
 									/>
 								</div>
 								<h3 className="text-[17px] font-semibold text-[var(--color-text)]">
-									{t(`valueProps.${prop.slug}.title`)}
+									{t(`valueProps.${prop.slug}.title` as ParseKeys<'website'>)}
 								</h3>
 								<p className="text-[15px] text-[var(--color-text-muted)] mt-2 leading-relaxed">
-									{t(`valueProps.${prop.slug}.description`)}
+									{t(
+										`valueProps.${prop.slug}.description` as ParseKeys<'website'>,
+									)}
 								</p>
 							</div>
 						</SectionReveal>

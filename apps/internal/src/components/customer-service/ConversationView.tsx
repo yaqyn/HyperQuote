@@ -1,194 +1,282 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { Button, TooltipTrigger, Tooltip } from 'react-aria-components'
-import { UserCircle2 } from 'lucide-react'
+import { updateConversationStatus } from '../../lib/server/customer-service'
+import { useSupportStore } from '../../stores/customer-service'
+import type { Conversation, Message } from '../../types/customer-service'
+import { ChannelCode } from './ChannelIcons'
+import { EmailComposer } from './EmailComposer'
+import type { EmailAction } from './EmailMessage'
+import { EmailMessage } from './EmailMessage'
 import { MessageItem } from './MessageItem'
 import { ResponseComposer } from './ResponseComposer'
-import { EmailMessage } from './EmailMessage'
-import { EmailComposer } from './EmailComposer'
-import type { Conversation, Message } from '../../types/customer-service'
-import type { EmailAction } from './EmailMessage'
+import { PriorityMark, SlaTicker } from './SlaTicker'
 
 interface ConversationViewProps {
-  conversation: Conversation
-  onOpenProfile: () => void
+	conversation: Conversation
+	onOpenProfile: () => void
 }
 
-function formatAge(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const minutes = Math.floor(diff / 60_000)
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
-  const days = Math.floor(hours / 24)
-  return `${days}d`
+function formatCreatedAt(iso: string): string {
+	const d = new Date(iso)
+	const date = d.toISOString().slice(0, 10)
+	const hh = d.getHours().toString().padStart(2, '0')
+	const mm = d.getMinutes().toString().padStart(2, '0')
+	return `${date} ${hh}:${mm}`
 }
 
-export function ConversationView({ conversation, onOpenProfile }: ConversationViewProps) {
-  const { t, i18n } = useTranslation('customer-service')
-  const threadRef = useRef<HTMLDivElement>(null)
+/**
+ * Correspondence — the switchboard's main panel when a line is open.
+ *
+ * Layout reads top-to-bottom like a letter: who's writing, meta about the
+ * transmission, the subject, then the exchange itself. Actions are text
+ * links at the top-right — "Sign off" (resolve) and a "Profile" anchor.
+ */
+export function ConversationView({
+	conversation,
+	onOpenProfile,
+}: ConversationViewProps) {
+	const { t, i18n } = useTranslation('customer-service')
+	const threadRef = useRef<HTMLDivElement>(null)
 
-  // Email composer state
-  const [emailReplyTo, setEmailReplyTo] = useState<Message | null>(null)
-  const [emailAction, setEmailAction] = useState<EmailAction | null>(null)
-  const [composerOpen, setComposerOpen] = useState(false)
+	const [emailReplyTo, setEmailReplyTo] = useState<Message | null>(null)
+	const [emailAction, setEmailAction] = useState<EmailAction | null>(null)
+	const [composerOpen, setComposerOpen] = useState(false)
 
-  const isEmail = conversation.channel === 'email'
-  const isActive = conversation.status !== 'closed' && conversation.status !== 'resolved'
+	const isEmail = conversation.channel === 'email'
+	const isActive =
+		conversation.status !== 'closed' && conversation.status !== 'resolved'
 
-  // Reset composer when conversation changes
-  useEffect(() => {
-    setComposerOpen(false)
-    setEmailReplyTo(null)
-    setEmailAction(null)
-  }, [conversation.id])
+	useEffect(() => {
+		if (isEmail && isActive) {
+			const latest = conversation.messages[conversation.messages.length - 1]
+			if (latest) {
+				setEmailReplyTo(latest)
+				setEmailAction('reply')
+				setComposerOpen(true)
+			}
+		} else {
+			setComposerOpen(false)
+			setEmailReplyTo(null)
+			setEmailAction(null)
+		}
+	}, [isEmail, isActive, conversation.messages.length, conversation.messages]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (threadRef.current) {
-      threadRef.current.scrollTop = threadRef.current.scrollHeight
-    }
-  }, [conversation.id, conversation.messages.length])
+	useEffect(() => {
+		if (threadRef.current) {
+			threadRef.current.scrollTop = threadRef.current.scrollHeight
+		}
+	}, [])
 
-  const handleEmailAction = useCallback((action: EmailAction, message: Message) => {
-    setEmailReplyTo(message)
-    setEmailAction(action)
-    setComposerOpen(true)
-  }, [])
+	const handleEmailAction = useCallback(
+		(action: EmailAction, message: Message) => {
+			setEmailReplyTo(message)
+			setEmailAction(action)
+			setComposerOpen(true)
+		},
+		[],
+	)
 
-  const handleDiscardEmail = useCallback(() => {
-    setComposerOpen(false)
-    setEmailReplyTo(null)
-    setEmailAction(null)
-  }, [])
+	const handleDiscardEmail = useCallback(() => {
+		setComposerOpen(false)
+		setEmailReplyTo(null)
+		setEmailAction(null)
+	}, [])
 
-  // For email: if no composer is open and conversation is active, default to reply on latest
-  const handleOpenReply = useCallback(() => {
-    const latest = conversation.messages[conversation.messages.length - 1]
-    if (latest) {
-      handleEmailAction('reply', latest)
-    }
-  }, [conversation.messages, handleEmailAction])
+	const handleOpenReply = useCallback(() => {
+		const latest = conversation.messages[conversation.messages.length - 1]
+		if (latest) {
+			handleEmailAction('reply', latest)
+		}
+	}, [conversation.messages, handleEmailAction])
 
-  const customerName = i18n.language === 'ar' ? conversation.customer.nameAr : conversation.customer.name
-  const companyName = i18n.language === 'ar' ? conversation.customer.companyAr : conversation.customer.company
+	const queryClient = useQueryClient()
+	const setSelected = useSupportStore((s) => s.setSelectedConversation)
 
-  return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* ── Header ───────────────────────────────────────────── */}
-      <div className="shrink-0 px-5 py-3 border-b border-black/[0.04] dark:border-white/[0.04]">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2 mb-0.5">
-              <span className="text-[14px] font-semibold text-[var(--color-text)] truncate">
-                {customerName}
-              </span>
-              {companyName && (
-                <span className="text-[12px] text-[var(--color-text-subtle)] truncate hidden sm:inline">
-                  {companyName}
-                </span>
-              )}
-            </div>
-            <p className="text-[12px] text-[var(--color-text-muted)] leading-snug line-clamp-1">
-              {conversation.subject}
-            </p>
-          </div>
+	const handleResolve = useCallback(async () => {
+		queryClient.setQueryData<{
+			conversations: Conversation[]
+			metrics: unknown
+		}>(['support-inbox'], (old) => {
+			if (!old) return old
+			return {
+				...old,
+				conversations: old.conversations.map((c) =>
+					c.id === conversation.id ? { ...c, status: 'resolved' as const } : c,
+				),
+			}
+		})
+		setSelected(null)
+		await updateConversationStatus({
+			data: { conversationId: conversation.id, status: 'resolved' },
+		})
+		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+	}, [conversation.id, queryClient, setSelected])
 
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 font-[var(--font-geist-mono)] text-[10px] tabular-nums">
-              <span className={`uppercase tracking-wider font-semibold ${
-                conversation.slaBreached
-                  ? 'text-[var(--color-error)]'
-                  : conversation.priority === 'urgent'
-                    ? 'text-[var(--color-error)]'
-                    : 'text-[var(--color-text-muted)]'
-              }`}>
-                {conversation.slaBreached
-                  ? t('header.slaBreached')
-                  : t(`status.${conversation.status}`)
-                }
-              </span>
-              <span className="text-[var(--color-text-subtle)]">·</span>
-              <span className="text-[var(--color-text-subtle)]">
-                {formatAge(conversation.createdAt)}
-              </span>
-            </div>
+	const customerName =
+		i18n.language === 'ar'
+			? conversation.customer.nameAr
+			: conversation.customer.name
+	const companyName =
+		i18n.language === 'ar'
+			? conversation.customer.companyAr
+			: conversation.customer.company
 
-            <TooltipTrigger delay={3000}>
-              <Button
-                onPress={onOpenProfile}
-                aria-label={t('profile.title')}
-                className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
-              >
-                <UserCircle2 size={15} strokeWidth={1.5} />
-              </Button>
-              <Tooltip
-                offset={6}
-                className="rounded-md bg-black/90 px-2 py-1 text-[10px] font-medium text-white shadow-lg dark:bg-white/90 dark:text-black"
-              >
-                {t('profile.title')}
-              </Tooltip>
-            </TooltipTrigger>
-          </div>
-        </div>
-      </div>
+	return (
+		<div className="flex flex-col h-full min-h-0">
+			{/* ── Transmission header ─────────────────────────────
+          Reads like the top of a letter: recipient framing on the left,
+          metadata strip below, actions parked at the trailing edge. */}
+			<div className="shrink-0 px-10 pt-8 pb-6 border-b border-black/[0.06] dark:border-white/[0.08]">
+				{/* Eyebrow — mono metadata row */}
+				<div className="flex items-center justify-between gap-4 mb-5">
+					<div className="flex items-center gap-3 flex-wrap">
+						<ChannelCode
+							channel={conversation.channel}
+							className="text-[var(--color-text-subtle)]"
+						/>
+						<span aria-hidden className="text-[var(--color-border)]">
+							·
+						</span>
+						<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
+							{conversation.ticketId ?? '—'}
+						</span>
+						<span aria-hidden className="text-[var(--color-border)]">
+							·
+						</span>
+						<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+							{formatCreatedAt(conversation.createdAt)}
+						</span>
+						{conversation.slaDeadline && (
+							<>
+								<span aria-hidden className="text-[var(--color-border)]">
+									·
+								</span>
+								<SlaTicker
+									createdAt={conversation.createdAt}
+									deadline={conversation.slaDeadline}
+									breached={conversation.slaBreached}
+									className="text-[10px]"
+								/>
+							</>
+						)}
+						<span aria-hidden className="text-[var(--color-border)]">
+							·
+						</span>
+						<span className="inline-flex items-center gap-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
+							<PriorityMark priority={conversation.priority} />
+							{t(`priority.${conversation.priority}`)}
+						</span>
+					</div>
 
-      {/* ── Thread ───────────────────────────────────────────── */}
-      <div ref={threadRef} className="flex-1 overflow-y-auto min-h-0 px-5 py-4">
-        <div className="max-w-[680px] mx-auto flex flex-col gap-3">
-          {isEmail ? (
-            // Email thread: each message is a collapsible email card
-            conversation.messages.map((message, i) => (
-              <EmailMessage
-                key={message.id}
-                message={message}
-                isLatest={i === conversation.messages.length - 1}
-                onAction={handleEmailAction}
-              />
-            ))
-          ) : (
-            // Chat thread: document-style messages
-            conversation.messages.map((message, i) => (
-              <MessageItem
-                key={message.id}
-                message={message}
-                conversationChannel={conversation.channel}
-                isFirstInGroup={
-                  i === 0 ||
-                  conversation.messages[i - 1]!.senderName !== message.senderName ||
-                  conversation.messages[i - 1]!.channel !== message.channel
-                }
-              />
-            ))
-          )}
-        </div>
-      </div>
+					<div className="flex items-center gap-5 shrink-0">
+						{isActive && !isEmail && (
+							<Button
+								onPress={handleResolve}
+								aria-label={t('status.resolved')}
+								className="font-[family-name:var(--font-inter)] text-[12.5px] font-medium text-[var(--color-primary)] border-b border-transparent hover:border-[var(--color-primary)] outline-none focus-visible:border-[var(--color-primary)] transition-colors"
+							>
+								Sign off →
+							</Button>
+						)}
+						<Button
+							onPress={onOpenProfile}
+							aria-label={t('profile.title')}
+							className="font-[family-name:var(--font-inter)] text-[12.5px] font-medium text-[var(--color-text-muted)] border-b border-transparent hover:text-[var(--color-text)] hover:border-[var(--color-text)] outline-none focus-visible:border-[var(--color-text)] transition-colors"
+						>
+							{t('profile.title')}
+						</Button>
+					</div>
+				</div>
 
-      {/* ── Composer ─────────────────────────────────────────── */}
-      {isActive && (
-        isEmail ? (
-          composerOpen ? (
-            <EmailComposer
-              conversation={conversation}
-              replyTo={emailReplyTo}
-              action={emailAction}
-              onDiscard={handleDiscardEmail}
-            />
-          ) : (
-            // Minimal "Reply" prompt for email when composer is closed
-            <div className="shrink-0 border-t border-black/[0.06] dark:border-white/[0.06] px-5 py-3">
-              <Button
-                onPress={handleOpenReply}
-                aria-label={t('email.reply')}
-                className="w-full rounded-lg bg-black/[0.03] dark:bg-white/[0.04] text-[13px] text-[var(--color-text-subtle)] py-2.5 px-3 text-start hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/30"
-              >
-                {t('email.clickToReply')}
-              </Button>
-            </div>
-          )
-        ) : (
-          <ResponseComposer conversation={conversation} />
-        )
-      )}
-    </div>
-  )
+				{/* To: — letter-style recipient line */}
+				<p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-subtle)] mb-1.5">
+					to
+				</p>
+				<h2
+					className="font-[family-name:var(--font-bricolage)] text-[34px] leading-[1.05] tracking-[-0.015em] text-[var(--color-text)]"
+					style={{ fontVariationSettings: '"opsz" 72, "wght" 520' }}
+				>
+					{customerName}
+					{companyName && (
+						<span
+							className="ms-3 align-middle font-[family-name:var(--font-literata)] italic text-[16px] text-[var(--color-text-muted)]"
+							style={{ fontVariationSettings: '"opsz" 18, "wght" 400' }}
+						>
+							· {companyName}
+						</span>
+					)}
+				</h2>
+
+				{/* Subject — italic letter subject */}
+				<p
+					className="mt-3 font-[family-name:var(--font-literata)] italic text-[15px] leading-relaxed text-[var(--color-text-muted)]"
+					style={{ fontVariationSettings: '"opsz" 16, "wght" 420' }}
+				>
+					Re: {conversation.subject}
+				</p>
+			</div>
+
+			{/* ── Thread ──────────────────────────────────────────
+          Backdrop lines turn the reading area into stationery. */}
+			<div
+				ref={threadRef}
+				className="flex-1 overflow-y-auto min-h-0 px-10 pt-7 pb-4 bg-line-paper"
+			>
+				<div className="max-w-[680px] flex flex-col gap-6">
+					{isEmail
+						? conversation.messages.map((message, i) => (
+								<EmailMessage
+									key={message.id}
+									message={message}
+									isLatest={i === conversation.messages.length - 1}
+									onAction={handleEmailAction}
+								/>
+							))
+						: conversation.messages.map((message, i) => {
+								const prev = i > 0 ? conversation.messages[i - 1] : null
+								return (
+									<MessageItem
+										key={message.id}
+										message={message}
+										conversationChannel={conversation.channel}
+										isFirstInGroup={
+											!prev ||
+											prev.senderName !== message.senderName ||
+											prev.channel !== message.channel
+										}
+									/>
+								)
+							})}
+				</div>
+			</div>
+
+			{/* ── Composer ────────────────────────────────────── */}
+			{isActive &&
+				(isEmail ? (
+					composerOpen ? (
+						<EmailComposer
+							key={conversation.id}
+							conversation={conversation}
+							replyTo={emailReplyTo}
+							action={emailAction}
+							onDiscard={handleDiscardEmail}
+						/>
+					) : (
+						<div className="shrink-0 px-10 py-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+							<Button
+								onPress={handleOpenReply}
+								aria-label={t('email.reply')}
+								className="w-full text-start font-[family-name:var(--font-literata)] italic text-[13px] text-[var(--color-text-subtle)] py-3 border-b border-dashed border-black/[0.1] dark:border-white/[0.1] hover:text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)] transition-colors outline-none"
+							>
+								{t('email.clickToReply')}
+							</Button>
+						</div>
+					)
+				) : (
+					<ResponseComposer conversation={conversation} />
+				))}
+		</div>
+	)
 }

@@ -5,5 +5,5 @@ import { initI18n } from '@hyperquote/i18n'
 initI18n('en')
 
 export async function setupI18n(locale: 'ar' | 'en' = 'en') {
-  await initI18n(locale)
+	await initI18n(locale)
 }

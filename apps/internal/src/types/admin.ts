@@ -1,142 +1,96 @@
-// Admin domain types — contracts for the entire admin module
-// Users, roles, permissions, settings, margins, approvals, holidays, audit
+// Admin domain — the developer's registry
+//
+// The admin module is a dev-facing console for direct CRUD over the
+// underlying data tables (customers, products, employees, drivers,
+// suppliers). It intentionally bypasses the business-flow affordances
+// the other modules provide: no tiering workflow, no quote pipeline,
+// no assignment rules — just the raw records.
+//
+// Volumes are the organizing metaphor: each volume is one table in
+// the registry. The UI surfaces them as roman-numeraled entries in a
+// bound catalog rather than as a hamburger menu of modules.
 
-// ─── Tab Navigation ──────────────────────────────────────
+import type { ParseKeys } from 'i18next'
 
-export type AdminTab =
-  | 'users'
-  | 'settings'
-  | 'rules'
-  | 'audit'
+export type AdminKey = ParseKeys<'admin'>
 
-// ─── Users & Roles ───────────────────────────────────────
+export type VolumeId =
+	| 'customers'
+	| 'products'
+	| 'employees'
+	| 'drivers'
+	| 'suppliers'
 
-export type UserStatus = 'active' | 'suspended' | 'inactive'
-
-export interface UserRecord {
-  id: string
-  name: string
-  email: string
-  roles: string[]
-  status: UserStatus
-  lastLogin: string
-  mfaEnabled: boolean
-  createdAt: string
+export interface VolumeDefinition {
+	id: VolumeId
+	/** Roman numeral used in the masthead and rail. Immutable order. */
+	roman: string
+	/** i18n key under the admin namespace, e.g. `volumes.customers.title` */
+	labelKey: AdminKey
+	/** i18n key for the short descriptor under the volume title */
+	subtitleKey: AdminKey
+	/** True if the underlying table is compiled-in (no mutations). */
+	readOnly: boolean
 }
 
-export interface RoleDefinition {
-  id: string
-  name: string
-  description: string
-  permissions: string[]
-  userCount: number
+/**
+ * Ordered list of volumes in the registry. Roman numerals are assigned
+ * here — the order is the identity. Adding a volume appends; reordering
+ * changes every volume's numeral, so don't reorder without intent.
+ */
+export const VOLUMES: VolumeDefinition[] = [
+	{
+		id: 'customers',
+		roman: 'I',
+		labelKey: 'volumes.customers.title',
+		subtitleKey: 'volumes.customers.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'products',
+		roman: 'II',
+		labelKey: 'volumes.products.title',
+		subtitleKey: 'volumes.products.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'employees',
+		roman: 'III',
+		labelKey: 'volumes.employees.title',
+		subtitleKey: 'volumes.employees.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'drivers',
+		roman: 'IV',
+		labelKey: 'volumes.drivers.title',
+		subtitleKey: 'volumes.drivers.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'suppliers',
+		roman: 'V',
+		labelKey: 'volumes.suppliers.title',
+		subtitleKey: 'volumes.suppliers.subtitle',
+		readOnly: false,
+	},
+]
+
+/**
+ * Looks up a volume by its id. Throws if missing — the catalog above is
+ * hand-authored and every `VolumeId` is guaranteed to resolve at runtime,
+ * so a miss means the VolumeId type and the array have drifted.
+ */
+export function getVolume(id: VolumeId): VolumeDefinition {
+	const match = VOLUMES.find((v) => v.id === id)
+	if (!match) throw new Error(`Unknown admin volume: ${id}`)
+	return match
 }
 
-export interface TemporaryDelegation {
-  id: string
-  fromUserId: string
-  toUserId: string
-  roleId: string
-  expiryDate: string
-  reason: string
-}
-
-// ─── System Settings ─────────────────────────────────────
-
-export type SettingType = 'string' | 'number' | 'boolean' | 'json'
-
-export type SettingCategory =
-  | 'company'
-  | 'locale'
-  | 'working_hours'
-  | 'payment_terms'
-  | 'notification'
-  | 'prayer_times'
-  | 'ramadan'
-  | 'quote_validity'
-
-export interface SystemSetting {
-  key: string
-  value: string
-  type: SettingType
-  category: SettingCategory
-  description: string
-}
-
-// ─── Margin Rules ────────────────────────────────────────
-
-export interface MarginRule {
-  id: string
-  categoryId: string
-  categoryName: string
-  /** Geist Mono */ targetMarginPercent: number
-  /** Geist Mono */ floorMarginPercent: number
-  /** Geist Mono */ absoluteMinimum: number
-  /** Geist Mono */ requiresApprovalBelow: number
-  customerTierOverrides: Record<string, number>
-}
-
-// ─── Approval Thresholds ─────────────────────────────────
-
-export type ApprovalType =
-  | 'quote_margin'
-  | 'credit_limit'
-  | 'po_approval'
-  | 'return_credit'
-  | 'inventory_adjustment'
-
-export interface ApprovalThreshold {
-  id: string
-  type: ApprovalType
-  condition: string
-  approvers: string[]
-  /** Geist Mono */ escalationMinutes: number
-  escalationTarget: string
-}
-
-// ─── Holiday Calendar ────────────────────────────────────
-
-export interface Holiday {
-  id: string
-  name: string
-  nameAr: string
-  estimatedDate: string
-  confirmedDate: string | null
-  isIslamic: boolean
-  year: number
-}
-
-// ─── Audit Log (WORM: Write Once Read Many) ──────────────
-// Audit entries are created by database triggers, never by the UI.
-// This interface is READ-ONLY — no mutation functions exist.
-
-export interface AuditEntry {
-  id: string
-  userId: string
-  userName: string
-  action: string
-  entityType: string
-  entityId: string
-  oldValue: string | null
-  newValue: string | null
-  timestamp: string
-  ipAddress: string
-}
-
-export interface AuditLogResponse {
-  entries: AuditEntry[]
-  total: number
-  page: number
-  pageSize: number
-}
-
-export interface AuditLogFilters {
-  userId?: string
-  action?: string
-  entityType?: string
-  dateFrom?: string
-  dateTo?: string
-  search?: string
-  page?: number
-  pageSize?: number
-}
+/**
+ * Editor state. `null` = closed, everything else = open in that mode.
+ * The editor is a single SlidePanel that the volumes share; mode drives
+ * which affordances render (view is read-only, edit patches an existing
+ * record, create starts blank).
+ */
+export type EditorMode = 'view' | 'edit' | 'create'

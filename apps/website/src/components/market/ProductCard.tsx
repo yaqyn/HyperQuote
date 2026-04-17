@@ -1,25 +1,14 @@
-import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'motion/react'
 import { Link } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
+import { Pencil, Plus, Undo2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Undo2 } from 'lucide-react'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
+import type { PublicProduct } from '../../lib/catalog'
 
-interface Product {
-	id: string
-	slug: string
-	name: string
-	name_ar: string | null
-	category: string
-	unit_of_measure: string
-	weight_kg?: number | null
-	price_range_min: number | null
-	price_range_max: number | null
-	availability_status: string | null
-	image_urls: string[] | null
-	[key: string]: unknown
-}
+type Product = PublicProduct
 
 interface ProductCardProps {
 	product: Product
@@ -108,9 +97,16 @@ function AddPopover({
 			animate={{ opacity: 1, scale: 1, y: 0 }}
 			exit={{ opacity: 0, scale: 0.9, y: 8 }}
 			transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-			style={{ position: 'fixed', bottom: `calc(100vh - ${pos.top}px + 12px)`, left: pos.left }}
+			style={{
+				position: 'fixed',
+				bottom: `calc(100vh - ${pos.top}px + 12px)`,
+				left: pos.left,
+			}}
 			className="z-[100] w-52 backdrop-blur-xl bg-black/60 border border-white/15 rounded-xl shadow-2xl p-3"
-			onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+			onClick={(e) => {
+				e.preventDefault()
+				e.stopPropagation()
+			}}
 		>
 			<p className="text-[12px] font-medium text-white line-clamp-1 mb-2">
 				{isAr ? product.name_ar || product.name : product.name}
@@ -127,8 +123,10 @@ function AddPopover({
 						e.stopPropagation()
 						if (e.key === 'Enter') {
 							e.preventDefault()
-							if (qty <= 0) { remove(product.id); onClose() }
-							else handleSubmit()
+							if (qty <= 0) {
+								remove(product.id)
+								onClose()
+							} else handleSubmit()
 						}
 						if (e.key === 'Escape') onClose()
 					}}
@@ -141,16 +139,17 @@ function AddPopover({
 			</div>
 
 			{totalWeight && (
-				<p className="text-[11px] text-white/40 mb-2">
-					≈ {totalWeight} kg
-				</p>
+				<p className="text-[11px] text-white/40 mb-2">≈ {totalWeight} kg</p>
 			)}
 
 			<div className="flex items-center gap-2">
 				{existingItem && (
 					<button
 						type="button"
-						onClick={() => { remove(product.id); onClose() }}
+						onClick={() => {
+							remove(product.id)
+							onClose()
+						}}
 						className="w-8 h-8 shrink-0 rounded-lg border border-white/15 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
 					>
 						<Undo2 size={14} />
@@ -193,10 +192,20 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 				params={{ productSlug: product.slug }}
 				className="flex items-center gap-4 py-3 px-4 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/40 transition-colors"
 			>
-				<img src={image} alt={name} className="w-14 h-14 rounded-lg object-cover bg-[var(--color-surface)]" loading="lazy" />
+				<img
+					src={image}
+					alt={name}
+					className="w-14 h-14 rounded-lg object-cover bg-[var(--color-surface)]"
+					loading="lazy"
+				/>
 				<div className="flex-1 min-w-0">
-					<p className="text-[14px] font-medium text-[var(--color-text)] line-clamp-1">{name}</p>
-					<p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{t(`categories.${product.category}`)} · {unit}</p>
+					<p className="text-[14px] font-medium text-[var(--color-text)] line-clamp-1">
+						{name}
+					</p>
+					<p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
+						{t(`categories.${product.category}` as ParseKeys<'website'>)} ·{' '}
+						{unit}
+					</p>
 				</div>
 				<div className="relative">
 					<button
@@ -204,12 +213,18 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 						type="button"
 						onClick={handleBtnClick}
 						className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors backdrop-blur-sm ${inCart ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20' : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)] hover:ring-[var(--color-primary)]/30 hover:text-[var(--color-primary)]'}`}
-						aria-label={inCart ? t('market.editQuantity') : t('market.addToQuote')}
+						aria-label={
+							inCart ? t('market.editQuantity') : t('market.addToQuote')
+						}
 					>
 						{inCart ? <Pencil size={12} /> : <Plus size={14} />}
 					</button>
 					{popoverOpen && (
-						<AddPopover product={product} onClose={() => setPopoverOpen(false)} anchorRef={btnRef} />
+						<AddPopover
+							product={product}
+							onClose={() => setPopoverOpen(false)}
+							anchorRef={btnRef}
+						/>
 					)}
 				</div>
 			</Link>
@@ -238,14 +253,24 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 							? 'backdrop-blur-md bg-white ring-white/40'
 							: 'backdrop-blur-xl bg-black/20 ring-white/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:bg-black/35'
 					}`}
-					aria-label={inCart ? t('market.editQuantity') : t('market.addToQuote')}
+					aria-label={
+						inCart ? t('market.editQuantity') : t('market.addToQuote')
+					}
 				>
-					{inCart ? <Pencil size={14} className="text-black" /> : <Plus size={16} className="text-white" />}
+					{inCart ? (
+						<Pencil size={14} className="text-black" />
+					) : (
+						<Plus size={16} className="text-white" />
+					)}
 				</button>
 			</div>
 			<AnimatePresence>
 				{popoverOpen && (
-					<AddPopover product={product} onClose={() => setPopoverOpen(false)} anchorRef={btnRef} />
+					<AddPopover
+						product={product}
+						onClose={() => setPopoverOpen(false)}
+						anchorRef={btnRef}
+					/>
 				)}
 			</AnimatePresence>
 			<div className="mt-3 px-0.5">
@@ -253,7 +278,7 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					{name}
 				</h3>
 				<p className="text-[13px] text-[var(--color-text-muted)] mt-1">
-					{t(`categories.${product.category}`)} · {unit}
+					{t(`categories.${product.category}` as ParseKeys<'website'>)} · {unit}
 				</p>
 			</div>
 		</Link>

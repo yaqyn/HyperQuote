@@ -10,12 +10,12 @@ import { z } from 'zod'
 // ============================================================================
 
 function isSupabaseConfigured(): boolean {
-  return !!(
-    process.env.SUPABASE_URL &&
-    process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
-    process.env.SUPABASE_ANON_KEY &&
-    process.env.SUPABASE_ANON_KEY !== 'placeholder'
-  )
+	return !!(
+		process.env.SUPABASE_URL &&
+		process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
+		process.env.SUPABASE_ANON_KEY &&
+		process.env.SUPABASE_ANON_KEY !== 'placeholder'
+	)
 }
 
 // ============================================================================
@@ -23,9 +23,9 @@ function isSupabaseConfigured(): boolean {
 // ============================================================================
 
 const routeMessageInput = z.object({
-  recipientId: z.string().min(1),
-  message: z.string().min(1).max(5000),
-  priority: z.enum(['normal', 'urgent']),
+	recipientId: z.string().min(1),
+	message: z.string().min(1).max(5000),
+	priority: z.enum(['normal', 'urgent']),
 })
 
 // ============================================================================
@@ -33,13 +33,11 @@ const routeMessageInput = z.object({
 // ============================================================================
 
 export const routeMessage = createServerFn({ method: 'POST' })
-  .inputValidator(routeMessageInput)
-  .handler(
-    async ({ data: _input }): Promise<{ messageId: string }> => {
-      if (isSupabaseConfigured()) {
-        // TODO: Real Supabase mutation -- insert into internal_messages, send notification
-      }
+	.inputValidator(routeMessageInput)
+	.handler(async ({ data: _input }): Promise<{ messageId: string }> => {
+		if (isSupabaseConfigured()) {
+			// TODO: Real Supabase mutation -- insert into internal_messages, send notification
+		}
 
-      return { messageId: crypto.randomUUID() }
-    },
-  )
+		return { messageId: crypto.randomUUID() }
+	})

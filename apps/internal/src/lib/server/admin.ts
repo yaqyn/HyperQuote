@@ -1,342 +1,335 @@
+// Developer admin — server functions
+//
+// Thin CRUD over the mock DB for the five admin volumes. No business
+// logic, no filtering, no derived state. The admin panel is the dev's
+// direct window on the tables; every function here should be a
+// one-liner over db.ts.
+//
+// All mutations validate input with Zod (per project rules). Reads
+// return whatever the DB accessor returns.
+
+import type { CatalogProduct } from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type {
-  AuditEntry,
-  AuditLogResponse,
-  ApprovalThreshold,
-  Holiday,
-  MarginRule,
-  SystemSetting,
-  UserRecord,
-} from '../../types/admin'
+import {
+	type CustomerRow,
+	db,
+	type EmployeeRow,
+	type SupplierPriceRow,
+	type SupplierRow,
+	type TruckRow,
+} from '../db/db'
 
-// ─── Mock Users ─────────────────────────────────────────
+type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue }
 
-const MOCK_USERS: UserRecord[] = [
-  { id: 'usr-001', name: 'Ahmed El-Sayed', email: 'ahmed@hyperquote.io', roles: ['admin', 'sales_manager'], status: 'active', lastLogin: '2026-04-06T08:30:00Z', mfaEnabled: true, createdAt: '2025-01-15T10:00:00Z' },
-  { id: 'usr-002', name: 'Fatma Hassan', email: 'fatma@hyperquote.io', roles: ['procurement_manager'], status: 'active', lastLogin: '2026-04-06T07:45:00Z', mfaEnabled: true, createdAt: '2025-02-01T09:00:00Z' },
-  { id: 'usr-003', name: 'Mohamed Khalil', email: 'mohamed.k@hyperquote.io', roles: ['warehouse_manager'], status: 'active', lastLogin: '2026-04-05T16:20:00Z', mfaEnabled: true, createdAt: '2025-02-15T11:00:00Z' },
-  { id: 'usr-004', name: 'Nour Ibrahim', email: 'nour@hyperquote.io', roles: ['accountant'], status: 'active', lastLogin: '2026-04-06T09:10:00Z', mfaEnabled: false, createdAt: '2025-03-01T08:30:00Z' },
-  { id: 'usr-005', name: 'Omar Farouk', email: 'omar@hyperquote.io', roles: ['sales_rep'], status: 'active', lastLogin: '2026-04-05T14:00:00Z', mfaEnabled: false, createdAt: '2025-03-10T10:00:00Z' },
-  { id: 'usr-006', name: 'Hana Mostafa', email: 'hana@hyperquote.io', roles: ['sales_rep'], status: 'suspended', lastLogin: '2026-03-20T12:00:00Z', mfaEnabled: true, createdAt: '2025-04-01T09:00:00Z' },
-  { id: 'usr-007', name: 'Youssef Adel', email: 'youssef@hyperquote.io', roles: ['dispatcher'], status: 'active', lastLogin: '2026-04-06T06:00:00Z', mfaEnabled: true, createdAt: '2025-04-15T10:00:00Z' },
-  { id: 'usr-008', name: 'Laila Mansour', email: 'laila@hyperquote.io', roles: ['hr_manager'], status: 'active', lastLogin: '2026-04-05T17:30:00Z', mfaEnabled: true, createdAt: '2025-05-01T08:00:00Z' },
-  { id: 'usr-009', name: 'Karim Soliman', email: 'karim@hyperquote.io', roles: ['support_agent'], status: 'active', lastLogin: '2026-04-06T08:00:00Z', mfaEnabled: false, createdAt: '2025-05-15T09:00:00Z' },
-  { id: 'usr-010', name: 'Sara El-Din', email: 'sara@hyperquote.io', roles: ['sales_rep', 'procurement_agent'], status: 'active', lastLogin: '2026-04-04T11:00:00Z', mfaEnabled: true, createdAt: '2025-06-01T10:00:00Z' },
-  { id: 'usr-011', name: 'Tarek Nabil', email: 'tarek@hyperquote.io', roles: ['driver_manager'], status: 'inactive', lastLogin: '2026-02-10T09:00:00Z', mfaEnabled: false, createdAt: '2025-06-15T08:00:00Z' },
-  { id: 'usr-012', name: 'Dina Ashraf', email: 'dina@hyperquote.io', roles: ['accountant'], status: 'active', lastLogin: '2026-04-06T07:00:00Z', mfaEnabled: true, createdAt: '2025-07-01T09:00:00Z' },
-  { id: 'usr-013', name: 'Hassan Rizk', email: 'hassan@hyperquote.io', roles: ['warehouse_staff'], status: 'active', lastLogin: '2026-04-05T15:00:00Z', mfaEnabled: false, createdAt: '2025-07-15T10:00:00Z' },
-  { id: 'usr-014', name: 'Mona Gamal', email: 'mona@hyperquote.io', roles: ['sales_manager', 'admin'], status: 'active', lastLogin: '2026-04-06T09:30:00Z', mfaEnabled: true, createdAt: '2025-08-01T08:00:00Z' },
-  { id: 'usr-015', name: 'Amr Helmy', email: 'amr@hyperquote.io', roles: ['it_admin'], status: 'active', lastLogin: '2026-04-06T07:15:00Z', mfaEnabled: true, createdAt: '2025-08-15T09:00:00Z' },
-]
+type JsonObject = { [key: string]: JsonValue }
 
-// ─── Mock System Settings ───────────────────────────────
+function isJsonValue(v: unknown): v is JsonValue {
+	if (v === null) return true
+	const t = typeof v
+	if (t === 'string' || t === 'number' || t === 'boolean') return true
+	if (Array.isArray(v)) return v.every(isJsonValue)
+	if (t === 'object') {
+		return Object.values(v as object).every(isJsonValue)
+	}
+	return false
+}
 
-const MOCK_SETTINGS: SystemSetting[] = [
-  { key: 'company.name_en', value: 'HyperQuote', type: 'string', category: 'company', description: 'Company name (English)' },
-  { key: 'company.name_ar', value: 'هايبر كوت', type: 'string', category: 'company', description: 'Company name (Arabic)' },
-  { key: 'company.cr_number', value: '12345678', type: 'string', category: 'company', description: 'Commercial Registration number' },
-  { key: 'company.trn', value: '100-234-567', type: 'string', category: 'company', description: 'Tax Registration Number (TRN)' },
-  { key: 'locale.currency', value: 'EGP', type: 'string', category: 'locale', description: 'Default currency' },
-  { key: 'locale.default_language', value: 'ar', type: 'string', category: 'locale', description: 'Default language' },
-  { key: 'locale.working_days', value: '["sun","mon","tue","wed","thu"]', type: 'json', category: 'locale', description: 'Working days (Sun-Thu)' },
-  { key: 'working_hours.start', value: '08:00', type: 'string', category: 'working_hours', description: 'Working hours start' },
-  { key: 'working_hours.end', value: '17:00', type: 'string', category: 'working_hours', description: 'Working hours end' },
-  { key: 'prayer_times.enabled', value: 'true', type: 'boolean', category: 'prayer_times', description: 'Enable prayer time API integration' },
-  { key: 'ramadan.mode', value: 'false', type: 'boolean', category: 'ramadan', description: 'Ramadan mode active' },
-  { key: 'ramadan.adjusted_hours', value: '09:00-15:00', type: 'string', category: 'ramadan', description: 'Adjusted working hours during Ramadan' },
-  { key: 'payment_terms.default_days', value: '30', type: 'number', category: 'payment_terms', description: 'Default payment terms (days)' },
-  { key: 'notification.quote_submitted', value: '["email","whatsapp"]', type: 'json', category: 'notification', description: 'Channels for quote submission notification' },
-  { key: 'quote_validity.default_days', value: '7', type: 'number', category: 'quote_validity', description: 'Default quote validity period (days)' },
-]
-
-// ─── Mock Margin Rules ──────────────────────────────────
-
-const MOCK_MARGIN_RULES: MarginRule[] = [
-  { id: 'mgn-001', categoryId: 'cat-cement', categoryName: 'Cement', targetMarginPercent: 18, floorMarginPercent: 12, absoluteMinimum: 50, requiresApprovalBelow: 14, customerTierOverrides: { platinum: 10, gold: 12, silver: 14 } },
-  { id: 'mgn-002', categoryId: 'cat-steel', categoryName: 'Steel & Rebar', targetMarginPercent: 15, floorMarginPercent: 10, absoluteMinimum: 100, requiresApprovalBelow: 12, customerTierOverrides: { platinum: 8, gold: 10, silver: 12 } },
-  { id: 'mgn-003', categoryId: 'cat-aggregates', categoryName: 'Aggregates', targetMarginPercent: 22, floorMarginPercent: 15, absoluteMinimum: 30, requiresApprovalBelow: 18, customerTierOverrides: { platinum: 13, gold: 15, silver: 18 } },
-  { id: 'mgn-004', categoryId: 'cat-bricks', categoryName: 'Bricks & Blocks', targetMarginPercent: 20, floorMarginPercent: 14, absoluteMinimum: 25, requiresApprovalBelow: 16, customerTierOverrides: { platinum: 12, gold: 14, silver: 16 } },
-  { id: 'mgn-005', categoryId: 'cat-wood', categoryName: 'Wood & Timber', targetMarginPercent: 25, floorMarginPercent: 18, absoluteMinimum: 75, requiresApprovalBelow: 20, customerTierOverrides: { platinum: 16, gold: 18, silver: 20 } },
-  { id: 'mgn-006', categoryId: 'cat-paint', categoryName: 'Paint & Coatings', targetMarginPercent: 30, floorMarginPercent: 22, absoluteMinimum: 40, requiresApprovalBelow: 25, customerTierOverrides: { platinum: 20, gold: 22, silver: 25 } },
-  { id: 'mgn-007', categoryId: 'cat-plumbing', categoryName: 'Plumbing', targetMarginPercent: 28, floorMarginPercent: 20, absoluteMinimum: 35, requiresApprovalBelow: 23, customerTierOverrides: { platinum: 18, gold: 20, silver: 23 } },
-  { id: 'mgn-008', categoryId: 'cat-electrical', categoryName: 'Electrical', targetMarginPercent: 26, floorMarginPercent: 19, absoluteMinimum: 45, requiresApprovalBelow: 22, customerTierOverrides: { platinum: 17, gold: 19, silver: 22 } },
-]
-
-// ─── Mock Approval Thresholds ───────────────────────────
-
-const MOCK_APPROVAL_THRESHOLDS: ApprovalThreshold[] = [
-  { id: 'apr-001', type: 'quote_margin', condition: 'Margin below floor percentage', approvers: ['sales_manager', 'ceo'], escalationMinutes: 120, escalationTarget: 'ceo' },
-  { id: 'apr-002', type: 'credit_limit', condition: 'Credit limit increase > 50,000 EGP', approvers: ['finance_manager', 'ceo'], escalationMinutes: 240, escalationTarget: 'ceo' },
-  { id: 'apr-003', type: 'po_approval', condition: 'PO value > 100,000 EGP', approvers: ['procurement_manager'], escalationMinutes: 120, escalationTarget: 'ceo' },
-  { id: 'apr-004', type: 'return_credit', condition: 'Return/credit note > 10,000 EGP', approvers: ['sales_manager', 'finance_manager'], escalationMinutes: 180, escalationTarget: 'ceo' },
-  { id: 'apr-005', type: 'inventory_adjustment', condition: 'Adjustment value > 5,000 EGP', approvers: ['warehouse_manager'], escalationMinutes: 60, escalationTarget: 'operations_manager' },
-]
-
-// ─── Mock Holidays ──────────────────────────────────────
-
-const MOCK_HOLIDAYS: Holiday[] = [
-  // Fixed holidays
-  { id: 'hol-001', name: "New Year's Day", nameAr: 'رأس السنة الميلادية', estimatedDate: '2026-01-01', confirmedDate: '2026-01-01', isIslamic: false, year: 2026 },
-  { id: 'hol-002', name: 'Revolution Day (Jan 25)', nameAr: 'ثورة ٢٥ يناير', estimatedDate: '2026-01-25', confirmedDate: '2026-01-25', isIslamic: false, year: 2026 },
-  { id: 'hol-003', name: 'Sinai Liberation Day', nameAr: 'عيد تحرير سيناء', estimatedDate: '2026-04-25', confirmedDate: '2026-04-25', isIslamic: false, year: 2026 },
-  { id: 'hol-004', name: 'Labour Day', nameAr: 'عيد العمال', estimatedDate: '2026-05-01', confirmedDate: '2026-05-01', isIslamic: false, year: 2026 },
-  { id: 'hol-005', name: 'Revolution Day (Jun 30)', nameAr: 'ثورة ٣٠ يونيو', estimatedDate: '2026-06-30', confirmedDate: '2026-06-30', isIslamic: false, year: 2026 },
-  { id: 'hol-006', name: 'Armed Forces Day', nameAr: 'عيد القوات المسلحة', estimatedDate: '2026-10-06', confirmedDate: '2026-10-06', isIslamic: false, year: 2026 },
-  { id: 'hol-007', name: 'Coptic Christmas', nameAr: 'عيد الميلاد المجيد', estimatedDate: '2026-01-07', confirmedDate: '2026-01-07', isIslamic: false, year: 2026 },
-  { id: 'hol-008', name: 'Sham El-Nessim', nameAr: 'شم النسيم', estimatedDate: '2026-04-13', confirmedDate: '2026-04-13', isIslamic: false, year: 2026 },
-  // Islamic holidays (estimated until government announces based on moon sighting)
-  { id: 'hol-009', name: 'Eid al-Fitr', nameAr: 'عيد الفطر', estimatedDate: '2026-03-20', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-010', name: 'Eid al-Fitr (Day 2)', nameAr: 'عيد الفطر (اليوم الثاني)', estimatedDate: '2026-03-21', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-011', name: 'Eid al-Fitr (Day 3)', nameAr: 'عيد الفطر (اليوم الثالث)', estimatedDate: '2026-03-22', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-012', name: 'Eid al-Adha', nameAr: 'عيد الأضحى', estimatedDate: '2026-05-27', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-013', name: 'Eid al-Adha (Day 2)', nameAr: 'عيد الأضحى (اليوم الثاني)', estimatedDate: '2026-05-28', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-014', name: 'Eid al-Adha (Day 3)', nameAr: 'عيد الأضحى (اليوم الثالث)', estimatedDate: '2026-05-29', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-015', name: 'Eid al-Adha (Day 4)', nameAr: 'عيد الأضحى (اليوم الرابع)', estimatedDate: '2026-05-30', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-016', name: 'Islamic New Year', nameAr: 'رأس السنة الهجرية', estimatedDate: '2026-06-17', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-017', name: "Prophet's Birthday", nameAr: 'المولد النبوي الشريف', estimatedDate: '2026-08-27', confirmedDate: null, isIslamic: true, year: 2026 },
-  { id: 'hol-018', name: "Isra Mi'raj", nameAr: 'ليلة الإسراء والمعراج', estimatedDate: '2026-02-08', confirmedDate: null, isIslamic: true, year: 2026 },
-]
-
-// ─── Mock Audit Entries ─────────────────────────────────
-// WORM pattern: Write Once Read Many.
-// Audit entries are created by database triggers, never by this UI.
-// No create/update/delete functions exist for audit data.
-
-const MOCK_AUDIT_ENTRIES: AuditEntry[] = Array.from({ length: 50 }, (_, i) => {
-  const actions = ['user.login', 'user.logout', 'quote.create', 'quote.update', 'quote.approve', 'order.create', 'order.update', 'setting.update', 'role.assign', 'role.revoke', 'margin.update', 'holiday.confirm', 'po.approve', 'credit.adjust', 'inventory.adjust']
-  const entities = ['user', 'quote', 'order', 'setting', 'role', 'margin_rule', 'holiday', 'purchase_order', 'credit_limit', 'inventory']
-  const users = MOCK_USERS.slice(0, 10)
-  const user = users[i % users.length]!
-  const action = actions[i % actions.length]!
-  const entity = entities[i % entities.length]!
-
-  return {
-    id: `aud-${String(i + 1).padStart(3, '0')}`,
-    userId: user.id,
-    userName: user.name,
-    action,
-    entityType: entity,
-    entityId: `${entity}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-    oldValue: i % 3 === 0 ? JSON.stringify({ status: 'draft' }) : null,
-    newValue: i % 3 === 0 ? JSON.stringify({ status: 'approved' }) : i % 3 === 1 ? JSON.stringify({ margin: 15 }) : null,
-    timestamp: new Date(Date.now() - i * 3_600_000).toISOString(),
-    ipAddress: `192.168.1.${(i % 254) + 1}`,
-  }
-})
-
-// ─── Server Functions ───────────────────────────────────
-
-export const getUserList = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<UserRecord[]> => {
-    return MOCK_USERS
-  },
-)
-
-export const getSystemConfig = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<SystemSetting[]> => {
-    return MOCK_SETTINGS
-  },
-)
-
-export const updateSystemConfig = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { key: string; value: string } }): Promise<{ success: boolean; key: string }> => {
-    return { success: true, key: data.key }
-  },
-)
-
-export const manageUserRoles = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { userId: string; roleIds: string[] } }): Promise<UserRecord> => {
-    const user = MOCK_USERS.find((u) => u.id === data.userId) ?? MOCK_USERS[0]!
-    return { ...user, roles: data.roleIds }
-  },
-)
+function toJsonObject(
+	value: Record<string, unknown> | null | undefined,
+): JsonObject {
+	const out: JsonObject = {}
+	if (!value) return out
+	for (const [k, v] of Object.entries(value)) {
+		if (isJsonValue(v)) out[k] = v
+	}
+	return out
+}
 
 /**
- * Get audit log entries with optional filters.
- * READ-ONLY — NO mutation functions for audit data.
- * WORM pattern: Write Once Read Many. 7-year retention, immutable.
+ * Admin returns products with specifications narrowed to a JSON-safe
+ * shape. CatalogProduct uses `Record<string, unknown>` which TanStack
+ * Start's serializer cannot round-trip without widening to `unknown`.
  */
-export const getAuditLog = createServerFn({ method: 'GET' })
-  .inputValidator(z.object({
-    page: z.number().default(1),
-    limit: z.number().default(20),
-    action: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-  }))
-  .handler(
-    async ({ data }): Promise<{ entries: AuditEntry[]; total: number; page: number; pageSize: number }> => {
-      const page = data.page
-      const pageSize = data.limit
-      let filtered = MOCK_AUDIT_ENTRIES
-      if (data.action) {
-        filtered = filtered.filter((e) => e.action === data.action)
-      }
-      if (data.startDate) {
-        filtered = filtered.filter((e) => e.timestamp >= data.startDate!)
-      }
-      if (data.endDate) {
-        filtered = filtered.filter((e) => e.timestamp <= data.endDate!)
-      }
-      const start = (page - 1) * pageSize
-      const entries = filtered.slice(start, start + pageSize)
-      return {
-        entries,
-        total: filtered.length,
-        page,
-        pageSize,
-      }
-    },
-  )
+type AdminProduct = Omit<CatalogProduct, 'specifications'> & {
+	specifications: JsonObject
+}
 
-export const updateMarginRules = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { categoryId: string; targetMarginPercent?: number; floorMarginPercent?: number; absoluteMinimum?: number } }): Promise<MarginRule> => {
-    const rule = MOCK_MARGIN_RULES.find((r) => r.categoryId === data.categoryId) ?? MOCK_MARGIN_RULES[0]!
-    return {
-      ...rule,
-      targetMarginPercent: data.targetMarginPercent ?? rule.targetMarginPercent,
-      floorMarginPercent: data.floorMarginPercent ?? rule.floorMarginPercent,
-      absoluteMinimum: data.absoluteMinimum ?? rule.absoluteMinimum,
-    }
-  },
+function toAdminProduct(p: CatalogProduct): AdminProduct {
+	return { ...p, specifications: toJsonObject(p.specifications) }
+}
+
+// ─── Customers ───────────────────────────────────────────
+
+const CustomerPayload = z.object({
+	companyName: z.string().min(1),
+	tier: z.enum(['A', 'B', 'C', 'new']),
+	status: z.enum(['unclaimed', 'claimed', 'active', 'inactive']),
+	contactName: z.string().min(1),
+	phone: z.string().min(1),
+	email: z.string().email().nullable(),
+	address: z.string(),
+	city: z.string(),
+	creditLimit: z.number().min(0),
+	currentExposure: z.number().min(0),
+	orderCount: z.number().int().min(0),
+	lifetimeValue: z.number().min(0),
+	avgMargin: z.number(),
+	paymentHistory: z.enum(['excellent', 'good', 'fair', 'poor']),
+	assignedSalesRep: z.string().nullable(),
+})
+
+export const adminListCustomers = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<CustomerRow[]> => db.customers.list(),
 )
 
-export const updateApprovalThresholds = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { thresholdId: string; approvers?: string[]; escalationMinutes?: number; escalationTarget?: string } }): Promise<ApprovalThreshold> => {
-    const threshold = MOCK_APPROVAL_THRESHOLDS.find((t) => t.id === data.thresholdId) ?? MOCK_APPROVAL_THRESHOLDS[0]!
-    return {
-      ...threshold,
-      approvers: data.approvers ?? threshold.approvers,
-      escalationMinutes: data.escalationMinutes ?? threshold.escalationMinutes,
-      escalationTarget: data.escalationTarget ?? threshold.escalationTarget,
-    }
-  },
+export const adminCreateCustomer = createServerFn({ method: 'POST' })
+	.inputValidator(CustomerPayload)
+	.handler(async ({ data }): Promise<CustomerRow> => db.customers.insert(data))
+
+export const adminUpdateCustomer = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }).merge(CustomerPayload.partial()))
+	.handler(async ({ data }): Promise<CustomerRow> => {
+		const { id, ...patch } = data
+		const next = db.customers.update(id, patch)
+		if (!next) throw new Error(`Customer ${id} not found`)
+		return next
+	})
+
+export const adminDeleteCustomer = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }))
+	.handler(
+		async ({ data }): Promise<{ ok: boolean }> => ({
+			ok: db.customers.remove(data.id),
+		}),
+	)
+
+// ─── Products ────────────────────────────────────────────
+
+const ProductPayload = z.object({
+	slug: z.string().min(1),
+	sku: z.string().min(1),
+	name: z.string().min(1),
+	name_ar: z.string(),
+	description: z.string(),
+	description_ar: z.string(),
+	category: z.string().min(1),
+	subcategory: z.string(),
+	brand: z.string().nullable(),
+	manufacturer: z.string(),
+	specifications: z.record(z.string(), z.unknown()),
+	unit_of_measure: z.string().min(1),
+	weight_kg: z.number().min(0),
+	price_range_min: z.number().min(0),
+	price_range_max: z.number().min(0),
+	price_tier: z.enum(['budget', 'mid_range', 'premium']),
+	availability_status: z.enum(['available', 'low_stock', 'out_of_stock']),
+	tags: z.array(z.string()),
+	is_stockable: z.boolean(),
+	pictureUrl: z.string().nullable(),
+})
+
+export const adminListProducts = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<AdminProduct[]> => db.products.list().map(toAdminProduct),
 )
 
-export const updateHolidayCalendar = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { holidayId: string; confirmedDate: string } }): Promise<Holiday> => {
-    const holiday = MOCK_HOLIDAYS.find((h) => h.id === data.holidayId) ?? MOCK_HOLIDAYS[0]!
-    return { ...holiday, confirmedDate: data.confirmedDate }
-  },
+export const adminCreateProduct = createServerFn({ method: 'POST' })
+	.inputValidator(ProductPayload)
+	.handler(
+		async ({ data }): Promise<AdminProduct> =>
+			toAdminProduct(db.products.insert(data)),
+	)
+
+export const adminUpdateProduct = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }).merge(ProductPayload.partial()))
+	.handler(async ({ data }): Promise<AdminProduct> => {
+		const { id, ...patch } = data
+		const next = db.products.update(id, patch)
+		if (!next) throw new Error(`Product ${id} not found`)
+		return toAdminProduct(next)
+	})
+
+export const adminDeleteProduct = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }))
+	.handler(
+		async ({ data }): Promise<{ ok: boolean }> => ({
+			ok: db.products.remove(data.id),
+		}),
+	)
+
+// ─── Employees ───────────────────────────────────────────
+
+const EmployeePayload = z.object({
+	name: z.string().min(1),
+	name_ar: z.string().min(1),
+	phone: z.string().min(1),
+})
+
+export const adminListEmployees = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<EmployeeRow[]> => db.employees.list(),
 )
 
-// ─── User Management ───────────────────────────────────
+export const adminCreateEmployee = createServerFn({ method: 'POST' })
+	.inputValidator(EmployeePayload)
+	.handler(async ({ data }): Promise<EmployeeRow> => db.employees.insert(data))
 
-export const createUser = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({
-    name: z.string().min(1),
-    email: z.string().email(),
-    role: z.string(),
-    department: z.string(),
-  }))
-  .handler(async ({ data }) => {
-    return { success: true, userId: `user-${Date.now()}`, tempPassword: 'temp-' + Math.random().toString(36).slice(2, 10) }
-  })
+export const adminUpdateEmployee = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }).merge(EmployeePayload.partial()))
+	.handler(async ({ data }): Promise<EmployeeRow> => {
+		const { id, ...patch } = data
+		const next = db.employees.update(id, patch)
+		if (!next) throw new Error(`Employee ${id} not found`)
+		return next
+	})
 
-export const suspendUser = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ userId: z.string(), reason: z.string() }))
-  .handler(async ({ data }) => ({ success: true }))
+export const adminDeleteEmployee = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }))
+	.handler(
+		async ({ data }): Promise<{ ok: boolean }> => ({
+			ok: db.employees.remove(data.id),
+		}),
+	)
 
-export const activateUser = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ userId: z.string() }))
-  .handler(async ({ data }) => ({ success: true }))
+// ─── Drivers (trucks) ────────────────────────────────────
 
-export const resetUserPassword = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ userId: z.string() }))
-  .handler(async ({ data }) => ({ success: true, tempPassword: 'reset-' + Math.random().toString(36).slice(2, 10) }))
+const TruckPayload = z.object({
+	plateNumber: z.string().min(1),
+	driverName: z.string().min(1),
+	driverPhone: z.string().min(1),
+	capacityTons: z.number().min(0),
+	bodyType: z.enum(['flatbed', 'curtain-side', 'box', 'tipper']),
+	status: z.enum(['available', 'loading', 'dispatched', 'maintenance']),
+})
 
-export const toggleUserMFA = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ userId: z.string(), enabled: z.boolean() }))
-  .handler(async ({ data }) => ({ success: true, mfaEnabled: data.enabled }))
-
-// ─── Role Management ───────────────────────────────────
-
-export const updateRolePermissions = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({
-    roleId: z.string(),
-    permissions: z.record(z.string(), z.boolean()),
-  }))
-  .handler(async ({ data }) => ({ success: true }))
-
-// ─── Margin Rules CRUD ─────────────────────────────────
-
-export const createMarginRule = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({
-    productCategory: z.string(),
-    target: z.number(),
-    floor: z.number(),
-    absoluteMin: z.number(),
-  }))
-  .handler(async ({ data }) => ({ success: true, ruleId: `rule-${Date.now()}` }))
-
-export const deleteMarginRule = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ ruleId: z.string() }))
-  .handler(async ({ data }) => ({ success: true }))
-
-// ─── Approval Thresholds CRUD ──────────────────────────
-
-export const createApprovalThreshold = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({
-    type: z.string(),
-    description: z.string(),
-    threshold: z.number(),
-    approver: z.string(),
-    escalation: z.string().optional(),
-  }))
-  .handler(async ({ data }) => ({ success: true, thresholdId: `thresh-${Date.now()}` }))
-
-export const deleteApprovalThreshold = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ thresholdId: z.string() }))
-  .handler(async ({ data }) => ({ success: true }))
-
-// ─── Holidays CRUD ─────────────────────────────────────
-
-export const addHoliday = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({
-    name: z.string(),
-    date: z.string(),
-    type: z.enum(['fixed', 'islamic']),
-    days: z.number().default(1),
-  }))
-  .handler(async ({ data }) => ({ success: true, holidayId: `hol-${Date.now()}` }))
-
-export const deleteHoliday = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ holidayId: z.string() }))
-  .handler(async ({ data }) => ({ success: true }))
-
-// ─── Audit Export ──────────────────────────────────────
-
-export const exportAuditLog = createServerFn({ method: 'GET' })
-  .inputValidator(z.object({
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    action: z.string().optional(),
-  }))
-  .handler(async ({ data }) => {
-    const header = 'Timestamp,Action,User,Entity,EntityId,Details\n'
-    const rows = Array.from({ length: 50 }, (_, i) => {
-      const d = new Date(Date.now() - i * 3600000)
-      return `${d.toISOString()},UPDATE,Admin,SystemSetting,set-${i},Updated value`
-    }).join('\n')
-    return { csv: header + rows, filename: `audit-log-${new Date().toISOString().slice(0, 10)}.csv` }
-  })
-
-// Export mock data for use in views
-export const getMarginRules = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<MarginRule[]> => {
-    return MOCK_MARGIN_RULES
-  },
+export const adminListTrucks = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<TruckRow[]> => db.trucks.list(),
 )
 
-export const getApprovalThresholds = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<ApprovalThreshold[]> => {
-    return MOCK_APPROVAL_THRESHOLDS
-  },
+export const adminCreateTruck = createServerFn({ method: 'POST' })
+	.inputValidator(TruckPayload)
+	.handler(async ({ data }): Promise<TruckRow> => db.trucks.insert(data))
+
+export const adminUpdateTruck = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }).merge(TruckPayload.partial()))
+	.handler(async ({ data }): Promise<TruckRow> => {
+		const { id, ...patch } = data
+		const next = db.trucks.update(id, patch)
+		if (!next) throw new Error(`Truck ${id} not found`)
+		return next
+	})
+
+export const adminDeleteTruck = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }))
+	.handler(
+		async ({ data }): Promise<{ ok: boolean }> => ({
+			ok: db.trucks.remove(data.id),
+		}),
+	)
+
+// ─── Suppliers ───────────────────────────────────────────
+
+const SupplierPayload = z.object({
+	name: z.string().min(1),
+	tier: z.enum(['preferred', 'approved', 'conditional', 'new']),
+	paymentTerms: z.string(),
+	phone: z.string().nullable(),
+	rating: z.number().min(0).max(5),
+	customBadges: z.array(z.string()),
+})
+
+export const adminListSuppliers = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<SupplierRow[]> => db.suppliers.list(),
 )
 
-export const getHolidayCalendar = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<Holiday[]> => {
-    return MOCK_HOLIDAYS
-  },
-)
+export const adminCreateSupplier = createServerFn({ method: 'POST' })
+	.inputValidator(SupplierPayload)
+	.handler(async ({ data }): Promise<SupplierRow> => {
+		// upsert creates when absent; the admin flow always provides a full payload.
+		const { name, ...rest } = data
+		return db.suppliers.upsert(name, rest)
+	})
+
+export const adminUpdateSupplier = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({ originalName: z.string() }).merge(SupplierPayload.partial()),
+	)
+	.handler(async ({ data }): Promise<SupplierRow> => {
+		const { originalName, name, ...patch } = data
+		// Rename = delete old key, upsert new, cascade to supplier_prices so
+		// every sub-table id stays pointing at the right parent.
+		if (name && name !== originalName) {
+			const existing = db.suppliers.get(originalName)
+			if (!existing) throw new Error(`Supplier ${originalName} not found`)
+			db.suppliers.remove(originalName)
+			db.supplierPrices.renameSupplier(originalName, name)
+			return db.suppliers.upsert(name, { ...existing, ...patch })
+		}
+		const next = db.suppliers.upsert(originalName, patch)
+		return next
+	})
+
+export const adminDeleteSupplier = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ name: z.string() }))
+	.handler(async ({ data }): Promise<{ ok: boolean; removedItems: number }> => {
+		const removedItems = db.supplierPrices.removeForSupplier(data.name)
+		const ok = db.suppliers.remove(data.name)
+		return { ok, removedItems }
+	})
+
+// ─── Supplier items (supplier_prices sub-table) ──────────
+
+const SupplierItemPayload = z.object({
+	supplierName: z.string().min(1),
+	productSlug: z.string().min(1),
+	rawCost: z.number().min(0),
+	leadTimeDays: z.number().int().min(0),
+	minOrderQty: z.number().int().min(0),
+	isPrimary: z.boolean(),
+	notes: z.string().nullable(),
+})
+
+export const adminListSupplierItems = createServerFn({ method: 'GET' })
+	.inputValidator(z.object({ supplierName: z.string() }))
+	.handler(
+		async ({ data }): Promise<SupplierPriceRow[]> =>
+			db.supplierPrices.forSupplier(data.supplierName),
+	)
+
+export const adminAddSupplierItem = createServerFn({ method: 'POST' })
+	.inputValidator(SupplierItemPayload)
+	.handler(
+		async ({ data }): Promise<SupplierPriceRow> =>
+			db.supplierPrices.insert(data),
+	)
+
+export const adminUpdateSupplierItem = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			id: z.string(),
+			rawCost: z.number().min(0).optional(),
+			leadTimeDays: z.number().int().min(0).optional(),
+			minOrderQty: z.number().int().min(0).optional(),
+			isPrimary: z.boolean().optional(),
+			notes: z.string().nullable().optional(),
+		}),
+	)
+	.handler(async ({ data }): Promise<SupplierPriceRow> => {
+		const { id, ...patch } = data
+		const next = db.supplierPrices.update(id, patch)
+		if (!next) throw new Error(`Supplier item ${id} not found`)
+		return next
+	})
+
+export const adminRemoveSupplierItem = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ id: z.string() }))
+	.handler(
+		async ({ data }): Promise<{ ok: boolean }> => ({
+			ok: db.supplierPrices.remove(data.id),
+		}),
+	)

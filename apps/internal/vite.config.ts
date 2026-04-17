@@ -1,10 +1,10 @@
 import { resolve } from 'node:path'
-import { defineConfig } from 'vite'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import type { PluginOption } from 'vite'
+import { defineConfig } from 'vite'
 
 // Client-only shims for server modules that leak into the client module graph.
 // TanStack Start + Cloudflare leaks server-only modules (start-server-core,
@@ -12,7 +12,7 @@ import type { PluginOption } from 'vite'
 // browser-compatible stubs so the leaked modules load without crashing.
 function clientOnlyShims(): PluginOption {
 	const id = 'tanstack-start-injected-head-scripts:v'
-	const resolved = '\0' + id
+	const resolved = `\0${id}`
 
 	const shimMap: Record<string, string> = {
 		'node:stream/web': resolve(__dirname, 'src/shims/node-stream-web.ts'),
@@ -29,7 +29,8 @@ function clientOnlyShims(): PluginOption {
 			if (shimMap[source]) return shimMap[source]
 		},
 		load(loadId) {
-			if (loadId === resolved) return 'export const injectedHeadScripts = undefined'
+			if (loadId === resolved)
+				return 'export const injectedHeadScripts = undefined'
 		},
 	}
 }

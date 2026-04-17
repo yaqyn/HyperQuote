@@ -1,20 +1,21 @@
+import { AnimatePresence, motion } from 'motion/react'
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'motion/react'
-import { useSalesStore } from '../../stores/sales'
-import { useProcurementStore } from '../../stores/procurement'
-import { useFinanceStore } from '../../stores/finance'
-import { useWarehouseStore } from '../../stores/warehouse'
-import { useDispatchStore } from '../../stores/dispatch'
+import { useAdminStore } from '../../stores/admin'
 import { useSupportStore } from '../../stores/customer-service'
+import { useDispatchStore } from '../../stores/dispatch'
+import { useFinanceStore } from '../../stores/finance'
+import { useProcurementStore } from '../../stores/procurement'
+import { useSalesStore } from '../../stores/sales'
+import { useWarehouseStore } from '../../stores/warehouse'
 
 /**
  * Context holding:
@@ -28,52 +29,56 @@ import { useSupportStore } from '../../stores/customer-service'
  *      closes both).
  */
 interface PanelHostContextValue {
-  host: HTMLElement | null
-  registerClose: (key: string, fn: () => void) => void
-  unregisterClose: (key: string) => void
-  closeAll: () => void
+	host: HTMLElement | null
+	registerClose: (key: string, fn: () => void) => void
+	unregisterClose: (key: string) => void
+	closeAll: () => void
 }
 
 const noop = () => {}
 const PanelHostContext = createContext<PanelHostContextValue>({
-  host: null,
-  registerClose: noop,
-  unregisterClose: noop,
-  closeAll: noop,
+	host: null,
+	registerClose: noop,
+	unregisterClose: noop,
+	closeAll: noop,
 })
 
 export function PanelHostProvider({
-  host,
-  children,
+	host,
+	children,
 }: {
-  host: HTMLElement | null
-  children: ReactNode
+	host: HTMLElement | null
+	children: ReactNode
 }) {
-  // Use a ref so the register/unregister/closeAll identities stay stable;
-  // we don't want SlidePanels to re-run effects every time another panel
-  // opens or closes.
-  const closersRef = useRef<Map<string, () => void>>(new Map())
+	// Use a ref so the register/unregister/closeAll identities stay stable;
+	// we don't want SlidePanels to re-run effects every time another panel
+	// opens or closes.
+	const closersRef = useRef<Map<string, () => void>>(new Map())
 
-  const value = useMemo<PanelHostContextValue>(
-    () => ({
-      host,
-      registerClose: (key, fn) => {
-        closersRef.current.set(key, fn)
-      },
-      unregisterClose: (key) => {
-        closersRef.current.delete(key)
-      },
-      closeAll: () => {
-        // Snapshot so mutations during close (unregister cascading) don't
-        // interfere with iteration.
-        const closers = Array.from(closersRef.current.values())
-        closers.forEach((fn) => fn())
-      },
-    }),
-    [host],
-  )
+	const value = useMemo<PanelHostContextValue>(
+		() => ({
+			host,
+			registerClose: (key, fn) => {
+				closersRef.current.set(key, fn)
+			},
+			unregisterClose: (key) => {
+				closersRef.current.delete(key)
+			},
+			closeAll: () => {
+				// Snapshot so mutations during close (unregister cascading) don't
+				// interfere with iteration.
+				const closers = Array.from(closersRef.current.values())
+				for (const fn of closers) fn()
+			},
+		}),
+		[host],
+	)
 
-  return <PanelHostContext.Provider value={value}>{children}</PanelHostContext.Provider>
+	return (
+		<PanelHostContext.Provider value={value}>
+			{children}
+		</PanelHostContext.Provider>
+	)
 }
 
 /**
@@ -93,175 +98,186 @@ export function PanelHostProvider({
  * right-side X, whatever — changing it here updates every panel at once.
  */
 
-export type SlidePanelScope = 'sales' | 'procurement' | 'finance' | 'warehouse' | 'dispatch' | 'customer-service'
+export type SlidePanelScope =
+	| 'sales'
+	| 'procurement'
+	| 'finance'
+	| 'warehouse'
+	| 'dispatch'
+	| 'customer-service'
+	| 'admin'
 export type SlidePanelSide = 'start' | 'end'
 
 interface SlidePanelProps {
-  isOpen: boolean
-  onClose: () => void
-  /** Max width in pixels. Defaults to 560. */
-  maxWidth?: number
-  /** Accessible label for the dialog. */
-  ariaLabel?: string
-  /**
-   * Which module's overlay close handler to register with. When set, the
-   * outer panel X (WindowHeader close) will dismiss this panel first
-   * instead of closing the whole module. Pass the module that OWNS this
-   * panel — e.g. sales panels pass 'sales'.
-   */
-  scope?: SlidePanelScope
-  /**
-   * Which edge the panel slides in from. 'end' (default) = trailing edge,
-   * where all contextual side panels live. 'start' = leading edge, used
-   * for shell-level global panels like the AI chat.
-   */
-  side?: SlidePanelSide
-  /**
-   * Distinct key so AnimatePresence treats content swaps as the same
-   * panel instance (prevents re-mount churn when switching between
-   * drill-down states inside one panel).
-   */
-  panelKey?: string
-  children: ReactNode
+	isOpen: boolean
+	onClose: () => void
+	/** Max width in pixels. Defaults to 560. */
+	maxWidth?: number
+	/** Accessible label for the dialog. */
+	ariaLabel?: string
+	/**
+	 * Which module's overlay close handler to register with. When set, the
+	 * outer panel X (WindowHeader close) will dismiss this panel first
+	 * instead of closing the whole module. Pass the module that OWNS this
+	 * panel — e.g. sales panels pass 'sales'.
+	 */
+	scope?: SlidePanelScope
+	/**
+	 * Which edge the panel slides in from. 'end' (default) = trailing edge,
+	 * where all contextual side panels live. 'start' = leading edge, used
+	 * for shell-level global panels like the AI chat.
+	 */
+	side?: SlidePanelSide
+	/**
+	 * Distinct key so AnimatePresence treats content swaps as the same
+	 * panel instance (prevents re-mount churn when switching between
+	 * drill-down states inside one panel).
+	 */
+	panelKey?: string
+	children: ReactNode
 }
 
 export function SlidePanel({
-  isOpen,
-  onClose,
-  maxWidth = 560,
-  ariaLabel = 'Side panel',
-  scope,
-  side = 'end',
-  panelKey = 'slide-panel',
-  children,
+	isOpen,
+	onClose,
+	maxWidth = 560,
+	ariaLabel = 'Side panel',
+	scope,
+	side = 'end',
+	panelKey = 'slide-panel',
+	children,
 }: SlidePanelProps) {
-  const { host, registerClose, unregisterClose, closeAll } =
-    useContext(PanelHostContext)
+	const { host, registerClose, unregisterClose, closeAll } =
+		useContext(PanelHostContext)
 
-  // Which direction the panel slides in from. RTL-safe via logical props
-  // (start/end), which the runtime resolves to left/right based on dir.
-  // For the animation we use raw x and flip the sign when side==='start'.
-  const enterOffset = side === 'start' ? '-100%' : '100%'
-  const edgeClass = side === 'start' ? 'start-0 border-e' : 'end-0 border-s'
+	// Which direction the panel slides in from. RTL-safe via logical props
+	// (start/end), which the runtime resolves to left/right based on dir.
+	// For the animation we use raw x and flip the sign when side==='start'.
+	const enterOffset = side === 'start' ? '-100%' : '100%'
+	const edgeClass = side === 'start' ? 'start-0 border-e' : 'end-0 border-s'
 
-  // SSR / pre-mount guard: if the panel host isn't available yet, render
-  // nothing on the first paint and catch up once it mounts.
-  const [hostReady, setHostReady] = useState(false)
-  useEffect(() => {
-    setHostReady(host !== null)
-  }, [host])
+	// SSR / pre-mount guard: if the panel host isn't available yet, render
+	// nothing on the first paint and catch up once it mounts.
+	const [hostReady, setHostReady] = useState(false)
+	useEffect(() => {
+		setHostReady(host !== null)
+	}, [host])
 
-  // Register this panel's closer with the host so a backdrop click can
-  // dismiss every currently-open panel in one go. Only register while
-  // open — that way closeAll() only calls panels that are actually visible.
-  useEffect(() => {
-    if (!isOpen) return
-    registerClose(panelKey, onClose)
-    return () => unregisterClose(panelKey)
-  }, [isOpen, panelKey, onClose, registerClose, unregisterClose])
-  // Register with the owning module store so the panel X dismisses this
-  // overlay before dismissing the whole module. We rely on only one slide
-  // panel being open per module at a time — the app enforces that.
-  const setSalesHandler = useSalesStore((s) => s.setOverlayCloseHandler)
-  const setProcurementHandler = useProcurementStore(
-    (s) => s.setOverlayCloseHandler,
-  )
-  const setFinanceHandler = useFinanceStore((s) => s.setOverlayCloseHandler)
-  const setWarehouseHandler = useWarehouseStore((s) => s.setOverlayCloseHandler)
-  const setDispatchHandler = useDispatchStore((s) => s.setOverlayCloseHandler)
-  const setSupportHandler = useSupportStore((s) => s.setOverlayCloseHandler)
+	// Register this panel's closer with the host so a backdrop click can
+	// dismiss every currently-open panel in one go. Only register while
+	// open — that way closeAll() only calls panels that are actually visible.
+	useEffect(() => {
+		if (!isOpen) return
+		registerClose(panelKey, onClose)
+		return () => unregisterClose(panelKey)
+	}, [isOpen, panelKey, onClose, registerClose, unregisterClose])
+	// Register with the owning module store so the panel X dismisses this
+	// overlay before dismissing the whole module. We rely on only one slide
+	// panel being open per module at a time — the app enforces that.
+	const setSalesHandler = useSalesStore((s) => s.setOverlayCloseHandler)
+	const setProcurementHandler = useProcurementStore(
+		(s) => s.setOverlayCloseHandler,
+	)
+	const setFinanceHandler = useFinanceStore((s) => s.setOverlayCloseHandler)
+	const setWarehouseHandler = useWarehouseStore((s) => s.setOverlayCloseHandler)
+	const setDispatchHandler = useDispatchStore((s) => s.setOverlayCloseHandler)
+	const setSupportHandler = useSupportStore((s) => s.setOverlayCloseHandler)
+	const setAdminHandler = useAdminStore((s) => s.setOverlayCloseHandler)
 
-  useEffect(() => {
-    if (!scope) return
-    const setter =
-      scope === 'sales'
-        ? setSalesHandler
-        : scope === 'procurement'
-          ? setProcurementHandler
-          : scope === 'finance'
-            ? setFinanceHandler
-            : scope === 'warehouse'
-              ? setWarehouseHandler
-              : scope === 'dispatch'
-                ? setDispatchHandler
-                : setSupportHandler
-    if (!isOpen) {
-      // When this panel closes, drop any handler *it* registered. If another
-      // panel in the same module is open, its own effect will have already
-      // overwritten the slot, so this is a no-op in that case.
-      return
-    }
-    setter(() => {
-      onClose()
-      return true
-    })
-    return () => setter(null)
-  }, [
-    isOpen,
-    scope,
-    onClose,
-    setSalesHandler,
-    setProcurementHandler,
-    setFinanceHandler,
-    setWarehouseHandler,
-    setDispatchHandler,
-    setSupportHandler,
-  ])
+	useEffect(() => {
+		if (!scope) return
+		const setter =
+			scope === 'sales'
+				? setSalesHandler
+				: scope === 'procurement'
+					? setProcurementHandler
+					: scope === 'finance'
+						? setFinanceHandler
+						: scope === 'warehouse'
+							? setWarehouseHandler
+							: scope === 'dispatch'
+								? setDispatchHandler
+								: scope === 'customer-service'
+									? setSupportHandler
+									: setAdminHandler
+		if (!isOpen) {
+			// When this panel closes, drop any handler *it* registered. If another
+			// panel in the same module is open, its own effect will have already
+			// overwritten the slot, so this is a no-op in that case.
+			return
+		}
+		setter(() => {
+			onClose()
+			return true
+		})
+		return () => setter(null)
+	}, [
+		isOpen,
+		scope,
+		onClose,
+		setSalesHandler,
+		setProcurementHandler,
+		setFinanceHandler,
+		setWarehouseHandler,
+		setDispatchHandler,
+		setSupportHandler,
+		setAdminHandler,
+	])
 
-  // Escape dismisses whichever panel is currently open.
-  useEffect(() => {
-    if (!isOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
+	// Escape dismisses whichever panel is currently open.
+	useEffect(() => {
+		if (!isOpen) return
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				e.preventDefault()
+				onClose()
+			}
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [isOpen, onClose])
 
-  const panel = (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Transparent click-outside backdrop — no dim, no blur, just a
+	const panel = (
+		<AnimatePresence>
+			{isOpen && (
+				<>
+					{/* Transparent click-outside backdrop — no dim, no blur, just a
               full-bleed surface that swallows clicks and closes the panel. */}
-          <motion.button
-            key={`${panelKey}-backdrop`}
-            type="button"
-            aria-label="Close panel"
-            onClick={closeAll}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 z-20 cursor-default bg-transparent"
-          />
+					<motion.button
+						key={`${panelKey}-backdrop`}
+						type="button"
+						aria-label="Close panel"
+						onClick={closeAll}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.15 }}
+						className="absolute inset-0 z-20 cursor-default bg-transparent"
+					/>
 
-          <motion.div
-            key={panelKey}
-            role="dialog"
-            aria-label={ariaLabel}
-            initial={{ x: enterOffset }}
-            animate={{ x: 0 }}
-            exit={{ x: enterOffset }}
-            transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-            className={`absolute inset-y-0 ${edgeClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] shadow-2xl dark:border-white/[0.08]`}
-            style={{ maxWidth: `${maxWidth}px` }}
-          >
-            {children}
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  )
+					<motion.div
+						key={panelKey}
+						role="dialog"
+						aria-label={ariaLabel}
+						initial={{ x: enterOffset }}
+						animate={{ x: 0 }}
+						exit={{ x: enterOffset }}
+						transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+						className={`absolute inset-y-0 ${edgeClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] shadow-2xl dark:border-white/[0.08]`}
+						style={{ maxWidth: `${maxWidth}px` }}
+					>
+						{children}
+					</motion.div>
+				</>
+			)}
+		</AnimatePresence>
+	)
 
-  // Portal into the shell-provided host so the panel covers the full
-  // module body (under the header, above tab strips / toolbars / content).
-  // If no host is provided (rare — outside ModuleWindow), render inline.
-  if (hostReady && host) {
-    return createPortal(panel, host)
-  }
-  return panel
+	// Portal into the shell-provided host so the panel covers the full
+	// module body (under the header, above tab strips / toolbars / content).
+	// If no host is provided (rare — outside ModuleWindow), render inline.
+	if (hostReady && host) {
+		return createPortal(panel, host)
+	}
+	return panel
 }

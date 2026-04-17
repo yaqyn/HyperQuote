@@ -1,93 +1,84 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Dialog,
-  Modal,
-  ModalOverlay,
-  Button as AriaButton,
-  Heading,
-} from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components'
 import { reassignRFQ } from '../../../lib/server/sales-rfq'
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchFooter,
+} from '../../shared/DispatchDialog'
 
 const TEAM_MEMBERS = [
-  { id: 'user-001', name: 'Ahmed Hassan' },
-  { id: 'user-002', name: 'Mariam Farouk' },
-  { id: 'user-003', name: 'Omar Khaled' },
+	{ id: 'user-001', name: 'Ahmed Hassan' },
+	{ id: 'user-002', name: 'Mariam Farouk' },
+	{ id: 'user-003', name: 'Omar Khaled' },
 ]
 
 interface AssignRFQDialogProps {
-  rfqId: string
-  isOpen: boolean
-  onClose: () => void
+	rfqId: string
+	isOpen: boolean
+	onClose: () => void
 }
 
-export function AssignRFQDialog({ rfqId, isOpen, onClose }: AssignRFQDialogProps) {
-  const queryClient = useQueryClient()
+export function AssignRFQDialog({
+	rfqId,
+	isOpen,
+	onClose,
+}: AssignRFQDialogProps) {
+	const queryClient = useQueryClient()
 
-  const mutation = useMutation({
-    mutationFn: (assigneeId: string) =>
-      reassignRFQ({ data: { rfqId, toUserId: assigneeId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
-      queryClient.invalidateQueries({ queryKey: ['rfq-detail', rfqId] })
-      onClose()
-    },
-  })
+	const mutation = useMutation({
+		mutationFn: (assigneeId: string) =>
+			reassignRFQ({ data: { rfqId, toUserId: assigneeId } }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
+			queryClient.invalidateQueries({ queryKey: ['rfq-detail', rfqId] })
+			onClose()
+		},
+	})
 
-  return (
-    <ModalOverlay
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-      isDismissable
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-    >
-      <Modal className="w-full max-w-sm mx-4">
-        <Dialog
-          isKeyboardDismissDisabled
-          className="rounded-2xl border border-black/[0.06] bg-white/90 p-6 shadow-2xl dark:border-white/[0.06] dark:bg-black/90 outline-none"
-        >
-          {({ close }) => (
-            <>
-              <Heading slot="title" className="text-[15px] font-semibold text-[var(--color-text)] mb-4">
-                Assign to Team Member
-              </Heading>
+	return (
+		<DispatchDialog
+			isOpen={isOpen}
+			onClose={onClose}
+			size="sm"
+			eyebrow={`RFQ · ${rfqId.toUpperCase()}`}
+			title="Reassign"
+			caption="Hand this off to another rep."
+			dismissDisabled={mutation.isPending}
+		>
+			<DispatchBody>
+				<ul className="divide-y divide-black/[0.08] dark:divide-white/[0.1]">
+					{TEAM_MEMBERS.map((member) => (
+						<li key={member.id}>
+							<AriaButton
+								onPress={() => mutation.mutate(member.id)}
+								isDisabled={mutation.isPending}
+								className="w-full flex items-center gap-4 py-3 outline-none cursor-pointer data-[hovered]:bg-black/[0.03] dark:data-[hovered]:bg-white/[0.04] px-2 data-[disabled]:opacity-40 transition-colors"
+							>
+								<span className="inline-flex h-9 w-9 items-center justify-center border border-black/80 dark:border-white/85 font-[family-name:var(--font-plex-mono)] text-[11px] font-semibold uppercase text-[var(--color-text)]">
+									{member.name
+										.split(' ')
+										.map((n) => n[0])
+										.join('')}
+								</span>
+								<span className="font-[family-name:var(--font-archivo)] text-[14px] font-medium text-[var(--color-text)]">
+									{member.name}
+								</span>
+								<span className="ms-auto font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+									assign →
+								</span>
+							</AriaButton>
+						</li>
+					))}
+				</ul>
+			</DispatchBody>
 
-              <div className="flex flex-col gap-1">
-                {TEAM_MEMBERS.map((member) => (
-                  <AriaButton
-                    key={member.id}
-                    onPress={() => mutation.mutate(member.id)}
-                    isDisabled={mutation.isPending}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-start outline-none cursor-pointer
-                      data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
-                      data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                      data-[disabled]:opacity-50"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[13px] font-semibold text-[var(--color-primary)]">
-                      {member.name.split(' ').map((n) => n[0]).join('')}
-                    </span>
-                    <span className="text-[13px] font-medium text-[var(--color-text)]">
-                      {member.name}
-                    </span>
-                  </AriaButton>
-                ))}
-              </div>
-
-              <div className="mt-4 flex justify-end">
-                <AriaButton
-                  onPress={close}
-                  className="rounded-lg bg-black/[0.04] dark:bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-[var(--color-text)] outline-none
-                    data-[hovered]:bg-black/[0.08] dark:data-[hovered]:bg-white/[0.1]
-                    data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50"
-                >
-                  Cancel
-                </AriaButton>
-              </div>
-            </>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
-  )
+			<DispatchFooter>
+				<DispatchAction tone="ghost" onPress={onClose}>
+					Cancel
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
+	)
 }

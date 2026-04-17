@@ -1,9 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { OrganizationJsonLd, WebsiteJsonLd } from '../../components/shared/JsonLd'
+import { CTASection } from '../../components/home/CTASection'
 import { HeroSection } from '../../components/home/HeroSection'
 import { HowItWorksSection } from '../../components/home/HowItWorksSection'
 import { MarketPreviewSection } from '../../components/home/MarketPreviewSection'
-import { CTASection } from '../../components/home/CTASection'
+import {
+	OrganizationJsonLd,
+	WebsiteJsonLd,
+} from '../../components/shared/JsonLd'
 
 export const Route = createFileRoute('/_website/')({
 	head: () => ({

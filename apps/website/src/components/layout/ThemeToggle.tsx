@@ -1,6 +1,6 @@
+import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ToggleButton } from 'react-aria-components'
-import { Moon, Sun } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { persistTheme } from '../../lib/theme'
 
@@ -25,7 +25,11 @@ export function ThemeToggle() {
 			aria-label={isDark ? t('a11y.toggleLightMode') : t('a11y.toggleDarkMode')}
 			className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
 		>
-			{isDark ? <Sun size={18} className="text-[var(--color-text-muted)]" /> : <Moon size={18} className="text-[var(--color-text-muted)]" />}
+			{isDark ? (
+				<Sun size={18} className="text-[var(--color-text-muted)]" />
+			) : (
+				<Moon size={18} className="text-[var(--color-text-muted)]" />
+			)}
 		</ToggleButton>
 	)
 }

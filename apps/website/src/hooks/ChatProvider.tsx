@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
-import { useAIChat } from './useAIChat'
 import type { ChatMessage } from './useAIChat'
+import { useAIChat } from './useAIChat'
 
 interface SharedChat {
 	messages: ChatMessage[]
@@ -15,12 +15,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 	const chat = useAIChat()
 
 	return (
-		<ChatContext.Provider value={{
-			messages: chat.messages,
-			sendMessage: chat.sendMessage,
-			isLoading: chat.isLoading,
-			error: chat.error ?? null,
-		}}>
+		<ChatContext.Provider
+			value={{
+				messages: chat.messages,
+				sendMessage: chat.sendMessage,
+				isLoading: chat.isLoading,
+				error: chat.error ?? null,
+			}}
+		>
 			{children}
 		</ChatContext.Provider>
 	)

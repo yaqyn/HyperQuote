@@ -1,152 +1,141 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Dialog,
-  DialogTrigger,
-  Modal,
-  ModalOverlay,
-  Heading,
-} from 'react-aria-components'
-import { AlertTriangle } from 'lucide-react'
-import { Button } from '../../ui'
 import { markAsLost } from '../../../lib/server/sales-pipeline'
-
-// ─── Types ──────────────────────────────────────────────────
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchField,
+	DispatchFooter,
+	DispatchInputClass,
+} from '../../shared/DispatchDialog'
 
 const LOSS_REASONS = [
-  'lost_to_competitor',
-  'price_too_high',
-  'project_cancelled',
-  'no_response',
-  'other',
+	'lost_to_competitor',
+	'price_too_high',
+	'project_cancelled',
+	'no_response',
+	'other',
 ] as const
 
 type LossReason = (typeof LOSS_REASONS)[number]
 
-// ─── Component ──────────────────────────────────────────────
-
 interface MarkAsLostDialogProps {
-  quoteId: string
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+	quoteId: string
+	isOpen: boolean
+	onOpenChange: (open: boolean) => void
+	onSuccess?: () => void
 }
 
 export function MarkAsLostDialog({
-  quoteId,
-  isOpen,
-  onOpenChange,
-  onSuccess,
+	quoteId,
+	isOpen,
+	onOpenChange,
+	onSuccess,
 }: MarkAsLostDialogProps) {
-  const { t } = useTranslation('internal')
-  const [reason, setReason] = useState<LossReason>('lost_to_competitor')
-  const [competitorName, setCompetitorName] = useState('')
-  const [notes, setNotes] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+	const { t } = useTranslation('internal')
+	const [reason, setReason] = useState<LossReason>('lost_to_competitor')
+	const [competitorName, setCompetitorName] = useState('')
+	const [notes, setNotes] = useState('')
+	const [isSubmitting, setIsSubmitting] = useState(false)
 
-  async function handleSubmit() {
-    setIsSubmitting(true)
-    try {
-      await markAsLost({
-        data: {
-          quoteId,
-          lossReason: reason,
-          competitorName: competitorName || undefined,
-        },
-      })
-      onOpenChange(false)
-      onSuccess?.()
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+	async function handleSubmit() {
+		setIsSubmitting(true)
+		try {
+			await markAsLost({
+				data: {
+					quoteId,
+					lossReason: reason,
+					competitorName: competitorName || undefined,
+				},
+			})
+			onOpenChange(false)
+			onSuccess?.()
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
 
-  return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <span />
-      <ModalOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <Modal className="w-full max-w-md rounded-2xl bg-white/90 shadow-2xl dark:bg-black/90">
-          <Dialog isKeyboardDismissDisabled className="p-6 outline-none">
-            {/* Header with small warning icon -- NOT red-themed */}
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="size-4 text-[var(--color-text-muted)]" />
-              <Heading slot="title" className="text-[15px] font-semibold text-[var(--color-text)]">
-                {t('sales.negotiation.markAsLost', 'Mark as Lost')}
-              </Heading>
-            </div>
+	return (
+		<DispatchDialog
+			isOpen={isOpen}
+			onClose={() => onOpenChange(false)}
+			size="sm"
+			eyebrow={`Quote · ${quoteId.toUpperCase()}`}
+			title={t('sales.negotiation.markAsLost', 'Mark as lost')}
+			caption="Tell us what happened so the next quote does better."
+			dismissDisabled={isSubmitting}
+		>
+			<DispatchBody>
+				<div className="space-y-5">
+					<DispatchField
+						label={t('sales.negotiation.lossReason', 'Reason')}
+						required
+					>
+						<select
+							value={reason}
+							onChange={(e) => setReason(e.target.value as LossReason)}
+							className={DispatchInputClass()}
+						>
+							{LOSS_REASONS.map((r) => (
+								<option key={r} value={r}>
+									{t(
+										`sales.negotiation.lossReasons.${r}`,
+										r.replace(/_/g, ' '),
+									)}
+								</option>
+							))}
+						</select>
+					</DispatchField>
 
-            <div className="mt-5 space-y-4">
-              {/* Reason */}
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-[var(--color-text)]">
-                  {t('sales.negotiation.lossReason', 'Reason')}
-                </label>
-                <select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value as LossReason)}
-                  className="w-full rounded-lg border border-black/[0.06] bg-transparent px-3 py-2 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.06]"
-                >
-                  {LOSS_REASONS.map((r) => (
-                    <option key={r} value={r}>
-                      {t(`sales.negotiation.lossReasons.${r}`, r.replace(/_/g, ' '))}
-                    </option>
-                  ))}
-                </select>
-              </div>
+					{reason === 'lost_to_competitor' && (
+						<DispatchField
+							label={t('sales.negotiation.competitorName', 'Competitor')}
+						>
+							<input
+								type="text"
+								value={competitorName}
+								onChange={(e) => setCompetitorName(e.target.value)}
+								className={DispatchInputClass()}
+								placeholder={t(
+									'sales.negotiation.competitorPlaceholder',
+									'e.g., Egyptian Steel Distribution',
+								)}
+							/>
+						</DispatchField>
+					)}
 
-              {/* Competitor Name */}
-              {reason === 'lost_to_competitor' && (
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-medium text-[var(--color-text)]">
-                    {t('sales.negotiation.competitorName', 'Competitor')}
-                  </label>
-                  <input
-                    type="text"
-                    value={competitorName}
-                    onChange={(e) => setCompetitorName(e.target.value)}
-                    className="w-full rounded-lg border border-black/[0.06] bg-transparent px-3 py-2 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.06]"
-                    placeholder={t('sales.negotiation.competitorPlaceholder', 'e.g., Egyptian Steel Distribution')}
-                  />
-                </div>
-              )}
+					<DispatchField
+						label={`${t('sales.negotiation.notes', 'Notes')} (optional)`}
+					>
+						<textarea
+							value={notes}
+							onChange={(e) => setNotes(e.target.value)}
+							rows={3}
+							className={`${DispatchInputClass()} resize-none`}
+						/>
+					</DispatchField>
+				</div>
+			</DispatchBody>
 
-              {/* Notes */}
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-[var(--color-text)]">
-                  {t('sales.negotiation.notes', 'Notes')}
-                  <span className="ms-1 text-[11px] text-[var(--color-text-subtle)]">(optional)</span>
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  className="w-full resize-none rounded-lg border border-black/[0.06] bg-transparent px-3 py-2 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.06]"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onPress={() => onOpenChange(false)}
-              >
-                {t('common.cancel', 'Cancel')}
-              </Button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="rounded-full bg-[var(--color-text)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-text)]/90 disabled:opacity-40 dark:bg-white dark:text-black"
-              >
-                {isSubmitting
-                  ? t('common.submitting', 'Submitting...')
-                  : t('sales.negotiation.confirmLost', 'Confirm Lost')}
-              </button>
-            </div>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
-  )
+			<DispatchFooter>
+				<DispatchAction
+					tone="ghost"
+					onPress={() => onOpenChange(false)}
+					isDisabled={isSubmitting}
+				>
+					{t('common.cancel', 'Cancel')}
+				</DispatchAction>
+				<DispatchAction
+					tone="danger"
+					onPress={handleSubmit}
+					isDisabled={isSubmitting}
+				>
+					{isSubmitting
+						? t('common.submitting', 'Submitting…')
+						: t('sales.negotiation.confirmLost', 'Confirm lost')}
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
+	)
 }

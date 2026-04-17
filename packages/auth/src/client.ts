@@ -7,10 +7,10 @@ let browserClient: ReturnType<typeof createBrowserClient> | null = null
  * Singleton — safe because browser has one user per tab.
  */
 export function createSupabaseBrowserClient(
-  supabaseUrl: string,
-  supabaseAnonKey: string,
+	supabaseUrl: string,
+	supabaseAnonKey: string,
 ) {
-  if (browserClient) return browserClient
-  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
-  return browserClient
+	if (browserClient) return browserClient
+	browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+	return browserClient
 }

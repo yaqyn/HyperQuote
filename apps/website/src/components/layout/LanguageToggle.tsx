@@ -1,5 +1,5 @@
-import { useTranslation } from 'react-i18next'
 import { Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function LanguageToggle() {
 	const { i18n, t } = useTranslation('website')
@@ -12,7 +12,10 @@ export function LanguageToggle() {
 			document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
 			document.documentElement.lang = next
 			localStorage.setItem('hq-locale', next)
-			document.cookie = 'hq-locale=' + next + ';path=/;max-age=31536000'
+			// Server reads this cookie for SSR locale. Cookie Store API has no
+			// Safari support — document.cookie is the correct shim here.
+			// biome-ignore lint/suspicious/noDocumentCookie: intentional SSR cookie write
+			document.cookie = `hq-locale=${next};path=/;max-age=31536000`
 		}
 
 		if (document.startViewTransition) {

@@ -1,38 +1,44 @@
 export function getTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'light'
-  return (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ?? 'light'
+	if (typeof document === 'undefined') return 'light'
+	return (
+		(document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ??
+		'light'
+	)
 }
 
 export function setTheme(theme: 'light' | 'dark') {
-  document.documentElement.setAttribute('data-theme', theme)
+	document.documentElement.setAttribute('data-theme', theme)
 }
 
 export function toggleTheme() {
-  const current = getTheme()
-  setTheme(current === 'dark' ? 'light' : 'dark')
+	const current = getTheme()
+	setTheme(current === 'dark' ? 'light' : 'dark')
 }
 
 export function initTheme() {
-  // Respect system preference on first load
-  if (typeof window === 'undefined') return
-  const stored = localStorage.getItem('hq-theme')
-  if (stored === 'dark' || stored === 'light') {
-    setTheme(stored)
-  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    setTheme('dark')
-  }
+	// Respect system preference on first load
+	if (typeof window === 'undefined') return
+	const stored = localStorage.getItem('hq-theme')
+	if (stored === 'dark' || stored === 'light') {
+		setTheme(stored)
+	} else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+		setTheme('dark')
+	}
 }
 
 export function persistTheme(theme: 'light' | 'dark') {
-  localStorage.setItem('hq-theme', theme)
+	localStorage.setItem('hq-theme', theme)
 
-  // Smooth transition: add transition class, swap theme, remove after animation
-  const root = document.documentElement
-  root.style.setProperty('--theme-transition', 'background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease')
-  root.classList.add('theme-transitioning')
-  setTheme(theme)
-  setTimeout(() => {
-    root.classList.remove('theme-transitioning')
-    root.style.removeProperty('--theme-transition')
-  }, 150)
+	// Smooth transition: add transition class, swap theme, remove after animation
+	const root = document.documentElement
+	root.style.setProperty(
+		'--theme-transition',
+		'background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease',
+	)
+	root.classList.add('theme-transitioning')
+	setTheme(theme)
+	setTimeout(() => {
+		root.classList.remove('theme-transitioning')
+		root.style.removeProperty('--theme-transition')
+	}, 150)
 }

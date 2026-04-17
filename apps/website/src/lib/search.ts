@@ -2,17 +2,17 @@ import Fuse, { type IFuseOptions } from 'fuse.js'
 
 /** Product shape expected by the search helper (subset of full product) */
 interface SearchableProduct {
-  name: string
-  name_ar: string
-  brand: string | null
-  category: string
-  [key: string]: unknown
+	name: string
+	name_ar: string
+	brand: string | null
+	category: string
+	[key: string]: unknown
 }
 
 const fuseOptions: IFuseOptions<SearchableProduct> = {
-  keys: ['name', 'name_ar', 'brand', 'category'],
-  threshold: 0.3,
-  distance: 100,
+	keys: ['name', 'name_ar', 'brand', 'category'],
+	threshold: 0.3,
+	distance: 100,
 }
 
 /**
@@ -21,9 +21,9 @@ const fuseOptions: IFuseOptions<SearchableProduct> = {
  * For cross-page search, use the server-side textSearch via getPublicCatalog.
  */
 export function createProductSearch<T extends SearchableProduct>(
-  products: T[],
+	products: T[],
 ): Fuse<T> {
-  return new Fuse(products, fuseOptions as IFuseOptions<T>)
+	return new Fuse(products, fuseOptions as IFuseOptions<T>)
 }
 
 /**
@@ -35,12 +35,12 @@ export function createProductSearch<T extends SearchableProduct>(
  * @param query - Search query string
  */
 export function searchProducts<T extends SearchableProduct>(
-  products: T[],
-  fuse: Fuse<T>,
-  query: string,
+	products: T[],
+	fuse: Fuse<T>,
+	query: string,
 ): T[] {
-  if (!query.trim()) {
-    return products
-  }
-  return fuse.search(query).map((result) => result.item)
+	if (!query.trim()) {
+		return products
+	}
+	return fuse.search(query).map((result) => result.item)
 }

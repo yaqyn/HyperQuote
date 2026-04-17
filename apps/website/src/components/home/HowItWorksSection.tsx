@@ -1,6 +1,11 @@
-import { useRef, useState, useEffect } from 'react'
+import {
+	motion,
+	useMotionTemplate,
+	useScroll,
+	useTransform,
+} from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion, useScroll, useTransform, useMotionTemplate } from 'motion/react'
 import { SectionReveal } from '../shared/SectionReveal'
 
 const STEP_KEYS = ['step1', 'step2', 'step3', 'step4'] as const

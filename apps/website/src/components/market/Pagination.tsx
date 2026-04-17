@@ -1,5 +1,7 @@
-import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+
+type PageEntry = { kind: 'ellipsis'; id: string } | { kind: 'page'; n: number }
 
 interface PaginationProps {
 	total: number
@@ -8,7 +10,12 @@ interface PaginationProps {
 	onPageChange: (page: number) => void
 }
 
-export function Pagination({ total, page, limit, onPageChange }: PaginationProps) {
+export function Pagination({
+	total,
+	page,
+	limit,
+	onPageChange,
+}: PaginationProps) {
 	const { t, i18n } = useTranslation('website')
 	const totalPages = Math.ceil(total / limit)
 
@@ -42,27 +49,27 @@ export function Pagination({ total, page, limit, onPageChange }: PaginationProps
 
 			{/* Page numbers (hidden on mobile, show prev/next only) */}
 			<div className="hidden md:flex items-center gap-1">
-				{pages.map((p, i) =>
-					p === '...' ? (
+				{pages.map((entry) =>
+					entry.kind === 'ellipsis' ? (
 						<span
-							key={`ellipsis-${i}`}
+							key={entry.id}
 							className="w-8 h-8 flex items-center justify-center text-sm text-[var(--color-text-muted)]"
 						>
 							...
 						</span>
 					) : (
 						<button
-							key={p}
+							key={entry.n}
 							type="button"
-							onClick={() => onPageChange(p as number)}
+							onClick={() => onPageChange(entry.n)}
 							className={`w-8 h-8 rounded-lg font-mono text-sm font-semibold transition-colors ${
-								p === page
+								entry.n === page
 									? 'bg-[var(--color-primary)] text-white'
 									: 'text-[var(--color-text)] hover:bg-[var(--color-surface)]'
 							}`}
-							aria-current={p === page ? 'page' : undefined}
+							aria-current={entry.n === page ? 'page' : undefined}
 						>
-							{p}
+							{entry.n}
 						</button>
 					),
 				)}
@@ -91,32 +98,32 @@ export function Pagination({ total, page, limit, onPageChange }: PaginationProps
 	)
 }
 
-function generatePageNumbers(
-	current: number,
-	total: number,
-): (number | '...')[] {
+function generatePageNumbers(current: number, total: number): PageEntry[] {
 	if (total <= 7) {
-		return Array.from({ length: total }, (_, i) => i + 1)
+		return Array.from({ length: total }, (_, i) => ({
+			kind: 'page' as const,
+			n: i + 1,
+		}))
 	}
 
-	const pages: (number | '...')[] = [1]
+	const pages: PageEntry[] = [{ kind: 'page', n: 1 }]
 
 	if (current > 3) {
-		pages.push('...')
+		pages.push({ kind: 'ellipsis', id: 'ellipsis-start' })
 	}
 
 	const start = Math.max(2, current - 1)
 	const end = Math.min(total - 1, current + 1)
 
 	for (let i = start; i <= end; i++) {
-		pages.push(i)
+		pages.push({ kind: 'page', n: i })
 	}
 
 	if (current < total - 2) {
-		pages.push('...')
+		pages.push({ kind: 'ellipsis', id: 'ellipsis-end' })
 	}
 
-	pages.push(total)
+	pages.push({ kind: 'page', n: total })
 
 	return pages
 }

@@ -6,13 +6,13 @@ import { keyboardScopeStore } from '../stores/keyboard-scope'
  * Returns the current scope and dispatchers for scope transitions.
  */
 export function useKeyboardScope() {
-  const scope = useSelector(keyboardScopeStore, (s) => s.context.scope)
+	const scope = useSelector(keyboardScopeStore, (s) => s.context.scope)
 
-  return {
-    scope,
-    openPanel: () => keyboardScopeStore.send({ type: 'openPanel' }),
-    closePanel: () => keyboardScopeStore.send({ type: 'closePanel' }),
-    focusInput: () => keyboardScopeStore.send({ type: 'focusInput' }),
-    blurInput: () => keyboardScopeStore.send({ type: 'blurInput' }),
-  }
+	return {
+		scope,
+		openPanel: () => keyboardScopeStore.send({ type: 'openPanel' }),
+		closePanel: () => keyboardScopeStore.send({ type: 'closePanel' }),
+		focusInput: () => keyboardScopeStore.send({ type: 'focusInput' }),
+		blurInput: () => keyboardScopeStore.send({ type: 'blurInput' }),
+	}
 }

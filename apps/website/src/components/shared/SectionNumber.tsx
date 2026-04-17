@@ -1,9 +1,9 @@
-import { useRef } from 'react'
 import { motion, useInView } from 'motion/react'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface SectionNumberProps {
-  n: number | string
+	n: number | string
 }
 
 /**
@@ -12,27 +12,27 @@ interface SectionNumberProps {
  * Hidden in Arabic mode — section titles speak for themselves.
  */
 export function SectionNumber({ n }: SectionNumberProps) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const { i18n } = useTranslation()
-  const isActive = useInView(ref, {
-    margin: '0px 0px -50% 0px',
-  })
+	const ref = useRef<HTMLSpanElement>(null)
+	const { i18n } = useTranslation()
+	const isActive = useInView(ref, {
+		margin: '0px 0px -50% 0px',
+	})
 
-  if (i18n.language === 'ar') return null
+	if (i18n.language === 'ar') return null
 
-  const formatted = typeof n === 'number' ? String(n).padStart(2, '0') : n
+	const formatted = typeof n === 'number' ? String(n).padStart(2, '0') : n
 
-  return (
-    <motion.span
-      ref={ref}
-      animate={{
-        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-        opacity: isActive ? 1 : 0.1,
-      }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className="block font-[family-name:var(--font-mono)] text-[clamp(1.4rem,3vw,2rem)] leading-none"
-    >
-      {formatted}
-    </motion.span>
-  )
+	return (
+		<motion.span
+			ref={ref}
+			animate={{
+				color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
+				opacity: isActive ? 1 : 0.1,
+			}}
+			transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+			className="block font-[family-name:var(--font-mono)] text-[clamp(1.4rem,3vw,2rem)] leading-none"
+		>
+			{formatted}
+		</motion.span>
+	)
 }

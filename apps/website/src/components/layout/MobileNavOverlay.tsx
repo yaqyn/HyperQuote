@@ -1,8 +1,8 @@
-import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
+import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
+import { useTranslation } from 'react-i18next'
 
 interface MobileNavOverlayProps {
 	isOpen: boolean
@@ -30,11 +30,17 @@ export function MobileNavOverlay({ isOpen, onClose }: MobileNavOverlayProps) {
 						>
 							<motion.div
 								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								transition={{
-									enter: { type: 'spring', stiffness: 200, damping: 20 },
-									exit: { duration: 0.2, ease: 'easeIn' },
+								animate={{
+									opacity: 1,
+									transition: {
+										type: 'spring',
+										stiffness: 200,
+										damping: 20,
+									},
+								}}
+								exit={{
+									opacity: 0,
+									transition: { duration: 0.2, ease: 'easeIn' },
 								}}
 								className="flex flex-col h-full"
 							>

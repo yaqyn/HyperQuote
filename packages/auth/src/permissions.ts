@@ -8,11 +8,11 @@ import type { AuthSession } from './types'
  * Roles with their permissions are defined in the seed data (Phase 2).
  */
 export function hasPermission(
-  _session: AuthSession,
-  _permission: string,
+	_session: AuthSession,
+	_permission: string,
 ): boolean {
-  // TODO: Wire up role-permission mapping from database seed data.
-  // For now returns true — RLS is the actual enforcement layer.
-  // This will be populated when the permission lookup table is loaded client-side.
-  return true
+	// TODO: Wire up role-permission mapping from database seed data.
+	// For now returns true — RLS is the actual enforcement layer.
+	// This will be populated when the permission lookup table is loaded client-side.
+	return true
 }

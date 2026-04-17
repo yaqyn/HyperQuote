@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 
 interface NotificationStore {
-  unreadCount: number
-  setUnreadCount: (count: number) => void
+	unreadCount: number
+	setUnreadCount: (count: number) => void
 }
 
 export const useNotificationStore = create<NotificationStore>()((_set) => ({
-  unreadCount: 0,
-  setUnreadCount: (count) => _set({ unreadCount: count }),
+	unreadCount: 0,
+	setUnreadCount: (count) => _set({ unreadCount: count }),
 }))
 
 // SSR: skip hydration, rehydrate in useEffect on client
