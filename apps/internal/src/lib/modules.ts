@@ -10,9 +10,9 @@ import {
 	Warehouse,
 } from 'lucide-react'
 
-export type InternalKey = ParseKeys<'internal'>
+type InternalKey = ParseKeys<'internal'>
 
-export interface ModuleConfig {
+interface ModuleConfig {
 	id: string
 	icon: LucideIcon
 	labelKey: InternalKey

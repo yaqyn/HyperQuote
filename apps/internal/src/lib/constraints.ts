@@ -244,7 +244,7 @@ const CAIRO_PRAYER_TIMES_BY_MONTH: Record<
  * Get approximate prayer times for a given date in Cairo timezone.
  * Uses static lookup by month — suitable for scheduling, not worship.
  */
-export function getCairoPrayerTimes(date: Date): PrayerTime[] {
+function getCairoPrayerTimes(date: Date): PrayerTime[] {
 	const month = date.getMonth() + 1 // 1-indexed
 	const prayers =
 		CAIRO_PRAYER_TIMES_BY_MONTH[month] ?? CAIRO_PRAYER_TIMES_BY_MONTH[1] ?? []

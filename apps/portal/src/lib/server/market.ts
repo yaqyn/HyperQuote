@@ -32,13 +32,13 @@ export interface MarketProduct {
 	specs: ProductSpec[]
 }
 
-export interface MarketProductsResponse {
+interface MarketProductsResponse {
 	products: MarketProduct[]
 	nextPage: number | null
 	total: number
 }
 
-export interface AddToDraftResponse {
+interface AddToDraftResponse {
 	success: boolean
 	draftId: string
 }
@@ -658,7 +658,7 @@ export const getMarketProducts = createServerFn()
 // addToActiveDraft
 // ============================================================================
 
-export const addToActiveDraft = createServerFn()
+const addToActiveDraft = createServerFn()
 	.inputValidator(addToActiveDraftInput)
 	.handler(async ({ data: input }): Promise<AddToDraftResponse> => {
 		if (!isSupabaseConfigured()) {

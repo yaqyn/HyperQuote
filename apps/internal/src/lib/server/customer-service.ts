@@ -121,7 +121,7 @@ export const getConversations = createServerFn({ method: 'GET' }).handler(
 	},
 )
 
-export const getConversation = createServerFn({ method: 'GET' })
+const getConversation = createServerFn({ method: 'GET' })
 	.inputValidator((d: { conversationId: string }) => d)
 	.handler(async ({ data }): Promise<Conversation | null> => {
 		const row = db.conversations.get(data.conversationId)
@@ -172,7 +172,7 @@ export const updateConversationStatus = createServerFn({ method: 'POST' })
 		return { success: !!row }
 	})
 
-export const assignConversation = createServerFn({ method: 'POST' })
+const assignConversation = createServerFn({ method: 'POST' })
 	.inputValidator(
 		(d: { conversationId: string; agentId: string; agentName?: string }) => d,
 	)

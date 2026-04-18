@@ -37,5 +37,3 @@ i18n.services.formatter?.add('number', (value, lng) => {
 	}
 	return String(value)
 })
-
-export default i18n

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export interface DraftItem {
+interface DraftItem {
 	productId: string
 	slug: string
 	name: string

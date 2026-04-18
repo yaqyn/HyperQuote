@@ -261,7 +261,7 @@ const comparePricingInput = z.object({
 	qty: z.number().positive(),
 })
 
-export const comparePricing = createServerFn({ method: 'GET' })
+const comparePricing = createServerFn({ method: 'GET' })
 	.inputValidator(comparePricingInput)
 	.handler(async ({ data: input }) => {
 		if (!isSupabaseConfigured()) {
@@ -293,7 +293,7 @@ const getHistoricalPricesInput = z.object({
 	limit: z.number().default(5),
 })
 
-export const getHistoricalPrices = createServerFn({ method: 'GET' })
+const getHistoricalPrices = createServerFn({ method: 'GET' })
 	.inputValidator(getHistoricalPricesInput)
 	.handler(async ({ data: input }) => {
 		if (!isSupabaseConfigured()) {

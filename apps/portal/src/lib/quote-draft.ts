@@ -8,7 +8,7 @@ import type { QuoteItem } from '../stores/quote-builder'
 // Types
 // ============================================================================
 
-export interface DraftData {
+interface DraftData {
 	items: QuoteItem[]
 	projectId: string | null
 	deliveryAddressId: string | null

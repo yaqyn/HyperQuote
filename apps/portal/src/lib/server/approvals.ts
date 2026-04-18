@@ -46,7 +46,7 @@ const requestChangesInput = z.object({
 // Types
 // ============================================================================
 
-export interface PendingApproval {
+interface PendingApproval {
 	approvalId: string
 	quoteRequest: {
 		id: string
@@ -253,7 +253,7 @@ async function insertItems(
 // getPendingApprovals
 // ============================================================================
 
-export const getPendingApprovals = createServerFn().handler(
+const getPendingApprovals = createServerFn().handler(
 	async (): Promise<PendingApproval[]> => {
 		// Dev mode fallback
 		if (!isSupabaseConfigured()) {
@@ -318,7 +318,7 @@ export const getPendingApprovals = createServerFn().handler(
 // approveQuoteRequest
 // ============================================================================
 
-export const approveQuoteRequest = createServerFn()
+const approveQuoteRequest = createServerFn()
 	.inputValidator(approvalActionInput)
 	.handler(async ({ data: input }): Promise<{ success: true }> => {
 		if (!isSupabaseConfigured()) {
@@ -373,7 +373,7 @@ export const approveQuoteRequest = createServerFn()
 // requestChanges
 // ============================================================================
 
-export const requestChanges = createServerFn()
+const requestChanges = createServerFn()
 	.inputValidator(requestChangesInput)
 	.handler(async ({ data: input }): Promise<{ success: true }> => {
 		if (!isSupabaseConfigured()) {

@@ -111,7 +111,7 @@ export type FreshnessIndicator = 'fresh' | 'aging' | 'stale' | 'missing'
  */
 export type PriceStatus = 'updated' | 'outdated'
 
-export type PriceUrgency = 'normal' | 'hot' | 'stale' | 'urgent'
+type PriceUrgency = 'normal' | 'hot' | 'stale' | 'urgent'
 
 export function getPriceUrgency(
 	priceStatus: PriceStatus,
@@ -177,7 +177,7 @@ export interface MarginThresholds {
 	absoluteMin: number // fetched from pricing_rules, NOT hardcoded
 }
 
-export type MarginLevel = 'green' | 'yellow' | 'red' | 'blocked'
+type MarginLevel = 'green' | 'yellow' | 'red' | 'blocked'
 
 /**
  * Determines the margin level based on current margin and category thresholds.
@@ -381,19 +381,19 @@ export interface PipelineStage {
 
 // ─── SLA ───────────────────────────────────────────────────
 
-export interface SLATierConfig {
+interface SLATierConfig {
 	response: number // hours (business hours)
 	escalation: number // hours (business hours)
 }
 
-export interface SLAConfig {
+interface SLAConfig {
 	tierA: SLATierConfig
 	tierB: SLATierConfig
 	tierC: SLATierConfig
 	new: SLATierConfig
 }
 
-export const DEFAULT_SLA_CONFIG: SLAConfig = {
+const DEFAULT_SLA_CONFIG: SLAConfig = {
 	tierA: { response: 2, escalation: 4 },
 	tierB: { response: 4, escalation: 8 },
 	tierC: { response: 8, escalation: 24 },
@@ -427,7 +427,7 @@ export interface SalesAnalytics {
 
 // ─── Approval ──────────────────────────────────────────────
 
-export interface ApprovalRequest {
+interface ApprovalRequest {
 	id: string
 	quoteId: string
 	quoteSummary: {
@@ -451,7 +451,7 @@ export interface ApprovalRequest {
 
 // ─── Clarification ─────────────────────────────────────────
 
-export type ClarificationQuestionType =
+type ClarificationQuestionType =
 	| 'material_spec_ambiguous'
 	| 'quantity_unclear'
 	| 'delivery_access'
@@ -459,7 +459,7 @@ export type ClarificationQuestionType =
 	| 'mixed_units'
 	| 'missing_attachment'
 
-export interface ClarificationQuestion {
+interface ClarificationQuestion {
 	type: ClarificationQuestionType
 	freeText?: string
 }

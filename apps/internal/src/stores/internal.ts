@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export interface WindowState {
+interface WindowState {
 	scrollTop: number
 	activeTab?: string
 	expandedSections: string[]

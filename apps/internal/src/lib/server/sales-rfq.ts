@@ -117,7 +117,7 @@ export const getRFQQueue = createServerFn({ method: 'GET' })
 		}
 	})
 
-export const getRFQDetail = createServerFn({ method: 'GET' })
+const getRFQDetail = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
 		const row = db.rfqs.get(data.rfqId) ?? db.rfqs.list()[0]
@@ -195,7 +195,7 @@ export const getRFQDetail = createServerFn({ method: 'GET' })
 		return detail
 	})
 
-export const requestClarification = createServerFn({ method: 'POST' })
+const requestClarification = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			rfqId: z.string(),
@@ -286,7 +286,7 @@ export const saveRFQForLater = createServerFn({ method: 'POST' })
  * Evaluate an RFQ — marks it as quoted. The quote has been built and sent.
  * Action is recorded in the order report.
  */
-export const evaluateRFQ = createServerFn({ method: 'POST' })
+const evaluateRFQ = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
 		db.rfqs.updateStatus(data.rfqId, 'quoted')
@@ -299,7 +299,7 @@ export const evaluateRFQ = createServerFn({ method: 'POST' })
 		}
 	})
 
-export const reassignRFQ = createServerFn({ method: 'POST' })
+const reassignRFQ = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ rfqId: z.string(), toUserId: z.string() }))
 	.handler(async ({ data }) => {
 		const rep = db.salesReps.get(data.toUserId)
@@ -315,7 +315,7 @@ export const reassignRFQ = createServerFn({ method: 'POST' })
  * account owner → territory → specialization → value escalation → capacity.
  * Every input (reps, customers) comes from the DB.
  */
-export const autoAssignRFQ = createServerFn({ method: 'POST' })
+const autoAssignRFQ = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
 		const CAPACITY_THRESHOLD = 10

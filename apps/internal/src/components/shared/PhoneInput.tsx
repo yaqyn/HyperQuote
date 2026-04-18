@@ -26,7 +26,7 @@ interface PhoneInputProps {
 }
 
 /** Strip to digits and drop leading 0/20/+20 so we always hold 10 national digits. */
-export function normalizeEGPhone(raw: string): string {
+function normalizeEGPhone(raw: string): string {
 	let digits = raw.replace(/\D/g, '')
 	if (digits.startsWith('20')) digits = digits.slice(2)
 	if (digits.startsWith('0')) digits = digits.slice(1)
@@ -34,7 +34,7 @@ export function normalizeEGPhone(raw: string): string {
 }
 
 /** Pretty-print 10 national digits as "1xx xxx xxxx". */
-export function formatEGPhone(digits: string): string {
+function formatEGPhone(digits: string): string {
 	const n = normalizeEGPhone(digits)
 	if (n.length === 0) return ''
 	const parts: string[] = []
@@ -49,7 +49,7 @@ export function formatEGPhone(digits: string): string {
 }
 
 /** Returns the full E.164-ish string the server stores. */
-export function toFullPhone(digits: string): string {
+function toFullPhone(digits: string): string {
 	const n = normalizeEGPhone(digits)
 	return n.length === 0 ? '' : `+20 ${formatEGPhone(n)}`
 }

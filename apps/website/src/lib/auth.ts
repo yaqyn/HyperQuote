@@ -328,7 +328,7 @@ export const claimAccount = createServerFn()
 // signOut — Clear session and SSO cookie
 // ============================================================================
 
-export const signOut = createServerFn().handler(async () => {
+const signOut = createServerFn().handler(async () => {
 	try {
 		const request = getRequest()
 		const { client } = createSupabaseServerClient({

@@ -75,7 +75,7 @@ export interface FinanceDealView {
 	createdHoursAgo: number
 }
 
-export interface FinanceInboxTotals {
+interface FinanceInboxTotals {
 	customerUnpaid: number
 	customerPartial: number
 	customerPaid: number

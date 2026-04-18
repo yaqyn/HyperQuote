@@ -62,14 +62,14 @@ const EGYPTIAN_HOLIDAYS_2026: Holiday[] = [
  * Check if a date is an Egyptian weekend day (Friday or Saturday).
  * Always uses 'ar-EG' locale regardless of user's display locale.
  */
-export function isEgyptianWeekend(date: DateValue): boolean {
+function isEgyptianWeekend(date: DateValue): boolean {
 	return isWeekend(date, 'ar-EG')
 }
 
 /**
  * Check if a date is an Egyptian business day (not weekend, not holiday).
  */
-export function isEgyptianBusinessDay(date: DateValue): boolean {
+function isEgyptianBusinessDay(date: DateValue): boolean {
 	if (isEgyptianWeekend(date)) return false
 	if (isEgyptianHoliday(date)) return false
 	return true
@@ -78,7 +78,7 @@ export function isEgyptianBusinessDay(date: DateValue): boolean {
 /**
  * Check if a date falls on an Egyptian public holiday.
  */
-export function isEgyptianHoliday(date: DateValue): boolean {
+function isEgyptianHoliday(date: DateValue): boolean {
 	return EGYPTIAN_HOLIDAYS_2026.some(
 		(h) => date.month === h.month && date.day === h.day,
 	)
@@ -95,7 +95,7 @@ export function isDateUnavailable(date: DateValue): boolean {
 /**
  * Get the next Egyptian business day from a given date.
  */
-export function getNextBusinessDay(from: DateValue): DateValue {
+function getNextBusinessDay(from: DateValue): DateValue {
 	let candidate = from.add({ days: 1 })
 	let safety = 0
 	while (!isEgyptianBusinessDay(candidate) && safety < 14) {
@@ -108,7 +108,7 @@ export function getNextBusinessDay(from: DateValue): DateValue {
 /**
  * Get the minimum delivery date (next business day from today in Cairo timezone).
  */
-export function getMinDeliveryDate(): DateValue {
+function getMinDeliveryDate(): DateValue {
 	const now = today(getLocalTimeZone())
 	return getNextBusinessDay(now)
 }

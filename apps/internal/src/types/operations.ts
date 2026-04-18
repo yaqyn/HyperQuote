@@ -3,7 +3,7 @@
 
 // ─── Status Unions ────────────────────────────────────────
 
-export type FulfillmentStage =
+type FulfillmentStage =
 	| 'po_placed'
 	| 'in_transit'
 	| 'at_warehouse'
@@ -11,7 +11,7 @@ export type FulfillmentStage =
 	| 'out_for_delivery'
 	| 'delivered'
 
-export type OrderStatus =
+type OrderStatus =
 	| 'confirmed'
 	| 'processing'
 	| 'partially_fulfilled'
@@ -22,16 +22,16 @@ export type OrderStatus =
 	| 'back_ordered'
 	| 'cancelled'
 
-export type SLAType =
+type SLAType =
 	| 'quote_response'
 	| 'po_confirmation'
 	| 'delivery_scheduling'
 	| 'invoice_generation'
 	| 'dispute_resolution'
 
-export type SLAStatus = 'on_track' | 'at_risk' | 'breached'
+type SLAStatus = 'on_track' | 'at_risk' | 'breached'
 
-export type HandoffStage =
+type HandoffStage =
 	| 'sales'
 	| 'procurement'
 	| 'warehouse'
@@ -39,13 +39,13 @@ export type HandoffStage =
 	| 'driver'
 	| 'finance'
 
-export type OperationsTab = 'operations' | 'orders'
+type OperationsTab = 'operations' | 'orders'
 
-export type FulfillmentColor = 'green' | 'yellow' | 'red'
+type FulfillmentColor = 'green' | 'yellow' | 'red'
 
 // ─── Fulfillment Order ───────────────────────────────────
 
-export interface FulfillmentOrder {
+interface FulfillmentOrder {
 	id: string
 	orderNumber: string
 	customerName: string
@@ -60,7 +60,7 @@ export interface FulfillmentOrder {
 
 // ─── Order Detail ────────────────────────────────────────
 
-export interface OrderLineItem {
+interface OrderLineItem {
 	id: string
 	productName: string
 	supplier: string
@@ -71,7 +71,7 @@ export interface OrderLineItem {
 	eta: string
 }
 
-export interface OrderDocument {
+interface OrderDocument {
 	id: string
 	type: string
 	name: string
@@ -79,7 +79,7 @@ export interface OrderDocument {
 	createdAt: string
 }
 
-export interface ActivityLogEntry {
+interface ActivityLogEntry {
 	id: string
 	action: string
 	actor: string
@@ -87,7 +87,7 @@ export interface ActivityLogEntry {
 	details: string
 }
 
-export interface HandoffStatus {
+interface HandoffStatus {
 	currentStage: HandoffStage
 	currentOwner: string
 	timeInStage: number
@@ -95,7 +95,7 @@ export interface HandoffStatus {
 	completedStages: HandoffStage[]
 }
 
-export interface OrderDetail {
+interface OrderDetail {
 	id: string
 	orderNumber: string
 	customerName: string
@@ -111,7 +111,7 @@ export interface OrderDetail {
 
 // ─── SLA ─────────────────────────────────────────────────
 
-export interface SLAItem {
+interface SLAItem {
 	id: string
 	entityRef: string
 	entityType: string
@@ -124,7 +124,7 @@ export interface SLAItem {
 
 // ─── Bottleneck ──────────────────────────────────────────
 
-export interface BottleneckStage {
+interface BottleneckStage {
 	stage: string
 	label: string
 	count: number
@@ -134,7 +134,7 @@ export interface BottleneckStage {
 
 // ─── Metrics ─────────────────────────────────────────────
 
-export interface OperationsMetrics {
+interface OperationsMetrics {
 	ordersInProgress: number
 	ordersInProgressTrend: 'up' | 'down'
 	deliveriesToday: number
@@ -146,7 +146,7 @@ export interface OperationsMetrics {
 
 // ─── Delivery Schedule ───────────────────────────────────
 
-export interface DeliveryScheduleItem {
+interface DeliveryScheduleItem {
 	id: string
 	orderId: string
 	orderNumber: string
@@ -159,7 +159,7 @@ export interface DeliveryScheduleItem {
 
 // ─── Kanban Filters ──────────────────────────────────────
 
-export interface KanbanFilters {
+interface KanbanFilters {
 	customer: string | null
 	dateRange: [string, string] | null
 	deliveryMethod: string | null
@@ -211,7 +211,7 @@ export function getTimeRemainingColor(
 /**
  * Map fulfillment color to Tailwind border-start class for kanban cards.
  */
-export function getFulfillmentColor(color: FulfillmentColor): string {
+function getFulfillmentColor(color: FulfillmentColor): string {
 	switch (color) {
 		case 'green':
 			return 'border-s-green-500'
@@ -224,17 +224,16 @@ export function getFulfillmentColor(color: FulfillmentColor): string {
 
 // ─── Constants ───────────────────────────────────────────
 
-export const FULFILLMENT_COLUMNS: { stage: FulfillmentStage; label: string }[] =
-	[
-		{ stage: 'po_placed', label: 'PO Placed' },
-		{ stage: 'in_transit', label: 'In Transit from Supplier' },
-		{ stage: 'at_warehouse', label: 'At Warehouse' },
-		{ stage: 'preparing', label: 'Preparing / Loading' },
-		{ stage: 'out_for_delivery', label: 'Out for Delivery' },
-		{ stage: 'delivered', label: 'Delivered' },
-	]
+const FULFILLMENT_COLUMNS: { stage: FulfillmentStage; label: string }[] = [
+	{ stage: 'po_placed', label: 'PO Placed' },
+	{ stage: 'in_transit', label: 'In Transit from Supplier' },
+	{ stage: 'at_warehouse', label: 'At Warehouse' },
+	{ stage: 'preparing', label: 'Preparing / Loading' },
+	{ stage: 'out_for_delivery', label: 'Out for Delivery' },
+	{ stage: 'delivered', label: 'Delivered' },
+]
 
-export const HANDOFF_STAGES: { stage: HandoffStage; label: string }[] = [
+const HANDOFF_STAGES: { stage: HandoffStage; label: string }[] = [
 	{ stage: 'sales', label: 'Sales' },
 	{ stage: 'procurement', label: 'Procurement' },
 	{ stage: 'warehouse', label: 'Warehouse' },

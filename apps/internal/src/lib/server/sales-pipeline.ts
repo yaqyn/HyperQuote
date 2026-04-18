@@ -196,7 +196,7 @@ function summarize(deals: PipelineDeal[]): PipelineStage[] {
 
 // ─── Server Functions ─────────────────────────────────────
 
-export const getSalesPipeline = createServerFn({ method: 'GET' })
+const getSalesPipeline = createServerFn({ method: 'GET' })
 	.inputValidator(
 		z.object({
 			filters: z
@@ -252,7 +252,7 @@ const STAGE_TO_QUOTE_STATUS: Record<string, QuoteRow['status'] | null> = {
 	lost_expired: 'declined',
 }
 
-export const moveDealStage = createServerFn({ method: 'POST' })
+const moveDealStage = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ dealId: z.string(), toStage: z.string() }))
 	.handler(async ({ data }) => {
 		// Deal ids are prefixed `deal-rfq-` or `deal-quote-` by buildDeals.

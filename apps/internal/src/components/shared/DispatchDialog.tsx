@@ -32,7 +32,7 @@ import {
  * and render children directly.
  */
 
-export type DispatchSize = 'sm' | 'md' | 'lg' | 'xl'
+type DispatchSize = 'sm' | 'md' | 'lg' | 'xl'
 
 const SIZE_MAX: Record<DispatchSize, string> = {
 	sm: 'max-w-md',
@@ -41,7 +41,7 @@ const SIZE_MAX: Record<DispatchSize, string> = {
 	xl: 'max-w-5xl',
 }
 
-export interface DispatchDialogProps {
+interface DispatchDialogProps {
 	isOpen: boolean
 	onClose: () => void
 	/** Main dispatch title — rendered in Archivo Black */
@@ -195,7 +195,7 @@ export function DispatchFooter({
 
 type DispatchTone = 'primary' | 'danger' | 'ghost'
 
-export interface DispatchActionProps
+interface DispatchActionProps
 	extends Omit<AriaButtonProps, 'className' | 'children'> {
 	tone?: DispatchTone
 	children: ReactNode

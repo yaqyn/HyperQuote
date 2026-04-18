@@ -87,7 +87,7 @@ export interface DispatchBoardTotals {
 	returnedToday: number
 }
 
-export interface DispatchBoardView {
+interface DispatchBoardView {
 	routes: DispatchRouteView[]
 	totals: DispatchBoardTotals
 }

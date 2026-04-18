@@ -6,7 +6,7 @@
 
 const ARABIC_INDIC_OFFSET = 0x0660
 
-export function toArabicIndic(value: string | number): string {
+function toArabicIndic(value: string | number): string {
 	return String(value).replace(/\d/g, (d) =>
 		String.fromCharCode(ARABIC_INDIC_OFFSET + Number(d)),
 	)
@@ -38,7 +38,7 @@ export function formatEtaMinutes(minutes: number, lang: string): string {
 	return `${formatNumber(h, lang)} h ${formatNumber(m, lang)} min`
 }
 
-export function formatClock(date: Date, lang: string): string {
+function formatClock(date: Date, lang: string): string {
 	const hh = String(date.getHours()).padStart(2, '0')
 	const mm = String(date.getMinutes()).padStart(2, '0')
 	const stamp = `${hh}:${mm}`
@@ -56,12 +56,12 @@ export function formatRelativeMinutes(min: number, lang: string): string {
 	return lang === 'ar' ? `قبل ${v} س` : `${v}h ago`
 }
 
-export function formatCurrencyEgp(amount: number, lang: string): string {
+function formatCurrencyEgp(amount: number, lang: string): string {
 	const value = formatNumber(Math.round(amount), lang)
 	return lang === 'ar' ? `${value} ج.م` : `EGP ${value}`
 }
 
-export function cargoClassCode(
+function cargoClassCode(
 	cls: 'aggregate' | 'metal' | 'finishes' | 'mixed',
 ): string {
 	switch (cls) {

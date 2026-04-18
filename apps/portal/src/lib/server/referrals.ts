@@ -62,7 +62,7 @@ export const getReferralStats = createServerFn().handler(
 // generateReferralLink
 // ============================================================================
 
-export const generateReferralLink = createServerFn().handler(
+const generateReferralLink = createServerFn().handler(
 	async (): Promise<{ referralCode: string; referralLink: string }> => {
 		if (!isSupabaseConfigured()) {
 			return {

@@ -15,10 +15,7 @@ import { db, hoursSince } from '../db/db'
 
 // Re-exported so every sales UI that already imports from here keeps working
 // while the canonical definitions live in inventory.ts.
-export {
-	getOutdatedPricesSummary,
-	requestInventoryPriceUpdate,
-} from './inventory'
+export { requestInventoryPriceUpdate } from './inventory'
 
 // ─── Config ───────────────────────────────────────────────
 
@@ -308,7 +305,7 @@ function getMockQuote(quoteId: string): Quote {
 
 // ─── Server Functions ─────────────────────────────────────
 
-export const createQuote = createServerFn({ method: 'POST' })
+const createQuote = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			rfqId: z.string(),
@@ -518,7 +515,7 @@ export const requestApproval = createServerFn({ method: 'POST' })
 		return { approvalId: `appr-${Date.now()}` }
 	})
 
-export const approveQuote = createServerFn({ method: 'POST' })
+const approveQuote = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			approvalId: z.string(),
@@ -535,7 +532,7 @@ export const approveQuote = createServerFn({ method: 'POST' })
 		return { success: true }
 	})
 
-export const previewQuotePDF = createServerFn({ method: 'GET' })
+const previewQuotePDF = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
 		return { quote: getMockQuote(data.quoteId), pdfUrl: null as string | null }

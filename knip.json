@@ -2,6 +2,27 @@
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"tags": ["-lintignore"],
 	"workspaces": {
-		".": {}
-	}
+		".": {},
+		"apps/website": {
+			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],
+			"project": ["src/**/*.{ts,tsx}"]
+		},
+		"apps/portal": {
+			"entry": [
+				"src/router.tsx",
+				"src/routes/**/*.{ts,tsx}",
+				"workbox-config.js"
+			],
+			"project": ["src/**/*.{ts,tsx}"]
+		},
+		"apps/internal": {
+			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],
+			"project": ["src/**/*.{ts,tsx}"]
+		},
+		"apps/ceo": {
+			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],
+			"project": ["src/**/*.{ts,tsx}"]
+		}
+	},
+	"ignoreBinaries": ["infisical", "gitleaks", "supabase"]
 }

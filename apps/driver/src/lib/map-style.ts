@@ -30,5 +30,5 @@ export const MAP_STYLE: string = import.meta.env.VITE_MAPTILER_KEY
 			],
 		} as unknown as string)
 
-export const CAIRO_CENTER = { latitude: 30.0444, longitude: 31.2357 }
-export const DEFAULT_ZOOM = 11
+const CAIRO_CENTER = { latitude: 30.0444, longitude: 31.2357 }
+const DEFAULT_ZOOM = 11

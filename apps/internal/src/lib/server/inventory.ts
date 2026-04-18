@@ -122,7 +122,7 @@ export interface InventoryProductView {
 	availability: 'available' | 'low_stock' | 'out_of_stock'
 }
 
-export interface InventoryCategorySummary {
+interface InventoryCategorySummary {
 	id: BroadCategory
 	image: string
 	totalCount: number
@@ -227,7 +227,7 @@ export const getInventoryOverview = createServerFn({ method: 'GET' })
 
 // ─── Product detail + suppliers ──────────────────────────
 
-export interface SupplierQuote {
+interface SupplierQuote {
 	id: string
 	name: string
 	rawCost: number
@@ -428,7 +428,7 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
 
 // ─── Outdated price summary (used by sales home card) ────
 
-export const getOutdatedPricesSummary = createServerFn({ method: 'GET' })
+const getOutdatedPricesSummary = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		type Aggregate = {
@@ -498,7 +498,7 @@ export const getOutdatedPricesSummary = createServerFn({ method: 'GET' })
 
 // ─── Supplier profile ─────────────────────────────────────
 
-export interface SupplierProfileQuote {
+interface SupplierProfileQuote {
 	supplierRowId: string
 	productSlug: string
 	productName: string

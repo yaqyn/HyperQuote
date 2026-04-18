@@ -24,7 +24,7 @@ export function isSupabaseConfigured(): boolean {
  * Gate callers on `isSupabaseConfigured()` before invoking so this never throws
  * in dev.
  */
-export function getSupabaseEnv(): {
+function getSupabaseEnv(): {
 	supabaseUrl: string
 	supabaseAnonKey: string
 } {
@@ -41,7 +41,7 @@ export function getSupabaseEnv(): {
  * Server functions should call this after `isSupabaseConfigured()` returns
  * true.
  */
-export async function requireSession() {
+async function requireSession() {
 	const env = getSupabaseEnv()
 	const session = await getServerSession({
 		supabaseUrl: env.supabaseUrl,

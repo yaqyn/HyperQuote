@@ -22,5 +22,3 @@ function getFormatter(
 export function formatNumber(value: number, locale: 'ar' | 'en'): string {
 	return getFormatter(locale).format(value)
 }
-
-export { getFormatter }

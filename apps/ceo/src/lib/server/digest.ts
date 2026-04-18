@@ -22,7 +22,7 @@ function isSupabaseConfigured(): boolean {
 // Types
 // ============================================================================
 
-export interface CEODigest {
+interface CEODigest {
 	date: string
 	revenue: {
 		yesterday: number
@@ -58,13 +58,13 @@ export interface CEODigest {
 	}
 }
 
-export interface RecommendedAction {
+interface RecommendedAction {
 	action: string
 	entityType: string
 	entityId: string
 }
 
-export interface CEOWeeklyInsight {
+interface CEOWeeklyInsight {
 	weekOf: string
 	performanceSummary: string
 	keyObservations: string[]

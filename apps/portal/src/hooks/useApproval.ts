@@ -16,7 +16,7 @@ import { checkTeamHasApprover } from '../lib/server/approvals'
  * Reads from route context (loaded by _portal.tsx beforeLoad).
  * In dev mode, also checks localStorage flag 'dev-is-approver'.
  */
-export function useIsApprover(): boolean {
+function useIsApprover(): boolean {
 	const context = useRouteContext({ from: '/_portal' })
 	const auth = context.auth
 
