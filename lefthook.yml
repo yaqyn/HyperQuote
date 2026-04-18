@@ -1,0 +1,14 @@
+# Lefthook git hooks — https://lefthook.dev
+#
+# Install: `bunx lefthook install` (wires hooks into .git/hooks/)
+# Bypass once: `LEFTHOOK=0 git commit ...`
+# Never use `--no-verify` unless the user explicitly asks.
+
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      tags: security
+      # Scans the staged diff for secret patterns (API keys, tokens, passwords).
+      # `--redact` prevents any found secret from being displayed in the error.
+      run: gitleaks git --staged --verbose --redact --no-banner

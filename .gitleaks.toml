@@ -1,0 +1,32 @@
+# Gitleaks configuration — https://github.com/gitleaks/gitleaks
+#
+# Extend the default ruleset. The base rules are inherited via `useDefault = true`.
+# Add allowlist entries here for legitimate identifiers that look like secrets
+# to gitleaks' generic rules.
+
+title = "HyperQuote gitleaks config"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlists — patterns that are NOT secrets, just happen to match heuristics
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+description = "Mock DB global key constants (apps/internal/src/lib/db/db.ts). These are JS symbol names used as globalThis property keys for the in-memory dev database — not credentials."
+regexes = [
+    '''__hqInternalDb_v\d+__''',
+    '''HQ_DB_KEY\s*=\s*['"]__hq'''
+]
+
+[[allowlists]]
+description = "Ignore scans of untracked .env.local / dist build artifacts. These are gitignored and never committed — the `bun run leaks` script uses `gitleaks git` which already respects history, but keep allowlist as a belt-and-braces layer for anyone running `gitleaks dir`."
+paths = [
+    '''\.env\.local$''',
+    '''\.env\.[a-z]+\.local$''',
+    '''/dist/''',
+    '''/\.output/''',
+    '''/\.turbo/''',
+    '''/\.wrangler/'''
+]
