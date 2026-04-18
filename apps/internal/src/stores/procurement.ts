@@ -1,3 +1,4 @@
+import type { BroadCategory } from '@hyperquote/types'
 import { create } from 'zustand'
 import type { ProcurementTab, SourcingView } from '../types/procurement'
 
@@ -13,10 +14,19 @@ interface POFilters {
 	dateRange?: { from: string; to: string }
 }
 
+/** Category filter used by all three compendium tabs. A single axis shared
+ * across Atlas / Desk / Commitments so clicking "cement" in the sidebar
+ * narrows every view in sync. */
+export type CompendiumCategory = BroadCategory | 'all'
+
 interface ProcurementStore {
 	// Tab navigation
 	activeTab: ProcurementTab
 	setActiveTab: (tab: ProcurementTab) => void
+
+	// Cross-tab category filter (from the compendium sidebar index)
+	activeCategory: CompendiumCategory
+	setActiveCategory: (category: CompendiumCategory) => void
 
 	// Inquiry state
 	selectedInquiryId: string | null
@@ -60,6 +70,10 @@ export const useProcurementStore = create<ProcurementStore>()(
 		// Tab navigation
 		activeTab: 'stock',
 		setActiveTab: (tab) => set({ activeTab: tab }),
+
+		// Cross-tab category filter
+		activeCategory: 'all',
+		setActiveCategory: (category) => set({ activeCategory: category }),
 
 		// Inquiry state
 		selectedInquiryId: null,

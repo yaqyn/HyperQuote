@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { Pencil, Plus, Undo2 } from 'lucide-react'
+import { Plus, Undo2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -174,7 +174,9 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 	const name = locale === 'ar' ? product.name_ar || product.name : product.name
 	const image = product.image_urls?.[0] || PLACEHOLDER_IMAGE
 	const { items } = useQuoteCart()
-	const inCart = items.some((i) => i.productId === product.id)
+	const existingItem = items.find((i) => i.productId === product.id)
+	const inCart = !!existingItem
+	const cartQty = existingItem?.quantity ?? 0
 	const unit = t(`units.${product.unit_of_measure}`, product.unit_of_measure)
 	const [popoverOpen, setPopoverOpen] = useState(false)
 	const btnRef = useRef<HTMLButtonElement>(null)
@@ -217,7 +219,15 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 							inCart ? t('market.editQuantity') : t('market.addToQuote')
 						}
 					>
-						{inCart ? <Pencil size={12} /> : <Plus size={14} />}
+						{inCart ? (
+							<span
+								className={`font-mono font-semibold leading-none tabular-nums ${cartQty >= 100 ? 'text-[9px]' : 'text-[11px]'}`}
+							>
+								{cartQty}
+							</span>
+						) : (
+							<Plus size={14} />
+						)}
 					</button>
 					{popoverOpen && (
 						<AddPopover
@@ -258,7 +268,11 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					}
 				>
 					{inCart ? (
-						<Pencil size={14} className="text-black" />
+						<span
+							className={`font-mono font-semibold leading-none tabular-nums text-black ${cartQty >= 100 ? 'text-[11px]' : 'text-[13px]'}`}
+						>
+							{cartQty}
+						</span>
 					) : (
 						<Plus size={16} className="text-white" />
 					)}

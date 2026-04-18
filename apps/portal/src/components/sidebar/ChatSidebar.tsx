@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import {
-	ChevronDown,
 	ClipboardList,
 	Globe,
 	Info,
@@ -87,28 +86,26 @@ export function ChatSidebar({
 
 	if (collapsed) {
 		return (
-			<div className="flex flex-col items-center w-14 shrink-0 border-e border-[var(--p-border)] bg-[var(--p-bg)] py-3 gap-3">
+			<div className="office-wall flex flex-col items-center w-14 shrink-0 border-e border-[var(--p-border)] py-3 gap-3">
 				<button
 					type="button"
 					onClick={() => setCollapsed(false)}
-					className="w-9 h-9 flex items-center justify-center rounded-xl border border-[var(--p-border)] hover:bg-[var(--p-hover)] transition-colors"
+					className="w-9 h-9 flex items-center justify-center text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors"
+					aria-label="Expand sidebar"
 				>
-					<PanelLeft size={18} className="text-[var(--p-text-secondary)]" />
+					<PanelLeft size={16} strokeWidth={1.5} />
 				</button>
 				<button
 					type="button"
 					onClick={handleNewChat}
-					className="w-9 h-9 flex items-center justify-center rounded-xl border border-[var(--p-border)] hover:bg-[var(--p-hover)] transition-colors"
+					className="w-9 h-9 flex items-center justify-center text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors"
+					aria-label={t('sidebar.newChat')}
 				>
-					<Plus size={18} className="text-[var(--p-text-secondary)]" />
+					<Plus size={16} strokeWidth={1.5} />
 				</button>
 				<div className="flex-1" />
-				<div className="w-8 h-8 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] flex items-center justify-center">
-					<User
-						size={14}
-						strokeWidth={1.5}
-						className="text-[var(--p-text-secondary)]"
-					/>
+				<div className="w-8 h-8 flex items-center justify-center voice-serif italic text-[15px] text-[var(--p-text-muted)]">
+					{(userName || '?').charAt(0).toUpperCase()}.
 				</div>
 			</div>
 		)
@@ -125,31 +122,45 @@ export function ChatSidebar({
 	})
 
 	return (
-		<div className="flex flex-col h-full w-[260px] shrink-0 border-e border-[var(--p-border)] bg-[var(--p-bg)]">
-			{/* Header */}
-			<motion.div
-				{...stagger(0)}
-				className="flex items-center justify-between px-4 pt-4 pb-3"
-			>
-				<div className="flex items-center gap-2">
-					<span className="text-[15px] font-semibold text-[var(--p-text)] tracking-tight">
-						HyperQuote
-					</span>
-					<ChevronDown size={14} className="text-[var(--p-text-muted)]" />
+		<div className="office-wall flex h-full w-[260px] shrink-0 flex-col border-e border-[var(--p-border)]">
+			{/* Masthead — personal welcome */}
+			<motion.div {...stagger(0)} className="px-5 pt-6 pb-4">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex flex-col gap-0.5">
+						<span className="voice-mono text-[9px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]">
+							Welcome
+						</span>
+						<span className="voice-display text-[20px] leading-none text-[var(--p-text)]">
+							{userName?.split(/\s+/)[0] ?? ''}
+						</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={handleNewChat}
+							className="voice-mono inline-flex h-6 w-6 items-center justify-center border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:text-[var(--p-text)]"
+							aria-label={t('sidebar.newChat')}
+						>
+							<Plus size={12} strokeWidth={1.8} />
+						</button>
+						<button
+							type="button"
+							onClick={() => usePortalStore.getState().setSidebarOpen(false)}
+							className="inline-flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+							aria-label="Hide sidebar"
+							aria-keyshortcuts="["
+						>
+							<PanelLeft size={13} strokeWidth={1.5} />
+						</button>
+					</div>
 				</div>
-				<button
-					type="button"
-					onClick={handleNewChat}
-					className="w-7 h-7 flex items-center justify-center rounded-lg border border-[var(--p-border)] hover:bg-[var(--p-hover)] transition-colors"
-				>
-					<Plus size={16} className="text-[var(--p-text-secondary)]" />
-				</button>
 			</motion.div>
 
-			{/* Nav items */}
-			<div className="px-2 pb-3 flex flex-col gap-0.5">
+			<div className="office-rule mx-5 mb-2" />
+
+			{/* Nav — clean stack with ink-bar active indicator */}
+			<nav className="flex flex-col px-3 pb-4">
 				{NAV_ITEMS.map((item, idx) => {
-					const Icon = item.icon
 					const currentPath = matches[matches.length - 1]?.pathname ?? '/'
 					const isActive =
 						item.to === '/'
@@ -161,32 +172,38 @@ export function ChatSidebar({
 							{...stagger(1 + idx)}
 							type="button"
 							onClick={() => navigate({ to: item.to })}
-							className={`flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${
+							aria-current={isActive ? 'page' : undefined}
+							className={`voice-mono relative flex h-9 items-center rounded-sm px-3 text-start text-[11px] uppercase tracking-[0.22em] transition-colors ${
 								isActive
-									? 'bg-[var(--p-card)] border border-[var(--p-border)] text-[var(--p-text)]'
-									: 'text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)] border border-transparent'
+									? 'bg-[var(--p-hover)] text-[var(--p-text)]'
+									: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 							}`}
 						>
-							<Icon size={16} strokeWidth={1.5} />
-							<span className="flex-1 text-[13px]">{t(item.labelKey)}</span>
+							<span
+								aria-hidden
+								className={`absolute inset-y-1.5 start-0 w-[2px] rounded-full transition-colors ${
+									isActive ? 'bg-[var(--p-text)]' : 'bg-transparent'
+								}`}
+							/>
+							<span>{t(item.labelKey)}</span>
 						</motion.button>
 					)
 				})}
-			</div>
+			</nav>
 
 			{/* Role toggle */}
 			{hasSupplierRole && (
-				<motion.div {...stagger(5)} className="px-3 pb-2">
-					<div className="flex rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-0.5">
+				<motion.div {...stagger(5)} className="px-5 pb-3">
+					<div className="flex items-center gap-4 border-y border-[var(--p-border)] py-2">
 						{(['customer', 'supplier'] as const).map((role) => (
 							<button
 								key={role}
 								type="button"
 								onClick={() => setActiveRole(role)}
-								className={`flex-1 text-[13px] py-1.5 rounded-lg transition-colors ${
+								className={`voice-mono flex-1 text-[10px] uppercase tracking-[0.22em] transition-colors ${
 									activeRole === role
-										? 'bg-[var(--p-card)] text-[var(--p-text)] border border-[var(--p-border)]'
-										: 'text-[var(--p-text-muted)] hover:text-[var(--p-text-secondary)] border border-transparent'
+										? 'text-[var(--p-text)]'
+										: 'text-[var(--p-text-muted)] hover:text-[var(--p-text-secondary)]'
 								}`}
 							>
 								{t(`role.${role}`)}
@@ -209,6 +226,7 @@ export function ChatSidebar({
 						<SectionHeader
 							label={t('sidebar.starredChats')}
 							icon={<Star size={11} className="text-[var(--p-text-muted)]" />}
+							count={favorites.length}
 							open={favoritesOpen}
 							onToggle={() => setFavoritesOpen(!favoritesOpen)}
 						/>
@@ -229,6 +247,7 @@ export function ChatSidebar({
 
 				<SectionHeader
 					label={t('sidebar.chatHistory')}
+					count={recent.length}
 					open={chatsOpen}
 					onToggle={() => setChatsOpen(!chatsOpen)}
 				/>
@@ -265,14 +284,59 @@ export function ChatSidebar({
 
 /* ============================================================================ */
 
+function _NibMonogram() {
+	return (
+		<svg
+			viewBox="0 0 16 16"
+			width="14"
+			height="14"
+			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Lyon"
+			className="shrink-0 text-[var(--p-text)]"
+		>
+			<title>Lyon</title>
+			<path
+				d="M 3.5 1.5 L 13 3.5 L 8 14 Z"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="0.9"
+				strokeLinejoin="round"
+			/>
+			<line
+				x1="8"
+				y1="5.2"
+				x2="8"
+				y2="14"
+				stroke="currentColor"
+				strokeWidth="0.7"
+			/>
+			<circle cx="8" cy="6.2" r="0.85" fill="currentColor" />
+		</svg>
+	)
+}
+
+function DisclosureGlyph({ open }: { open: boolean }) {
+	return (
+		<span
+			aria-hidden
+			className="voice-display text-[14px] leading-none text-[var(--p-text-faint)]"
+		>
+			{open ? '−' : '+'}
+		</span>
+	)
+}
+
 function SectionHeader({
 	label,
 	icon,
+	count,
 	open,
 	onToggle,
 }: {
 	label: string
 	icon?: React.ReactNode
+	count?: number
 	open: boolean
 	onToggle: () => void
 }) {
@@ -280,18 +344,22 @@ function SectionHeader({
 		<button
 			type="button"
 			onClick={onToggle}
-			className="flex items-center justify-between w-full px-3 py-2 group"
+			className="group flex w-full items-center gap-3 px-3 pt-6 pb-2 text-start"
 		>
-			<span className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--p-text)]">
+			<span className="voice-mono flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]">
 				{icon}
 				{label}
 			</span>
-			<ChevronDown
-				size={13}
-				className={`text-[var(--p-text-muted)] transition-transform duration-200 ${
-					open ? '' : '-rotate-90'
-				}`}
+			<span
+				aria-hidden
+				className="h-px flex-1 bg-[var(--p-rule)] transition-colors group-hover:bg-[var(--p-rule-strong)]"
 			/>
+			{typeof count === 'number' && count > 0 && (
+				<span className="voice-mono tabular-nums text-[10px] text-[var(--p-text-faint)]">
+					{count}
+				</span>
+			)}
+			<DisclosureGlyph open={open} />
 		</button>
 	)
 }
@@ -305,17 +373,29 @@ function ConversationItem({
 	isActive: boolean
 	onSelect: () => void
 }) {
+	const preview = conversation.preview || 'New conversation'
 	return (
 		<button
 			type="button"
 			onClick={onSelect}
-			className={`w-full text-start px-3 py-1.5 rounded-md text-[13px] truncate transition-colors ${
+			className={`group relative w-full py-1.5 ps-3 text-start transition-colors ${
 				isActive
-					? 'text-[var(--p-text)] bg-[var(--p-hover)]'
-					: 'text-[var(--p-text-muted)] hover:text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)]'
+					? 'text-[var(--p-text)]'
+					: 'text-[var(--p-text-muted)] hover:text-[var(--p-text)]'
 			}`}
 		>
-			{conversation.preview || 'New conversation'}
+			{/* Folder-tab ruled edge */}
+			<span
+				aria-hidden
+				className={`absolute inset-y-0 start-0 w-px transition-colors ${
+					isActive
+						? 'bg-[var(--p-text)]'
+						: 'bg-[var(--p-rule)] group-hover:bg-[var(--p-rule-strong)]'
+				}`}
+			/>
+			<span className="voice-serif block truncate text-[13px] italic leading-tight">
+				{preview}
+			</span>
 		</button>
 	)
 }
@@ -395,26 +475,24 @@ function ProfileMenu({
 		{ labelKey: 'profile.signOut', icon: LogOut, action: handleSignOut },
 	]
 
+	const initial = (userName || '?').charAt(0).toUpperCase()
+
 	return (
 		<div ref={menuRef} className="relative">
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="flex items-center gap-2.5 w-full rounded-xl px-1 py-1 -mx-1 hover:bg-[var(--p-hover)] transition-colors"
+				className="-mx-1 flex w-full items-baseline gap-3 px-1 py-1 text-start transition-colors hover:text-[var(--p-text)]"
 			>
-				<div className="w-8 h-8 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] flex items-center justify-center shrink-0">
-					<User
-						size={14}
-						strokeWidth={1.5}
-						className="text-[var(--p-text-secondary)]"
-					/>
-				</div>
-				<div className="min-w-0 flex-1 text-start">
-					<p className="text-[13px] font-medium text-[var(--p-text)] truncate">
+				<span className="voice-serif shrink-0 text-[20px] italic leading-none text-[var(--p-text-muted)]">
+					{initial}.
+				</span>
+				<div className="min-w-0 flex-1">
+					<p className="voice-mono truncate text-[11px] uppercase tracking-[0.16em] text-[var(--p-text)]">
 						{userName}
 					</p>
 					{companyName && (
-						<p className="text-[13px] text-[var(--p-text-muted)] truncate">
+						<p className="voice-serif truncate text-[13px] italic text-[var(--p-text-muted)]">
 							{companyName}
 						</p>
 					)}
@@ -422,24 +500,20 @@ function ProfileMenu({
 			</button>
 
 			{open && (
-				<div className="absolute bottom-full inset-x-0 mb-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden">
-					{menuItems.map((item) => {
-						const Icon = item.icon
-						return (
-							<button
-								key={item.labelKey}
-								type="button"
-								onClick={() => {
-									setOpen(false)
-									item.action()
-								}}
-								className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] transition-colors"
-							>
-								<Icon size={15} strokeWidth={1.5} />
-								<span>{t(item.labelKey)}</span>
-							</button>
-						)
-					})}
+				<div className="absolute inset-x-0 bottom-full mb-2 overflow-hidden border border-[var(--p-border)] bg-[var(--p-card)] shadow-[0_8px_30px_rgba(0,0,0,0.55)]">
+					{menuItems.map((item) => (
+						<button
+							key={item.labelKey}
+							type="button"
+							onClick={() => {
+								setOpen(false)
+								item.action()
+							}}
+							className="voice-mono flex w-full items-center gap-2 px-4 py-2.5 text-start text-[11px] uppercase tracking-[0.2em] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						>
+							<span>{t(item.labelKey)}</span>
+						</button>
+					))}
 				</div>
 			)}
 		</div>

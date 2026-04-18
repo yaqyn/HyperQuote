@@ -1,9 +1,12 @@
 /**
- * ScrollToBottom — Subtle floating button.
+ * ScrollToBottom — a margin glyph, not a floating pill.
+ *
+ * Shows a short downward arrow + small mono label. Used only when the
+ * user has scrolled up past the threshold in ChatMessages.
  */
 
-import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 
 interface ScrollToBottomProps {
 	show: boolean
@@ -11,6 +14,8 @@ interface ScrollToBottomProps {
 }
 
 export function ScrollToBottom({ show, onClick }: ScrollToBottomProps) {
+	const { t } = useTranslation('portal')
+
 	return (
 		<AnimatePresence>
 			{show && (
@@ -21,10 +26,11 @@ export function ScrollToBottom({ show, onClick }: ScrollToBottomProps) {
 					exit={{ opacity: 0, y: 4 }}
 					transition={{ duration: 0.15 }}
 					onClick={onClick}
-					className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--p-card)] border border-[var(--p-border)] shadow-lg shadow-black/30 cursor-pointer hover:bg-[var(--p-elevated)] transition-colors"
-					aria-label="Scroll to bottom"
+					aria-label={t('chat.jumpToLatest', 'Jump to latest')}
+					className="office-quiet flex items-center gap-2"
 				>
-					<ChevronDown size={14} className="text-[var(--p-text-secondary)]" />
+					<span aria-hidden>↓</span>
+					<span>{t('chat.jumpToLatest', 'Jump to latest')}</span>
 				</motion.button>
 			)}
 		</AnimatePresence>

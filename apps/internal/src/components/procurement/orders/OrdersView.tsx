@@ -1,83 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, ClipboardList, Clock, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
 	type CustomerOrderView,
 	getCustomerOrdersList,
 } from '../../../lib/server/orders'
+import { useProcurementStore } from '../../../stores/procurement'
 import { OrderPrepView } from './OrderPrepView'
-
-// ─── Inline stat ──────────────────────────────────────────
-
-function InlineStat({
-	label,
-	value,
-	tone = 'neutral',
-}: {
-	label: string | number
-	value: number | string
-	tone?: 'neutral' | 'emerald' | 'red' | 'amber'
-}) {
-	const color = {
-		neutral: 'text-[var(--color-text)]',
-		emerald: 'text-emerald-700 dark:text-emerald-400',
-		red: 'text-red-700 dark:text-red-300',
-		amber: 'text-amber-700 dark:text-amber-400',
-	}[tone]
-	return (
-		<div className="flex items-baseline gap-1.5">
-			<span
-				className={`font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold leading-none tabular-nums ${color}`}
-			>
-				{value}
-			</span>
-			<span className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-				{label}
-			</span>
-		</div>
-	)
-}
-
-// ─── Filter chip ──────────────────────────────────────────
-
-function FilterChip({
-	label,
-	count,
-	active,
-	onPress,
-	hasAttention,
-}: {
-	label: string
-	count: number
-	active: boolean
-	onPress: () => void
-	hasAttention?: boolean
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onPress}
-			className={`group relative inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-medium ring-1 transition-all ${
-				active
-					? 'text-[var(--color-text)] ring-black/[0.07] dark:ring-white/[0.1]'
-					: 'text-[var(--color-text-muted)] ring-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
-			}`}
-		>
-			{hasAttention && (
-				<span
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-y-0 end-0 w-[35%] rounded-e-md bg-gradient-to-l from-red-500/[0.09] via-red-500/[0.03] to-transparent"
-				/>
-			)}
-			<span className="relative">{label}</span>
-			<span className="relative font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-				{count}
-			</span>
-		</button>
-	)
-}
-
-// ─── Formatter ────────────────────────────────────────────
 
 function formatHoursAgo(hours: number): string {
 	if (hours < 1) return 'just now'
@@ -87,101 +15,28 @@ function formatHoursAgo(hours: number): string {
 	return `${Math.round(days / 30)}mo ago`
 }
 
-// ─── Order row ────────────────────────────────────────────
-
-function OrderRow({
-	order,
-	onOpen,
-}: {
-	order: CustomerOrderView
-	onOpen: (quoteId: string) => void
-}) {
-	const statusDot = order.allReady ? 'bg-emerald-500' : 'bg-amber-500'
-	return (
-		<div
-			className="group grid items-center gap-4 border-b border-black/[0.04] px-3 py-3 transition-colors hover:bg-black/[0.02] dark:border-white/[0.04] dark:hover:bg-white/[0.03]"
-			style={{
-				gridTemplateColumns:
-					'14px minmax(0,1.6fr) minmax(0,1.2fr) minmax(140px,0.9fr) minmax(160px,1.1fr) 150px',
-			}}
-		>
-			<div className={`h-2 w-2 rounded-full ${statusDot}`} />
-
-			{/* Customer + quote number */}
-			<div className="min-w-0">
-				<p className="truncate text-[12.5px] font-medium text-[var(--color-text)]">
-					{order.customerName}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{order.quoteNumber}
-					{order.customerPoNumber ? ` · ${order.customerPoNumber}` : ''}
-				</p>
-			</div>
-
-			{/* Delivery */}
-			<div className="min-w-0">
-				<p className="truncate text-[11.5px] text-[var(--color-text-muted)]">
-					{order.deliveryCity || '—'}
-				</p>
-				<p className="text-[10px] text-[var(--color-text-subtle)]">
-					{order.deliveryUrgencyDays > 0
-						? `needs in ${order.deliveryUrgencyDays}d`
-						: 'urgent'}
-				</p>
-			</div>
-
-			{/* Items count + total */}
-			<div className="flex flex-col">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-					{order.itemCount}
-					<span className="ms-1 text-[10px] font-normal text-[var(--color-text-subtle)]">
-						item{order.itemCount !== 1 ? 's' : ''}
-					</span>
-				</span>
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{order.totalValue.toLocaleString('en-EG')} EGP
-				</span>
-			</div>
-
-			{/* Stock readiness */}
-			<div className="flex flex-col">
-				{order.allReady ? (
-					<span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-						<CheckCircle2 size={11} strokeWidth={2.5} />
-						All items in stock
-					</span>
-				) : (
-					<span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-						{order.shortageCount} of {order.itemCount} short
-					</span>
-				)}
-				<div className="flex items-center gap-1 text-[10px] text-[var(--color-text-subtle)]">
-					<Clock size={9} strokeWidth={2} />
-					<span>accepted {formatHoursAgo(order.acceptedHoursAgo)}</span>
-				</div>
-			</div>
-
-			{/* Action */}
-			<button
-				type="button"
-				onClick={() => onOpen(order.quoteId)}
-				className={`rounded-md py-1.5 text-[10.5px] font-semibold uppercase tracking-wider transition-colors ${
-					order.allReady
-						? 'bg-emerald-600 text-white hover:bg-emerald-700'
-						: 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90'
-				}`}
-			>
-				{order.allReady ? 'Approve' : 'Check'}
-			</button>
-		</div>
-	)
+function formatUrgency(days: number): string {
+	if (days <= 0) return 'urgent · today'
+	if (days === 1) return 'needs in a day'
+	if (days < 7) return `needs in ${days} days`
+	if (days < 30) return `needs in ${days} days`
+	return 'scheduled'
 }
-
-// ─── Main view ────────────────────────────────────────────
 
 type StatusFilter = 'all' | 'ready' | 'blocked'
 
+// ─── View ────────────────────────────────────────────────
+
+/**
+ * The Commitments — chapter III of the Compendium. Customer orders that
+ * have been sold, cleared by finance, and are now the inventory team's
+ * promise to keep. Each row reads as a standing commitment: who is
+ * waiting, by when, for how many items, and whether the shelf can keep
+ * the word given at the quote stage.
+ */
 export function OrdersView() {
+	const activeCategory = useProcurementStore((s) => s.activeCategory)
+
 	const { data, isLoading } = useQuery({
 		queryKey: ['customer-orders'],
 		queryFn: () => getCustomerOrdersList({ data: {} }),
@@ -206,10 +61,13 @@ export function OrdersView() {
 					(o.customerPoNumber?.toLowerCase().includes(q) ?? false),
 			)
 		}
-		return list
+		// Blocked first, then the most urgent delivery window.
+		return [...list].sort((a, b) => {
+			if (a.allReady !== b.allReady) return a.allReady ? 1 : -1
+			return a.deliveryUrgencyDays - b.deliveryUrgencyDays
+		})
 	}, [data, statusFilter, search])
 
-	// Detail view takes over when an order is opened.
 	if (selectedQuoteId) {
 		return (
 			<OrderPrepView
@@ -221,152 +79,500 @@ export function OrdersView() {
 
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-subtle)]">
-				Loading orders…
+			<div className="flex h-full items-center justify-center">
+				<p
+					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+					style={{ fontSize: '13px' }}
+				>
+					gathering the commitments…
+				</p>
 			</div>
 		)
 	}
 
 	return (
-		<div className="relative flex h-full flex-col bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
-			<div
-				className="flex-1 min-h-0 overflow-y-auto px-6 py-5"
-				data-module-content
+		<div className="animate-folio-turn relative h-full overflow-y-auto">
+			<div className="mx-auto flex max-w-[920px] flex-col px-10 pt-8 pb-16">
+				<CommitmentsMasthead
+					totals={data.totals}
+					activeCategoryNote={activeCategory !== 'all'}
+				/>
+
+				<CommitmentsToolbar
+					statusFilter={statusFilter}
+					setStatusFilter={setStatusFilter}
+					search={search}
+					setSearch={setSearch}
+					totals={data.totals}
+				/>
+
+				{filtered.length > 0 ? (
+					<ol className="mt-7 flex flex-col">
+						{filtered.map((order, idx) => (
+							<CommitmentPlate
+								key={order.quoteId}
+								index={idx}
+								order={order}
+								onOpen={setSelectedQuoteId}
+							/>
+						))}
+					</ol>
+				) : (
+					<CommitmentsEmpty
+						hasFilters={statusFilter !== 'all' || !!search.trim()}
+					/>
+				)}
+			</div>
+		</div>
+	)
+}
+
+// ─── Masthead ────────────────────────────────────────────
+
+function CommitmentsMasthead({
+	totals,
+	activeCategoryNote,
+}: {
+	totals: {
+		total: number
+		ready: number
+		blocked: number
+		shortageItems: number
+		value: number
+	}
+	activeCategoryNote: boolean
+}) {
+	const primaryNumber = totals.blocked > 0 ? totals.blocked : totals.ready
+	const primaryNoun =
+		totals.blocked > 0
+			? totals.blocked === 1
+				? 'order waiting on the shelf'
+				: 'orders waiting on the shelf'
+			: totals.ready === 1
+				? 'order ready to release'
+				: 'orders ready to release'
+
+	return (
+		<header className="flex flex-col border-b border-[var(--rule)] pb-8">
+			<div className="flex flex-wrap items-baseline gap-2">
+				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--ink-mid)]">
+					The Compendium · The Commitments
+				</span>
+				{activeCategoryNote && (
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+						style={{ fontSize: '11.5px' }}
+					>
+						· the index shelves materials; orders span them all
+					</span>
+				)}
+			</div>
+
+			<div className="mt-5 flex flex-wrap items-end justify-between gap-6">
+				<div className="flex items-baseline gap-4">
+					<span
+						className="animate-compendium-settle compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
+						style={{
+							fontSize: 'clamp(72px, 10vw, 120px)',
+							fontWeight: 500,
+							letterSpacing: '-0.045em',
+						}}
+					>
+						{primaryNumber}
+					</span>
+					<span
+						className="pb-3 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+						style={{
+							fontSize: '16px',
+							maxWidth: '220px',
+							lineHeight: 1.15,
+							letterSpacing: '-0.003em',
+						}}
+					>
+						{primaryNoun}
+					</span>
+				</div>
+
+				<dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+					<CommitStat label="total" value={totals.total} tone="neutral" />
+					<CommitStat label="ready" value={totals.ready} tone="fresh" />
+					<CommitStat label="blocked" value={totals.blocked} tone="aging" />
+					<CommitStat
+						label="short items"
+						value={totals.shortageItems}
+						tone="stale"
+					/>
+					<CommitStatValue label="EGP value" value={Math.round(totals.value)} />
+				</dl>
+			</div>
+		</header>
+	)
+}
+
+function CommitStat({
+	label,
+	value,
+	tone,
+}: {
+	label: string
+	value: number
+	tone: 'neutral' | 'fresh' | 'aging' | 'stale'
+}) {
+	const color = {
+		neutral: 'var(--ink)',
+		fresh: 'var(--compendium-fresh)',
+		aging: 'var(--compendium-aging)',
+		stale: 'var(--compendium-stale)',
+	}[tone]
+	return (
+		<div className="flex flex-col items-end">
+			<dt
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
 			>
-				<div className="mx-auto flex max-w-[1280px] flex-col gap-5">
-					{/* Header */}
-					<header className="flex items-center justify-between gap-6 border-b border-black/[0.04] pb-4 dark:border-white/[0.04]">
-						<div className="flex items-center gap-2">
-							<ClipboardList
-								size={13}
-								strokeWidth={2}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Orders · Customer orders waiting for inventory prep
-							</span>
-						</div>
-						<div className="flex items-baseline gap-5">
-							<InlineStat label="total" value={data.totals.total} />
-							<InlineStat
-								label="ready"
-								value={data.totals.ready}
-								tone="emerald"
-							/>
-							<InlineStat
-								label="blocked"
-								value={data.totals.blocked}
-								tone="amber"
-							/>
-							<InlineStat
-								label="short items"
-								value={data.totals.shortageItems}
-								tone="red"
-							/>
-							<InlineStat
-								label="EGP value"
-								value={Math.round(data.totals.value).toLocaleString('en-EG')}
-							/>
-						</div>
-					</header>
+				{label}
+			</dt>
+			<dd
+				className="font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold tabular-nums leading-none"
+				style={{ color: value > 0 ? color : 'var(--ink-ghost)' }}
+			>
+				{value.toString().padStart(2, '0')}
+			</dd>
+		</div>
+	)
+}
 
-					{/* Filter chips */}
-					<div className="flex items-center gap-1.5 overflow-x-auto p-1">
-						<FilterChip
-							label="All"
-							count={data.totals.total}
-							active={statusFilter === 'all'}
-							onPress={() => setStatusFilter('all')}
-						/>
-						<FilterChip
-							label="Ready"
-							count={data.totals.ready}
-							active={statusFilter === 'ready'}
-							onPress={() => setStatusFilter('ready')}
-						/>
-						<FilterChip
-							label="Needs refill"
-							count={data.totals.blocked}
-							hasAttention={data.totals.blocked > 0}
-							active={statusFilter === 'blocked'}
-							onPress={() => setStatusFilter('blocked')}
-						/>
-					</div>
+function CommitStatValue({ label, value }: { label: string; value: number }) {
+	return (
+		<div className="flex flex-col items-end">
+			<dt
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
+			>
+				{label}
+			</dt>
+			<dd className="font-[family-name:var(--font-geist-mono)] text-[16px] tabular-nums leading-none text-[var(--ink)]">
+				{value.toLocaleString('en-EG')}
+			</dd>
+		</div>
+	)
+}
 
-					{/* Search */}
-					<div className="flex items-center gap-2">
-						<div className="flex flex-1 items-center gap-2 rounded-md border border-black/[0.08] px-3 py-1.5 dark:border-white/[0.08]">
-							<Search
-								size={12}
-								strokeWidth={2}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<input
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-								placeholder="Search customer, quote number, or PO"
-								className="flex-1 bg-transparent text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]"
-							/>
-							{search && (
-								<button
-									type="button"
-									onClick={() => setSearch('')}
-									className="text-[10px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
-								>
-									clear
-								</button>
-							)}
-						</div>
-					</div>
+// ─── Toolbar ─────────────────────────────────────────────
 
-					{/* Table header */}
-					{filtered.length > 0 && (
-						<div
-							className="grid items-center gap-4 border-b border-black/[0.06] px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)] dark:border-white/[0.06]"
-							style={{
-								gridTemplateColumns:
-									'14px minmax(0,1.6fr) minmax(0,1.2fr) minmax(140px,0.9fr) minmax(160px,1.1fr) 150px',
-							}}
+function CommitmentsToolbar({
+	statusFilter,
+	setStatusFilter,
+	search,
+	setSearch,
+	totals,
+}: {
+	statusFilter: StatusFilter
+	setStatusFilter: (s: StatusFilter) => void
+	search: string
+	setSearch: (s: string) => void
+	totals: { total: number; ready: number; blocked: number }
+}) {
+	return (
+		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-3">
+			<div className="flex items-center gap-5">
+				<div className="flex flex-1 items-baseline gap-2">
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+						style={{ fontSize: '11.5px' }}
+					>
+						find
+					</span>
+					<input
+						type="search"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						placeholder="a customer, quote number, or PO"
+						className="w-full bg-transparent font-[family-name:var(--font-fraunces)] text-[14px] text-[var(--ink)] outline-none placeholder:font-[family-name:var(--font-fraunces)] placeholder:italic placeholder:text-[var(--ink-ghost)]"
+					/>
+					{search && (
+						<button
+							type="button"
+							onClick={() => setSearch('')}
+							className="font-[family-name:var(--font-fraunces)] italic text-[11px] text-[var(--ink-mid)] hover:text-[var(--ink)]"
 						>
-							<div />
-							<div>Customer</div>
-							<div>Delivery</div>
-							<div>Order</div>
-							<div>Stock readiness</div>
-							<div className="text-end">Action</div>
-						</div>
-					)}
-
-					{/* Rows */}
-					{filtered.length > 0 ? (
-						<div className="flex flex-col">
-							{filtered.map((o) => (
-								<OrderRow
-									key={o.quoteId}
-									order={o}
-									onOpen={setSelectedQuoteId}
-								/>
-							))}
-						</div>
-					) : (
-						<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.1] py-16 text-center dark:border-white/[0.1]">
-							<ClipboardList
-								size={24}
-								strokeWidth={1.5}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<p className="mt-2 text-[12px] font-medium text-[var(--color-text)]">
-								No orders to prep
-							</p>
-							<p className="mt-0.5 text-[10px] text-[var(--color-text-subtle)]">
-								{search.trim() || statusFilter !== 'all'
-									? 'Nothing matches your filters.'
-									: 'Accepted quotes that finance clears for partial payment will show up here.'}
-							</p>
-						</div>
+							clear
+						</button>
 					)}
 				</div>
 			</div>
+
+			<div className="flex items-center gap-5">
+				<StatusChip
+					label="all"
+					count={totals.total}
+					active={statusFilter === 'all'}
+					onPress={() => setStatusFilter('all')}
+				/>
+				<StatusChip
+					label="ready"
+					count={totals.ready}
+					active={statusFilter === 'ready'}
+					onPress={() => setStatusFilter('ready')}
+					tone="fresh"
+				/>
+				<StatusChip
+					label="blocked"
+					count={totals.blocked}
+					active={statusFilter === 'blocked'}
+					onPress={() => setStatusFilter('blocked')}
+					tone="aging"
+				/>
+			</div>
+		</div>
+	)
+}
+
+function StatusChip({
+	label,
+	count,
+	active,
+	onPress,
+	tone = 'neutral',
+}: {
+	label: string
+	count: number
+	active: boolean
+	onPress: () => void
+	tone?: 'neutral' | 'fresh' | 'aging'
+}) {
+	const color = {
+		neutral: 'var(--ink)',
+		fresh: 'var(--compendium-fresh)',
+		aging: 'var(--compendium-aging)',
+	}[tone]
+	return (
+		<button
+			type="button"
+			onClick={onPress}
+			aria-pressed={active}
+			className="group inline-flex items-baseline gap-1.5 outline-none"
+		>
+			<span
+				className="font-[family-name:var(--font-fraunces)] transition-colors"
+				style={{
+					fontSize: '12.5px',
+					fontStyle: active ? 'normal' : 'italic',
+					fontWeight: active ? 600 : 400,
+					color: active ? color : 'var(--ink-soft)',
+					letterSpacing: active ? '-0.005em' : '0',
+				}}
+			>
+				{label}
+			</span>
+			<span
+				className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums"
+				style={{ color: active ? color : 'var(--ink-mid)' }}
+			>
+				{count.toString().padStart(2, '0')}
+			</span>
+		</button>
+	)
+}
+
+// ─── Plate ───────────────────────────────────────────────
+
+function CommitmentPlate({
+	index,
+	order,
+	onOpen,
+}: {
+	index: number
+	order: CustomerOrderView
+	onOpen: (quoteId: string) => void
+}) {
+	const blocked = !order.allReady
+	const urgent = order.deliveryUrgencyDays <= 0
+	const accent = blocked
+		? 'var(--compendium-aging)'
+		: urgent
+			? 'var(--compendium-brand)'
+			: 'var(--compendium-fresh)'
+
+	const readyPct =
+		order.itemCount > 0 ? (order.readyCount / order.itemCount) * 100 : 0
+
+	return (
+		<li
+			className="relative grid items-start border-t border-[var(--rule-soft)] py-5"
+			style={{
+				gridTemplateColumns: '22px 1fr auto auto',
+				columnGap: '24px',
+			}}
+		>
+			{/* Left margin */}
+			<div className="relative pt-1">
+				{(blocked || urgent) && (
+					<span
+						aria-hidden="true"
+						className="absolute left-1 top-2 bottom-2 w-[2px]"
+						style={{ background: accent }}
+					/>
+				)}
+				<span
+					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-ghost)]"
+					style={{ fontSize: '11px' }}
+				>
+					{(index + 1).toString().padStart(2, '0')}
+				</span>
+			</div>
+
+			{/* Body */}
+			<div className="min-w-0">
+				<p
+					className="font-[family-name:var(--font-fraunces)] leading-[1.12] text-[var(--ink)]"
+					style={{
+						fontSize: '19px',
+						fontWeight: 500,
+						letterSpacing: '-0.015em',
+					}}
+				>
+					{order.customerName}
+				</p>
+				<p
+					className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[var(--ink-mid)]"
+					style={{ fontSize: '11px' }}
+				>
+					<span className="font-[family-name:var(--font-geist-mono)] uppercase tracking-[0.1em]">
+						{order.quoteNumber}
+					</span>
+					{order.customerPoNumber && (
+						<>
+							<span className="opacity-60">·</span>
+							<span className="font-[family-name:var(--font-geist-mono)] uppercase tracking-[0.1em]">
+								{order.customerPoNumber}
+							</span>
+						</>
+					)}
+					<span className="opacity-60">·</span>
+					<span className="font-[family-name:var(--font-fraunces)] italic">
+						{order.deliveryCity || 'no delivery city'}
+					</span>
+					<span className="opacity-60">·</span>
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic"
+						style={{
+							color: urgent ? 'var(--compendium-brand)' : 'var(--ink-soft)',
+						}}
+					>
+						{formatUrgency(order.deliveryUrgencyDays)}
+					</span>
+				</p>
+
+				{/* Readiness band */}
+				<div className="mt-3 flex items-center gap-3">
+					<div
+						className="compendium-strata flex-1"
+						aria-hidden="true"
+						title={`${order.readyCount} of ${order.itemCount} items in stock`}
+					>
+						<span
+							className="absolute inset-y-0 left-0 transition-[width]"
+							style={{
+								width: `${readyPct}%`,
+								background: blocked
+									? 'var(--compendium-aging)'
+									: 'var(--compendium-fresh)',
+							}}
+						/>
+					</div>
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+						style={{ fontSize: '10.5px' }}
+					>
+						{blocked
+							? `${order.shortageCount} of ${order.itemCount} short`
+							: `all ${order.itemCount} in stock`}
+					</span>
+					<span className="font-[family-name:var(--font-geist-mono)] text-[9.5px] tabular-nums text-[var(--ink-mid)]">
+						· accepted {formatHoursAgo(order.acceptedHoursAgo)}
+					</span>
+				</div>
+			</div>
+
+			{/* Value */}
+			<div className="flex flex-col items-end pt-1">
+				<span
+					className="compendium-numeral font-[family-name:var(--font-fraunces)] text-[var(--ink)]"
+					style={{
+						fontSize: '22px',
+						fontWeight: 500,
+						letterSpacing: '-0.025em',
+						lineHeight: 1,
+					}}
+				>
+					{Math.round(order.totalValue).toLocaleString('en-EG')}
+				</span>
+				<span
+					className="mt-1 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+					style={{ fontSize: '10.5px' }}
+				>
+					EGP · {order.itemCount} item{order.itemCount === 1 ? '' : 's'}
+				</span>
+			</div>
+
+			{/* Action */}
+			<div className="flex items-center pt-2">
+				<button
+					type="button"
+					onClick={() => onOpen(order.quoteId)}
+					className="group inline-flex items-baseline gap-1.5 border-b border-transparent pb-0.5 outline-none"
+				>
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic"
+						style={{
+							fontSize: '13.5px',
+							letterSpacing: '-0.005em',
+							fontWeight: blocked ? 500 : 400,
+							color: blocked ? 'var(--ink)' : 'var(--ink-mid)',
+						}}
+					>
+						{blocked ? 'check shortage' : 'approve'}
+					</span>
+					<span
+						aria-hidden="true"
+						className="transition-transform group-hover:translate-x-[3px]"
+						style={{
+							fontFamily: 'var(--font-fraunces)',
+							fontStyle: 'italic',
+							fontSize: '14px',
+							color: accent,
+						}}
+					>
+						→
+					</span>
+				</button>
+			</div>
+		</li>
+	)
+}
+
+// ─── Empty ──────────────────────────────────────────────
+
+function CommitmentsEmpty({ hasFilters }: { hasFilters: boolean }) {
+	return (
+		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--rule-soft)] py-14">
+			<span
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink)]"
+				style={{ fontSize: '22px', letterSpacing: '-0.01em' }}
+			>
+				{hasFilters
+					? 'nothing matches your query.'
+					: 'no commitments on the books.'}
+			</span>
+			<span
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+				style={{ fontSize: '12px' }}
+			>
+				{hasFilters
+					? 'clear the filter or search to see more.'
+					: 'accepted quotes cleared by finance will arrive here for inventory to release.'}
+			</span>
 		</div>
 	)
 }

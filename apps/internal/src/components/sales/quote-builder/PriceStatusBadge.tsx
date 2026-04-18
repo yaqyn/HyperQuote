@@ -8,46 +8,56 @@ interface PriceStatusBadgeProps {
 	size?: 'sm' | 'xs'
 }
 
-const URGENCY_STYLES = {
-	normal: {
-		label: 'Updated',
-		tone: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-emerald-500/20',
-	},
-	hot: {
-		label: 'Updated',
-		tone: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-emerald-500/20',
-	},
-	stale: {
-		label: 'Outdated',
-		tone: 'bg-black/[0.05] text-black/55 dark:bg-white/[0.06] dark:text-white/55 ring-black/10 dark:ring-white/10',
-	},
-	urgent: {
-		label: 'Urgent',
-		tone: 'bg-black/[0.08] text-black/70 dark:bg-white/[0.10] dark:text-white/70 ring-black/15 dark:ring-white/15',
-	},
+/**
+ * Price status mark — italic Archivo lowercase label with a color-coded
+ * dot. No rounded pill, no uppercase-tracked micro-caps. Status itself
+ * is the content; the dot is a visual index not a decoration.
+ */
+const URGENCY_STYLE = {
+	normal: { label: 'updated', color: 'var(--color-primary)' },
+	hot: { label: 'updated', color: 'var(--color-primary)' },
+	stale: { label: 'outdated', color: 'var(--color-signal-amber)' },
+	urgent: { label: 'urgent', color: 'var(--color-signal-red)' },
 } as const
 
-/**
- * Small pill showing the price status of a catalog item.
- * Shows a flame for recently-ordered items.
- */
 export function PriceStatusBadge({
 	priceStatus,
 	recentlyOrdered,
 	size = 'sm',
 }: PriceStatusBadgeProps) {
 	const urgency = getPriceUrgency(priceStatus, recentlyOrdered)
-	const style = URGENCY_STYLES[urgency]
-	const padding =
-		size === 'xs' ? 'px-1.5 py-px text-[9px]' : 'px-2 py-0.5 text-[10px]'
-	const iconSize = size === 'xs' ? 9 : 10
+	const style = URGENCY_STYLE[urgency]
+	const fontSize = size === 'xs' ? '10px' : '11px'
+	const dotSize = size === 'xs' ? 5 : 6
+	const srLabel = recentlyOrdered
+		? `Price status: ${style.label}, recently ordered`
+		: `Price status: ${style.label}`
 
 	return (
 		<span
-			className={`inline-flex items-center gap-1 rounded-full font-semibold uppercase tracking-wider ring-1 ring-inset ${padding} ${style.tone}`}
+			role="img"
+			aria-label={srLabel}
+			className="inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic"
+			style={{ fontSize, color: style.color, letterSpacing: '0.005em' }}
 		>
-			{style.label}
-			{recentlyOrdered && <Flame size={iconSize} strokeWidth={2.5} />}
+			<span
+				aria-hidden="true"
+				className="shrink-0 self-center rounded-full"
+				style={{
+					width: dotSize,
+					height: dotSize,
+					backgroundColor: style.color,
+				}}
+			/>
+			<span aria-hidden="true">{style.label}</span>
+			{recentlyOrdered && (
+				<Flame
+					size={size === 'xs' ? 9 : 10}
+					strokeWidth={2}
+					className="shrink-0 self-center"
+					aria-hidden="true"
+				/>
+			)}
 		</span>
 	)
 }

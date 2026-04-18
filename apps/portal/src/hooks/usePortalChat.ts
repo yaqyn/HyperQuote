@@ -41,8 +41,9 @@ function extractContent(msg: UIMessage): string {
 }
 
 /**
- * Convert array of StreamChunks to AsyncIterable.
- * Server function returns array (serialized over RPC); stream() needs iterable.
+ * Convert array of StreamChunks to AsyncIterable. The server-fn returns
+ * chunks accumulated into an array (clean RPC serialization); stream() needs
+ * an iterable so we yield one at a time.
  */
 async function* arrayToAsyncIterable(
 	chunks: StreamChunk[],
@@ -95,10 +96,8 @@ export function usePortalChat() {
 					content: extractContent(m),
 				}))
 
-				// Call server function — returns StreamChunk[] (serialized).
-				// The server-fn wrapper widens the return to `unknown` because
-				// AG-UI's structural `rawEvent: unknown` doesn't survive the
-				// RPC type transform. We know the shape and narrow here.
+				// Server-fn returns StreamChunk[] accumulated server-side. Iterate
+				// client-side so the stream() adapter processes chunks one at a time.
 				const raw = await portalChatFn({
 					data: {
 						messages: simpleMessages,
@@ -108,11 +107,9 @@ export function usePortalChat() {
 				})
 				const chunks = raw as unknown as StreamChunk[]
 
-				// Extract rich content from CUSTOM events
 				lastChunksRef.current = chunks
 				richContentRef.current = extractRichContent(chunks)
 
-				// Yield chunks as async iterable for the stream() adapter
 				yield* arrayToAsyncIterable(chunks)
 			} catch (err) {
 				console.error('[portal-chat] stream error:', err)

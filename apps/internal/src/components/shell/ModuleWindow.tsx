@@ -178,6 +178,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 			isOpen={isOpen}
 			onClose={handleClose}
 			closeOnBackdropClick={false}
+			className="shell-plate"
 		>
 			{/* Header — pinned at top, never scrolls */}
 			<WindowHeader moduleId={moduleId} onClose={handleClose} />

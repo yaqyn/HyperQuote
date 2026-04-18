@@ -60,7 +60,7 @@ export function WarehousePrepFlow({ quoteId }: { quoteId: string | null }) {
 
 function EmptyPanel() {
 	return (
-		<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+		<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
 			<div className="flex flex-col items-center gap-3 px-10 text-center">
 				<span
 					aria-hidden="true"
@@ -98,7 +98,7 @@ function PrepFlowInner({ quoteId }: { quoteId: string }) {
 
 	if (isLoading || !order) {
 		return (
-			<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+			<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
 				<p className="font-[family-name:var(--font-geist-mono)] text-[12px] uppercase tracking-[0.22em] text-black/40">
 					Loading order…
 				</p>
@@ -107,7 +107,7 @@ function PrepFlowInner({ quoteId }: { quoteId: string }) {
 	}
 
 	return (
-		<aside className="flex h-full w-full flex-col border-s-[3px] border-[#0A0A0A] bg-[#EEEEE3]">
+		<aside className="flex h-full w-full flex-col border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
 			<PrepHeader
 				order={order}
 				onClose={() => setSelectedQuoteId(null)}
@@ -153,7 +153,7 @@ function PrepHeader({
 	})
 
 	return (
-		<header className="shrink-0 border-b-[3px] border-[#0A0A0A] px-8 pt-6 pb-5">
+		<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-6 pb-5">
 			<div className="flex items-start justify-between gap-6">
 				<div className="min-w-0">
 					<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.3em] text-black/50">
@@ -173,7 +173,7 @@ function PrepHeader({
 						onClick={onClose}
 						whileTap={{ scale: 0.96 }}
 						aria-label="Close order"
-						className="border-[3px] border-[#0A0A0A] bg-white px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#0A0A0A] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+						className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--color-text)] transition-colors hover:bg-[var(--color-text)] hover:text-[#FFFFFF]"
 					>
 						Close
 					</motion.button>
@@ -181,7 +181,7 @@ function PrepHeader({
 						type="button"
 						onClick={() => setResetConfirmOpen(true)}
 						whileTap={{ scale: 0.96 }}
-						className="border-[3px] border-[#CC3300] bg-white px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#F4F4EC]"
+						className="border-[3px] border-[#CC3300] bg-[var(--color-surface)] px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#FFFFFF]"
 					>
 						Reset
 					</motion.button>
@@ -236,14 +236,22 @@ function StageTick({
 	active: boolean
 	current: boolean
 }) {
-	const bg = current ? '#E6B400' : active ? '#0A0A0A' : 'rgba(0,0,0,0.04)'
-	const textColor = current ? '#0A0A0A' : active ? '#F4F4EC' : '#0A0A0A'
+	const bg = current
+		? '#E6B400'
+		: active
+			? 'var(--color-text)'
+			: 'rgba(0,0,0,0.04)'
+	const textColor = current
+		? 'var(--color-text)'
+		: active
+			? '#FFFFFF'
+			: 'var(--color-text)'
 	return (
 		<motion.div
 			layout
 			animate={{ backgroundColor: bg, color: textColor }}
 			transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
-			className="flex h-9 items-center justify-center border-[3px] border-[#0A0A0A] font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em]"
+			className="flex h-9 items-center justify-center border-[3px] border-[var(--color-text)] font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em]"
 		>
 			{label}
 		</motion.div>
@@ -280,7 +288,7 @@ function ResetConfirmDialog({
 				animate={{ opacity: 1, scale: 1, y: 0 }}
 				exit={{ opacity: 0, scale: 0.94, y: 12 }}
 				transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-				className="fixed left-1/2 top-1/2 z-[80] w-[min(440px,90vw)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-[#CC3300] bg-white p-7 shadow-[10px_10px_0_0_#0A0A0A]"
+				className="fixed left-1/2 top-1/2 z-[80] w-[min(440px,90vw)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-[#CC3300] bg-[var(--color-surface)] p-7 shadow-[10px_10px_0_0_var(--color-text)]"
 			>
 				<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.24em] text-[#CC3300]">
 					Reset order
@@ -298,7 +306,7 @@ function ResetConfirmDialog({
 						type="button"
 						onClick={onCancel}
 						whileTap={{ scale: 0.96 }}
-						className="border-[3px] border-[#0A0A0A] bg-white py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+						className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[var(--color-text)] hover:text-[#FFFFFF]"
 					>
 						Cancel
 					</motion.button>
@@ -307,7 +315,7 @@ function ResetConfirmDialog({
 						onClick={onConfirm}
 						disabled={isPending}
 						whileTap={{ scale: 0.96 }}
-						className="border-[3px] border-[#0A0A0A] bg-[#CC3300] py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#F4F4EC] transition-all hover:shadow-[4px_4px_0_0_#0A0A0A] disabled:opacity-50"
+						className="border-[3px] border-[var(--color-text)] bg-[#CC3300] py-3 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[#FFFFFF] transition-all hover:shadow-[4px_4px_0_0_var(--color-text)] disabled:opacity-50"
 					>
 						{isPending ? 'Resetting…' : 'Reset'}
 					</motion.button>
@@ -404,7 +412,7 @@ function LoadStage({
 									animate={{
 										opacity: 1,
 										y: 0,
-										borderColor: isEmpty ? '#CC3300' : '#0A0A0A',
+										borderColor: isEmpty ? '#CC3300' : 'var(--color-text)',
 										backgroundColor: isEmpty ? '#FFF4F0' : '#FFFFFF',
 									}}
 									exit={{ opacity: 0, y: -8 }}
@@ -453,7 +461,7 @@ function LoadStage({
 												onClick={() => removeMutation.mutate(a.truckId)}
 												disabled={removeMutation.isPending}
 												whileTap={{ scale: 0.95 }}
-												className="border-[3px] border-[#CC3300] bg-white px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#F4F4EC] disabled:opacity-50"
+												className="border-[3px] border-[#CC3300] bg-[var(--color-surface)] px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC3300] transition-colors hover:bg-[#CC3300] hover:text-[#FFFFFF] disabled:opacity-50"
 											>
 												Remove
 											</motion.button>
@@ -472,7 +480,7 @@ function LoadStage({
 						type="button"
 						onClick={() => setShowTruckPicker((v) => !v)}
 						whileTap={{ scale: 0.97 }}
-						className="mt-3 border-[3px] border-[#0A0A0A] bg-white px-4 py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[#0A0A0A] hover:text-[#F4F4EC]"
+						className="mt-3 border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-[var(--color-text)] hover:text-[#FFFFFF]"
 					>
 						{showTruckPicker ? '− Close truck picker' : '+ Need another truck'}
 					</motion.button>
@@ -522,10 +530,10 @@ function LoadStage({
 						whileTap={canAdvance ? { scale: 0.98 } : undefined}
 						animate={{
 							backgroundColor: canAdvance ? '#E6B400' : 'rgba(0,0,0,0.05)',
-							color: canAdvance ? '#0A0A0A' : 'rgba(0,0,0,0.3)',
+							color: canAdvance ? 'var(--color-text)' : 'rgba(0,0,0,0.3)',
 						}}
 						transition={{ duration: 0.25 }}
-						className="mt-5 w-full border-[3px] border-[#0A0A0A] py-5 font-[family-name:var(--font-geist-mono)] text-[13px] font-bold uppercase tracking-[0.22em] transition-all enabled:hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:cursor-not-allowed"
+						className="mt-5 w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[13px] font-bold uppercase tracking-[0.22em] transition-all enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed"
 					>
 						{nextMutation.isPending
 							? 'Advancing…'
@@ -618,7 +626,7 @@ function TruckPicker({
 						transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
 						whileHover={{ y: -2 }}
 						whileTap={{ scale: 0.98 }}
-						className="group border-[3px] border-[#0A0A0A] bg-white px-5 py-4 text-start transition-shadow hover:shadow-[4px_4px_0_0_#0A0A0A] disabled:opacity-40"
+						className="group border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-4 text-start transition-shadow hover:shadow-[4px_4px_0_0_var(--color-text)] disabled:opacity-40"
 						style={{ minHeight: '100px' }}
 					>
 						<div className="flex items-start justify-between gap-3">
@@ -705,7 +713,7 @@ function ItemChecklist({
 							backgroundColor: item.loadedOnTruckId ? '#0A5C2E' : 'transparent',
 						}}
 						transition={{ duration: 0.22 }}
-						className="flex h-12 w-12 shrink-0 items-center justify-center border-[3px] border-[#0A0A0A]"
+						className="flex h-12 w-12 shrink-0 items-center justify-center border-[3px] border-[var(--color-text)]"
 					>
 						<AnimatePresence>
 							{item.loadedOnTruckId && (
@@ -722,7 +730,7 @@ function ItemChecklist({
 								>
 									<motion.path
 										d="M4 11l5 5 9-10"
-										stroke="#F4F4EC"
+										stroke="#FFFFFF"
 										strokeWidth="3"
 										strokeLinecap="round"
 										strokeLinejoin="round"
@@ -762,10 +770,10 @@ function ItemChecklist({
 									whileTap={{ scale: 0.95 }}
 									animate={{
 										backgroundColor: isHere ? '#0A5C2E' : '#FFFFFF',
-										color: isHere ? '#F4F4EC' : '#0A0A0A',
+										color: isHere ? '#FFFFFF' : 'var(--color-text)',
 									}}
 									transition={{ duration: 0.2 }}
-									className="border-[3px] border-[#0A0A0A] px-3 py-2 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.16em] disabled:opacity-40"
+									className="border-[3px] border-[var(--color-text)] px-3 py-2 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.16em] disabled:opacity-40"
 									style={{ minHeight: '44px', minWidth: '88px' }}
 								>
 									{isHere ? '✓ ' : ''}
@@ -932,11 +940,11 @@ function SignoffStage({
 								onClick={() => setAdvisorId(e.id)}
 								whileTap={{ scale: 0.97 }}
 								animate={{
-									backgroundColor: active ? '#0A0A0A' : '#FFFFFF',
-									color: active ? '#F4F4EC' : '#0A0A0A',
+									backgroundColor: active ? 'var(--color-text)' : '#FFFFFF',
+									color: active ? '#FFFFFF' : 'var(--color-text)',
 								}}
 								transition={{ duration: 0.18 }}
-								className="border-[3px] border-[#0A0A0A] px-4 py-3 text-start"
+								className="border-[3px] border-[var(--color-text)] px-4 py-3 text-start"
 								style={{ minHeight: '56px' }}
 							>
 								<p className="text-[14px] font-bold leading-tight">{e.name}</p>
@@ -995,7 +1003,7 @@ function SignoffStage({
 						securityMethod === 'password' ? 'Your password' : 'Scan your badge'
 					}
 					autoComplete="off"
-					className="mt-3 w-full border-[3px] border-[#0A0A0A] bg-white px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30"
+					className="mt-3 w-full border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30"
 					style={{ minHeight: '56px' }}
 				/>
 				<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45">
@@ -1081,13 +1089,13 @@ function SignoffStage({
 							? '#CC3300'
 							: 'rgba(0,0,0,0.05)',
 					color: readyPass
-						? '#0A0A0A'
+						? 'var(--color-text)'
 						: readyFail
-							? '#F4F4EC'
+							? '#FFFFFF'
 							: 'rgba(0,0,0,0.3)',
 				}}
 				transition={{ duration: 0.25 }}
-				className="w-full border-[3px] border-[#0A0A0A] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:cursor-not-allowed"
+				className="w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed"
 			>
 				{pending
 					? qualityPass === false
@@ -1122,11 +1130,11 @@ function SecurityMethodTab({
 			onClick={onPress}
 			whileTap={{ scale: 0.97 }}
 			animate={{
-				backgroundColor: active ? '#0A0A0A' : '#FFFFFF',
-				color: active ? '#F4F4EC' : '#0A0A0A',
+				backgroundColor: active ? 'var(--color-text)' : '#FFFFFF',
+				color: active ? '#FFFFFF' : 'var(--color-text)',
 			}}
 			transition={{ duration: 0.2 }}
-			className="border-[3px] border-[#0A0A0A] py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.2em]"
+			className="border-[3px] border-[var(--color-text)] py-3 font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.2em]"
 		>
 			{label}
 		</motion.button>
@@ -1156,7 +1164,7 @@ function Field({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder={placeholder}
-				className="border-[3px] border-[#0A0A0A] bg-white px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30 focus:bg-[#FFFFFF]"
+				className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 text-[16px] outline-none transition-colors placeholder:text-black/30 focus:bg-[var(--color-surface)]"
 				style={{ minHeight: '56px' }}
 			/>
 			{hint && (
@@ -1188,10 +1196,10 @@ function ToggleButton({
 			whileTap={{ scale: 0.97 }}
 			animate={{
 				backgroundColor: active ? accent : '#FFFFFF',
-				color: active ? '#F4F4EC' : '#0A0A0A',
+				color: active ? '#FFFFFF' : 'var(--color-text)',
 			}}
 			transition={{ duration: 0.22 }}
-			className="border-[3px] border-[#0A0A0A] px-5 py-5 text-start"
+			className="border-[3px] border-[var(--color-text)] px-5 py-5 text-start"
 			style={{ minHeight: '88px' }}
 		>
 			<p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-bold uppercase tracking-[0.08em]">
@@ -1260,7 +1268,7 @@ function CompleteStage({
 				{order.truckAssignments.map((a) => (
 					<div
 						key={a.truckId}
-						className="flex items-center justify-between border-[3px] border-[#0A0A0A] bg-white px-5 py-3"
+						className="flex items-center justify-between border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-3"
 					>
 						<div>
 							<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
@@ -1281,7 +1289,7 @@ function CompleteStage({
 				onClick={() => mutation.mutate()}
 				disabled={mutation.isPending}
 				whileTap={{ scale: 0.98 }}
-				className="w-full border-[3px] border-[#0A0A0A] bg-[#0A0A0A] py-6 font-[family-name:var(--font-geist-mono)] text-[16px] font-bold uppercase tracking-[0.22em] text-[#F4F4EC] transition-all hover:bg-[#E6B400] hover:text-[#0A0A0A] hover:shadow-[6px_6px_0_0_#0A0A0A] disabled:opacity-40"
+				className="w-full border-[3px] border-[var(--color-text)] bg-[var(--color-text)] py-6 font-[family-name:var(--font-geist-mono)] text-[16px] font-bold uppercase tracking-[0.22em] text-[#FFFFFF] transition-all hover:bg-[#E6B400] hover:text-[var(--color-text)] hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:opacity-40"
 			>
 				{mutation.isPending ? 'Passing…' : 'Pass to dispatch →'}
 			</motion.button>

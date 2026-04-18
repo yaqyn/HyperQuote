@@ -16,11 +16,14 @@ const enter = {
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
+	const lastContent = messages[messages.length - 1]?.content ?? ''
 
 	useEffect(() => {
 		const el = scrollRef.current
 		if (el) el.scrollTop = el.scrollHeight
-	}, [])
+		// Re-run on new messages, on streaming-chunk growth of the last message,
+		// and when the typing indicator toggles — keeps the view stuck to bottom.
+	}, [messages.length, lastContent, isLoading])
 
 	return (
 		<div ref={scrollRef} className="h-full overflow-y-auto px-5 py-5">

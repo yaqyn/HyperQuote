@@ -12,6 +12,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@hyperquote/ai": "workspace:*",
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",

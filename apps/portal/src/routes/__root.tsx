@@ -47,12 +47,12 @@ export const Route = createRootRoute({
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
 			{
 				name: 'theme-color',
-				content: '#ffffff',
+				content: '#f4efe6',
 				media: '(prefers-color-scheme: light)',
 			},
 			{
 				name: 'theme-color',
-				content: '#060606',
+				content: '#f4efe6',
 				media: '(prefers-color-scheme: dark)',
 			},
 		],
@@ -72,6 +72,16 @@ export const Route = createRootRoute({
 			{ rel: 'icon', href: '/favicon.ico' },
 			{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
 			{ rel: 'manifest', href: '/site.webmanifest' },
+			{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+			{
+				rel: 'preconnect',
+				href: 'https://fonts.gstatic.com',
+				crossOrigin: 'anonymous',
+			},
+			{
+				rel: 'stylesheet',
+				href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&display=swap',
+			},
 			{ rel: 'stylesheet', href: styles },
 		],
 	}),
@@ -83,6 +93,8 @@ function RootComponent() {
 	const routeContext = Route.useRouteContext() as { locale?: 'ar' | 'en' }
 	const locale = routeContext.locale ?? 'en'
 	const [queryClient] = useState(() => new QueryClient())
+
+	// Dark theme only — no toggle. The /login atelier-scene is scoped separately.
 
 	// Document-level UX guards: disable right-click menu and block Ctrl/Cmd+A
 	// outside text inputs. Attached to document because <body> with interactive

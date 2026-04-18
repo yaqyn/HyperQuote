@@ -1,4 +1,3 @@
-import { ArrowRight, ShieldAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
 	isValidProof,
@@ -11,7 +10,6 @@ import {
 	DispatchBody,
 	DispatchDialog,
 	DispatchFooter,
-	DispatchInputClass,
 } from '../../shared/DispatchDialog'
 
 interface PriceConfirmDialogProps {
@@ -31,12 +29,12 @@ const PROOF_COPY: Record<
 	{ title: string; hint: string }
 > = {
 	decrease: {
-		title: 'Lower price needs proof',
-		hint: 'Dropping a cost without a paper trail is the #1 way the ledger drifts.',
+		title: 'a lower price needs a paper trail',
+		hint: 'dropping a cost without evidence is the #1 way the ledger drifts. name the rep, paste the message, or describe the negotiation.',
 	},
 	'large-change': {
-		title: 'Big jump needs proof',
-		hint: 'This change is more than 25% in one go — record the negotiation or catch the typo.',
+		title: 'a big jump needs a paper trail',
+		hint: 'this change is more than 25% in one go. record the negotiation or catch the typo before you commit.',
 	},
 }
 
@@ -83,136 +81,173 @@ export function PriceConfirmDialog({
 			isOpen={isOpen}
 			onClose={onCancel}
 			size="sm"
-			eyebrow="Procurement · Price change"
+			eyebrow="Compendium · Price change"
 			title={productName}
 			caption={supplierName ? `via ${supplierName}` : undefined}
 		>
-			<DispatchBody>
-				{/* Was → will be → delta */}
-				<div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 px-4 py-4 border border-black/[0.1] dark:border-white/[0.12] bg-black/[0.02] dark:bg-white/[0.02]">
-					<PriceCell
-						label="Was"
-						value={
-							oldCost > 0
-								? oldCost.toLocaleString('en-EG', { minimumFractionDigits: 2 })
-								: '—'
-						}
-						muted
-					/>
-					<ArrowRight
-						size={14}
-						strokeWidth={2}
-						className="text-[var(--color-text-subtle)]"
-					/>
-					<PriceCell
-						label="Will be"
-						value={newCost.toLocaleString('en-EG', {
-							minimumFractionDigits: 2,
-						})}
-					/>
-					<div className="border-s border-black/[0.08] h-8 dark:border-white/[0.1]" />
-					<PriceCell
-						label="Delta"
-						value={
-							oldCost === 0
-								? 'new'
-								: `${isIncrease ? '+' : ''}${deltaPct.toFixed(1)}%`
-						}
-						tone={oldCost === 0 ? 'muted' : isIncrease ? 'amber' : 'primary'}
-						end
-					/>
-				</div>
+			<div className="compendium-theme bg-[var(--folio)] text-[var(--ink)]">
+				<DispatchBody>
+					{/* Was / will be / delta — editorial baseline, no cells. */}
+					<div className="flex items-end justify-between gap-4 border-y border-[var(--rule-soft)] py-5">
+						<PriceColumn
+							label="was"
+							value={
+								oldCost > 0
+									? oldCost.toLocaleString('en-EG', {
+											minimumFractionDigits: 2,
+										})
+									: '—'
+							}
+							muted
+						/>
+						<span
+							aria-hidden="true"
+							className="pb-3 font-[family-name:var(--font-fraunces)] italic"
+							style={{
+								fontSize: '20px',
+								color: 'var(--compendium-brand)',
+							}}
+						>
+							→
+						</span>
+						<PriceColumn
+							label="will be"
+							value={newCost.toLocaleString('en-EG', {
+								minimumFractionDigits: 2,
+							})}
+						/>
+						<div aria-hidden="true" className="h-10 w-px bg-[var(--rule)]" />
+						<PriceColumn
+							label="delta"
+							value={
+								oldCost === 0
+									? 'new'
+									: `${isIncrease ? '+' : ''}${deltaPct.toFixed(1)}%`
+							}
+							tone={oldCost === 0 ? 'muted' : isIncrease ? 'aging' : 'fresh'}
+						/>
+					</div>
 
-				<p className="mt-3 font-[family-name:var(--font-archivo)] italic text-[12px] text-[var(--color-text-subtle)]">
-					Sales will see the updated cost on any quote drafted after this
-					moment. EGP / {unit}.
-				</p>
+					<p
+						className="mt-4 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+						style={{
+							fontSize: '12px',
+							letterSpacing: '0.002em',
+						}}
+					>
+						sales will see the updated cost on any quote drafted after this
+						moment. EGP / {unit}.
+					</p>
 
-				{proofReason && (
-					<div className="mt-5 border border-[#D97706]/40 bg-[#D97706]/[0.05] p-4">
-						<div className="flex items-start gap-3">
-							<ShieldAlert
-								size={14}
-								strokeWidth={2}
-								className="mt-0.5 shrink-0 text-[#D97706]"
+					{proofReason && (
+						<div className="mt-5 border-y-2 border-[var(--compendium-aging)] py-4">
+							<p
+								className="font-[family-name:var(--font-geist-mono)] text-[9.5px] font-semibold uppercase tracking-[0.22em]"
+								style={{ color: 'var(--compendium-aging)' }}
+							>
+								{PROOF_COPY[proofReason].title}
+							</p>
+							<p
+								className="mt-1.5 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+								style={{
+									fontSize: '12.5px',
+									lineHeight: 1.5,
+									letterSpacing: '0.001em',
+								}}
+							>
+								{PROOF_COPY[proofReason].hint}
+							</p>
+							<textarea
+								value={proof}
+								onChange={(e) => setProof(e.target.value)}
+								placeholder="e.g. Ahmed @ Suez Cement confirmed by phone 11:45 — bulk discount applied"
+								rows={3}
+								className="mt-3 w-full resize-none bg-transparent font-[family-name:var(--font-fraunces)] text-[var(--ink)] outline-none"
+								style={{
+									fontSize: '13px',
+									borderBottom: `1px solid ${
+										proofOk ? 'var(--rule)' : 'var(--compendium-aging)'
+									}`,
+									paddingBottom: '6px',
+								}}
 							/>
-							<div>
-								<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[#D97706]">
-									{PROOF_COPY[proofReason].title}
-								</p>
-								<p className="mt-1 font-[family-name:var(--font-archivo)] italic text-[12px] text-[var(--color-text-muted)] leading-relaxed">
-									{PROOF_COPY[proofReason].hint}
-								</p>
+							<div className="mt-2 flex items-baseline justify-between">
+								<span
+									className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+									style={{ fontSize: '10.5px' }}
+								>
+									minimum {MIN_PROOF_LENGTH} characters
+								</span>
+								<span
+									className="font-[family-name:var(--font-geist-mono)] tabular-nums"
+									style={{
+										fontSize: '10.5px',
+										color: proofOk
+											? 'var(--compendium-fresh)'
+											: 'var(--ink-mid)',
+									}}
+								>
+									{proof.trim().length} / {MIN_PROOF_LENGTH}
+								</span>
 							</div>
 						</div>
-						<textarea
-							value={proof}
-							onChange={(e) => setProof(e.target.value)}
-							placeholder="e.g. Ahmed @ Suez Cement confirmed by phone 11:45 — bulk discount applied…"
-							rows={3}
-							className={`${DispatchInputClass()} mt-3 resize-none`}
-						/>
-						<div className="mt-1 flex items-center justify-between font-[family-name:var(--font-plex-mono)] text-[9.5px] uppercase tracking-[0.16em]">
-							<span className="text-[var(--color-text-subtle)]">
-								Minimum {MIN_PROOF_LENGTH} characters
-							</span>
-							<span
-								className={`tabular-nums ${
-									proof.trim().length >= MIN_PROOF_LENGTH
-										? 'text-[var(--color-primary)]'
-										: 'text-[var(--color-text-subtle)]'
-								}`}
-							>
-								{proof.trim().length} / {MIN_PROOF_LENGTH}
-							</span>
-						</div>
-					</div>
-				)}
-			</DispatchBody>
+					)}
+				</DispatchBody>
 
-			<DispatchFooter>
-				<DispatchAction tone="ghost" onPress={onCancel}>
-					Cancel
-				</DispatchAction>
-				<DispatchAction onPress={handleConfirm} isDisabled={!proofOk || !armed}>
-					Confirm update
-				</DispatchAction>
-			</DispatchFooter>
+				<DispatchFooter>
+					<DispatchAction tone="ghost" onPress={onCancel}>
+						cancel
+					</DispatchAction>
+					<DispatchAction
+						onPress={handleConfirm}
+						isDisabled={!proofOk || !armed}
+					>
+						confirm update
+					</DispatchAction>
+				</DispatchFooter>
+			</div>
 		</DispatchDialog>
 	)
 }
 
-function PriceCell({
+function PriceColumn({
 	label,
 	value,
 	muted,
 	tone,
-	end,
 }: {
 	label: string
 	value: string
 	muted?: boolean
-	tone?: 'muted' | 'amber' | 'primary'
-	end?: boolean
+	tone?: 'muted' | 'aging' | 'fresh'
 }) {
-	const valueColor =
-		tone === 'amber'
-			? 'text-[#D97706]'
-			: tone === 'primary'
-				? 'text-[var(--color-primary)]'
+	const color =
+		tone === 'aging'
+			? 'var(--compendium-aging)'
+			: tone === 'fresh'
+				? 'var(--compendium-fresh)'
 				: muted || tone === 'muted'
-					? 'text-[var(--color-text-muted)]'
-					: 'text-[var(--color-text)]'
+					? 'var(--ink-mid)'
+					: 'var(--ink)'
 	return (
-		<div className={end ? 'text-end' : ''}>
-			<p className="font-[family-name:var(--font-plex-mono)] text-[9.5px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
+		<div className="flex flex-col items-start">
+			<span
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
+			>
 				{label}
-			</p>
-			<p
-				className={`mt-1 font-[family-name:var(--font-plex-mono)] text-[15px] font-medium tabular-nums ${valueColor}`}
+			</span>
+			<span
+				className="mt-1 compendium-numeral font-[family-name:var(--font-fraunces)] leading-none"
+				style={{
+					fontSize: '22px',
+					fontWeight: 500,
+					letterSpacing: '-0.02em',
+					color,
+				}}
 			>
 				{value}
-			</p>
+			</span>
 		</div>
 	)
 }

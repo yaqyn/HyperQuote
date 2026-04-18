@@ -37,7 +37,7 @@
 	"composer": {
 		"placeholder": "Write a reply…",
 		"send": "Send reply",
-		"sendShortcut": "Send · ⌘↵",
+		"sendShortcut": "Send · ↵",
 		"attach": "Attach file"
 	},
 	"email": {

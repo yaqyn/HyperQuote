@@ -5,7 +5,6 @@ import { initReactI18next } from 'react-i18next'
 import arDriver from './locales/ar/driver.json'
 import enDriver from './locales/en/driver.json'
 
-/** Convert Western digits to Arabic-Indic numerals */
 function toArabicIndic(value: string): string {
 	return value.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)))
 }
@@ -18,8 +17,8 @@ i18n
 			ar: { driver: arDriver },
 			en: { driver: enDriver },
 		},
-		lng: 'ar',
-		fallbackLng: 'ar',
+		lng: 'en',
+		fallbackLng: 'en',
 		defaultNS: 'driver',
 		ns: ['driver'],
 		interpolation: {
@@ -31,7 +30,6 @@ i18n
 		},
 	})
 
-// Arabic-Indic digit formatter — registered after init so the formatter service exists.
 i18n.services.formatter?.add('number', (value, lng) => {
 	if (typeof value !== 'number') return String(value)
 	if (lng === 'ar') {

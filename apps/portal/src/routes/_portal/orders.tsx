@@ -1,22 +1,16 @@
 /**
- * Orders — premium card grid with product thumbnails.
- * Grouped by type: Saved, Submitted, Confirmed.
- * Cards show stacked product images, quantities, and inline actions.
+ * Orders — "The Day Book"
+ * Lyon's daybook: an open ledger spread, three folios stacked.
+ *   • Pencilled  — drafts, still in graphite, can be amended or struck.
+ *   • In flight  — submitted requests awaiting reply.
+ *   • Sealed     — confirmed orders, marked with a wax seal in the margin.
+ * Every entry is a typed line — date in margin, materials inline, amount
+ * in mono on the right. No cards. No thumbnails. Hairline rules between.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import {
-	AlertTriangle,
-	ChevronRight,
-	Package,
-	Pencil,
-	Send,
-	Trash2,
-} from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -27,15 +21,56 @@ import {
 import type { Order, OrderType } from '../../types/order'
 
 export const Route = createFileRoute('/_portal/orders')({
-	component: OrdersPage,
+	component: DayBookPage,
 })
 
-// ============================================================================
-// Main Page
-// ============================================================================
+const ROMAN_MONTH = [
+	'I',
+	'II',
+	'III',
+	'IV',
+	'V',
+	'VI',
+	'VII',
+	'VIII',
+	'IX',
+	'X',
+	'XI',
+	'XII',
+] as const
 
-function OrdersPage() {
-	const { t } = useTranslation('portal')
+function todayFolio(isAr: boolean): string {
+	const now = new Date()
+	if (isAr) {
+		const fmt = new Intl.DateTimeFormat('ar-EG', {
+			day: '2-digit',
+			month: 'long',
+			year: 'numeric',
+		})
+		return fmt.format(now)
+	}
+	const day = String(now.getDate()).padStart(2, '0')
+	const month = ROMAN_MONTH[now.getMonth()] ?? '—'
+	const year = now.getFullYear()
+	return `${year} · ${month} · ${day}`
+}
+
+function formatEntryDate(iso: string, isAr: boolean): string {
+	const d = new Date(iso)
+	if (isAr) {
+		return new Intl.DateTimeFormat('ar-EG', {
+			day: '2-digit',
+			month: 'short',
+		}).format(d)
+	}
+	const day = String(d.getDate()).padStart(2, '0')
+	const month = ROMAN_MONTH[d.getMonth()] ?? '—'
+	return `${day} · ${month}`
+}
+
+function DayBookPage() {
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
 
 	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ['customer-orders-all'],
@@ -52,57 +87,62 @@ function OrdersPage() {
 		}
 	}, [data])
 
-	const hasAny =
-		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length >
-		0
+	const totalCount =
+		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length
+	const sealedTotal = useMemo(
+		() => grouped.confirmed.reduce((sum, o) => sum + (o.amount ?? 0), 0),
+		[grouped.confirmed],
+	)
 
 	return (
-		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-			<div className="w-full max-w-[960px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
-				{/* Header */}
-				<div className="mb-10">
-					<h1
-						className="text-[22px] font-semibold tracking-tight"
-						style={{
-							background:
-								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							backgroundClip: 'text',
-						}}
-					>
-						{t('nav.orders')}
-					</h1>
-				</div>
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
+			<div className="ledger-folio relative px-6 pt-12 pb-24 lg:px-12">
+				<MastheadDayBook
+					folio={todayFolio(isAr)}
+					sealedTotal={sealedTotal}
+					sealedCount={grouped.confirmed.length}
+					isAr={isAr}
+				/>
 
-				{isLoading && <SkeletonGrid />}
+				{isLoading && <DayBookSkeleton />}
 
 				{isError && (
-					<div className="py-16 text-center">
-						<AlertTriangle
-							size={32}
-							className="mx-auto mb-3 text-[var(--p-text-muted)]"
-						/>
-						<p className="text-sm text-[var(--p-text-muted)]">
+					<div className="py-20 text-center">
+						<p className="voice-serif italic text-[16px] text-[var(--p-text-muted)]">
 							{t('orders.error')}
 						</p>
 						<button
 							type="button"
 							onClick={() => refetch()}
-							className="mt-3 text-sm text-[var(--p-text)] underline underline-offset-2"
+							className="ledger-verb mt-6 mx-auto"
 						>
 							{t('orders.retry')}
 						</button>
 					</div>
 				)}
 
-				{!isLoading && !isError && !hasAny && <EmptyState />}
+				{!isLoading && !isError && totalCount === 0 && <EmptyDayBook />}
 
-				{!isLoading && !isError && hasAny && (
-					<div className="flex flex-col gap-12">
-						<OrderSection type="saved" orders={grouped.saved} />
-						<OrderSection type="submitted" orders={grouped.submitted} />
-						<OrderSection type="confirmed" orders={grouped.confirmed} />
+				{!isLoading && !isError && totalCount > 0 && (
+					<div className="space-y-16">
+						<DayBookSection
+							type="saved"
+							label={t('orders.pencilled')}
+							orders={grouped.saved}
+							isAr={isAr}
+						/>
+						<DayBookSection
+							type="submitted"
+							label={t('orders.inFlight')}
+							orders={grouped.submitted}
+							isAr={isAr}
+						/>
+						<DayBookSection
+							type="confirmed"
+							label={t('orders.sealed')}
+							orders={grouped.confirmed}
+							isAr={isAr}
+						/>
 					</div>
 				)}
 			</div>
@@ -110,68 +150,116 @@ function OrdersPage() {
 	)
 }
 
-// ============================================================================
-// Order Section
-// ============================================================================
+// ---------------------------------------------------------------------------
+// Masthead — title + folio number + sealed-total tally
+// ---------------------------------------------------------------------------
 
-function OrderSection({ type, orders }: { type: OrderType; orders: Order[] }) {
+function MastheadDayBook({
+	folio,
+	sealedTotal,
+	sealedCount,
+	isAr,
+}: {
+	folio: string
+	sealedTotal: number
+	sealedCount: number
+	isAr: boolean
+}) {
 	const { t } = useTranslation('portal')
-	if (orders.length === 0) return null
+	const fmt = useMemo(
+		() =>
+			new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
+				maximumFractionDigits: 0,
+			}),
+		[isAr],
+	)
+	const dayBookTitle = t('orders.dayBook')
+	const titleParts = dayBookTitle.split(' ')
+	const lastWord = titleParts.pop() ?? dayBookTitle
+	const leadWords = titleParts.join(' ')
 
 	return (
-		<section>
-			<div className="flex items-center gap-3 mb-5">
-				<div className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[type]}`} />
-				<h3 className="text-[13px] uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
-					{t(`orders.${type}`)}
-				</h3>
-				<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
-					{orders.length}
-				</span>
-			</div>
+		<header className="mb-14">
+			<div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+				<div>
+					<h1 className="ledger-title">
+						{leadWords ? <>{leadWords} </> : null}
+						<em>{lastWord}</em>
+					</h1>
+					<p className="ledger-title-caption mt-3">
+						{t('orders.folio')} · {folio}
+					</p>
+				</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<AnimatePresence mode="popLayout">
-					{orders.map((order, i) => (
-						<motion.div
-							key={order.id}
-							layout
-							initial={{ opacity: 0, y: 12 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, scale: 0.95 }}
-							transition={{ duration: 0.25, delay: i * 0.05 }}
+				{sealedCount > 0 && (
+					<aside className="text-end">
+						<p className="office-meta">{t('orders.sealed')}</p>
+						<p
+							className="voice-mono mt-2 text-[28px] font-light text-[var(--p-text)]"
+							style={{ fontVariantNumeric: 'tabular-nums' }}
 						>
-							<OrderCard order={order} />
-						</motion.div>
-					))}
-				</AnimatePresence>
+							EGP {fmt.format(sealedTotal)}
+						</p>
+					</aside>
+				)}
 			</div>
+			<div className="office-rule-strong mt-10" />
+		</header>
+	)
+}
+
+// ---------------------------------------------------------------------------
+// Section — one folio (saved / submitted / confirmed)
+// ---------------------------------------------------------------------------
+
+function DayBookSection({
+	type,
+	label,
+	orders,
+	isAr,
+}: {
+	type: OrderType
+	label: string
+	orders: Order[]
+	isAr: boolean
+}) {
+	if (orders.length === 0) return null
+	return (
+		<section aria-label={label}>
+			<header className="ledger-section-head">
+				<span className="ledger-section-label">{label}</span>
+				<span className="ledger-section-count">
+					{isAr
+						? orders.length.toLocaleString('ar-EG')
+						: String(orders.length).padStart(2, '0')}
+				</span>
+			</header>
+			<ol className="mt-2">
+				{orders.map((order) => (
+					<DayBookEntry key={order.id} order={order} type={type} isAr={isAr} />
+				))}
+			</ol>
 		</section>
 	)
 }
 
-// ============================================================================
-// Order Card
-// ============================================================================
+// ---------------------------------------------------------------------------
+// Entry — one ruled row in the day-book
+// ---------------------------------------------------------------------------
 
-const STATUS_DOT: Record<OrderType, string> = {
-	saved: 'bg-[var(--p-text-muted)]',
-	submitted: 'bg-[var(--p-text-secondary)]',
-	confirmed: 'bg-[var(--p-text)]',
-}
-
-const GLOW_COLOR: Record<OrderType, string> = {
-	saved: 'rgba(255,255,255,0.06)',
-	submitted: 'rgba(255,255,255,0.08)',
-	confirmed: 'rgba(255,255,255,0.1)',
-}
-
-function OrderCard({ order }: { order: Order }) {
-	const { t, i18n } = useTranslation('portal')
+function DayBookEntry({
+	order,
+	type,
+	isAr,
+}: {
+	order: Order
+	type: OrderType
+	isAr: boolean
+}) {
+	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
-	const isAr = i18n.language === 'ar'
-	const [confirmDelete, setConfirmDelete] = useState(false)
+	const [confirmStrike, setConfirmStrike] = useState(false)
 
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteOrder({ data: { orderId: order.id } }),
@@ -185,305 +273,205 @@ function OrderCard({ order }: { order: Order }) {
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
 	})
 
-	const formattedDate = new Date(order.date).toLocaleDateString(
-		isAr ? 'ar-EG' : 'en-GB',
-		{
-			day: 'numeric',
-			month: 'short',
-		},
-	)
+	const dateLabel = formatEntryDate(order.date, isAr)
+	const title =
+		type === 'saved' ? (order.name ?? '—') : (order.reference ?? '—')
 
-	const title = order.type === 'saved' ? order.name : order.reference
-	const isClickable = order.type !== 'saved'
-
-	// Deduplicate images for the thumbnail strip
-	const uniqueImages = [...new Set(order.items.map((i) => i.imageUrl))].slice(
-		0,
-		4,
-	)
-
-	const handleCardClick = () => {
-		if (isClickable) {
-			navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
+	const inlineItems = useMemo(() => {
+		const head = order.items.slice(0, 3).map((item) => {
+			const name = isAr ? item.productNameAr : item.productName
+			const qty = isAr
+				? item.quantity.toLocaleString('ar-EG')
+				: String(item.quantity)
+			return `${qty} ${item.unitOfMeasure} ${name}`
+		})
+		if (order.items.length > 3) {
+			const extra = order.items.length - 3
+			head.push(
+				`+${isAr ? extra.toLocaleString('ar-EG') : extra} ${t('orders.more')}`,
+			)
 		}
+		return head.join('  ·  ')
+	}, [order.items, isAr, t])
+
+	const amountLabel = useMemo(() => {
+		if (order.amount == null) return null
+		const fmt = new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
+			maximumFractionDigits: 0,
+		})
+		return `EGP ${fmt.format(order.amount)}`
+	}, [order.amount, isAr])
+
+	const isClickable = type !== 'saved'
+
+	function openEntry() {
+		if (!isClickable) return
+		navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
 	}
 
-	const cardInner = (
-		<>
-			{/* Top glow */}
-			<div
-				className="absolute inset-x-0 top-0 h-px rounded-t-xl"
-				style={{
-					background: `linear-gradient(90deg, transparent 5%, ${GLOW_COLOR[order.type]} 50%, transparent 95%)`,
-				}}
-			/>
+	return (
+		<li className="ledger-row grid grid-cols-[64px_1fr_auto] gap-x-5 gap-y-2 md:grid-cols-[88px_1fr_auto]">
+			<span className="ledger-margin-no self-center">{dateLabel}</span>
 
-			{/* Product image strip */}
-			<div className="flex gap-2 mb-4">
-				{uniqueImages.map((img) => (
-					<div
-						key={img}
-						className="w-12 h-12 rounded-lg overflow-hidden bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0"
-					>
-						<img
-							src={img}
-							alt=""
-							className="w-full h-full object-cover"
-							loading="lazy"
-							decoding="async"
-						/>
-					</div>
-				))}
-				{order.items.length > uniqueImages.length && (
-					<div className="w-12 h-12 rounded-lg bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0 flex items-center justify-center">
-						<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
-							+{order.items.length - uniqueImages.length}
-						</span>
-					</div>
-				)}
-			</div>
-
-			{/* Title row */}
-			<div className="flex items-start justify-between gap-3 mb-2">
-				<h4
-					className={`text-[15px] font-medium text-[var(--p-text)] leading-snug ${order.type !== 'saved' ? 'font-mono' : ''}`}
+			<button
+				type="button"
+				onClick={openEntry}
+				disabled={!isClickable}
+				className={[
+					'min-w-0 text-start',
+					isClickable ? 'cursor-pointer' : 'cursor-default',
+				].join(' ')}
+				aria-label={isClickable ? t('orders.openEntry') : undefined}
+			>
+				<p
+					className={[
+						'truncate text-[18px] leading-snug text-[var(--p-text)]',
+						type === 'saved' ? 'voice-serif' : 'voice-mono',
+					].join(' ')}
 				>
 					{title}
-				</h4>
-				{isClickable && (
-					<ChevronRight
-						size={14}
-						strokeWidth={1.5}
-						className="shrink-0 mt-0.5 text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-180"
+				</p>
+				<p className="mt-1 truncate text-[12px] leading-relaxed text-[var(--p-text-muted)]">
+					{inlineItems}
+				</p>
+			</button>
+
+			<div className="flex flex-col items-end gap-1.5 self-center ps-4">
+				{amountLabel && (
+					<p
+						className="voice-mono text-[15px] text-[var(--p-text)]"
+						style={{ fontVariantNumeric: 'tabular-nums' }}
+					>
+						{amountLabel}
+					</p>
+				)}
+				{type === 'confirmed' && (
+					<span
+						role="img"
+						className="ledger-seal mt-1"
+						aria-label={t('orders.sealed')}
+						title={t('orders.sealed')}
 					/>
 				)}
 			</div>
 
-			{/* Item list — always 3 rows + more line for consistent height */}
-			<div className="flex flex-col gap-1.5 mb-4">
-				{(['row-0', 'row-1', 'row-2'] as const).map((slot, i) => {
-					const item = order.items[i]
-					if (!item) {
-						return <div key={slot} className="h-[18px]" />
-					}
-					return (
-						<div
-							key={item.productId}
-							className="flex items-center justify-between"
-						>
-							<span className="text-[13px] text-[var(--p-text-secondary)] truncate flex-1">
-								{isAr ? item.productNameAr : item.productName}
-							</span>
-							<span className="font-mono text-[13px] text-[var(--p-text-muted)] ms-3 shrink-0">
-								{item.quantity} {item.unitOfMeasure}
-							</span>
-						</div>
-					)
-				})}
-				<div className="h-[17px]">
-					{order.items.length > 3 && (
-						<span className="text-[13px] text-[var(--p-text-muted)]">
-							+{order.items.length - 3} {t('orders.more')}
-						</span>
-					)}
-				</div>
-			</div>
-
-			{/* Footer: date + amount */}
-			<div className="flex items-center gap-3 mt-auto">
-				<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
-					{formattedDate}
-				</span>
-				{order.amount != null && (
+			{/* Action row — full-width, sits beneath the title row */}
+			<div className="col-span-3 flex items-center gap-6 ps-[64px] md:ps-[88px]">
+				{type === 'saved' && (
 					<>
-						<span className="text-[var(--p-border)]">·</span>
-						<span className="font-mono text-[13px] font-medium text-[var(--p-text)]">
-							EGP {new Intl.NumberFormat('en-EG').format(order.amount)}
-						</span>
+						<button
+							type="button"
+							onClick={() =>
+								navigate({
+									to: '/orders/edit/$orderId',
+									params: { orderId: order.id },
+								})
+							}
+							className="ledger-verb"
+						>
+							{t('orders.amend')}
+						</button>
+						<button
+							type="button"
+							onClick={() => submitMutation.mutate()}
+							disabled={submitMutation.isPending}
+							className="ledger-verb ledger-verb-strong"
+						>
+							{submitMutation.isPending
+								? `${t('orders.dispatch')}…`
+								: t('orders.dispatch')}
+						</button>
+						<div className="flex-1" />
+						{confirmStrike ? (
+							<div className="flex items-center gap-4">
+								<button
+									type="button"
+									onClick={() => deleteMutation.mutate()}
+									disabled={deleteMutation.isPending}
+									className="ledger-verb ledger-verb-warn"
+								>
+									{t('orders.strikeConfirm')}
+								</button>
+								<button
+									type="button"
+									onClick={() => setConfirmStrike(false)}
+									className="ledger-verb"
+								>
+									{t('orders.keep')}
+								</button>
+							</div>
+						) : (
+							<button
+								type="button"
+								onClick={() => setConfirmStrike(true)}
+								className="ledger-verb"
+							>
+								{t('orders.strike')}
+							</button>
+						)}
+					</>
+				)}
+
+				{isClickable && (
+					<>
+						<div className="flex-1" />
+						<button type="button" onClick={openEntry} className="ledger-verb">
+							{t('orders.openEntry')}
+						</button>
 					</>
 				)}
 			</div>
-		</>
-	)
-
-	// Submitted/Confirmed: entire card is a button
-	if (isClickable) {
-		return (
-			<button
-				type="button"
-				onClick={handleCardClick}
-				className="group relative flex flex-col w-full rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 pb-6 transition-all duration-200 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] text-start cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)]"
-			>
-				{cardInner}
-			</button>
-		)
-	}
-
-	// Saved: card with action buttons
-	return (
-		<div className="group relative flex flex-col rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 transition-all duration-200 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)]">
-			{cardInner}
-
-			{/* Actions */}
-			<div className="flex items-center gap-2 pt-3 mt-4 border-t border-[var(--p-border)]">
-				<ActionButton
-					icon={<Pencil size={12} strokeWidth={1.5} />}
-					label={t('orders.edit')}
-					onPress={() =>
-						navigate({
-							to: '/orders/edit/$orderId',
-							params: { orderId: order.id },
-						})
-					}
-				/>
-				<ActionButton
-					icon={<Send size={12} strokeWidth={1.5} />}
-					label={t('orders.submit')}
-					variant="primary"
-					loading={submitMutation.isPending}
-					onPress={() => submitMutation.mutate()}
-				/>
-				<div className="flex-1" />
-				{confirmDelete ? (
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							onClick={() => deleteMutation.mutate()}
-							className="text-[13px] text-[var(--p-error)] hover:underline"
-						>
-							{t('orders.confirmDelete')}
-						</button>
-						<button
-							type="button"
-							onClick={() => setConfirmDelete(false)}
-							className="text-[13px] text-[var(--p-text-muted)]"
-						>
-							{t('orders.cancel')}
-						</button>
-					</div>
-				) : (
-					<button
-						type="button"
-						onClick={() => setConfirmDelete(true)}
-						className="p-1.5 rounded-md text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--p-error)] transition-all"
-						aria-label={t('orders.delete')}
-					>
-						<Trash2 size={12} strokeWidth={1.5} />
-					</button>
-				)}
-			</div>
-		</div>
+		</li>
 	)
 }
 
-// ============================================================================
-// Action Button
-// ============================================================================
+// ---------------------------------------------------------------------------
+// Empty + skeleton
+// ---------------------------------------------------------------------------
 
-function ActionButton({
-	icon,
-	label,
-	variant = 'default',
-	loading = false,
-	onPress,
-}: {
-	icon: React.ReactNode
-	label: string
-	variant?: 'default' | 'primary'
-	loading?: boolean
-	onPress: () => void
-}) {
-	const base =
-		'flex items-center gap-1.5 h-7 px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)] disabled:opacity-40'
-	const variants = {
-		default:
-			'text-[var(--p-text-secondary)] hover:text-[var(--p-text)] hover:bg-[var(--p-hover)]',
-		primary: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]',
-	}
-
-	return (
-		<Button
-			onPress={onPress}
-			isDisabled={loading}
-			className={`${base} ${variants[variant]}`}
-		>
-			{loading ? <Spinner /> : icon}
-			{label}
-		</Button>
-	)
-}
-
-// ============================================================================
-// Empty State
-// ============================================================================
-
-function EmptyState() {
+function EmptyDayBook() {
 	const { t } = useTranslation('portal')
-
 	return (
-		<div className="flex flex-col items-center py-20">
-			<div className="w-14 h-14 rounded-2xl bg-[var(--p-card)] border border-[var(--p-border)] flex items-center justify-center mb-6">
-				<Package
-					size={24}
-					strokeWidth={1}
-					className="text-[var(--p-text-muted)]"
-				/>
-			</div>
-			<p className="text-sm text-[var(--p-text)]">{t('orders.noOrders')}</p>
-			<p className="text-sm text-[var(--p-text-muted)] mt-1">
-				{t('orders.noOrdersBody')}
+		<div className="flex flex-col items-center gap-4 py-24 text-center">
+			<p className="voice-display text-[32px] italic text-[var(--p-text)]">
+				{t('orders.openBookEmpty')}
+			</p>
+			<p className="voice-serif italic text-[15px] text-[var(--p-text-muted)]">
+				{t('orders.openBookEmptyBody')}
 			</p>
 		</div>
 	)
 }
 
-// ============================================================================
-// Skeleton
-// ============================================================================
+const SK_SECTIONS = ['s1', 's2'] as const
+const SK_ROWS = ['r1', 'r2'] as const
 
-function SkeletonGrid() {
+function DayBookSkeleton() {
 	return (
-		<div className="flex flex-col gap-12">
-			{[1, 2].map((section) => (
-				<div key={section}>
-					<div className="flex items-center gap-3 mb-5">
-						<div className="w-1.5 h-1.5 rounded-full bg-[var(--p-border)] animate-pulse" />
-						<div className="h-2.5 w-20 bg-[var(--p-card)] rounded animate-pulse" />
+		<div className="space-y-16">
+			{SK_SECTIONS.map((sec) => (
+				<div key={sec}>
+					<div className="ledger-section-head">
+						<div className="h-3 w-24 animate-pulse bg-[var(--p-border)]" />
+						<div className="h-3 w-6 animate-pulse bg-[var(--p-border)]" />
 					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{[1, 2].map((card) => (
-							<div
-								key={card}
-								className="rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 animate-pulse"
+					<ol className="mt-2">
+						{SK_ROWS.map((row) => (
+							<li
+								key={row}
+								className="grid grid-cols-[64px_1fr_auto] items-center gap-5 py-5 border-b border-[var(--p-rule)] md:grid-cols-[88px_1fr_auto]"
 							>
-								<div className="flex gap-2 mb-4">
-									{[1, 2, 3].map((thumb) => (
-										<div
-											key={thumb}
-											className="w-12 h-12 rounded-lg bg-[var(--p-elevated)]"
-										/>
-									))}
+								<div className="h-3 w-12 animate-pulse bg-[var(--p-border)]" />
+								<div className="space-y-2">
+									<div className="h-4 w-2/3 animate-pulse bg-[var(--p-border)]" />
+									<div className="h-3 w-3/4 animate-pulse bg-[var(--p-border)]" />
 								</div>
-								<div className="h-4 w-40 bg-[var(--p-border)] rounded mb-3" />
-								<div className="h-3 w-full bg-[var(--p-border)] rounded mb-2" />
-								<div className="h-3 w-3/4 bg-[var(--p-border)] rounded mb-2" />
-								<div className="h-3 w-1/2 bg-[var(--p-border)] rounded mb-4" />
-								<div className="h-2.5 w-24 bg-[var(--p-border)] rounded" />
-							</div>
+								<div className="h-4 w-24 animate-pulse bg-[var(--p-border)]" />
+							</li>
 						))}
-					</div>
+					</ol>
 				</div>
 			))}
 		</div>
-	)
-}
-
-// ============================================================================
-// Spinner
-// ============================================================================
-
-function Spinner() {
-	return (
-		<span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-[var(--p-accent)]/20 border-t-[var(--p-accent)]" />
 	)
 }

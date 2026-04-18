@@ -23,7 +23,7 @@ export function SupplierProfileModal({
 			isOpen={isOpen}
 			onClose={onClose}
 			size="lg"
-			eyebrow="Procurement · Supplier dossier"
+			eyebrow="Compendium · Supplier dossier"
 			title={name}
 		>
 			<div className="flex-1 min-h-0 overflow-y-auto">

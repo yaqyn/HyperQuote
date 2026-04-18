@@ -135,13 +135,13 @@ function RootComponent() {
 	}, [])
 
 	return (
-		<html lang="en" dir="ltr" data-theme="light">
+		<html lang="en" dir="ltr">
 			<head>
 				<HeadContent />
 				<script
 					dangerouslySetInnerHTML={{
 						__html:
-							'(function(){var t=localStorage.getItem("hq-theme")||"light";document.documentElement.setAttribute("data-theme",t);})()',
+							'(function(){var raw=localStorage.getItem("hq-theme");var t=raw==="dark"?"paper":(raw==="paper"||raw==="light"?raw:"light");if(t==="paper")document.documentElement.setAttribute("data-theme","paper");if(t!==raw){try{localStorage.setItem("hq-theme",t);}catch(e){}}})()',
 					}}
 				/>
 			</head>

@@ -99,7 +99,7 @@ export function HeroSection() {
 				</div>
 
 				{/* Content area */}
-				<div className="flex-1 flex items-center justify-center relative">
+				<div className="flex-1 min-h-0 flex items-center justify-center relative">
 					<AnimatePresence mode="wait">
 						{mode === 'hero' && (
 							<motion.div
@@ -345,7 +345,7 @@ export function HeroSection() {
 									<div className="flex items-center gap-4">
 										<Link
 											to="/market"
-											className="text-[13px] font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] transition-colors"
+											className="inline-flex items-center text-[13px] font-semibold text-[var(--color-primary)] hover:text-white rounded-full border border-[var(--color-primary)]/30 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] px-3 py-1 transition-colors"
 										>
 											{t('cta.browseMarket')}
 										</Link>
@@ -386,10 +386,14 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 		sendMessage(initialMessage)
 	}, [initialMessage, sendMessage])
 
+	const lastContent = messages[messages.length - 1]?.content ?? ''
+
 	useEffect(() => {
 		if (!messagesRef.current) return
 		messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-	}, [])
+		// Re-run on new messages, on streaming-chunk growth of the last message,
+		// and when the typing indicator toggles — keeps the view stuck to bottom.
+	}, [messages.length, lastContent, isLoading])
 
 	async function send() {
 		const trimmed = input.trim()
@@ -409,10 +413,10 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 	const isEmpty = messages.length === 0
 
 	return (
-		<div dir="ltr" className="flex-1 flex flex-col w-full">
+		<div dir="ltr" className="flex-1 min-h-0 flex flex-col w-full">
 			<div className="pt-20 shrink-0" />
 
-			<div ref={messagesRef} className="flex-1 overflow-y-auto">
+			<div ref={messagesRef} className="flex-1 min-h-0 overflow-y-auto">
 				{isEmpty && !isLoading ? (
 					<div className="h-full flex flex-col items-center justify-center gap-3">
 						<h2 className="text-[28px] lg:text-[40px] font-extrabold text-[var(--color-text)] tracking-[-0.03em]">

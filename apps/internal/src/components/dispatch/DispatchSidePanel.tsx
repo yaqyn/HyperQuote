@@ -1,7 +1,18 @@
+/**
+ * Dispatch — The Horizon
+ *
+ * A single hairline rule cuts the panel. The line is the work. Above it
+ * sits one sovereign number. Below it, strata of routes (or drivers, with
+ * the horizon inverted for Fleet). Brand palette — near-black ink on
+ * near-white paper, blue for motion, amber for overdue, red for returns.
+ * Texture (paper pinpricks + ghost ledger rule) carries the module's
+ * signature through the disciplined palette.
+ */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import {
+	type DispatchBoardTotals,
 	type DispatchDriverView,
 	type DispatchRouteView,
 	getDispatchBoard,
@@ -14,137 +25,94 @@ import {
 import type { SecurityMethod } from '../../lib/server/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
 
-type SidePanelTab = 'orders' | 'drivers'
+type Mode = 'orders' | 'fleet'
 
 interface DispatchSidePanelProps {
 	isOpen: boolean
 	onToggle: () => void
 }
 
+// ─── Panel ──────────────────────────────────────────────
+
 export function DispatchSidePanel({
 	isOpen,
 	onToggle,
 }: DispatchSidePanelProps) {
 	const reduce = useReducedMotion()
-	const [tab, setTab] = useState<SidePanelTab>('orders')
+	const [mode, setMode] = useState<Mode>('orders')
 	const selectedQuoteId = useDispatchStore((s) => s.selectedQuoteId)
 	const setSelectedQuoteId = useDispatchStore((s) => s.setSelectedQuoteId)
 	const setOverlayCloseHandler = useDispatchStore(
 		(s) => s.setOverlayCloseHandler,
 	)
 
+	// Esc / outer-X dismissal: first back out of detail, then close panel
 	useEffect(() => {
 		if (!isOpen) {
 			setOverlayCloseHandler(null)
 			return
 		}
 		setOverlayCloseHandler(() => {
+			if (selectedQuoteId) {
+				setSelectedQuoteId(null)
+				return true
+			}
 			onToggle()
 			return true
 		})
 		return () => setOverlayCloseHandler(null)
-	}, [isOpen, onToggle, setOverlayCloseHandler])
-
-	// Live clock
-	const [clock, setClock] = useState(() => formatClock(new Date()))
-	useEffect(() => {
-		const id = setInterval(() => setClock(formatClock(new Date())), 1000)
-		return () => clearInterval(id)
-	}, [])
+	}, [
+		isOpen,
+		selectedQuoteId,
+		onToggle,
+		setOverlayCloseHandler,
+		setSelectedQuoteId,
+	])
 
 	return (
 		<>
-			{!isOpen && (
-				<button
-					type="button"
-					onClick={onToggle}
-					className="absolute end-0 top-1/2 z-20 -translate-y-1/2 flex h-12 w-6 items-center justify-center rounded-s-lg border border-e-0 border-black/[0.08] bg-white shadow-md hover:bg-gray-100"
-					aria-label="Open panel"
-				>
-					<svg
-						aria-hidden="true"
-						width="10"
-						height="10"
-						viewBox="0 0 10 10"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						className="text-black/40"
-					>
-						<path d="M7 1L3 5l4 4" />
-					</svg>
-				</button>
-			)}
+			{!isOpen && <EdgeHandle onToggle={onToggle} />}
 
 			<AnimatePresence>
 				{isOpen && (
 					<motion.aside
-						initial={reduce ? false : { x: 400 }}
+						initial={reduce ? false : { x: 440 }}
 						animate={{ x: 0 }}
-						exit={reduce ? undefined : { x: 400 }}
-						transition={{ type: 'spring', stiffness: 300, damping: 32 }}
-						className="absolute inset-y-0 end-0 z-10 flex w-[400px] flex-col border-s border-black/[0.08] bg-white shadow-2xl"
+						exit={reduce ? undefined : { x: 440 }}
+						transition={{ type: 'spring', stiffness: 280, damping: 34 }}
+						className="dispatch-theme dispatch-paper absolute inset-y-0 end-0 z-10 flex w-[440px] flex-col shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)]"
+						style={{
+							color: 'var(--ink)',
+							borderInlineStart: '1px solid var(--rule-soft)',
+						}}
 					>
-						{/* Masthead — clock + tab strip fused */}
-						<div className="shrink-0">
-							{/* Clock bar */}
-							<div className="flex items-center justify-between px-5 pt-3.5 pb-2.5">
-								<p className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.25em] text-black/25">
-									Dispatch
-								</p>
-								<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-light tabular-nums tracking-tight text-black/40">
-									{clock}
-								</span>
-							</div>
-							{/* Tabs */}
-							<div className="flex border-b border-black/[0.06]">
-								<PanelTab
-									active={tab === 'orders'}
-									onClick={() => {
-										setTab('orders')
-										setSelectedQuoteId(null)
-									}}
-									label="Orders"
-								/>
-								<PanelTab
-									active={tab === 'drivers'}
-									onClick={() => {
-										setTab('drivers')
-										setSelectedQuoteId(null)
-									}}
-									label="Fleet"
-								/>
-							</div>
-						</div>
-
-						{/* Content */}
-						<div className="flex-1 min-h-0 overflow-y-auto">
+						<div className="flex-1 min-h-0 flex flex-col">
 							<AnimatePresence mode="wait">
-								{tab === 'orders' ? (
+								{mode === 'orders' ? (
 									selectedQuoteId ? (
-										<motion.div
+										<OrderDetail
 											key={`detail-${selectedQuoteId}`}
-											{...fadeSlide(reduce)}
-										>
-											<OrderDetail
-												quoteId={selectedQuoteId}
-												onBack={() => setSelectedQuoteId(null)}
-											/>
-										</motion.div>
+											quoteId={selectedQuoteId}
+											onBack={() => setSelectedQuoteId(null)}
+											reduce={reduce}
+										/>
 									) : (
-										<motion.div key="orders-list" {...fadeSlide(reduce)}>
-											<OrdersList />
-										</motion.div>
+										<OrdersView key="orders" reduce={reduce} />
 									)
 								) : (
-									<motion.div key="drivers-list" {...fadeSlide(reduce)}>
-										<DriversList />
-									</motion.div>
+									<FleetView key="fleet" reduce={reduce} />
 								)}
 							</AnimatePresence>
 						</div>
+
+						<ModeToggle
+							mode={mode}
+							onChange={(m) => {
+								setMode(m)
+								setSelectedQuoteId(null)
+							}}
+							onClose={onToggle}
+						/>
 					</motion.aside>
 				)}
 			</AnimatePresence>
@@ -152,172 +120,404 @@ export function DispatchSidePanel({
 	)
 }
 
-function formatClock(d: Date): string {
-	return d.toLocaleTimeString('en-GB', {
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hour12: false,
-	})
-}
+// ─── Edge handle (panel closed) ──────────────────────────
 
-function fadeSlide(reduce: boolean | null) {
-	if (reduce) return {}
-	return {
-		initial: { opacity: 0, y: 6 },
-		animate: { opacity: 1, y: 0 },
-		exit: { opacity: 0, y: -6 },
-		transition: { duration: 0.15 },
-	}
-}
-
-function PanelTab({
-	active,
-	onClick,
-	label,
-}: {
-	active: boolean
-	onClick: () => void
-	label: string
-}) {
+function EdgeHandle({ onToggle }: { onToggle: () => void }) {
 	return (
 		<button
 			type="button"
-			onClick={onClick}
-			className="relative flex-1 py-2.5 text-center"
+			onClick={onToggle}
+			aria-label="Open dispatch panel"
+			className="dispatch-theme absolute end-0 top-1/2 z-20 -translate-y-1/2 flex h-32 w-[26px] items-center justify-center dispatch-paper shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)]"
+			style={{
+				color: 'var(--ink)',
+				borderInlineStart: '1px solid var(--rule)',
+			}}
 		>
 			<span
-				className={`text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${active ? 'text-black/80' : 'text-black/30 hover:text-black/50'}`}
+				className="font-[family-name:var(--font-literata)] italic"
+				style={{
+					fontSize: '11px',
+					color: 'var(--ink-soft)',
+					writingMode: 'vertical-rl',
+					transform: 'rotate(180deg)',
+					letterSpacing: '0.06em',
+				}}
 			>
-				{label}
+				dispatch
 			</span>
-			{active && (
-				<motion.div
-					layoutId="dispatch-tab-indicator"
-					className="absolute inset-x-5 bottom-0 h-[2px] bg-black/80"
-					transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-				/>
-			)}
 		</button>
 	)
 }
 
-// ─── Orders tab ──────────────────────────────────────────
+// ─── Orders view ─────────────────────────────────────────
 
-function OrdersList() {
-	const reduce = useReducedMotion()
+function OrdersView({ reduce }: { reduce: boolean | null }) {
 	const { data, isLoading } = useQuery({
 		queryKey: ['dispatch-board'],
 		queryFn: () => getDispatchBoard({ data: {} }),
 		staleTime: 5_000,
 	})
 	const setSelectedQuoteId = useDispatchStore((s) => s.setSelectedQuoteId)
-	const routes = data?.routes ?? []
-	const t = data?.totals
 
-	if (isLoading) return <LoadingState />
+	const routes = data?.routes ?? []
+	const totals = data?.totals
 
 	return (
-		<div>
-			{/* KPI strip — numbers are the design */}
-			{t && (
-				<div className="grid grid-cols-4 border-b border-black/[0.05]">
-					<KPI value={t.inTransit} label="Transit" color="#2563EB" />
-					<KPI
-						value={t.overdue}
-						label="Overdue"
-						color={t.overdue > 0 ? '#F59E0B' : undefined}
-					/>
-					<KPI value={t.deliveredToday} label="Done" color="#16a34a" />
-					<KPI
-						value={t.returnedToday}
-						label="Returned"
-						color={t.returnedToday > 0 ? '#dc2626' : undefined}
-					/>
-				</div>
-			)}
+		<motion.div
+			initial={reduce ? false : { opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={reduce ? undefined : { opacity: 0 }}
+			transition={{ duration: 0.24 }}
+			className="flex-1 min-h-0 flex flex-col"
+		>
+			{/* Sovereign header — compact, left-aligned */}
+			<div className="shrink-0 px-8 pt-6 pb-5">
+				{isLoading ? (
+					<SovereignSkeleton />
+				) : (
+					<SovereignOrders totals={totals} />
+				)}
+			</div>
 
-			{routes.length === 0 ? (
-				<EmptyState
-					text="No active routes"
-					sub="Routes appear after warehouse handoff."
-				/>
-			) : (
-				<div className="divide-y divide-black/[0.04]">
-					{routes.map((r, i) => (
-						<motion.button
+			<HorizonRule />
+
+			{/* Strata */}
+			<div className="flex-1 min-h-0 overflow-y-auto">
+				{isLoading ? (
+					<LoadingWhisper />
+				) : routes.length === 0 ? (
+					<EmptyVoid
+						text="nothing in motion"
+						sub="routes surface here the moment the warehouse hands them off."
+					/>
+				) : (
+					routes.map((r, i) => (
+						<OrderBand
 							key={r.quoteId}
-							type="button"
-							onClick={() => setSelectedQuoteId(r.quoteId)}
-							initial={reduce ? false : { opacity: 0, x: 12 }}
-							animate={{ opacity: 1, x: 0 }}
-							transition={{ delay: i * 0.04, duration: 0.2 }}
-							className="group flex w-full items-start gap-3 px-5 py-3.5 text-start transition-colors hover:bg-black/[0.015]"
-						>
-							{/* Status edge */}
-							<div className="mt-1 flex flex-col items-center gap-1">
-								<div
-									className="h-2 w-2 rounded-full"
-									style={{
-										backgroundColor: r.isOverdue ? '#F59E0B' : '#2563EB',
-									}}
-								/>
-								<div className="h-6 w-px bg-black/[0.06]" />
-							</div>
+							route={r}
+							index={i}
+							reduce={reduce}
+							onSelect={() => setSelectedQuoteId(r.quoteId)}
+						/>
+					))
+				)}
+			</div>
+		</motion.div>
+	)
+}
 
-							<div className="flex-1 min-w-0">
-								<div className="flex items-baseline justify-between gap-2">
-									<p className="truncate text-[13px] font-semibold text-black/85">
-										{r.customerName}
-									</p>
-									<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/25">
-										{r.passedAtHoursAgo.toFixed(1)}h
-									</span>
-								</div>
-								<div className="mt-1 flex items-center gap-2">
-									<span className="font-[family-name:var(--font-geist-mono)] text-[10px] text-black/35">
-										{r.quoteNumber}
-									</span>
-									<span className="text-[9px] text-black/20">·</span>
-									<span className="text-[10px] text-black/35">
-										{r.deliveryCity}
-									</span>
-								</div>
-								<div className="mt-1.5 flex items-center gap-2.5">
-									<Badge
-										label={`${r.trucks.length} truck${r.trucks.length !== 1 ? 's' : ''}`}
-									/>
-									<Badge label={`${r.items.length} items`} />
-									{r.isOverdue && (
-										<span className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.08em] text-[#F59E0B]">
-											Overdue
-										</span>
-									)}
-								</div>
-							</div>
+function SovereignOrders({ totals }: { totals?: DispatchBoardTotals }) {
+	if (!totals) return null
+	const { inTransit, overdue, deliveredToday, returnedToday } = totals
 
-							{/* Chevron */}
-							<svg
-								aria-hidden="true"
-								width="14"
-								height="14"
-								viewBox="0 0 14 14"
-								fill="none"
-								className="mt-1.5 shrink-0 text-black/15 transition-colors group-hover:text-black/30"
-							>
-								<path
-									d="M5 3l4 4-4 4"
-									stroke="currentColor"
-									strokeWidth="1.2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
-						</motion.button>
-					))}
-				</div>
-			)}
+	let value: string
+	let color: string
+	let annotation: string
+
+	if (overdue > 0) {
+		value = String(overdue)
+		color = 'var(--overdue)'
+		annotation =
+			inTransit === overdue
+				? `${overdue === 1 ? 'truck' : 'trucks'} overdue`
+				: `overdue · ${inTransit} in transit`
+	} else if (inTransit > 0) {
+		value = String(inTransit)
+		color = 'var(--ink)'
+		annotation = inTransit === 1 ? 'truck in transit' : 'trucks in transit'
+	} else {
+		value = '—'
+		color = 'var(--ink-ghost)'
+		annotation = 'nothing in motion'
+	}
+
+	const aside =
+		deliveredToday > 0 || returnedToday > 0
+			? `${deliveredToday} delivered${returnedToday > 0 ? ` · ${returnedToday} returned` : ''} today`
+			: null
+
+	return (
+		<div className="flex items-baseline gap-5">
+			<p
+				className="font-[family-name:var(--font-literata)] leading-none tabular-nums animate-sovereign-rise shrink-0"
+				style={{
+					fontSize: '56px',
+					fontWeight: 400,
+					color,
+					letterSpacing: '-0.04em',
+				}}
+			>
+				{value}
+			</p>
+			<div className="min-w-0 flex-1">
+				<p
+					className="font-[family-name:var(--font-archivo)] italic animate-sovereign-rise"
+					style={{
+						fontSize: '13px',
+						color: 'var(--ink-mid)',
+						animationDelay: '120ms',
+						lineHeight: 1.3,
+					}}
+				>
+					{annotation}
+				</p>
+				{aside && (
+					<p
+						className="mt-1.5 font-[family-name:var(--font-plex-mono)] tabular-nums animate-sovereign-rise"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-ghost)',
+							letterSpacing: '0.06em',
+							animationDelay: '200ms',
+						}}
+					>
+						{aside}
+					</p>
+				)}
+			</div>
 		</div>
+	)
+}
+
+function OrderBand({
+	route,
+	index,
+	reduce,
+	onSelect,
+}: {
+	route: DispatchRouteView
+	index: number
+	reduce: boolean | null
+	onSelect: () => void
+}) {
+	const truckCount = route.trucks.length
+	const itemCount = route.items.length
+	const leadTruck = route.trucks[0]
+	const driverFirst = leadTruck?.driverName?.split(' ')[0]?.toLowerCase() ?? ''
+	const urgency =
+		route.deliveryUrgencyDays <= 0
+			? 'today'
+			: route.deliveryUrgencyDays === 1
+				? 'tomorrow'
+				: `in ${route.deliveryUrgencyDays}d`
+	// Crude progress: how many km traversed vs delivery distance. We don't
+	// know the origin so we approximate by squared distance driver→delivery
+	// and clamp to 0–1 so overdue routes still read as "moving".
+	const dLat = route.deliveryLat - route.driverLat
+	const dLng = route.deliveryLng - route.driverLng
+	const remaining = Math.sqrt(dLat * dLat + dLng * dLng)
+	const progressPct = Math.max(0, Math.min(1, 1 - remaining / 0.8)) * 100
+	return (
+		<motion.button
+			type="button"
+			onClick={onSelect}
+			initial={reduce ? false : { opacity: 0, y: 4 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{
+				delay: 0.08 + index * 0.035,
+				duration: 0.26,
+				ease: [0.16, 1, 0.3, 1],
+			}}
+			className="group relative flex w-full items-stretch text-start transition-colors hover:bg-[var(--rule-soft)]"
+			style={{
+				minHeight: '84px',
+				borderBottom: '1px solid var(--rule-soft)',
+			}}
+		>
+			{/* Left gutter — quote number rotated, plus an index dot so
+			    the eye can anchor scanning count. */}
+			<div
+				className="flex w-[42px] flex-col items-center justify-between py-3"
+				style={{ borderInlineEnd: '1px solid var(--rule-soft)' }}
+			>
+				<span
+					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+					style={{
+						fontSize: '9px',
+						color: 'var(--ink-mid)',
+						letterSpacing: '0.14em',
+					}}
+				>
+					{(index + 1).toString().padStart(2, '0')}
+				</span>
+				<span
+					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+					style={{
+						fontSize: '9px',
+						color: 'var(--ink-ghost)',
+						writingMode: 'vertical-rl',
+						transform: 'rotate(180deg)',
+						letterSpacing: '0.22em',
+					}}
+				>
+					{route.quoteNumber}
+				</span>
+			</div>
+
+			{/* Center */}
+			<div className="flex-1 min-w-0 px-4 py-3">
+				<p
+					className="font-[family-name:var(--font-archivo)] truncate"
+					style={{
+						fontSize: '15px',
+						fontWeight: 500,
+						color: 'var(--ink)',
+						letterSpacing: '-0.005em',
+						lineHeight: 1.1,
+					}}
+				>
+					{route.customerName}
+				</p>
+				<p
+					className="mt-0.5 truncate font-[family-name:var(--font-archivo)] italic"
+					style={{ fontSize: '11px', color: 'var(--ink-soft)' }}
+				>
+					{route.deliveryCity.toLowerCase()}
+					{route.customerContactName && (
+						<>
+							{' · '}
+							<span style={{ color: 'var(--ink-mid)' }}>
+								{route.customerContactName.toLowerCase()}
+							</span>
+						</>
+					)}
+				</p>
+
+				{/* Metadata strip */}
+				<div className="mt-1.5 flex items-baseline gap-1.5">
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0"
+						style={{
+							fontSize: '10px',
+							color: route.isOverdue ? 'var(--overdue)' : 'var(--motion)',
+							letterSpacing: '0.04em',
+						}}
+					>
+						{route.passedAtHoursAgo.toFixed(1)}h
+					</span>
+					<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>·</span>
+					<span
+						className="font-[family-name:var(--font-archivo)] italic shrink-0"
+						style={{
+							fontSize: '10px',
+							color:
+								route.deliveryUrgencyDays <= 0
+									? 'var(--overdue)'
+									: 'var(--ink-mid)',
+						}}
+					>
+						{urgency}
+					</span>
+					{driverFirst && (
+						<>
+							<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>
+								·
+							</span>
+							<span
+								className="font-[family-name:var(--font-archivo)] italic truncate"
+								style={{ fontSize: '10px', color: 'var(--ink-mid)' }}
+							>
+								{driverFirst}
+							</span>
+						</>
+					)}
+					<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>·</span>
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-ghost)',
+							letterSpacing: '0.04em',
+						}}
+					>
+						{truckCount}t · {itemCount}i
+					</span>
+				</div>
+
+				{/* Progress hairline — a 1px trail underneath showing how
+				    far the driver has moved toward the destination. */}
+				<div
+					aria-hidden="true"
+					className="mt-2 h-px w-full"
+					style={{ background: 'var(--rule-soft)' }}
+				>
+					<div
+						className="h-full"
+						style={{
+							width: `${progressPct}%`,
+							background: route.isOverdue ? 'var(--overdue)' : 'var(--motion)',
+							transition: 'width 420ms cubic-bezier(0.16,1,0.3,1)',
+						}}
+					/>
+				</div>
+			</div>
+
+			{/* Right gutter — status glyph + plate */}
+			<div className="flex w-[56px] flex-col items-center justify-between py-3">
+				<StatusGlyph isOverdue={route.isOverdue} />
+				{leadTruck?.plateNumber && (
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-center"
+						style={{
+							fontSize: '8.5px',
+							color: 'var(--ink-ghost)',
+							letterSpacing: '0.12em',
+							lineHeight: 1.1,
+						}}
+					>
+						{leadTruck.plateNumber}
+					</span>
+				)}
+			</div>
+		</motion.button>
+	)
+}
+
+function StatusGlyph({ isOverdue }: { isOverdue: boolean }) {
+	if (isOverdue) {
+		return (
+			<svg
+				width="12"
+				height="12"
+				viewBox="0 0 12 12"
+				aria-hidden="true"
+				className="animate-glyph-draw"
+			>
+				<rect
+					x="3"
+					y="3"
+					width="6"
+					height="6"
+					transform="rotate(45 6 6)"
+					fill="var(--overdue)"
+				/>
+			</svg>
+		)
+	}
+	return (
+		<svg
+			width="26"
+			height="8"
+			viewBox="0 0 26 8"
+			aria-hidden="true"
+			className="animate-glyph-draw"
+		>
+			<path
+				d="M0 4 L20 4"
+				stroke="var(--motion)"
+				strokeWidth="1.3"
+				strokeLinecap="square"
+			/>
+			<path
+				d="M16 1 L20 4 L16 7"
+				stroke="var(--motion)"
+				strokeWidth="1.3"
+				strokeLinecap="square"
+				strokeLinejoin="miter"
+				fill="none"
+			/>
+		</svg>
 	)
 }
 
@@ -326,9 +526,11 @@ function OrdersList() {
 function OrderDetail({
 	quoteId,
 	onBack,
+	reduce,
 }: {
 	quoteId: string
 	onBack: () => void
+	reduce: boolean | null
 }) {
 	const { data: route, isLoading } = useQuery({
 		queryKey: ['dispatch-route', quoteId],
@@ -339,184 +541,224 @@ function OrderDetail({
 	const [showDelivered, setShowDelivered] = useState(false)
 	const [showReturned, setShowReturned] = useState(false)
 
-	if (isLoading || !route) return <LoadingState />
+	if (isLoading || !route) {
+		return (
+			<motion.div
+				initial={reduce ? false : { opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={reduce ? undefined : { opacity: 0 }}
+				transition={{ duration: 0.2 }}
+				className="flex-1 min-h-0 flex items-center justify-center"
+			>
+				<LoadingWhisper />
+			</motion.div>
+		)
+	}
 
 	return (
-		<div>
-			{/* Header */}
-			<div className="border-b border-black/[0.05] px-5 pt-3 pb-4">
-				<button
-					type="button"
-					onClick={onBack}
-					className="mb-3 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-black/30 transition-colors hover:text-black/50"
+		<motion.div
+			initial={reduce ? false : { opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={reduce ? undefined : { opacity: 0 }}
+			transition={{ duration: 0.24 }}
+			className="flex-1 min-h-0 flex flex-col"
+		>
+			{/* Back */}
+			<button
+				type="button"
+				onClick={onBack}
+				className="flex items-center gap-2 px-8 pt-5 self-start font-[family-name:var(--font-archivo)] italic"
+				style={{ fontSize: '12px', color: 'var(--ink-mid)' }}
+			>
+				<svg
+					width="18"
+					height="8"
+					viewBox="0 0 18 8"
+					aria-hidden="true"
+					style={{ opacity: 0.7 }}
 				>
-					<svg
-						aria-hidden="true"
-						width="12"
-						height="12"
-						viewBox="0 0 12 12"
-						fill="none"
+					<path
+						d="M18 4 L2 4"
 						stroke="currentColor"
-						strokeWidth="1.2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
+						strokeWidth="1"
+						strokeLinecap="square"
+					/>
+					<path
+						d="M6 1 L2 4 L6 7"
+						stroke="currentColor"
+						strokeWidth="1"
+						strokeLinecap="square"
+						fill="none"
+					/>
+				</svg>
+				back
+			</button>
+
+			{/* Hero — customer heading */}
+			<div className="px-8 pt-3 pb-5">
+				<h2
+					className="font-[family-name:var(--font-literata)] animate-sovereign-rise"
+					style={{
+						fontSize: '24px',
+						fontWeight: 500,
+						color: 'var(--ink)',
+						letterSpacing: '-0.018em',
+						lineHeight: 1.1,
+					}}
+				>
+					{route.customerName}
+				</h2>
+				<p
+					className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 animate-sovereign-rise"
+					style={{ animationDelay: '100ms' }}
+				>
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+						style={{
+							fontSize: '11px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.08em',
+						}}
 					>
-						<path d="M8 2L4 6l4 4" />
-					</svg>
-					Orders
-				</button>
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0">
-						<h3 className="truncate text-[18px] font-bold tracking-tight text-black/90">
-							{route.customerName}
-						</h3>
-						<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/30">
-							{route.quoteNumber} · {route.passedAtHoursAgo.toFixed(1)}h in
-							transit
-						</p>
-					</div>
-					{route.isOverdue && (
-						<span className="shrink-0 rounded-full bg-[#FEF3C7] px-2.5 py-1 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.06em] text-[#92400E]">
-							Overdue
-						</span>
+						{route.quoteNumber}
+					</span>
+					<span style={{ color: 'var(--ink-ghost)' }}>·</span>
+					<span
+						className="font-[family-name:var(--font-archivo)] italic"
+						style={{ fontSize: '12px', color: 'var(--ink-soft)' }}
+					>
+						{route.deliveryCity.toLowerCase()}
+					</span>
+					<span style={{ color: 'var(--ink-ghost)' }}>·</span>
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+						style={{
+							fontSize: '11px',
+							color: route.isOverdue ? 'var(--overdue)' : 'var(--ink-mid)',
+							letterSpacing: '0.04em',
+						}}
+					>
+						{route.passedAtHoursAgo.toFixed(1)}h in transit
+					</span>
+					{route.deliveryUrgencyDays > 0 && (
+						<>
+							<span style={{ color: 'var(--ink-ghost)' }}>·</span>
+							<span
+								className="font-[family-name:var(--font-archivo)] italic"
+								style={{ fontSize: '12px', color: 'var(--overdue)' }}
+							>
+								{route.deliveryUrgencyDays}d urgent
+							</span>
+						</>
 					)}
-				</div>
+				</p>
 			</div>
 
-			<div className="flex flex-col gap-0 divide-y divide-black/[0.04]">
-				{/* Destination */}
-				<DetailSection icon={pinIcon} title="Destination">
-					<DataRow label="Contact" value={route.customerContactName} />
-					<DataRow
-						label="Phone"
+			<HorizonRule />
+
+			{/* Content strata */}
+			<div className="flex-1 min-h-0 overflow-y-auto px-8 py-4">
+				<DetailStratum label="destination">
+					<DataLine label="contact" value={route.customerContactName} />
+					<DataLine
+						label="phone"
 						value={route.customerPhone}
 						href={`tel:${route.customerPhone}`}
 					/>
-					<DataRow label="Address" value={route.deliveryAddress} />
-					<DataRow label="City" value={route.deliveryCity} />
-					{route.deliveryUrgencyDays > 0 && (
-						<DataRow
-							label="Urgency"
-							value={`${route.deliveryUrgencyDays}d`}
-							warn
-						/>
-					)}
-				</DetailSection>
+					<DataLine label="address" value={route.deliveryAddress} />
+				</DetailStratum>
 
-				{/* Trucks */}
-				<DetailSection
-					icon={truckIcon}
-					title={`Trucks · ${route.trucks.length}`}
-				>
-					<div className="flex flex-col gap-2 mt-1">
-						{route.trucks.map((t) => (
-							<div
-								key={t.truckId}
-								className="flex items-center gap-3 rounded-lg border border-black/[0.05] bg-black/[0.01] px-3.5 py-2.5"
-							>
-								<div className="flex-1 min-w-0">
-									<p className="text-[12px] font-semibold text-black/75">
-										{t.driverName}
-									</p>
-									<p className="font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-black/30">
-										{t.plateNumber} · {t.capacityTons}t
-									</p>
-								</div>
-								<a
-									href={`tel:${t.driverPhone}`}
-									className="flex items-center gap-1.5 rounded-md bg-[#2563EB]/[0.06] px-2.5 py-1.5 text-[10px] font-semibold text-[#2563EB] transition-colors hover:bg-[#2563EB]/[0.12]"
+				<DetailStratum label={`trucks · ${route.trucks.length}`}>
+					{route.trucks.map((t) => (
+						<div
+							key={t.truckId}
+							className="flex items-center justify-between py-3"
+							style={{ borderBottom: '1px solid var(--rule-soft)' }}
+						>
+							<div className="min-w-0 flex-1">
+								<p
+									className="font-[family-name:var(--font-archivo)] truncate"
+									style={{
+										fontSize: '14px',
+										fontWeight: 500,
+										color: 'var(--ink)',
+										letterSpacing: '-0.005em',
+										lineHeight: 1.15,
+									}}
 								>
-									<svg
-										aria-hidden="true"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-									</svg>
-									Call
-								</a>
-							</div>
-						))}
-					</div>
-				</DetailSection>
-
-				{/* Cargo */}
-				<DetailSection
-					icon={boxIcon}
-					title={`Cargo · ${route.items.length} items`}
-				>
-					<div className="mt-1 rounded-lg border border-black/[0.05] overflow-hidden">
-						{route.items.map((item, i) => (
-							<div
-								key={item.productSlug}
-								className={`flex items-baseline justify-between gap-3 px-3.5 py-2 ${i > 0 ? 'border-t border-black/[0.04]' : ''}`}
-							>
-								<p className="min-w-0 truncate text-[11px] text-black/60">
-									{item.productName}
+									{t.driverName}
 								</p>
-								<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] font-medium tabular-nums text-black/40">
-									{item.qty}{' '}
-									<span className="text-[9px] text-black/25">{item.unit}</span>
-								</span>
+								<p
+									className="mt-0.5 font-[family-name:var(--font-plex-mono)] tabular-nums"
+									style={{
+										fontSize: '10px',
+										color: 'var(--ink-mid)',
+										letterSpacing: '0.08em',
+									}}
+								>
+									{t.plateNumber} · {t.capacityTons}t
+								</p>
 							</div>
-						))}
-					</div>
-				</DetailSection>
+							<a
+								href={`tel:${t.driverPhone}`}
+								className="font-[family-name:var(--font-archivo)] italic shrink-0 ms-4"
+								style={{ fontSize: '12px', color: 'var(--motion)' }}
+							>
+								call →
+							</a>
+						</div>
+					))}
+				</DetailStratum>
+
+				<DetailStratum label={`cargo · ${route.items.length} items`}>
+					{route.items.map((item) => (
+						<div
+							key={item.productSlug}
+							className="flex items-baseline justify-between gap-4 py-2"
+							style={{ borderBottom: '1px solid var(--rule-soft)' }}
+						>
+							<span
+								className="font-[family-name:var(--font-archivo)] truncate min-w-0"
+								style={{ fontSize: '13px', color: 'var(--ink-soft)' }}
+							>
+								{item.productName}
+							</span>
+							<span
+								className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums"
+								style={{ fontSize: '11px', color: 'var(--ink)' }}
+							>
+								{item.qty}
+								<span
+									style={{
+										color: 'var(--ink-ghost)',
+										fontSize: '9px',
+										marginInlineStart: '3px',
+									}}
+								>
+									{item.unit}
+								</span>
+							</span>
+						</div>
+					))}
+				</DetailStratum>
 			</div>
 
-			{/* Sticky action bar */}
-			<div className="sticky bottom-0 border-t border-black/[0.06] bg-white px-5 py-4">
-				<div className="grid grid-cols-2 gap-2.5">
-					<motion.button
-						type="button"
-						onClick={() => setShowDelivered(true)}
-						whileTap={{ scale: 0.97 }}
-						className="flex items-center justify-center gap-2 rounded-lg bg-[#16a34a] py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-sm transition-colors hover:bg-[#15803d]"
-					>
-						<svg
-							aria-hidden="true"
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M20 6L9 17l-5-5" />
-						</svg>
-						Delivered
-					</motion.button>
-					<motion.button
-						type="button"
-						onClick={() => setShowReturned(true)}
-						whileTap={{ scale: 0.97 }}
-						className="flex items-center justify-center gap-2 rounded-lg border border-black/[0.08] py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-black/50 transition-colors hover:bg-black/[0.02] hover:text-black/70"
-					>
-						<svg
-							aria-hidden="true"
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M9 14l-4-4 4-4" />
-							<path d="M5 10h11a4 4 0 1 1 0 8h-1" />
-						</svg>
-						Return
-					</motion.button>
-				</div>
+			{/* Actions — two stamp-words side by side */}
+			<div
+				className="flex-shrink-0 grid grid-cols-2"
+				style={{ borderTop: '1px solid var(--rule)' }}
+			>
+				<StampWord
+					label="Deliver"
+					onClick={() => setShowDelivered(true)}
+					tone="ink"
+				/>
+				<StampWord
+					label="Return"
+					onClick={() => setShowReturned(true)}
+					tone="returned"
+					divider
+				/>
 			</div>
 
 			<AnimatePresence>
@@ -545,217 +787,434 @@ function OrderDetail({
 					/>
 				)}
 			</AnimatePresence>
-		</div>
+		</motion.div>
 	)
 }
 
-// ─── Drivers tab ─────────────────────────────────────────
+// ─── Fleet view (horizon inverted) ───────────────────────
 
-function DriversList() {
-	const reduce = useReducedMotion()
+function FleetView({ reduce }: { reduce: boolean | null }) {
 	const { data, isLoading } = useQuery({
 		queryKey: ['dispatch-drivers'],
 		queryFn: () => getDispatchDrivers({ data: {} }),
 		staleTime: 5_000,
 	})
-	const setSelectedQuoteId = useDispatchStore((s) => s.setSelectedQuoteId)
 	const drivers = data?.drivers ?? []
-
-	if (isLoading) return <LoadingState />
-
 	const dispatched = drivers.filter((d) => d.status === 'dispatched')
 	const available = drivers.filter((d) => d.status === 'available')
-	const other = drivers.filter(
+	const offline = drivers.filter(
 		(d) => d.status !== 'dispatched' && d.status !== 'available',
 	)
 
-	// Fleet summary
-	const total = drivers.length
-	const activeCount = dispatched.length
+	return (
+		<motion.div
+			initial={reduce ? false : { opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={reduce ? undefined : { opacity: 0 }}
+			transition={{ duration: 0.24 }}
+			className="flex-1 min-h-0 flex flex-col"
+		>
+			{/* Strata upper */}
+			<div
+				className="overflow-y-auto"
+				style={{ flex: '1 1 auto', minHeight: 0 }}
+			>
+				{isLoading ? (
+					<LoadingWhisper />
+				) : drivers.length === 0 ? (
+					<EmptyVoid
+						text="no fleet registered"
+						sub="trucks show up once the motor pool is provisioned."
+					/>
+				) : (
+					<>
+						{dispatched.length > 0 && (
+							<DriverGroup
+								label={`on route · ${dispatched.length}`}
+								drivers={dispatched}
+								reduce={reduce}
+							/>
+						)}
+						{available.length > 0 && (
+							<DriverGroup
+								label={`available · ${available.length}`}
+								drivers={available}
+								reduce={reduce}
+							/>
+						)}
+						{offline.length > 0 && (
+							<DriverGroup
+								label={`offline · ${offline.length}`}
+								drivers={offline}
+								reduce={reduce}
+							/>
+						)}
+					</>
+				)}
+			</div>
 
+			<HorizonRule />
+
+			{/* Sovereign — utilization as foundation, compact */}
+			<div className="shrink-0 px-8 pt-5 pb-6">
+				{isLoading ? (
+					<SovereignSkeleton />
+				) : (
+					<SovereignFleet
+						total={drivers.length}
+						dispatched={dispatched.length}
+						available={available.length}
+					/>
+				)}
+			</div>
+		</motion.div>
+	)
+}
+
+function SovereignFleet({
+	total,
+	dispatched,
+	available,
+}: {
+	total: number
+	dispatched: number
+	available: number
+}) {
+	if (total === 0) return null
+	const offline = Math.max(0, total - dispatched - available)
+	const pct = total === 0 ? 0 : Math.round((dispatched / total) * 100)
 	return (
 		<div>
-			{/* Fleet KPI */}
-			<div className="flex items-end justify-between border-b border-black/[0.05] px-5 py-4">
-				<div>
-					<p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-black/25">
-						Fleet utilization
+			<div className="flex items-baseline gap-5">
+				<p
+					className="font-[family-name:var(--font-literata)] leading-none tabular-nums animate-sovereign-rise shrink-0"
+					style={{
+						fontSize: '56px',
+						fontWeight: 400,
+						color: 'var(--ink)',
+						letterSpacing: '-0.04em',
+					}}
+				>
+					{dispatched}
+					<span
+						className="font-[family-name:var(--font-plex-mono)]"
+						style={{
+							fontSize: '22px',
+							color: 'var(--ink-ghost)',
+							fontWeight: 400,
+							letterSpacing: '-0.02em',
+							marginInlineStart: '2px',
+						}}
+					>
+						/{total}
+					</span>
+				</p>
+				<div className="min-w-0 flex-1">
+					<p
+						className="font-[family-name:var(--font-archivo)] italic animate-sovereign-rise"
+						style={{
+							fontSize: '13px',
+							color: 'var(--ink-mid)',
+							animationDelay: '120ms',
+							lineHeight: 1.3,
+						}}
+					>
+						{dispatched === 1 ? 'truck' : 'trucks'} on route
 					</p>
-					<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[28px] font-bold tabular-nums leading-none tracking-tight text-black/80">
-						{activeCount}
-						<span className="text-[16px] font-normal text-black/20">
-							/{total}
-						</span>
+					<p
+						className="mt-1.5 font-[family-name:var(--font-plex-mono)] tabular-nums animate-sovereign-rise"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-ghost)',
+							letterSpacing: '0.06em',
+							animationDelay: '200ms',
+						}}
+					>
+						{available} available{offline > 0 ? ` · ${offline} offline` : ''}
 					</p>
-				</div>
-				{/* Mini bar */}
-				<div className="flex items-end gap-[3px] pb-1">
-					{drivers.map((d) => (
-						<div
-							key={d.truckId}
-							className="w-[6px] rounded-sm transition-all"
-							style={{
-								height:
-									d.status === 'dispatched'
-										? '20px'
-										: d.status === 'available'
-											? '12px'
-											: '6px',
-								backgroundColor:
-									d.status === 'dispatched'
-										? '#2563EB'
-										: d.status === 'available'
-											? '#D1D5DB'
-											: '#F3F4F6',
-							}}
-						/>
-					))}
 				</div>
 			</div>
 
-			{dispatched.length > 0 && (
-				<DriverGroup
-					title="On route"
-					count={dispatched.length}
-					drivers={dispatched}
-					onSelectOrder={setSelectedQuoteId}
-					reduce={reduce}
+			{/* Utilization strip — fine ink bar */}
+			<div
+				className="mt-4 h-[2px] w-full relative overflow-hidden animate-sovereign-rise"
+				style={{
+					animationDelay: '280ms',
+					backgroundColor: 'var(--rule-soft)',
+				}}
+			>
+				<div
+					className="absolute inset-y-0 start-0 transition-all duration-500"
+					style={{
+						width: `${pct}%`,
+						backgroundColor: pct > 80 ? 'var(--overdue)' : 'var(--motion)',
+					}}
 				/>
-			)}
-			{available.length > 0 && (
-				<DriverGroup
-					title="Available"
-					count={available.length}
-					drivers={available}
-					onSelectOrder={setSelectedQuoteId}
-					reduce={reduce}
-				/>
-			)}
-			{other.length > 0 && (
-				<DriverGroup
-					title="Offline"
-					count={other.length}
-					drivers={other}
-					onSelectOrder={setSelectedQuoteId}
-					reduce={reduce}
-				/>
-			)}
-			{total === 0 && (
-				<EmptyState text="No fleet data" sub="No trucks registered." />
-			)}
+			</div>
 		</div>
 	)
 }
 
 function DriverGroup({
-	title,
-	count,
+	label,
 	drivers,
-	onSelectOrder,
 	reduce,
 }: {
-	title: string
-	count: number
+	label: string
 	drivers: DispatchDriverView[]
-	onSelectOrder: (id: string | null) => void
 	reduce: boolean | null
 }) {
 	return (
-		<div>
-			<div className="flex items-center justify-between px-5 pt-3.5 pb-1.5">
-				<p className="text-[9px] font-bold uppercase tracking-[0.16em] text-black/25">
-					{title}
-				</p>
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/20">
-					{count}
+		<section>
+			<div className="flex items-center gap-3 px-10 pt-5 pb-2">
+				<span
+					className="font-[family-name:var(--font-archivo)] italic"
+					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+				>
+					{label}
+				</span>
+				<div
+					className="flex-1 h-px"
+					style={{ backgroundColor: 'var(--rule-soft)' }}
+				/>
+			</div>
+			{drivers.map((d, i) => (
+				<DriverBand key={d.truckId} driver={d} index={i} reduce={reduce} />
+			))}
+		</section>
+	)
+}
+
+function DriverBand({
+	driver,
+	index,
+	reduce,
+}: {
+	driver: DispatchDriverView
+	index: number
+	reduce: boolean | null
+}) {
+	const setSelectedQuoteId = useDispatchStore((s) => s.setSelectedQuoteId)
+	const isDispatched = driver.status === 'dispatched'
+	const isAvailable = driver.status === 'available'
+	const numericId =
+		driver.truckId.replace(/\D/g, '').padStart(2, '0').slice(-2) || '—'
+
+	return (
+		<motion.div
+			initial={reduce ? false : { opacity: 0, y: 4 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ delay: 0.06 + index * 0.025, duration: 0.22 }}
+			className="flex items-center"
+			style={{
+				height: '56px',
+				borderTop: '1px solid var(--rule-soft)',
+			}}
+		>
+			<div className="flex h-full w-[42px] items-center justify-center">
+				<span
+					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+					style={{
+						fontSize: '13px',
+						fontWeight: 500,
+						color: isDispatched
+							? 'var(--ink)'
+							: isAvailable
+								? 'var(--ink-soft)'
+								: 'var(--ink-ghost)',
+					}}
+				>
+					{numericId}
 				</span>
 			</div>
-			<div className="divide-y divide-black/[0.03]">
-				{drivers.map((d, i) => (
-					<motion.div
-						key={d.truckId}
-						initial={reduce ? false : { opacity: 0, x: 8 }}
-						animate={{ opacity: 1, x: 0 }}
-						transition={{ delay: i * 0.03, duration: 0.15 }}
-						className="flex items-center gap-3.5 px-5 py-3"
+
+			<div className="flex-1 min-w-0 px-4">
+				<p
+					className="font-[family-name:var(--font-archivo)] truncate"
+					style={{
+						fontSize: '14px',
+						fontWeight: 500,
+						color: isDispatched
+							? 'var(--ink)'
+							: isAvailable
+								? 'var(--ink-soft)'
+								: 'var(--ink-ghost)',
+						letterSpacing: '-0.005em',
+						lineHeight: 1.1,
+					}}
+				>
+					{driver.driverName}
+				</p>
+				<div className="mt-0.5 flex items-baseline gap-1.5">
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.06em',
+						}}
 					>
-						{/* Status indicator */}
-						<div className="relative flex items-center justify-center">
-							<div
-								className="h-8 w-8 rounded-full flex items-center justify-center font-[family-name:var(--font-geist-mono)] text-[10px] font-bold text-white"
-								style={{
-									backgroundColor:
-										d.status === 'dispatched'
-											? '#2563EB'
-											: d.status === 'available'
-												? '#D1D5DB'
-												: '#E5E7EB',
-									color: d.status === 'dispatched' ? '#fff' : '#6B7280',
-								}}
+						{driver.plateNumber} · {driver.capacityTons}t
+					</span>
+					{driver.assignedCustomerName && driver.assignedQuoteId && (
+						<>
+							<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>
+								·
+							</span>
+							<button
+								type="button"
+								onClick={() => setSelectedQuoteId(driver.assignedQuoteId)}
+								className="font-[family-name:var(--font-archivo)] italic truncate min-w-0"
+								style={{ fontSize: '11px', color: 'var(--motion)' }}
 							>
-								{d.truckId.replace(/\D/g, '').padStart(2, '0')}
-							</div>
-							{d.status === 'dispatched' && (
-								<div className="absolute -top-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#16a34a]" />
-							)}
-						</div>
-
-						<div className="flex-1 min-w-0">
-							<p className="truncate text-[12px] font-semibold text-black/75">
-								{d.driverName}
-							</p>
-							<p className="font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-black/30">
-								{d.plateNumber} · {d.capacityTons}t
-							</p>
-							{d.assignedQuoteNumber && (
-								<button
-									type="button"
-									onClick={() =>
-										d.assignedQuoteId && onSelectOrder(d.assignedQuoteId)
-									}
-									className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-[#2563EB] hover:underline"
-								>
-									<span className="truncate">{d.assignedCustomerName}</span>
-									<svg
-										aria-hidden="true"
-										width="10"
-										height="10"
-										viewBox="0 0 10 10"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="1.2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M3 2l4 3-4 3" />
-									</svg>
-								</button>
-							)}
-						</div>
-
-						<a
-							href={`tel:${d.driverPhone}`}
-							className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-black/25 transition-colors hover:bg-black/[0.04] hover:text-black/50"
-						>
-							<span className="sr-only">{`Call ${d.driverName}`}</span>
-							<svg
-								aria-hidden="true"
-								width="14"
-								height="14"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-							</svg>
-						</a>
-					</motion.div>
-				))}
+								{driver.assignedCustomerName.toLowerCase()} →
+							</button>
+						</>
+					)}
+				</div>
 			</div>
+
+			<div className="flex h-full w-[56px] items-center justify-center gap-2">
+				<DriverGlyph status={driver.status} />
+				<a
+					href={`tel:${driver.driverPhone}`}
+					aria-label={`Call ${driver.driverName}`}
+					className="font-[family-name:var(--font-archivo)] italic"
+					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+				>
+					call
+				</a>
+			</div>
+		</motion.div>
+	)
+}
+
+function DriverGlyph({ status }: { status: string }) {
+	if (status === 'dispatched') {
+		return (
+			<svg
+				width="10"
+				height="10"
+				viewBox="0 0 10 10"
+				aria-hidden="true"
+				className="animate-glyph-draw"
+			>
+				<circle cx="5" cy="5" r="3.5" fill="var(--motion)" />
+			</svg>
+		)
+	}
+	if (status === 'available') {
+		return (
+			<svg
+				width="10"
+				height="10"
+				viewBox="0 0 10 10"
+				aria-hidden="true"
+				className="animate-glyph-draw"
+			>
+				<circle
+					cx="5"
+					cy="5"
+					r="3.2"
+					fill="none"
+					stroke="var(--ink-soft)"
+					strokeWidth="1"
+				/>
+			</svg>
+		)
+	}
+	return (
+		<svg
+			width="12"
+			height="2"
+			viewBox="0 0 12 2"
+			aria-hidden="true"
+			className="animate-glyph-draw"
+		>
+			<line
+				x1="0"
+				y1="1"
+				x2="12"
+				y2="1"
+				stroke="var(--ink-ghost)"
+				strokeWidth="1"
+			/>
+		</svg>
+	)
+}
+
+// ─── Mode toggle (bottom rail) ──────────────────────────
+
+function ModeToggle({
+	mode,
+	onChange,
+	onClose,
+}: {
+	mode: Mode
+	onChange: (m: Mode) => void
+	onClose: () => void
+}) {
+	return (
+		<div
+			className="flex-shrink-0 flex items-center justify-between px-10 py-5"
+			style={{ borderTop: '1px solid var(--rule)' }}
+		>
+			<div className="flex items-baseline gap-4">
+				<ToggleWord
+					label="orders"
+					active={mode === 'orders'}
+					onClick={() => onChange('orders')}
+				/>
+				<span
+					style={{
+						color: 'var(--ink-ghost)',
+						fontSize: '11px',
+					}}
+				>
+					·
+				</span>
+				<ToggleWord
+					label="fleet"
+					active={mode === 'fleet'}
+					onClick={() => onChange('fleet')}
+				/>
+			</div>
+			<button
+				type="button"
+				onClick={onClose}
+				className="font-[family-name:var(--font-archivo)] italic"
+				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+			>
+				close →
+			</button>
 		</div>
+	)
+}
+
+function ToggleWord({
+	label,
+	active,
+	onClick,
+}: {
+	label: string
+	active: boolean
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="font-[family-name:var(--font-literata)]"
+			style={{
+				fontSize: '16px',
+				fontStyle: active ? 'normal' : 'italic',
+				fontWeight: active ? 500 : 400,
+				color: active ? 'var(--ink)' : 'var(--ink-ghost)',
+				letterSpacing: active ? '-0.01em' : '0',
+			}}
+		>
+			{label}
+		</button>
 	)
 }
 
@@ -790,6 +1249,7 @@ function ConfirmDialog({
 	const [securityToken, setSecurityToken] = useState('')
 	const [proofUrl, setProofUrl] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const [pressed, setPressed] = useState(false)
 
 	const ready =
 		advisorId !== null &&
@@ -863,12 +1323,24 @@ function ConfirmDialog({
 
 	const isPending = deliveredMut.isPending || returnedMut.isPending
 
+	const confirm = () => {
+		setError(null)
+		setPressed(true)
+		setTimeout(() => setPressed(false), 280)
+		if (isDelivered) deliveredMut.mutate()
+		else returnedMut.mutate()
+	}
+
 	return (
 		<motion.div
 			initial={reduce ? false : { opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={reduce ? undefined : { opacity: 0 }}
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+			className="fixed inset-0 z-50 flex items-center justify-center"
+			style={{
+				backgroundColor: 'rgba(20, 18, 15, 0.28)',
+				backdropFilter: 'blur(8px)',
+			}}
 			onClick={(e) => {
 				if (e.target === e.currentTarget) onClose()
 			}}
@@ -877,60 +1349,76 @@ function ConfirmDialog({
 				initial={reduce ? false : { scale: 0.96, opacity: 0 }}
 				animate={{ scale: 1, opacity: 1 }}
 				exit={reduce ? undefined : { scale: 0.96, opacity: 0 }}
-				transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-				className="mx-4 w-full max-w-[420px] rounded-xl border border-black/[0.06] bg-white p-6 shadow-2xl"
+				transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+				className="dispatch-theme dispatch-paper mx-4 w-full max-w-[480px] shadow-[0_40px_90px_-20px_rgba(20,15,10,0.4)]"
+				style={{ color: 'var(--ink)' }}
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="flex items-start justify-between gap-3">
-					<div>
-						<h3 className="text-[15px] font-bold text-black/85">
-							{isDelivered ? 'Confirm delivery' : 'Return order'}
-						</h3>
-						<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] text-black/30">
-							{route.quoteNumber} · {route.customerName}
-						</p>
-					</div>
-					<button
-						type="button"
-						onClick={onClose}
-						className="flex h-7 w-7 items-center justify-center rounded-full text-black/25 hover:bg-black/[0.04] hover:text-black/50"
+				{/* Header */}
+				<div className="px-10 pt-9 pb-7">
+					<p
+						className="font-[family-name:var(--font-archivo)] italic"
+						style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
 					>
-						<svg
-							aria-hidden="true"
-							width="14"
-							height="14"
-							viewBox="0 0 14 14"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-						>
-							<path d="M3 3l8 8M11 3l-8 8" />
-						</svg>
-					</button>
+						confirm {isDelivered ? 'delivery of' : 'return of'}
+					</p>
+					<h3
+						className="mt-2 font-[family-name:var(--font-literata)]"
+						style={{
+							fontSize: '26px',
+							fontWeight: 500,
+							color: 'var(--ink)',
+							letterSpacing: '-0.02em',
+							lineHeight: 1.05,
+						}}
+					>
+						{route.customerName}
+					</h3>
+					<p
+						className="mt-2 font-[family-name:var(--font-plex-mono)] tabular-nums"
+						style={{
+							fontSize: '11px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.08em',
+						}}
+					>
+						{route.quoteNumber}
+					</p>
 				</div>
 
-				<div className="mt-5 flex flex-col gap-4">
+				<HorizonRule />
+
+				{/* Fields */}
+				<div className="px-10 py-7 flex flex-col gap-6">
 					{!isDelivered && (
-						<DialogField label="Reason for return">
-							<input
-								type="text"
+						<DialogField label="reason for return">
+							<HairlineInput
 								value={reason}
-								onChange={(e) => setReason(e.target.value)}
-								placeholder="e.g. customer refused — wrong quantities"
-								className="w-full rounded-lg border border-black/[0.08] bg-black/[0.01] px-3 py-2.5 text-[12px] outline-none placeholder:text-black/20 focus:border-[#2563EB]/30 focus:ring-1 focus:ring-[#2563EB]/10"
+								onChange={setReason}
+								placeholder="customer refused — wrong quantities"
 							/>
 						</DialogField>
 					)}
 
-					<DialogField label="Advisor">
-						<div className="grid grid-cols-2 gap-1.5">
+					<DialogField label="signed off by">
+						<div className="grid grid-cols-2 gap-x-6 gap-y-0">
 							{employees.map((e) => (
 								<button
 									key={e.id}
 									type="button"
 									onClick={() => setAdvisorId(e.id)}
-									className={`rounded-lg border px-3 py-2 text-start text-[11px] font-medium transition-all ${advisorId === e.id ? 'border-[#2563EB]/25 bg-[#2563EB]/[0.04] text-[#2563EB] shadow-sm' : 'border-black/[0.06] text-black/45 hover:border-black/[0.12]'}`}
+									className="font-[family-name:var(--font-archivo)] text-start py-2"
+									style={{
+										fontSize: '14px',
+										color: advisorId === e.id ? 'var(--ink)' : 'var(--ink-mid)',
+										fontStyle: advisorId === e.id ? 'normal' : 'italic',
+										fontWeight: advisorId === e.id ? 500 : 400,
+										letterSpacing: '-0.005em',
+										borderBottom:
+											advisorId === e.id
+												? '1px solid var(--ink)'
+												: '1px solid var(--rule-soft)',
+									}}
 								>
 									{e.name}
 								</button>
@@ -938,8 +1426,8 @@ function ConfirmDialog({
 						</div>
 					</DialogField>
 
-					<DialogField label="Credential">
-						<div className="grid grid-cols-2 gap-1.5">
+					<DialogField label="credential">
+						<div className="flex items-baseline gap-5 mb-3">
 							{(['password', 'qr'] as const).map((m) => (
 								<button
 									key={m}
@@ -948,68 +1436,92 @@ function ConfirmDialog({
 										setSecurityMethod(m)
 										setSecurityToken('')
 									}}
-									className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] transition-all ${securityMethod === m ? 'border-black/[0.12] bg-black/[0.03] text-black/60' : 'border-black/[0.06] text-black/25'}`}
+									className="font-[family-name:var(--font-archivo)]"
+									style={{
+										fontSize: '12px',
+										fontStyle: securityMethod === m ? 'normal' : 'italic',
+										color:
+											securityMethod === m ? 'var(--ink)' : 'var(--ink-ghost)',
+										borderBottom:
+											securityMethod === m
+												? '1px solid var(--ink)'
+												: '1px solid transparent',
+										paddingBottom: '2px',
+									}}
 								>
-									{m === 'password' ? 'Password' : 'QR Scan'}
+									{m === 'password' ? 'password' : 'qr scan'}
 								</button>
 							))}
 						</div>
-						<input
+						<HairlineInput
 							type={securityMethod === 'password' ? 'password' : 'text'}
 							value={securityToken}
-							onChange={(e) => setSecurityToken(e.target.value)}
+							onChange={setSecurityToken}
 							placeholder={
-								securityMethod === 'password' ? 'Your password' : 'Scan badge'
+								securityMethod === 'password' ? 'your password' : 'scan badge'
 							}
 							autoComplete="off"
-							className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-black/[0.01] px-3 py-2.5 text-[12px] outline-none placeholder:text-black/20 focus:border-[#2563EB]/30 focus:ring-1 focus:ring-[#2563EB]/10"
 						/>
-						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[8px] text-black/20">
-							Dev mock · 1234
+						<p
+							className="mt-2 font-[family-name:var(--font-archivo)] italic"
+							style={{ fontSize: '10px', color: 'var(--ink-ghost)' }}
+						>
+							dev mock · 1234
 						</p>
 					</DialogField>
 
 					<DialogField
-						label={isDelivered ? 'Proof of delivery' : 'Proof of return'}
+						label={`proof of ${isDelivered ? 'delivery' : 'return'}`}
 					>
-						<input
-							type="text"
+						<HairlineInput
 							value={proofUrl}
-							onChange={(e) => setProofUrl(e.target.value)}
-							placeholder="e.g. pod-photo.jpg"
-							className="w-full rounded-lg border border-black/[0.08] bg-black/[0.01] px-3 py-2.5 text-[12px] outline-none placeholder:text-black/20 focus:border-[#2563EB]/30 focus:ring-1 focus:ring-[#2563EB]/10"
+							onChange={setProofUrl}
+							placeholder="pod-photo.jpg"
 						/>
 					</DialogField>
 
 					{error && (
-						<p className="text-[11px] font-medium text-red-600">{error}</p>
+						<p
+							className="font-[family-name:var(--font-archivo)] italic"
+							style={{ fontSize: '12px', color: 'var(--returned)' }}
+						>
+							{error}
+						</p>
 					)}
+				</div>
 
-					<div className="flex gap-2.5 pt-1">
-						<button
-							type="button"
-							onClick={onClose}
-							className="flex-1 rounded-lg border border-black/[0.08] py-2.5 text-[11px] font-semibold text-black/35 transition-colors hover:bg-black/[0.02]"
-						>
-							Cancel
-						</button>
-						<motion.button
-							type="button"
-							whileTap={ready ? { scale: 0.97 } : undefined}
-							onClick={() => {
-								setError(null)
-								isDelivered ? deliveredMut.mutate() : returnedMut.mutate()
-							}}
-							disabled={!ready || isPending}
-							className={`flex-1 rounded-lg py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] transition-all disabled:cursor-not-allowed disabled:opacity-35 ${isDelivered ? 'bg-[#16a34a] text-white shadow-sm hover:bg-[#15803d]' : 'bg-black/80 text-white shadow-sm hover:bg-black/70'}`}
-						>
-							{isPending
-								? 'Processing…'
-								: isDelivered
-									? 'Confirm delivered'
-									: 'Confirm return'}
-						</motion.button>
-					</div>
+				<HorizonRule />
+
+				{/* Actions */}
+				<div className="px-10 py-6 flex items-center justify-between">
+					<button
+						type="button"
+						onClick={onClose}
+						className="font-[family-name:var(--font-archivo)] italic"
+						style={{ fontSize: '12px', color: 'var(--ink-mid)' }}
+					>
+						cancel
+					</button>
+					<button
+						type="button"
+						disabled={!ready || isPending}
+						onClick={confirm}
+						className={`font-[family-name:var(--font-literata)] ${pressed ? 'animate-stamp-press' : ''}`}
+						style={{
+							fontSize: '22px',
+							fontWeight: 500,
+							color: ready ? 'var(--ink)' : 'var(--ink-ghost)',
+							letterSpacing: '-0.022em',
+							cursor: ready && !isPending ? 'pointer' : 'not-allowed',
+							transition: 'color 200ms',
+						}}
+					>
+						{isPending
+							? 'confirming…'
+							: isDelivered
+								? 'Confirm delivery'
+								: 'Confirm return'}
+					</button>
 				</div>
 			</motion.div>
 		</motion.div>
@@ -1018,90 +1530,143 @@ function ConfirmDialog({
 
 // ─── Primitives ──────────────────────────────────────────
 
-function KPI({
-	value,
-	label,
-	color,
-}: {
-	value: number
-	label: string
-	color?: string
-}) {
-	const hasValue = value > 0
+function HorizonRule() {
 	return (
-		<div className="flex flex-col items-center py-3.5">
-			<span
-				className="font-[family-name:var(--font-geist-mono)] text-[22px] font-bold tabular-nums leading-none tracking-tight"
-				style={{ color: hasValue && color ? color : 'rgba(0,0,0,0.15)' }}
-			>
-				{value}
-			</span>
-			<span className="mt-1 text-[8px] font-semibold uppercase tracking-[0.14em] text-black/25">
-				{label}
-			</span>
+		<div className="px-0 shrink-0" aria-hidden="true">
+			<div
+				className="h-px w-full animate-horizon-draw"
+				style={{ backgroundColor: 'var(--rule)' }}
+			/>
 		</div>
 	)
 }
 
-function Badge({ label }: { label: string }) {
-	return (
-		<span className="rounded bg-black/[0.04] px-1.5 py-0.5 font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-black/35">
-			{label}
-		</span>
-	)
-}
-
-function DetailSection({
-	icon,
-	title,
+function DetailStratum({
+	label,
 	children,
 }: {
-	icon: React.ReactNode
-	title: string
+	label: string
 	children: React.ReactNode
 }) {
 	return (
-		<div className="px-5 py-4">
-			<div className="mb-2.5 flex items-center gap-2">
-				<span className="text-black/25">{icon}</span>
-				<p className="text-[10px] font-bold uppercase tracking-[0.12em] text-black/30">
-					{title}
-				</p>
+		<section className="pb-6 last:pb-2">
+			<div className="flex items-center gap-3 mb-3">
+				<span
+					className="font-[family-name:var(--font-archivo)] italic"
+					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+				>
+					{label}
+				</span>
+				<div
+					className="flex-1 h-px"
+					style={{ backgroundColor: 'var(--rule-soft)' }}
+				/>
 			</div>
-			{children}
-		</div>
+			<div>{children}</div>
+		</section>
 	)
 }
 
-function DataRow({
+function DataLine({
 	label,
 	value,
 	href,
-	warn,
 }: {
 	label: string
 	value: string
 	href?: string
-	warn?: boolean
 }) {
 	return (
-		<div className="flex items-baseline justify-between gap-4 py-[3px]">
-			<span className="shrink-0 text-[10px] text-black/30">{label}</span>
+		<div className="flex items-baseline gap-5 py-2">
+			<span
+				className="w-[68px] shrink-0 font-[family-name:var(--font-archivo)] italic"
+				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+			>
+				{label}
+			</span>
 			{href ? (
 				<a
 					href={href}
-					className="truncate text-end text-[11px] font-medium text-[#2563EB] hover:underline"
+					className="font-[family-name:var(--font-archivo)] flex-1 truncate"
+					style={{ fontSize: '13px', color: 'var(--motion)' }}
 				>
 					{value}
 				</a>
 			) : (
 				<span
-					className={`truncate text-end text-[11px] ${warn ? 'font-semibold text-[#F59E0B]' : 'text-black/55'}`}
+					className="font-[family-name:var(--font-archivo)] flex-1 truncate"
+					style={{ fontSize: '13px', color: 'var(--ink)' }}
 				>
 					{value}
 				</span>
 			)}
 		</div>
+	)
+}
+
+function StampWord({
+	label,
+	onClick,
+	tone = 'ink',
+	divider,
+}: {
+	label: string
+	onClick: () => void
+	tone?: 'ink' | 'returned'
+	divider?: boolean
+}) {
+	const [pressed, setPressed] = useState(false)
+	return (
+		<button
+			type="button"
+			onClick={() => {
+				setPressed(true)
+				setTimeout(() => setPressed(false), 280)
+				onClick()
+			}}
+			className={`flex items-center justify-center py-5 font-[family-name:var(--font-literata)] ${pressed ? 'animate-stamp-press' : ''}`}
+			style={{
+				fontSize: '22px',
+				fontWeight: 500,
+				color: tone === 'returned' ? 'var(--returned)' : 'var(--ink)',
+				letterSpacing: '-0.02em',
+				borderInlineStart: divider ? '1px solid var(--rule)' : undefined,
+				transition: 'color 200ms',
+			}}
+		>
+			{label}
+		</button>
+	)
+}
+
+function HairlineInput({
+	value,
+	onChange,
+	placeholder,
+	type = 'text',
+	autoComplete,
+}: {
+	value: string
+	onChange: (v: string) => void
+	placeholder?: string
+	type?: string
+	autoComplete?: string
+}) {
+	return (
+		<input
+			type={type}
+			value={value}
+			onChange={(e) => onChange(e.target.value)}
+			placeholder={placeholder}
+			autoComplete={autoComplete}
+			className="w-full bg-transparent outline-none font-[family-name:var(--font-archivo)]"
+			style={{
+				fontSize: '15px',
+				color: 'var(--ink)',
+				borderBottom: '1px solid var(--rule)',
+				paddingBottom: '8px',
+			}}
+		/>
 	)
 }
 
@@ -1114,7 +1679,10 @@ function DialogField({
 }) {
 	return (
 		<div>
-			<span className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-black/30">
+			<span
+				className="mb-2 block font-[family-name:var(--font-archivo)] italic"
+				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+			>
 				{label}
 			</span>
 			{children}
@@ -1122,75 +1690,58 @@ function DialogField({
 	)
 }
 
-function LoadingState() {
+function SovereignSkeleton() {
+	return (
+		<div className="flex items-baseline gap-5">
+			<div
+				className="h-[48px] w-[48px] rounded-sm shrink-0"
+				style={{ backgroundColor: 'var(--rule-soft)' }}
+			/>
+			<div className="flex-1">
+				<div
+					className="h-[13px] w-[160px] rounded-sm"
+					style={{ backgroundColor: 'var(--rule-soft)' }}
+				/>
+				<div
+					className="mt-2 h-[10px] w-[120px] rounded-sm"
+					style={{ backgroundColor: 'var(--rule-soft)' }}
+				/>
+			</div>
+		</div>
+	)
+}
+
+function LoadingWhisper() {
 	return (
 		<div className="flex items-center justify-center py-20">
-			<div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+			<div
+				className="h-px w-[80px] animate-horizon-draw"
+				style={{ backgroundColor: 'var(--ink-ghost)' }}
+			/>
 		</div>
 	)
 }
 
-function EmptyState({ text, sub }: { text: string; sub: string }) {
+function EmptyVoid({ text, sub }: { text: string; sub: string }) {
 	return (
-		<div className="flex flex-col items-center justify-center px-8 py-20 text-center">
-			<p className="text-[12px] font-semibold text-black/25">{text}</p>
-			<p className="mt-1.5 text-[10px] text-black/15 max-w-[240px]">{sub}</p>
+		<div className="flex flex-col items-center justify-center py-16 px-10">
+			<p
+				className="font-[family-name:var(--font-literata)] italic"
+				style={{ fontSize: '18px', color: 'var(--ink-ghost)' }}
+			>
+				{text}
+			</p>
+			<p
+				className="mt-3 text-center font-[family-name:var(--font-archivo)] italic"
+				style={{
+					fontSize: '11px',
+					color: 'var(--ink-ghost)',
+					maxWidth: '260px',
+					lineHeight: 1.5,
+				}}
+			>
+				{sub}
+			</p>
 		</div>
 	)
 }
-
-// ─── Icons (inline SVG to avoid lucide dep bloat) ────────
-
-const pinIcon = (
-	<svg
-		aria-hidden="true"
-		width="14"
-		height="14"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="1.8"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-		<circle cx="12" cy="10" r="3" />
-	</svg>
-)
-
-const truckIcon = (
-	<svg
-		aria-hidden="true"
-		width="14"
-		height="14"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="1.8"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M1 3h15v13H1z" />
-		<path d="M16 8h4l3 3v5h-7V8z" />
-		<circle cx="5.5" cy="18.5" r="2.5" />
-		<circle cx="18.5" cy="18.5" r="2.5" />
-	</svg>
-)
-
-const boxIcon = (
-	<svg
-		aria-hidden="true"
-		width="14"
-		height="14"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="1.8"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-		<path d="M3.27 6.96L12 12.01l8.73-5.05" />
-		<path d="M12 22.08V12" />
-	</svg>
-)

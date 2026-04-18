@@ -143,7 +143,11 @@ export function WizardRenderer({
 					{/* Ask Lyon for this step */}
 					<div className="ps-8 mt-4">
 						<AskLyonPill
-							context={`Help me with: ${step.title} in ${t(guideTitleKey, { defaultValue: guideSlug })}`}
+							contextKey="docs.askLyonContext.helpMeWith"
+							contextVars={{
+								step: t(step.titleKey, { defaultValue: step.title }),
+								guide: t(guideTitleKey, { defaultValue: guideSlug }),
+							}}
 						/>
 					</div>
 				</motion.div>

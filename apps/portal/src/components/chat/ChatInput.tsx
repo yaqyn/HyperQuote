@@ -1,6 +1,13 @@
 /**
- * ChatInput — Rounded dark input bar with mic + send.
- * Mic activates a full-screen listening sphere.
+ * ChatInput — the Writing Line.
+ *
+ * A single ruled line at the bottom of the ledger. Labeled at the margin
+ * ("WRITE TO LYON" / "اكتب إلى ليون"). Typing appears as mono ink on
+ * the page. Enter sends, Shift+Enter = newline. Tiny margin glyphs for
+ * mic + send — no backgrounds, no pills.
+ *
+ * Voice overlay (full-screen listening orb with live transcript) is
+ * preserved, palette-tuned to atelier warm tones.
  */
 
 import { ArrowUp, Mic, Square } from 'lucide-react'
@@ -42,12 +49,14 @@ interface ChatInputProps {
 	hasMessages: boolean
 }
 
-export function ChatInput({ chat, hasMessages }: ChatInputProps) {
+export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
 	const [listening, setListening] = useState(false)
+	const [pulse, setPulse] = useState(0)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const ruleRef = useRef<HTMLDivElement>(null)
 	const analyserRef = useRef<AnalyserNode | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
 	const audioCtxRef = useRef<AudioContext | null>(null)
@@ -58,23 +67,18 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 	const transcriptRef = useRef('')
 	const accumulatedRef = useRef('')
 
-	const autoResize = useCallback(() => {
-		const ta = textareaRef.current
-		if (!ta) return
+	function autoResize(ta: HTMLTextAreaElement) {
 		ta.style.height = 'auto'
-		const maxHeight = LINE_HEIGHT * MAX_LINES + 16
+		const maxHeight = LINE_HEIGHT * MAX_LINES + 8
 		ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`
 		ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden'
-	}, [])
-
-	useEffect(() => {
-		autoResize()
-	}, [autoResize])
+	}
 
 	const handleSubmit = useCallback(() => {
 		if (!value.trim() || chat.isLoading) return
 		chat.sendMessage(value.trim())
 		setValue('')
+		setPulse((p) => p + 1)
 		if (textareaRef.current) {
 			textareaRef.current.style.height = 'auto'
 		}
@@ -97,7 +101,6 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 
 	// Mic — start/stop listening with audio analyser
 	async function startListening() {
-		// Start speech recognition first
 		const windowWithSR = window as unknown as {
 			SpeechRecognition?: new () => SpeechRecognitionLike
 			webkitSpeechRecognition?: new () => SpeechRecognitionLike
@@ -115,15 +118,11 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 			let lastFinalIndex = 0
 			recognition.onresult = (event: SpeechRecognitionEventLike) => {
 				let interim = ''
-				// Only process new final results we haven't seen
 				for (let i = lastFinalIndex; i < event.results.length; i++) {
 					const result = event.results[i]
 					if (result.isFinal) {
-						accumulatedRef.current = (
-							accumulatedRef.current +
-							' ' +
-							result[0].transcript
-						).trim()
+						accumulatedRef.current =
+							`${accumulatedRef.current} ${result[0].transcript}`.trim()
 						lastFinalIndex = i + 1
 					} else {
 						interim += result[0].transcript
@@ -137,7 +136,6 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 			}
 
 			recognition.onend = () => {
-				// Restart if still listening (browser auto-stops after silence)
 				if (recognitionRef.current) {
 					try {
 						recognition.start()
@@ -146,14 +144,12 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 					}
 				}
 			}
-
 			recognition.onerror = () => {
 				/* continue */
 			}
 			recognition.start()
 			recognitionRef.current = recognition
 
-			// Audio analyser for visual feedback — use the mic stream SpeechRecognition opened
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 			streamRef.current = stream
 			const ctx = new AudioContext()
@@ -179,27 +175,22 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 			setTranscript('')
 			accumulatedRef.current = ''
 		} catch {
-			// Permission denied or no mic/speech support
+			/* permission denied / unsupported */
 		}
 	}
 
 	function stopListening(skipCommit = false) {
 		cancelAnimationFrame(rafRef.current)
-
-		// Stop recognition
 		if (recognitionRef.current) {
 			recognitionRef.current.stop()
 			recognitionRef.current = null
 		}
-		// Commit transcript to input only if not already sent
 		if (!skipCommit) {
 			const finalText = transcriptRef.current.trim()
 			if (finalText) {
 				setValue((prev) => (prev ? `${prev} ${finalText}` : finalText))
 			}
 		}
-
-		// Cleanup audio
 		streamRef.current?.getTracks().forEach((t) => {
 			t.stop()
 		})
@@ -213,7 +204,6 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 		transcriptRef.current = ''
 	}
 
-	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
 			cancelAnimationFrame(rafRef.current)
@@ -229,411 +219,442 @@ export function ChatInput({ chat, hasMessages }: ChatInputProps) {
 
 	return (
 		<>
-			{/* Listening overlay — full screen living sphere */}
+			{/* Voice listening overlay — warm-room version of the orb */}
 			<AnimatePresence>
 				{listening && (
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.4 }}
-						className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
-						style={{ background: 'rgba(6,6,6,0.97)' }}
-						onClick={() => stopListening()}
-					>
-						{/* Slow rotating ambient nebula — dual layer */}
-						<motion.div
-							animate={{ rotate: 360 }}
-							transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-							className="absolute w-[600px] h-[600px]"
-							style={{
-								background: `conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,${0.015 + amplitude * 0.025}) 20%, transparent 40%, rgba(255,255,255,${0.01 + amplitude * 0.02}) 60%, transparent 80%, rgba(255,255,255,${0.008 + amplitude * 0.015}) 95%, transparent 100%)`,
-								filter: 'blur(60px)',
-							}}
-						/>
-						<motion.div
-							animate={{ rotate: -360 }}
-							transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-							className="absolute w-[450px] h-[450px]"
-							style={{
-								background: `conic-gradient(from 120deg, transparent 0%, rgba(255,255,255,${0.01 + amplitude * 0.02}) 15%, transparent 35%, rgba(255,255,255,${0.008 + amplitude * 0.015}) 55%, transparent 75%, rgba(255,255,255,${0.01 + amplitude * 0.02}) 90%, transparent 100%)`,
-								filter: 'blur(50px)',
-							}}
-						/>
-
-						{/* Soft ambient glow — no hard edges */}
-						<motion.div
-							animate={{
-								scale: 1 + amplitude * 0.6,
-								opacity: 0.06 + amplitude * 0.1,
-							}}
-							transition={{ duration: 0.1, ease: 'easeOut' }}
-							className="absolute w-96 h-96 rounded-full"
-							style={{
-								background:
-									'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, transparent 70%)',
-								filter: 'blur(20px)',
-							}}
-						/>
-
-						{/* Mid atmosphere */}
-						<motion.div
-							animate={{
-								scale: 1 + amplitude * 0.4,
-								opacity: 0.08 + amplitude * 0.15,
-							}}
-							transition={{ duration: 0.08, ease: 'easeOut' }}
-							className="absolute w-60 h-60 rounded-full"
-							style={{
-								background:
-									'radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 50%, transparent 75%)',
-								filter: 'blur(12px)',
-							}}
-						/>
-
-						{/* Inner halo */}
-						<motion.div
-							animate={{
-								scale: 1 + amplitude * 0.3,
-								opacity: 0.12 + amplitude * 0.2,
-							}}
-							transition={{ duration: 0.06, ease: 'easeOut' }}
-							className="absolute w-40 h-40 rounded-full"
-							style={{
-								background:
-									'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 50%, transparent 80%)',
-								filter: 'blur(8px)',
-							}}
-						/>
-
-						{/* Core sphere — the creature */}
-						<motion.div
-							animate={{
-								scale: 1 + amplitude * 0.2,
-								filter: `blur(${amplitude > 0.4 ? 0.5 : 0}px) brightness(${1 + amplitude * 0.3})`,
-							}}
-							transition={{ duration: 0.04 }}
-							className="relative w-24 h-24 rounded-full"
-							style={{
-								background: `radial-gradient(circle at 38% 32%, rgba(255,255,255,${0.3 + amplitude * 0.2}) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.05) 55%, rgba(255,255,255,0.02) 80%, transparent 100%)`,
-								boxShadow: `0 0 ${60 + amplitude * 100}px ${15 + amplitude * 40}px rgba(255,255,255,${0.05 + amplitude * 0.08}), inset 0 0 ${25 + amplitude * 35}px rgba(255,255,255,${0.06 + amplitude * 0.12}), 0 0 ${10 + amplitude * 15}px ${2 + amplitude * 5}px rgba(255,255,255,${0.1 + amplitude * 0.15})`,
-								border: `1px solid rgba(255,255,255,${0.1 + amplitude * 0.12})`,
-							}}
-						>
-							{/* Primary specular — top left crescent */}
-							<div
-								className="absolute rounded-full"
-								style={{
-									width: '40%',
-									height: '25%',
-									top: '12%',
-									left: '15%',
-									background:
-										'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.1) 40%, transparent 70%)',
-									filter: 'blur(4px)',
-								}}
-							/>
-							{/* Secondary specular — bottom edge catch */}
-							<motion.div
-								animate={{
-									opacity: [0.05, 0.1 + amplitude * 0.15, 0.05],
-								}}
-								transition={{
-									duration: 3,
-									repeat: Infinity,
-									ease: 'easeInOut',
-								}}
-								className="absolute rounded-full"
-								style={{
-									width: '50%',
-									height: '20%',
-									bottom: '10%',
-									right: '15%',
-									background:
-										'radial-gradient(ellipse, rgba(255,255,255,0.2) 0%, transparent 70%)',
-									filter: 'blur(3px)',
-								}}
-							/>
-							{/* Breathing inner glow */}
-							<motion.div
-								animate={{
-									opacity: [0.03, 0.08 + amplitude * 0.1, 0.03],
-									scale: [0.95, 1.05, 0.95],
-								}}
-								transition={{
-									duration: 4,
-									repeat: Infinity,
-									ease: 'easeInOut',
-								}}
-								className="absolute inset-0 rounded-full"
-								style={{
-									background:
-										'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%)',
-								}}
-							/>
-						</motion.div>
-
-						{/* Occasional flash/shine — random bright pulse */}
-						<motion.div
-							animate={{
-								opacity: [0, 0, 0, amplitude > 0.5 ? 0.15 : 0, 0],
-								scale: [1, 1, 1, 1.3, 1],
-							}}
-							transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-							className="absolute w-28 h-28 rounded-full pointer-events-none"
-							style={{
-								background:
-									'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)',
-								filter: 'blur(10px)',
-							}}
-						/>
-
-						{/* Floating particles — more, varied sizes, smoother orbits */}
-						{[...Array(12)].map((_, i) => {
-							const angle = (i / 12) * Math.PI * 2
-							const radius = 55 + (i % 3) * 20
-							const size = 1.5 + (i % 4) * 0.5
-							return (
-								<motion.div
-									key={`dot-${angle}-${radius}-${size}`}
-									animate={{
-										y: [0, -6 - (i % 4) * 3, 2, 0],
-										x: [0, (i % 2 === 0 ? 3 : -3) * (1 + amplitude * 0.8), 0],
-										opacity: [0.06, 0.15 + amplitude * 0.25, 0.08, 0.06],
-										scale: [1, 1 + amplitude * 0.4, 0.9, 1],
-									}}
-									transition={{
-										duration: 3 + (i % 5) * 0.6,
-										repeat: Infinity,
-										ease: 'easeInOut',
-										delay: i * 0.25,
-									}}
-									className="absolute rounded-full"
-									style={{
-										width: size,
-										height: size,
-										background: `rgba(255,255,255,${0.3 + (i % 3) * 0.1})`,
-										filter: 'blur(0.5px)',
-										top: `calc(50% + ${Math.sin(angle) * radius}px)`,
-										left: `calc(50% + ${Math.cos(angle) * radius}px)`,
-									}}
-								/>
-							)
-						})}
-
-						{/* Live transcript */}
-						<div className="absolute bottom-28 inset-x-0 flex justify-center px-8">
-							<AnimatePresence mode="wait">
-								{transcript ? (
-									<motion.div
-										key="transcript"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0, y: -4, filter: 'blur(4px)' }}
-										transition={{ duration: 0.3 }}
-										dir={isAr ? 'rtl' : 'ltr'}
-										className="text-[15px] text-center max-w-[480px] leading-[1.8]"
-										style={{
-											maskImage:
-												'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
-											WebkitMaskImage:
-												'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
-											maxHeight: '140px',
-											overflow: 'hidden',
-											display: 'flex',
-											flexWrap: 'wrap',
-											justifyContent: 'center',
-											alignContent: 'flex-end',
-											textShadow: `0 0 ${8 + amplitude * 20}px rgba(255,255,255,${0.1 + amplitude * 0.2})`,
-										}}
-									>
-										{(() => {
-											const words = transcript.split(' ')
-											let offset = 0
-											return words.map((word, i, arr) => {
-												const fromEnd = arr.length - 1 - i
-												const isRecent = fromEnd < 3
-												const keyPos = offset
-												offset += word.length + 1
-												return (
-													<motion.span
-														key={`${keyPos}-${word}`}
-														initial={{
-															opacity: 0,
-															y: 10,
-															filter: 'blur(8px)',
-														}}
-														animate={{
-															opacity: isRecent ? 0.7 + amplitude * 0.3 : 0.5,
-															y: 0,
-															filter: 'blur(0px)',
-															textShadow: isRecent
-																? `0 0 ${12 + amplitude * 16}px rgba(255,255,255,${0.3 + amplitude * 0.3})`
-																: '0 0 0px transparent',
-														}}
-														transition={{
-															opacity: { duration: 0.5 },
-															y: {
-																duration: 0.4,
-																ease: SMOOTH_EASE,
-															},
-															filter: { duration: 0.5 },
-															textShadow: { duration: 0.6 },
-														}}
-														className="inline-block text-[var(--p-text)]"
-														style={{ marginInlineEnd: '0.3em' }}
-													>
-														{word}
-													</motion.span>
-												)
-											})
-										})()}
-									</motion.div>
-								) : (
-									<motion.p
-										key="hint"
-										initial={{ opacity: 0, y: 4 }}
-										animate={{ opacity: 0.3, y: 0 }}
-										exit={{ opacity: 0 }}
-										transition={{ delay: 1, duration: 0.5 }}
-										className="text-[13px] text-[var(--p-text-muted)] text-center"
-									>
-										{t('a11y.voiceInput')}
-									</motion.p>
-								)}
-							</AnimatePresence>
-						</div>
-
-						{/* Send button — appears when there's a transcript */}
-						<AnimatePresence>
-							{transcript && (
-								<motion.button
-									type="button"
-									initial={{ opacity: 0, scale: 0.9 }}
-									animate={{ opacity: 1, scale: 1 }}
-									exit={{ opacity: 0, scale: 0.9 }}
-									transition={{ duration: 0.25 }}
-									onClick={(e) => {
-										e.stopPropagation()
-										const voice = transcriptRef.current.trim()
-										const existing = value.trim()
-										const combined = [existing, voice].filter(Boolean).join(' ')
-										if (combined) {
-											chat.sendMessage(combined)
-											setValue('')
-										}
-										stopListening(true)
-									}}
-									className="absolute bottom-12 w-11 h-11 rounded-full flex items-center justify-center hover:brightness-125 transition-all"
-									style={{
-										background:
-											'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)',
-										backdropFilter: 'blur(16px)',
-										WebkitBackdropFilter: 'blur(16px)',
-										border: '1px solid rgba(255,255,255,0.1)',
-										boxShadow:
-											'inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 12px rgba(0,0,0,0.3)',
-									}}
-								>
-									<ArrowUp
-										size={16}
-										strokeWidth={2}
-										className="text-[var(--p-text)]"
-									/>
-								</motion.button>
-							)}
-						</AnimatePresence>
-					</motion.div>
+					<VoiceOrb
+						amplitude={amplitude}
+						transcript={transcript}
+						isAr={isAr}
+						hint={t('a11y.voiceInput')}
+						onDismiss={() => stopListening()}
+						onSend={() => {
+							const voice = transcriptRef.current.trim()
+							const existing = value.trim()
+							const combined = [existing, voice].filter(Boolean).join(' ')
+							if (combined) {
+								chat.sendMessage(combined)
+								setValue('')
+							}
+							stopListening(true)
+						}}
+					/>
 				)}
 			</AnimatePresence>
 
-			{/* Normal input bar */}
-			<div
-				className={`relative bg-[var(--p-input)] border border-[var(--p-border)] focus-within:border-[var(--p-border-strong)] transition-all ${(hasText && value.includes('\n')) || value.length > 80 ? 'rounded-2xl' : 'rounded-full'}`}
-			>
-				<div className="flex items-end gap-2 pe-2 ps-5 py-1.5">
-					<textarea
-						ref={textareaRef}
-						data-chat-input
-						value={value}
-						onChange={(e) => setValue(e.target.value)}
-						onKeyDown={handleKeyDown}
-						rows={1}
-						placeholder={t(
-							hasMessages ? 'chat.placeholder1' : 'chat.emptyPlaceholder',
-						)}
-						aria-label={t('a11y.sendMessage')}
-						aria-multiline="true"
-						spellCheck={false}
-						dir={isAr ? 'rtl' : 'ltr'}
-						className="flex-1 bg-transparent text-[14px] text-[var(--p-text)] outline-none resize-none leading-[22px] placeholder:text-[var(--p-text-muted)] py-2"
-						style={{
-							height: `${LINE_HEIGHT + 16}px`,
-							overflowY: 'hidden',
-						}}
-					/>
+			{/* The Writing Line */}
+			<div className="flex items-end gap-4">
+				{/* Margin label */}
+				<span
+					className="office-meta select-none shrink-0 pb-2 leading-none"
+					style={{ width: 60 }}
+				>
+					{isAr ? 'اكتب' : 'Write'}
+				</span>
 
-					{/* Mic */}
-					<button
-						type="button"
-						onClick={startListening}
-						className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full hover:bg-[var(--p-hover)] transition-colors"
-						aria-label={t('a11y.voiceInput')}
-					>
-						<Mic
-							size={17}
-							strokeWidth={1.5}
-							className="text-[var(--p-text-muted)]"
+				{/* Ruled input */}
+				<div className="relative flex-1">
+					<div className="flex items-end gap-3">
+						<textarea
+							ref={textareaRef}
+							data-chat-input
+							value={value}
+							onChange={(e) => {
+								setValue(e.target.value)
+								autoResize(e.target)
+							}}
+							onKeyDown={handleKeyDown}
+							rows={1}
+							placeholder={t('chat.writingPlaceholder', isAr ? '…' : '…')}
+							aria-label={t('a11y.sendMessage')}
+							aria-multiline="true"
+							spellCheck={false}
+							dir="auto"
+							className="voice-mono flex-1 resize-none bg-transparent pb-2 text-[14px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+							style={{
+								height: `${LINE_HEIGHT + 4}px`,
+								lineHeight: `${LINE_HEIGHT}px`,
+								overflowY: 'hidden',
+							}}
 						/>
-					</button>
 
-					{/* Send / Stop */}
-					<AnimatePresence mode="wait">
-						{chat.isLoading ? (
-							<motion.button
-								key="stop"
+						{/* Margin glyphs — right side */}
+						<div className="flex items-center gap-1 pb-2 shrink-0">
+							<button
 								type="button"
-								onClick={() => chat.stop()}
-								initial={{ opacity: 0, scale: 0.8 }}
-								animate={{ opacity: 1, scale: 1 }}
-								exit={{ opacity: 0, scale: 0.8 }}
-								transition={{ duration: 0.12 }}
-								className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-[var(--p-elevated)] hover:bg-[var(--p-card)] transition-colors"
-								aria-label={t('a11y.stopGenerating')}
+								onClick={startListening}
+								className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+								aria-label={t('a11y.voiceInput')}
 							>
-								<Square size={12} className="text-[var(--p-text)]" />
-							</motion.button>
-						) : (
-							<motion.button
-								key="send"
-								type="button"
-								onClick={handleSubmit}
-								disabled={!hasText}
-								initial={{ opacity: 0, scale: 0.8 }}
-								animate={{ opacity: 1, scale: 1 }}
-								exit={{ opacity: 0, scale: 0.8 }}
-								transition={{ duration: 0.12 }}
-								className={`flex items-center justify-center w-9 h-9 shrink-0 rounded-full transition-colors ${
-									hasText
-										? 'bg-[var(--p-text)] hover:bg-white'
-										: 'bg-[var(--p-elevated)]'
-								}`}
-								aria-label={t('a11y.sendMessage')}
-							>
-								<ArrowUp
-									size={16}
-									strokeWidth={2}
-									className={
-										hasText
-											? 'text-[var(--p-bg)]'
-											: 'text-[var(--p-text-muted)]'
-									}
-								/>
-							</motion.button>
-						)}
-					</AnimatePresence>
+								<Mic size={14} strokeWidth={1.5} />
+							</button>
+							{chat.isLoading ? (
+								<button
+									type="button"
+									onClick={() => chat.stop()}
+									className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+									aria-label={t('a11y.stopGenerating')}
+								>
+									<Square size={11} strokeWidth={1.8} />
+								</button>
+							) : (
+								<button
+									type="button"
+									onClick={handleSubmit}
+									disabled={!hasText}
+									className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors enabled:hover:text-[var(--p-text)] disabled:opacity-40"
+									aria-label={t('a11y.sendMessage')}
+								>
+									<ArrowUp size={14} strokeWidth={1.8} />
+								</button>
+							)}
+						</div>
+					</div>
+
+					{/* Ruled underline — pulses on submit */}
+					<div
+						key={pulse}
+						ref={ruleRef}
+						className={`h-px w-full bg-[var(--p-rule-strong)] ${pulse ? 'office-ink-pulse' : ''}`}
+					/>
 				</div>
 			</div>
 		</>
+	)
+}
+
+// ============================================================================
+// VoiceOrb — the listening overlay (palette-tuned atelier version)
+// ============================================================================
+
+const MOTE_SLOTS = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'] as const
+const ECHO_SLOTS = ['e0', 'e1', 'e2'] as const
+
+function VoiceOrb({
+	amplitude,
+	transcript,
+	isAr,
+	hint,
+	onDismiss,
+	onSend,
+}: {
+	amplitude: number
+	transcript: string
+	isAr: boolean
+	hint: string
+	onDismiss: () => void
+	onSend: () => void
+}) {
+	// Soft amplitude — so the orb breathes naturally even when silent.
+	const a = Math.max(0, Math.min(1, amplitude))
+	return (
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			transition={{ duration: 0.5 }}
+			className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
+			style={{ background: 'rgba(0,0,0,0.96)' }}
+			onClick={onDismiss}
+		>
+			{/* Ambient field — single deep glow that drifts */}
+			<motion.div
+				animate={{ rotate: 360 }}
+				transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+				className="absolute h-[760px] w-[760px]"
+				style={{
+					background: `conic-gradient(from 0deg, transparent, rgba(255,255,255,${0.018 + a * 0.025}), transparent 40%, transparent 60%, rgba(255,255,255,${0.012 + a * 0.018}), transparent)`,
+					filter: 'blur(80px)',
+				}}
+			/>
+
+			{/* Continuous echo rings — radio waves emanating outward */}
+			{ECHO_SLOTS.map((slot, i) => (
+				<motion.div
+					key={slot}
+					aria-hidden
+					className="absolute rounded-full border"
+					style={{
+						width: 110,
+						height: 110,
+						borderColor: `rgba(255,255,255,${0.12 + a * 0.18})`,
+					}}
+					initial={{ scale: 1, opacity: 0 }}
+					animate={{
+						scale: [1, 1.4, 5.5],
+						opacity: [0, 0.45, 0],
+					}}
+					transition={{
+						duration: 4.4,
+						repeat: Infinity,
+						ease: 'easeOut',
+						times: [0, 0.08, 1],
+						delay: i * (4.4 / 3),
+					}}
+				/>
+			))}
+
+			{/* Outer breath — slow exhale */}
+			<motion.div
+				aria-hidden
+				className="absolute rounded-full"
+				animate={{
+					scale: [1, 1.06, 1],
+					opacity: [0.18, 0.28, 0.18],
+				}}
+				transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+				style={{
+					width: 360,
+					height: 360,
+					background:
+						'radial-gradient(circle, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 45%, transparent 75%)',
+					filter: 'blur(28px)',
+				}}
+			/>
+
+			{/* Mid breath — slightly faster, offset, amplitude-reactive */}
+			<motion.div
+				aria-hidden
+				className="absolute rounded-full"
+				animate={{
+					scale: [1 + a * 0.2, 1.08 + a * 0.25, 1 + a * 0.2],
+					opacity: [0.25 + a * 0.2, 0.4 + a * 0.25, 0.25 + a * 0.2],
+				}}
+				transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+				style={{
+					width: 220,
+					height: 220,
+					background:
+						'radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 50%, transparent 80%)',
+					filter: 'blur(16px)',
+				}}
+			/>
+
+			{/* Inner breath — fastest, brightest */}
+			<motion.div
+				aria-hidden
+				className="absolute rounded-full"
+				animate={{
+					scale: [1 + a * 0.35, 1.12 + a * 0.4, 1 + a * 0.35],
+					opacity: [0.45 + a * 0.25, 0.6 + a * 0.3, 0.45 + a * 0.25],
+				}}
+				transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+				style={{
+					width: 130,
+					height: 130,
+					background:
+						'radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.07) 55%, transparent 85%)',
+					filter: 'blur(10px)',
+				}}
+			/>
+
+			{/* Core sphere — the soul. Internal counter-rotating swirls give the
+			    sense of light moving inside the entity. */}
+			<motion.div
+				className="relative rounded-full"
+				animate={{
+					scale: 1 + a * 0.18,
+				}}
+				transition={{ type: 'spring', stiffness: 280, damping: 18 }}
+				style={{
+					width: 96,
+					height: 96,
+					background: `radial-gradient(circle at 36% 30%, rgba(255,255,255,${0.55 + a * 0.25}) 0%, rgba(255,255,255,${0.22 + a * 0.18}) 28%, rgba(255,255,255,0.08) 60%, rgba(255,255,255,0.02) 85%, transparent 100%)`,
+					boxShadow: `0 0 ${80 + a * 120}px ${20 + a * 40}px rgba(255,255,255,${0.08 + a * 0.12}), inset 0 0 ${30 + a * 30}px rgba(255,255,255,${0.1 + a * 0.15}), 0 0 ${12 + a * 18}px ${3 + a * 6}px rgba(255,255,255,${0.18 + a * 0.18})`,
+					border: `1px solid rgba(255,255,255,${0.18 + a * 0.18})`,
+					overflow: 'hidden',
+				}}
+			>
+				{/* Internal swirl A — soft caustic that rotates clockwise */}
+				<motion.div
+					aria-hidden
+					className="absolute inset-0"
+					animate={{ rotate: 360 }}
+					transition={{ duration: 11, repeat: Infinity, ease: 'linear' }}
+					style={{
+						background: `conic-gradient(from 0deg, transparent, rgba(255,255,255,${0.18 + a * 0.18}) 25%, transparent 50%, rgba(255,255,255,${0.1 + a * 0.1}) 75%, transparent)`,
+						mixBlendMode: 'screen',
+						filter: 'blur(8px)',
+					}}
+				/>
+				{/* Internal swirl B — counter-rotating, different phase */}
+				<motion.div
+					aria-hidden
+					className="absolute inset-0"
+					animate={{ rotate: -360 }}
+					transition={{ duration: 17, repeat: Infinity, ease: 'linear' }}
+					style={{
+						background: `conic-gradient(from 200deg, transparent, rgba(255,255,255,${0.14 + a * 0.14}) 40%, transparent 70%)`,
+						mixBlendMode: 'screen',
+						filter: 'blur(10px)',
+					}}
+				/>
+				{/* Specular highlight — the "wet" glint that suggests a real surface */}
+				<div
+					className="pointer-events-none absolute rounded-full"
+					style={{
+						width: '46%',
+						height: '28%',
+						top: '12%',
+						left: '18%',
+						background:
+							'radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 40%, transparent 75%)',
+						filter: 'blur(4px)',
+					}}
+				/>
+			</motion.div>
+
+			{/* Orbiting motes — slow elegant orbit, drift toward core on spike */}
+			{MOTE_SLOTS.map((slot, i) => {
+				const baseAngle = (i / MOTE_SLOTS.length) * 360
+				const baseRadius = 78 + (i % 3) * 22
+				const dur = 22 + (i % 4) * 6
+				return (
+					<motion.div
+						key={slot}
+						aria-hidden
+						className="absolute"
+						style={{
+							top: '50%',
+							left: '50%',
+							width: 0,
+							height: 0,
+						}}
+						animate={{ rotate: 360 }}
+						transition={{
+							duration: dur,
+							repeat: Infinity,
+							ease: 'linear',
+							delay: i * 0.35,
+						}}
+					>
+						<motion.span
+							className="absolute block rounded-full"
+							animate={{
+								opacity: [0.18, 0.35 + a * 0.3, 0.18],
+								scale: [1, 1 + a * 0.5, 1],
+							}}
+							transition={{
+								duration: 2.6 + (i % 3) * 0.4,
+								repeat: Infinity,
+								ease: 'easeInOut',
+							}}
+							style={{
+								width: 2 + (i % 3),
+								height: 2 + (i % 3),
+								top: -1,
+								left: baseRadius - a * 18,
+								transform: `rotate(${baseAngle}deg)`,
+								background: 'rgba(255,255,255,0.85)',
+								boxShadow: '0 0 6px rgba(255,255,255,0.6)',
+								filter: 'blur(0.4px)',
+							}}
+						/>
+					</motion.div>
+				)
+			})}
+
+			{/* Transcript */}
+			<div className="absolute inset-x-0 bottom-28 flex justify-center px-8">
+				<AnimatePresence mode="wait">
+					{transcript ? (
+						<motion.div
+							key="transcript"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0, y: -4, filter: 'blur(4px)' }}
+							transition={{ duration: 0.3 }}
+							dir={isAr ? 'rtl' : 'ltr'}
+							className={`voice-mono max-w-[560px] text-center text-[15px] leading-[1.85] text-[var(--p-text)] ${
+								isAr ? 'voice-serif-ar text-[17px]' : ''
+							}`}
+							style={{
+								maskImage:
+									'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
+								WebkitMaskImage:
+									'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
+								maxHeight: '140px',
+								overflow: 'hidden',
+								display: 'flex',
+								flexWrap: 'wrap',
+								justifyContent: 'center',
+								alignContent: 'flex-end',
+								textShadow: `0 0 ${8 + amplitude * 20}px rgba(255,255,255,${0.1 + amplitude * 0.2})`,
+							}}
+						>
+							{(() => {
+								const words = transcript.split(' ')
+								let offset = 0
+								return words.map((word, i, arr) => {
+									const fromEnd = arr.length - 1 - i
+									const isRecent = fromEnd < 3
+									const keyPos = offset
+									offset += word.length + 1
+									return (
+										<motion.span
+											key={`${keyPos}-${word}`}
+											initial={{
+												opacity: 0,
+												y: 10,
+												filter: 'blur(8px)',
+											}}
+											animate={{
+												opacity: isRecent ? 0.75 + amplitude * 0.3 : 0.55,
+												y: 0,
+												filter: 'blur(0px)',
+												textShadow: isRecent
+													? `0 0 ${12 + amplitude * 16}px rgba(255,255,255,${0.25 + amplitude * 0.3})`
+													: '0 0 0px transparent',
+											}}
+											transition={{
+												opacity: { duration: 0.5 },
+												y: { duration: 0.4, ease: SMOOTH_EASE },
+												filter: { duration: 0.5 },
+												textShadow: { duration: 0.6 },
+											}}
+											className="inline-block"
+											style={{ marginInlineEnd: '0.3em' }}
+										>
+											{word}
+										</motion.span>
+									)
+								})
+							})()}
+						</motion.div>
+					) : (
+						<motion.p
+							key="hint"
+							initial={{ opacity: 0, y: 4 }}
+							animate={{ opacity: 0.4, y: 0 }}
+							exit={{ opacity: 0 }}
+							transition={{ delay: 1, duration: 0.5 }}
+							className="office-meta text-center text-[11px] text-[var(--p-text-muted)]"
+						>
+							{hint}
+						</motion.p>
+					)}
+				</AnimatePresence>
+			</div>
+
+			{/* Send — quiet command when transcript is present */}
+			<AnimatePresence>
+				{transcript && (
+					<motion.button
+						type="button"
+						initial={{ opacity: 0, y: 4 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.25 }}
+						onClick={(e) => {
+							e.stopPropagation()
+							onSend()
+						}}
+						className="office-command absolute bottom-12"
+					>
+						{isAr ? 'إرسال' : 'Send'}
+					</motion.button>
+				)}
+			</AnimatePresence>
+		</motion.div>
 	)
 }

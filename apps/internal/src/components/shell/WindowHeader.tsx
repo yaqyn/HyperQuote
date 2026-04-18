@@ -9,6 +9,13 @@ interface WindowHeaderProps {
 	onClose: () => void
 }
 
+/**
+ * WindowHeader — the ruled rail above every module. Consistent across
+ * the internal app: Ask Lyon toggle on the leading edge (italic with a
+ * dot indicator), module identity in the middle (Archivo 500), module-
+ * specific actions next to it (italic-word links, no rounded chrome),
+ * and a precise close X on the trailing edge.
+ */
 export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 	const { t } = useTranslation('internal')
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
@@ -20,27 +27,32 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 	const Icon = mod.icon
 
 	return (
-		<div className="flex items-center justify-between h-12 px-5 shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]">
-			<div className="flex items-center gap-4">
+		<div
+			data-window-header="true"
+			className="flex items-center justify-between h-12 px-5 shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]"
+		>
+			<div className="flex items-center gap-5">
+				{/* Ask Lyon — italic with dot indicator, no rounded pill */}
 				<TooltipTrigger delay={3000}>
 					<Button
 						onPress={toggleAIChat}
 						aria-label="Ask Lyon AI"
-						className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors cursor-pointer ${
+						className={`group inline-flex items-center gap-2 font-[family-name:var(--font-archivo)] italic transition-colors cursor-pointer ${
 							isAIOpen
 								? 'text-[var(--color-primary)]'
-								: 'text-[var(--color-text-subtle)] hover:text-[var(--color-primary)]'
+								: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
 						}`}
+						style={{ fontSize: '12px' }}
 					>
 						<span
 							aria-hidden="true"
-							className={`h-1.5 w-1.5 rounded-full transition-colors ${
+							className={`h-[7px] w-[7px] rounded-full transition-colors ${
 								isAIOpen
 									? 'bg-[var(--color-primary)]'
-									: 'bg-[var(--color-text-subtle)] group-hover:bg-[var(--color-primary)]'
+									: 'bg-transparent ring-1 ring-inset ring-[var(--color-text-subtle)] group-hover:ring-[var(--color-text)]'
 							}`}
 						/>
-						Ask Lyon
+						ask lyon
 					</Button>
 					<Tooltip
 						offset={6}
@@ -50,60 +62,36 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 					</Tooltip>
 				</TooltipTrigger>
 
-				<div className="h-4 w-px bg-black/[0.08] dark:bg-white/[0.1]" />
+				<Rule />
 
-				<div className="flex items-center gap-2.5">
+				{/* Module identity — icon + Archivo label */}
+				<div className="flex items-center gap-2">
 					<Icon
-						size={16}
+						size={14}
 						strokeWidth={1.5}
 						className="text-[var(--color-text-muted)]"
 					/>
-					<span className="text-[13px] font-semibold text-[var(--color-text)]">
+					<span
+						className="font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+						style={{
+							fontSize: '13px',
+							fontWeight: 500,
+							letterSpacing: '-0.005em',
+						}}
+					>
 						{t(mod.labelKey)}
 					</span>
 				</div>
 
 				{moduleId === 'dispatch' && (
 					<>
-						<div className="h-4 w-px bg-black/[0.08] dark:bg-white/[0.1]" />
-						<a
+						<Rule />
+						<HeaderLink
 							href="tel:+20235551234"
-							className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
-						>
-							<svg
-								aria-hidden="true"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-							</svg>
-							Warehouse
-						</a>
-						<a
-							href="tel:991"
-							className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-red-500 transition-colors hover:text-red-600 hover:bg-red-50"
-						>
-							<svg
-								aria-hidden="true"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-							</svg>
-							Emergency
-						</a>
+							tone="muted"
+							label="warehouse"
+						/>
+						<HeaderLink href="tel:991" tone="signal" label="emergency" />
 					</>
 				)}
 			</div>
@@ -111,10 +99,56 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 			<Button
 				onPress={onClose}
 				aria-label="Close"
-				className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-150 cursor-pointer"
+				className="flex items-center justify-center w-7 h-7 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors duration-150 cursor-pointer"
 			>
 				<X size={16} strokeWidth={1.5} />
 			</Button>
 		</div>
+	)
+}
+
+function Rule() {
+	return (
+		<div
+			aria-hidden="true"
+			className="h-4 w-px bg-black/[0.08] dark:bg-white/[0.1]"
+		/>
+	)
+}
+
+function HeaderLink({
+	href,
+	label,
+	tone,
+}: {
+	href: string
+	label: string
+	tone: 'muted' | 'signal'
+}) {
+	const color =
+		tone === 'signal'
+			? 'text-[var(--color-signal-red)] hover:text-[var(--color-signal-red)]'
+			: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
+	return (
+		<a
+			href={href}
+			className={`inline-flex items-center gap-1.5 font-[family-name:var(--font-archivo)] italic transition-colors ${color}`}
+			style={{ fontSize: '12px' }}
+		>
+			<svg
+				aria-hidden="true"
+				width="11"
+				height="11"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			>
+				<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+			</svg>
+			{label}
+		</a>
 	)
 }

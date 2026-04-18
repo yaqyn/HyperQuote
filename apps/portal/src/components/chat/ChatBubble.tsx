@@ -1,8 +1,12 @@
 /**
- * ChatBubble — Dark theme message bubbles.
- * User: right-aligned, subtle card background.
- * AI: left-aligned, no background, just text.
- * Numbers in Geist Mono. Timestamps on hover.
+ * ChatBubble — a LedgerEntry in Lyon's order book.
+ *
+ * No bubbles, no rounded cards. Just a speaker tag in the left margin
+ * and body text on the page. Lyon speaks in serif italic (or Tajawal
+ * Light for AR); the customer in Geist Mono. Numbers always mono,
+ * and converted to Arabic-Indic when the locale is AR.
+ *
+ * Timestamps appear on hover, drawn tiny in the right margin.
  */
 
 import { motion } from 'motion/react'
@@ -28,6 +32,8 @@ function toArabicIndic(str: string): string {
 	return str.replace(/[0-9]/g, (d) => WESTERN_TO_ARABIC_INDIC[d] ?? d)
 }
 
+// Wraps runs of digits in voice-mono so numbers always read as ledger
+// entries regardless of the surrounding prose.
 function processNumbers(
 	text: string,
 	isArabic: boolean,
@@ -42,7 +48,7 @@ function processNumbers(
 		if (matchIndex > lastIndex) parts.push(text.slice(lastIndex, matchIndex))
 		const display = isArabic ? toArabicIndic(match[0]) : match[0]
 		parts.push(
-			<span key={matchIndex} className="font-mono">
+			<span key={matchIndex} className="voice-mono">
 				{display}
 			</span>,
 		)
@@ -56,9 +62,14 @@ function processNumbers(
 interface ChatBubbleProps {
 	message: ChatMessage
 	isStreaming?: boolean
+	customerTag?: string
 }
 
-export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
+export function ChatBubble({
+	message,
+	isStreaming,
+	customerTag,
+}: ChatBubbleProps) {
 	const { i18n } = useTranslation()
 	const isUser = message.role === 'user'
 	const isArabic = i18n.language === 'ar'
@@ -79,50 +90,75 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
 
 	if (!message.content.trim() && !isStreaming) return null
 
+	const speakerTag = isUser
+		? (customerTag ?? (isArabic ? 'أ.' : 'You'))
+		: isArabic
+			? 'ليون'
+			: 'Lyon'
+
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 6 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{
-				type: 'spring',
-				stiffness: 300,
-				damping: 28,
-			}}
+		<motion.li
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{ duration: 0.35, ease: 'easeOut' }}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
-			className={`group relative flex flex-col py-2 ${isUser ? 'items-end' : 'items-start'}`}
+			className="group relative list-none"
 		>
-			{isUser ? (
-				<div className="max-w-[75%] px-4 py-2.5 rounded-2xl bg-[var(--p-card)] border border-[var(--p-border)]">
-					<p className="text-sm leading-relaxed text-[var(--p-text)] whitespace-pre-wrap">
-						{processedContent}
-					</p>
-				</div>
-			) : (
-				<div className="max-w-[85%]">
-					<p className="text-sm leading-[1.7] text-[var(--p-text-secondary)] whitespace-pre-wrap">
-						{processedContent}
-						{isStreaming && (
-							<span className="inline-block w-[2px] h-[14px] bg-[var(--p-text-secondary)] align-middle ms-1 animate-pulse" />
-						)}
-					</p>
+			{/* Hairline above every entry (except the very first — the ledger
+			    already has a top rule) */}
+			<div
+				aria-hidden
+				className="office-rule mb-4 first:hidden"
+				style={{ opacity: 0.6 }}
+			/>
 
-					{/* Rich content */}
-					{message.richContent && message.richContent.length > 0 && (
-						<div className="mt-3">
-							<RichMessageList items={message.richContent} />
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Timestamp */}
-			<span
-				className="font-mono text-[13px] text-[var(--p-text-muted)] mt-1 px-1 transition-opacity duration-200"
-				style={{ opacity: hovered ? 0.7 : 0 }}
+			<article
+				className="grid grid-cols-[60px_1fr] items-baseline gap-x-6 pb-4"
+				aria-label={isUser ? 'You' : 'Lyon'}
 			>
-				{formattedTime}
-			</span>
-		</motion.div>
+				<span className="office-tag">{speakerTag}</span>
+
+				<div className="max-w-[640px]">
+					{isUser ? (
+						<p
+							className="voice-mono whitespace-pre-wrap text-[13.5px] leading-[1.65] text-[var(--p-text)]"
+							style={{ letterSpacing: '0.01em' }}
+						>
+							{processedContent}
+						</p>
+					) : (
+						<>
+							<p
+								className={`whitespace-pre-wrap text-[var(--p-text)] ${
+									isArabic
+										? 'voice-serif-ar text-[16px] leading-[1.75]'
+										: 'voice-serif text-[18px] leading-[1.55]'
+								}`}
+							>
+								{processedContent}
+								{isStreaming && (
+									<span className="office-pen-nib ms-1" aria-hidden />
+								)}
+							</p>
+
+							{message.richContent && message.richContent.length > 0 && (
+								<div className="mt-3">
+									<RichMessageList items={message.richContent} />
+								</div>
+							)}
+						</>
+					)}
+
+					{/* Timestamp — appears on hover, small mono */}
+					<span
+						className="voice-mono mt-2 block text-[10px] tabular-nums text-[var(--p-text-faint)] transition-opacity duration-200"
+						style={{ opacity: hovered ? 0.85 : 0, letterSpacing: '0.14em' }}
+					>
+						{formattedTime}
+					</span>
+				</div>
+			</article>
+		</motion.li>
 	)
 }

@@ -39,7 +39,7 @@ export function WarehouseReceivingQueue() {
 				initial={reduce ? false : { opacity: 0, y: -8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-				className="shrink-0 border-b-[3px] border-[#0A0A0A] px-8 pt-8 pb-5"
+				className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-8 pb-5"
 			>
 				<div className="flex items-start justify-between gap-8">
 					<div>
@@ -105,7 +105,7 @@ function StatBlock({
 		<div className="flex flex-col items-end">
 			<span
 				className={`font-[family-name:var(--font-geist-mono)] text-[44px] font-bold leading-none tabular-nums ${
-					accent ? 'text-[#CC3300]' : 'text-[#0A0A0A]'
+					accent ? 'text-[#CC3300]' : 'text-[var(--color-text)]'
 				}`}
 			>
 				{String(value).padStart(2, '0')}
@@ -153,7 +153,7 @@ function DealCard({
 			? Math.round((deal.receivedCount / deal.itemCount) * 100)
 			: 0
 	const isRetry = deal.previousAttemptCount > 0
-	const stageColor = isRetry ? '#CC3300' : '#0A0A0A'
+	const stageColor = isRetry ? '#CC3300' : 'var(--color-text)'
 	const stageLabel = isRetry
 		? `Retry · attempt ${deal.previousAttemptCount + 1}`
 		: 'Fresh arrival'
@@ -173,10 +173,10 @@ function DealCard({
 			whileHover={reduce ? undefined : { y: -2 }}
 			whileTap={reduce ? undefined : { scale: 0.995 }}
 			transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-			className={`group relative w-full border-[3px] bg-white text-start ${
+			className={`group relative w-full border-[3px] bg-[var(--color-surface)] text-start ${
 				isSelected
-					? 'border-[#0A0A0A] shadow-[8px_8px_0_0_#0A0A0A]'
-					: 'border-[#0A0A0A]/20 hover:border-[#0A0A0A]/60 hover:shadow-[4px_4px_0_0_#0A0A0A]'
+					? 'border-[var(--color-text)] shadow-[8px_8px_0_0_var(--color-text)]'
+					: 'border-[var(--color-text)]/20 hover:border-[var(--color-text)]/60 hover:shadow-[4px_4px_0_0_var(--color-text)]'
 			}`}
 			style={{ minHeight: '128px' }}
 		>
@@ -185,7 +185,7 @@ function DealCard({
 					className="inline-flex h-9 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em]"
 					style={{
 						backgroundColor: stageColor,
-						color: isRetry ? '#F4F4EC' : '#F4F4EC',
+						color: '#FFFFFF',
 					}}
 				>
 					{stageLabel}
@@ -198,7 +198,7 @@ function DealCard({
 			<div className="px-6 pb-5 pt-3">
 				<div className="grid grid-cols-[1fr,auto] gap-x-8 gap-y-3 items-end">
 					<div className="min-w-0">
-						<p className="truncate text-[22px] font-bold leading-tight text-[#0A0A0A]">
+						<p className="truncate text-[22px] font-bold leading-tight text-[var(--color-text)]">
 							{deal.supplierName}
 						</p>
 						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/55">

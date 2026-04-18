@@ -122,27 +122,18 @@
 	},
 	"login": {
 		"subtitle": "Supplier Portal",
-		"step1": {
-			"heading": "Sign in to your account"
-		},
 		"phoneLabel": "Phone",
 		"phoneRequired": "Phone number is required",
 		"phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
-		"whatsappCTA": "Continue with WhatsApp",
-		"smsFallback": "Send code via SMS instead",
+		"whatsappCTA": "Verify via WhatsApp",
+		"smsFallback": "Send via SMS instead",
 		"rateLimit": "Too many attempts. Please wait and try again.",
 		"sendFailed": "Failed to send code. Please try again.",
-		"step2": {
-			"heading": "Enter verification code"
-		},
-		"codeSent": "Code sent to",
-		"wrongCode": "Wrong code. Please try again.",
+		"codeSent": "Sent to",
+		"wrongCode": "Incorrect code",
 		"resendIn": "Resend in",
 		"resend": "Resend code",
-		"changePhone": "Change phone number",
-		"step3": {
-			"heading": "Create your account"
-		},
+		"changePhone": "Change number",
 		"companyName": "Company Name",
 		"fullName": "Full Name",
 		"createButton": "Create Account",
@@ -151,12 +142,32 @@
 		"termsLink": "Terms of Use",
 		"and": "and",
 		"privacyLink": "Privacy Policy",
-		"claiming": {
-			"heading": "We found your account",
-			"confirm": "Yes, that's me",
-			"deny": "No, create a new account"
-		},
-		"claimFailed": "Failed to claim account. Please try again."
+		"claimFailed": "Could not claim account. Try again.",
+		"atelier": {
+			"caption": "Lyon · Broker of Record · Est. 2026",
+			"pageNo": "No. 0001",
+			"signature": "Prepared by L.",
+			"legalPrefix": "On this page, you agree to HyperQuote's",
+			"step1": {
+				"heading": "Who shall I prepare this for?"
+			},
+			"step2": {
+				"heading": "Enter the six figures I sent."
+			},
+			"step3": {
+				"heading": "Record your details."
+			},
+			"claiming": {
+				"heading": "A page already exists.",
+				"sub": "Bearing this mark",
+				"confirm": "Yes, claim this page",
+				"deny": "No, open a new page"
+			},
+			"farewell": {
+				"heading": "Pleasure doing business.",
+				"signature": "— L."
+			}
+		}
 	},
 	"tracking": {
 		"aiSuggestion": "You ordered {{product}} {{days}} days ago. Time to reorder?",
@@ -384,6 +395,19 @@
 		"emptyBody": "Your documents will appear here"
 	},
 	"orders": {
+		"dayBook": "The Day Book",
+		"folio": "Folio",
+		"pencilled": "Pencilled",
+		"inFlight": "In flight",
+		"sealed": "Sealed",
+		"dispatch": "Dispatch",
+		"amend": "Amend",
+		"strike": "Strike",
+		"strikeConfirm": "Strike for good?",
+		"keep": "Keep",
+		"openEntry": "Open",
+		"openBookEmpty": "The day book is open.",
+		"openBookEmptyBody": "The first page awaits.",
 		"newQuote": "New Quote",
 		"saved": "Saved",
 		"submitted": "Submitted",
@@ -871,6 +895,14 @@
 	},
 	"market": {
 		"windowTitle": "Market",
+		"locate": "Locate",
+		"locateHint": "name, category, specification",
+		"allEntries": "All entries",
+		"openLedger": "Open the ledger",
+		"record": "Record",
+		"amend": "Amend",
+		"strike": "Strike",
+		"loadingMore": "Turning the page",
 		"addToQuote": "Add to Quote",
 		"addedToast": "{{product}} added to your quote.",
 		"searchPlaceholder": "Search products...",

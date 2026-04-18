@@ -732,7 +732,7 @@ function LegalFooter() {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ duration: 0.15 }}
-							className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
+							className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] pointer-events-auto"
 							onClick={() => setOpen(false)}
 							onWheel={(e) => e.stopPropagation()}
 						/>
@@ -741,7 +741,7 @@ function LegalFooter() {
 							animate={{ opacity: 1, y: 0, scale: 1 }}
 							exit={{ opacity: 0, y: 12, scale: 0.98 }}
 							transition={{ duration: 0.2, ease: EASE }}
-							className="fixed inset-x-0 top-[12vh] bottom-[12vh] z-50 mx-auto flex w-[min(88vw,480px)] flex-col overflow-hidden rounded-2xl bg-[var(--color-base)] shadow-2xl"
+							className="fixed inset-x-0 top-[12vh] bottom-[12vh] z-50 mx-auto flex w-[min(88vw,480px)] flex-col overflow-hidden rounded-2xl bg-[var(--color-base)] shadow-2xl pointer-events-auto"
 						>
 							{/* Header with tab switcher */}
 							<div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] px-5">

@@ -4,12 +4,15 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin "tailwindcss-react-aria-components";
 
-/* Single cursor everywhere — minimalistic arrow (dark variant) */
+/* Single cursor everywhere — minimalistic arrow (dark variant).
+   Hotspot calibrated to the actual tip pixel (9, 6) — the arrow tip
+   sits inset from the top-left of the 32×32 image, so 0,0 drops the
+   click point up-and-to-the-left of where the pointer appears. */
 *,
 *::before,
 *::after {
 	cursor:
-		url("/cursors/normal.png") 0 0,
+		url("/cursors/normal.png") 9 6,
 		default !important;
 }
 /* I-beam only in text fields */
@@ -35,13 +38,15 @@ textarea,
 
 ::selection,
 *::selection {
-	background: rgba(255, 255, 255, 0.2) !important;
-	color: #fff !important;
+	background: rgba(255, 255, 255, 0.18) !important;
+	color: var(--p-text, #f2f2f2) !important;
 }
 
 /* ================================================================
-   Portal Dark Theme — Monochrome, chat-first
-   The portal is always dark. No light mode.
+   Portal — Lyon's Office
+   Paper-and-ink. Chat-first. The portal runs in a single paper-light
+   theme for daily use. The login (/login, .atelier-scene) is the only
+   dark surface in this app — its palette is scoped to that route.
    ================================================================ */
 
 @theme {
@@ -66,33 +71,72 @@ textarea,
 }
 
 :root {
+	/* ==========================================================
+	   Portal — single dark theme. Strict grayscale.
+	   Light mode removed; the only second palette is the /login
+	   atelier-scene which is scoped via .atelier-scene below.
+	   ========================================================== */
+
+	/* Surfaces — every R=G=B */
 	--p-bg: #060606;
-	--p-sidebar: #060606;
-	--p-surface: #060606;
-	--p-card: #141414;
-	--p-elevated: #1a1a1a;
-	--p-input: #0e0e0e;
-	--p-border: rgba(255, 255, 255, 0.08);
+	--p-sidebar: #000000;
+	--p-surface: #0a0a0a;
+	--p-card: #0f0f0f;
+	--p-elevated: #171717;
+	--p-input: #0c0c0c;
+
+	/* Lines + rules */
+	--p-border: rgba(255, 255, 255, 0.06);
 	--p-border-strong: rgba(255, 255, 255, 0.14);
-	--p-text: #cccccc;
-	--p-text-secondary: #9a9a9a;
-	--p-text-muted: #5a5a5a;
-	--p-accent: #3b82f6;
-	--p-accent-dim: rgba(59, 130, 246, 0.12);
+	--p-rule: rgba(255, 255, 255, 0.08);
+	--p-rule-strong: rgba(255, 255, 255, 0.18);
+
+	/* Text */
+	--p-text: #f2f2f2;
+	--p-text-secondary: #a6a6a6;
+	--p-text-muted: #6b6b6b;
+	--p-text-faint: #3d3d3d;
+
+	/* Accent — white-ink */
+	--p-accent: #f2f2f2;
+	--p-accent-dim: rgba(255, 255, 255, 0.06);
 	--p-glow: rgba(255, 255, 255, 0.02);
 	--p-hover: rgba(255, 255, 255, 0.04);
-	--p-active: rgba(255, 255, 255, 0.06);
+	--p-active: rgba(255, 255, 255, 0.08);
 
-	/* Semantic */
-	--p-success: #4ade80;
-	--p-warning: #facc15;
-	--p-error: #f87171;
+	/* Atmosphere — kept for /login atelier scene cross-references */
+	--p-lamp-warm: 255, 255, 255;
+	--p-seal: #f2f2f2;
+	--p-seal-deep: #6a6a6a;
+
+	/* Signal through luminance — no hue */
+	--p-success: #9f9f9f;
+	--p-warning: #cfcfcf;
+	--p-error: #ffffff;
 
 	/* Type scale */
 	--p-text-xs: 0.6875rem;
 	--p-text-sm: 0.75rem;
 	--p-text-base: 0.875rem;
 	--p-text-lg: 1rem;
+
+	/* Grayscale paper textures — kept for chat surface only */
+	--p-paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3' stitchTiles='stitch' seed='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+	--p-paper-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.018 0.8' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.08 0'/><feComposite in='SourceGraphic' operator='in'/></filter><rect width='100%' height='100%' filter='url(%23f)' fill='transparent'/></svg>");
+	--p-paper-vignette: radial-gradient(
+		ellipse 120% 90% at 50% 50%,
+		transparent 0%,
+		transparent 55%,
+		rgba(0, 0, 0, 0.25) 78%,
+		rgba(0, 0, 0, 0.5) 100%
+	);
+}
+
+/* Office-paper utility: chat-surface only. Always uses screen blending. */
+.office-paper::before,
+.office-paper::after {
+	mix-blend-mode: screen;
+	opacity: 0.3;
 }
 
 /* View Transition — language crossfade (text only, not background) */
@@ -114,6 +158,20 @@ textarea,
 }
 ::view-transition-new(lang-content) {
 	animation-name: fade-in;
+	mix-blend-mode: normal;
+}
+
+/* Panel transition — old fades out (300ms), new fades in (300ms).
+   Browser snapshots the old DOM before navigation begins, so the new
+   panel never flashes before the animation starts. */
+::view-transition-image-pair(panel-content) {
+	isolation: auto;
+}
+::view-transition-old(panel-content) {
+	animation: fade-out 300ms ease-in-out both;
+}
+::view-transition-new(panel-content) {
+	animation: fade-in 300ms ease-in-out both;
 	mix-blend-mode: normal;
 }
 @keyframes fade-out {
@@ -141,15 +199,15 @@ textarea,
 	scrollbar-width: none;
 }
 
-/* Selection */
+/* Selection — warm ink stain on paper */
 ::selection {
-	background: rgba(59, 130, 246, 0.3);
-	color: #fafafa;
+	background: rgba(110, 31, 26, 0.14);
+	color: var(--p-text);
 }
 
 /* Focus ring — only on interactive elements, never on inputs */
 :focus-visible {
-	outline: 1px solid rgba(255, 255, 255, 0.15);
+	outline: 1px solid rgba(255, 255, 255, 0.32);
 	outline-offset: 2px;
 }
 input:focus-visible,
@@ -164,13 +222,13 @@ input::placeholder {
 	color: var(--p-text-muted);
 }
 
-/* Subtle blue border pulse for validation feedback */
+/* Ink pulse for validation feedback */
 @keyframes border-hint {
 	0% {
 		border-color: rgba(255, 255, 255, 0.08);
 	}
 	25% {
-		border-color: rgba(37, 99, 235, 0.6);
+		border-color: rgba(255, 255, 255, 0.85);
 	}
 	100% {
 		border-color: rgba(255, 255, 255, 0.08);
@@ -216,84 +274,1149 @@ input::placeholder {
 	animation: radial-reveal 6s ease-out 0.4s both;
 }
 
-/* Glass exit — fades from bottom to top (bottom disappears first) */
-@property --exit-radius {
-	syntax: "<length>";
-	initial-value: 120vh;
-	inherits: false;
+/* ================================================================
+   THE ATELIER — /login scene
+   Scoped to .atelier-scene. Overrides portal dark tokens for the
+   login route only. The room is a broker's office at night; the
+   login form is a page in the order book on a desk.
+   ================================================================ */
+
+.atelier-scene {
+	/* Strict grayscale — every R=G=B. No warmth. */
+	--atelier-room: #060606;
+	--atelier-paper-top: #0f0f0f;
+	--atelier-paper-bottom: #171717;
+	--atelier-paper-edge: #050505;
+	--atelier-ink: #f2f2f2;
+	--atelier-ink-muted: #a6a6a6;
+	--atelier-ink-faint: #6b6b6b;
+	--atelier-rule: #3d3d3d;
+	--atelier-rule-strong: #585858;
+	--atelier-lamp-warm: 255, 255, 255;
+	--atelier-seal: #bbbbbb;
+	--atelier-seal-deep: #6a6a6a;
+	--atelier-ink-error: #ffffff;
+	background: var(--atelier-room);
+	color: var(--atelier-ink);
 }
 
-@keyframes radial-exit {
-	from {
-		--exit-radius: 120vh;
-	}
-	to {
-		--exit-radius: 0px;
-	}
+.atelier-serif {
+	font-family: "Instrument Serif", "Times New Roman", "Georgia", serif;
+	font-feature-settings:
+		"kern" 1,
+		"liga" 1,
+		"dlig" 1;
+	font-weight: 400;
 }
 
-.fade-exit-up {
-	mask-image: radial-gradient(
-		ellipse 115% var(--exit-radius) at 50% 0%,
-		white 15%,
-		transparent 70%
-	);
-	-webkit-mask-image: radial-gradient(
-		ellipse 115% var(--exit-radius) at 50% 0%,
-		white 15%,
-		transparent 70%
-	);
-	animation: radial-exit 1s ease-in both !important;
+.atelier-mono {
+	font-family: "Geist Mono", ui-monospace, monospace;
 }
 
-/* Animated border glow — orbits top half only */
-@property --border-angle {
-	syntax: "<angle>";
-	initial-value: 0deg;
-	inherits: false;
-}
-
-@keyframes border-orbit {
-	from {
-		--border-angle: 0deg;
-	}
-	to {
-		--border-angle: 360deg;
-	}
-}
-
-.glass-border-glow {
-	position: relative;
-}
-
-.glass-border-glow::before {
-	content: "";
+/* Ambient room vignette — keeps the edges dark, centers focus */
+.atelier-vignette {
 	position: absolute;
-	inset: -1px;
-	border-radius: inherit;
-	padding: 1.5px;
-	background: conic-gradient(
-		from var(--border-angle) at 50% 50%,
+	inset: 0;
+	pointer-events: none;
+	background: radial-gradient(
+		ellipse 80% 80% at 50% 50%,
 		transparent 0%,
-		transparent 35%,
-		rgba(255, 255, 255, 0.1) 42%,
-		rgba(255, 255, 255, 0.5) 48%,
-		rgba(255, 255, 255, 0.8) 50%,
-		rgba(255, 255, 255, 0.5) 52%,
-		rgba(255, 255, 255, 0.1) 58%,
-		transparent 65%,
+		transparent 50%,
+		rgba(0, 0, 0, 0.35) 85%,
+		rgba(0, 0, 0, 0.55) 100%
+	);
+	z-index: 0;
+}
+
+/* Pendant — thin horizontal slit at the top of the viewport */
+.atelier-pendant {
+	position: absolute;
+	left: 50%;
+	top: 0;
+	transform: translateX(-50%);
+	width: 280px;
+	height: 2px;
+	background: linear-gradient(
+		to right,
+		transparent 0%,
+		rgba(var(--atelier-lamp-warm), 0.18) 10%,
+		rgba(var(--atelier-lamp-warm), 0.95) 50%,
+		rgba(var(--atelier-lamp-warm), 0.18) 90%,
 		transparent 100%
 	);
-	mask:
-		linear-gradient(to bottom, white 15%, transparent 45%) intersect,
-		linear-gradient(#fff 0 0) content-box exclude,
-		linear-gradient(#fff 0 0);
-	-webkit-mask:
-		linear-gradient(to bottom, white 15%, transparent 45%),
-		linear-gradient(#fff 0 0) content-box,
-		linear-gradient(#fff 0 0);
-	-webkit-mask-composite: source-in, xor;
-	animation: border-orbit 50s linear infinite;
+	box-shadow:
+		0 0 40px 8px rgba(var(--atelier-lamp-warm), 0.22),
+		0 0 120px 18px rgba(var(--atelier-lamp-warm), 0.08);
 	pointer-events: none;
-	z-index: 60;
+	z-index: 2;
+	animation: atelier-pendant-warm-up 1600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Tungsten cone — warm wash from the pendant down into the room */
+.atelier-cone {
+	position: absolute;
+	left: 50%;
+	top: 0;
+	transform: translateX(-50%);
+	width: min(1000px, 95vw);
+	height: 80vh;
+	background: radial-gradient(
+		ellipse 55% 90% at 50% 0%,
+		rgba(var(--atelier-lamp-warm), 0.14) 0%,
+		rgba(var(--atelier-lamp-warm), 0.09) 22%,
+		rgba(var(--atelier-lamp-warm), 0.05) 42%,
+		rgba(var(--atelier-lamp-warm), 0.02) 62%,
+		transparent 85%
+	);
+	pointer-events: none;
+	z-index: 1;
+	transform-origin: top center;
+	animation: atelier-cone-warm-up 2200ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms
+		both;
+}
+
+/* Vignette — slow ambient settle on the room edges */
+.atelier-vignette {
+	animation: atelier-vignette-settle 1800ms ease-out 200ms both;
+}
+
+/* Cone warms up — fades up while expanding from the pendant downward */
+@keyframes atelier-cone-warm-up {
+	0% {
+		opacity: 0;
+		transform: translateX(-50%) scaleY(0.55);
+		filter: blur(6px);
+	}
+	35% {
+		opacity: 0.4;
+		filter: blur(2px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(-50%) scaleY(1);
+		filter: blur(0);
+	}
+}
+
+/* Pendant warms up — quick fade with a brief pre-flicker */
+@keyframes atelier-pendant-warm-up {
+	0% {
+		opacity: 0;
+	}
+	18% {
+		opacity: 0.85;
+	}
+	24% {
+		opacity: 0.35;
+	}
+	30% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+/* Vignette settles in — soft edge darkening that resolves slowly */
+@keyframes atelier-vignette-settle {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+/* Reduced motion — flatten lamp warm-up */
+@media (prefers-reduced-motion: reduce) {
+	.atelier-pendant,
+	.atelier-cone,
+	.atelier-vignette {
+		animation: none !important;
+	}
+}
+
+/* Lamp click — snap on + one short flicker, then hold */
+@keyframes atelier-lamp-click {
+	0% {
+		opacity: 0;
+	}
+	2% {
+		opacity: 0.85;
+	}
+	5% {
+		opacity: 0.15;
+	}
+	7% {
+		opacity: 1;
+	}
+	22% {
+		opacity: 1;
+	}
+	24% {
+		opacity: 0.92;
+	}
+	26% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+.atelier-lamp-on {
+	animation: atelier-lamp-click 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Page — the open order book spread */
+.atelier-page {
+	position: relative;
+	z-index: 3;
+	width: min(460px, calc(100vw - 48px));
+	padding: 34px 38px 24px;
+	background: linear-gradient(
+		180deg,
+		var(--atelier-paper-top) 0%,
+		var(--atelier-paper-bottom) 100%
+	);
+	border-radius: 2px;
+	box-shadow:
+		0 0 0 1px rgba(255, 255, 255, 0.02),
+		0 30px 80px -20px rgba(0, 0, 0, 0.7),
+		0 8px 30px -10px rgba(0, 0, 0, 0.55),
+		inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* Paper grain — restrained noise texture */
+.atelier-page::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: inherit;
+	opacity: 0.28;
+	mix-blend-mode: overlay;
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Page — fade + gentle rise on appear */
+@keyframes atelier-page-appear {
+	0% {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.atelier-page-enter {
+	animation: atelier-page-appear 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Step transitions — current slides out/left, next composes in/right */
+@keyframes atelier-step-out {
+	0% {
+		opacity: 1;
+		transform: translateX(0);
+		filter: blur(0);
+	}
+	100% {
+		opacity: 0;
+		transform: translateX(-20px);
+		filter: blur(1.5px);
+	}
+}
+@keyframes atelier-step-in {
+	0% {
+		opacity: 0;
+		transform: translateX(18px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+.atelier-step-out {
+	animation: atelier-step-out 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.atelier-step-in {
+	animation: atelier-step-in 260ms 60ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Ruled line — ledger underline for inputs */
+.atelier-rule-line {
+	position: relative;
+	border-bottom: 1px solid var(--atelier-rule);
+	transition: border-color 220ms ease-out;
+}
+.atelier-rule-line:focus-within {
+	border-bottom-color: var(--atelier-ink);
+}
+
+/* Rule draw — stagger this across the page on load */
+@keyframes atelier-rule-draw {
+	0% {
+		transform: scaleX(0);
+		opacity: 0;
+	}
+	100% {
+		transform: scaleX(1);
+		opacity: 1;
+	}
+}
+.atelier-rule-draw {
+	transform-origin: left center;
+	animation: atelier-rule-draw 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Ink pulse — brief brightness on submit */
+@keyframes atelier-ink-pulse {
+	0% {
+		border-bottom-color: var(--atelier-rule);
+	}
+	35% {
+		border-bottom-color: var(--atelier-ink);
+	}
+	100% {
+		border-bottom-color: var(--atelier-rule);
+	}
+}
+.atelier-ink-pulse {
+	animation: atelier-ink-pulse 700ms ease-out;
+}
+
+/* Border hint — invalid input nudge */
+@keyframes atelier-border-hint {
+	0% {
+		border-bottom-color: var(--atelier-rule);
+	}
+	30% {
+		border-bottom-color: var(--atelier-ink-error);
+	}
+	100% {
+		border-bottom-color: var(--atelier-rule);
+	}
+}
+.atelier-border-hint {
+	animation: atelier-border-hint 900ms ease-out;
+}
+
+/* OTP rule cells — six short underlines */
+.atelier-otp-cell {
+	position: relative;
+	width: 44px;
+	height: 52px;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--atelier-rule);
+	transition: border-color 180ms ease-out;
+}
+.atelier-otp-cell[data-focused="true"] {
+	border-bottom-color: var(--atelier-ink);
+}
+
+/* Ink bleed — digit fades in with a soft blur resolution */
+@keyframes atelier-ink-bleed {
+	0% {
+		opacity: 0;
+		filter: blur(3px);
+	}
+	30% {
+		opacity: 0.6;
+		filter: blur(1.2px);
+	}
+	100% {
+		opacity: 1;
+		filter: blur(0);
+	}
+}
+.atelier-ink-bleed {
+	animation: atelier-ink-bleed 140ms ease-out both;
+}
+
+/* Strike — wrong OTP */
+@keyframes atelier-otp-fade {
+	0% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0.18;
+	}
+}
+.atelier-otp-strike {
+	animation: atelier-otp-fade 400ms ease-out both;
+	position: relative;
+}
+.atelier-otp-strike::after {
+	content: "";
+	position: absolute;
+	left: 10%;
+	right: 10%;
+	top: 55%;
+	height: 1px;
+	background: var(--atelier-ink-error);
+	transform: scaleX(0);
+	transform-origin: left center;
+	animation: atelier-strike-line 280ms ease-out 60ms both;
+}
+@keyframes atelier-strike-line {
+	0% {
+		transform: scaleX(0);
+	}
+	100% {
+		transform: scaleX(1);
+	}
+}
+
+/* Dust motes — slow drift in the lamp cone */
+@keyframes atelier-mote-drift {
+	0% {
+		transform: translate(0, 0);
+		opacity: 0;
+	}
+	15% {
+		opacity: 0.5;
+	}
+	85% {
+		opacity: 0.45;
+	}
+	100% {
+		transform: translate(var(--mx, 8px), var(--my, 140px));
+		opacity: 0;
+	}
+}
+.atelier-mote {
+	position: absolute;
+	width: 2px;
+	height: 2px;
+	border-radius: 50%;
+	background: rgba(var(--atelier-lamp-warm), 0.7);
+	box-shadow: 0 0 4px rgba(var(--atelier-lamp-warm), 0.35);
+	animation: atelier-mote-drift var(--mdur, 18s) linear infinite;
+	animation-delay: var(--mdelay, 0s);
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* Printed command — the primary CTA rendered as em-dash rules + label */
+.atelier-command {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	width: 100%;
+	padding: 14px 0 12px;
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--atelier-ink);
+	background: transparent;
+	border: 0;
+	outline: none;
+	transition:
+		color 180ms ease-out,
+		opacity 180ms ease-out;
+}
+.atelier-command::before,
+.atelier-command::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--atelier-rule);
+	transition:
+		background 180ms ease-out,
+		transform 180ms ease-out;
+}
+.atelier-command:hover::before,
+.atelier-command:hover::after,
+.atelier-command:focus-visible::before,
+.atelier-command:focus-visible::after,
+.atelier-command[data-pressed="true"]::before,
+.atelier-command[data-pressed="true"]::after {
+	background: var(--atelier-ink);
+}
+.atelier-command[data-pressed="true"]::before,
+.atelier-command[data-pressed="true"]::after {
+	transform: scaleY(1.8);
+}
+.atelier-command[disabled] {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Quiet secondary — unadorned mono line */
+.atelier-quiet {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--atelier-ink-muted);
+	background: transparent;
+	border: 0;
+	padding: 10px 0;
+	transition: color 180ms ease-out;
+}
+.atelier-quiet:hover,
+.atelier-quiet:focus-visible {
+	color: var(--atelier-ink);
+}
+.atelier-quiet[disabled] {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Focus ring — ruled, not outlined */
+.atelier-scene :focus-visible {
+	outline: none;
+}
+.atelier-scene input:focus-visible {
+	outline: none;
+}
+
+/* Selection — warm */
+.atelier-scene ::selection {
+	background: rgba(var(--atelier-lamp-warm), 0.22);
+	color: var(--atelier-ink);
+}
+
+/* Legal footer link */
+.atelier-link {
+	color: var(--atelier-ink-muted);
+	text-decoration: underline;
+	text-decoration-color: var(--atelier-rule-strong);
+	text-underline-offset: 3px;
+	transition: color 180ms ease-out;
+}
+.atelier-link:hover {
+	color: var(--atelier-ink);
+	text-decoration-color: var(--atelier-ink);
+}
+
+/* Dots — quiet loading indicator */
+@keyframes atelier-dot {
+	0%,
+	100% {
+		opacity: 0.25;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+.atelier-dot {
+	animation: atelier-dot 1.2s ease-in-out infinite;
+}
+
+/* Reduced motion — flatten lamp, page, motes, ink bleed */
+@media (prefers-reduced-motion: reduce) {
+	.atelier-lamp-on,
+	.atelier-page-enter,
+	.atelier-step-out,
+	.atelier-step-in,
+	.atelier-rule-draw,
+	.atelier-ink-bleed,
+	.atelier-ink-pulse,
+	.atelier-border-hint,
+	.atelier-otp-strike,
+	.atelier-otp-strike::after,
+	.atelier-mote {
+		animation: none !important;
+	}
+	.atelier-mote {
+		display: none;
+	}
+}
+
+/* ================================================================
+   LYON'S OFFICE — Portal chrome + chat surface utilities
+   These classes are usable anywhere in the portal, but are designed
+   to work together to produce the "ledger on a desk" feel.
+   ================================================================ */
+
+/* Body serif — for Lyon's voice in prose. Readable at 16-20px. */
+.voice-serif {
+	font-family: "Fraunces", "Iowan Old Style", "Georgia", serif;
+	font-feature-settings:
+		"kern" 1,
+		"liga" 1,
+		"onum" 1;
+	font-optical-sizing: auto;
+	font-variation-settings: "opsz" 16;
+	font-weight: 400;
+	letter-spacing: 0;
+}
+
+/* Display serif — for page titles, ceremonial moments. Institutional. */
+.voice-display {
+	font-family: "IBM Plex Serif", "Iowan Old Style", "Georgia", serif;
+	font-feature-settings:
+		"kern" 1,
+		"liga" 1;
+	font-weight: 400;
+}
+
+.voice-serif-ar {
+	font-family: "Tajawal", system-ui, sans-serif;
+	font-weight: 300;
+}
+
+.voice-mono {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-feature-settings: "tnum" 1;
+}
+
+/* The page — main reading column in the chat + other rooms. */
+.office-paper {
+	position: relative;
+	background:
+		var(--p-paper-vignette),
+		linear-gradient(180deg, var(--p-card) 0%, var(--p-elevated) 100%);
+	background-blend-mode: multiply, normal;
+}
+.office-paper::before {
+	/* Long soft fibers — subtle horizontal grain */
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.55;
+	mix-blend-mode: multiply;
+	background-image: var(--p-paper-fibers);
+	background-size: 480px 480px;
+}
+.office-paper::after {
+	/* Fine tooth grain on top of fibers */
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.5;
+	mix-blend-mode: multiply;
+	background-image: var(--p-paper-grain);
+	background-size: 240px 240px;
+}
+
+/* The office wall — darker than the paper, used for sidebars. */
+.office-wall {
+	background: var(--p-sidebar);
+}
+
+/* Ruled hairline — used between ledger entries and in page headers */
+.office-rule {
+	height: 1px;
+	background: var(--p-rule);
+}
+.office-rule-strong {
+	height: 1px;
+	background: var(--p-rule-strong);
+}
+
+/* Speaker tag — small-caps margin label */
+.office-tag {
+	font-family: "Instrument Serif", "Times New Roman", "Georgia", serif;
+	font-size: 10px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--p-text-faint);
+	line-height: 1.2;
+}
+
+/* Small caps meta (dates, page numbers, labels) */
+.office-meta {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	letter-spacing: 0.28em;
+	text-transform: uppercase;
+	color: var(--p-text-faint);
+}
+
+/* Ink-bleed — soft appearance animation for streaming tokens */
+@keyframes office-ink-bleed {
+	0% {
+		opacity: 0;
+		filter: blur(1px);
+	}
+	100% {
+		opacity: 1;
+		filter: blur(0);
+	}
+}
+.office-ink-bleed {
+	animation: office-ink-bleed 140ms ease-out both;
+}
+
+/* Pen-nib cursor — blinks while Lyon is about to write */
+@keyframes office-pen-nib {
+	0%,
+	60% {
+		opacity: 1;
+	}
+	61%,
+	100% {
+		opacity: 0;
+	}
+}
+.office-pen-nib {
+	display: inline-block;
+	width: 2px;
+	height: 0.9em;
+	vertical-align: -0.15em;
+	background: var(--p-text);
+	animation: office-pen-nib 1s ease-in-out infinite;
+}
+
+/* Ink pulse — used on submit / finalization */
+@keyframes office-ink-pulse {
+	0% {
+		background: var(--p-rule);
+	}
+	40% {
+		background: var(--p-text);
+	}
+	100% {
+		background: var(--p-rule);
+	}
+}
+.office-ink-pulse {
+	animation: office-ink-pulse 700ms ease-out;
+}
+
+/* Command line — em-dash framed typed command (like atelier-command but
+   tuned for reuse across the portal, not just /login) */
+.office-command {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 8px 0;
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--p-text);
+	background: transparent;
+	border: 0;
+	outline: none;
+	transition:
+		color 180ms ease-out,
+		opacity 180ms ease-out;
+}
+.office-command::before,
+.office-command::after {
+	content: "";
+	width: 22px;
+	height: 1px;
+	background: var(--p-rule-strong);
+	transition:
+		background 180ms ease-out,
+		transform 180ms ease-out;
+}
+.office-command:hover::before,
+.office-command:hover::after,
+.office-command:focus-visible::before,
+.office-command:focus-visible::after,
+.office-command[data-pressed="true"]::before,
+.office-command[data-pressed="true"]::after {
+	background: var(--p-text);
+}
+.office-command[data-pressed="true"]::before,
+.office-command[data-pressed="true"]::after {
+	transform: scaleY(1.8);
+}
+.office-command[disabled] {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Quiet command — no em-dashes, just mono small caps muted */
+.office-quiet {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--p-text-muted);
+	background: transparent;
+	border: 0;
+	padding: 8px 0;
+	transition: color 180ms ease-out;
+}
+.office-quiet:hover,
+.office-quiet:focus-visible {
+	color: var(--p-text);
+}
+.office-quiet[disabled] {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Ruled input — label + underlined field, no box */
+.office-ruled {
+	border-bottom: 1px solid var(--p-rule);
+	transition: border-color 220ms ease-out;
+}
+.office-ruled:focus-within {
+	border-bottom-color: var(--p-text);
+}
+
+/* Ledger entry opacity gradient — older messages fade toward the top */
+.office-ledger {
+	mask-image: linear-gradient(
+		to bottom,
+		rgba(0, 0, 0, 0.7) 0%,
+		rgba(0, 0, 0, 0.82) 12%,
+		rgba(0, 0, 0, 0.94) 28%,
+		#000 48%,
+		#000 100%
+	);
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		rgba(0, 0, 0, 0.7) 0%,
+		rgba(0, 0, 0, 0.82) 12%,
+		rgba(0, 0, 0, 0.94) 28%,
+		#000 48%,
+		#000 100%
+	);
+}
+
+/* Sample swatch — bracketed inline block */
+.office-swatch {
+	display: inline-flex;
+	align-items: stretch;
+	gap: 8px;
+	padding: 6px 10px;
+	position: relative;
+	background: transparent;
+	color: var(--p-text);
+	text-align: start;
+	transition: color 180ms ease-out;
+}
+.office-swatch::before,
+.office-swatch::after {
+	content: "";
+	align-self: stretch;
+	width: 1px;
+	background: var(--p-rule-strong);
+}
+.office-swatch:hover::before,
+.office-swatch:hover::after,
+.office-swatch:focus-visible::before,
+.office-swatch:focus-visible::after {
+	background: var(--p-text);
+}
+
+/* Focus-visible reset for ink-style focus */
+.office-paper :focus-visible,
+.office-wall :focus-visible {
+	outline: none;
+}
+
+/* Seal impression drop-in animation */
+@keyframes office-seal-press {
+	0% {
+		opacity: 0;
+		transform: scale(0.85);
+		filter: blur(2px);
+	}
+	60% {
+		opacity: 1;
+		filter: blur(0);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+		filter: blur(0);
+	}
+}
+.office-seal-press {
+	animation: office-seal-press 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Atmosphere — ink marks that draw in + fade out in the margins */
+@keyframes office-mark-life {
+	0% {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	18% {
+		opacity: var(--mark-opacity, 0.14);
+		transform: translateY(0);
+	}
+	82% {
+		opacity: var(--mark-opacity, 0.14);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-3px);
+	}
+}
+.office-atmosphere-mark {
+	position: absolute;
+	pointer-events: none;
+	color: var(--p-text);
+	animation: office-mark-life var(--mark-duration, 9s) ease-in-out both;
+	will-change: opacity, transform;
+}
+
+/* SVG path draw-in for ruled ink marks */
+@keyframes office-ink-draw {
+	0% {
+		stroke-dashoffset: var(--draw-length, 200);
+	}
+	100% {
+		stroke-dashoffset: 0;
+	}
+}
+.office-ink-draw {
+	stroke-dasharray: var(--draw-length, 200);
+	stroke-dashoffset: var(--draw-length, 200);
+	animation: office-ink-draw var(--draw-duration, 2.4s) ease-out forwards;
+}
+
+/* Reduced motion — flatten office animations */
+@media (prefers-reduced-motion: reduce) {
+	.office-ink-bleed,
+	.office-pen-nib,
+	.office-ink-pulse,
+	.office-seal-press,
+	.office-atmosphere-mark,
+	.office-ink-draw {
+		animation: none !important;
+	}
+	.office-atmosphere-mark {
+		display: none;
+	}
+}
+
+/* ================================================================
+   THE LEDGER — shared utilities for index & day-book panels
+   Both market and orders panels render as folios in Lyon's
+   leather-bound book. Ruled rows, hairline gutters, no cards.
+   ================================================================ */
+
+/* Folio max width — keeps the eye in a single column of ink */
+.ledger-folio {
+	width: 100%;
+	max-width: 980px;
+	margin-inline: auto;
+}
+
+/* Section header — small caps with hairline below + count */
+.ledger-section-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding-block-end: 10px;
+	border-block-end: 1px solid var(--p-rule-strong);
+}
+.ledger-section-label {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	font-weight: 500;
+	letter-spacing: 0.32em;
+	text-transform: uppercase;
+	color: var(--p-text);
+}
+.ledger-section-count {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	letter-spacing: 0.18em;
+	color: var(--p-text-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Ledger row — hairline below, hover wash, no border */
+.ledger-row {
+	position: relative;
+	display: grid;
+	gap: 16px;
+	padding: 18px 0;
+	border-block-end: 1px solid var(--p-rule);
+	transition: background-color 200ms ease-out;
+}
+.ledger-row:hover,
+.ledger-row:focus-within {
+	background: var(--p-hover);
+}
+.ledger-row::before {
+	/* Subtle marginal mark that appears on hover — like a pencil tick */
+	content: "";
+	position: absolute;
+	inset-inline-start: -10px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 2px;
+	height: 0;
+	background: var(--p-text);
+	opacity: 0;
+	transition:
+		height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 200ms ease-out;
+}
+.ledger-row:hover::before,
+.ledger-row:focus-within::before {
+	height: 28px;
+	opacity: 0.8;
+}
+
+/* Margin number — Roman/sequence prefix in mono, faint */
+.ledger-margin-no {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	letter-spacing: 0.18em;
+	color: var(--p-text-faint);
+	font-variant-numeric: tabular-nums;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+/* Page title — Inter, professional display weight */
+.ledger-title {
+	font-family: "Inter", system-ui, sans-serif;
+	font-weight: 500;
+	font-size: clamp(28px, 3.5vw, 40px);
+	line-height: 1.05;
+	letter-spacing: -0.02em;
+	color: var(--p-text);
+	font-feature-settings:
+		"ss01" 1,
+		"cv11" 1;
+}
+.ledger-title em {
+	font-style: normal;
+	font-weight: 500;
+}
+.ledger-title-caption {
+	font-family: "Inter", system-ui, sans-serif;
+	font-style: normal;
+	font-weight: 400;
+	font-size: 13px;
+	color: var(--p-text-muted);
+	letter-spacing: 0;
+}
+
+/* Wax seal mark — for confirmed/sealed entries */
+.ledger-seal {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--p-seal);
+	box-shadow:
+		0 0 0 1px color-mix(in srgb, var(--p-seal) 60%, transparent),
+		inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+[data-theme="dark"] .ledger-seal {
+	background: var(--p-text);
+	box-shadow:
+		0 0 0 1px color-mix(in srgb, var(--p-text) 35%, transparent),
+		inset 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Plate — small material image rendered as if pinned in the margin */
+.ledger-plate {
+	width: 56px;
+	height: 56px;
+	flex: none;
+	background: var(--p-surface);
+	border: 1px solid var(--p-border);
+	overflow: hidden;
+	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+.ledger-plate img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* Inline command — verb-only, em-dash framed, monospace */
+.ledger-verb {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--p-text-muted);
+	background: transparent;
+	border: 0;
+	transition: color 180ms ease-out;
+}
+.ledger-verb::before,
+.ledger-verb::after {
+	content: "";
+	width: 14px;
+	height: 1px;
+	background: var(--p-rule-strong);
+	transition: background 180ms ease-out;
+}
+.ledger-verb:hover,
+.ledger-verb:focus-visible {
+	color: var(--p-text);
+}
+.ledger-verb:hover::before,
+.ledger-verb:hover::after,
+.ledger-verb:focus-visible::before,
+.ledger-verb:focus-visible::after {
+	background: var(--p-text);
+}
+.ledger-verb[disabled] {
+	opacity: 0.4;
+	pointer-events: none;
+}
+.ledger-verb-strong {
+	color: var(--p-text);
+}
+.ledger-verb-warn {
+	color: var(--p-error);
+}
+.ledger-verb-warn::before,
+.ledger-verb-warn::after {
+	background: color-mix(in srgb, var(--p-error) 60%, transparent);
+}
+
+/* Ledger draw-in — the rule fills from the start as the panel mounts */
+@keyframes ledger-rule-draw {
+	from {
+		transform: scaleX(0);
+		opacity: 0;
+	}
+	to {
+		transform: scaleX(1);
+		opacity: 1;
+	}
+}
+.ledger-draw {
+	transform-origin: inline-start center;
+	animation: ledger-rule-draw 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Ink-row — quiet stagger for entries on first paint */
+@keyframes ledger-row-ink {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.ledger-row-ink {
+	animation: ledger-row-ink 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Reduced motion — flatten ledger animations */
+@media (prefers-reduced-motion: reduce) {
+	.ledger-draw,
+	.ledger-row-ink {
+		animation: none !important;
+	}
 }

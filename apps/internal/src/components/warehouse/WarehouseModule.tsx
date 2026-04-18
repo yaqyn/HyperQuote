@@ -20,14 +20,15 @@ export function WarehouseModule() {
 	const selectedDealId = useWarehouseStore((s) => s.selectedDealId)
 
 	return (
-		<div className="relative flex h-full flex-col bg-[#F4F4EC] text-[#0A0A0A]">
-			{/* Steel-grid backdrop */}
+		<div className="relative flex h-full flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
+			{/* Steel-grid backdrop — pale grid on white, still reads as a
+			    dock floor without fighting the content. */}
 			<div
 				aria-hidden="true"
-				className="pointer-events-none absolute inset-0 opacity-[0.035]"
+				className="pointer-events-none absolute inset-0 opacity-[0.055]"
 				style={{
 					backgroundImage:
-						'linear-gradient(#0A0A0A 1px, transparent 1px), linear-gradient(90deg, #0A0A0A 1px, transparent 1px)',
+						'linear-gradient(var(--color-text) 1px, transparent 1px), linear-gradient(90deg, var(--color-text) 1px, transparent 1px)',
 					backgroundSize: '48px 48px',
 				}}
 			/>

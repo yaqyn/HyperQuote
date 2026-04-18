@@ -14,7 +14,15 @@ interface PhoneInputProps {
 	value: string
 	onChange: (digits: string) => void
 	className?: string
+	inputClassName?: string
 	placeholder?: string
+	id?: string
+	/** aria-invalid passthrough for field-level error wiring. */
+	ariaInvalid?: boolean
+	/** aria-describedby passthrough — point at the inline error id. */
+	ariaDescribedBy?: string
+	/** Called when the field blurs — parents use this to fire validation. */
+	onBlur?: () => void
 }
 
 /** Strip to digits and drop leading 0/20/+20 so we always hold 10 national digits. */
@@ -56,23 +64,35 @@ export function PhoneInput({
 	value,
 	onChange,
 	className = '',
+	inputClassName = '',
 	placeholder = '1xx xxx xxxx',
+	id,
+	ariaInvalid,
+	ariaDescribedBy,
+	onBlur,
 }: PhoneInputProps) {
 	const display = useMemo(() => formatEGPhone(value), [value])
 
 	return (
 		<div className={`flex items-baseline gap-2 ${className}`}>
-			<span className="font-[family-name:var(--font-geist-mono)] text-[14px] text-black/40 dark:text-white/40 select-none">
+			<span
+				aria-hidden="true"
+				className="font-[family-name:var(--font-geist-mono)] text-[14px] text-black/40 dark:text-white/40 select-none"
+			>
 				+20
 			</span>
 			<input
+				id={id}
 				type="tel"
 				inputMode="numeric"
 				autoComplete="tel"
 				value={display}
 				onChange={(e) => onChange(normalizeEGPhone(e.target.value))}
+				onBlur={onBlur}
 				placeholder={placeholder}
-				className="flex-1 bg-transparent font-[family-name:var(--font-geist-mono)] text-[14px] text-[var(--color-text)] placeholder:text-black/25 dark:placeholder:text-white/25 outline-none"
+				aria-invalid={ariaInvalid}
+				aria-describedby={ariaDescribedBy}
+				className={`flex-1 bg-transparent font-[family-name:var(--font-geist-mono)] text-[14px] text-[var(--color-text)] placeholder:text-black/25 dark:placeholder:text-white/25 outline-none ${inputClassName}`}
 			/>
 		</div>
 	)

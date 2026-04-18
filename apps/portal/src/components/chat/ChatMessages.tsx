@@ -1,6 +1,9 @@
 /**
- * ChatMessages — Scrollable conversation area.
- * Dark theme, clean spacing, auto-scroll.
+ * ChatMessages — the ledger body.
+ *
+ * Entries stack vertically, each is a LedgerEntry (ChatBubble).
+ * No bubbles. Uniform left margin for the speaker tag, body beside it.
+ * Scroll anchored to the bottom; jump-back glyph appears if scrolled up.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../../lib/chat-types'
@@ -11,38 +14,52 @@ import { TypingIndicator } from './TypingIndicator'
 interface ChatMessagesProps {
 	messages: ChatMessage[]
 	isLoading: boolean
+	customerTag?: string
 }
 
-export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+const BOTTOM_THRESHOLD = 120
+
+export function ChatMessages({
+	messages,
+	isLoading,
+	customerTag,
+}: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const bottomRef = useRef<HTMLDivElement>(null)
 	const [showScrollBtn, setShowScrollBtn] = useState(false)
 	const userScrolledRef = useRef(false)
 
+	const lastMessage = messages[messages.length - 1]
 	const showTyping =
-		isLoading &&
-		messages.length > 0 &&
-		messages[messages.length - 1]?.role === 'user'
-
+		isLoading && messages.length > 0 && lastMessage?.role === 'user'
 	const isStreaming =
-		isLoading &&
-		messages.length > 0 &&
-		messages[messages.length - 1]?.role === 'assistant'
+		isLoading && messages.length > 0 && lastMessage?.role === 'assistant'
 
 	const handleScroll = useCallback(() => {
 		const el = scrollRef.current
 		if (!el) return
 		const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-		const scrolledUp = distanceFromBottom > 200
+		const scrolledUp = distanceFromBottom > BOTTOM_THRESHOLD
 		setShowScrollBtn(scrolledUp)
+		// Returning to the bottom re-sticks; scrolling up unsticks.
 		userScrolledRef.current = scrolledUp
 	}, [])
 
+	// Auto-scroll on new messages and on streaming token growth — unless the
+	// user has scrolled up, in which case we hold position and let the jump
+	// glyph reveal itself. The dep list references the signals whose *change*
+	// should trigger the scroll; they're not read inside the body.
+	const lastContent = lastMessage?.content ?? ''
 	useEffect(() => {
-		if (!userScrolledRef.current) {
-			bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-		}
-	}, [])
+		void [messages.length, lastContent, isLoading]
+		if (userScrolledRef.current) return
+		const el = bottomRef.current
+		if (!el) return
+		el.scrollIntoView({
+			behavior: messages.length <= 1 ? 'auto' : 'smooth',
+			block: 'end',
+		})
+	}, [messages.length, lastContent, isLoading])
 
 	const scrollToBottom = useCallback(() => {
 		bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -53,40 +70,43 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	if (messages.length === 0 && !isLoading) return null
 
 	return (
-		<div className="relative flex-1 flex flex-col min-h-0 w-full">
+		<div className="relative flex min-h-0 flex-1 flex-col">
 			<div
 				ref={scrollRef}
 				onScroll={handleScroll}
-				className="flex-1 overflow-y-auto"
+				className="flex-1 overflow-y-auto px-10 pb-6"
 			>
-				<div className="max-w-[720px] mx-auto flex flex-col gap-1 px-6 py-6 sm:px-4">
+				<ul
+					className="mt-4 flex flex-col"
+					role="log"
+					aria-live="polite"
+					aria-relevant="additions"
+				>
 					{messages.map((msg, idx) => (
 						<ChatBubble
 							key={msg.id}
 							message={msg}
 							isStreaming={isStreaming && idx === messages.length - 1}
+							customerTag={customerTag}
 						/>
 					))}
 
 					{showTyping && <TypingIndicator />}
 
-					<div ref={bottomRef} />
-				</div>
+					<div ref={bottomRef} aria-hidden />
+				</ul>
 			</div>
 
-			{/* Scroll pill */}
-			<div className="absolute bottom-2 inset-x-0 flex justify-center pointer-events-none">
+			{/* Margin glyph — jump to latest */}
+			<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[3] flex justify-end pe-10">
 				<div className="pointer-events-auto">
 					<ScrollToBottom show={showScrollBtn} onClick={scrollToBottom} />
 				</div>
 			</div>
 
-			{/* Screen reader */}
+			{/* Screen reader only — last assistant message announcement */}
 			<div aria-live="polite" className="sr-only">
-				{messages.length > 0 &&
-				messages[messages.length - 1]?.role === 'assistant'
-					? messages[messages.length - 1]?.content
-					: null}
+				{lastMessage?.role === 'assistant' ? lastMessage.content : null}
 			</div>
 		</div>
 	)

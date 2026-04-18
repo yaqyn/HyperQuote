@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@fontsource/spectral": "^5.2.8",
 		"@hookform/resolvers": "^5.2.2",
+		"@hyperquote/ai": "workspace:*",
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",

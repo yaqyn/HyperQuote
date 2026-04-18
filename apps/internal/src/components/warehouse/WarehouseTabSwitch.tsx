@@ -49,11 +49,11 @@ function Tab({
 			onClick={onPress}
 			whileTap={{ scale: 0.98 }}
 			animate={{
-				backgroundColor: active ? '#0A0A0A' : 'rgba(0,0,0,0)',
-				color: active ? '#F4F4EC' : '#0A0A0A',
+				backgroundColor: active ? 'var(--color-text)' : 'rgba(0,0,0,0)',
+				color: active ? '#FFFFFF' : 'var(--color-text)',
 			}}
 			transition={{ duration: 0.2 }}
-			className="border-[3px] border-[#0A0A0A] px-4 py-3 text-start"
+			className="border-[3px] border-[var(--color-text)] px-4 py-3 text-start"
 			style={{ minHeight: '64px' }}
 			aria-pressed={active}
 			data-tab-id={id}

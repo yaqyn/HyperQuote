@@ -1,46 +1,39 @@
 /**
- * StatusCard -- Inline order/quote status card in AI chat responses.
+ * StatusCard — inline order/quote status, rendered as a ledger entry.
  *
- * Entity number in Geist Mono, semantic color status badge, timeline progress dots.
+ * No rounded box, no badge pill. A tabular inset:
+ *   [label in mono small caps] · [ENTITY NO.] — status in serif italic
+ *   ────────────────────────────────────────────────────────────
+ *   confirmed                                          28 MAR 2026
+ *   dispatched                                         30 MAR 2026
+ *   · · · · · — progress ticks at the bottom
+ *
  * Arabic-Indic numerals when locale is AR.
  */
 import { useTranslation } from 'react-i18next'
 import type { StatusCardData } from '../../lib/chat-types'
 
-/** Convert Western digits to Arabic-Indic */
+const WESTERN_TO_ARABIC_INDIC: Record<string, string> = {
+	'0': '\u0660',
+	'1': '\u0661',
+	'2': '\u0662',
+	'3': '\u0663',
+	'4': '\u0664',
+	'5': '\u0665',
+	'6': '\u0666',
+	'7': '\u0667',
+	'8': '\u0668',
+	'9': '\u0669',
+}
 function toArabicIndic(str: string): string {
-	return str.replace(
-		/[0-9]/g,
-		(d) =>
-			({
-				'0': '\u0660',
-				'1': '\u0661',
-				'2': '\u0662',
-				'3': '\u0663',
-				'4': '\u0664',
-				'5': '\u0665',
-				'6': '\u0666',
-				'7': '\u0667',
-				'8': '\u0668',
-				'9': '\u0669',
-			})[d] ?? d,
-	)
+	return str.replace(/[0-9]/g, (d) => WESTERN_TO_ARABIC_INDIC[d] ?? d)
 }
 
-const STATUS_COLORS = {
-	green: {
-		bg: 'bg-[var(--color-success)]/10',
-		text: 'text-[var(--color-success)]',
-	},
-	yellow: {
-		bg: 'bg-[var(--color-warning)]/10',
-		text: 'text-[var(--color-warning)]',
-	},
-	red: {
-		bg: 'bg-[var(--color-error)]/10',
-		text: 'text-[var(--color-error)]',
-	},
-} as const
+const STATUS_COLOR: Record<'green' | 'yellow' | 'red', string> = {
+	green: 'var(--p-success)',
+	yellow: 'var(--p-warning)',
+	red: 'var(--p-error)',
+}
 
 interface StatusCardProps {
 	data: StatusCardData
@@ -49,73 +42,96 @@ interface StatusCardProps {
 export function StatusCard({ data }: StatusCardProps) {
 	const { i18n } = useTranslation()
 	const isArabic = i18n.language === 'ar'
-	const colors = STATUS_COLORS[data.statusColor]
 
 	const displayNumber = isArabic
 		? toArabicIndic(data.displayNumber)
 		: data.displayNumber
 
-	const entityLabel =
+	const kindLabel =
 		data.entityType === 'order'
 			? isArabic
-				? `\u0637\u0644\u0628 #${displayNumber}`
-				: `Order #${displayNumber}`
+				? 'طلب'
+				: 'Order'
 			: isArabic
-				? `\u0639\u0631\u0636 \u0633\u0639\u0631 #${displayNumber}`
-				: `Quote #${displayNumber}`
+				? 'عرض سعر'
+				: 'Quote'
+
+	const shownSteps = data.timeline.filter((s) => s.done).slice(-2)
+	const statusColor = STATUS_COLOR[data.statusColor]
 
 	return (
-		<div className="border border-[var(--color-border)] rounded-xl p-3 mt-2">
-			{/* Header row: entity number + status badge */}
-			<div className="flex items-center justify-between gap-2 mb-2">
-				<span className="font-[family-name:var(--font-geist-mono)] text-sm font-semibold text-[var(--color-text)]">
-					{entityLabel}
-				</span>
+		<section
+			className="mt-3 w-full max-w-[520px]"
+			aria-label={`${kindLabel} ${displayNumber}`}
+		>
+			{/* Heading row: small-caps label + mono id + italic status */}
+			<div className="flex items-baseline justify-between gap-3 pb-2">
+				<div className="flex items-baseline gap-3">
+					<span className="voice-mono text-[10px] uppercase tracking-[0.28em] text-[var(--p-text-faint)]">
+						{kindLabel}
+					</span>
+					<span className="voice-mono text-[12px] tracking-[0.14em] text-[var(--p-text)]">
+						No.&nbsp;{displayNumber}
+					</span>
+				</div>
 				<span
-					className={`${colors.bg} ${colors.text} text-[13px] font-semibold rounded-full px-2 py-0.5`}
+					className="voice-serif text-[14px] italic leading-none"
+					style={{ color: statusColor }}
 				>
 					{data.status}
 				</span>
 			</div>
 
-			{/* Key dates */}
-			{data.timeline.length > 0 && (
-				<div className="flex flex-col gap-1 mb-2">
-					{data.timeline
-						.filter((t) => t.done)
-						.slice(-2)
-						.map((step) => (
-							<div
-								key={step.label}
-								className="flex items-center justify-between"
-							>
-								<span className="text-[13px] text-[var(--color-text-muted)]">
-									{step.label}
-								</span>
-								<span className="font-[family-name:var(--font-geist-mono)] text-[13px] text-[var(--color-text-muted)]">
-									{isArabic ? toArabicIndic(step.date) : step.date}
-								</span>
-							</div>
-						))}
-				</div>
-			)}
+			{/* Top rule */}
+			<div className="h-px bg-[var(--p-rule-strong)]" />
 
-			{/* Mini progress dots (5 stages) */}
-			{data.timeline.length > 0 && (
-				<div className="flex items-center gap-1.5">
-					{data.timeline.map((step) => (
+			{/* Timeline rows */}
+			{shownSteps.length > 0 && (
+				<div className="flex flex-col">
+					{shownSteps.map((step, idx) => (
 						<div
 							key={step.label}
-							className={`w-2 h-2 rounded-full transition-colors ${
-								step.done
-									? 'bg-[var(--color-primary)]'
-									: 'bg-[var(--color-border)]'
+							className={`flex items-baseline justify-between gap-3 py-2 ${
+								idx < shownSteps.length - 1
+									? 'border-b border-[var(--p-rule)]'
+									: ''
 							}`}
-							title={step.label}
-						/>
+						>
+							<span className="voice-mono text-[11px] uppercase tracking-[0.18em] text-[var(--p-text-muted)]">
+								{step.label}
+							</span>
+							<span className="voice-mono tabular-nums text-[12px] text-[var(--p-text)]">
+								{isArabic ? toArabicIndic(step.date) : step.date}
+							</span>
+						</div>
 					))}
 				</div>
 			)}
-		</div>
+
+			{/* Bottom rule + progress ticks */}
+			{data.timeline.length > 0 && (
+				<>
+					<div className="mt-1 h-px bg-[var(--p-rule-strong)]" />
+					<ol
+						className="mt-3 flex list-none items-center gap-2 p-0"
+						aria-label="Progress"
+					>
+						{data.timeline.map((step) => (
+							<li
+								key={step.label}
+								title={step.label}
+								aria-label={step.label}
+								className="block h-1.5 w-1.5 rounded-full"
+								style={{
+									background: step.done
+										? 'var(--p-text)'
+										: 'var(--p-rule-strong)',
+								}}
+							/>
+						))}
+					</ol>
+				</>
+			)}
+		</section>
 	)
 }

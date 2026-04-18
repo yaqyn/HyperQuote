@@ -124,7 +124,7 @@ export function NotificationsWindow({
 		<GlassWindow
 			isOpen={isOpen}
 			onClose={handleClose}
-			className="max-w-md w-full max-h-[80vh]"
+			className="shell-plate max-w-md w-full max-h-[80vh]"
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">

@@ -67,7 +67,7 @@ export function ConversationView({
 		if (threadRef.current) {
 			threadRef.current.scrollTop = threadRef.current.scrollHeight
 		}
-	}, [])
+	}, [conversation.id, conversation.messages.length])
 
 	const handleEmailAction = useCallback(
 		(action: EmailAction, message: Message) => {

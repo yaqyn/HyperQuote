@@ -1,4 +1,6 @@
+import type { StreamChunk } from '@tanstack/ai'
 import { create } from 'zustand'
+import { internalChatFn } from '../lib/ai-chat'
 
 export interface AIChatMessage {
 	id: string
@@ -11,52 +13,91 @@ interface AIChatStore {
 	isOpen: boolean
 	messages: AIChatMessage[]
 	draft: string
+	isStreaming: boolean
 	open: () => void
 	close: () => void
 	toggle: () => void
 	setDraft: (text: string) => void
-	/** Append a user message and produce a stubbed assistant reply. */
+	/** Append a user message, call the ops-assistant backend, stream reply. */
 	send: () => void
 	clear: () => void
 }
 
 /**
  * Global AI chat state. Lives at the shell level so the panel survives
- * module switches — flipping between Sales and Procurement keeps the
- * same conversation in memory. The backend wire-up (TanStack AI or
- * Anthropic SDK) will replace `send()` with a real streaming call later;
- * for now it echoes a placeholder so the UI can be fully built against it.
+ * module switches — flipping between Sales and Procurement keeps the same
+ * conversation in memory. `send()` fires the server function and walks its
+ * StreamChunks into the last assistant message as they arrive.
  */
 export const useAIChatStore = create<AIChatStore>()((set, get) => ({
 	isOpen: false,
 	messages: [],
 	draft: '',
+	isStreaming: false,
 	open: () => set({ isOpen: true }),
 	close: () => set({ isOpen: false }),
 	toggle: () => set((s) => ({ isOpen: !s.isOpen })),
 	setDraft: (text) => set({ draft: text }),
 	send: () => {
-		const draft = get().draft.trim()
-		if (!draft) return
-		const now = new Date().toISOString()
+		const state = get()
+		const draft = state.draft.trim()
+		if (!draft || state.isStreaming) return
+
+		const now = Date.now()
 		const userMessage: AIChatMessage = {
-			id: `m-${Date.now()}-u`,
+			id: `m-${now}-u`,
 			role: 'user',
 			content: draft,
-			createdAt: now,
+			createdAt: new Date(now).toISOString(),
 		}
-		// Placeholder assistant reply until the real model is wired up.
+		const assistantId = `m-${now}-a`
 		const assistantMessage: AIChatMessage = {
-			id: `m-${Date.now()}-a`,
+			id: assistantId,
 			role: 'assistant',
-			content:
-				"I'm not hooked up to a model yet — this is a placeholder so the UI can render. Wire me to Anthropic (or TanStack AI) and I'll answer for real.",
-			createdAt: new Date(Date.now() + 1).toISOString(),
+			content: '',
+			createdAt: new Date(now + 1).toISOString(),
 		}
 		set({
-			messages: [...get().messages, userMessage, assistantMessage],
+			messages: [...state.messages, userMessage, assistantMessage],
 			draft: '',
+			isStreaming: true,
 		})
+
+		// Server-fn returns StreamChunk[] accumulated server-side. We walk
+		// the array here and drip tokens into the store so the panel still
+		// animates a bit, rather than snapping into a single flash.
+		void (async () => {
+			try {
+				const history = [...state.messages, userMessage].map((m) => ({
+					role: m.role,
+					content: m.content,
+				}))
+				const raw = await internalChatFn({ data: { messages: history } })
+				const chunks = raw as unknown as StreamChunk[]
+
+				let accumulated = ''
+				for (const chunk of chunks) {
+					if (chunk.type === 'TEXT_MESSAGE_CONTENT') {
+						accumulated += chunk.delta
+						set((s) => ({
+							messages: s.messages.map((m) =>
+								m.id === assistantId ? { ...m, content: accumulated } : m,
+							),
+						}))
+						await new Promise((r) => setTimeout(r, 18))
+					}
+				}
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : 'unknown error'
+				set((s) => ({
+					messages: s.messages.map((m) =>
+						m.id === assistantId ? { ...m, content: `— error: ${msg} —` } : m,
+					),
+				}))
+			} finally {
+				set({ isStreaming: false })
+			}
+		})()
 	},
-	clear: () => set({ messages: [], draft: '' }),
+	clear: () => set({ messages: [], draft: '', isStreaming: false }),
 }))

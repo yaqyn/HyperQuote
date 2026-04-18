@@ -1,25 +1,13 @@
 import type { BroadCategory } from '@hyperquote/types'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Package, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
 	getStockOverview,
 	type StockProductView,
 	type StockStatus,
 } from '../../../lib/server/stock'
+import { useProcurementStore } from '../../../stores/procurement'
 import { RefillPanel } from './RefillPanel'
-
-// ─── Palette ──────────────────────────────────────────────
-
-const STATUS_META: Record<
-	StockStatus,
-	{ label: string; dot: string; gauge: string }
-> = {
-	healthy: { label: 'Healthy', dot: 'bg-emerald-500', gauge: 'bg-emerald-500' },
-	low: { label: 'Low', dot: 'bg-amber-500', gauge: 'bg-amber-500' },
-	critical: { label: 'Critical', dot: 'bg-orange-500', gauge: 'bg-orange-500' },
-	out: { label: 'Out', dot: 'bg-red-500', gauge: 'bg-red-500' },
-}
 
 const CATEGORY_LABELS: Record<BroadCategory, string> = {
 	cement: 'Cement',
@@ -30,212 +18,55 @@ const CATEGORY_LABELS: Record<BroadCategory, string> = {
 	finishing: 'Finishing',
 }
 
-// ─── Header stat ─────────────────────────────────────────
-
-function InlineStat({
-	label,
-	value,
-	tone = 'neutral',
-}: {
-	label: string
-	value: number
-	tone?: 'neutral' | 'emerald' | 'amber' | 'orange' | 'red'
-}) {
-	const color = {
-		neutral: 'text-[var(--color-text)]',
-		emerald: 'text-emerald-700 dark:text-emerald-400',
-		amber: 'text-amber-700 dark:text-amber-400',
-		orange: 'text-orange-700 dark:text-orange-300',
-		red: 'text-red-700 dark:text-red-300',
-	}[tone]
-	return (
-		<div className="flex items-baseline gap-1.5">
-			<span
-				className={`font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold leading-none tabular-nums ${color}`}
-			>
-				{value}
-			</span>
-			<span className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-				{label}
-			</span>
-		</div>
-	)
+const STATUS_COPY: Record<StockStatus, string> = {
+	healthy: 'tended',
+	low: 'running low',
+	critical: 'critical',
+	out: 'out of stock',
 }
 
-// ─── Category chip ───────────────────────────────────────
-
-function CategoryChip({
-	label,
-	count,
-	attention,
-	active,
-	onPress,
-}: {
-	label: string
-	count: number
-	attention: number
-	active: boolean
-	onPress: () => void
-}) {
-	const hasAttention = attention > 0
-	return (
-		<button
-			type="button"
-			onClick={onPress}
-			className={`group relative inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-medium ring-1 transition-all ${
-				active
-					? 'text-[var(--color-text)] ring-black/[0.07] dark:ring-white/[0.1]'
-					: 'text-[var(--color-text-muted)] ring-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
-			}`}
-		>
-			{/* Attention wash — right-to-left gradient clipped to match the
-          chip's rounded trailing edge. No edge tick, just the fade. */}
-			{hasAttention && (
-				<span
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-y-0 end-0 w-[35%] rounded-e-md bg-gradient-to-l from-red-500/[0.09] via-red-500/[0.03] to-transparent"
-				/>
-			)}
-
-			<span className="relative">{label}</span>
-			<span className="relative font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-				{count}
-			</span>
-			{hasAttention && (
-				<span className="relative font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums text-red-600 dark:text-red-400">
-					{attention}
-				</span>
-			)}
-		</button>
-	)
+const STATUS_ACCENT: Record<StockStatus, string> = {
+	healthy: 'var(--compendium-fresh)',
+	low: 'var(--compendium-aging)',
+	critical: 'var(--compendium-aging)',
+	out: 'var(--compendium-stale)',
 }
 
-// ─── Table row ───────────────────────────────────────────
-
-function StockRow({
-	product,
-	onRefill,
-}: {
-	product: StockProductView
-	onRefill: (slug: string) => void
-}) {
-	const meta = STATUS_META[product.status]
-	// Gauge caps at 200% of threshold so overstock reads "full" visually
-	const gaugePct = Math.min(product.stockRatio / 2, 1) * 100
-	const thresholdPct = 50 // threshold line sits at 50% of gauge (100% of threshold)
-
-	return (
-		<div
-			className="group grid items-center gap-4 border-b border-black/[0.04] px-3 py-2.5 transition-colors hover:bg-black/[0.02] dark:border-white/[0.04] dark:hover:bg-white/[0.03]"
-			style={{
-				gridTemplateColumns:
-					'14px minmax(0,2.2fr) minmax(140px,1fr) 1.1fr minmax(100px,1fr) 96px',
-			}}
-		>
-			{/* Status dot + tooltip via title */}
-			<div className={`h-2 w-2 rounded-full ${meta.dot}`} title={meta.label} />
-
-			{/* Name + SKU */}
-			<div className="min-w-0">
-				<p className="truncate text-[12.5px] font-medium text-[var(--color-text)]">
-					{product.name}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{product.sku} · {product.subcategory.replace(/_/g, ' ')}
-				</p>
-			</div>
-
-			{/* Stock level + unit — hero is AVAILABLE (physical minus reserved)
-          so procurement sees what sales can actually promise. Reserved
-          qty shows as a muted subscript line when non-zero. */}
-			<div className="flex flex-col">
-				<div className="flex items-baseline gap-1.5">
-					<span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
-						{product.availableLevel.toLocaleString('en-EG')}
-					</span>
-					<span className="text-[10px] text-[var(--color-text-subtle)]">
-						{product.unit}
-					</span>
-				</div>
-				{product.reservedLevel > 0 && (
-					<span className="font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-[var(--color-text-subtle)]">
-						{product.stockLevel.toLocaleString('en-EG')} on-hand ·{' '}
-						{product.reservedLevel.toLocaleString('en-EG')} reserved
-					</span>
-				)}
-			</div>
-
-			{/* Inline gauge */}
-			<div className="flex flex-col gap-1">
-				<div className="relative h-1 w-full rounded-full bg-black/[0.05] dark:bg-white/[0.08]">
-					<div
-						className={`absolute inset-y-0 start-0 rounded-full ${meta.gauge}`}
-						style={{ width: `${gaugePct}%` }}
-					/>
-					<div
-						className="absolute top-1/2 h-2 w-px -translate-y-1/2 bg-[var(--color-text)]/35"
-						style={{ left: `${thresholdPct}%` }}
-					/>
-				</div>
-				<div className="flex items-center justify-between text-[9px] tabular-nums text-[var(--color-text-subtle)]">
-					<span>min {product.lowStockThreshold.toLocaleString('en-EG')}</span>
-					{product.pendingDealCount > 0 && (
-						<span className="text-[var(--color-primary)]">
-							{product.pendingDealCount} deal
-							{product.pendingDealCount > 1 ? 's' : ''} pending
-						</span>
-					)}
-				</div>
-			</div>
-
-			{/* Supplier */}
-			<div className="min-w-0">
-				<p className="truncate text-[11px] text-[var(--color-text-muted)]">
-					{product.primarySupplierName}
-				</p>
-				<p className="font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums text-[var(--color-text-subtle)]">
-					{product.supplierCount} source{product.supplierCount !== 1 ? 's' : ''}
-				</p>
-			</div>
-
-			{/* Action */}
-			<button
-				type="button"
-				onClick={() => onRefill(product.slug)}
-				className={`rounded-md py-1.5 text-[10.5px] font-semibold uppercase tracking-wider transition-colors ${
-					product.status === 'healthy'
-						? 'border border-black/[0.08] text-[var(--color-text-muted)] opacity-0 hover:bg-black/[0.03] group-hover:opacity-100 dark:border-white/[0.1] dark:hover:bg-white/[0.04]'
-						: 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90'
-				}`}
-			>
-				Refill
-			</button>
-		</div>
-	)
+const STATUS_WEIGHT: Record<StockStatus, number> = {
+	out: 0,
+	critical: 1,
+	low: 2,
+	healthy: 3,
 }
 
-// ─── Main view ────────────────────────────────────────────
+// ─── View ────────────────────────────────────────────────
 
+/**
+ * The Atlas — chapter I of the Compendium. Every material at rest, listed
+ * in the order the employee most likely cares about (out first, then
+ * critical, low, healthy). Plate-per-row with a strata gauge beneath that
+ * makes out-of-bounds stock levels read as physical mass.
+ */
 export function StockView() {
+	const activeCategory = useProcurementStore((s) => s.activeCategory)
+
 	const { data, isLoading } = useQuery({
 		queryKey: ['stock-overview'],
 		queryFn: () => getStockOverview({ data: {} }),
 		staleTime: 30_000,
 	})
 
-	const [activeCategory, setActiveCategory] = useState<BroadCategory | 'all'>(
-		'all',
-	)
 	const [search, setSearch] = useState('')
-	const [onlyLow, setOnlyLow] = useState(false)
+	const [onlyAttention, setOnlyAttention] = useState(false)
 	const [refillSlug, setRefillSlug] = useState<string | null>(null)
 
 	const filtered = useMemo(() => {
 		if (!data) return []
 		let list: StockProductView[] = data.products
-		if (activeCategory !== 'all')
+		if (activeCategory !== 'all') {
 			list = list.filter((p) => p.broadCategory === activeCategory)
-		if (onlyLow) list = list.filter((p) => p.status !== 'healthy')
+		}
+		if (onlyAttention) list = list.filter((p) => p.status !== 'healthy')
 		if (search.trim()) {
 			const q = search.trim().toLowerCase()
 			list = list.filter(
@@ -245,171 +76,478 @@ export function StockView() {
 					p.primarySupplierName.toLowerCase().includes(q),
 			)
 		}
-		const rank: Record<StockStatus, number> = {
-			out: 0,
-			critical: 1,
-			low: 2,
-			healthy: 3,
-		}
 		return [...list].sort((a, b) => {
-			if (rank[a.status] !== rank[b.status])
-				return rank[a.status] - rank[b.status]
+			if (STATUS_WEIGHT[a.status] !== STATUS_WEIGHT[b.status]) {
+				return STATUS_WEIGHT[a.status] - STATUS_WEIGHT[b.status]
+			}
 			return a.stockRatio - b.stockRatio
 		})
-	}, [data, activeCategory, onlyLow, search])
+	}, [data, activeCategory, onlyAttention, search])
 
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-subtle)]">
-				Loading inventory…
+			<div className="flex h-full items-center justify-center">
+				<p
+					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+					style={{ fontSize: '13px' }}
+				>
+					opening the atlas…
+				</p>
 			</div>
 		)
 	}
 
-	return (
-		<div className="relative flex h-full flex-col bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
-			<div
-				className="flex-1 min-h-0 overflow-y-auto px-6 py-5"
-				data-module-content
-			>
-				<div className="mx-auto flex max-w-[1280px] flex-col gap-5">
-					{/* Header — a single thin row */}
-					<header className="flex items-center justify-between gap-6 border-b border-black/[0.04] pb-4 dark:border-white/[0.04]">
-						<div className="flex items-center gap-2">
-							<Package
-								size={13}
-								strokeWidth={2}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Inventory · On-hand
-							</span>
-						</div>
-						<div className="flex items-baseline gap-5">
-							<InlineStat label="total" value={data.totals.total} />
-							<InlineStat
-								label="healthy"
-								value={data.totals.healthy}
-								tone="emerald"
-							/>
-							<InlineStat label="low" value={data.totals.low} tone="amber" />
-							<InlineStat
-								label="critical"
-								value={data.totals.critical}
-								tone="orange"
-							/>
-							<InlineStat label="out" value={data.totals.out} tone="red" />
-						</div>
-					</header>
+	const visibleAttention = filtered.filter((p) => p.status !== 'healthy').length
 
-					{/* Category chip bar */}
-					<div className="flex items-center gap-1.5 overflow-x-auto p-1">
-						<CategoryChip
-							label="All"
-							count={data.totals.total}
-							attention={data.totals.critical + data.totals.out}
-							active={activeCategory === 'all'}
-							onPress={() => setActiveCategory('all')}
-						/>
-						{data.categories.map((cat) => (
-							<CategoryChip
-								key={cat.id}
-								label={CATEGORY_LABELS[cat.id]}
-								count={cat.totalCount}
-								attention={cat.criticalCount + cat.outCount}
-								active={activeCategory === cat.id}
-								onPress={() => setActiveCategory(cat.id)}
+	return (
+		<div className="animate-folio-turn relative h-full overflow-y-auto">
+			<div className="mx-auto flex max-w-[920px] flex-col px-10 pt-8 pb-16">
+				<AtlasMasthead
+					totals={data.totals}
+					activeCategory={activeCategory}
+					visibleCount={filtered.length}
+				/>
+
+				<DeskToolbar
+					search={search}
+					setSearch={setSearch}
+					onlyAttention={onlyAttention}
+					setOnlyAttention={setOnlyAttention}
+					visibleAttention={visibleAttention}
+				/>
+
+				{filtered.length > 0 ? (
+					<ol className="mt-7 flex flex-col">
+						{filtered.map((product, idx) => (
+							<StockPlate
+								key={product.slug}
+								index={idx}
+								product={product}
+								onRefill={setRefillSlug}
 							/>
 						))}
-					</div>
-
-					{/* Search + filter */}
-					<div className="flex items-center gap-2">
-						<div className="flex flex-1 items-center gap-2 rounded-md border border-black/[0.08] px-3 py-1.5 dark:border-white/[0.08]">
-							<Search
-								size={12}
-								strokeWidth={2}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<input
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-								placeholder="Search product, SKU, or supplier"
-								className="flex-1 bg-transparent text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]"
-							/>
-							{search && (
-								<button
-									type="button"
-									onClick={() => setSearch('')}
-									className="text-[10px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
-								>
-									clear
-								</button>
-							)}
-						</div>
-						<button
-							type="button"
-							onClick={() => setOnlyLow((v) => !v)}
-							className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-								onlyLow
-									? 'border-[var(--color-primary)]/40 bg-[var(--color-primary)]/[0.06] text-[var(--color-primary)]'
-									: 'border-black/[0.08] text-[var(--color-text-muted)] hover:bg-black/[0.03] dark:border-white/[0.1] dark:hover:bg-white/[0.04]'
-							}`}
-						>
-							<AlertTriangle size={11} strokeWidth={2.5} />
-							Attention only
-						</button>
-					</div>
-
-					{/* Table header */}
-					{filtered.length > 0 && (
-						<div
-							className="grid items-center gap-4 border-b border-black/[0.06] px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)] dark:border-white/[0.06]"
-							style={{
-								gridTemplateColumns:
-									'14px minmax(0,2.2fr) minmax(140px,1fr) 1.1fr minmax(100px,1fr) 96px',
-							}}
-						>
-							<div />
-							<div>Product</div>
-							<div>On hand</div>
-							<div>Gauge</div>
-							<div>Primary supplier</div>
-							<div className="text-end">Action</div>
-						</div>
-					)}
-
-					{/* Rows */}
-					{filtered.length > 0 ? (
-						<div className="flex flex-col">
-							{filtered.map((p) => (
-								<StockRow key={p.slug} product={p} onRefill={setRefillSlug} />
-							))}
-						</div>
-					) : (
-						<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.1] py-16 text-center dark:border-white/[0.1]">
-							<CheckCircle2
-								size={24}
-								strokeWidth={1.5}
-								className="text-emerald-500/70"
-							/>
-							<p className="mt-2 text-[12px] font-medium text-[var(--color-text)]">
-								Nothing to see here
-							</p>
-							<p className="mt-0.5 text-[10px] text-[var(--color-text-subtle)]">
-								{onlyLow
-									? 'Every item in this view has healthy stock.'
-									: 'No products match your filters.'}
-							</p>
-						</div>
-					)}
-				</div>
+					</ol>
+				) : (
+					<EmptyState onlyAttention={onlyAttention} />
+				)}
 			</div>
 
 			<RefillPanel
 				productSlug={refillSlug}
 				onClose={() => setRefillSlug(null)}
 			/>
+		</div>
+	)
+}
+
+// ─── Masthead ────────────────────────────────────────────
+
+function AtlasMasthead({
+	totals,
+	activeCategory,
+	visibleCount,
+}: {
+	totals: {
+		total: number
+		healthy: number
+		low: number
+		critical: number
+		out: number
+	}
+	activeCategory: ReturnType<
+		typeof useProcurementStore.getState
+	>['activeCategory']
+	visibleCount: number
+}) {
+	const signaled = totals.out + totals.critical
+	const primaryNumber = signaled > 0 ? signaled : totals.total
+	const primaryNoun =
+		signaled > 0
+			? signaled === 1
+				? 'material needing stock'
+				: 'materials needing stock'
+			: totals.total === 1
+				? 'material tended'
+				: 'materials tended'
+
+	return (
+		<header className="flex flex-col border-b border-[var(--rule)] pb-8">
+			<div className="flex items-baseline gap-2">
+				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--ink-mid)]">
+					The Compendium · The Atlas
+				</span>
+				{activeCategory !== 'all' && (
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+						style={{ fontSize: '11.5px' }}
+					>
+						· filtered to {CATEGORY_LABELS[activeCategory]}
+						{visibleCount > 0 ? ` · ${visibleCount} shown` : ''}
+					</span>
+				)}
+			</div>
+
+			<div className="mt-5 flex flex-wrap items-end justify-between gap-6">
+				<div className="flex items-baseline gap-4">
+					<span
+						className="animate-compendium-settle compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
+						style={{
+							fontSize: 'clamp(72px, 10vw, 120px)',
+							fontWeight: 500,
+							letterSpacing: '-0.045em',
+						}}
+						suppressHydrationWarning
+					>
+						{primaryNumber}
+					</span>
+					<span
+						className="pb-3 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+						style={{
+							fontSize: '16px',
+							maxWidth: '220px',
+							lineHeight: 1.15,
+							letterSpacing: '-0.003em',
+						}}
+					>
+						{primaryNoun}
+					</span>
+				</div>
+
+				<dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+					<AtlasStat label="healthy" value={totals.healthy} tone="fresh" />
+					<AtlasStat label="low" value={totals.low} tone="aging" />
+					<AtlasStat label="critical" value={totals.critical} tone="aging" />
+					<AtlasStat label="out" value={totals.out} tone="stale" />
+				</dl>
+			</div>
+		</header>
+	)
+}
+
+function AtlasStat({
+	label,
+	value,
+	tone,
+}: {
+	label: string
+	value: number
+	tone: 'fresh' | 'aging' | 'stale'
+}) {
+	const color = {
+		fresh: 'var(--compendium-fresh)',
+		aging: 'var(--compendium-aging)',
+		stale: 'var(--compendium-stale)',
+	}[tone]
+	return (
+		<div className="flex flex-col items-end">
+			<dt
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
+			>
+				{label}
+			</dt>
+			<dd
+				className="font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold tabular-nums leading-none"
+				style={{ color: value > 0 ? color : 'var(--ink-ghost)' }}
+			>
+				{value.toString().padStart(2, '0')}
+			</dd>
+		</div>
+	)
+}
+
+// ─── Toolbar ─────────────────────────────────────────────
+
+function DeskToolbar({
+	search,
+	setSearch,
+	onlyAttention,
+	setOnlyAttention,
+	visibleAttention,
+}: {
+	search: string
+	setSearch: (s: string) => void
+	onlyAttention: boolean
+	setOnlyAttention: (v: boolean | ((prev: boolean) => boolean)) => void
+	visibleAttention: number
+}) {
+	return (
+		<div className="mt-6 flex items-center gap-5 border-b border-[var(--rule-soft)] pb-3">
+			<div className="flex flex-1 items-baseline gap-2">
+				<span
+					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+					style={{ fontSize: '11.5px' }}
+				>
+					find
+				</span>
+				<input
+					type="search"
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					placeholder="a material, sku, or supplier"
+					className="w-full bg-transparent font-[family-name:var(--font-fraunces)] text-[14px] text-[var(--ink)] outline-none placeholder:font-[family-name:var(--font-fraunces)] placeholder:italic placeholder:text-[var(--ink-ghost)]"
+				/>
+				{search && (
+					<button
+						type="button"
+						onClick={() => setSearch('')}
+						className="font-[family-name:var(--font-fraunces)] italic text-[11px] text-[var(--ink-mid)] hover:text-[var(--ink)]"
+					>
+						clear
+					</button>
+				)}
+			</div>
+
+			<button
+				type="button"
+				onClick={() => setOnlyAttention((v) => !v)}
+				aria-pressed={onlyAttention}
+				className="group flex items-center gap-2 outline-none"
+			>
+				<span
+					aria-hidden="true"
+					className="h-[9px] w-[9px] rounded-full transition-all"
+					style={{
+						background: onlyAttention
+							? 'var(--compendium-stale)'
+							: 'transparent',
+						border: onlyAttention ? '0' : '1px solid var(--rule)',
+					}}
+				/>
+				<span
+					className="font-[family-name:var(--font-fraunces)] italic transition-colors"
+					style={{
+						fontSize: '12px',
+						color: onlyAttention ? 'var(--ink)' : 'var(--ink-soft)',
+					}}
+				>
+					only what needs minding
+				</span>
+				{visibleAttention > 0 && (
+					<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--ink-mid)]">
+						{visibleAttention}
+					</span>
+				)}
+			</button>
+		</div>
+	)
+}
+
+// ─── Plate ───────────────────────────────────────────────
+
+function StockPlate({
+	index,
+	product,
+	onRefill,
+}: {
+	index: number
+	product: StockProductView
+	onRefill: (slug: string) => void
+}) {
+	const accent = STATUS_ACCENT[product.status]
+	const hasAttention = product.status !== 'healthy'
+	// Gauge uses ratio capped at 200% (threshold tick at 50% of track).
+	const gaugePct = Math.min(product.stockRatio / 2, 1) * 100
+	const thresholdPct = 50
+
+	return (
+		<li
+			className="relative grid border-t border-[var(--rule-soft)] py-5"
+			style={{
+				gridTemplateColumns: '22px 1fr auto',
+				columnGap: '24px',
+			}}
+		>
+			{/* Status margin — a vertical ink strip on the leading edge. Only
+			    ever visible for items that need attention. Typographers would
+			    call this a "marginal mark"; it lets the employee scan the
+			    spread for trouble in one sweep. */}
+			<div className="relative">
+				{hasAttention && (
+					<span
+						aria-hidden="true"
+						className="absolute left-1 top-2 bottom-2 w-[2px]"
+						style={{ background: accent }}
+					/>
+				)}
+				<span
+					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-ghost)]"
+					style={{ fontSize: '11px' }}
+				>
+					{(index + 1).toString().padStart(2, '0')}
+				</span>
+			</div>
+
+			{/* Body */}
+			<div className="min-w-0">
+				<p
+					className="font-[family-name:var(--font-fraunces)] leading-[1.12] text-[var(--ink)]"
+					style={{
+						fontSize: '19px',
+						fontWeight: 500,
+						letterSpacing: '-0.015em',
+					}}
+				>
+					{product.name}
+				</p>
+				<p
+					className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[var(--ink-mid)]"
+					style={{ fontSize: '11px' }}
+				>
+					<span className="font-[family-name:var(--font-geist-mono)] uppercase tracking-[0.1em]">
+						{product.sku}
+					</span>
+					<span className="opacity-60">·</span>
+					<span className="font-[family-name:var(--font-fraunces)] italic">
+						{product.subcategory.replace(/_/g, ' ')}
+					</span>
+					<span className="opacity-60">·</span>
+					<span className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]">
+						{product.primarySupplierName}
+					</span>
+					{product.supplierCount > 1 && (
+						<span className="font-[family-name:var(--font-geist-mono)] text-[10px] text-[var(--ink-mid)]">
+							+{product.supplierCount - 1}
+						</span>
+					)}
+					{product.pendingDealCount > 0 && (
+						<>
+							<span className="opacity-60">·</span>
+							<span
+								className="font-[family-name:var(--font-fraunces)] italic"
+								style={{ color: 'var(--compendium-brand)' }}
+							>
+								{product.pendingDealCount} deal
+								{product.pendingDealCount === 1 ? '' : 's'} pending
+							</span>
+						</>
+					)}
+				</p>
+
+				{/* Strata gauge — stock fullness rendered as a band of vertical
+				    rules, with the threshold carved as a taller tick. Sits on
+				    its own row so the eye measures it against the type above. */}
+				<div className="mt-3 flex items-center gap-3">
+					<div
+						className="compendium-strata flex-1"
+						aria-hidden="true"
+						title={`Stock at ${Math.round(product.stockRatio * 100)}% of threshold · ${STATUS_COPY[product.status]}`}
+					>
+						<span
+							className="absolute inset-y-0 left-0 transition-[width]"
+							style={{ width: `${gaugePct}%`, background: accent }}
+						/>
+						<span
+							className="absolute top-[-2px] bottom-[-2px] w-px"
+							style={{
+								left: `${thresholdPct}%`,
+								background: 'var(--ink)',
+								opacity: 0.5,
+							}}
+						/>
+					</div>
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
+						style={{ fontSize: '10.5px', minWidth: '90px' }}
+					>
+						min {product.lowStockThreshold.toLocaleString('en-EG')}{' '}
+						{product.unit}
+					</span>
+				</div>
+			</div>
+
+			{/* Trailing column — the hero number + action. */}
+			<div className="flex flex-col items-end justify-between gap-3">
+				<div className="flex flex-col items-end">
+					<span
+						className="compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
+						style={{
+							fontSize: product.availableLevel > 9999 ? '30px' : '36px',
+							fontWeight: 500,
+							letterSpacing: '-0.03em',
+						}}
+					>
+						{product.availableLevel.toLocaleString('en-EG')}
+					</span>
+					<div className="mt-1 flex items-baseline gap-1.5">
+						<span
+							className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+							style={{ fontSize: '11.5px' }}
+						>
+							{product.unit}
+						</span>
+						<span
+							className="font-[family-name:var(--font-fraunces)] italic"
+							style={{ fontSize: '10.5px', color: accent }}
+						>
+							{STATUS_COPY[product.status]}
+						</span>
+					</div>
+					{product.reservedLevel > 0 && (
+						<span className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9.5px] tabular-nums text-[var(--ink-mid)]">
+							{product.stockLevel.toLocaleString('en-EG')} on-hand ·{' '}
+							{product.reservedLevel.toLocaleString('en-EG')} reserved
+						</span>
+					)}
+				</div>
+
+				<button
+					type="button"
+					onClick={() => onRefill(product.slug)}
+					className="group inline-flex items-baseline gap-1.5 border-b border-transparent pb-0.5 text-end outline-none transition-colors"
+					style={{
+						color: hasAttention ? 'var(--ink)' : 'var(--ink-mid)',
+					}}
+				>
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic transition-transform"
+						style={{
+							fontSize: '13.5px',
+							letterSpacing: '-0.005em',
+							fontWeight: hasAttention ? 500 : 400,
+						}}
+					>
+						refill
+					</span>
+					<span
+						aria-hidden="true"
+						className="transition-transform group-hover:translate-x-[3px]"
+						style={{
+							fontFamily: 'var(--font-fraunces)',
+							fontStyle: 'italic',
+							fontSize: '14px',
+							color: hasAttention ? accent : 'var(--ink-mid)',
+						}}
+					>
+						→
+					</span>
+				</button>
+			</div>
+		</li>
+	)
+}
+
+// ─── Empty state ────────────────────────────────────────
+
+function EmptyState({ onlyAttention }: { onlyAttention: boolean }) {
+	return (
+		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--rule-soft)] py-14">
+			<span
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink)]"
+				style={{ fontSize: '22px', letterSpacing: '-0.01em' }}
+			>
+				{onlyAttention
+					? 'nothing needs minding.'
+					: 'no entries in this volume.'}
+			</span>
+			<span
+				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+				style={{ fontSize: '12px' }}
+			>
+				{onlyAttention
+					? 'the shelves are honest for now.'
+					: 'adjust the index or clear the search to see more.'}
+			</span>
 		</div>
 	)
 }

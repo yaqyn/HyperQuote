@@ -1,0 +1,14 @@
+{
+	"name": "@hyperquote/ai",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./ollama": "./src/ollama.ts",
+		"./prompts": "./src/prompts.ts"
+	},
+	"peerDependencies": {
+		"@tanstack/ai": "^0.9.2"
+	}
+}

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { Clock, TrendingUp, Truck, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import {
 	type FinanceDealView,
@@ -23,296 +22,32 @@ function formatEgp(n: number): string {
 	return Math.round(n).toLocaleString('en-EG')
 }
 
-// ─── Inline stat ──────────────────────────────────────────
-
-function InlineStat({
-	label,
-	value,
-	tone = 'neutral',
-}: {
-	label: string
-	value: number | string
-	tone?: 'neutral' | 'emerald' | 'red' | 'amber'
-}) {
-	const color = {
-		neutral: 'text-[var(--color-text)]',
-		emerald: 'text-emerald-700 dark:text-emerald-400',
-		red: 'text-red-700 dark:text-red-300',
-		amber: 'text-amber-700 dark:text-amber-400',
-	}[tone]
-	return (
-		<div className="flex items-baseline gap-1.5">
-			<span
-				className={`font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold leading-none tabular-nums ${color}`}
-			>
-				{value}
-			</span>
-			<span className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-				{label}
-			</span>
-		</div>
-	)
+function toRoman(n: number): string {
+	const map: [number, string][] = [
+		[10, 'x'],
+		[9, 'ix'],
+		[5, 'v'],
+		[4, 'iv'],
+		[1, 'i'],
+	]
+	let out = ''
+	let rest = n
+	for (const [val, letters] of map) {
+		while (rest >= val) {
+			out += letters
+			rest -= val
+		}
+	}
+	return out
 }
 
-// ─── Filter chip ──────────────────────────────────────────
-
-function FilterChip({
-	label,
-	count,
-	active,
-	onPress,
-	hasAttention,
-}: {
-	label: string
-	count: number
-	active: boolean
-	onPress: () => void
-	hasAttention?: boolean
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onPress}
-			className={`group relative inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-medium ring-1 transition-all ${
-				active
-					? 'text-[var(--color-text)] ring-black/[0.07] dark:ring-white/[0.1]'
-					: 'text-[var(--color-text-muted)] ring-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
-			}`}
-		>
-			{hasAttention && (
-				<span
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-y-0 end-0 w-[35%] rounded-e-md bg-gradient-to-l from-red-500/[0.09] via-red-500/[0.03] to-transparent"
-				/>
-			)}
-			<span className="relative">{label}</span>
-			<span className="relative font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-				{count}
-			</span>
-		</button>
-	)
+const FILTER_COPY: Record<FinanceInboxFilter, string> = {
+	unpaid: 'unpaid',
+	partial: 'partial',
+	paid: 'paid',
 }
 
-// ─── Status dot ───────────────────────────────────────────
-
-function statusDotClass(status: 'unpaid' | 'partial' | 'paid', urgent = false) {
-	if (urgent) return 'bg-red-500'
-	if (status === 'unpaid') return 'bg-amber-500'
-	if (status === 'partial') return 'bg-[var(--color-primary)]'
-	return 'bg-emerald-500'
-}
-
-// ─── Customer order row ──────────────────────────────────
-
-const ROW_GRID =
-	'grid items-center gap-4 border-b border-black/[0.04] px-3 py-3 transition-colors hover:bg-black/[0.02] dark:border-white/[0.04] dark:hover:bg-white/[0.03] cursor-pointer text-start w-full'
-const ROW_GRID_COLS =
-	'14px minmax(0,1.6fr) minmax(0,1.2fr) minmax(140px,0.9fr) minmax(160px,1.1fr) 120px'
-
-function OrderRow({
-	order,
-	onOpen,
-}: {
-	order: FinanceOrderView
-	onOpen: (id: string) => void
-}) {
-	const urgent = order.paymentStatus === 'partial' && order.isDelivered
-	const dot = statusDotClass(order.paymentStatus, urgent)
-	const remainingLabel =
-		order.paymentStatus === 'paid'
-			? 'settled'
-			: order.paymentStatus === 'partial'
-				? `${formatEgp(order.remainingDue)} EGP remaining`
-				: `${formatEgp(order.totalDue * 0.5)} EGP due now`
-
-	return (
-		<button
-			type="button"
-			onClick={() => onOpen(order.quoteId)}
-			className={ROW_GRID}
-			style={{ gridTemplateColumns: ROW_GRID_COLS }}
-		>
-			<div className={`h-2 w-2 rounded-full ${dot}`} />
-
-			<div className="min-w-0">
-				<p className="truncate text-[12.5px] font-medium text-[var(--color-text)]">
-					{order.customerName}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{order.quoteNumber}
-					{order.customerPoNumber ? ` · ${order.customerPoNumber}` : ''}
-				</p>
-			</div>
-
-			<div className="min-w-0">
-				<p className="truncate text-[11.5px] text-[var(--color-text-muted)]">
-					{order.deliveryCity || '—'}
-				</p>
-				<p className="flex items-center gap-1 text-[10px] text-[var(--color-text-subtle)]">
-					<Clock size={9} strokeWidth={2} />
-					accepted {formatHoursAgo(order.acceptedHoursAgo)}
-				</p>
-			</div>
-
-			<div className="flex flex-col">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-					{formatEgp(order.totalDue)}
-					<span className="ms-1 text-[10px] font-normal text-[var(--color-text-subtle)]">
-						EGP
-					</span>
-				</span>
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{order.itemCount} item{order.itemCount !== 1 ? 's' : ''}
-				</span>
-			</div>
-
-			<div className="flex flex-col">
-				<span
-					className={`text-[11px] font-semibold ${
-						urgent
-							? 'text-red-700 dark:text-red-300'
-							: order.paymentStatus === 'paid'
-								? 'text-emerald-700 dark:text-emerald-400'
-								: 'text-[var(--color-text)]'
-					}`}
-				>
-					{remainingLabel}
-				</span>
-				<span className="flex items-center gap-1 text-[10px] text-[var(--color-text-subtle)]">
-					{urgent && <Truck size={9} strokeWidth={2} />}
-					{urgent
-						? 'delivered · chase'
-						: `stage · ${order.currentStage.replace(/_/g, ' ')}`}
-				</span>
-			</div>
-
-			<div className="text-end text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-				{order.paymentStatus === 'paid' ? 'View' : 'Record'}
-			</div>
-		</button>
-	)
-}
-
-function DealRow({
-	deal,
-	onOpen,
-}: {
-	deal: FinanceDealView
-	onOpen: (id: string) => void
-}) {
-	const dot = statusDotClass(deal.paymentStatus)
-	const remainingLabel =
-		deal.paymentStatus === 'paid'
-			? 'settled'
-			: deal.paymentStatus === 'partial'
-				? `${formatEgp(deal.remainingDue)} EGP remaining`
-				: `${formatEgp(deal.totalDue * 0.5)} EGP due now`
-
-	return (
-		<button
-			type="button"
-			onClick={() => onOpen(deal.dealId)}
-			className={ROW_GRID}
-			style={{ gridTemplateColumns: ROW_GRID_COLS }}
-		>
-			<div className={`h-2 w-2 rounded-full ${dot}`} />
-
-			<div className="min-w-0">
-				<p className="truncate text-[12.5px] font-medium text-[var(--color-text)]">
-					{deal.supplierName}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{deal.dealId}
-				</p>
-			</div>
-
-			<div className="min-w-0">
-				<p className="truncate text-[11.5px] text-[var(--color-text-muted)]">
-					{deal.itemCount === 1
-						? deal.headlineProductName
-						: `${deal.headlineProductName} +${deal.itemCount - 1} more`}
-				</p>
-				<p className="flex items-center gap-1 text-[10px] text-[var(--color-text-subtle)]">
-					<Clock size={9} strokeWidth={2} />
-					created {formatHoursAgo(deal.createdHoursAgo)}
-				</p>
-			</div>
-
-			<div className="flex flex-col">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-					{formatEgp(deal.totalDue)}
-					<span className="ms-1 text-[10px] font-normal text-[var(--color-text-subtle)]">
-						EGP
-					</span>
-				</span>
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{deal.itemCount} item{deal.itemCount !== 1 ? 's' : ''}
-				</span>
-			</div>
-
-			<div className="flex flex-col">
-				<span
-					className={`text-[11px] font-semibold ${
-						deal.paymentStatus === 'paid'
-							? 'text-emerald-700 dark:text-emerald-400'
-							: 'text-[var(--color-text)]'
-					}`}
-				>
-					{remainingLabel}
-				</span>
-				<span className="text-[10px] text-[var(--color-text-subtle)]">
-					stage · {deal.paymentStatus === 'paid' ? 'paid' : 'pending finance'}
-				</span>
-			</div>
-
-			<div className="text-end text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-				{deal.paymentStatus === 'paid' ? 'View' : 'Record'}
-			</div>
-		</button>
-	)
-}
-
-// ─── Column header ───────────────────────────────────────
-
-function SectionHeader({
-	icon,
-	label,
-	count,
-}: {
-	icon: React.ReactNode
-	label: string
-	count: number
-}) {
-	return (
-		<div className="flex items-center gap-2 pt-1">
-			<span className="text-[var(--color-text-subtle)]">{icon}</span>
-			<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-				{label}
-			</span>
-			<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-				{count}
-			</span>
-		</div>
-	)
-}
-
-function TableColumnLegend() {
-	return (
-		<div
-			className="grid items-center gap-4 border-b border-black/[0.06] px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)] dark:border-white/[0.06]"
-			style={{ gridTemplateColumns: ROW_GRID_COLS }}
-		>
-			<div />
-			<div>Counterparty</div>
-			<div>Context</div>
-			<div>Amount</div>
-			<div>Payment</div>
-			<div className="text-end">Action</div>
-		</div>
-	)
-}
-
-// ─── Main view ───────────────────────────────────────────
+// ─── View ────────────────────────────────────────────────
 
 export function FinanceDealsOrdersView() {
 	const { data, isLoading } = useQuery({
@@ -333,7 +68,6 @@ export function FinanceDealsOrdersView() {
 		const orders = data.customerOrders
 			.filter((o) => o.paymentStatus === inboxFilter)
 			.sort((a, b) => {
-				// Delivered+partial rows float to top of Partial view (urgent chase)
 				if (inboxFilter === 'partial') {
 					if (a.isDelivered !== b.isDelivered) return a.isDelivered ? -1 : 1
 				}
@@ -347,161 +81,95 @@ export function FinanceDealsOrdersView() {
 
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-subtle)]">
-				Loading finance inbox…
+			<div className="flex h-full items-center justify-center">
+				<p
+					className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
+					style={{ fontSize: '14px', letterSpacing: '-0.008em' }}
+				>
+					opening the ledger…
+				</p>
 			</div>
 		)
 	}
 
 	const totalFiltered = filteredOrders.length + filteredDeals.length
-	const setFilter = (f: FinanceInboxFilter) => setInboxFilter(f)
+
+	const receivable = filteredOrders.reduce((s, o) => s + o.totalDue, 0)
+	const payable = filteredDeals.reduce((s, d) => s + d.totalDue, 0)
+	const netBalance = receivable - payable
 
 	return (
-		<div className="relative flex h-full flex-col bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
-			<div
-				className="flex-1 min-h-0 overflow-y-auto px-6 py-5"
-				data-module-content
-			>
-				<div className="mx-auto flex max-w-[1280px] flex-col gap-5">
-					{/* Header */}
-					<header className="flex items-center justify-between gap-6 border-b border-black/[0.04] pb-4 dark:border-white/[0.04]">
-						<div className="flex items-center gap-2">
-							<Wallet
-								size={13}
-								strokeWidth={2}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Finance · Deals & Orders
-							</span>
-						</div>
-						<div className="flex items-baseline gap-5">
-							<InlineStat
-								label="customer unpaid"
-								value={data.totals.customerUnpaid}
-								tone="amber"
-							/>
-							<InlineStat
-								label="partial"
-								value={
-									data.totals.customerPartial + data.totals.supplierPartial
-								}
-							/>
-							<InlineStat
-								label="delivered · chase"
-								value={data.totals.deliveredPartialCount}
-								tone="red"
-							/>
-							<InlineStat
-								label="supplier unpaid"
-								value={data.totals.supplierUnpaid}
-								tone="amber"
-							/>
-							<InlineStat
-								label="EGP outstanding"
-								value={formatEgp(data.totals.totalOutstanding)}
-							/>
-						</div>
-					</header>
+		<div className="relative h-full overflow-y-auto">
+			<div className="mx-auto flex max-w-[1040px] flex-col px-12 pt-10 pb-16">
+				<LedgerMasthead
+					totalOutstanding={data.totals.totalOutstanding}
+					chaseCount={data.totals.deliveredPartialCount}
+				/>
 
-					{/* Filter chips */}
-					<div className="flex items-center gap-1.5 overflow-x-auto p-1">
-						<FilterChip
-							label="Unpaid"
-							count={data.totals.customerUnpaid + data.totals.supplierUnpaid}
-							active={inboxFilter === 'unpaid'}
-							onPress={() => setFilter('unpaid')}
-							hasAttention={
-								data.totals.customerUnpaid + data.totals.supplierUnpaid > 0
-							}
-						/>
-						<FilterChip
-							label="Partial"
-							count={data.totals.customerPartial + data.totals.supplierPartial}
-							active={inboxFilter === 'partial'}
-							onPress={() => setFilter('partial')}
-							hasAttention={data.totals.deliveredPartialCount > 0}
-						/>
-						<FilterChip
-							label="Paid"
-							count={data.totals.customerPaid + data.totals.supplierPaid}
-							active={inboxFilter === 'paid'}
-							onPress={() => setFilter('paid')}
-						/>
-					</div>
+				<FilterStrip
+					active={inboxFilter}
+					onSelect={setInboxFilter}
+					unpaid={data.totals.customerUnpaid + data.totals.supplierUnpaid}
+					partial={data.totals.customerPartial + data.totals.supplierPartial}
+					paid={data.totals.customerPaid + data.totals.supplierPaid}
+					chase={data.totals.deliveredPartialCount}
+				/>
 
-					{totalFiltered === 0 ? (
-						<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.1] py-16 text-center dark:border-white/[0.1]">
-							<Wallet
-								size={24}
-								strokeWidth={1.5}
-								className="text-[var(--color-text-subtle)]"
-							/>
-							<p className="mt-2 text-[12px] font-medium text-[var(--color-text)]">
-								Nothing in the {inboxFilter} queue
-							</p>
-							<p className="mt-0.5 text-[10px] text-[var(--color-text-subtle)]">
-								New accepted quotes and supplier deals land here automatically.
-							</p>
-						</div>
-					) : (
-						<>
-							{/* Customer orders section */}
-							<div className="flex flex-col gap-2">
-								<SectionHeader
-									icon={<TrendingUp size={12} strokeWidth={2} />}
-									label="Customer orders · money in"
-									count={filteredOrders.length}
+				{totalFiltered === 0 ? (
+					<LedgerEmpty filter={inboxFilter} />
+				) : (
+					<>
+						<LedgerSection
+							heading="Money in"
+							dek="customer orders"
+							count={filteredOrders.length}
+							emptyCopy="no customer orders in this state."
+						>
+							{filteredOrders.map((order, idx) => (
+								<OrderEntry
+									key={order.quoteId}
+									index={idx}
+									order={order}
+									onOpen={setSelectedOrderId}
 								/>
-								{filteredOrders.length > 0 ? (
-									<>
-										<TableColumnLegend />
-										<div className="flex flex-col">
-											{filteredOrders.map((o) => (
-												<OrderRow
-													key={o.quoteId}
-													order={o}
-													onOpen={setSelectedOrderId}
-												/>
-											))}
-										</div>
-									</>
-								) : (
-									<p className="text-[10px] italic text-[var(--color-text-subtle)] px-3 py-3 border-b border-black/[0.04] dark:border-white/[0.04]">
-										No customer orders in this state.
-									</p>
-								)}
-							</div>
-
-							{/* Supplier deals section */}
-							<div className="flex flex-col gap-2 mt-2">
-								<SectionHeader
-									icon={<Truck size={12} strokeWidth={2} />}
-									label="Supplier deals · money out"
-									count={filteredDeals.length}
+							))}
+							{filteredOrders.length > 0 && (
+								<SectionTotal
+									label={inboxFilter === 'paid' ? 'settled in' : 'receivable'}
+									value={receivable}
+									tone="in"
 								/>
-								{filteredDeals.length > 0 ? (
-									<>
-										<TableColumnLegend />
-										<div className="flex flex-col">
-											{filteredDeals.map((d) => (
-												<DealRow
-													key={d.dealId}
-													deal={d}
-													onOpen={setSelectedDealId}
-												/>
-											))}
-										</div>
-									</>
-								) : (
-									<p className="text-[10px] italic text-[var(--color-text-subtle)] px-3 py-3 border-b border-black/[0.04] dark:border-white/[0.04]">
-										No supplier deals in this state.
-									</p>
-								)}
-							</div>
-						</>
-					)}
-				</div>
+							)}
+						</LedgerSection>
+
+						<LedgerSection
+							heading="Money out"
+							dek="supplier deals"
+							count={filteredDeals.length}
+							emptyCopy="no supplier deals in this state."
+						>
+							{filteredDeals.map((deal, idx) => (
+								<DealEntry
+									key={deal.dealId}
+									index={idx}
+									deal={deal}
+									onOpen={setSelectedDealId}
+								/>
+							))}
+							{filteredDeals.length > 0 && (
+								<SectionTotal
+									label={inboxFilter === 'paid' ? 'settled out' : 'payable'}
+									value={payable}
+									tone="out"
+								/>
+							)}
+						</LedgerSection>
+
+						{filteredOrders.length > 0 && filteredDeals.length > 0 && (
+							<NetBalance value={netBalance} filter={inboxFilter} />
+						)}
+					</>
+				)}
 			</div>
 
 			<FinancePaymentPanel
@@ -513,6 +181,647 @@ export function FinanceDealsOrdersView() {
 					setSelectedDealId(null)
 				}}
 			/>
+		</div>
+	)
+}
+
+// ─── Masthead ────────────────────────────────────────────
+
+function LedgerMasthead({
+	totalOutstanding,
+	chaseCount,
+}: {
+	totalOutstanding: number
+	chaseCount: number
+}) {
+	const today = new Date()
+	const date = today
+		.toLocaleDateString('en-GB', {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric',
+		})
+		.toLowerCase()
+
+	return (
+		<header className="flex flex-col border-b border-[var(--color-border)] pb-10">
+			<div className="flex items-baseline justify-between gap-4">
+				<span
+					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+					style={{
+						fontSize: '10.5px',
+						color: 'var(--color-text-subtle)',
+						letterSpacing: '0.22em',
+					}}
+				>
+					The Ledger · intake
+				</span>
+				<span
+					className="font-[family-name:var(--font-bricolage)] italic"
+					style={{
+						fontSize: '11px',
+						color: 'var(--color-text-subtle)',
+					}}
+					suppressHydrationWarning
+				>
+					{date}
+				</span>
+			</div>
+
+			<div className="mt-8 flex flex-wrap items-end justify-between gap-6">
+				<div className="flex flex-col">
+					<span
+						className="font-[family-name:var(--font-archivo-black)] tabular-nums leading-[0.92] text-[var(--color-text)]"
+						style={{
+							fontSize: 'clamp(68px, 9vw, 108px)',
+							letterSpacing: '-0.045em',
+							fontFeatureSettings: '"tnum" on, "lnum" on',
+						}}
+					>
+						{formatEgp(totalOutstanding)}
+					</span>
+					<div className="mt-3 flex items-baseline gap-2">
+						<span
+							className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)]"
+							style={{ fontSize: '14px', letterSpacing: '-0.004em' }}
+						>
+							EGP outstanding across both books
+						</span>
+					</div>
+				</div>
+
+				{chaseCount > 0 && (
+					<div
+						className="flex flex-col items-end border-l-2 pl-5"
+						style={{ borderColor: 'var(--ledger-chase)' }}
+					>
+						<span
+							className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+							style={{
+								fontSize: '9.5px',
+								letterSpacing: '0.22em',
+								color: 'var(--ledger-chase)',
+							}}
+						>
+							chase
+						</span>
+						<span
+							className="mt-1 font-[family-name:var(--font-archivo-black)] tabular-nums leading-none"
+							style={{
+								fontSize: '32px',
+								letterSpacing: '-0.025em',
+								color: 'var(--ledger-chase)',
+							}}
+						>
+							{chaseCount}
+						</span>
+						<span
+							className="mt-1 font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)]"
+							style={{ fontSize: '11px' }}
+						>
+							delivered · partial paid
+						</span>
+					</div>
+				)}
+			</div>
+		</header>
+	)
+}
+
+// ─── Filter strip ────────────────────────────────────────
+
+function FilterStrip({
+	active,
+	onSelect,
+	unpaid,
+	partial,
+	paid,
+	chase,
+}: {
+	active: FinanceInboxFilter
+	onSelect: (f: FinanceInboxFilter) => void
+	unpaid: number
+	partial: number
+	paid: number
+	chase: number
+}) {
+	const entries: {
+		id: FinanceInboxFilter
+		count: number
+		attention: number
+	}[] = [
+		{ id: 'unpaid', count: unpaid, attention: unpaid },
+		{ id: 'partial', count: partial, attention: chase },
+		{ id: 'paid', count: paid, attention: 0 },
+	]
+
+	return (
+		<div
+			className="mt-6 flex items-center gap-8 border-b border-[var(--color-border)] pb-4"
+			role="tablist"
+			aria-label="Payment state"
+		>
+			{entries.map((entry) => {
+				const isActive = entry.id === active
+				return (
+					<button
+						key={entry.id}
+						type="button"
+						role="tab"
+						aria-selected={isActive}
+						onClick={() => onSelect(entry.id)}
+						className="group inline-flex items-baseline gap-2 outline-none"
+					>
+						<span
+							aria-hidden="true"
+							className="h-[7px] w-[7px] rounded-full transition-colors"
+							style={{
+								background: isActive
+									? 'var(--color-primary)'
+									: entry.attention > 0
+										? 'var(--ledger-chase)'
+										: 'var(--color-text-subtle)',
+								opacity: isActive ? 1 : 0.4,
+							}}
+						/>
+						<span
+							className="font-[family-name:var(--font-bricolage)] transition-colors"
+							style={{
+								fontSize: '14px',
+								fontWeight: isActive ? 600 : 400,
+								fontStyle: isActive ? 'normal' : 'italic',
+								letterSpacing: '-0.008em',
+								color: isActive
+									? 'var(--color-text)'
+									: 'var(--color-text-muted)',
+							}}
+						>
+							{FILTER_COPY[entry.id]}
+						</span>
+						<span
+							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+							style={{
+								fontSize: '11px',
+								color: isActive
+									? 'var(--color-primary)'
+									: 'var(--color-text-subtle)',
+								letterSpacing: '0.04em',
+							}}
+						>
+							{entry.count.toString().padStart(2, '0')}
+						</span>
+					</button>
+				)
+			})}
+		</div>
+	)
+}
+
+// ─── Section ─────────────────────────────────────────────
+
+function LedgerSection({
+	heading,
+	dek,
+	count,
+	emptyCopy,
+	children,
+}: {
+	heading: string
+	dek: string
+	count: number
+	emptyCopy: string
+	children: React.ReactNode
+}) {
+	return (
+		<section className="mt-10">
+			<div className="flex items-baseline justify-between border-b border-[var(--color-border)] pb-2">
+				<div className="flex items-baseline gap-2">
+					<h3
+						className="font-[family-name:var(--font-bricolage)] text-[var(--color-text)]"
+						style={{
+							fontSize: '17px',
+							fontWeight: 600,
+							letterSpacing: '-0.012em',
+						}}
+					>
+						{heading}
+					</h3>
+					<span
+						className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)]"
+						style={{ fontSize: '12px' }}
+					>
+						· {dek}
+					</span>
+				</div>
+				<span
+					className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+					style={{
+						fontSize: '11px',
+						color: 'var(--color-text-subtle)',
+						letterSpacing: '0.06em',
+					}}
+				>
+					{count.toString().padStart(2, '0')}
+				</span>
+			</div>
+
+			{count === 0 ? (
+				<p
+					className="py-6 font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
+					style={{ fontSize: '12.5px' }}
+				>
+					{emptyCopy}
+				</p>
+			) : (
+				<ul className="flex flex-col">{children}</ul>
+			)}
+		</section>
+	)
+}
+
+function SectionTotal({
+	label,
+	value,
+	tone,
+}: {
+	label: string
+	value: number
+	tone: 'in' | 'out'
+}) {
+	return (
+		<li className="mt-1 flex items-baseline justify-end gap-3 pt-3">
+			<span
+				className="font-[family-name:var(--font-bricolage)] italic"
+				style={{
+					fontSize: '11.5px',
+					color: 'var(--color-text-muted)',
+					letterSpacing: '0.002em',
+				}}
+			>
+				{label}
+			</span>
+			<span aria-hidden="true" className="h-px w-16 bg-[var(--color-border)]" />
+			<span
+				className="ledger-double-rule pb-1 font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
+				style={{
+					fontSize: '20px',
+					color: tone === 'in' ? 'var(--ledger-in)' : 'var(--ledger-out)',
+					letterSpacing: '-0.02em',
+				}}
+			>
+				{formatEgp(value)}
+			</span>
+			<span
+				className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
+				style={{
+					fontSize: '10px',
+					color: 'var(--color-text-subtle)',
+					letterSpacing: '0.14em',
+				}}
+			>
+				EGP
+			</span>
+		</li>
+	)
+}
+
+// ─── Net balance ─────────────────────────────────────────
+
+function NetBalance({
+	value,
+	filter,
+}: {
+	value: number
+	filter: FinanceInboxFilter
+}) {
+	const noun =
+		filter === 'paid'
+			? 'net settled'
+			: value >= 0
+				? 'net receivable'
+				: 'net payable'
+	const displayValue = Math.abs(value)
+
+	return (
+		<section className="mt-14 flex flex-col items-end">
+			<div
+				aria-hidden="true"
+				className="mb-4 h-[2px] w-48"
+				style={{
+					background: `linear-gradient(to right, transparent, var(--color-border))`,
+				}}
+			/>
+			<div className="flex items-baseline gap-3">
+				<span
+					className="font-[family-name:var(--font-bricolage)] italic"
+					style={{
+						fontSize: '13px',
+						color: 'var(--color-text-muted)',
+						letterSpacing: '0.002em',
+					}}
+				>
+					{noun}
+				</span>
+				<span
+					className="font-[family-name:var(--font-archivo-black)] tabular-nums leading-none"
+					style={{
+						fontSize: '34px',
+						color:
+							filter === 'paid'
+								? 'var(--color-text)'
+								: value >= 0
+									? 'var(--ledger-in)'
+									: 'var(--ledger-out)',
+						letterSpacing: '-0.028em',
+					}}
+				>
+					{formatEgp(displayValue)}
+				</span>
+				<span
+					className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
+					style={{
+						fontSize: '11px',
+						color: 'var(--color-text-subtle)',
+						letterSpacing: '0.14em',
+					}}
+				>
+					EGP
+				</span>
+			</div>
+		</section>
+	)
+}
+
+// ─── Entries ─────────────────────────────────────────────
+
+function LedgerEntry({
+	index,
+	counterparty,
+	reference,
+	context,
+	ageLabel,
+	amount,
+	paymentLabel,
+	paymentTone,
+	actionLabel,
+	onPress,
+}: {
+	index: number
+	counterparty: string
+	reference: string
+	context: string
+	ageLabel: string
+	amount: number
+	paymentLabel: string
+	paymentTone: 'neutral' | 'chase' | 'in' | 'out'
+	actionLabel: string
+	onPress: () => void
+}) {
+	const toneColor = {
+		neutral: 'var(--color-text)',
+		chase: 'var(--ledger-chase)',
+		in: 'var(--ledger-in)',
+		out: 'var(--ledger-out)',
+	}[paymentTone]
+
+	return (
+		<li>
+			<button
+				type="button"
+				onClick={onPress}
+				className="ledger-row group/row grid w-full items-baseline py-4 ps-4 text-start outline-none"
+				style={{
+					gridTemplateColumns: '32px minmax(0,1.4fr) minmax(0,1fr) auto 80px',
+					columnGap: '20px',
+				}}
+			>
+				<span
+					className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+					style={{
+						fontSize: '10.5px',
+						color: 'var(--color-text-subtle)',
+						letterSpacing: '0.06em',
+					}}
+				>
+					{toRoman(index + 1).padStart(3, ' ')}
+				</span>
+
+				<div className="min-w-0">
+					<p
+						className="truncate font-[family-name:var(--font-bricolage)]"
+						style={{
+							fontSize: '15px',
+							fontWeight: 500,
+							color: 'var(--color-text)',
+							letterSpacing: '-0.01em',
+						}}
+					>
+						{counterparty}
+					</p>
+					<p
+						className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0"
+						style={{
+							fontSize: '10.5px',
+							color: 'var(--color-text-subtle)',
+						}}
+					>
+						<span
+							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+							style={{ letterSpacing: '0.04em' }}
+						>
+							{reference}
+						</span>
+						<span aria-hidden="true" className="opacity-60">
+							·
+						</span>
+						<span className="font-[family-name:var(--font-bricolage)] italic">
+							{context}
+						</span>
+						<span aria-hidden="true" className="opacity-60">
+							·
+						</span>
+						<span
+							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+							style={{ letterSpacing: '0.04em' }}
+						>
+							{ageLabel}
+						</span>
+					</p>
+				</div>
+
+				<div className="flex flex-col items-start">
+					<span
+						className="font-[family-name:var(--font-bricolage)] italic transition-colors"
+						style={{
+							fontSize: '12px',
+							color: toneColor,
+							letterSpacing: '-0.002em',
+						}}
+					>
+						{paymentLabel}
+					</span>
+				</div>
+
+				<div className="flex items-baseline gap-1.5">
+					<span
+						className="font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
+						style={{
+							fontSize: '18px',
+							color: 'var(--color-text)',
+							letterSpacing: '-0.018em',
+						}}
+					>
+						{formatEgp(amount)}
+					</span>
+					<span
+						className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
+						style={{
+							fontSize: '9.5px',
+							color: 'var(--color-text-subtle)',
+							letterSpacing: '0.14em',
+						}}
+					>
+						EGP
+					</span>
+				</div>
+
+				<div className="flex items-baseline justify-end gap-1.5 pe-4">
+					<span
+						className="font-[family-name:var(--font-bricolage)] italic transition-colors"
+						style={{
+							fontSize: '12.5px',
+							color: 'var(--color-text-muted)',
+							letterSpacing: '-0.005em',
+						}}
+					>
+						{actionLabel}
+					</span>
+					<span
+						aria-hidden="true"
+						className="transition-transform group-hover/row:translate-x-[3px]"
+						style={{
+							fontFamily: 'var(--font-bricolage)',
+							fontStyle: 'italic',
+							fontSize: '13px',
+							color: 'var(--color-primary)',
+						}}
+					>
+						→
+					</span>
+				</div>
+			</button>
+		</li>
+	)
+}
+
+function OrderEntry({
+	index,
+	order,
+	onOpen,
+}: {
+	index: number
+	order: FinanceOrderView
+	onOpen: (id: string) => void
+}) {
+	const urgent = order.paymentStatus === 'partial' && order.isDelivered
+	const paymentLabel =
+		order.paymentStatus === 'paid'
+			? 'settled'
+			: order.paymentStatus === 'partial'
+				? urgent
+					? 'delivered · chase'
+					: `${formatEgp(order.remainingDue)} EGP remaining`
+				: '50% due now · book and release'
+	const paymentTone: 'neutral' | 'chase' | 'in' = urgent
+		? 'chase'
+		: order.paymentStatus === 'paid'
+			? 'in'
+			: 'neutral'
+
+	const reference = order.customerPoNumber
+		? `${order.quoteNumber} · ${order.customerPoNumber}`
+		: order.quoteNumber
+
+	return (
+		<LedgerEntry
+			index={index}
+			counterparty={order.customerName}
+			reference={reference}
+			context={order.deliveryCity || 'no city'}
+			ageLabel={`accepted ${formatHoursAgo(order.acceptedHoursAgo)}`}
+			amount={order.totalDue}
+			paymentLabel={paymentLabel}
+			paymentTone={paymentTone}
+			actionLabel={order.paymentStatus === 'paid' ? 'open' : 'record'}
+			onPress={() => onOpen(order.quoteId)}
+		/>
+	)
+}
+
+function DealEntry({
+	index,
+	deal,
+	onOpen,
+}: {
+	index: number
+	deal: FinanceDealView
+	onOpen: (id: string) => void
+}) {
+	const paymentLabel =
+		deal.paymentStatus === 'paid'
+			? 'settled'
+			: deal.paymentStatus === 'partial'
+				? `${formatEgp(deal.remainingDue)} EGP remaining`
+				: '50% due now · release the deal'
+	const paymentTone: 'neutral' | 'out' =
+		deal.paymentStatus === 'paid' ? 'out' : 'neutral'
+
+	const context =
+		deal.itemCount === 1
+			? deal.headlineProductName
+			: `${deal.headlineProductName} + ${deal.itemCount - 1} more`
+
+	return (
+		<LedgerEntry
+			index={index}
+			counterparty={deal.supplierName}
+			reference={deal.dealId}
+			context={context}
+			ageLabel={`called ${formatHoursAgo(deal.createdHoursAgo)}`}
+			amount={deal.totalDue}
+			paymentLabel={paymentLabel}
+			paymentTone={paymentTone}
+			actionLabel={deal.paymentStatus === 'paid' ? 'open' : 'record'}
+			onPress={() => onOpen(deal.dealId)}
+		/>
+	)
+}
+
+// ─── Empty ──────────────────────────────────────────────
+
+function LedgerEmpty({ filter }: { filter: FinanceInboxFilter }) {
+	const copy =
+		filter === 'unpaid'
+			? 'the unpaid column is empty. accepted quotes and fresh deals land here first.'
+			: filter === 'partial'
+				? 'no entries in the partial column. fifty-percent collections show up here until they settle.'
+				: 'the settled column is empty. completed payments accumulate here.'
+
+	return (
+		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--color-border)] py-14">
+			<span
+				className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text)]"
+				style={{ fontSize: '20px', letterSpacing: '-0.012em' }}
+			>
+				nothing on this page.
+			</span>
+			<span
+				className="max-w-[420px] text-center font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
+				style={{ fontSize: '12.5px', lineHeight: 1.5 }}
+			>
+				{copy}
+			</span>
 		</div>
 	)
 }

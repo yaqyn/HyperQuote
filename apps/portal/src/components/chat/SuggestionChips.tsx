@@ -1,16 +1,16 @@
 /**
- * SuggestionChips — 3 suggestion cards for the empty chat state.
- * Each represents a natural way to start an order conversation.
+ * SuggestionChips — three action tiles under the empty-state greeting.
+ *
+ * Bordered cards: small-caps mono label + one-line serif description. Click
+ * sends the corresponding prompt to Lyon.
  */
 
-import { HardHat, type LucideIcon, RotateCcw, Warehouse } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 interface Chip {
 	labelKey: string
 	descKey: string
-	icon: LucideIcon
 	promptEn: string
 	promptAr: string
 }
@@ -19,7 +19,6 @@ const CHIPS: Chip[] = [
 	{
 		labelKey: 'chip.buildProject',
 		descKey: 'chip.buildProjectDesc',
-		icon: HardHat,
 		promptEn: 'I have a construction project and need materials',
 		promptAr:
 			'\u0639\u0646\u062F\u064A \u0645\u0634\u0631\u0648\u0639 \u0628\u0646\u0627\u0621 \u0648\u0645\u062D\u062A\u0627\u062C \u0645\u0648\u0627\u062F',
@@ -27,7 +26,6 @@ const CHIPS: Chip[] = [
 	{
 		labelKey: 'chip.orderMaterials',
 		descKey: 'chip.orderMaterialsDesc',
-		icon: Warehouse,
 		promptEn: 'I need to order specific building materials',
 		promptAr:
 			'\u0639\u0627\u064A\u0632 \u0623\u0637\u0644\u0628 \u0645\u0648\u0627\u062F \u0628\u0646\u0627\u0621 \u0645\u062D\u062F\u062F\u0629',
@@ -35,7 +33,6 @@ const CHIPS: Chip[] = [
 	{
 		labelKey: 'chip.reorder',
 		descKey: 'chip.reorderDesc',
-		icon: RotateCcw,
 		promptEn: 'I want to reorder from a previous order',
 		promptAr:
 			'\u0639\u0627\u064A\u0632 \u0623\u0639\u064A\u062F \u0637\u0644\u0628 \u0633\u0627\u0628\u0642',
@@ -51,9 +48,9 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 	const { t } = useTranslation('portal')
 
 	return (
-		<div className="grid grid-cols-3 gap-3 max-w-[640px] w-full">
+		<>
 			{CHIPS.map((chip, idx) => {
-				const Icon = chip.icon
+				const numeral = ['I', 'II', 'III'][idx] ?? ''
 				return (
 					<motion.button
 						key={chip.labelKey}
@@ -61,29 +58,30 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 						onClick={() =>
 							onSelect(locale === 'ar' ? chip.promptAr : chip.promptEn)
 						}
-						initial={{ opacity: 0, y: 12 }}
+						initial={{ opacity: 0, y: 4 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{
-							type: 'spring',
-							stiffness: 300,
-							damping: 30,
-							delay: 0.3 + idx * 0.06,
+							duration: 0.4,
+							ease: [0.2, 0.8, 0.2, 1],
+							delay: 0.2 + idx * 0.08,
 						}}
-						className="group flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-[var(--p-surface)] border border-[var(--p-border)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-card)] transition-all cursor-pointer"
+						className="group flex flex-col items-center gap-3 border border-[var(--p-border)] bg-transparent px-4 py-5 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
 					>
-						<div className="w-10 h-10 rounded-xl bg-[var(--p-card)] group-hover:bg-[var(--p-elevated)] flex items-center justify-center transition-colors">
-							<Icon
-								size={18}
-								strokeWidth={1.5}
-								className="text-[var(--p-text-secondary)]"
-							/>
-						</div>
-						<p className="text-[13px] font-medium text-[var(--p-text)]">
+						<span
+							aria-hidden
+							className="voice-serif text-[18px] italic leading-none text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]"
+						>
+							{numeral}
+						</span>
+						<span className="voice-mono text-[10px] uppercase tracking-[0.26em] text-[var(--p-text)]">
 							{t(chip.labelKey)}
-						</p>
+						</span>
+						<span className="voice-serif text-[13px] leading-[1.4] text-[var(--p-text-muted)]">
+							{t(chip.descKey, '')}
+						</span>
 					</motion.button>
 				)
 			})}
-		</div>
+		</>
 	)
 }

@@ -1,6 +1,11 @@
 /**
- * Full-bleed dispatch map — same light tiles as the quote builder.
- * Shows warehouse beacon, delivery pins, driver dots along routes.
+ * Dispatch map — washed terrain under the horizon panel. Near-black ink
+ * on muted ochre cartography: warehouse as a hairline ring, destinations
+ * as serif monograms pinned to off-white paper, trucks as brand-blue dots
+ * (or brand-amber if overdue). Selected pin fills brand blue. The terrain
+ * is desaturated via the .dispatch-map-wash filter so the panel reads as
+ * a composed object over quiet ground.
+ *
  * MUST be wrapped in ClientOnly at call site.
  */
 import { useCallback, useRef, useState } from 'react'
@@ -39,7 +44,7 @@ export function DispatchMap({
 		[onSelectRoute],
 	)
 
-	// GeoJSON for route lines — dashed lines from warehouse to each delivery
+	// GeoJSON — ink-dashed lines from warehouse to each delivery
 	const routeLinesGeoJSON: GeoJSON.FeatureCollection = {
 		type: 'FeatureCollection',
 		features: routes.map((r) => ({
@@ -56,152 +61,187 @@ export function DispatchMap({
 	}
 
 	return (
-		<div className="relative h-full w-full">
+		<div className="dispatch-theme relative h-full w-full">
 			{!mapLoaded && (
-				<div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--color-surface)]">
-					<div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+				<div
+					className="dispatch-paper absolute inset-0 z-10 flex items-center justify-center"
+					style={{ color: 'var(--ink)' }}
+				>
+					<div
+						className="h-px w-[80px] animate-horizon-draw"
+						style={{ backgroundColor: 'var(--ink-ghost)' }}
+					/>
 				</div>
 			)}
-			<MapGL
-				ref={mapRef}
-				mapStyle={MAP_STYLE as unknown as string}
-				initialViewState={{
-					latitude: 30.02,
-					longitude: 31.0,
-					zoom: 10,
-				}}
-				style={{ width: '100%', height: '100%' }}
-				onLoad={() => setMapLoaded(true)}
-				attributionControl={false}
-				minZoom={6}
-				maxZoom={18}
-			>
-				{/* Route lines */}
-				{mapLoaded && (
-					<Source id="dispatch-routes" type="geojson" data={routeLinesGeoJSON}>
-						<Layer
-							id="dispatch-route-lines"
-							type="line"
-							paint={{
-								'line-color': '#2563EB',
-								'line-width': 2,
-								'line-opacity': 0.35,
-								'line-dasharray': [4, 3],
-							}}
-						/>
-					</Source>
-				)}
-
-				{/* Warehouse marker — blue ring beacon */}
-				<Marker
-					latitude={WAREHOUSE_COORDS.lat}
-					longitude={WAREHOUSE_COORDS.lng}
-					anchor="center"
+			<div className="dispatch-map-wash h-full w-full">
+				<MapGL
+					ref={mapRef}
+					mapStyle={MAP_STYLE as unknown as string}
+					initialViewState={{
+						latitude: 30.02,
+						longitude: 31.0,
+						zoom: 10,
+					}}
+					style={{ width: '100%', height: '100%' }}
+					onLoad={() => setMapLoaded(true)}
+					attributionControl={false}
+					minZoom={6}
+					maxZoom={18}
 				>
-					<div className="relative flex items-center justify-center">
-						<div className="absolute h-8 w-8 animate-ping rounded-full bg-[#2563EB]/20" />
-						<div className="relative h-4 w-4 rounded-full border-[3px] border-[#2563EB] bg-white shadow-md" />
-					</div>
-				</Marker>
+					{/* Route lines — graphite dashes */}
+					{mapLoaded && (
+						<Source
+							id="dispatch-routes"
+							type="geojson"
+							data={routeLinesGeoJSON}
+						>
+							<Layer
+								id="dispatch-route-lines"
+								type="line"
+								paint={{
+									'line-color': '#111111',
+									'line-width': 1.2,
+									'line-opacity': 0.32,
+									'line-dasharray': [3, 4],
+								}}
+							/>
+						</Source>
+					)}
 
-				{/* Delivery destination markers */}
-				{routes.map((r) => (
+					{/* Warehouse — hairline ink ring with faint halo */}
 					<Marker
-						key={`dest-${r.quoteId}`}
-						latitude={r.deliveryLat}
-						longitude={r.deliveryLng}
-						anchor="bottom"
-						onClick={(e) => {
-							e.originalEvent.stopPropagation()
-							handleDriverClick(r.quoteId, r.deliveryLat, r.deliveryLng)
-						}}
-					>
-						<div className="group cursor-pointer">
-							{/* Pin shape */}
-							<div className="flex flex-col items-center">
-								<div
-									className={`flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-lg transition-transform group-hover:scale-110 ${
-										selectedQuoteId === r.quoteId
-											? 'border-[#2563EB] bg-[#2563EB] text-white'
-											: r.isOverdue
-												? 'border-[#F59E0B] bg-white text-[#F59E0B]'
-												: 'border-[#2563EB] bg-white text-[#2563EB]'
-									}`}
-								>
-									<svg
-										aria-hidden="true"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-										<circle cx="12" cy="10" r="3" />
-									</svg>
-								</div>
-								{/* Label */}
-								<div className="mt-1 max-w-[120px] truncate rounded bg-white/90 px-1.5 py-0.5 text-center text-[9px] font-semibold text-black/70 shadow-sm backdrop-blur-sm">
-									{r.customerName.split(' ')[0]}
-								</div>
-							</div>
-						</div>
-					</Marker>
-				))}
-
-				{/* Driver/truck markers — dots along the route */}
-				{routes.map((r) => (
-					<Marker
-						key={`driver-${r.quoteId}`}
-						latitude={r.driverLat}
-						longitude={r.driverLng}
+						latitude={WAREHOUSE_COORDS.lat}
+						longitude={WAREHOUSE_COORDS.lng}
 						anchor="center"
-						onClick={(e) => {
-							e.originalEvent.stopPropagation()
-							handleDriverClick(r.quoteId, r.driverLat, r.driverLng)
-						}}
 					>
-						<div className="group cursor-pointer">
-							<div className="relative flex items-center justify-center">
-								{/* Pulse ring */}
-								<div
-									className="absolute h-6 w-6 animate-ping rounded-full opacity-30"
-									style={{
-										backgroundColor: r.isOverdue ? '#F59E0B' : '#2563EB',
-									}}
-								/>
-								{/* Truck dot */}
-								<div
-									className={`relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform group-hover:scale-125 ${
-										selectedQuoteId === r.quoteId ? 'scale-125' : ''
-									}`}
-									style={{
-										backgroundColor: r.isOverdue ? '#F59E0B' : '#2563EB',
-									}}
-								>
-									<svg
-										aria-hidden="true"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="white"
-										stroke="none"
-									>
-										<path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-									</svg>
-								</div>
-							</div>
-							{/* Driver name tooltip */}
-							<div className="mt-1 max-w-[100px] truncate rounded bg-black/75 px-1.5 py-0.5 text-center text-[8px] font-medium text-white shadow-sm">
-								{r.trucks[0]?.driverName.split(' ')[0] ?? 'Driver'}
-							</div>
+						<div className="relative flex items-center justify-center">
+							<div
+								className="absolute h-10 w-10 animate-ping rounded-full"
+								style={{ backgroundColor: 'rgba(17, 17, 17, 0.08)' }}
+							/>
+							<div
+								className="relative h-5 w-5 rounded-full"
+								style={{
+									backgroundColor: '#FAFAFA',
+									border: '2px solid #1A1D1F',
+								}}
+							/>
+							<div
+								className="absolute h-[5px] w-[5px] rounded-full"
+								style={{ backgroundColor: '#111111' }}
+							/>
 						</div>
 					</Marker>
-				))}
-			</MapGL>
+
+					{/* Delivery pins — paper fill, ink ring, serif monogram */}
+					{routes.map((r) => {
+						const isSelected = selectedQuoteId === r.quoteId
+						const initial = (r.customerName.trim()[0] ?? '•').toUpperCase()
+						const ringColor = isSelected
+							? '#2563EB'
+							: r.isOverdue
+								? '#D97706'
+								: '#111111'
+						return (
+							<Marker
+								key={`dest-${r.quoteId}`}
+								latitude={r.deliveryLat}
+								longitude={r.deliveryLng}
+								anchor="bottom"
+								onClick={(e) => {
+									e.originalEvent.stopPropagation()
+									handleDriverClick(r.quoteId, r.deliveryLat, r.deliveryLng)
+								}}
+							>
+								<div className="cursor-pointer">
+									<div className="flex flex-col items-center">
+										<div
+											className="flex h-9 w-9 items-center justify-center rounded-full shadow-[0_6px_14px_-4px_rgba(20,15,10,0.35)]"
+											style={{
+												backgroundColor: isSelected ? '#2563EB' : '#FAFAFA',
+												border: `1.5px solid ${ringColor}`,
+												color: isSelected ? '#FFFFFF' : ringColor,
+												fontFamily: 'Literata, serif',
+												fontSize: '15px',
+												fontWeight: 500,
+												letterSpacing: '-0.02em',
+												transition: 'transform 160ms ease',
+												transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+											}}
+										>
+											{initial}
+										</div>
+										<div
+											className="mt-1 max-w-[120px] truncate px-2 py-0.5"
+											style={{
+												backgroundColor: 'rgba(250, 250, 250, 0.92)',
+												backdropFilter: 'blur(2px)',
+												fontFamily: 'Archivo, sans-serif',
+												fontStyle: 'italic',
+												fontSize: '10px',
+												color: '#111111',
+												letterSpacing: '-0.005em',
+											}}
+										>
+											{r.customerName.split(' ')[0]?.toLowerCase() ??
+												'customer'}
+										</div>
+									</div>
+								</div>
+							</Marker>
+						)
+					})}
+
+					{/* Driver dots — brand blue when moving, brand amber when overdue */}
+					{routes.map((r) => {
+						const isSelected = selectedQuoteId === r.quoteId
+						const fill = r.isOverdue ? '#D97706' : '#2563EB'
+						return (
+							<Marker
+								key={`driver-${r.quoteId}`}
+								latitude={r.driverLat}
+								longitude={r.driverLng}
+								anchor="center"
+								onClick={(e) => {
+									e.originalEvent.stopPropagation()
+									handleDriverClick(r.quoteId, r.driverLat, r.driverLng)
+								}}
+							>
+								<div className="cursor-pointer">
+									<div className="relative flex items-center justify-center">
+										<div
+											className="absolute h-7 w-7 animate-ping rounded-full"
+											style={{ backgroundColor: fill, opacity: 0.22 }}
+										/>
+										<div
+											className="relative h-[14px] w-[14px] rounded-full shadow-[0_4px_10px_-3px_rgba(20,15,10,0.4)]"
+											style={{
+												backgroundColor: fill,
+												border: '1.5px solid #F3EEE4',
+												transform: isSelected ? 'scale(1.25)' : 'scale(1)',
+												transition: 'transform 160ms ease',
+											}}
+										/>
+									</div>
+									<div
+										className="mt-1 max-w-[100px] truncate px-1.5 py-0.5"
+										style={{
+											backgroundColor: 'rgba(17, 17, 17, 0.82)',
+											fontFamily: 'IBM Plex Mono, monospace',
+											fontSize: '8.5px',
+											color: '#FAFAFA',
+											letterSpacing: '0.06em',
+											textAlign: 'center',
+										}}
+									>
+										{r.trucks[0]?.plateNumber ?? '—'}
+									</div>
+								</div>
+							</Marker>
+						)
+					})}
+				</MapGL>
+			</div>
 		</div>
 	)
 }

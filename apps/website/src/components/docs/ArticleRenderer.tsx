@@ -98,7 +98,11 @@ export function ArticleRenderer({
 										</Tag>
 									</div>
 									<AskLyonPill
-										context={`Tell me about "${heading.text}" in ${articleTitle}`}
+										contextKey="docs.askLyonContext.tellMeAbout"
+										contextVars={{
+											heading: heading.text,
+											article: articleTitle,
+										}}
 									/>
 								</div>
 							</div>

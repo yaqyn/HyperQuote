@@ -80,11 +80,12 @@ export function SupportInbox({ conversations, selectedId }: SupportInboxProps) {
 					c.lastMessagePreview.toLowerCase().includes(q),
 			)
 		}
-		// Oldest first — whoever's been waiting longest gets served first
+		// Oldest first — whoever's been waiting longest gets served first.
+		// Live queue sorts by createdAt so agent replies don't bump the
+		// active conversation out of the queue head (cycling bug).
+		const sortKey = activeTab === 'live' ? 'createdAt' : 'lastMessageAt'
 		return result.sort(
-			(a, b) =>
-				new Date(a.lastMessageAt).getTime() -
-				new Date(b.lastMessageAt).getTime(),
+			(a, b) => new Date(a[sortKey]).getTime() - new Date(b[sortKey]).getTime(),
 		)
 	}, [conversations, activeTab, showResolved, statusFilter, searchQuery])
 

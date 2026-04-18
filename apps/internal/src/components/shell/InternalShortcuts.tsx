@@ -3,7 +3,6 @@ import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import { useShortcut } from '../../hooks/useShortcut'
 import { MODULES } from '../../lib/modules'
 import { useInternalStore } from '../../stores/internal'
-import { useSalesStore } from '../../stores/sales'
 
 interface InternalShortcutsProps {
 	auth: AuthSession
@@ -41,21 +40,19 @@ export function InternalShortcuts({
 		enabled: scope !== 'input',
 	})
 
-	// Escape: close command palette → sales quote builder → module window
+	// Escape: close command palette first; otherwise close the whole
+	// module window. We no longer try to close the sales quote builder
+	// as a first step — sales auto-loads the head of the pipeline into
+	// `editingRfqId` the moment it's cleared, so closing the quote
+	// builder on Escape just re-opened it on the next render, trapping
+	// the user in the panel. The quote builder has its own internal
+	// dismissal gestures; Escape on the shell walks straight out.
 	useShortcut(
 		'Escape',
 		() => {
 			if (commandPaletteOpen) {
 				onCloseCommandPalette()
 				return
-			}
-			// If the sales quote builder is open, close it first — next Escape closes the panel.
-			if (activeModule === 'sales') {
-				const sales = useSalesStore.getState()
-				if (sales.editingRfqId || sales.newQuoteCustomer) {
-					sales.closeQuoteBuilder()
-					return
-				}
 			}
 			if (activeModule) {
 				setActiveModule(null)

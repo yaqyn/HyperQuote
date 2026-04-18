@@ -1,6 +1,9 @@
 /**
- * QuickActionChips -- minimal text prompts below chat input.
- * No pills, no borders. Just quiet text suggestions separated by middots.
+ * QuickActionChips — contextual quick replies beneath Lyon's messages.
+ *
+ * Rendered as quiet mono-small-caps lines separated by em-dashes.
+ * Context comes from useChatStore.quickActionContext and selects
+ * a different chip set per scenario (home vs after product/order).
  */
 
 import { motion } from 'motion/react'
@@ -26,26 +29,17 @@ export function QuickActionChips({ sendMessage }: QuickActionChipsProps) {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.4, delay: 0.2 }}
-			className="flex items-center justify-center gap-1 mt-4 flex-wrap"
+			className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
 		>
-			{chipKeys.map((key, i) => (
-				<span key={key} className="flex items-center">
-					{i > 0 && (
-						<span
-							className="text-[var(--color-border)] mx-1.5"
-							aria-hidden="true"
-						>
-							·
-						</span>
-					)}
-					<button
-						type="button"
-						onClick={() => sendMessage(t(key))}
-						className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors duration-150"
-					>
-						{t(key)}
-					</button>
-				</span>
+			{chipKeys.map((key) => (
+				<button
+					key={key}
+					type="button"
+					onClick={() => sendMessage(t(key))}
+					className="office-quiet"
+				>
+					{t(key)}
+				</button>
 			))}
 		</motion.div>
 	)

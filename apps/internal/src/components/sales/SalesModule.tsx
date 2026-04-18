@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
@@ -177,7 +176,7 @@ export function SalesModule() {
 
 	if (negotiatingQuoteId) {
 		return (
-			<div className="flex flex-col h-full">
+			<div className="sales-theme sales-paper flex h-full flex-col">
 				<NegotiationView
 					quoteId={negotiatingQuoteId}
 					onBack={() => setNegotiatingQuoteId(null)}
@@ -197,184 +196,360 @@ export function SalesModule() {
 	const isNew = !!newQuoteCustomer?.id.startsWith('new-')
 
 	return (
-		<div className="flex flex-col h-full">
+		<div className="sales-theme sales-paper flex h-full flex-col">
 			{/* ── Top bar ──────────────────────────────────────────── */}
-			<div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
-				{/* New */}
+			<div
+				className="shrink-0 flex items-center gap-6 px-6 py-3"
+				style={{ borderBottom: '1px solid var(--color-border)' }}
+			>
+				{/* New quote — italic Literata word-action with a + mark */}
 				<Button
 					onPress={() => setCustomerSelectOpen(true)}
-					className="flex items-center justify-center w-8 h-8 rounded-lg bg-black/[0.04] dark:bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-black/[0.07] dark:hover:bg-white/[0.07] transition-colors cursor-pointer shrink-0"
+					aria-label="Start a new quote"
+					className="group relative inline-flex shrink-0 items-baseline gap-1.5 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 cursor-pointer rounded-sm"
+					style={{
+						fontSize: '17px',
+						fontWeight: 500,
+						color: 'var(--color-text)',
+						letterSpacing: '-0.018em',
+					}}
 				>
-					<Plus size={14} strokeWidth={1.5} />
+					<span className="relative">
+						new quote
+						<span
+							aria-hidden="true"
+							className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+						/>
+					</span>
+					<span
+						aria-hidden="true"
+						className="transition-transform group-hover:translate-x-[3px]"
+						style={{
+							fontFamily: 'var(--font-literata)',
+							fontStyle: 'italic',
+							fontSize: '18px',
+							color: 'var(--color-primary)',
+							lineHeight: 1,
+						}}
+					>
+						→
+					</span>
 				</Button>
 
-				{/* Status buttons — hover to reveal floating window */}
-				<div className="flex items-center gap-1 shrink-0">
-					{[
-						{
-							key: 'submitted' as const,
-							label: 'Submitted',
-							count: pipeline.length,
-							items: pipeline,
-							clickable: false,
-						},
-						{
-							key: 'saved' as const,
-							label: 'Saved',
-							count: saved.length,
-							items: saved,
-							clickable: true,
-						},
-						{
-							key: 'evaluated' as const,
-							label: 'Evaluated',
-							count: evaluated.length,
-							items: evaluated,
-							clickable: true,
-						},
-						{
-							key: 'rejected' as const,
-							label: 'Rejected',
-							count: rejected.length,
-							items: rejected,
-							clickable: true,
-						},
-					].map(({ key, label, count, items, clickable }) => (
-						<aside
-							key={key}
-							aria-label={label}
-							className="relative group/pop"
-							onMouseEnter={() => {
-								clearTimeout(leaveTimerRef.current)
-								hoverTimerRef.current = setTimeout(
-									() => setOpenPopover(key),
-									120,
-								)
-							}}
-							onMouseLeave={() => {
-								clearTimeout(hoverTimerRef.current)
-								leaveTimerRef.current = setTimeout(
-									() => setOpenPopover((cur) => (cur === key ? null : cur)),
-									200,
-								)
-							}}
-						>
-							<span
-								className={`
-                  font-[var(--font-geist-mono)] text-[9px] uppercase tracking-wider px-2 py-1 rounded-md transition-colors inline-block
-                  ${
-										openPopover === key
-											? 'text-[var(--color-text)]'
-											: count > 0
-												? 'text-[var(--color-text-muted)]'
-												: 'text-[var(--color-text-subtle)]'
-									}
-                `}
-							>
-								{label}
-								{count > 0 ? ` ${count}` : ''}
-							</span>
+				<span
+					aria-hidden="true"
+					className="h-5 w-px shrink-0"
+					style={{ backgroundColor: 'var(--color-border)' }}
+				/>
 
-							{/* Floating window on hover */}
-							<AnimatePresence>
-								{openPopover === key && items.length > 0 && (
-									<motion.div
-										initial={{ opacity: 0, y: -4 }}
-										animate={{ opacity: 1, y: 0 }}
-										exit={{ opacity: 0, y: -4 }}
-										transition={{ duration: 0.12 }}
-										className="absolute top-full start-0 mt-1 z-50 w-[260px] rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-[var(--color-surface)] shadow-xl"
+				{/* Stage filter tabs — typographic with hover-popover rosters */}
+				<nav aria-label="Quote stage filters" className="shrink-0">
+					<ol className="flex items-baseline gap-5">
+						{[
+							{
+								key: 'submitted' as const,
+								label: 'submitted',
+								count: pipeline.length,
+								items: pipeline,
+								clickable: false,
+								action: null,
+							},
+							{
+								key: 'saved' as const,
+								label: 'saved',
+								count: saved.length,
+								items: saved,
+								clickable: true,
+								action: 'resume →',
+							},
+							{
+								key: 'evaluated' as const,
+								label: 'evaluated',
+								count: evaluated.length,
+								items: evaluated,
+								clickable: true,
+								action: 'report →',
+							},
+							{
+								key: 'rejected' as const,
+								label: 'rejected',
+								count: rejected.length,
+								items: rejected,
+								clickable: true,
+								action: 'report →',
+							},
+						].map(({ key, label, count, items, clickable, action }) => {
+							const isOpen = openPopover === key
+							return (
+								<li
+									key={key}
+									className="relative"
+									onMouseEnter={() => {
+										clearTimeout(leaveTimerRef.current)
+										hoverTimerRef.current = setTimeout(
+											() => setOpenPopover(key),
+											120,
+										)
+									}}
+									onMouseLeave={() => {
+										clearTimeout(hoverTimerRef.current)
+										leaveTimerRef.current = setTimeout(
+											() => setOpenPopover((cur) => (cur === key ? null : cur)),
+											200,
+										)
+									}}
+								>
+									<button
+										type="button"
+										aria-expanded={isOpen}
+										aria-haspopup="true"
+										onFocus={() => setOpenPopover(key)}
+										className="group relative inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
 									>
-										<div className="px-3 py-2 border-b border-black/[0.04] dark:border-white/[0.04]">
-											<span className="font-[var(--font-geist-mono)] text-[9px] text-[var(--color-text-subtle)] uppercase tracking-wider">
-												{label}
+										<span
+											style={{
+												fontSize: '13px',
+												fontStyle: isOpen || count > 0 ? 'normal' : 'italic',
+												fontWeight: isOpen || count > 0 ? 500 : 400,
+												color: isOpen
+													? 'var(--color-text)'
+													: count > 0
+														? 'var(--color-text-muted)'
+														: 'var(--color-text-subtle)',
+												letterSpacing: '-0.005em',
+											}}
+										>
+											{label}
+										</span>
+										{count > 0 && (
+											<span
+												className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+												style={{
+													fontSize: '11px',
+													color: isOpen
+														? 'var(--color-primary)'
+														: 'var(--color-text-subtle)',
+													letterSpacing: '0.04em',
+												}}
+											>
+												{count}
 											</span>
-										</div>
-										<div className="max-h-[240px] overflow-y-auto py-1">
-											{items.map((rfq) => {
-												const age = Math.floor(
-													(Date.now() - new Date(rfq.createdAt).getTime()) /
-														3_600_000,
-												)
-												const timeLabel =
-													age < 24 ? `${age}h` : `${Math.floor(age / 24)}d`
-												return clickable ? (
-													<button
-														key={rfq.id}
-														type="button"
-														onClick={() => {
-															if (key === 'saved') {
-																handleOpenSavedOrder(rfq.id)
-															} else {
-																setOpenPopover(null)
-																setReportRfqId(rfq.id)
-															}
+										)}
+										<span
+											aria-hidden="true"
+											className={`absolute inset-x-0 -bottom-0.5 h-px origin-left bg-[var(--color-primary)] transition-transform duration-200 ${
+												isOpen
+													? 'scale-x-100'
+													: 'scale-x-0 group-hover:scale-x-100 group-focus-visible:scale-x-100'
+											}`}
+										/>
+									</button>
+
+									<AnimatePresence>
+										{isOpen && items.length > 0 && (
+											<motion.div
+												initial={{ opacity: 0, y: -4 }}
+												animate={{ opacity: 1, y: 0 }}
+												exit={{ opacity: 0, y: -4 }}
+												transition={{ duration: 0.14 }}
+												className="absolute top-full start-0 mt-2 z-50 w-[280px]"
+												style={{
+													backgroundColor: 'var(--color-surface)',
+													border: '1px solid var(--color-border)',
+													boxShadow:
+														'0 4px 12px -4px rgba(0,0,0,0.1), 0 20px 40px -12px rgba(0,0,0,0.16)',
+												}}
+											>
+												<div
+													className="flex items-baseline justify-between px-4 py-2.5"
+													style={{
+														borderBottom: '1px solid var(--color-border)',
+													}}
+												>
+													<span
+														className="font-[family-name:var(--font-archivo)] italic"
+														style={{
+															fontSize: '11px',
+															color: 'var(--color-text-muted)',
 														}}
-														className="w-full text-start px-3 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
 													>
-														<div className="text-[12px] font-medium text-[var(--color-text)]">
-															{rfq.customerName}
-														</div>
-														<div className="font-[var(--font-geist-mono)] text-[9px] text-[var(--color-text-subtle)] tabular-nums mt-0.5">
-															{rfq.lineItemCount} items · {timeLabel}
-															{key === 'saved' && (
-																<span className="ms-1 text-[var(--color-primary)]">
-																	resume
-																</span>
-															)}
-														</div>
-													</button>
-												) : (
-													<div key={rfq.id} className="px-3 py-2">
-														<div className="text-[12px] font-medium text-[var(--color-text)]">
-															{rfq.customerName}
-														</div>
-														<div className="font-[var(--font-geist-mono)] text-[9px] text-[var(--color-text-subtle)] tabular-nums mt-0.5">
-															{rfq.lineItemCount} items · {timeLabel}
-														</div>
-													</div>
-												)
-											})}
-										</div>
-									</motion.div>
-								)}
-							</AnimatePresence>
-						</aside>
-					))}
-				</div>
+														{label}
+													</span>
+													<span
+														className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+														style={{
+															fontSize: '10px',
+															color: 'var(--color-text-subtle)',
+															letterSpacing: '0.06em',
+														}}
+													>
+														{count}
+													</span>
+												</div>
+												<div className="max-h-[280px] overflow-y-auto">
+													{items.map((rfq) => {
+														const age = Math.floor(
+															(Date.now() - new Date(rfq.createdAt).getTime()) /
+																3_600_000,
+														)
+														const timeLabel =
+															age < 24 ? `${age}h` : `${Math.floor(age / 24)}d`
+														const handleClick = clickable
+															? () => {
+																	if (key === 'saved') {
+																		handleOpenSavedOrder(rfq.id)
+																	} else {
+																		setOpenPopover(null)
+																		setReportRfqId(rfq.id)
+																	}
+																}
+															: undefined
+														const Row = clickable ? 'button' : 'div'
+														return (
+															<Row
+																key={rfq.id}
+																{...(clickable
+																	? {
+																			type: 'button' as const,
+																			onClick: handleClick,
+																		}
+																	: {})}
+																className={`grid w-full grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-2.5 text-start outline-none transition-colors ${
+																	clickable
+																		? 'cursor-pointer hover:bg-[var(--color-primary)]/[0.04] focus-visible:bg-[var(--color-primary)]/[0.06]'
+																		: ''
+																}`}
+																style={{
+																	borderBottom: '1px solid var(--color-border)',
+																	borderBottomStyle: 'solid',
+																}}
+															>
+																<div className="min-w-0">
+																	<p
+																		className="truncate font-[family-name:var(--font-archivo)]"
+																		style={{
+																			fontSize: '13px',
+																			fontWeight: 500,
+																			color: 'var(--color-text)',
+																			letterSpacing: '-0.005em',
+																		}}
+																	>
+																		{rfq.customerName}
+																	</p>
+																	<p
+																		className="mt-0.5 flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic"
+																		style={{
+																			fontSize: '10px',
+																			color: 'var(--color-text-subtle)',
+																		}}
+																	>
+																		<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+																			{rfq.lineItemCount}{' '}
+																			{rfq.lineItemCount === 1
+																				? 'item'
+																				: 'items'}
+																		</span>
+																		<span aria-hidden="true">·</span>
+																		<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+																			{timeLabel}
+																		</span>
+																	</p>
+																</div>
+																{action && (
+																	<span
+																		className="shrink-0 font-[family-name:var(--font-archivo)] italic"
+																		style={{
+																			fontSize: '11px',
+																			color:
+																				key === 'saved'
+																					? 'var(--color-primary)'
+																					: 'var(--color-text-muted)',
+																		}}
+																	>
+																		{action}
+																	</span>
+																)}
+															</Row>
+														)
+													})}
+												</div>
+											</motion.div>
+										)}
+									</AnimatePresence>
+								</li>
+							)
+						})}
+					</ol>
+				</nav>
 
 				<div className="flex-1" />
 
-				{/* Pipeline or "Return to queue" button */}
+				{/* Pipeline strip — active quotes inline; becomes a return-action
+				    when working on a saved order, italic empty-state when idle. */}
 				{workingSavedOrder ? (
 					<button
 						type="button"
 						onClick={handleReturnToPipeline}
-						className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-[#1a1a1a] border border-[var(--color-error)]/30 transition-colors hover:border-[var(--color-error)]/60"
+						className="group relative inline-flex shrink-0 items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-signal-red)]/40 rounded-sm"
+						style={{
+							fontSize: '12px',
+							color: 'var(--color-signal-red)',
+						}}
 					>
-						<ArrowLeft
-							size={13}
-							strokeWidth={1.5}
-							className="text-[var(--color-error)]"
-						/>
-						<span className="font-[var(--font-geist-mono)] text-[10px] text-[var(--color-error)] uppercase tracking-wider font-medium">
-							Return to queue
+						<span
+							aria-hidden="true"
+							className="transition-transform group-hover:-translate-x-[3px]"
+							style={{
+								fontFamily: 'var(--font-literata)',
+								fontStyle: 'italic',
+								fontSize: '14px',
+								lineHeight: 1,
+							}}
+						>
+							←
+						</span>
+						<span className="relative">
+							return to queue
+							<span
+								aria-hidden="true"
+								className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+							/>
 						</span>
 					</button>
+				) : pipeline.length === 0 ? (
+					<span
+						className="shrink-0 font-[family-name:var(--font-archivo)] italic"
+						style={{
+							fontSize: '11px',
+							color: 'var(--color-text-subtle)',
+						}}
+					>
+						queue is empty
+					</span>
 				) : (
 					<div
-						className="relative overflow-hidden shrink-0 rounded-xl border border-black/[0.06] dark:border-white/[0.06]"
-						style={{ width: '220px' }}
+						className="relative shrink-0 overflow-hidden"
+						style={{ width: '320px' }}
 					>
+						{/* Leading gradient — quiet start to the running log */}
 						<div
-							className="absolute inset-y-0 end-0 w-20 z-10 pointer-events-none"
+							aria-hidden="true"
+							className="pointer-events-none absolute inset-y-0 start-0 z-10 w-6"
 							style={{
 								background:
-									'linear-gradient(to right, transparent, var(--color-surface) 70%, var(--color-surface))',
+									'linear-gradient(to left, transparent, var(--color-surface) 80%)',
 							}}
 						/>
-						<div className="flex items-stretch gap-0">
-							{/* Active order pinned first, rest sorted after */}
+						{/* Trailing gradient — fades entries past the viewport */}
+						<div
+							aria-hidden="true"
+							className="pointer-events-none absolute inset-y-0 end-0 z-10 w-16"
+							style={{
+								background:
+									'linear-gradient(to right, transparent, var(--color-surface) 80%)',
+							}}
+						/>
+						<ol className="flex items-stretch">
 							{[...pipeline]
 								.sort((a, b) =>
 									a.id === editingRfqId ? -1 : b.id === editingRfqId ? 1 : 0,
@@ -391,52 +566,80 @@ export function SalesModule() {
 											: age < 24
 												? `${age}h`
 												: `${Math.floor(age / 24)}d`
-									const priceStatus = rfq.hasOutdatedPrices
-										? 'Outdated'
-										: 'Updated'
 									return (
-										<div
+										<li
 											key={rfq.id}
-											className={`
-                      shrink-0 w-[130px] px-3 py-2.5 text-start transition-all border-e border-black/[0.04] dark:border-white/[0.04] last:border-0
-                      ${
-												isActive
-													? 'bg-[var(--color-primary)] text-white'
-													: 'bg-black/[0.02] dark:bg-white/[0.02] text-[var(--color-text)]'
-											}
-                    `}
+											className="relative shrink-0 px-4 py-1 text-start"
+											style={{ width: '160px' }}
 										>
-											<div className="text-[11px] font-medium truncate">
+											{/* Ledger tick — a brand-blue dot on the leading
+											    edge of today's current entry. Only one ever lit. */}
+											{isActive && (
+												<span
+													aria-hidden="true"
+													className="absolute start-1 top-[11px] h-[5px] w-[5px] rounded-full"
+													style={{ background: 'var(--color-primary)' }}
+												/>
+											)}
+											<div
+												className="truncate font-[family-name:var(--font-archivo)] transition-colors"
+												style={{
+													fontSize: '12.5px',
+													fontWeight: isActive ? 600 : 400,
+													fontStyle: isActive ? 'normal' : 'italic',
+													color: isActive
+														? 'var(--color-text)'
+														: 'var(--color-text-muted)',
+													letterSpacing: '-0.005em',
+												}}
+											>
 												{rfq.customerName}
 											</div>
-											<div
-												className={`flex items-center gap-1.5 mt-0.5 font-[var(--font-geist-mono)] text-[8px] tabular-nums ${
-													isActive
-														? 'opacity-50'
-														: 'text-[var(--color-text-subtle)]'
-												}`}
-											>
-												<span>{timeLabel}</span>
-												<span>·</span>
+											<div className="mt-0.5 flex items-baseline gap-1.5">
 												<span
-													className={
-														!isActive && rfq.hasOutdatedPrices
-															? 'text-[var(--color-warning)]'
-															: ''
-													}
+													className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+													style={{
+														fontSize: '10px',
+														color: 'var(--color-text-subtle)',
+														letterSpacing: '0.04em',
+													}}
 												>
-													{priceStatus}
+													{timeLabel}
+												</span>
+												<span
+													aria-hidden="true"
+													style={{
+														fontSize: '8px',
+														color: 'var(--color-text-subtle)',
+													}}
+												>
+													·
+												</span>
+												<span
+													className="font-[family-name:var(--font-archivo)] italic"
+													style={{
+														fontSize: '10.5px',
+														color: rfq.hasOutdatedPrices
+															? 'var(--color-signal-amber)'
+															: 'var(--color-text-subtle)',
+													}}
+												>
+													{rfq.hasOutdatedPrices ? 'outdated' : 'updated'}
 												</span>
 											</div>
-										</div>
+											{/* Active underline — a ledger stroke beneath
+											    today's row. */}
+											{isActive && (
+												<span
+													aria-hidden="true"
+													className="absolute inset-x-4 -bottom-[11px] h-[2px] rounded-[1px]"
+													style={{ background: 'var(--color-primary)' }}
+												/>
+											)}
+										</li>
 									)
 								})}
-							{pipeline.length === 0 && (
-								<div className="w-full py-2.5 text-center font-[var(--font-geist-mono)] text-[10px] text-[var(--color-text-subtle)]">
-									Queue empty
-								</div>
-							)}
-						</div>
+						</ol>
 					</div>
 				)}
 			</div>
@@ -479,12 +682,38 @@ export function SalesModule() {
 						</motion.div>
 					) : (
 						<div className="flex items-center justify-center h-full">
-							<div className="text-center">
-								<p className="text-[13px] text-[var(--color-text-muted)]">
-									No pending quotes
+							<div className="flex max-w-[380px] flex-col items-center text-center">
+								<span
+									className="font-[family-name:var(--font-plex-mono)] font-semibold uppercase"
+									style={{
+										fontSize: '10px',
+										letterSpacing: '0.22em',
+										color: 'var(--color-text-subtle)',
+									}}
+								>
+									The daybook
+								</span>
+								<p
+									className="mt-4 font-[family-name:var(--font-literata)] italic"
+									style={{
+										fontSize: '26px',
+										fontWeight: 500,
+										letterSpacing: '-0.018em',
+										color: 'var(--color-text)',
+									}}
+								>
+									the queue is quiet today.
 								</p>
-								<p className="text-[11px] text-[var(--color-text-subtle)] mt-1">
-									All caught up
+								<p
+									className="mt-3 font-[family-name:var(--font-archivo)] italic"
+									style={{
+										fontSize: '12.5px',
+										lineHeight: 1.5,
+										color: 'var(--color-text-subtle)',
+									}}
+								>
+									every submitted quote is already in hand. try the saved or
+									evaluated columns above for what's pending your return.
 								</p>
 							</div>
 						</div>
@@ -500,9 +729,9 @@ export function SalesModule() {
 					setSavingRfqId(null)
 				}}
 				size="sm"
-				eyebrow="RFQ · Save for later"
-				title="Save for later"
-				caption="This order will return to the pipeline after the selected time."
+				eyebrow="Daybook · Save this entry"
+				title="Come back when?"
+				caption="This quote returns to the running queue when time is up."
 			>
 				<DispatchBody>
 					<ul className="divide-y divide-black/[0.08] dark:divide-white/[0.1]">
@@ -511,13 +740,39 @@ export function SalesModule() {
 								<button
 									type="button"
 									onClick={() => handleSaveConfirm(minutes)}
-									className="w-full text-start flex items-center justify-between py-3 px-1 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+									className="group flex w-full items-baseline justify-between px-1 py-3 text-start transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
 								>
-									<span className="font-[family-name:var(--font-archivo)] text-[13.5px] font-medium text-[var(--color-text)]">
-										{label}
+									<span className="flex items-baseline gap-2">
+										<span
+											className="font-[family-name:var(--font-literata)] italic"
+											style={{
+												fontSize: '15px',
+												fontWeight: 500,
+												color: 'var(--color-text)',
+												letterSpacing: '-0.012em',
+											}}
+										>
+											in {label.toLowerCase()}
+										</span>
 									</span>
-									<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-										save →
+									<span
+										className="inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic transition-colors group-hover:text-[var(--color-primary)]"
+										style={{
+											fontSize: '11.5px',
+											color: 'var(--color-text-subtle)',
+										}}
+									>
+										<span>save</span>
+										<span
+											aria-hidden="true"
+											className="transition-transform group-hover:translate-x-[3px]"
+											style={{
+												fontStyle: 'italic',
+												color: 'var(--color-primary)',
+											}}
+										>
+											→
+										</span>
 									</span>
 								</button>
 							</li>
@@ -581,23 +836,41 @@ export function SalesModule() {
 										setCustomerSelectOpen(false)
 										setNewQuoteCustomer(customer)
 									}}
-									className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none"
+									className="group flex w-full items-baseline gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
 								>
-									<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
-										<span className="text-[11px] font-semibold text-black/40 dark:text-white/40">
-											{customer.name.charAt(0)}
-										</span>
-									</span>
-									<div className="flex-1 min-w-0">
-										<span className="text-[13px] font-medium text-[var(--color-text)] truncate">
+									<div className="min-w-0 flex-1">
+										<div
+											className="truncate font-[family-name:var(--font-literata)] italic transition-colors group-hover:text-[var(--color-primary)]"
+											style={{
+												fontSize: '14.5px',
+												fontWeight: 500,
+												color: 'var(--color-text)',
+												letterSpacing: '-0.01em',
+											}}
+										>
 											{customer.name}
-										</span>
-										<p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">
-											{customer.address}
-										</p>
+										</div>
+										{customer.address && (
+											<p
+												className="mt-0.5 truncate font-[family-name:var(--font-archivo)] italic"
+												style={{
+													fontSize: '10.5px',
+													color: 'var(--color-text-subtle)',
+												}}
+											>
+												{customer.address}
+											</p>
+										)}
 									</div>
-									<span className="text-[10px] font-medium text-black/30 dark:text-white/30">
-										Tier {customer.tier}
+									<span
+										className="shrink-0 font-[family-name:var(--font-plex-mono)] uppercase tabular-nums"
+										style={{
+											fontSize: '10px',
+											letterSpacing: '0.14em',
+											color: 'var(--color-text-subtle)',
+										}}
+									>
+										tier {customer.tier}
 									</span>
 								</button>
 							))}
@@ -614,29 +887,55 @@ export function SalesModule() {
 													name: search.trim(),
 												})
 											}}
-											className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none"
+											className="group flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
 										>
-											<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--color-primary)]/30">
-												<Plus
-													size={12}
-													className="text-[var(--color-primary)]"
-												/>
-											</span>
-											<div>
-												<span className="text-[13px] font-medium text-[var(--color-primary)]">
-													New customer: {search.trim()}
-												</span>
-												<p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">
-													Create and start quoting
+											<div className="min-w-0">
+												<div
+													className="truncate font-[family-name:var(--font-literata)] italic"
+													style={{
+														fontSize: '14.5px',
+														fontWeight: 500,
+														color: 'var(--color-primary)',
+														letterSpacing: '-0.01em',
+													}}
+												>
+													open a new ledger for {search.trim()}
+												</div>
+												<p
+													className="mt-0.5 font-[family-name:var(--font-archivo)] italic"
+													style={{
+														fontSize: '10.5px',
+														color: 'var(--color-text-subtle)',
+													}}
+												>
+													a fresh entry in today's daybook
 												</p>
 											</div>
+											<span
+												aria-hidden="true"
+												className="shrink-0 transition-transform group-hover:translate-x-[3px]"
+												style={{
+													fontFamily: 'var(--font-literata)',
+													fontStyle: 'italic',
+													fontSize: '16px',
+													color: 'var(--color-primary)',
+												}}
+											>
+												+
+											</span>
 										</button>
 									</>
 								)}
 							{filtered.length === 0 && !search.trim() && (
 								<div className="flex items-center justify-center py-12">
-									<p className="text-[13px] text-[var(--color-text-subtle)]">
-										No customers
+									<p
+										className="font-[family-name:var(--font-literata)] italic"
+										style={{
+											fontSize: '14px',
+											color: 'var(--color-text-subtle)',
+										}}
+									>
+										no customer names on file yet.
 									</p>
 								</div>
 							)}

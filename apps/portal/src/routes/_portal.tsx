@@ -4,7 +4,8 @@ import {
 	redirect,
 	useNavigate,
 } from '@tanstack/react-router'
-import { cubicBezier, motion } from 'motion/react'
+import { PanelLeft } from 'lucide-react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { ChatSidebar } from '../components/sidebar/ChatSidebar'
 import { useShortcut } from '../hooks/useShortcut'
@@ -34,6 +35,8 @@ function PortalLayout() {
 	const { auth, isInternalUser } = Route.useRouteContext()
 	const { t } = useTranslation('portal')
 	const isSigningOut = usePortalStore((s) => s.isSigningOut)
+	const isSidebarOpen = usePortalStore((s) => s.isSidebarOpen)
+	const toggleSidebar = usePortalStore((s) => s.toggleSidebar)
 
 	if (isInternalUser) {
 		return (
@@ -62,54 +65,84 @@ function PortalLayout() {
 	return (
 		<div
 			id="main"
-			className="relative h-dvh w-full flex overflow-hidden bg-[var(--p-bg)] p-2"
+			className="relative h-dvh w-full flex overflow-hidden bg-[var(--p-bg)]"
 		>
-			{/* Glass shell — fades in on mount, collapses on sign-out */}
+			{/* Office atmosphere — fades the whole interface during sign-out */}
 			<motion.div
-				initial={{ opacity: 0, scale: 0.98 }}
-				animate={
-					isSigningOut ? { opacity: 0, scale: 0.96 } : { opacity: 1, scale: 1 }
-				}
+				initial={{ opacity: 0 }}
+				animate={isSigningOut ? { opacity: 0 } : { opacity: 1 }}
 				transition={
 					isSigningOut
-						? { duration: 0.7, ease: COLLAPSE_EASE }
-						: { duration: 0.6, ease: SMOOTH_EASE }
+						? { duration: 0.6, ease: COLLAPSE_EASE }
+						: { duration: 0.7, ease: SMOOTH_EASE }
 				}
-				className="relative flex flex-1 rounded-2xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_0_80px_-20px_rgba(255,255,255,0.03)] overflow-hidden"
+				className="relative flex flex-1 overflow-hidden"
 			>
-				{/* Top-left light reflection */}
-				<div
-					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{
-						background:
-							'radial-gradient(ellipse 50% 40% at 10% 0%, rgba(255,255,255,0.06) 0%, transparent 70%)',
-					}}
-				/>
-				{/* Sidebar — slides in from inline-start */}
+				{/* Very soft warm wash from above — pendant still on somewhere */}
 				<motion.div
-					initial={{ opacity: 0, x: 'calc(var(--sidebar-dir, -1) * 24px)' }}
-					animate={{ opacity: 1, x: 0 }}
-					transition={{ duration: 0.5, delay: 0.25, ease: SMOOTH_EASE }}
-					className="h-full"
-					style={{
-						['--sidebar-dir' as string]: 'var(--_rtl-flip, -1)',
-					}}
-				>
-					<ChatSidebar
-						userName={userName}
-						companyName={companyName}
-						hasSupplierRole={hasSupplierRole}
-					/>
-				</motion.div>
-				{/* Main content — fades in after sidebar */}
-				<motion.main
+					className="pointer-events-none absolute inset-0 z-[1]"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
-					transition={{ duration: 0.5, delay: 0.45, ease: 'easeOut' }}
-					className="flex-1 flex flex-col min-w-0"
+					transition={{ duration: 1.4, delay: 0.1, ease: 'easeOut' }}
+					style={{
+						background:
+							'radial-gradient(ellipse 70% 30% at 50% 0%, rgba(243,214,163,0.035) 0%, transparent 70%)',
+					}}
+				/>
+				{/* Sidebar — width-animated so layout reflows as it opens/closes.
+				    Inner div keeps the fixed sidebar width; the outer wrapper
+				    clips it via overflow-hidden, and main content fills the
+				    freed space continuously instead of snapping. */}
+				<AnimatePresence initial={false}>
+					{isSidebarOpen && (
+						<motion.div
+							key="sidebar"
+							initial={{ width: 0, opacity: 0 }}
+							animate={{ width: 260, opacity: 1 }}
+							exit={{ width: 0, opacity: 0 }}
+							transition={{ duration: 0.4, ease: SMOOTH_EASE }}
+							className="relative z-[2] h-full overflow-hidden"
+						>
+							<div className="h-full" style={{ width: 260 }}>
+								<ChatSidebar
+									userName={userName}
+									companyName={companyName}
+									hasSupplierRole={hasSupplierRole}
+								/>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
+				{/* Show-sidebar handle — only when hidden */}
+				{!isSidebarOpen && (
+					<motion.button
+						type="button"
+						onClick={toggleSidebar}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.6, delay: 0.6, ease: 'easeOut' }}
+						className="absolute top-3 start-3 z-[3] inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						aria-label="Show sidebar"
+						aria-keyshortcuts="["
+					>
+						<PanelLeft size={16} strokeWidth={1.5} />
+					</motion.button>
+				)}
+				{/* Main content — leads when sidebar is hidden by default */}
+				<motion.main
+					initial={{ opacity: 0, y: 8 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.75, delay: 0.2, ease: SMOOTH_EASE }}
+					className="relative z-[2] flex min-w-0 flex-1 flex-col"
 					style={{ viewTransitionName: 'lang-content' }}
 				>
-					<Outlet />
+					<div
+						className="relative z-[1] flex min-h-0 flex-1 flex-col"
+						style={{ viewTransitionName: 'panel-content' }}
+					>
+						<Outlet />
+					</div>
 				</motion.main>
 			</motion.div>
 			<PortalShortcuts />
@@ -137,6 +170,7 @@ function PortalShortcuts() {
 		enabled: activeRole === 'supplier',
 	})
 	useShortcut('N', () => navigate({ to: '/notifications' }))
+	useShortcut('[', () => usePortalStore.getState().toggleSidebar())
 	useShortcut('/', () => {
 		const el = document.querySelector<HTMLTextAreaElement>('[data-chat-input]')
 		el?.focus()

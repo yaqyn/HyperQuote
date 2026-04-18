@@ -41,7 +41,7 @@ export function WarehouseQueue() {
 				initial={reduce ? false : { opacity: 0, y: -8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-				className="shrink-0 border-b-[3px] border-[#0A0A0A] px-8 pt-8 pb-5"
+				className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-8 pb-5"
 			>
 				<div className="flex items-start justify-between gap-8">
 					<div>
@@ -108,7 +108,7 @@ function StatBlock({
 		<div className="flex flex-col items-end">
 			<span
 				className={`font-[family-name:var(--font-geist-mono)] text-[44px] font-bold leading-none tabular-nums ${
-					accent ? 'text-[#E6B400]' : 'text-[#0A0A0A]'
+					accent ? 'text-[#E6B400]' : 'text-[var(--color-text)]'
 				}`}
 			>
 				{String(value).padStart(2, '0')}
@@ -148,26 +148,26 @@ const STAGE_META: Record<
 > = {
 	unstarted: {
 		label: 'Awaiting truck',
-		accent: '#0A0A0A',
-		textOnAccent: '#F4F4EC',
+		accent: 'var(--color-text)',
+		textOnAccent: '#FFFFFF',
 		description: 'No truck assigned yet',
 	},
 	loading: {
 		label: 'Loading',
 		accent: '#E6B400',
-		textOnAccent: '#0A0A0A',
+		textOnAccent: 'var(--color-text)',
 		description: 'Items going onto trucks',
 	},
 	awaiting_signoff: {
 		label: 'Signoff',
 		accent: '#CC3300',
-		textOnAccent: '#F4F4EC',
+		textOnAccent: '#FFFFFF',
 		description: 'Ready for advisor + QA signoff',
 	},
 	complete: {
 		label: 'Complete',
 		accent: '#0A5C2E',
-		textOnAccent: '#F4F4EC',
+		textOnAccent: '#FFFFFF',
 		description: 'Signed off',
 	},
 }
@@ -204,10 +204,10 @@ function OrderCard({
 			whileHover={reduce ? undefined : { y: -2 }}
 			whileTap={reduce ? undefined : { scale: 0.995 }}
 			transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-			className={`group relative w-full border-[3px] bg-white text-start ${
+			className={`group relative w-full border-[3px] bg-[var(--color-surface)] text-start ${
 				isSelected
-					? 'border-[#0A0A0A] shadow-[8px_8px_0_0_#0A0A0A]'
-					: 'border-[#0A0A0A]/20 hover:border-[#0A0A0A]/60 hover:shadow-[4px_4px_0_0_#0A0A0A]'
+					? 'border-[var(--color-text)] shadow-[8px_8px_0_0_var(--color-text)]'
+					: 'border-[var(--color-text)]/20 hover:border-[var(--color-text)]/60 hover:shadow-[4px_4px_0_0_var(--color-text)]'
 			}`}
 			style={{
 				minHeight: '128px',
@@ -236,7 +236,7 @@ function OrderCard({
 			<div className="px-6 pb-5 pt-3">
 				<div className="grid grid-cols-[1fr,auto] gap-x-8 gap-y-3 items-end">
 					<div className="min-w-0">
-						<p className="truncate text-[22px] font-bold leading-tight text-[#0A0A0A]">
+						<p className="truncate text-[22px] font-bold leading-tight text-[var(--color-text)]">
 							{order.customerName}
 						</p>
 						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/55">

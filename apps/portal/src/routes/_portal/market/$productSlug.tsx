@@ -1,7 +1,15 @@
+/**
+ * Product detail — referenced material plate, expanded.
+ *
+ * Same inventory-plate language as the grid: reference number stamped above,
+ * 4:3 image on the inline-start, name + price + record action on the inline-end,
+ * specs as a grid of hairline cells, related plates as smaller siblings below.
+ * Inter throughout, Geist Mono for figures.
+ */
+
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Check, ChevronRight, Pencil, Undo2 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { ArrowLeft, Check, Pencil, Plus, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -12,66 +20,38 @@ export const Route = createFileRoute('/_portal/market/$productSlug')({
 	component: ProductDetailPage,
 })
 
-const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
-
 function ProductDetailPage() {
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
 	const { productSlug } = Route.useParams()
 	const isAr = i18n.language === 'ar'
 
-	// Fetch all products to find current + related
-	const { data: allData } = useQuery({
+	const { data: allData, isLoading } = useQuery({
 		queryKey: ['market-products-all'],
 		queryFn: () => getMarketProducts({ data: { page: 1, limit: 50 } }),
 		staleTime: 120_000,
 	})
 
 	const allProducts = allData?.products ?? []
-	const match = allProducts.find((p) => p.slug === productSlug)
-
-	const related = match
+	const product = allProducts.find((p) => p.slug === productSlug)
+	const refIndex = product
+		? allProducts.findIndex((p) => p.id === product.id) + 1
+		: 0
+	const related = product
 		? allProducts
-				.filter((p) => p.category === match.category && p.id !== match.id)
-				.slice(0, 3)
+				.filter((p) => p.category === product.category && p.id !== product.id)
+				.slice(0, 4)
 		: []
 
-	const product = match
-		? { ...match, related }
-		: {
-				id: `prod-${productSlug}`,
-				slug: productSlug,
-				name: productSlug
-					.replace(/-/g, ' ')
-					.replace(/\b\w/g, (c) => c.toUpperCase()),
-				nameAr: productSlug,
-				description: 'Product details will be available soon.',
-				descriptionAr: 'تفاصيل المنتج ستكون متاحة قريبا.',
-				category: 'general',
-				unitOfMeasure: 'piece',
-				priceRangeMin: 100 as number | null,
-				priceRangeMax: 200 as number | null,
-				availabilityStatus: 'available' as const,
-				imageUrl: 'https://websiteassets.hyperquote.net/Images/cement.webp',
-				specs: [] as { label: string; labelAr: string; value: string }[],
-				related: [] as {
-					slug: string
-					name: string
-					nameAr: string
-					imageUrl: string
-					category: string
-					unitOfMeasure: string
-				}[],
-			}
+	if (isLoading) return <DetailSkeleton />
+	if (!product) return <NotFound onBack={() => navigate({ to: '/market' })} />
 
 	const productName = isAr ? product.nameAr : product.name
-	const images = [product.imageUrl]
-	const availDot =
-		product.availabilityStatus === 'available'
-			? 'bg-[var(--p-success)]'
-			: product.availabilityStatus === 'limited'
-				? 'bg-[var(--p-warning)]'
-				: 'bg-[var(--p-text-muted)]'
+	const description = isAr ? product.descriptionAr : product.description
+	const categoryLabel = t(`market.cat.${product.category}`, {
+		defaultValue: product.category.replace(/_/g, ' '),
+	})
+
 	const availLabel =
 		product.availabilityStatus === 'available'
 			? t('market.available')
@@ -80,210 +60,211 @@ function ProductDetailPage() {
 				: t('market.outOfStock')
 
 	const formatPrice = (min: number | null, max: number | null) => {
-		if (min == null && max == null) return '—'
+		if (min == null && max == null) return null
 		const fmt = new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
 			maximumFractionDigits: 0,
 		})
 		if (min != null && max != null)
-			return `EGP ${fmt.format(min)} – ${fmt.format(max)}`
-		if (min != null) return `EGP ${fmt.format(min)}+`
-		if (max != null) return `EGP ${fmt.format(max)}`
-		return '—'
+			return `${fmt.format(min)} – ${fmt.format(max)}`
+		if (min != null) return `${fmt.format(min)}+`
+		if (max != null) return fmt.format(max)
+		return null
 	}
-
-	const categoryLabel = t(`market.cat.${product.category}`, {
-		defaultValue: product.category.replace(/_/g, ' '),
-	})
+	const priceLabel = formatPrice(product.priceRangeMin, product.priceRangeMax)
+	const refNo = isAr
+		? refIndex.toLocaleString('ar-EG')
+		: String(refIndex).padStart(3, '0')
 
 	return (
-		<div className="flex flex-col h-full min-h-0 overflow-y-auto">
-			{/* Breadcrumb */}
-			<div className="px-6 lg:px-16 max-w-[1400px] mx-auto w-full pt-6 mb-8">
-				<button
-					type="button"
-					onClick={() => navigate({ to: '/market' })}
-					className="inline-flex items-center gap-2 text-[13px] text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors"
-				>
-					<ArrowLeft size={14} className="icon-end" />
-					{t('market.backToMarket')}
-					<ChevronRight
-						size={10}
-						className="text-[var(--p-border)] rtl:rotate-180"
-					/>
-					<span className="text-[var(--p-text-muted)]">{categoryLabel}</span>
-				</button>
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
+			{/* Top bar */}
+			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-6 py-3.5 lg:px-12">
+				<div className="mx-auto flex w-full max-w-[1280px] items-center gap-4">
+					<button
+						type="button"
+						onClick={() => navigate({ to: '/market' })}
+						className="inline-flex items-center gap-2 text-[13px] text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+					>
+						<ArrowLeft size={14} className="rtl:rotate-180" />
+						{t('market.backToMarket')}
+					</button>
+					<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+						/
+					</span>
+					<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+						{categoryLabel}
+					</span>
+				</div>
 			</div>
 
-			{/* Hero: Image + Info */}
-			<div className="px-6 lg:px-16 max-w-[1400px] mx-auto w-full">
-				<div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-20 items-stretch">
-					{/* Image */}
-					<motion.div
-						initial={{ opacity: 0, scale: 0.97 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={spring}
-						className="lg:row-span-1"
-					>
-						<div className="group overflow-hidden rounded-2xl bg-[var(--p-surface)] h-full min-h-[300px]">
+			{/* Body */}
+			<div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-12 lg:py-14">
+				{/* Reference + name */}
+				<div className="mb-8 flex items-baseline justify-between gap-4">
+					<span className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]">
+						№ {refNo}
+					</span>
+					<AvailabilityTag
+						status={product.availabilityStatus}
+						label={availLabel}
+					/>
+				</div>
+
+				<div className="grid grid-cols-1 gap-10 lg:grid-cols-[5fr_4fr] lg:gap-16">
+					{/* Image plate */}
+					<div className="overflow-hidden rounded-sm bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
+						<div className="aspect-[4/3]">
 							<img
-								src={images[0]}
+								src={product.imageUrl}
 								alt={productName}
-								className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+								className="h-full w-full object-cover"
 							/>
 						</div>
-					</motion.div>
+					</div>
 
-					{/* Info column */}
-					<div className="flex flex-col lg:py-2">
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={spring}
-						>
-							<span className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[var(--p-text-secondary)]">
-								{categoryLabel}
-							</span>
-						</motion.div>
-
-						<motion.h1
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ ...spring, delay: 0.04 }}
-							className="mt-4 text-[36px] lg:text-[44px] font-bold leading-[1.05] text-[var(--p-text)] tracking-[-0.02em]"
-						>
+					{/* Info */}
+					<div className="flex flex-col">
+						<h1 className="text-[28px] font-medium leading-tight tracking-tight text-[var(--p-text)] lg:text-[36px]">
 							{productName}
-						</motion.h1>
+						</h1>
 
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ ...spring, delay: 0.08 }}
-							className="mt-5 flex items-center gap-4"
-						>
-							<span className="flex items-center gap-2 text-[13px] text-[var(--p-text-muted)]">
-								<span className={`w-1.5 h-1.5 rounded-full ${availDot}`} />
-								{availLabel}
-							</span>
-						</motion.div>
-
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ ...spring, delay: 0.12 }}
-							className="mt-8"
-						>
-							<p className="font-mono text-[28px] font-bold text-[var(--p-text)] tracking-[-0.01em]">
-								{formatPrice(product.priceRangeMin, product.priceRangeMax)}
-								<span className="text-[14px] font-normal text-[var(--p-text-muted)] font-sans ms-2">
-									/{product.unitOfMeasure}
+						{priceLabel && (
+							<div className="mt-6 flex items-baseline gap-2 border-t border-[var(--p-border)] pt-5">
+								<p
+									className="font-mono text-[28px] font-medium text-[var(--p-text)]"
+									style={{ fontVariantNumeric: 'tabular-nums' }}
+								>
+									EGP {priceLabel}
+								</p>
+								<span className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+									/ {product.unitOfMeasure}
 								</span>
-							</p>
-						</motion.div>
-
-						{product.description && (
-							<motion.p
-								initial={{ opacity: 0, y: 10 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ ...spring, delay: 0.16 }}
-								className="mt-6 text-[15px] leading-[1.8] text-[var(--p-text-muted)] max-w-[480px]"
-							>
-								{isAr ? product.descriptionAr : product.description}
-							</motion.p>
+							</div>
 						)}
 
-						{/* Quote action */}
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ ...spring, delay: 0.2 }}
-							className="mt-10"
-						>
-							<QuoteAction
-								product={{
-									id: product.id,
-									slug: productSlug,
-									name: product.name,
-									nameAr: product.nameAr,
-									category: product.category,
-									unitOfMeasure: product.unitOfMeasure,
-									imageUrl: images[0],
-								}}
-							/>
-						</motion.div>
+						{description && (
+							<p className="mt-6 max-w-prose text-[14px] leading-relaxed text-[var(--p-text-secondary)]">
+								{description}
+							</p>
+						)}
+
+						<div className="mt-9">
+							<RecordAction product={product} />
+						</div>
 					</div>
 				</div>
-			</div>
 
-			{/* Specs */}
-			{product.specs.length > 0 && (
-				<div className="mt-20 px-6 lg:px-16 max-w-[1400px] mx-auto w-full">
-					<p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[var(--p-text-secondary)] mb-3">
-						{t('market.specifications')}
-					</p>
-					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-[var(--p-border)] border border-[var(--p-border)] rounded-2xl overflow-hidden">
-						{product.specs.map((spec) => (
-							<div key={spec.label} className="bg-[var(--p-bg)] px-5 py-5">
-								<p className="text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)] mb-2">
-									{isAr ? spec.labelAr : spec.label}
-								</p>
-								<p className="text-[16px] font-semibold text-[var(--p-text)] font-mono">
-									{spec.value}
-								</p>
-							</div>
-						))}
-					</div>
-				</div>
-			)}
+				{/* Specs */}
+				{product.specs.length > 0 && (
+					<section className="mt-16">
+						<header className="mb-3 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
+							<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
+								{t('market.specifications')}
+							</h2>
+							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+								{isAr
+									? product.specs.length.toLocaleString('ar-EG')
+									: String(product.specs.length).padStart(2, '0')}
+							</span>
+						</header>
+						<div className="grid grid-cols-2 gap-px overflow-hidden rounded-sm border border-[var(--p-border)] bg-[var(--p-border)] sm:grid-cols-3 md:grid-cols-4">
+							{product.specs.map((spec) => (
+								<div key={spec.label} className="bg-[var(--p-bg)] px-4 py-4">
+									<p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+										{isAr ? spec.labelAr : spec.label}
+									</p>
+									<p
+										className="mt-2 font-mono text-[15px] font-medium text-[var(--p-text)]"
+										style={{ fontVariantNumeric: 'tabular-nums' }}
+									>
+										{spec.value}
+									</p>
+								</div>
+							))}
+						</div>
+					</section>
+				)}
 
-			{/* Related products */}
-			{product.related.length > 0 && (
-				<div className="mt-20 px-6 lg:px-16 max-w-[1400px] mx-auto w-full pb-12">
-					<p className="text-[13px] font-semibold uppercase tracking-[0.25em] text-[var(--p-text-secondary)] mb-3">
-						{t('market.relatedProducts')}
-					</p>
-					<div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-						{product.related.map((rel) => {
-							const relName = isAr ? rel.nameAr : rel.name
-							return (
-								<button
-									key={rel.slug}
-									type="button"
-									onClick={() =>
-										navigate({
-											to: '/market/$productSlug',
-											params: { productSlug: rel.slug },
-										})
-									}
-									className="group block text-start"
-								>
-									<div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--p-surface)]">
-										<img
-											src={rel.imageUrl}
-											alt={relName}
-											className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
-											loading="lazy"
-										/>
-									</div>
-									<div className="mt-4">
-										<h3 className="text-[15px] font-semibold text-[var(--p-text)] line-clamp-2 leading-snug group-hover:text-[var(--p-text-secondary)] transition-colors">
+				{/* Related */}
+				{related.length > 0 && (
+					<section className="mt-16">
+						<header className="mb-3 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
+							<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
+								{t('market.relatedProducts')}
+							</h2>
+							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+								{categoryLabel}
+							</span>
+						</header>
+						<div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+							{related.map((rel) => {
+								const relName = isAr ? rel.nameAr : rel.name
+								return (
+									<button
+										key={rel.id}
+										type="button"
+										onClick={() =>
+											navigate({
+												to: '/market/$productSlug',
+												params: { productSlug: rel.slug },
+											})
+										}
+										className="group block text-start"
+									>
+										<div className="aspect-[4/3] overflow-hidden rounded-sm bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
+											<img
+												src={rel.imageUrl}
+												alt={relName}
+												loading="lazy"
+												className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+											/>
+										</div>
+										<p className="mt-3 line-clamp-2 px-0.5 text-[13px] font-medium text-[var(--p-text)]">
 											{relName}
-										</h3>
-									</div>
-								</button>
-							)
-						})}
-					</div>
-				</div>
-			)}
+										</p>
+									</button>
+								)
+							})}
+						</div>
+					</section>
+				)}
+			</div>
 		</div>
 	)
 }
 
-// ── Quote Action (idle → selecting → added state machine, copied from website) ──
+// ---------------------------------------------------------------------------
+// Availability tag — mono pill with luminance dot
+// ---------------------------------------------------------------------------
 
-type QuoteMode = 'idle' | 'selecting' | 'added'
+function AvailabilityTag({
+	status,
+	label,
+}: {
+	status: 'available' | 'limited' | 'out_of_stock'
+	label: string
+}) {
+	const cls =
+		status === 'available'
+			? 'bg-[var(--p-success)]'
+			: status === 'limited'
+				? 'bg-[var(--p-warning)]'
+				: 'bg-[var(--p-text-faint)]'
+	return (
+		<span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+			<span className={`h-1.5 w-1.5 rounded-full ${cls}`} />
+			{label}
+		</span>
+	)
+}
 
-interface QuoteProduct {
+// ---------------------------------------------------------------------------
+// Record action — idle / selecting / added
+// ---------------------------------------------------------------------------
+
+type RecordMode = 'idle' | 'selecting' | 'added'
+
+interface ActionProduct {
 	id: string
 	slug: string
 	name: string
@@ -293,19 +274,17 @@ interface QuoteProduct {
 	imageUrl: string
 }
 
-function QuoteAction({ product }: { product: QuoteProduct }) {
+function RecordAction({ product }: { product: ActionProduct }) {
 	const { t } = useTranslation('portal')
 	const { add, remove, items, updateQuantity } = useDraftQuoteStore()
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
-	const [mode, setMode] = useState<QuoteMode>(cartItem ? 'added' : 'idle')
+	const [mode, setMode] = useState<RecordMode>(cartItem ? 'added' : 'idle')
 
 	useEffect(() => {
 		if (!cartItem && mode === 'added') setMode('idle')
 		if (cartItem && mode === 'idle') setMode('added')
 	}, [cartItem, mode])
-
-	const unit = product.unitOfMeasure
 
 	const inputRef = useCallback(
 		(el: HTMLInputElement | null) => {
@@ -319,7 +298,7 @@ function QuoteAction({ product }: { product: QuoteProduct }) {
 		[mode],
 	)
 
-	const confirmWithQuantity = (qty: number) => {
+	const confirmWith = (qty: number) => {
 		const q = Math.max(1, qty)
 		if (cartItem) {
 			updateQuantity(product.id, q)
@@ -341,7 +320,10 @@ function QuoteAction({ product }: { product: QuoteProduct }) {
 		setMode('added')
 	}
 
-	const handleConfirm = () => confirmWithQuantity(quantity)
+	const handleEdit = () => {
+		if (cartItem) setQuantity(cartItem.quantity)
+		setMode('selecting')
+	}
 
 	const handleRemove = () => {
 		remove(product.id)
@@ -349,137 +331,173 @@ function QuoteAction({ product }: { product: QuoteProduct }) {
 		setMode('idle')
 	}
 
-	const handleEdit = () => {
-		if (cartItem) setQuantity(cartItem.quantity)
-		setMode('selecting')
+	if (mode === 'idle') {
+		return (
+			<button
+				type="button"
+				onClick={() => setMode('selecting')}
+				className="inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-[var(--p-text)] px-6 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-bg)] hover:opacity-90"
+			>
+				<Plus size={14} />
+				{t('market.record')}
+			</button>
+		)
 	}
 
+	if (mode === 'selecting') {
+		return (
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+				<NumberField
+					value={quantity}
+					onChange={(v) => setQuantity(v)}
+					minValue={1}
+					step={1}
+				>
+					<Label className="sr-only">{t('market.quantity')}</Label>
+					<Group className="flex h-12 items-center overflow-hidden rounded-sm border border-[var(--p-border-strong)] bg-[var(--p-input)]">
+						<Button
+							slot="decrement"
+							className="flex h-full w-12 items-center justify-center text-[18px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						>
+							−
+						</Button>
+						<div className="flex flex-1 items-center justify-center gap-2 px-3">
+							<Input
+								ref={inputRef}
+								onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+									if (e.key === 'Enter')
+										confirmWith(parseInt(e.currentTarget.value, 10) || 1)
+									if (e.key === 'Escape') setMode(cartItem ? 'added' : 'idle')
+								}}
+								className="w-16 bg-transparent text-center font-mono text-[18px] font-medium text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								style={{ fontVariantNumeric: 'tabular-nums' }}
+							/>
+							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+								{product.unitOfMeasure}
+							</span>
+						</div>
+						<Button
+							slot="increment"
+							className="flex h-full w-12 items-center justify-center text-[18px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						>
+							+
+						</Button>
+					</Group>
+				</NumberField>
+				<button
+					type="button"
+					onClick={() => confirmWith(quantity)}
+					className="inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-[var(--p-text)] px-6 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-bg)] hover:opacity-90"
+				>
+					<Check size={14} />
+					{t('market.confirm')}
+				</button>
+				<button
+					type="button"
+					onClick={() => setMode(cartItem ? 'added' : 'idle')}
+					className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)] hover:text-[var(--p-text)]"
+				>
+					{t('orders.cancel')}
+				</button>
+			</div>
+		)
+	}
+
+	// added
 	return (
-		<div className="rounded-2xl bg-[var(--p-surface)] p-6">
-			<AnimatePresence mode="wait" initial={false}>
-				{mode === 'idle' && (
-					<motion.div
-						key="idle"
-						initial={{ opacity: 0, y: 8 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-					>
-						<button
-							type="button"
-							onClick={() => setMode('selecting')}
-							className="h-14 w-full rounded-xl bg-[var(--p-text)] text-[var(--p-bg)] font-semibold text-[15px] hover:opacity-90 transition-opacity"
-						>
-							{t('market.addToQuote')}
-						</button>
-					</motion.div>
-				)}
+		<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+			<div
+				className="inline-flex h-12 items-center gap-3 rounded-sm border border-[var(--p-border-strong)] bg-[var(--p-input)] px-4"
+				aria-live="polite"
+			>
+				<Check size={14} className="text-[var(--p-text)]" />
+				<span
+					className="font-mono text-[14px] font-medium text-[var(--p-text)]"
+					style={{ fontVariantNumeric: 'tabular-nums' }}
+				>
+					{cartItem?.quantity}
+				</span>
+				<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+					{product.unitOfMeasure} · {t('market.inQuote')}
+				</span>
+			</div>
+			<button
+				type="button"
+				onClick={handleEdit}
+				className="inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-[var(--p-border-strong)] px-5 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-text)] hover:bg-[var(--p-hover)]"
+			>
+				<Pencil size={13} />
+				{t('market.amend')}
+			</button>
+			<button
+				type="button"
+				onClick={handleRemove}
+				className="inline-flex h-12 items-center justify-center gap-2 px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)] hover:text-[var(--p-error)]"
+			>
+				<Undo2 size={13} />
+				{t('market.removeItem')}
+			</button>
+		</div>
+	)
+}
 
-				{mode === 'selecting' && (
-					<motion.div
-						key="selecting"
-						initial={{ opacity: 0, y: 8 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-					>
-						<NumberField
-							value={quantity}
-							onChange={(v) => setQuantity(v)}
-							minValue={1}
-							step={1}
-							className="mb-4"
-						>
-							<Label className="sr-only">{t('market.quantity')}</Label>
-							<Group className="flex items-center rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] overflow-hidden">
-								<Button
-									slot="decrement"
-									className="flex h-14 w-14 shrink-0 items-center justify-center text-[20px] text-[var(--p-text-muted)] hover:bg-[var(--p-surface)] hover:text-[var(--p-text)] transition-colors border-e border-[var(--p-border)]"
-								>
-									−
-								</Button>
-								<div className="flex flex-1 items-center justify-center gap-2">
-									<Input
-										ref={inputRef}
-										onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-											if (e.key === 'Enter')
-												confirmWithQuantity(
-													parseInt(e.currentTarget.value, 10) || 1,
-												)
-											if (e.key === 'Escape')
-												setMode(cartItem ? 'added' : 'idle')
-										}}
-										className="h-14 w-[80px] bg-transparent text-center font-mono text-[20px] font-semibold text-[var(--p-text)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-									/>
-									<span className="text-[13px] text-[var(--p-text-muted)] font-medium">
-										{unit}
-									</span>
-								</div>
-								<Button
-									slot="increment"
-									className="flex h-14 w-14 shrink-0 items-center justify-center text-[20px] text-[var(--p-text-muted)] hover:bg-[var(--p-surface)] hover:text-[var(--p-text)] transition-colors border-s border-[var(--p-border)]"
-								>
-									+
-								</Button>
-							</Group>
-						</NumberField>
+// ---------------------------------------------------------------------------
+// Skeleton + not-found
+// ---------------------------------------------------------------------------
 
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() => setMode(cartItem ? 'added' : 'idle')}
-								className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-bg)] hover:text-[var(--p-text)] transition-colors"
-							>
-								<ArrowLeft size={18} className="icon-end" />
-							</button>
-							<button
-								type="button"
-								onClick={handleConfirm}
-								className="h-14 flex-1 rounded-xl bg-[var(--p-text)] text-[var(--p-bg)] font-semibold text-[15px] hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-							>
-								<Check size={18} />
-								{t('market.confirm')}
-							</button>
+const SK_SPECS = ['s1', 's2', 's3', 's4'] as const
+
+function DetailSkeleton() {
+	return (
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
+			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-6 py-3.5 lg:px-12">
+				<div className="mx-auto h-3 w-32 max-w-[1280px] animate-pulse bg-[var(--p-border)]" />
+			</div>
+			<div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-12 lg:py-14">
+				<div className="mb-8 flex items-baseline justify-between">
+					<div className="h-3 w-16 animate-pulse bg-[var(--p-border)]" />
+					<div className="h-3 w-20 animate-pulse bg-[var(--p-border)]" />
+				</div>
+				<div className="grid grid-cols-1 gap-10 lg:grid-cols-[5fr_4fr] lg:gap-16">
+					<div className="aspect-[4/3] animate-pulse rounded-sm bg-[var(--p-surface)]" />
+					<div className="space-y-5">
+						<div className="h-9 w-3/4 animate-pulse bg-[var(--p-border)]" />
+						<div className="h-7 w-1/2 animate-pulse bg-[var(--p-border)]" />
+						<div className="space-y-2 pt-4">
+							<div className="h-3 w-full animate-pulse bg-[var(--p-border)]" />
+							<div className="h-3 w-5/6 animate-pulse bg-[var(--p-border)]" />
+							<div className="h-3 w-2/3 animate-pulse bg-[var(--p-border)]" />
 						</div>
-					</motion.div>
-				)}
-
-				{mode === 'added' && (
-					<motion.div
-						key="added"
-						initial={{ opacity: 0, y: 8 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-					>
-						{cartItem && (
-							<p className="mb-4 text-[13px] text-[var(--p-text-muted)]">
-								<span className="font-mono font-semibold text-[var(--p-text)]">
-									{cartItem.quantity}
-								</span>{' '}
-								{unit} {t('market.inQuote')}
-							</p>
-						)}
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={handleRemove}
-								className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] hover:border-[var(--p-error)] hover:text-[var(--p-error)] transition-colors"
-							>
-								<Undo2 size={18} />
-							</button>
-							<button
-								type="button"
-								onClick={handleEdit}
-								className="h-14 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] font-semibold text-[15px] text-[var(--p-text)] hover:border-[var(--p-border-strong)] hover:text-[var(--p-text-secondary)] transition-colors flex items-center justify-center gap-2"
-							>
-								<Pencil size={16} />
-								{t('market.editQuantity')}
-							</button>
+						<div className="h-12 w-40 animate-pulse rounded-sm bg-[var(--p-border)]" />
+					</div>
+				</div>
+				<div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-sm bg-[var(--p-border)] sm:grid-cols-4">
+					{SK_SPECS.map((s) => (
+						<div key={s} className="space-y-2 bg-[var(--p-bg)] p-4">
+							<div className="h-3 w-16 animate-pulse bg-[var(--p-border)]" />
+							<div className="h-4 w-24 animate-pulse bg-[var(--p-border)]" />
 						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+					))}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function NotFound({ onBack }: { onBack: () => void }) {
+	const { t } = useTranslation('portal')
+	return (
+		<div className="flex h-full flex-col items-center justify-center gap-4 bg-[var(--p-bg)] px-6 text-center">
+			<p className="text-[16px] text-[var(--p-text-muted)]">
+				{t('quoteDetail.emptyHeading')}
+			</p>
+			<button
+				type="button"
+				onClick={onBack}
+				className="rounded-sm border border-[var(--p-border-strong)] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text)] hover:bg-[var(--p-hover)]"
+			>
+				{t('market.backToMarket')}
+			</button>
 		</div>
 	)
 }

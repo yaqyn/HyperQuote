@@ -1,19 +1,26 @@
+import type { ParseKeys } from 'i18next'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChatWidget } from '../../hooks/useChatWidget'
 
 interface AskLyonPillProps {
-	context: string
+	/** i18n key for the message Lyon receives — resolved in the user's current locale. */
+	contextKey: ParseKeys<'website'>
+	contextVars?: Record<string, string>
 	className?: string
 }
 
-export function AskLyonPill({ context, className = '' }: AskLyonPillProps) {
+export function AskLyonPill({
+	contextKey,
+	contextVars,
+	className = '',
+}: AskLyonPillProps) {
 	const { t } = useTranslation('website')
 	const openWithMessage = useChatWidget((s) => s.openWithMessage)
 
 	const handleClick = useCallback(() => {
-		openWithMessage(context)
-	}, [context, openWithMessage])
+		openWithMessage(t(contextKey, contextVars))
+	}, [contextKey, contextVars, openWithMessage, t])
 
 	return (
 		<button

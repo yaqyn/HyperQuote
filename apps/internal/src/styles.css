@@ -33,10 +33,10 @@
 	background-position: 0 0;
 }
 
-[data-theme="dark"] .bg-dot-grid {
+[data-theme="paper"] .bg-dot-grid {
 	background-image: radial-gradient(
 		circle,
-		rgba(255, 255, 255, 0.08) 1px,
+		rgba(28, 24, 20, 0.1) 1px,
 		transparent 1px
 	);
 }
@@ -53,11 +53,11 @@
 	background-repeat: repeat;
 }
 
-[data-theme="dark"] .bg-line-paper {
+[data-theme="paper"] .bg-line-paper {
 	background-image: linear-gradient(
 		to bottom,
 		transparent 31px,
-		rgba(255, 255, 255, 0.04) 32px
+		rgba(28, 24, 20, 0.06) 32px
 	);
 }
 
@@ -99,11 +99,11 @@
 	background-repeat: repeat-x;
 	background-position: 0 100%;
 }
-[data-theme="dark"] .edge-perforated-t,
-[data-theme="dark"] .edge-perforated-b {
+[data-theme="paper"] .edge-perforated-t,
+[data-theme="paper"] .edge-perforated-b {
 	background-image: linear-gradient(
 		to right,
-		rgba(255, 255, 255, 0.28) 50%,
+		rgba(28, 24, 20, 0.3) 50%,
 		transparent 50%
 	);
 }
@@ -127,22 +127,762 @@
 	animation: dispatch-stamp 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
-[data-theme="dark"] {
-	--color-text: #ffffff;
-	--color-text-muted: #888888;
-	--color-text-subtle: #555555;
-	--color-border: #222222;
-	--color-surface: #0a0a0a;
+/* ── Dispatch · The Horizon ─────────────────────────────────────
+   Near-white paper, near-black ink, brand blue for motion, brand
+   amber for overdue, brand red for returns. Texture (paper pinpricks,
+   hairlines, horizon rule) carries the module signature — color stays
+   disciplined per brand. */
+.dispatch-theme {
+	--paper: #fafafa;
+	--paper-deep: #f0f0f0;
+	--ink: #111111;
+	--ink-soft: rgba(17, 17, 17, 0.62);
+	--ink-mid: rgba(17, 17, 17, 0.38);
+	--ink-ghost: rgba(17, 17, 17, 0.2);
+	--rule: rgba(17, 17, 17, 0.24);
+	--rule-soft: rgba(17, 17, 17, 0.08);
+	--motion: #2563eb;
+	--overdue: #d97706;
+	--returned: #b91c1c;
 }
 
-/* Single cursor everywhere — minimalistic arrow */
+[data-theme="paper"] .dispatch-theme {
+	--paper: #ebdeba;
+	--paper-deep: #e0d2a7;
+	--ink: #1c1814;
+	--ink-soft: rgba(28, 24, 20, 0.7);
+	--ink-mid: rgba(28, 24, 20, 0.46);
+	--ink-ghost: rgba(28, 24, 20, 0.24);
+	--rule: rgba(28, 24, 20, 0.26);
+	--rule-soft: rgba(28, 24, 20, 0.1);
+	--motion: #5c1a1a;
+	--overdue: #a85a1f;
+	--returned: #8d1e1e;
+}
+
+/* Paper texture — layered pinpricks of noise plus a ghost ledger-line
+   at 32px intervals. Strengthened from the warm-paper version to carry
+   the artifact feel through the brand-aligned palette. */
+.dispatch-paper {
+	background-color: var(--paper);
+	background-image:
+		radial-gradient(
+			circle at 22% 18%,
+			rgba(0, 0, 0, 0.045) 0.7px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 78% 62%,
+			rgba(0, 0, 0, 0.035) 0.7px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 44% 88%,
+			rgba(0, 0, 0, 0.04) 0.7px,
+			transparent 0.9px
+		),
+		linear-gradient(to bottom, transparent 31px, rgba(0, 0, 0, 0.022) 32px),
+		linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+	background-size:
+		7px 9px,
+		11px 13px,
+		13px 11px,
+		100% 32px,
+		100% 100%;
+}
+
+[data-theme="paper"] .dispatch-paper {
+	background-image:
+		radial-gradient(
+			circle at 22% 18%,
+			rgba(28, 24, 20, 0.065) 0.7px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 78% 62%,
+			rgba(28, 24, 20, 0.055) 0.7px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 44% 88%,
+			rgba(28, 24, 20, 0.06) 0.7px,
+			transparent 0.9px
+		),
+		linear-gradient(to bottom, transparent 31px, rgba(28, 24, 20, 0.035) 32px),
+		linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+}
+
+/* Horizon rule — draws itself left-to-right on mount. The line IS
+   the work. */
+@keyframes horizon-draw {
+	from {
+		transform: scaleX(0);
+	}
+	to {
+		transform: scaleX(1);
+	}
+}
+.animate-horizon-draw {
+	transform-origin: left center;
+	animation: horizon-draw 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Sovereign number — a slow, dignified rise. Paired with the horizon
+   draw so the composition assembles as one gesture. */
+@keyframes sovereign-rise {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.animate-sovereign-rise {
+	animation: sovereign-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Status glyph — draws itself from a single point. Used for the
+   right-gutter marks on each stratum. */
+@keyframes glyph-draw {
+	from {
+		opacity: 0;
+		transform: scale(0.4);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+.animate-glyph-draw {
+	animation: glyph-draw 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Stamp-word press — the action words (DELIVER / RETURN) depress
+   with ink under the pointer. */
+@keyframes stamp-press {
+	0% {
+		transform: scale(1);
+		filter: blur(0);
+	}
+	40% {
+		transform: scale(0.94) translateY(1px);
+		filter: blur(0.3px);
+	}
+	100% {
+		transform: scale(1);
+		filter: blur(0);
+	}
+}
+.animate-stamp-press {
+	animation: stamp-press 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Map wash — the tiled terrain gets desaturated + warmed so it
+   reads as muted topography under the composed panel. Applied to
+   the MapGL wrapper in dispatch only. */
+.dispatch-map-wash {
+	filter: saturate(0.55) sepia(0.18) brightness(1.04) contrast(0.95);
+}
+[data-theme="paper"] .dispatch-map-wash {
+	filter: saturate(0.6) sepia(0.35) brightness(0.98) contrast(0.94);
+}
+
+/* Placeholder style for dispatch — italic + ghost, per the
+   horizon aesthetic. */
+.dispatch-theme input::placeholder,
+.dispatch-theme textarea::placeholder {
+	color: var(--ink-ghost);
+	font-style: italic;
+}
+
+/* ── Shell · Plate ticks ───────────────────────────────────────
+   The shell plate's signature: four small registration crosses
+   inset 14px from each corner. Barely visible until you notice
+   them — then they read as printmaker's marks on the frame.
+   Paired with GlassWindow's border + shadow, this turns the
+   shell into a composed, registered plate. Apply to any window
+   that IS the shell (ModuleWindow, NotificationsWindow). */
+.shell-plate {
+	background-image:
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(0,0,0,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(0,0,0,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(0,0,0,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(0,0,0,0.18)' stroke-width='0.9'/></svg>");
+	background-position:
+		14px 14px,
+		calc(100% - 14px) 14px,
+		14px calc(100% - 14px),
+		calc(100% - 14px) calc(100% - 14px);
+	background-repeat: no-repeat;
+	background-size: 10px 10px;
+}
+
+[data-theme="paper"] .shell-plate {
+	background-image:
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>");
+}
+
+/* ── Procurement · The Compendium ──────────────────────────────
+   An editorial reference-work vocabulary for the inventory
+   employee's home. Pristine white paper + deep ink + brand blue
+   as the signature accent (Roman numerals, the sigil dot, the
+   active-chapter rule). Identity comes from typography — Fraunces
+   display serif, vertical column rules, folio rhythm — so the
+   palette stays disciplined. Amber for aging/low, red for
+   urgent/out, emerald for fresh/healthy. */
+.compendium-theme {
+	--folio: #ffffff;
+	--folio-deep: #fafafb;
+	--folio-index: #f6f7f8;
+	--folio-edge: rgba(10, 10, 14, 0.06);
+	--ink: #0a0a0f;
+	--ink-soft: rgba(10, 10, 15, 0.66);
+	--ink-mid: rgba(10, 10, 15, 0.44);
+	--ink-ghost: rgba(10, 10, 15, 0.22);
+	--rule: rgba(10, 10, 15, 0.12);
+	--rule-soft: rgba(10, 10, 15, 0.06);
+	--compendium-brand: #2563eb;
+	--compendium-brand-wash: rgba(37, 99, 235, 0.08);
+	--compendium-fresh: #047857;
+	--compendium-aging: #b45309;
+	--compendium-stale: #b91c1c;
+}
+
+[data-theme="paper"] .compendium-theme {
+	--folio: #ebdeba;
+	--folio-deep: #e0d2a7;
+	--folio-index: #e6d9b0;
+	--folio-edge: rgba(28, 24, 20, 0.12);
+	--ink: #1c1814;
+	--ink-soft: rgba(28, 24, 20, 0.7);
+	--ink-mid: rgba(28, 24, 20, 0.46);
+	--ink-ghost: rgba(28, 24, 20, 0.22);
+	--rule: rgba(28, 24, 20, 0.16);
+	--rule-soft: rgba(28, 24, 20, 0.07);
+	--compendium-brand: #5c1a1a;
+	--compendium-brand-wash: rgba(92, 26, 26, 0.1);
+	--compendium-fresh: #036141;
+	--compendium-aging: #9a5718;
+	--compendium-stale: #8d1e1e;
+}
+
+/* Compendium folio — a near-pristine white spread with a barely-
+   perceptible grain (purely haptic) and a single vertical column
+   rule at the trailing edge to mark the fore-edge of the folio. */
+.compendium-paper {
+	background-color: var(--folio);
+	background-image:
+		radial-gradient(
+			circle at 18% 22%,
+			rgba(10, 10, 15, 0.014) 0.6px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 62% 58%,
+			rgba(10, 10, 15, 0.012) 0.6px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 88% 84%,
+			rgba(10, 10, 15, 0.014) 0.6px,
+			transparent 0.9px
+		),
+		linear-gradient(
+			90deg,
+			transparent 0,
+			transparent calc(100% - 1px),
+			var(--rule-soft) calc(100% - 1px),
+			var(--rule-soft) 100%
+		);
+	background-size:
+		11px 13px,
+		13px 9px,
+		9px 11px,
+		100% 100%;
+}
+
+[data-theme="paper"] .compendium-paper {
+	background-image:
+		radial-gradient(
+			circle at 18% 22%,
+			rgba(28, 24, 20, 0.05) 0.6px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 62% 58%,
+			rgba(28, 24, 20, 0.04) 0.6px,
+			transparent 0.9px
+		),
+		radial-gradient(
+			circle at 88% 84%,
+			rgba(28, 24, 20, 0.045) 0.6px,
+			transparent 0.9px
+		),
+		linear-gradient(
+			90deg,
+			transparent 0,
+			transparent calc(100% - 1px),
+			var(--rule-soft) calc(100% - 1px),
+			var(--rule-soft) 100%
+		);
+}
+
+/* Sidebar index — the gutter page. A hair cooler than the spread,
+   with a trailing hairline rule as the spine. The contrast is
+   barely visible but reads as "different paper" when you scan. */
+.compendium-index {
+	background-color: var(--folio-index);
+	background-image: linear-gradient(
+		90deg,
+		transparent 0,
+		transparent calc(100% - 1px),
+		var(--rule) calc(100% - 1px),
+		var(--rule) 100%
+	);
+}
+
+/* Compendium placeholder — italic + ghost, per the editorial voice. */
+.compendium-theme input::placeholder,
+.compendium-theme textarea::placeholder {
+	color: var(--ink-ghost);
+	font-style: italic;
+}
+
+/* Compendium numeric treatment for scale-ups — tabular figures,
+   subtle letterspacing for large display numbers. */
+.compendium-numeral {
+	font-feature-settings:
+		"tnum" on,
+		"lnum" on,
+		"ss01" on;
+	font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Folio-turn — tab swap animation. Pages don't slide; they lift,
+   release a hairline of shadow, and settle. */
+@keyframes folio-turn {
+	0% {
+		opacity: 0;
+		transform: translateY(6px) scaleY(0.995);
+		filter: blur(0.4px);
+	}
+	55% {
+		opacity: 1;
+		transform: translateY(-1px) scaleY(1.002);
+		filter: blur(0);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0) scaleY(1);
+		filter: blur(0);
+	}
+}
+.animate-folio-turn {
+	animation: folio-turn 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Compendium-settle — the signature numeral entrance. A heavy
+   editorial number drops a hair, as if a foundry type block
+   settled into a typecase. Paired with folio-turn. */
+@keyframes compendium-settle {
+	0% {
+		opacity: 0;
+		transform: translateY(-10px);
+		letter-spacing: -0.01em;
+	}
+	60% {
+		opacity: 1;
+		transform: translateY(1px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+		letter-spacing: -0.04em;
+	}
+}
+.animate-compendium-settle {
+	animation: compendium-settle 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Sales · The Daybook ───────────────────────────────────────
+   Where the sales rep lives for the whole shift. Pristine white
+   stays (palette discipline held), but the surface gets paper
+   grain so long sessions feel tactile instead of clinical. The
+   theme scope only holds sales-specific tokens; the shared
+   color tokens stay untouched so the rest of the app keeps its
+   neutral ground. */
+.sales-theme {
+	--sales-rule-soft: rgba(17, 17, 17, 0.028);
+}
+
+[data-theme="paper"] .sales-theme {
+	--sales-rule-soft: rgba(28, 24, 20, 0.05);
+}
+
+/* Daybook paper — white surface with an imperceptible cool grain.
+   No horizontal rules, no column lines; the entries themselves
+   carry the grid through typography and row numbering. */
+.sales-paper {
+	background-color: var(--color-surface);
+	background-image:
+		radial-gradient(
+			circle at 18% 22%,
+			rgba(17, 17, 17, 0.018) 0.7px,
+			transparent 1px
+		),
+		radial-gradient(
+			circle at 62% 58%,
+			rgba(17, 17, 17, 0.015) 0.7px,
+			transparent 1px
+		),
+		radial-gradient(
+			circle at 88% 84%,
+			rgba(17, 17, 17, 0.02) 0.7px,
+			transparent 1px
+		);
+	background-size:
+		11px 13px,
+		13px 9px,
+		9px 11px;
+}
+
+[data-theme="paper"] .sales-paper {
+	background-image:
+		radial-gradient(
+			circle at 18% 22%,
+			rgba(28, 24, 20, 0.045) 0.7px,
+			transparent 1px
+		),
+		radial-gradient(
+			circle at 62% 58%,
+			rgba(28, 24, 20, 0.038) 0.7px,
+			transparent 1px
+		),
+		radial-gradient(
+			circle at 88% 84%,
+			rgba(28, 24, 20, 0.05) 0.7px,
+			transparent 1px
+		);
+}
+
+/* Daybook row — a line item without a bottom border. The ledger
+   number + whitespace + baseline carries the separation; the
+   "grid of lines" effect we want to avoid only appears when every
+   row is bordered. Apply to <tr> elements that stack. */
+.daybook-row {
+	border-bottom: 1px solid transparent;
+	transition: background-color 160ms ease;
+}
+.daybook-row:hover {
+	background-color: var(--sales-rule-soft);
+}
+
+/* ── Finance · The Ledger ──────────────────────────────────────
+   The accountant's register. Pristine white stays; identity is
+   carried by typography (Bricolage display, JetBrains Mono
+   numerics, Archivo Black for the sovereign balance) and the
+   formal ledger gestures (double underlines under subtotals,
+   net balance line at the bottom). Distinct from Sales's tactile
+   daybook and Compendium's editorial reference — this panel is
+   about precision, not comfort. */
+.ledger-theme {
+	--ledger-rule-soft: rgba(17, 17, 17, 0.05);
+	--ledger-in: #047857;
+	--ledger-out: #b91c1c;
+	--ledger-chase: #b45309;
+}
+
+[data-theme="paper"] .ledger-theme {
+	--ledger-rule-soft: rgba(28, 24, 20, 0.06);
+	--ledger-in: #036141;
+	--ledger-out: #8d1e1e;
+	--ledger-chase: #9a5718;
+}
+
+/* Double underline — accountant's mark for a settled total.
+   Two 1px rules with a 2px gap, applied as a bottom ornament
+   on any row that reports a subtotal. */
+.ledger-double-rule {
+	border-bottom: 1px solid var(--color-border);
+	box-shadow: 0 3px 0 -2px var(--color-border);
+}
+
+/* Ledger row — no bottom border. Entries in a proper ledger are
+   separated by baseline rhythm and the margin rule on the far
+   left, not a grid. Hover surfaces a subtle wash for focus. */
+.ledger-row {
+	border-bottom: 1px solid transparent;
+	transition: background-color 160ms ease;
+}
+.ledger-row:hover {
+	background-color: var(--ledger-rule-soft);
+}
+
+/* Thumb-index tab — an ink mark protruding just past the row's
+   trailing edge on the active entry. Fully outside the text box so
+   it never overlaps the numeric counters. No alert variant: the
+   red count next to the row is signal enough. */
+.compendium-thumb {
+	position: relative;
+	isolation: isolate;
+}
+.compendium-thumb::after {
+	content: "";
+	position: absolute;
+	top: 8px;
+	bottom: 8px;
+	right: -6px;
+	width: 2px;
+	background: transparent;
+	transition: background-color 180ms ease;
+}
+.compendium-thumb[data-active="true"]::after {
+	background: var(--compendium-brand);
+}
+
+/* Strata bar — the fullness gauge used in The Atlas. Unlike the
+   thin progress bar used elsewhere, this is a shaded column with
+   a visible threshold notch carved in. */
+.compendium-strata {
+	position: relative;
+	height: 5px;
+	background:
+		repeating-linear-gradient(
+			90deg,
+			var(--rule-soft) 0 1px,
+			transparent 1px 4px
+		),
+		var(--folio-deep);
+	border-radius: 1px;
+	overflow: hidden;
+}
+
+/* Fore-edge — the inner sidebar shows a subtle page-stack shadow
+   on the trailing edge to imply pages behind. */
+.compendium-foreedge {
+	box-shadow:
+		inset -1px 0 0 var(--rule-soft),
+		6px 0 14px -8px rgba(26, 22, 18, 0.06);
+}
+[data-theme="paper"] .compendium-foreedge {
+	box-shadow:
+		inset -1px 0 0 var(--rule-soft),
+		6px 0 14px -8px rgba(28, 24, 20, 0.14);
+}
+
+/* SlidePanel directional shadow — the drawer leaks light from the
+   edge it emerged from. Start-edge drawer: shadow leans right.
+   End-edge drawer: shadow leans left. */
+.slide-drawer-end {
+	box-shadow: -16px 0 48px -16px rgba(0, 0, 0, 0.22);
+}
+.slide-drawer-start {
+	box-shadow: 16px 0 48px -16px rgba(0, 0, 0, 0.22);
+}
+[data-theme="paper"] .slide-drawer-end {
+	box-shadow: -16px 0 48px -16px rgba(28, 24, 20, 0.3);
+}
+[data-theme="paper"] .slide-drawer-start {
+	box-shadow: 16px 0 48px -16px rgba(28, 24, 20, 0.3);
+}
+
+/* Dark variant is intentionally orphaned — the app's second mode is
+   now Paper, not Dark. The custom-variant points at a selector that
+   no one sets (data-theme="dark" never ships) so legacy `dark:`
+   prefixed classes fall through and the base light styles apply in
+   Paper mode. Token overrides under [data-theme="paper"] below
+   paint the warm palette on top. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ── Paper mode · global token override ──────────────────────────
+   Kraft-paper surface with warm deep-ink text. Every component
+   that uses --color-* tokens automatically picks up the paper
+   palette when data-theme="paper" is on <html>. Primary flips to
+   a classical ledger burgundy — the traditional ink of stamps,
+   seals, and hand-ruled margins. Signal amber/red stay so
+   "urgent" semantics don't collapse into the new primary. */
+[data-theme="paper"] {
+	--color-primary: #5c1a1a;
+	--color-text: #1c1814;
+	--color-text-muted: #5c5649;
+	--color-text-subtle: #928a77;
+	--color-border: #d6ccb3;
+	--color-surface: #ebdeba;
+}
+
+/* Paper mode surface — realism comes from the light, not the noise.
+   Four layered gradients describe how real paper sits under a desk
+   lamp: a broad warm highlight in the upper-left quadrant, a soft
+   secondary bloom at mid-right so the surface doesn't read as a
+   single hotspot, a muted warm shadow pooling at the lower-right,
+   and one very faint grain layer just to kill the plastic-flat
+   look. No dot stipple — the gradient does the lifting. */
+[data-theme="paper"] body,
+[data-theme="paper"] .shell-plate {
+	background-color: var(--color-surface);
+	background-image:
+		radial-gradient(
+			ellipse 75% 65% at 22% 22%,
+			rgba(255, 248, 218, 0.28) 0%,
+			rgba(255, 248, 218, 0.08) 40%,
+			transparent 70%
+		),
+		radial-gradient(
+			ellipse 85% 80% at 88% 96%,
+			rgba(96, 62, 24, 0.22) 0%,
+			rgba(96, 62, 24, 0.08) 30%,
+			transparent 60%
+		),
+		radial-gradient(
+			circle at 35% 45%,
+			rgba(28, 24, 20, 0.025) 0.6px,
+			transparent 1.2px
+		),
+		linear-gradient(
+			165deg,
+			transparent 0%,
+			transparent 45%,
+			rgba(92, 62, 26, 0.1) 100%
+		);
+	background-size:
+		100% 100%,
+		100% 100%,
+		14px 14px,
+		100% 100%;
+	background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+}
+
+/* Paper mode selection wash — burgundy to match the new primary. */
+[data-theme="paper"] ::selection {
+	background: rgba(92, 26, 26, 0.22);
+	color: inherit;
+}
+
+/* Locked away-screen — no cursor at all (the only way back is
+   four digits, so the pointer is actively hidden). Overrides the
+   global cursor rule including its !important via higher
+   specificity + !important. */
+[data-away-lock="true"],
+[data-away-lock="true"] *,
+[data-away-lock="true"] *::before,
+[data-away-lock="true"] *::after {
+	cursor: none !important;
+}
+
+/* Paper mode cursor — dark 32x32 minimalistic pointer (borrowed from
+   portal). The light cursor looks washed out on kraft paper. Hotspot
+   at 0,0 matches the light cursor so click alignment stays stable.
+   Paper-text covers input fields so caret-hovers pick up the dark
+   variant too — otherwise native OS cursor bleeds through. */
+[data-theme="paper"] *,
+[data-theme="paper"] *::before,
+[data-theme="paper"] *::after {
+	cursor:
+		url("/cursors/paper-normal.png") 9 6,
+		default !important;
+}
+[data-theme="paper"] input[type="text"],
+[data-theme="paper"] input[type="number"],
+[data-theme="paper"] input[type="search"],
+[data-theme="paper"] input[type="email"],
+[data-theme="paper"] input[type="tel"],
+[data-theme="paper"] input[type="password"],
+[data-theme="paper"] input:not([type]),
+[data-theme="paper"] textarea,
+[data-theme="paper"] [contenteditable="true"],
+[data-theme="paper"] [contenteditable=""] {
+	cursor:
+		url("/cursors/paper-text.png") 16 16,
+		text !important;
+}
+
+/* Paper mode — darken the WindowHeader bottom rule. The default
+   light-mode rule (border-black/[0.06]) is 6% ink on kraft paper,
+   which barely separates the Ask-Lyon bar from the module body.
+   Bump to ~22% warm ink so the bar reads as a firm masthead rule. */
+[data-theme="paper"] [data-window-header="true"] {
+	border-bottom-color: rgba(28, 24, 20, 0.24) !important;
+}
+
+/* Paper mode shell-plate shadows — the default light-mode shadow
+   uses a bright white top-edge highlight (rgba(255,255,255,0.72))
+   which reads as a stark bright bar across every module/panel top
+   (it sits right under the window header and reads as a painted
+   line). Kill the inset highlight entirely in paper mode — paper
+   doesn't have a glossy top rim — and keep only the warm drop
+   shadows so the plate still lifts off the floor. */
+[data-theme="paper"] .shell-plate {
+	box-shadow:
+		0 2px 8px -3px rgba(74, 46, 18, 0.16),
+		0 24px 56px -16px rgba(74, 46, 18, 0.32) !important;
+}
+
+/* Paper mode theme transition — every element that paints with a
+   theme token crossfades its colors when the mode flips. Applied
+   globally (not scoped to paper mode) so transitions fire on both
+   directions — light → paper AND paper → light. The element list
+   is tuned via `will-change` implicitly; we only name the specific
+   properties that actually change between modes so unrelated
+   animations (hovers, scroll shadows) don't get dragged into the
+   longer curve. */
+* {
+	transition-property:
+		background-color, border-color, color, box-shadow, fill, stroke;
+	transition-duration: 320ms;
+	transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Interactive hover states still want quick feedback — override the
+   global transition back to a short curve. Inputs and focus rings
+   also snap (they need to read as responsive, not cinematic). */
+button,
+a,
+[role="button"],
+input,
+textarea,
+select {
+	transition-duration: 160ms;
+}
+
+/* The body surface gets its own layered animation on top of the
+   color crossfade — a brief saturation pulse that reads as the
+   paper settling into the light. Fires only when data-theme="paper"
+   first matches, so only the flip TO paper gets the extra flourish. */
+@keyframes paper-settle {
+	0% {
+		filter: saturate(1.3) brightness(1.02);
+	}
+	60% {
+		filter: saturate(1.05) brightness(1);
+	}
+	100% {
+		filter: saturate(1) brightness(1);
+	}
+}
+[data-theme="paper"] body {
+	animation: paper-settle 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+
+/* Single cursor everywhere — minimalistic arrow. Hotspot calibrated
+   to the actual arrow tip pixel (0, 11) — the light cursor's tip is
+   inset 11px from the top so 0,0 would drop the click point too low. */
 *,
 *::before,
 *::after {
 	cursor:
-		url("/cursors/normal.png") 0 0,
+		url("/cursors/normal.png") 0 11,
 		default !important;
 }
 /* I-beam only in text fields */
@@ -165,6 +905,37 @@ textarea,
 ::selection {
 	background: rgba(37, 99, 235, 0.25);
 	color: inherit;
+}
+
+/* Kill the default browser focus outline / border around buttons and
+   links. Many components define their own `focus-visible:` rings
+   (keyboard-only via ring utilities); anything without one just
+   falls back to a soft brand-blue glow via focus-visible so
+   keyboard users still get an affordance. */
+button,
+a,
+[role="button"],
+[role="link"],
+[tabindex]:not([tabindex="-1"]) {
+	outline: none;
+}
+button:focus,
+a:focus,
+[role="button"]:focus,
+[role="link"]:focus {
+	outline: none;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="link"]:focus-visible {
+	outline: none;
+}
+/* Nuke any residual browser outline everywhere. Components that
+   want a focus affordance define their own ring via utilities. */
+*:focus,
+*:focus-visible {
+	outline: none !important;
 }
 
 /* Custom scrollbar — Chromium (webkit) */
@@ -197,15 +968,15 @@ textarea,
 	background-clip: content-box;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-	background: rgba(255, 255, 255, 0.1);
+[data-theme="paper"] ::-webkit-scrollbar-thumb {
+	background: rgba(28, 24, 20, 0.16);
 	border: 2px solid transparent;
 	border-radius: 8px;
 	background-clip: content-box;
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-	background: rgba(37, 99, 235, 0.35);
+[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
+	background: rgba(92, 26, 26, 0.5);
 	border: 2px solid transparent;
 	border-radius: 8px;
 	background-clip: content-box;

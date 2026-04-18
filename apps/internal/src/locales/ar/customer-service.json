@@ -37,7 +37,7 @@
 	"composer": {
 		"placeholder": "اكتب ردّاً…",
 		"send": "إرسال الرد",
-		"sendShortcut": "إرسال · ⌘↵",
+		"sendShortcut": "إرسال · ↵",
 		"attach": "إرفاق ملف"
 	},
 	"email": {

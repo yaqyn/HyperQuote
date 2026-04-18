@@ -155,6 +155,8 @@ export function SlidePanel({
 	// For the animation we use raw x and flip the sign when side==='start'.
 	const enterOffset = side === 'start' ? '-100%' : '100%'
 	const edgeClass = side === 'start' ? 'start-0 border-e' : 'end-0 border-s'
+	const shadowClass =
+		side === 'start' ? 'slide-drawer-start' : 'slide-drawer-end'
 
 	// SSR / pre-mount guard: if the panel host isn't available yet, render
 	// nothing on the first paint and catch up once it mounts.
@@ -262,8 +264,8 @@ export function SlidePanel({
 						initial={{ x: enterOffset }}
 						animate={{ x: 0 }}
 						exit={{ x: enterOffset }}
-						transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-						className={`absolute inset-y-0 ${edgeClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] shadow-2xl dark:border-white/[0.08]`}
+						transition={{ type: 'spring', stiffness: 300, damping: 34 }}
+						className={`absolute inset-y-0 ${edgeClass} ${shadowClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08]`}
 						style={{ maxWidth: `${maxWidth}px` }}
 					>
 						{children}

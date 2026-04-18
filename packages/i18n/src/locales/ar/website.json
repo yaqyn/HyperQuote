@@ -564,7 +564,7 @@
 		"phoneLabel": "رقم الهاتف",
 		"phoneRequired": "رقم الهاتف مطلوب",
 		"phoneInvalid": "أدخل رقم هاتف مصري صحيح (١٠ أرقام)",
-		"whatsappCTA": "المتابعة عبر واتساب",
+		"whatsappCTA": "التحقّق عبر واتساب",
 		"smsFallback": "إرسال رسالة نصية",
 		"codeSent": "تم إرسال الرمز إلى",
 		"wrongCode": "الرمز غير صحيح. حاول مرة أخرى.",
@@ -672,6 +672,10 @@
 		"startGuide": "ابدأ الدليل",
 		"sidebarMenu": "قائمة الدليل",
 		"askLyon": "اسأل ليون",
+		"askLyonContext": {
+			"tellMeAbout": "أخبرني عن \"{{heading}}\" في {{article}}",
+			"helpMeWith": "ساعدني في: {{step}} ضمن {{guide}}"
+		},
 		"nav": {
 			"previous": "السابق",
 			"next": "التالي"

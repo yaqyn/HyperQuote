@@ -1,3 +1,4 @@
+import { isAIEnabled, LYON_WEBSITE, streamChat } from '@hyperquote/ai'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
@@ -141,8 +142,14 @@ export const chatStreamFn = createServerFn()
 		const lastMessage = input.messages[input.messages.length - 1]
 		const chunks: MockedStreamChunk[] = []
 
-		for await (const chunk of mockAGUIStream(lastMessage?.content ?? '')) {
-			chunks.push(chunk)
+		if (isAIEnabled()) {
+			for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
+				chunks.push(chunk as MockedStreamChunk)
+			}
+		} else {
+			for await (const chunk of mockAGUIStream(lastMessage?.content ?? '')) {
+				chunks.push(chunk)
+			}
 		}
 
 		return chunks

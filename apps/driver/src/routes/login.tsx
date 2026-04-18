@@ -1,141 +1,118 @@
-import { createRoute, useNavigate } from '@tanstack/react-router'
-import { AnimatePresence } from 'motion/react'
-import * as m from 'motion/react-client'
-import { useCallback, useEffect } from 'react'
+/**
+ * Sign-in. Quiet centered card. Truck plate + 4-digit PIN.
+ * No theatrics — just a real sign-in form.
+ */
+
+import { createRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BiometricPrompt } from '../components/auth/BiometricPrompt'
-import { OTPInput } from '../components/auth/OTPInput'
-import { PhoneInput } from '../components/auth/PhoneInput'
-import { PINPad } from '../components/auth/PINPad'
-import { verifyBiometric } from '../lib/biometric'
-import { type AuthStep, useAuthStore } from '../stores/auth'
+import { useAuth } from '../stores/auth'
 import { Route as rootRoute } from './__root'
-
-const springEnter = {
-	type: 'spring' as const,
-	stiffness: 200,
-	damping: 20,
-}
-
-const tweenExit = {
-	type: 'tween' as const,
-	duration: 0.2,
-	ease: 'easeIn' as const,
-}
-
-function LoginPage() {
-	const { t } = useTranslation()
-	const navigate = useNavigate()
-	const authStep = useAuthStore((s) => s.authStep)
-	const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-	const setAuthStep = useAuthStore((s) => s.setAuthStep)
-
-	// Redirect to home when authenticated
-	useEffect(() => {
-		if (isAuthenticated && authStep === 'authenticated') {
-			navigate({ to: '/home' })
-		}
-	}, [isAuthenticated, authStep, navigate])
-
-	const handleBiometricVerify = useCallback(async () => {
-		const result = await verifyBiometric()
-		if (result) {
-			// Biometric succeeded -- proceed to authenticated
-			setAuthStep('authenticated')
-		} else {
-			// Biometric failed -- fall back to PIN
-			setAuthStep('pin-verify')
-		}
-	}, [setAuthStep])
-
-	// Auto-trigger biometric verification for returning users
-	useEffect(() => {
-		if (authStep === 'biometric-verify') {
-			handleBiometricVerify()
-		}
-	}, [authStep, handleBiometricVerify])
-
-	function renderStep(step: AuthStep) {
-		switch (step) {
-			case 'phone':
-				return <PhoneInput />
-			case 'otp':
-				return <OTPInput />
-			case 'pin-setup':
-				return <PINPad mode="setup" />
-			case 'pin-verify':
-				return <PINPad mode="verify" />
-			case 'biometric-prompt':
-				return <BiometricPrompt />
-			case 'biometric-verify':
-				return (
-					<div className="flex flex-col items-center gap-4">
-						<div
-							className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-blue)] border-t-transparent"
-							role="status"
-							aria-label={t('common.loading')}
-						/>
-						<p className="text-sm text-[var(--text-secondary)]">
-							{t('login.biometric')}
-						</p>
-					</div>
-				)
-			case 'authenticated':
-				return null
-			default:
-				return <PhoneInput />
-		}
-	}
-
-	return (
-		<div className="flex min-h-dvh flex-col items-center px-6 pb-8 pt-[max(env(safe-area-inset-top,0px),2rem)]">
-			{/* Logo area -- top center */}
-			<div className="mb-8 mt-8 text-center">
-				<h1 className="text-2xl font-bold text-[var(--color-blue)]">
-					HyperQuote
-				</h1>
-				<p className="mt-1 text-sm text-[var(--text-secondary)]">
-					{t('login.driver')}
-				</p>
-			</div>
-
-			{/* Welcome text */}
-			<div className="mb-8 text-center">
-				<h2 className="text-xl font-semibold text-[var(--text-primary)]">
-					{t('login.welcome')}
-				</h2>
-				<p className="mt-2 text-sm text-[var(--text-secondary)]">
-					{t('login.enterPhone')}
-				</p>
-			</div>
-
-			{/* Auth step content -- bottom 40% of screen */}
-			<div className="flex w-full max-w-sm flex-1 flex-col justify-end">
-				<AnimatePresence mode="wait">
-					<m.div
-						key={authStep}
-						initial={{ opacity: 0, y: 20 }}
-						animate={{
-							opacity: 1,
-							y: 0,
-							transition: springEnter,
-						}}
-						exit={{
-							opacity: 0,
-							y: -10,
-							transition: tweenExit,
-						}}
-					>
-						{renderStep(authStep)}
-					</m.div>
-				</AnimatePresence>
-			</div>
-		</div>
-	)
-}
 
 export const Route = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/login',
+	beforeLoad: () => {
+		if (useAuth.getState().session) throw redirect({ to: '/' })
+	},
 	component: LoginPage,
 })
+
+function LoginPage() {
+	const { t } = useTranslation()
+	const navigate = useNavigate()
+	const signIn = useAuth((s) => s.signIn)
+	const [plate, setPlate] = useState('CAI-1842')
+	const [pin, setPin] = useState('')
+
+	const submit = (e: React.FormEvent) => {
+		e.preventDefault()
+		if (pin.length !== 4) return
+		signIn()
+		navigate({ to: '/' })
+	}
+
+	return (
+		<div className="grid min-h-dvh place-items-center bg-[var(--bg)] px-6">
+			<div className="w-full max-w-[400px]">
+				<div className="mb-8 text-center">
+					<div className="mx-auto mb-5 grid h-12 w-12 place-items-center rounded-[var(--r-md)] bg-[var(--accent)] text-[var(--accent-fg)]">
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							role="img"
+							aria-label="HQ"
+						>
+							<title>HyperQuote Driver</title>
+							<path
+								d="M4 17V7l8-4 8 4v10l-8 4-8-4z"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								strokeLinejoin="round"
+							/>
+							<path
+								d="M4 7l8 4 8-4M12 11v10"
+								stroke="currentColor"
+								strokeWidth="1.6"
+							/>
+						</svg>
+					</div>
+					<h1 className="t-display">{t('login.title')}</h1>
+					<p className="mt-2 text-[14px] text-[var(--ink-3)]">
+						{t('login.subtitle')}
+					</p>
+				</div>
+
+				<form onSubmit={submit} className="card overflow-hidden">
+					<div className="p-5">
+						<label className="block">
+							<span className="t-label">{t('login.plate')}</span>
+							<input
+								className="field field--num mt-2 uppercase"
+								value={plate}
+								onChange={(e) => setPlate(e.target.value)}
+								maxLength={10}
+								autoComplete="off"
+								placeholder="CAI-0000"
+							/>
+						</label>
+
+						<label className="mt-4 block">
+							<span className="t-label">{t('login.pin')}</span>
+							<input
+								className="field field--num mt-2 text-center text-[22px] tracking-[0.5em]"
+								inputMode="numeric"
+								maxLength={4}
+								pattern="\d{4}"
+								placeholder="••••"
+								value={pin}
+								onChange={(e) =>
+									setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+								}
+								// biome-ignore lint/a11y/noAutofocus: cab cold-start UX — driver shouldn't have to tap to focus PIN
+								autoFocus
+							/>
+						</label>
+					</div>
+					<div className="border-t border-[var(--line)] bg-[var(--surface-2)] p-3">
+						<button
+							type="submit"
+							disabled={pin.length !== 4}
+							className="btn btn--primary btn--block btn--lg"
+						>
+							{t('login.signIn')}
+							<ArrowRight size={16} strokeWidth={2} />
+						</button>
+					</div>
+				</form>
+
+				<p className="mt-6 text-center text-[12px] text-[var(--ink-4)]">
+					{t('login.demoHint')}
+				</p>
+			</div>
+		</div>
+	)
+}

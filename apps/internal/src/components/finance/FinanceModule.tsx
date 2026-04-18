@@ -3,6 +3,13 @@ import { useFinanceStore } from '../../stores/finance'
 import { FinanceDealsOrdersView } from './FinanceDealsOrdersView'
 import { FinanceTabStrip } from './FinanceTabStrip'
 
+/**
+ * The Ledger — finance's volume of record. Dual-pipeline intake for
+ * customer orders (money in) and supplier deals (money out), with a
+ * history register coming later. Scoped under `.ledger-theme` so
+ * every descendant inherits the register's accent tokens without
+ * touching component code.
+ */
 export function FinanceModule() {
 	const activeTab = useFinanceStore((s) => s.activeTab)
 
@@ -12,8 +19,8 @@ export function FinanceModule() {
 	}
 
 	return (
-		<div className="flex flex-col h-full">
-			<div className="shrink-0 pt-1 pb-2">
+		<div className="ledger-theme flex h-full flex-col bg-[var(--color-surface)]">
+			<div className="shrink-0">
 				<FinanceTabStrip />
 			</div>
 
@@ -40,9 +47,12 @@ export function FinanceModule() {
 
 function HistoryPlaceholder() {
 	return (
-		<div className="flex h-full items-center justify-center">
-			<p className="text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-				History · coming soon
+		<div className="flex h-full items-center justify-center px-10">
+			<p
+				className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
+				style={{ fontSize: '14px', letterSpacing: '-0.008em' }}
+			>
+				the archives · a volume still in binding.
 			</p>
 		</div>
 	)

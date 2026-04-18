@@ -1,9 +1,17 @@
 /**
  * Portal AI chat server function.
- * Mock AG-UI stream with text + CUSTOM events for rich messages.
- * Phase 30 swaps mockPortalStream with real AI model call.
+ *
+ * Two backends:
+ *   1. Ollama (qwen3.5:cloud on localhost:11434) — when USE_OLLAMA=1 on the
+ *      dev machine. Lyon actually talks.
+ *   2. Mock AG-UI stream — curated responses for prod and offline dev.
+ *
+ * Rich content (product / status / action cards) is keyword-matched on the
+ * last user message and appended after the assistant's text — the LLM does
+ * not emit tool calls yet, so the deterministic card rules still apply.
  */
 
+import { isAIEnabled, LYON_PORTAL, streamChat } from '@hyperquote/ai'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
@@ -317,27 +325,39 @@ async function* mockPortalStream(
 }
 
 // ============================================================================
-// portalChatFn — Server function returning AG-UI StreamChunk[]
-// Phase 30 swaps mockPortalStream with real AI model call
+// portalChatFn — Server function returning AG-UI StreamChunk[].
+// The ReadableStream variant drops chunks through TanStack Start's RPC; the
+// array pattern serializes cleanly. Once that upstream bug is fixed we can
+// switch back for true token-at-a-time streaming.
 // ============================================================================
 
 export const portalChatFn = createServerFn()
 	.inputValidator(portalChatInput)
 	.handler(async ({ data: input }) => {
 		const lastMessage = input.messages[input.messages.length - 1]
+		const userText = lastMessage?.content ?? ''
 		const chunks: StreamChunk[] = []
 
-		for await (const chunk of mockPortalStream(
-			lastMessage?.content ?? '',
-			input.role,
-		)) {
-			chunks.push(chunk)
+		if (isAIEnabled()) {
+			// Hold RUN_FINISHED until rich events have been appended.
+			let finishChunk: StreamChunk | null = null
+			for await (const chunk of streamChat(input.messages, LYON_PORTAL)) {
+				if (chunk.type === 'RUN_FINISHED') {
+					finishChunk = chunk
+					continue
+				}
+				chunks.push(chunk)
+			}
+			for (const event of getRichEvents(userText, input.role)) {
+				chunks.push(event)
+			}
+			if (finishChunk) chunks.push(finishChunk)
+		} else {
+			for await (const chunk of mockPortalStream(userText, input.role)) {
+				chunks.push(chunk)
+			}
 		}
 
-		// TanStack server-fn's return-type serializer converts `unknown` fields
-		// to `{}` (non-nullish). These values are already non-null at runtime,
-		// so the mismatch is purely in the type system. Cast once here; the
-		// client hook casts back to StreamChunk[] on receive.
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn type contract uses `{}` explicitly.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})

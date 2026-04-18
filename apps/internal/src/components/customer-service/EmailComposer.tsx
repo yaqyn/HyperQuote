@@ -84,6 +84,38 @@ function deriveFields(
  * and "draft" actions render as text links at the bottom — no boxed
  * buttons, no pill chrome.
  */
+interface EmailDraft {
+	to: string
+	cc: string
+	bcc: string
+	subject: string
+	body: string
+}
+
+const DRAFT_STORAGE_PREFIX = 'hq-email-draft:'
+
+function draftKey(conversationId: string): string {
+	return `${DRAFT_STORAGE_PREFIX}${conversationId}`
+}
+
+function loadDraft(conversationId: string): EmailDraft | null {
+	if (typeof window === 'undefined') return null
+	try {
+		const raw = window.localStorage.getItem(draftKey(conversationId))
+		if (!raw) return null
+		const parsed = JSON.parse(raw) as Partial<EmailDraft>
+		return {
+			to: parsed.to ?? '',
+			cc: parsed.cc ?? '',
+			bcc: parsed.bcc ?? '',
+			subject: parsed.subject ?? '',
+			body: parsed.body ?? '',
+		}
+	} catch {
+		return null
+	}
+}
+
 export function EmailComposer({
 	conversation,
 	replyTo,
@@ -92,13 +124,18 @@ export function EmailComposer({
 }: EmailComposerProps) {
 	const { t } = useTranslation('customer-service')
 	const defaults = deriveFields(conversation, replyTo, action)
+	const savedDraft = loadDraft(conversation.id)
 
-	const [to, setTo] = useState(defaults.to)
-	const [cc, setCc] = useState(defaults.cc)
-	const [bcc, setBcc] = useState('')
-	const [subject, setSubject] = useState(defaults.subject)
-	const [body, setBody] = useState('')
-	const [showCcBcc, setShowCcBcc] = useState(!!defaults.cc)
+	const [to, setTo] = useState(savedDraft?.to ?? defaults.to)
+	const [cc, setCc] = useState(savedDraft?.cc ?? defaults.cc)
+	const [bcc, setBcc] = useState(savedDraft?.bcc ?? '')
+	const [subject, setSubject] = useState(
+		savedDraft?.subject ?? defaults.subject,
+	)
+	const [body, setBody] = useState(savedDraft?.body ?? '')
+	const [showCcBcc, setShowCcBcc] = useState(
+		!!(savedDraft?.cc || savedDraft?.bcc || defaults.cc),
+	)
 	const [isDraft, setIsDraft] = useState(false)
 	const bodyRef = useRef<HTMLTextAreaElement>(null)
 	const queryClient = useQueryClient()
@@ -127,6 +164,9 @@ export function EmailComposer({
 				},
 			},
 		})
+		if (typeof window !== 'undefined') {
+			window.localStorage.removeItem(draftKey(conversation.id))
+		}
 		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
 		onDiscard()
 	}, [body, to, cc, subject, conversation.id, queryClient, onDiscard])
@@ -142,6 +182,18 @@ export function EmailComposer({
 	)
 
 	function handleSaveDraft() {
+		if (typeof window === 'undefined') return
+		const draft: EmailDraft = { to, cc, bcc, subject, body }
+		const hasContent =
+			to.trim() || cc.trim() || bcc.trim() || body.trim() || subject.trim()
+		if (hasContent) {
+			window.localStorage.setItem(
+				draftKey(conversation.id),
+				JSON.stringify(draft),
+			)
+		} else {
+			window.localStorage.removeItem(draftKey(conversation.id))
+		}
 		setIsDraft(true)
 		setTimeout(() => setIsDraft(false), 1500)
 	}

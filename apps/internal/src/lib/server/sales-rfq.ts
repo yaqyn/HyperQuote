@@ -26,8 +26,22 @@ function hasOutdatedPrices(rfqId: string): boolean {
 	const rfq = db.rfqs.get(rfqId)
 	if (!rfq) return false
 	if (!PRE_QUOTE_STATUSES.has(rfq.status)) return false
-	for (const item of rfq.items) {
-		const primary = db.supplierPrices.primaryForProduct(item.productSlug)
+
+	// Once the rep starts a draft we trust their working set — items they
+	// removed should stop counting against freshness, items they kept become
+	// the new staleness check. Falls back to the original RFQ item list when
+	// no draft exists yet (still in the inbox, not opened).
+	const drafts = db.quotes
+		.forRfq(rfqId)
+		.filter((q) => q.status !== 'accepted' && q.status !== 'declined')
+	const slugs =
+		drafts.length > 0
+			? drafts.flatMap((q) => q.items.map((i) => i.productSlug))
+			: rfq.items.map((i) => i.productSlug)
+
+	if (slugs.length === 0) return false
+	for (const slug of slugs) {
+		const primary = db.supplierPrices.primaryForProduct(slug)
 		if (!primary) return true
 		if (hoursSince(primary.lastQuotedAt) >= 24) return true
 	}

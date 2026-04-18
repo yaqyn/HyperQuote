@@ -4,7 +4,6 @@ import {
 	Headphones,
 	Languages,
 	LogOut,
-	Palette,
 	Receipt,
 	Settings,
 	ShieldCheck,
@@ -13,7 +12,6 @@ import {
 import { useState } from 'react'
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import { getTheme, persistTheme } from '../../lib/theme'
 import { usePortalStore } from '../../stores/portal'
 
 interface ProfileMenuProps {
@@ -61,11 +59,6 @@ export function ProfileMenu({
 		)
 	}
 
-	const handleThemeToggle = () => {
-		const current = getTheme()
-		persistTheme(current === 'dark' ? 'light' : 'dark')
-	}
-
 	const handleSignOut = async () => {
 		try {
 			const { createClient } = await import('@supabase/supabase-js')
@@ -103,11 +96,6 @@ export function ProfileMenu({
 			icon: Languages,
 			labelKey: 'profile.language',
 			action: handleLanguageToggle,
-		},
-		{
-			icon: Palette,
-			labelKey: 'profile.theme',
-			action: handleThemeToggle,
 		},
 	]
 

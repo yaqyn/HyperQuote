@@ -561,7 +561,7 @@
 		"phoneLabel": "Phone Number",
 		"phoneRequired": "Phone number is required",
 		"phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
-		"whatsappCTA": "Continue with WhatsApp",
+		"whatsappCTA": "Verify via WhatsApp",
 		"smsFallback": "Send via SMS",
 		"codeSent": "Code sent to",
 		"wrongCode": "Incorrect code. Try again.",
@@ -669,6 +669,10 @@
 		"startGuide": "Start guide",
 		"sidebarMenu": "Documentation menu",
 		"askLyon": "Ask Lyon",
+		"askLyonContext": {
+			"tellMeAbout": "Tell me about \"{{heading}}\" in {{article}}",
+			"helpMeWith": "Help me with: {{step}} in {{guide}}"
+		},
 		"nav": {
 			"previous": "Previous",
 			"next": "Next"

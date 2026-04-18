@@ -11,15 +11,10 @@ import {
 	Dialog,
 	DialogTrigger,
 	Heading,
-	ListBox,
-	ListBoxItem,
 	Popover,
-	Select,
-	SelectValue,
 } from 'react-aria-components'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { UnderlineInput } from '../../ui'
 import type { QuoteFormValues } from './types'
 
 // ─── Cairo Truck Ban Logic ────────────────────────────────
@@ -62,17 +57,25 @@ function hasHeavyMaterials(lineItems: { productName: string }[]): boolean {
 
 interface DeliveryTermsProps {
 	deliveryAddress: string
+	/** Total shipment weight in tonnes — may be derived by a future commit
+	 *  from line items × unit weight. For now the parent supplies an
+	 *  estimate. Drives the truck count and the heavy-order detection for
+	 *  Cairo truck-ban rules. */
 	totalWeightTons: number
 	leadTimeDays?: number
 }
 
-const DELIVERY_ZONES = [
-	{ zone: 1, label: '0-25 km', baseCost: 500 },
-	{ zone: 2, label: '25-50 km', baseCost: 1200 },
-	{ zone: 3, label: '50-100 km', baseCost: 2500 },
+const TRUCK_CAPACITY_TONS = 5
+
+const WINDOWS = [
+	{ id: '08:00-13:00', label: 'morning', range: '08:00–13:00' },
+	{ id: '13:00-17:00', label: 'midday', range: '13:00–17:00' },
+	{ id: '17:00-20:00', label: 'evening', range: '17:00–20:00' },
 ] as const
 
-const FREE_DELIVERY_THRESHOLD = 100_000
+type WindowId = (typeof WINDOWS)[number]['id']
+
+// ─── Component ────────────────────────────────────────────
 
 export function DeliveryTerms({
 	deliveryAddress,
@@ -82,15 +85,13 @@ export function DeliveryTerms({
 	const { i18n } = useTranslation('internal')
 	const { control, setValue: setFormValue } = useFormContext<QuoteFormValues>()
 	const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
-	const _fmt = new Intl.NumberFormat(locale, {
-		style: 'currency',
-		currency: 'EGP',
-		maximumFractionDigits: 0,
-	})
 
 	const lineItems = useWatch({ control, name: 'lineItems' })
-	const subtotal =
-		lineItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
+	const itemCount = lineItems?.length ?? 0
+	const truckCount = Math.max(
+		1,
+		Math.ceil(totalWeightTons / TRUCK_CAPACITY_TONS),
+	)
 
 	const isCairoDelivery = isGreaterCairoAddress(deliveryAddress)
 	const isHeavyByWeight = totalWeightTons > HEAVY_WEIGHT_TONS
@@ -98,6 +99,9 @@ export function DeliveryTerms({
 	const isHeavyOrder = isHeavyByWeight || isHeavyByCategory
 	const truckBanActive = isCairoDelivery && isHeavyOrder
 
+	// Truck ban forces night-delivery window. Only wire once when the
+	// condition flips — the rep can still override afterward for the
+	// rare exemption.
 	useEffect(() => {
 		if (truckBanActive) {
 			setFormValue('deliveryWindow', '00:00-06:00')
@@ -105,8 +109,7 @@ export function DeliveryTerms({
 	}, [truckBanActive, setFormValue])
 
 	const earliestDate = useMemo(() => {
-		const d = today(getLocalTimeZone())
-		return d.add({ days: leadTimeDays })
+		return today(getLocalTimeZone()).add({ days: leadTimeDays })
 	}, [leadTimeDays])
 
 	const latestDate = useMemo(
@@ -114,224 +117,440 @@ export function DeliveryTerms({
 		[],
 	)
 
-	const deliveryZone = DELIVERY_ZONES[0]
-	const weightSurcharge =
-		totalWeightTons > 10 ? Math.round((totalWeightTons - 10) * 150) : 0
-	const _baseCost = deliveryZone.baseCost + weightSurcharge
-	const _qualifiesForFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD
+	const earliestFormatted = useMemo(
+		() =>
+			earliestDate
+				.toDate(getLocalTimeZone())
+				.toLocaleDateString(locale, {
+					weekday: 'short',
+					day: 'numeric',
+					month: 'short',
+				})
+				.toLowerCase(),
+		[earliestDate, locale],
+	)
 
 	return (
-		<div className="space-y-4">
-			{/* Date + Window */}
-			<div className="flex items-baseline gap-6">
+		<dl className="mt-5 flex flex-col gap-0">
+			{/* Row — date + earliest context */}
+			<StratumRow label="date">
 				<Controller
 					control={control}
 					name="deliveryDate"
 					render={({ field }) => {
 						const parsed = field.value ? parseDate(field.value) : null
 						const formatted = parsed
-							? parsed.toDate(getLocalTimeZone()).toLocaleDateString(locale, {
-									weekday: 'short',
-									day: 'numeric',
-									month: 'short',
-									year: 'numeric',
-								})
+							? parsed
+									.toDate(getLocalTimeZone())
+									.toLocaleDateString(locale, {
+										weekday: 'short',
+										day: 'numeric',
+										month: 'short',
+										year: 'numeric',
+									})
+									.toLowerCase()
 							: null
 						return (
-							<DialogTrigger>
-								<AriaButton
-									aria-label="Delivery date"
-									className="flex items-center gap-1.5 rounded-md px-2 py-1 outline-none transition-colors
-                    data-[hovered]:bg-black/[0.04] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50
-                    dark:data-[hovered]:bg-white/[0.06]"
-								>
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 14 14"
-										fill="none"
-										aria-hidden="true"
-										className="text-black/40 dark:text-white/40"
+							<div className="flex items-baseline gap-4">
+								<DialogTrigger>
+									<AriaButton
+										aria-label="Pick delivery date"
+										className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
 									>
-										<rect
-											x="1.5"
-											y="2.5"
-											width="11"
-											height="10"
-											rx="1.5"
-											stroke="currentColor"
-											strokeWidth="1.25"
-										/>
-										<path
-											d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5"
-											stroke="currentColor"
-											strokeWidth="1.25"
-											strokeLinecap="round"
-										/>
-									</svg>
-									{formatted ? (
-										<span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-medium tabular-nums text-[var(--color-text)]">
-											{formatted}
-										</span>
-									) : (
-										<span className="text-[13px] italic text-black/40 dark:text-white/40">
-											Pick a date
-										</span>
-									)}
-								</AriaButton>
-								<Popover placement="bottom start">
-									<Dialog
-										aria-label="Delivery date picker"
-										className="cursor-default select-none rounded-xl border border-black/[0.06] bg-white p-4 shadow-xl outline-none dark:border-white/[0.06] dark:bg-black"
-									>
-										{({ close }) => (
-											<Calendar
-												aria-label="Delivery date"
-												minValue={earliestDate}
-												maxValue={latestDate}
-												value={parsed}
-												onChange={(date) => {
-													field.onChange(date?.toString() ?? '')
-													close()
-												}}
-											>
-												<header className="mb-2 flex items-center justify-between">
-													<AriaButton
-														slot="previous"
-														className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]"
-													>
-														&lt;
-													</AriaButton>
-													<Heading className="text-[13px] font-semibold" />
-													<AriaButton
-														slot="next"
-														className="rounded p-1 text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06]"
-													>
-														&gt;
-													</AriaButton>
-												</header>
-												<CalendarGrid>
-													<CalendarGridHeader>
-														{(day) => (
-															<CalendarHeaderCell className="pb-2 text-[11px] font-medium text-[var(--color-text-subtle)]">
-																{day}
-															</CalendarHeaderCell>
-														)}
-													</CalendarGridHeader>
-													<CalendarGridBody>
-														{(date) => (
-															<CalendarCell
-																date={date}
-																className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] outline-none data-[hovered]:bg-black/[0.03] data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:text-black/15 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/50 dark:data-[hovered]:bg-white/[0.06] dark:data-[unavailable]:text-white/15"
-															/>
-														)}
-													</CalendarGridBody>
-												</CalendarGrid>
-											</Calendar>
+										<svg
+											width="12"
+											height="12"
+											viewBox="0 0 14 14"
+											fill="none"
+											aria-hidden="true"
+											className="shrink-0 self-center"
+											style={{ color: 'var(--color-text-subtle)' }}
+										>
+											<rect
+												x="1.5"
+												y="2.5"
+												width="11"
+												height="10"
+												rx="0"
+												stroke="currentColor"
+												strokeWidth="1"
+											/>
+											<path
+												d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5"
+												stroke="currentColor"
+												strokeWidth="1"
+												strokeLinecap="round"
+											/>
+										</svg>
+										{formatted ? (
+											<span className="relative">
+												<span
+													className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+													style={{
+														fontSize: '13px',
+														color: 'var(--color-text)',
+														fontWeight: 500,
+														letterSpacing: '0.01em',
+													}}
+												>
+													{formatted}
+												</span>
+												<span
+													aria-hidden="true"
+													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+												/>
+											</span>
+										) : (
+											<span className="relative">
+												<span
+													className="font-[family-name:var(--font-archivo)] italic"
+													style={{
+														fontSize: '13px',
+														color: 'var(--color-text-subtle)',
+													}}
+												>
+													pick a date
+												</span>
+												<span
+													aria-hidden="true"
+													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+												/>
+											</span>
 										)}
-									</Dialog>
-								</Popover>
-							</DialogTrigger>
+									</AriaButton>
+									<Popover placement="bottom start">
+										<Dialog
+											aria-label="Delivery date picker"
+											className="cursor-default select-none p-4 outline-none"
+											style={{
+												backgroundColor: 'var(--color-surface)',
+												border: '1px solid var(--color-border)',
+												boxShadow:
+													'0 4px 12px -4px rgba(0,0,0,0.12), 0 16px 40px -8px rgba(0,0,0,0.18)',
+											}}
+										>
+											{({ close }) => (
+												<Calendar
+													aria-label="Delivery date"
+													minValue={earliestDate}
+													maxValue={latestDate}
+													value={parsed}
+													onChange={(date) => {
+														field.onChange(date?.toString() ?? '')
+														close()
+													}}
+												>
+													<header className="mb-3 flex items-center justify-between">
+														<AriaButton
+															slot="previous"
+															aria-label="Previous month"
+															className="rounded-sm p-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors data-[hovered]:text-[var(--color-primary)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+															style={{
+																fontSize: '13px',
+																color: 'var(--color-text-muted)',
+															}}
+														>
+															←
+														</AriaButton>
+														<Heading
+															className="font-[family-name:var(--font-archivo)]"
+															style={{
+																fontSize: '13px',
+																fontWeight: 500,
+																color: 'var(--color-text)',
+																letterSpacing: '-0.005em',
+															}}
+														/>
+														<AriaButton
+															slot="next"
+															aria-label="Next month"
+															className="rounded-sm p-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors data-[hovered]:text-[var(--color-primary)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+															style={{
+																fontSize: '13px',
+																color: 'var(--color-text-muted)',
+															}}
+														>
+															→
+														</AriaButton>
+													</header>
+													<CalendarGrid>
+														<CalendarGridHeader>
+															{(day) => (
+																<CalendarHeaderCell
+																	className="pb-2 font-[family-name:var(--font-archivo)] italic"
+																	style={{
+																		fontSize: '10px',
+																		color: 'var(--color-text-subtle)',
+																		letterSpacing: '0.04em',
+																	}}
+																>
+																	{day}
+																</CalendarHeaderCell>
+															)}
+														</CalendarGridHeader>
+														<CalendarGridBody>
+															{(date) => (
+																<CalendarCell
+																	date={date}
+																	className="flex h-8 w-8 items-center justify-center font-[family-name:var(--font-plex-mono)] tabular-nums outline-none transition-colors data-[hovered]:bg-[var(--color-primary)]/10 data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:opacity-25 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40 rounded-sm"
+																	style={{
+																		fontSize: '12px',
+																		color: 'var(--color-text)',
+																	}}
+																/>
+															)}
+														</CalendarGridBody>
+													</CalendarGrid>
+												</Calendar>
+											)}
+										</Dialog>
+									</Popover>
+								</DialogTrigger>
+								<span
+									className="font-[family-name:var(--font-archivo)] italic"
+									style={{
+										fontSize: '11px',
+										color: 'var(--color-text-subtle)',
+									}}
+								>
+									earliest{' '}
+									<span
+										className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
+										style={{
+											color: 'var(--color-text-muted)',
+											letterSpacing: '0.02em',
+										}}
+									>
+										{earliestFormatted}
+									</span>{' '}
+									·{' '}
+									<span
+										className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
+										style={{
+											color: 'var(--color-text-muted)',
+										}}
+									>
+										{leadTimeDays}d
+									</span>{' '}
+									lead
+								</span>
+							</div>
 						)
 					}}
 				/>
+			</StratumRow>
 
-				<span className="text-[12px] text-black/40 dark:text-white/40">
-					{leadTimeDays}d lead
-				</span>
-
+			{/* Row — window picker as a radio group */}
+			<StratumRow label="window">
 				<Controller
 					control={control}
 					name="deliveryWindow"
 					render={({ field }) => {
-						const windows = [
-							{ id: '08:00-13:00', label: 'Morning', range: '08:00–13:00' },
-							{ id: '13:00-17:00', label: 'Midday', range: '13:00–17:00' },
-							{ id: '17:00-20:00', label: 'Evening', range: '17:00–20:00' },
-						]
-						const value = field.value ?? '08:00-13:00'
-						const current = windows.find((w) => w.id === value) ?? windows[0]
+						const value = (field.value ?? '08:00-13:00') as WindowId
 						return (
-							<Select
-								selectedKey={value}
-								onSelectionChange={(key) => field.onChange(String(key))}
-								aria-label="Delivery window"
-							>
-								<AriaButton className="group inline-flex items-baseline gap-2 outline-none cursor-pointer">
-									<SelectValue>
-										{() => (
-											<span className="inline-flex items-baseline gap-2">
-												<span className="text-[14px] font-medium text-[var(--color-text)]">
-													{current.label}
-												</span>
-												<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/30 dark:text-white/30">
-													{current.range}
-												</span>
-											</span>
-										)}
-									</SelectValue>
-									<svg
-										aria-hidden="true"
-										width="8"
-										height="8"
-										viewBox="0 0 14 14"
-										fill="none"
-										className="text-black/25 dark:text-white/25 transition-transform group-data-[open]:rotate-180"
-									>
-										<path
-											d="M3.5 5l3.5 3.5L10.5 5"
-											stroke="currentColor"
-											strokeWidth="1.5"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-										/>
-									</svg>
-								</AriaButton>
-								<Popover>
-									<Dialog
-										aria-label="Delivery location"
-										className="outline-none"
-									>
-										<ListBox
-											items={windows}
-											className="min-w-[200px] rounded-lg border border-black/[0.06] bg-white p-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)] outline-none dark:border-white/[0.08] dark:bg-[#0f0f0f]"
+							<fieldset className="flex items-baseline gap-5 border-0 p-0 m-0">
+								<legend className="sr-only">Delivery window</legend>
+								{WINDOWS.map((w) => {
+									const selected = value === w.id
+									const inputId = `window-${w.id}`
+									return (
+										<label
+											key={w.id}
+											htmlFor={inputId}
+											className="group relative inline-flex cursor-pointer items-baseline gap-1.5 font-[family-name:var(--font-archivo)] transition-colors rounded-sm"
 										>
-											{(item) => (
-												<ListBoxItem
-													id={item.id}
-													textValue={`${item.label} ${item.range}`}
-													className="flex cursor-pointer items-baseline justify-between gap-4 rounded-md px-3 py-2 outline-none transition-colors hover:bg-black/[0.03] selected:bg-black/[0.04] dark:hover:bg-white/[0.03] dark:selected:bg-white/[0.05]"
-												>
-													<span className="text-[13px] font-medium text-[var(--color-text)]">
-														{item.label}
-													</span>
-													<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/35 dark:text-white/35">
-														{item.range}
-													</span>
-												</ListBoxItem>
-											)}
-										</ListBox>
-									</Dialog>
-								</Popover>
-							</Select>
+											<input
+												id={inputId}
+												type="radio"
+												name="deliveryWindow"
+												value={w.id}
+												checked={selected}
+												onChange={() => field.onChange(w.id)}
+												className="sr-only peer"
+											/>
+											<span
+												aria-hidden="true"
+												className="shrink-0 self-center rounded-full transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-primary)]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
+												style={{
+													width: 7,
+													height: 7,
+													backgroundColor: selected
+														? 'var(--color-primary)'
+														: 'transparent',
+													border: selected
+														? 'none'
+														: '1px solid var(--color-text-subtle)',
+												}}
+											/>
+											<span
+												style={{
+													fontSize: '13px',
+													fontStyle: selected ? 'normal' : 'italic',
+													fontWeight: selected ? 500 : 400,
+													color: selected
+														? 'var(--color-text)'
+														: 'var(--color-text-muted)',
+													letterSpacing: '-0.005em',
+												}}
+											>
+												{w.label}
+											</span>
+											<span
+												className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+												style={{
+													fontSize: '10px',
+													color: 'var(--color-text-subtle)',
+													letterSpacing: '0.04em',
+												}}
+											>
+												{w.range}
+											</span>
+										</label>
+									)
+								})}
+								{truckBanActive && (
+									<span
+										role="note"
+										className="font-[family-name:var(--font-archivo)] italic"
+										style={{
+											fontSize: '11px',
+											color: 'var(--color-signal-amber)',
+										}}
+									>
+										· cairo truck ban — night delivery only
+									</span>
+								)}
+							</fieldset>
 						)
 					}}
 				/>
-			</div>
+			</StratumRow>
 
-			{/* Row 4: Notes */}
-			<Controller
-				control={control}
-				name="specialInstructions"
-				render={({ field }) => (
-					<UnderlineInput
-						value={field.value ?? ''}
-						onChange={(val) => field.onChange(val)}
-						placeholder="Delivery notes..."
-						label="Special instructions"
-					/>
-				)}
-			/>
+			{/* Row — shipment summary */}
+			<StratumRow label="shipment">
+				<div
+					className="flex items-baseline gap-4 font-[family-name:var(--font-plex-mono)] tabular-nums"
+					style={{
+						fontSize: '12px',
+						color: 'var(--color-text)',
+					}}
+				>
+					<span>
+						{totalWeightTons}
+						<span
+							className="font-[family-name:var(--font-archivo)] italic"
+							style={{
+								fontSize: '11px',
+								color: 'var(--color-text-subtle)',
+								marginInlineStart: '2px',
+							}}
+						>
+							t
+						</span>
+					</span>
+					<span
+						aria-hidden="true"
+						style={{ color: 'var(--color-text-subtle)' }}
+					>
+						·
+					</span>
+					<span>
+						{truckCount}
+						<span
+							className="font-[family-name:var(--font-archivo)] italic"
+							style={{
+								fontSize: '11px',
+								color: 'var(--color-text-subtle)',
+								marginInlineStart: '4px',
+							}}
+						>
+							{truckCount === 1 ? 'truck' : 'trucks'}
+						</span>
+					</span>
+					<span
+						aria-hidden="true"
+						style={{ color: 'var(--color-text-subtle)' }}
+					>
+						·
+					</span>
+					<span>
+						{itemCount}
+						<span
+							className="font-[family-name:var(--font-archivo)] italic"
+							style={{
+								fontSize: '11px',
+								color: 'var(--color-text-subtle)',
+								marginInlineStart: '4px',
+							}}
+						>
+							{itemCount === 1 ? 'item' : 'items'}
+						</span>
+					</span>
+				</div>
+			</StratumRow>
+
+			{/* Row — notes */}
+			<StratumRow label="notes" align="start">
+				<Controller
+					control={control}
+					name="specialInstructions"
+					render={({ field }) => (
+						<label htmlFor="delivery-notes" className="block w-full">
+							<span className="sr-only">Delivery notes</span>
+							<textarea
+								id="delivery-notes"
+								value={field.value ?? ''}
+								onChange={(e) => field.onChange(e.target.value)}
+								placeholder="time windows, contact on-site, loading bay notes…"
+								rows={2}
+								className="w-full resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/60"
+								style={{
+									fontSize: '13px',
+									lineHeight: 1.5,
+									letterSpacing: '-0.005em',
+								}}
+							/>
+						</label>
+					)}
+				/>
+			</StratumRow>
+		</dl>
+	)
+}
+
+// ─── Stratum row primitive ───────────────────────────────
+
+function StratumRow({
+	label,
+	children,
+	align = 'baseline',
+}: {
+	label: string
+	children: React.ReactNode
+	align?: 'baseline' | 'start'
+}) {
+	return (
+		<div
+			className={`grid grid-cols-[80px_1fr] gap-x-6 py-3 ${
+				align === 'start' ? 'items-start' : 'items-baseline'
+			}`}
+			style={{
+				borderBottom: '1px solid var(--color-border)',
+				borderBottomStyle: 'solid',
+				opacity: 1,
+			}}
+		>
+			<dt
+				className="font-[family-name:var(--font-archivo)] italic"
+				style={{
+					fontSize: '11px',
+					color: 'var(--color-text-subtle)',
+					paddingTop: align === 'start' ? '3px' : undefined,
+				}}
+			>
+				{label}
+			</dt>
+			<dd>{children}</dd>
 		</div>
 	)
 }

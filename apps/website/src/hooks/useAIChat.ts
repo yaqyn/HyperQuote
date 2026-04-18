@@ -25,8 +25,8 @@ export interface ChatMessage {
 }
 
 /**
- * Convert array of StreamChunks to AsyncIterable
- * Server function returns array (serialized over RPC); stream() needs iterable
+ * Server-fn returns a StreamChunk[]; iterate client-side so the stream()
+ * adapter processes chunks one at a time.
  */
 async function* arrayToAsyncIterable(
 	chunks: StreamChunk[],
@@ -53,12 +53,9 @@ export function useAIChat(options?: ChatOptions) {
 						.join('') ?? '',
 			}))
 
-			// Call server function — returns StreamChunk[] (serialized)
 			const chunks = (await chatStreamFn({
 				data: { messages: simpleMessages },
 			})) as StreamChunk[]
-
-			// Yield chunks as async iterable for the stream() adapter
 			yield* arrayToAsyncIterable(chunks)
 		}),
 		onError: options?.onError,
