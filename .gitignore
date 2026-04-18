@@ -1,9 +1,22 @@
+# Dependencies
 node_modules
+.bun/
+.pnpm-store/
+
+# Build artifacts
 dist
 .output
-*.gen.ts
 .turbo
+.tanstack
 .wrangler
+.next
+.nuxt
+*.tsbuildinfo
+
+# Generated
+*.gen.ts
+
+# Runtime / local
 .dev.vars
 .claude/worktrees/
 
@@ -11,3 +24,50 @@ dist
 .env
 .env.local
 .env.*.local
+.envrc
+
+# Certificates / keys — never commit
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt
+*.asc
+
+# Logs
+*.log
+logs/
+pids/
+*.pid
+*.seed
+
+# Test / coverage output
+coverage/
+.nyc_output
+playwright-report/
+test-results/
+.playwright/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local databases / state
+*.sqlite
+*.sqlite3
+*.db
+
+# Caches
+.cache/
+.parcel-cache/
+.eslintcache
