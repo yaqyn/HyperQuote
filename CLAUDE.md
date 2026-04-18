@@ -183,10 +183,6 @@ The codebase is not the spec — my workflow is.
 
 Don't build after every edit. Run `bun run build` in the relevant app after a completed feature or when I ask. Constant builds are disruptive.
 
-## Fix all means fix ALL
-
-When asked to fix, audit, polish, or walk through something, the scope is every issue found — must-haves, good-to-haves, nice-to-haves, all impact tiers. No silent triage. No "out of scope." If the fixing list gets long, keep fixing. Don't quietly drop items to look fast.
-
 ## Task hygiene
 
 Every feature/edit that reshapes existing code gets a follow-up cleanup task in the same session — duplicated helpers, abandoned components, stale types, dead imports, unused mocks, old store keys get deleted now, not "later."
