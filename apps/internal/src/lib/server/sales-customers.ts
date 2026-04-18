@@ -58,7 +58,7 @@ export const getCustomerList = createServerFn({ method: 'GET' })
 		}
 	})
 
-export const getCustomerCreditInfo = createServerFn({ method: 'GET' })
+const getCustomerCreditInfo = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ customerId: z.string() }))
 	.handler(async ({ data }) => {
 		const row = db.customers.get(data.customerId)
@@ -141,7 +141,7 @@ export const addCustomer = createServerFn({ method: 'POST' })
 		}
 	})
 
-export const getCustomer360 = createServerFn({ method: 'GET' })
+const getCustomer360 = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ customerId: z.string() }))
 	.handler(async ({ data }) => {
 		const row: CustomerRow | undefined = db.customers.get(data.customerId)

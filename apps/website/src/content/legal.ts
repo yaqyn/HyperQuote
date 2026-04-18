@@ -1,4 +1,4 @@
-export interface LegalSection {
+interface LegalSection {
 	number: string
 	title: string
 	content: string[]

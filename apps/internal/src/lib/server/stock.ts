@@ -35,7 +35,7 @@ export interface StockProductView {
 	pendingDealCount: number
 }
 
-export interface StockCategorySummary {
+interface StockCategorySummary {
 	id: BroadCategory
 	image: string
 	totalCount: number
@@ -58,7 +58,7 @@ export interface StockSupplierOffer {
 	rating: number
 }
 
-export interface RefillProductDetail {
+interface RefillProductDetail {
 	slug: string
 	name: string
 	sku: string

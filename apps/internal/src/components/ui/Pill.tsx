@@ -5,7 +5,7 @@ interface PillGroupProps extends Omit<RadioGroupProps, 'className'> {
 	className?: string
 }
 
-export function PillGroup({ className = '', ...props }: PillGroupProps) {
+function PillGroup({ className = '', ...props }: PillGroupProps) {
 	return (
 		<RadioGroup {...props} className={`flex flex-wrap gap-1 ${className}`} />
 	)
@@ -18,7 +18,7 @@ interface PillProps {
 	className?: string
 }
 
-export function Pill({ value, children, mono, className = '' }: PillProps) {
+function Pill({ value, children, mono, className = '' }: PillProps) {
 	return (
 		<Radio
 			value={value}

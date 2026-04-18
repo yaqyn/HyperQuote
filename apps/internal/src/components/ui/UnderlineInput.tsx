@@ -8,7 +8,7 @@ interface UnderlineInputProps {
 	className?: string
 }
 
-export function UnderlineInput({
+function UnderlineInput({
 	value,
 	onChange,
 	placeholder,

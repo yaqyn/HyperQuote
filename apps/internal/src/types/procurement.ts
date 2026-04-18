@@ -5,12 +5,7 @@
 // ─── Status Unions ────────────────────────────────────────
 
 /** TEXT column, not enum (Pitfall 6) */
-export type InquiryStatus =
-	| 'sent'
-	| 'opened'
-	| 'responded'
-	| 'overdue'
-	| 'closed'
+type InquiryStatus = 'sent' | 'opened' | 'responded' | 'overdue' | 'closed'
 
 /** 11 values per Pitfall 2 — full PO lifecycle */
 export type POStatus =
@@ -28,9 +23,9 @@ export type POStatus =
 
 export type SupplierTier = 'preferred' | 'approved' | 'conditional' | 'new'
 
-export type StockFreshness = 'fresh' | 'aging' | 'stale' | 'suppressed'
+type StockFreshness = 'fresh' | 'aging' | 'stale' | 'suppressed'
 
-export type MatchStatus = 'matched' | 'partial_match' | 'mismatch' | 'pending'
+type MatchStatus = 'matched' | 'partial_match' | 'mismatch' | 'pending'
 
 export type ProcurementTab =
 	| 'stock'
@@ -42,7 +37,7 @@ export type ProcurementTab =
 
 export type SourcingView = 'inquiry' | 'comparison'
 
-export type InquiryTemplate =
+type InquiryTemplate =
 	| 'standard'
 	| 'urgent'
 	| 'repeat'
@@ -51,7 +46,7 @@ export type InquiryTemplate =
 
 // ─── Inquiry ──────────────────────────────────────────────
 
-export interface InquiryItem {
+interface InquiryItem {
 	productId: string
 	productName: string
 	quantity: number
@@ -59,7 +54,7 @@ export interface InquiryItem {
 	specs: string
 }
 
-export interface InquiryResponseItem {
+interface InquiryResponseItem {
 	productId: string
 	unitPrice: number
 	leadTimeDays: number
@@ -67,7 +62,7 @@ export interface InquiryResponseItem {
 	notes: string
 }
 
-export interface SupplierInquiry {
+interface SupplierInquiry {
 	id: string
 	inquiryNumber: string
 	quoteRequestId: string | null
@@ -83,7 +78,7 @@ export interface SupplierInquiry {
 
 // ─── Response Tracking ────────────────────────────────────
 
-export interface ResponseTrackingRow {
+interface ResponseTrackingRow {
 	supplierId: string
 	supplierName: string
 	sentDate: string
@@ -115,14 +110,14 @@ export interface PriceComparison {
 	suppliers: RankedSupplier[]
 }
 
-export interface SplitSource {
+interface SplitSource {
 	productId: string
 	allocations: { supplierId: string; quantity: number; unitPrice: number }[]
 }
 
 // ─── Purchase Order ───────────────────────────────────────
 
-export interface POItem {
+interface POItem {
 	id: string
 	productId: string
 	productName: string
@@ -133,7 +128,7 @@ export interface POItem {
 	lineTotal: number
 }
 
-export interface ThreeWayMatchResult {
+interface ThreeWayMatchResult {
 	poVsReceipt: MatchStatus
 	poVsInvoice: MatchStatus
 	receiptVsInvoice: MatchStatus
@@ -145,7 +140,7 @@ export interface ThreeWayMatchResult {
 	}
 }
 
-export interface PurchaseOrder {
+interface PurchaseOrder {
 	id: string
 	poNumber: string
 	supplierId: string
@@ -163,7 +158,7 @@ export interface PurchaseOrder {
 
 // ─── Supplier Scorecard ───────────────────────────────────
 
-export interface SupplierScorecard {
+interface SupplierScorecard {
 	supplierId: string
 	supplierName: string
 	onTimeDeliveryRate: number
@@ -178,7 +173,7 @@ export interface SupplierScorecard {
 
 // ─── Home / Queue ─────────────────────────────────────────
 
-export interface ProcurementHomeData {
+interface ProcurementHomeData {
 	pendingInquiries: number
 	responsesNeedingReview: number
 	activePOs: Record<string, number>

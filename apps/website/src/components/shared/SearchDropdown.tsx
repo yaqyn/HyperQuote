@@ -21,7 +21,7 @@ export interface SearchEntry {
 	href?: string
 }
 
-export interface SearchDropdownProps {
+interface SearchDropdownProps {
 	/** Items to index and search through */
 	items: SearchEntry[]
 	/** Fuse.js keys to search (defaults to title, subtitle, body) */
@@ -46,7 +46,7 @@ export interface SearchDropdownProps {
 
 // ── Utilities ──
 
-export function highlightMatch(text: string, query: string): ReactNode {
+function highlightMatch(text: string, query: string): ReactNode {
 	if (!query.trim()) return text
 	const regex = new RegExp(
 		`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
@@ -66,11 +66,7 @@ export function highlightMatch(text: string, query: string): ReactNode {
 	})
 }
 
-export function getSnippet(
-	body: string,
-	query: string,
-	radius = 60,
-): string | null {
+function getSnippet(body: string, query: string, radius = 60): string | null {
 	if (!body || !query) return null
 	const lower = body.toLowerCase()
 	const qLower = query.toLowerCase()

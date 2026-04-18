@@ -81,9 +81,9 @@ export interface RouteStop {
 
 // ─── GPS ─────────────────────────────────────────────────
 
-export type GPSStatus = 'active' | 'idle' | 'stopped' | 'offline'
+type GPSStatus = 'active' | 'idle' | 'stopped' | 'offline'
 
-export interface GPSPosition {
+interface GPSPosition {
 	driverId: string
 	lat: number
 	lng: number

@@ -8,13 +8,13 @@
  */
 
 /** The smallest relative change we'll still ask the user to confirm. */
-export const MIN_CONFIRM_DELTA_RATIO = 0.01 // 1%
+const MIN_CONFIRM_DELTA_RATIO = 0.01 // 1%
 
 /** Above this relative change in either direction, proof is required. */
-export const LARGE_CHANGE_THRESHOLD = 0.25 // 25%
+const LARGE_CHANGE_THRESHOLD = 0.25 // 25%
 
 /** Upper safety cap for raw costs — above this we assume fat-finger. */
-export const MAX_RAW_COST = 100_000_000
+const MAX_RAW_COST = 100_000_000
 
 /** Upper safety cap for margin percent. */
 export const MAX_MARGIN_PCT = 80
@@ -48,7 +48,7 @@ export function sanitizeIntQty(raw: string): number | null {
 }
 
 /** Same, but lets decimal quantities through (tons, m³, etc.) */
-export function sanitizeQty(raw: string): number | null {
+function sanitizeQty(raw: string): number | null {
 	const cost = sanitizeCost(raw)
 	if (cost == null || cost <= 0) return null
 	return cost

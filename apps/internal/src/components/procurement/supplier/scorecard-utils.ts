@@ -41,6 +41,6 @@ export function getTierInspectionLevel(tier: SupplierTier): string {
 /**
  * Normalize a 0-100 score to 1-5 star scale.
  */
-export function normalizeToStars(score100: number): number {
+function normalizeToStars(score100: number): number {
 	return computeStarRating(score100 / 20)
 }

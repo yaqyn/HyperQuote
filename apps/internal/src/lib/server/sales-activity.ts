@@ -210,7 +210,7 @@ function buildSalesAnalytics(): SalesAnalytics {
 
 // ─── Server Functions ─────────────────────────────────────
 
-export const getActivityFeed = createServerFn({ method: 'GET' })
+const getActivityFeed = createServerFn({ method: 'GET' })
 	.inputValidator(
 		z.object({
 			filters: z.object({ type: z.string().optional() }).optional(),
@@ -241,7 +241,7 @@ export const addInternalNote = createServerFn({ method: 'POST' })
 		return { noteId: `note-${Date.now()}` }
 	})
 
-export const getSalesAnalytics = createServerFn({ method: 'GET' })
+const getSalesAnalytics = createServerFn({ method: 'GET' })
 	.inputValidator(
 		z.object({
 			period: z.enum(['week', 'month', 'quarter', 'year']),

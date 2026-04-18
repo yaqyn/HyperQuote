@@ -13,7 +13,7 @@ import { useQuoteBuilderStore } from '../stores/quote-builder'
 // Types
 // ============================================================================
 
-export interface SubmitResult {
+interface SubmitResult {
 	requestId: string
 	reference: string
 }

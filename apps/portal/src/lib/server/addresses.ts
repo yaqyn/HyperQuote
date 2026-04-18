@@ -43,7 +43,7 @@ export interface CustomerAddress {
 	isDefault: boolean
 }
 
-export interface CustomerProject {
+interface CustomerProject {
 	id: string
 	name: string
 	description: string | null
@@ -171,7 +171,7 @@ export const createAddress = createServerFn()
 // getCustomerProjects
 // ============================================================================
 
-export const getCustomerProjects = createServerFn().handler(
+const getCustomerProjects = createServerFn().handler(
 	async (): Promise<CustomerProject[]> => {
 		if (!isSupabaseConfigured()) {
 			return [
@@ -213,7 +213,7 @@ export const getCustomerProjects = createServerFn().handler(
 // createProject
 // ============================================================================
 
-export const createProject = createServerFn()
+const createProject = createServerFn()
 	.inputValidator(createProjectInput)
 	.handler(async ({ data: input }): Promise<CustomerProject> => {
 		if (!isSupabaseConfigured()) {

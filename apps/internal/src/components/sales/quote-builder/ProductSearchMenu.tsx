@@ -5,7 +5,7 @@ import { getProductCatalog } from '../../../lib/server/sales-quotes'
 import { getPriceUrgency } from '../../../types/sales'
 import { SearchMenu } from './SearchMenu'
 
-export interface CatalogProduct {
+interface CatalogProduct {
 	id: string
 	name: string
 	specification: string

@@ -11,21 +11,21 @@ import { isSupabaseConfigured } from './_supabase'
 // Types
 // ============================================================================
 
-export type DeliveryStage =
+type DeliveryStage =
 	| 'confirmed'
 	| 'being_prepared'
 	| 'out_for_delivery'
 	| 'delivered'
 	| 'invoice_generated'
 
-export interface TimelineStep {
+interface TimelineStep {
 	key: string
 	label: string
 	status: 'completed' | 'current' | 'future'
 	timestamp?: string
 }
 
-export interface DeliveryDocument {
+interface DeliveryDocument {
 	id: string
 	type: 'invoice' | 'delivery_note' | 'quote_pdf' | 'certificate'
 	name: string
@@ -33,7 +33,7 @@ export interface DeliveryDocument {
 	createdAt: string
 }
 
-export interface DeliveryInfo {
+interface DeliveryInfo {
 	id: string
 	driverName: string
 	driverPhone: string
@@ -44,7 +44,7 @@ export interface DeliveryInfo {
 	hasActivePOD: boolean
 }
 
-export interface OrderDetailResult {
+interface OrderDetailResult {
 	order: {
 		id: string
 		reference: string
@@ -70,7 +70,7 @@ export interface OrderDetailResult {
 	delivery?: DeliveryInfo
 }
 
-export interface DeliveryTrackingResult {
+interface DeliveryTrackingResult {
 	driverLocation: { lat: number; lng: number }
 	routePolyline: [number, number][]
 	destination: { lat: number; lng: number }
@@ -78,7 +78,7 @@ export interface DeliveryTrackingResult {
 	lastUpdated: string
 }
 
-export interface PODDetails {
+interface PODDetails {
 	photos: string[]
 	deadline: string
 	status: 'pending' | 'confirmed' | 'disputed' | 'auto_confirmed'
@@ -280,7 +280,7 @@ export const getOrderDetail = createServerFn({ method: 'GET' })
 // getDeliveryTracking
 // ============================================================================
 
-export const getDeliveryTracking = createServerFn({ method: 'GET' })
+const getDeliveryTracking = createServerFn({ method: 'GET' })
 	.inputValidator(getDeliveryTrackingInput)
 	.handler(async (): Promise<DeliveryTrackingResult> => {
 		if (!isSupabaseConfigured()) {
@@ -295,7 +295,7 @@ export const getDeliveryTracking = createServerFn({ method: 'GET' })
 // confirmDropShipDelivery
 // ============================================================================
 
-export const confirmDropShipDelivery = createServerFn({ method: 'POST' })
+const confirmDropShipDelivery = createServerFn({ method: 'POST' })
 	.inputValidator(confirmDropShipDeliveryInput)
 	.handler(async (): Promise<{ success: boolean; invoiceId?: string }> => {
 		if (!isSupabaseConfigured()) {
@@ -310,7 +310,7 @@ export const confirmDropShipDelivery = createServerFn({ method: 'POST' })
 // disputeDropShipDelivery
 // ============================================================================
 
-export const disputeDropShipDelivery = createServerFn({ method: 'POST' })
+const disputeDropShipDelivery = createServerFn({ method: 'POST' })
 	.inputValidator(disputeDropShipDeliveryInput)
 	.handler(async (): Promise<{ success: boolean; ticketId: string }> => {
 		if (!isSupabaseConfigured()) {
@@ -325,7 +325,7 @@ export const disputeDropShipDelivery = createServerFn({ method: 'POST' })
 // getPODDetails
 // ============================================================================
 
-export const getPODDetails = createServerFn({ method: 'GET' })
+const getPODDetails = createServerFn({ method: 'GET' })
 	.inputValidator(getPODDetailsInput)
 	.handler(async (): Promise<PODDetails> => {
 		if (!isSupabaseConfigured()) {

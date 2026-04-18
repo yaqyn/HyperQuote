@@ -93,7 +93,7 @@ export interface WarehouseItemView {
 	loadedOnTruckId: string | null
 }
 
-export interface WarehouseTruckView {
+interface WarehouseTruckView {
 	id: string
 	plateNumber: string
 	driverName: string

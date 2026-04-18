@@ -11,7 +11,7 @@ interface ToastState {
 	dismiss: () => void
 }
 
-export const useToastStore = create<ToastState>()((set) => ({
+const useToastStore = create<ToastState>()((set) => ({
 	message: null,
 	show: (message) => set({ message }),
 	dismiss: () => set({ message: null }),

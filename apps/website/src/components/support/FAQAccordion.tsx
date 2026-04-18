@@ -3,7 +3,7 @@ import { Minus, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export interface FAQItem {
+interface FAQItem {
 	id: string
 	questionKey: string
 	answerKey: string

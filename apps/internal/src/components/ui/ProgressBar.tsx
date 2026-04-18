@@ -22,7 +22,7 @@ function resolveColor(color: ProgressColor, ratio: number): string {
 	return 'bg-green-400 dark:bg-green-500'
 }
 
-export function ProgressBar({
+function ProgressBar({
 	value,
 	max = 100,
 	color = 'auto',

@@ -66,14 +66,14 @@ export interface ChatMessage {
 // Slash Commands
 // ============================================================================
 
-export interface SlashCommand {
+interface SlashCommand {
 	command: string
 	labelKey: string
 	descKey: string
 	icon: string
 }
 
-export const SLASH_COMMANDS: SlashCommand[] = [
+const SLASH_COMMANDS: SlashCommand[] = [
 	{
 		command: '/quote',
 		labelKey: 'slash.quote',
@@ -104,7 +104,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
 // Quick Action Chips — contextual suggestions below input
 // ============================================================================
 
-export const QUICK_ACTION_CHIPS = {
+const QUICK_ACTION_CHIPS = {
 	home: [
 		'chip.getQuote',
 		'chip.trackOrder',

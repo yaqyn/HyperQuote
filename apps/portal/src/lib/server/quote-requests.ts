@@ -52,7 +52,7 @@ const parseWithAIInput = z.object({
 // Types
 // ============================================================================
 
-export interface ParsedItem {
+interface ParsedItem {
 	productName: string
 	quantity: number
 	unitOfMeasure: string
@@ -264,7 +264,7 @@ export const saveDraft = createServerFn()
 // getDrafts
 // ============================================================================
 
-export const getDrafts = createServerFn().handler(
+const getDrafts = createServerFn().handler(
 	async (): Promise<
 		Array<{
 			id: string
@@ -351,7 +351,7 @@ const MATERIAL_KEYWORDS: Record<string, { name: string; uom: string }> = {
 	},
 }
 
-export const parseWithAI = createServerFn()
+const parseWithAI = createServerFn()
 	.inputValidator(parseWithAIInput)
 	.handler(async ({ data: input }): Promise<{ parsedItems: ParsedItem[] }> => {
 		// Mock implementation: extract quantities and materials from text

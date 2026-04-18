@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react'
  *   - < 24h      : "3h 12m"
  *   - otherwise  : "2d 6h"
  */
-export type SlaTone = 'neutral' | 'amber' | 'red'
+type SlaTone = 'neutral' | 'amber' | 'red'
 
 interface SlaTickerProps {
 	/** ISO timestamp when the ticket was created (used for the original window). */

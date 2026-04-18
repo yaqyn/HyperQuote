@@ -98,7 +98,7 @@ export function PanelHostProvider({
  * right-side X, whatever — changing it here updates every panel at once.
  */
 
-export type SlidePanelScope =
+type SlidePanelScope =
 	| 'sales'
 	| 'procurement'
 	| 'finance'
@@ -106,7 +106,7 @@ export type SlidePanelScope =
 	| 'dispatch'
 	| 'customer-service'
 	| 'admin'
-export type SlidePanelSide = 'start' | 'end'
+type SlidePanelSide = 'start' | 'end'
 
 interface SlidePanelProps {
 	isOpen: boolean

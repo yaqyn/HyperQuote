@@ -14,18 +14,14 @@
 		"format": "biome format --write .",
 		"check": "biome check --write .",
 		"knip": "knip",
-
 		"sync": "syncpack lint",
 		"sync:fix": "syncpack fix-mismatches",
-
 		"leaks": "gitleaks git --verbose --redact --no-banner",
 		"secrets": "infisical secrets --env=prod --recursive -o json | jq -r '.[].secretKey' | sort",
-
 		"deploy:website": "infisical run --env=prod --recursive -- bunx wrangler deploy --config apps/website/wrangler.jsonc",
 		"deploy:portal": "infisical run --env=prod --recursive -- bunx wrangler deploy --config apps/portal/wrangler.jsonc",
 		"deploy:internal": "infisical run --env=prod --recursive -- bunx wrangler deploy --config apps/internal/wrangler.jsonc",
 		"deploy:ceo": "infisical run --env=prod --recursive -- bunx wrangler deploy --config apps/ceo/wrangler.jsonc",
-
 		"db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_REF\" > packages/types/src/supabase.ts",
 		"db:diff": "supabase db diff",
 		"db:push": "infisical run --env=prod --path=/master -- supabase db push"
@@ -40,11 +36,5 @@
 		"typescript": "^6.0.3"
 	},
 	"packageManager": "bun@1.3.11",
-	"dependencies": {
-		"@tanstack/react-start": "^1.167.16",
-		"@tanstack/react-start-server": "1.166.25",
-		"@tanstack/start-plugin-core": "^1.167.17",
-		"@tanstack/start-server-core": "^1.167.9",
-		"cobe": "^2.0.1"
-	}
+	"dependencies": {}
 }

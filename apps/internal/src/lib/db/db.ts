@@ -190,7 +190,7 @@ export interface QuoteRow {
 	fullProofUrl: string | null
 }
 
-export interface PriceUpdateRequestRow {
+interface PriceUpdateRequestRow {
 	id: string
 	productSlug: string
 	customerContext: string
@@ -198,7 +198,7 @@ export interface PriceUpdateRequestRow {
 	status: 'pending' | 'resolved'
 }
 
-export interface SalesRepRow {
+interface SalesRepRow {
 	id: string
 	name: string
 	role: 'junior' | 'mid' | 'senior'
@@ -330,7 +330,7 @@ export interface ConversationRow {
 
 // ─── Stock + Deals ────────────────────────────────────────
 
-export interface StockRow {
+interface StockRow {
 	productSlug: string
 	/** Physical on-hand stock in the warehouse. */
 	stockLevel: number
@@ -344,7 +344,7 @@ export interface StockRow {
 	lowStockThreshold: number
 }
 
-export type DealStatus =
+type DealStatus =
 	| 'pending_finance'
 	| 'approved_by_finance'
 	| 'approved_for_warehouse'
@@ -357,7 +357,7 @@ export type DealStatus =
  * while you're at it, 200 bags of cement" — and the whole thing becomes
  * one DealRow with an `items` array.
  */
-export interface DealItemRow {
+interface DealItemRow {
 	productSlug: string
 	agreedQty: number
 	agreedRawCost: number
@@ -371,7 +371,7 @@ export interface DealItemRow {
  * on every commit from the Receiving flow — successful or partial.
  * Rejected slugs stay on the deal waiting for the next delivery attempt.
  */
-export interface ReceivingAttempt {
+interface ReceivingAttempt {
 	attemptedAt: string
 	advisorId: string
 	advisorName: string
@@ -383,7 +383,7 @@ export interface ReceivingAttempt {
 	securityToken: string
 }
 
-export interface DealRow {
+interface DealRow {
 	id: string
 	supplierName: string
 	/**

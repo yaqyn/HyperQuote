@@ -24,7 +24,7 @@ export interface OrderItem {
 }
 
 /** Saved list (quote/order draft saved by a user). */
-export interface SavedList {
+interface SavedList {
 	id: string
 	name: string
 	items: OrderItem[]

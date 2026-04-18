@@ -231,7 +231,8 @@ export const LampContainer = ({
 }
 
 export { LampContainer as LampEffect }
-export type LampEffectProps = {
+
+type LampEffectProps = {
 	children?: React.ReactNode
 	className?: string
 }

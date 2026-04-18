@@ -14,7 +14,7 @@ import type {
 	Telemetry,
 } from './types'
 
-export const WAREHOUSE_COORDS: Coords = { lat: 30.1294, lng: 31.2434 }
+const WAREHOUSE_COORDS: Coords = { lat: 30.1294, lng: 31.2434 }
 
 export const DRIVER_SESSION: DriverSession = {
 	driverId: 'drv-04',
@@ -93,7 +93,7 @@ const ORDERS: OrderSummary[] = [
 	},
 ]
 
-export const ACTIVE_ORDER: ActiveOrder = {
+const ACTIVE_ORDER: ActiveOrder = {
 	...ORDERS[0],
 	contact: {
 		name: 'Mostafa El-Sayed',
@@ -149,9 +149,9 @@ export const ACTIVE_ORDER: ActiveOrder = {
 	],
 }
 
-export const ORDER_QUEUE: OrderSummary[] = ORDERS
+const ORDER_QUEUE: OrderSummary[] = ORDERS
 
-export const THREADS: MessageThread[] = [
+const THREADS: MessageThread[] = [
 	{
 		id: 'warehouse',
 		name: 'Warehouse',
@@ -181,7 +181,7 @@ export const THREADS: MessageThread[] = [
 	},
 ]
 
-export const INITIAL_MESSAGES: Message[] = [
+const INITIAL_MESSAGES: Message[] = [
 	{
 		id: 'msg-001',
 		threadId: 'warehouse',
@@ -249,7 +249,7 @@ export const INITIAL_MESSAGES: Message[] = [
 	},
 ]
 
-export const TELEMETRY: Telemetry = {
+const TELEMETRY: Telemetry = {
 	signalStrength: 4,
 	gpsLocked: true,
 	batteryPct: 78,

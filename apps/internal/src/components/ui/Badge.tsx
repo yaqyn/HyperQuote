@@ -25,7 +25,7 @@ const colorMap: Record<BadgeColor, { dot: string; text: string }> = {
 	},
 }
 
-export function Badge({
+function Badge({
 	variant = 'status',
 	color = 'neutral',
 	children,

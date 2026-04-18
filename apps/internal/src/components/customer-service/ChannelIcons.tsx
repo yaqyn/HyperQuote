@@ -31,7 +31,7 @@ export function ChannelCode({ channel, className = '' }: ChannelCodeProps) {
  * CHANNEL_ICONS. Each entry is a small component that renders the code
  * at the requested nominal size (ignored — codes auto-size via parent).
  */
-export const CHANNEL_ICONS: Record<
+const CHANNEL_ICONS: Record<
 	ChannelType,
 	React.ComponentType<{ size?: number; className?: string }>
 > = {

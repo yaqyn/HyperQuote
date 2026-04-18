@@ -12,7 +12,7 @@ export interface WizardStep {
 	link?: { to: string; labelKey: string; label: string }
 }
 
-export interface WizardDef {
+interface WizardDef {
 	slug: string
 	titleKey: string
 	descriptionKey: string
@@ -20,13 +20,13 @@ export interface WizardDef {
 	steps: WizardStep[]
 }
 
-export interface DocArticleDef {
+interface DocArticleDef {
 	slug: string
 	titleKey: string
 	descriptionKey: string
 }
 
-export interface DocCategoryDef {
+interface DocCategoryDef {
 	slug: string
 	titleKey: string
 	articles: DocArticleDef[]
@@ -34,7 +34,7 @@ export interface DocCategoryDef {
 
 // ── Display Names (used as defaultValue when i18n key is missing) ──
 
-export const DISPLAY_NAMES: Record<string, string> = {
+const DISPLAY_NAMES: Record<string, string> = {
 	// Wizards
 	'docs.wizard.gettingStarted.title': 'Getting Started',
 	'docs.wizard.gettingStarted.description':
@@ -463,9 +463,7 @@ export const DOC_CATEGORIES: DocCategoryDef[] = [
 
 // ── Helpers ──
 
-export function getAllArticles(): Array<
-	DocArticleDef & { categorySlug: string }
-> {
+function getAllArticles(): Array<DocArticleDef & { categorySlug: string }> {
 	return DOC_CATEGORIES.flatMap((cat) =>
 		cat.articles.map((a) => ({ ...a, categorySlug: cat.slug })),
 	)

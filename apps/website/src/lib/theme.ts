@@ -6,7 +6,7 @@ export function getTheme(): 'light' | 'dark' {
 	)
 }
 
-export function setTheme(theme: 'light' | 'dark') {
+function setTheme(theme: 'light' | 'dark') {
 	document.documentElement.setAttribute('data-theme', theme)
 }
 

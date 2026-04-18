@@ -15,7 +15,7 @@ interface RichMessageProps {
 	data: unknown
 }
 
-export function RichMessage({ type, data }: RichMessageProps) {
+function RichMessage({ type, data }: RichMessageProps) {
 	let content: React.ReactNode = null
 
 	switch (type) {
