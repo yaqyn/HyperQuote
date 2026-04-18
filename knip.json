@@ -24,5 +24,6 @@
 			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
-	"ignoreBinaries": ["infisical", "gitleaks", "supabase"]
+	"ignoreBinaries": ["infisical", "gitleaks", "supabase", "jq"],
+	"ignoreDependencies": ["cloudflare"]
 }
