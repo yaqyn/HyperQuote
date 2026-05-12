@@ -61,21 +61,21 @@ export function StatusCard({ data }: StatusCardProps) {
 
 	return (
 		<section
-			className="mt-3 w-full max-w-[520px]"
+			className="mt-3 w-full max-w-[520px] min-w-0"
 			aria-label={`${kindLabel} ${displayNumber}`}
 		>
 			{/* Heading row: small-caps label + mono id + italic status */}
-			<div className="flex items-baseline justify-between gap-3 pb-2">
-				<div className="flex items-baseline gap-3">
+			<div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+				<div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
 					<span className="voice-mono text-[10px] uppercase tracking-[0.28em] text-[var(--p-text-faint)]">
 						{kindLabel}
 					</span>
-					<span className="voice-mono text-[12px] tracking-[0.14em] text-[var(--p-text)]">
+					<span className="voice-mono break-all text-[12px] tracking-[0.14em] text-[var(--p-text)]">
 						No.&nbsp;{displayNumber}
 					</span>
 				</div>
 				<span
-					className="voice-serif text-[14px] italic leading-none"
+					className="voice-serif text-[14px] italic leading-none sm:text-end"
 					style={{ color: statusColor }}
 				>
 					{data.status}
@@ -91,7 +91,7 @@ export function StatusCard({ data }: StatusCardProps) {
 					{shownSteps.map((step, idx) => (
 						<div
 							key={step.label}
-							className={`flex items-baseline justify-between gap-3 py-2 ${
+							className={`flex flex-col gap-1 py-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 ${
 								idx < shownSteps.length - 1
 									? 'border-b border-[var(--p-rule)]'
 									: ''

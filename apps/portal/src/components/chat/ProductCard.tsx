@@ -71,12 +71,12 @@ export function ProductCard({ data }: ProductCardProps) {
 				<span
 					className={`${
 						isArabic ? 'voice-serif-ar text-[14px]' : 'voice-serif text-[13px]'
-					} uppercase tracking-[0.14em] text-[var(--p-text)] leading-tight`}
+					} break-words uppercase leading-tight tracking-[0.14em] text-[var(--p-text)]`}
 				>
 					{name}
 				</span>
 				{specsSummary && (
-					<span className="voice-mono truncate text-[11px] text-[var(--p-text-muted)]">
+					<span className="voice-mono overflow-hidden text-ellipsis text-[11px] text-[var(--p-text-muted)]">
 						{specsSummary}
 					</span>
 				)}

@@ -113,6 +113,16 @@ const PUBLIC_COLUMNS = [
 	'is_stockable',
 ].join(', ')
 
+function shouldUseMockCatalog() {
+	const supabaseUrl = process.env.SUPABASE_URL
+	if (!supabaseUrl) return true
+	try {
+		return new URL(supabaseUrl).hostname === 'placeholder.supabase.co'
+	} catch {
+		return supabaseUrl.includes('placeholder.supabase.co')
+	}
+}
+
 // ============================================================================
 // getPublicCatalog — paginated, filterable product listing
 // ============================================================================
@@ -121,10 +131,7 @@ export const getPublicCatalog = createServerFn()
 	.inputValidator(catalogInput)
 	.handler(async ({ data: input }) => {
 		// Dev fallback: use the shared catalog when no Supabase is configured.
-		if (
-			!process.env.SUPABASE_URL ||
-			process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-		) {
+		if (shouldUseMockCatalog()) {
 			let filtered = CATALOG_PRODUCTS.map(decorate)
 
 			if (input.category?.length) {
@@ -231,12 +238,17 @@ export const getPublicCatalog = createServerFn()
 export const getProductBySlug = createServerFn()
 	.inputValidator(productBySlugInput)
 	.handler(async ({ data: input }) => {
+		if (shouldUseMockCatalog()) {
+			const found = CATALOG_PRODUCTS.find((p) => p.slug === input.slug)
+			return found ? decorate(found) : null
+		}
+
 		const request = getRequest()
+		const supabaseUrl = process.env.SUPABASE_URL ?? ''
 		const { client } = createSupabaseServerClient({
 			request,
-			supabaseUrl:
-				process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
+			supabaseUrl,
+			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
 		})
 
 		const { data, error } = await client
@@ -247,13 +259,6 @@ export const getProductBySlug = createServerFn()
 			.single()
 
 		if (error || !data) {
-			if (
-				!process.env.SUPABASE_URL ||
-				process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-			) {
-				const found = CATALOG_PRODUCTS.find((p) => p.slug === input.slug)
-				return found ? decorate(found) : null
-			}
 			if (error) console.error('[getProductBySlug] Supabase error:', error)
 			return null
 		}

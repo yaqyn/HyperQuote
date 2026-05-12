@@ -11,7 +11,7 @@ import {
 	Share2,
 	Undo2,
 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -71,6 +71,7 @@ export const Route = createFileRoute('/_website/market/$productSlug')({
 })
 
 const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
+const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
 
 const FALLBACK_IMAGE = 'https://websiteassets.hyperquote.net/Images/cairo.webp'
 
@@ -138,9 +139,9 @@ function ProductDetailPage() {
 
 	return (
 		<>
-			<div className="pt-20 pb-28 lg:pb-16">
+			<div className="pt-[72px] pb-24 md:pt-[88px] md:pb-16">
 				{/* Breadcrumb */}
-				<div className="px-6 lg:px-16 max-w-[1400px] mx-auto mb-10">
+				<div className="mx-auto mb-6 max-w-[1400px] px-4 sm:px-6 md:mb-8 lg:px-16">
 					<Link
 						to="/market"
 						className="inline-flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
@@ -158,13 +159,13 @@ function ProductDetailPage() {
 				</div>
 
 				{/* Hero: Image + Info */}
-				<div className="px-6 lg:px-16 max-w-[1400px] mx-auto">
-					<div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-10 lg:gap-20">
+				<div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-16">
+					<div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_1fr] lg:gap-20">
 						{/* Image */}
 						<ProductImage images={images} name={productName} />
 
 						{/* Info column */}
-						<div className="flex flex-col lg:py-2">
+						<div className="flex flex-col items-center text-center lg:items-start lg:py-2 lg:text-start">
 							{/* Category */}
 							<motion.div
 								initial={{ opacity: 0, y: 10 }}
@@ -174,7 +175,7 @@ function ProductDetailPage() {
 								<Link
 									to="/market"
 									search={{ category: product.category }}
-									className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)]"
+									className="text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]"
 								>
 									{categoryLabel}
 								</Link>
@@ -185,7 +186,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.04 }}
-								className="mt-4 text-[36px] lg:text-[44px] font-bold leading-[1.05] text-[var(--color-text)] tracking-[-0.02em]"
+								className="mt-4 text-[30px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[36px] lg:text-[44px]"
 							>
 								{productName}
 							</motion.h1>
@@ -195,7 +196,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 10 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.08 }}
-								className="mt-5 flex items-center gap-4"
+								className="mt-5 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
 							>
 								<span className="font-mono text-[12px] text-[var(--color-text-subtle)]">
 									{product.sku}
@@ -212,9 +213,9 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 10 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.12 }}
-								className="mt-8"
+								className="mt-6 md:mt-8"
 							>
-								<p className="font-mono text-[28px] font-bold text-[var(--color-primary)] tracking-[-0.01em]">
+								<p className="font-mono text-[24px] font-bold tracking-normal text-[var(--color-primary)] sm:text-[28px]">
 									{priceRange}
 								</p>
 							</motion.div>
@@ -225,7 +226,7 @@ function ProductDetailPage() {
 									initial={{ opacity: 0, y: 10 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ ...spring, delay: 0.16 }}
-									className="mt-6 text-[15px] leading-[1.8] text-[var(--color-text-muted)] max-w-[480px]"
+									className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)] lg:mx-0 lg:mt-6"
 								>
 									{locale === 'ar' && product.description_ar
 										? product.description_ar
@@ -238,7 +239,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 10 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.2 }}
-								className="mt-10 hidden lg:block"
+								className="mx-auto mt-8 hidden w-full max-w-[560px] md:block lg:mx-0 lg:mt-10 lg:max-w-none"
 							>
 								<QuoteAction
 									product={{
@@ -324,7 +325,7 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
 			className="lg:sticky lg:top-24 lg:self-start"
 		>
 			{/* Main image */}
-			<div className="group aspect-[5/6] overflow-hidden rounded-2xl bg-[var(--color-surface)]">
+			<div className="group aspect-[16/10] overflow-hidden rounded-2xl bg-[var(--color-surface)] lg:aspect-[5/6]">
 				<img
 					src={images[activeIndex]}
 					alt={name}
@@ -450,7 +451,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 	}
 
 	return (
-		<div className="rounded-2xl bg-[var(--color-surface)] p-6">
+		<div className="rounded-2xl bg-[var(--color-surface)] p-5 lg:p-6">
 			<AnimatePresence mode="wait" initial={false}>
 				{/* State: idle — just the Add to Quote button */}
 				{mode === 'idle' && (
@@ -459,7 +460,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+						transition={{ duration: 0.2, ease: EASE }}
 					>
 						<button
 							type="button"
@@ -478,7 +479,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+						transition={{ duration: 0.2, ease: EASE }}
 					>
 						{/* Unified stepper */}
 						<NumberField
@@ -551,7 +552,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -8 }}
-						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+						transition={{ duration: 0.2, ease: EASE }}
 					>
 						{cartItem && (
 							<p className="mb-4 text-[13px] text-[var(--color-text-muted)]">
@@ -792,21 +793,23 @@ function SpecsSection({
 	if (items.length === 0) return null
 
 	return (
-		<div className="mt-24 px-6 lg:px-16 max-w-[1400px] mx-auto">
+		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-16">
 			<SectionReveal>
-				<p className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">
-					{t('product.specsLabel')}
-				</p>
-				<h2 className="text-[28px] lg:text-[36px] font-bold text-[var(--color-text)] tracking-[-0.02em] mb-12">
-					{t('product.specsHeading')}
-				</h2>
+				<div className="text-center lg:text-start">
+					<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
+						{t('product.specsLabel')}
+					</p>
+					<h2 className="mb-8 text-[28px] font-bold tracking-normal text-[var(--color-text)] lg:mb-12 lg:text-[36px]">
+						{t('product.specsHeading')}
+					</h2>
+				</div>
 			</SectionReveal>
 
-			<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-[var(--color-border)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
+			<div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 				{items.map((item, i) => (
 					<SectionReveal key={item.label} delay={i * 0.03}>
-						<div className="bg-[var(--color-base)] px-5 py-5">
-							<p className="text-[11px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)] mb-2">
+						<div className="bg-[var(--color-base)] px-5 py-5 text-center lg:text-start">
+							<p className="mb-2 text-[11px] font-medium uppercase tracking-normal text-[var(--color-text-subtle)]">
 								{item.label}
 							</p>
 							<p
@@ -833,17 +836,19 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 	if (products.length === 0) return null
 
 	return (
-		<div className="mt-24 px-6 lg:px-16 max-w-[1400px] mx-auto">
+		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-16">
 			<SectionReveal>
-				<p className="text-[12px] font-semibold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">
-					{t('product.relatedLabel')}
-				</p>
-				<h2 className="text-[28px] lg:text-[36px] font-bold text-[var(--color-text)] tracking-[-0.02em] mb-12">
-					{t('product.relatedHeading')}
-				</h2>
+				<div className="text-center lg:text-start">
+					<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
+						{t('product.relatedLabel')}
+					</p>
+					<h2 className="mb-8 text-[28px] font-bold tracking-normal text-[var(--color-text)] lg:mb-12 lg:text-[36px]">
+						{t('product.relatedHeading')}
+					</h2>
+				</div>
 			</SectionReveal>
 
-			<div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+			<div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
 				{products.slice(0, 3).map((product, i) => {
 					const name =
 						locale === 'ar' && product.name_ar ? product.name_ar : product.name
@@ -871,7 +876,7 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 										loading="lazy"
 									/>
 								</div>
-								<div className="mt-4">
+								<div className="mt-4 text-center lg:text-start">
 									<h3 className="text-[15px] font-semibold text-[var(--color-text)] line-clamp-2 leading-snug group-hover:text-[var(--color-primary)] transition-colors">
 										{name}
 									</h3>
@@ -953,7 +958,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 	}
 
 	return (
-		<div className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 lg:hidden">
+		<div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:hidden">
 			<AnimatePresence mode="wait" initial={false}>
 				{mode === 'idle' && (
 					<motion.div

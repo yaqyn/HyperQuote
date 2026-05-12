@@ -10,7 +10,7 @@ export function WaxSeal({ initial }: { initial: string }) {
 	return (
 		<svg
 			viewBox="0 0 120 120"
-			className="atelier-seal block"
+			className="atelier-seal block h-24 w-24 sm:h-[120px] sm:w-[120px]"
 			xmlns="http://www.w3.org/2000/svg"
 			role="img"
 			aria-label={`Seal of a company starting with ${initial}`}

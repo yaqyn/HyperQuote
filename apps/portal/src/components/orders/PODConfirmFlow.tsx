@@ -71,7 +71,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 	// Auto-confirmed state -- show badge instead of buttons
 	if (pod.status === 'auto_confirmed') {
 		return (
-			<div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface)] rounded-xl">
+			<div className="flex min-h-12 items-center gap-2 rounded-xl bg-[var(--color-surface)] px-4 py-3">
 				<span className="px-2 py-1 text-[13px] font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
 					{t('tracking.autoConfirmed')}
 				</span>
@@ -82,7 +82,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 	// Already confirmed
 	if (pod.status === 'confirmed') {
 		return (
-			<div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface)] rounded-xl">
+			<div className="flex min-h-12 items-center gap-2 rounded-xl bg-[var(--color-surface)] px-4 py-3">
 				<span className="px-2 py-1 text-[13px] font-medium rounded-sm bg-[var(--color-success)]/10 text-[var(--color-success)]">
 					{t('tracking.delivered')}
 				</span>
@@ -93,9 +93,9 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 	// Already disputed
 	if (pod.status === 'disputed') {
 		return (
-			<div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface)] rounded-xl">
+			<div className="flex min-h-12 items-start gap-2 rounded-xl bg-[var(--color-surface)] px-4 py-3 sm:items-center">
 				<AlertTriangle size={16} className="text-[var(--color-warning)]" />
-				<span className="text-sm text-[var(--color-text-muted)]">
+				<span className="break-words text-sm text-[var(--color-text-muted)]">
 					{t('tracking.disputeSubmitted')}
 				</span>
 			</div>
@@ -105,16 +105,16 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 	return (
 		<div className="space-y-4">
 			{/* Banner with countdown */}
-			<div className="flex items-center gap-3 px-4 py-3 bg-[var(--color-warning)]/10 rounded-xl border border-[var(--color-warning)]/20">
+			<div className="flex items-start gap-3 rounded-xl border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 px-4 py-3 sm:items-center">
 				<AlertTriangle
 					size={20}
 					className="text-[var(--color-warning)] shrink-0"
 				/>
-				<div className="flex-1">
-					<p className="text-sm font-medium text-[var(--color-text)]">
+				<div className="min-w-0 flex-1">
+					<p className="break-words text-sm font-medium text-[var(--color-text)]">
 						{t('tracking.podBanner')}
 					</p>
-					<p className="font-mono text-[13px] text-[var(--color-text-muted)] mt-0.5">
+					<p className="mt-0.5 break-words font-mono text-[13px] text-[var(--color-text-muted)]">
 						{hoursRemaining}h {t('tracking.remaining')}
 					</p>
 				</div>
@@ -122,7 +122,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 
 			{/* POD photos grid */}
 			{pod.photos.length > 0 && (
-				<div className="grid grid-cols-3 gap-2">
+				<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 					{pod.photos.map((photo, i) => (
 						<img
 							key={photo}
@@ -135,35 +135,35 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 			)}
 
 			{/* Action buttons */}
-			<div className="flex gap-3">
+			<div className="flex flex-col gap-3 sm:flex-row">
 				<Button
 					onPress={() => confirmMutation.mutate()}
 					isDisabled={confirmMutation.isPending}
-					className="flex-1 h-12 rounded-xl bg-[var(--color-success)] text-white font-medium text-sm cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+					className="h-12 flex-1 cursor-pointer rounded-xl bg-[var(--color-success)] text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 				>
 					{t('tracking.confirmDelivery')}
 				</Button>
 
 				<DialogTrigger isOpen={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
-					<Button className="flex-1 h-12 rounded-xl border-2 border-[var(--color-error)] text-[var(--color-error)] font-medium text-sm cursor-pointer hover:bg-[var(--color-error)]/5 transition-colors">
+					<Button className="h-12 flex-1 cursor-pointer rounded-xl border-2 border-[var(--color-error)] text-sm font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/5">
 						{t('tracking.dispute')}
 					</Button>
 
 					<ModalOverlay
 						isDismissable={false}
 						isKeyboardDismissDisabled
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+						className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:items-center"
 					>
-						<Modal className="w-[95vw] max-w-md">
+						<Modal className="w-full max-w-md">
 							<Dialog
-								className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl p-6 shadow-2xl outline-none"
+								className="max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-[rgba(255,255,255,0.94)] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl outline-none backdrop-blur-2xl sm:p-6"
 								aria-label={t('tracking.disputeHeading')}
 							>
 								{({ close }) => (
 									<div className="space-y-4">
 										<Heading
 											slot="title"
-											className="text-lg font-semibold text-[var(--color-text)]"
+											className="break-words text-lg font-semibold text-[var(--color-text)]"
 										>
 											{t('tracking.disputeHeading')}
 										</Heading>
@@ -178,7 +178,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 												{t('tracking.disputeReasonLabel')}
 											</Label>
 											<TextArea
-												className="w-full min-h-[100px] px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+												className="min-h-32 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2 text-[16px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:min-h-[100px] sm:text-sm"
 												placeholder={t('tracking.disputeReasonLabel')}
 											/>
 										</TextField>
@@ -187,10 +187,10 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 											{t('tracking.disputePhotoLabel')}
 										</p>
 
-										<div className="flex gap-3 pt-2">
+										<div className="flex flex-col gap-3 pt-2 sm:flex-row">
 											<Button
 												onPress={close}
-												className="flex-1 h-12 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] font-medium text-sm cursor-pointer hover:bg-[var(--color-surface)] transition-colors"
+												className="h-12 flex-1 cursor-pointer rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
 											>
 												{t('tracking.goBack')}
 											</Button>
@@ -203,7 +203,7 @@ export function PODConfirmFlow({ deliveryId, pod }: PODConfirmFlowProps) {
 												isDisabled={
 													!disputeReason.trim() || disputeMutation.isPending
 												}
-												className="flex-1 h-12 rounded-xl bg-[var(--color-error)] text-white font-medium text-sm cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+												className="h-12 flex-1 cursor-pointer rounded-xl bg-[var(--color-error)] text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 											>
 												{t('tracking.submitDispute')}
 											</Button>

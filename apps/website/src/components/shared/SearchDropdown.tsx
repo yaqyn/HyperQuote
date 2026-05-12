@@ -217,7 +217,7 @@ export function SearchDropdown({
 					onBlur={() => setTimeout(() => setFocused(false), 200)}
 					onKeyDown={handleKeyDown}
 					placeholder={placeholder}
-					className="ms-3 w-full border-0 bg-transparent text-[15px] outline-none placeholder:opacity-30"
+					className="ms-3 min-w-0 w-full border-0 bg-transparent text-[15px] outline-none placeholder:opacity-30"
 					aria-label={placeholder}
 					role="combobox"
 					aria-expanded={showResults}
@@ -226,7 +226,7 @@ export function SearchDropdown({
 					}
 				/>
 				{query.trim() && (
-					<span className="shrink-0 text-[11px] text-[var(--color-text-subtle)] flex items-center gap-1">
+					<span className="hidden shrink-0 items-center gap-1 text-[11px] text-[var(--color-text-subtle)] sm:flex">
 						<CornerDownLeft size={11} />
 						{askLyonLabel}
 					</span>
@@ -241,7 +241,7 @@ export function SearchDropdown({
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.12 }}
-						className="absolute start-0 top-full z-30 mt-2 w-full min-w-[360px] border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)] max-h-[60vh] overflow-y-auto"
+						className="absolute start-0 top-full z-30 mt-2 max-h-[60vh] w-full max-w-[calc(100vw-2rem)] overflow-y-auto border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)] sm:max-w-none sm:min-w-[360px]"
 						role="listbox"
 					>
 						{results.length > 0 ? (
@@ -266,7 +266,7 @@ export function SearchDropdown({
 											}`}
 										>
 											<div className="min-w-0 flex-1">
-												<div className="text-[14px] font-medium tracking-[-0.01em]">
+												<div className="text-[14px] font-medium tracking-normal">
 													{r.item.title}
 												</div>
 												<div className="mt-0.5 text-[12px] opacity-35">

@@ -1,6 +1,14 @@
 import { standardSchemaResolver } from '@hyperquote/forms'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, X } from 'lucide-react'
+import {
+	ArrowLeft,
+	Building2,
+	FileCheck2,
+	MessageCircle,
+	ShieldCheck,
+	Truck,
+	X,
+} from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -38,6 +46,7 @@ const transition = { duration: 0.25, ease: EASE }
 // --------------------------------------------------------------------------
 
 function LoginPage() {
+	const { t } = useTranslation('website')
 	const navigate = useNavigate()
 	const [step, setStep] = useState<AuthStep>('phone')
 	const [phone, setPhone] = useState('')
@@ -48,7 +57,7 @@ function LoginPage() {
 	}
 
 	return (
-		<div className="relative flex min-h-svh items-center justify-center px-6 py-24">
+		<div className="relative min-h-svh overflow-hidden bg-[var(--color-base)] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(3.5rem+2rem)] sm:px-6 sm:pt-[calc(4rem+2.75rem)] md:px-8 md:pb-12 md:pt-[calc(4rem+4rem)] lg:px-12 lg:py-[calc(4rem+4vw)]">
 			{/* Noise texture overlay */}
 			<div
 				className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
@@ -58,54 +67,145 @@ function LoginPage() {
 				}}
 			/>
 
-			<div className="relative z-10 w-full max-w-[400px]">
-				{/* Auth steps */}
-				<AnimatePresence mode="wait" initial={false}>
-					{step === 'phone' && (
-						<StepWrapper key="phone">
-							<PhoneStep
-								phone={phone}
-								setPhone={setPhone}
-								onNext={() => setStep('otp')}
-							/>
-						</StepWrapper>
-					)}
-					{step === 'otp' && (
-						<StepWrapper key="otp">
-							<OTPStep
-								phone={phone}
-								onBack={() => setStep('phone')}
-								onNeedsAccount={() => setStep('create')}
-								onClaimable={(company) => {
-									setClaimableCompany(company)
-									setStep('claiming')
-								}}
-								onComplete={handleComplete}
-							/>
-						</StepWrapper>
-					)}
-					{step === 'create' && (
-						<StepWrapper key="create">
-							<CreateStep phone={phone} onComplete={handleComplete} />
-						</StepWrapper>
-					)}
-					{step === 'claiming' && (
-						<StepWrapper key="claiming">
-							<ClaimStep
-								phone={phone}
-								company={claimableCompany}
-								onCreateInstead={() => setStep('create')}
-								onComplete={handleComplete}
-							/>
-						</StepWrapper>
-					)}
-				</AnimatePresence>
+			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[var(--color-border)]" />
+
+			<div className="relative z-10 mx-auto grid min-h-[calc(100svh-8rem)] w-full max-w-[1180px] grid-cols-1 gap-8 lg:min-h-[min(760px,calc(100svh-8rem))] lg:grid-cols-[minmax(0,1fr)_minmax(420px,460px)] lg:items-center lg:gap-12 xl:gap-16">
+				<div className="order-2 lg:order-1">
+					<AuthContextPanel />
+				</div>
+
+				<div className="order-1 mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-[460px] items-center justify-center lg:order-2 lg:mx-0 lg:min-h-0 lg:block">
+					<div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-base)]/88 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.08)] backdrop-blur-xl sm:p-5 md:p-6 lg:p-7">
+						<div className="mb-7 flex items-start justify-between gap-4 border-b border-[var(--color-border)] pb-5">
+							<div className="min-w-0">
+								<p className="text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
+									{t('login.cardEyebrow')}
+								</p>
+								<p className="mt-1 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+									{t('login.cardSubtitle')}
+								</p>
+							</div>
+							<div
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
+								aria-hidden="true"
+							>
+								<ShieldCheck size={18} />
+							</div>
+						</div>
+
+						{/* Auth steps */}
+						<AnimatePresence mode="wait" initial={false}>
+							{step === 'phone' && (
+								<StepWrapper key="phone">
+									<PhoneStep
+										phone={phone}
+										setPhone={setPhone}
+										onNext={() => setStep('otp')}
+									/>
+								</StepWrapper>
+							)}
+							{step === 'otp' && (
+								<StepWrapper key="otp">
+									<OTPStep
+										phone={phone}
+										onBack={() => setStep('phone')}
+										onNeedsAccount={() => setStep('create')}
+										onClaimable={(company) => {
+											setClaimableCompany(company)
+											setStep('claiming')
+										}}
+										onComplete={handleComplete}
+									/>
+								</StepWrapper>
+							)}
+							{step === 'create' && (
+								<StepWrapper key="create">
+									<CreateStep phone={phone} onComplete={handleComplete} />
+								</StepWrapper>
+							)}
+							{step === 'claiming' && (
+								<StepWrapper key="claiming">
+									<ClaimStep
+										phone={phone}
+										company={claimableCompany}
+										onCreateInstead={() => setStep('create')}
+										onComplete={handleComplete}
+									/>
+								</StepWrapper>
+							)}
+						</AnimatePresence>
+						<div className="mt-8 border-t border-[var(--color-border)] pt-5">
+							<LegalFooter />
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function AuthContextPanel() {
+	const { t } = useTranslation('website')
+
+	return (
+		<section className="mx-auto flex w-full max-w-[660px] flex-col text-center lg:mx-0 lg:text-start">
+			<p className="text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
+				{t('login.context.eyebrow')}
+			</p>
+			<h1 className="mt-4 text-[clamp(2.25rem,8vw,4.75rem)] font-extrabold leading-[0.98] tracking-normal text-[var(--color-text)]">
+				{t('login.context.heading')}
+			</h1>
+			<p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)] sm:text-[16px] lg:mx-0">
+				{t('login.context.body')}
+			</p>
+
+			<div className="mt-8 grid grid-cols-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 text-start sm:grid-cols-3 lg:mt-10">
+				<AuthBenefit
+					icon={<FileCheck2 size={18} />}
+					title={t('login.context.benefits.quotes.title')}
+					description={t('login.context.benefits.quotes.description')}
+				/>
+				<AuthBenefit
+					icon={<Building2 size={18} />}
+					title={t('login.context.benefits.projects.title')}
+					description={t('login.context.benefits.projects.description')}
+				/>
+				<AuthBenefit
+					icon={<Truck size={18} />}
+					title={t('login.context.benefits.delivery.title')}
+					description={t('login.context.benefits.delivery.description')}
+				/>
 			</div>
 
-			{/* Legal — fixed bottom */}
-			<div className="fixed bottom-0 inset-x-0 z-10 pb-6 pointer-events-none">
-				<LegalFooter />
+			<div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px] text-[var(--color-text-subtle)] lg:justify-start">
+				<span className="font-mono">{t('login.context.stat1')}</span>
+				<span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
+				<span className="font-mono">{t('login.context.stat2')}</span>
 			</div>
+		</section>
+	)
+}
+
+function AuthBenefit({
+	icon,
+	title,
+	description,
+}: {
+	icon: React.ReactNode
+	title: string
+	description: string
+}) {
+	return (
+		<div className="border-b border-[var(--color-border)] p-4 last:border-b-0 sm:border-e sm:border-b-0 sm:last:border-e-0 md:p-5">
+			<div className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+				{icon}
+			</div>
+			<p className="text-[14px] font-semibold text-[var(--color-text)]">
+				{title}
+			</p>
+			<p className="mt-2 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+				{description}
+			</p>
 		</div>
 	)
 }
@@ -191,14 +291,26 @@ function PhoneStep({
 
 	return (
 		<div>
-			<h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--color-text)]">
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
 				{t('login.step1.heading')}
-			</h1>
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+				{t('login.step1.subtitle')}
+			</p>
 
-			<div className="mt-10">
+			<div className="mt-7 sm:mt-8">
 				{/* Phone input */}
-				<div className="flex items-center gap-3">
-					<div className="flex h-14 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4">
+				<label
+					htmlFor="login-phone"
+					className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
+				>
+					{t('login.phoneLabel')}
+				</label>
+				<div
+					className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-2.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-3"
+					dir="ltr"
+				>
+					<div className="flex h-[54px] shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 sm:h-14 sm:px-4">
 						<span className="text-[15px]" aria-hidden="true">
 							🇪🇬
 						</span>
@@ -207,10 +319,11 @@ function PhoneStep({
 						</span>
 					</div>
 					<input
+						id="login-phone"
 						ref={inputRef}
 						type="tel"
 						inputMode="numeric"
-						placeholder=""
+						aria-label={t('login.phoneLabel')}
 						value={phone}
 						onChange={(e) => {
 							const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
@@ -220,13 +333,18 @@ function PhoneStep({
 						onKeyDown={(e) => {
 							if (e.key === 'Enter') handleSend('whatsapp')
 						}}
-						className="h-14 flex-1 rounded-xl border border-[var(--color-border)] bg-transparent px-4 font-mono text-[18px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none transition-colors focus:border-[var(--color-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						className="h-[54px] min-w-0 rounded-xl border border-[var(--color-border)] bg-transparent px-4 font-mono text-[18px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 					/>
 				</div>
+				<p className="mt-2 text-[12px] leading-relaxed text-[var(--color-text-subtle)]">
+					{t('login.phoneHint')}
+				</p>
 
 				{/* Error */}
 				{error && (
-					<p className="mt-3 text-[13px] text-[var(--color-error)]">{error}</p>
+					<p className="mt-3 text-start text-[13px] text-[var(--color-error)]">
+						{error}
+					</p>
 				)}
 
 				{/* WhatsApp button */}
@@ -234,21 +352,13 @@ function PhoneStep({
 					type="button"
 					onClick={() => handleSend('whatsapp')}
 					disabled={loading}
-					className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl bg-[#25D366] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+					className="mt-5 flex h-[54px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#25D366] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:mt-6 sm:h-14"
 				>
 					{loading && sendingMethod === 'whatsapp' ? (
 						<Spinner />
 					) : (
 						<>
-							<svg
-								width={20}
-								height={20}
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-							</svg>
+							<MessageCircle size={20} aria-hidden="true" />
 							{t('login.whatsappCTA')}
 						</>
 					)}
@@ -259,7 +369,7 @@ function PhoneStep({
 					type="button"
 					onClick={() => handleSend('sms')}
 					disabled={loading}
-					className="mt-4 w-full text-center text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+					className="mt-3 min-h-10 w-full text-center text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:opacity-50 sm:mt-4"
 				>
 					{loading && sendingMethod === 'sms' ? (
 						<Spinner size={14} />
@@ -399,16 +509,16 @@ function OTPStep({
 			<button
 				type="button"
 				onClick={onBack}
-				className="mb-8 flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+				className="mb-6 flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
 			>
 				<ArrowLeft size={14} className="icon-end" />
 				<span className="font-mono">+20{phone}</span>
 			</button>
 
-			<h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--color-text)]">
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
 				{t('login.step2.heading')}
-			</h1>
-			<p className="mt-3 text-[14px] text-[var(--color-text-muted)]">
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
 				{t('login.codeSent')}{' '}
 				<span className="font-mono text-[var(--color-text)]">+20{phone}</span>
 			</p>
@@ -416,7 +526,7 @@ function OTPStep({
 			{/* OTP boxes — always LTR */}
 			<motion.div
 				dir="ltr"
-				className="mt-10 flex justify-center gap-2.5"
+				className="mt-7 grid grid-cols-6 gap-2 sm:mt-8 sm:gap-2.5"
 				animate={shaking ? { x: [0, -6, 6, -6, 6, 0] } : { x: 0 }}
 				transition={{ duration: 0.2 }}
 				onPaste={handlePaste}
@@ -435,7 +545,7 @@ function OTPStep({
 						onKeyDown={(e) => handleKeyDown(i, e)}
 						disabled={loading}
 						aria-label={t('login.otpDigit', { n: i + 1 })}
-						className="h-14 w-12 rounded-xl border border-[var(--color-border)] bg-transparent text-center font-mono text-[22px] font-semibold text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-50"
+						className="h-12 w-full rounded-xl border border-[var(--color-border)] bg-transparent text-center font-mono text-[21px] font-semibold text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-50 sm:h-14 sm:text-[22px]"
 					/>
 				))}
 			</motion.div>
@@ -528,22 +638,25 @@ function CreateStep({
 
 	return (
 		<div>
-			<h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--color-text)]">
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
 				{t('login.step3.heading')}
-			</h1>
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+				{t('login.step3.subtitle')}
+			</p>
 
 			<form
 				onSubmit={handleSubmit(onSubmit)}
-				className="mt-10 flex flex-col gap-5"
+				className="mt-7 flex flex-col gap-5 sm:mt-8"
 				noValidate
 			>
 				<div>
-					<span className="mb-2 block text-[13px] font-medium text-[var(--color-text-muted)]">
+					<span className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]">
 						{t('login.companyName')}
 					</span>
 					<input
 						{...register('companyName')}
-						className="h-14 w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)]"
+						className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
 					/>
 					{errors.companyName && (
 						<p className="mt-1.5 text-[12px] text-[var(--color-error)]">
@@ -553,12 +666,12 @@ function CreateStep({
 				</div>
 
 				<div>
-					<span className="mb-2 block text-[13px] font-medium text-[var(--color-text-muted)]">
+					<span className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]">
 						{t('login.fullName')}
 					</span>
 					<input
 						{...register('fullName')}
-						className="h-14 w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)]"
+						className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
 					/>
 					{errors.fullName && (
 						<p className="mt-1.5 text-[12px] text-[var(--color-error)]">
@@ -574,7 +687,7 @@ function CreateStep({
 				<button
 					type="submit"
 					disabled={loading}
-					className="mt-2 h-14 w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+					className="mt-2 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
 				>
 					{loading ? <Spinner /> : t('login.createButton')}
 				</button>
@@ -633,11 +746,14 @@ function ClaimStep({
 
 	return (
 		<div>
-			<h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--color-text)]">
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
 				{t('login.claiming.heading')}
-			</h1>
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+				{t('login.claiming.subtitle')}
+			</p>
 
-			<div className="mt-10 rounded-xl bg-[var(--color-surface)] py-5 text-center">
+			<div className="mt-7 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-5 text-center sm:mt-8">
 				<p className="font-mono text-[20px] font-semibold text-[var(--color-text)]">
 					{masked}
 				</p>
@@ -653,7 +769,7 @@ function ClaimStep({
 				type="button"
 				onClick={handleClaim}
 				disabled={loading}
-				className="mt-6 h-14 w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
 			>
 				{loading ? <Spinner /> : t('login.claiming.confirm')}
 			</button>
@@ -662,7 +778,7 @@ function ClaimStep({
 				type="button"
 				onClick={onCreateInstead}
 				disabled={loading}
-				className="mt-3 h-14 w-full rounded-xl border border-[var(--color-border)] text-[15px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-50"
+				className="mt-3 h-[54px] w-full rounded-xl border border-[var(--color-border)] text-[15px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-50 sm:h-14"
 			>
 				{t('login.claiming.deny')}
 			</button>
@@ -694,12 +810,7 @@ function LegalFooter() {
 
 	return (
 		<>
-			<motion.p
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{ ...transition, delay: 0.3 }}
-				className="text-center text-[12px] leading-relaxed text-[var(--color-text-subtle)] pointer-events-auto"
-			>
+			<p className="px-2 text-center text-[11px] leading-relaxed text-[var(--color-text-muted)] sm:text-[12px]">
 				{t('login.legalPrefix')}{' '}
 				<button
 					type="button"
@@ -707,7 +818,7 @@ function LegalFooter() {
 						setTab('terms')
 						setOpen(true)
 					}}
-					className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+					className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
 				>
 					{t('login.termsLink')}
 				</button>{' '}
@@ -718,11 +829,11 @@ function LegalFooter() {
 						setTab('privacy')
 						setOpen(true)
 					}}
-					className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+					className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
 				>
 					{t('login.privacyLink')}
 				</button>
-			</motion.p>
+			</p>
 
 			<AnimatePresence>
 				{open && (
@@ -732,7 +843,7 @@ function LegalFooter() {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ duration: 0.15 }}
-							className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] pointer-events-auto"
+							className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
 							onClick={() => setOpen(false)}
 							onWheel={(e) => e.stopPropagation()}
 						/>
@@ -741,15 +852,15 @@ function LegalFooter() {
 							animate={{ opacity: 1, y: 0, scale: 1 }}
 							exit={{ opacity: 0, y: 12, scale: 0.98 }}
 							transition={{ duration: 0.2, ease: EASE }}
-							className="fixed inset-x-0 top-[12vh] bottom-[12vh] z-50 mx-auto flex w-[min(88vw,480px)] flex-col overflow-hidden rounded-2xl bg-[var(--color-base)] shadow-2xl pointer-events-auto"
+							className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--color-base)] shadow-2xl sm:inset-x-0 sm:bottom-[10vh] sm:top-[10vh] sm:mx-auto sm:w-[min(88vw,520px)] sm:rounded-2xl md:bottom-[12vh] md:top-[12vh]"
 						>
 							{/* Header with tab switcher */}
-							<div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] px-5">
-								<div className="flex items-center gap-1 rounded-lg bg-[var(--color-surface)] p-1">
+							<div className="flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-end justify-between gap-3 border-b border-[var(--color-border)] px-4 pb-3 sm:h-14 sm:items-center sm:px-5 sm:pb-0">
+								<div className="flex min-w-0 items-center gap-1 rounded-lg bg-[var(--color-surface)] p-1">
 									<button
 										type="button"
 										onClick={() => setTab('terms')}
-										className={`h-8 rounded-md px-4 text-[13px] font-medium transition-colors ${
+										className={`h-8 min-w-0 rounded-md px-3 text-[13px] font-medium transition-colors sm:px-4 ${
 											tab === 'terms'
 												? 'bg-[var(--color-base)] text-[var(--color-text)] shadow-sm'
 												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
@@ -760,7 +871,7 @@ function LegalFooter() {
 									<button
 										type="button"
 										onClick={() => setTab('privacy')}
-										className={`h-8 rounded-md px-4 text-[13px] font-medium transition-colors ${
+										className={`h-8 min-w-0 rounded-md px-3 text-[13px] font-medium transition-colors sm:px-4 ${
 											tab === 'privacy'
 												? 'bg-[var(--color-base)] text-[var(--color-text)] shadow-sm'
 												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
@@ -772,14 +883,15 @@ function LegalFooter() {
 								<button
 									type="button"
 									onClick={() => setOpen(false)}
-									className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+									aria-label={t('a11y.close')}
+									className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
 								>
 									<X size={16} />
 								</button>
 							</div>
 
 							{/* Scrollable content */}
-							<div className="flex-1 overflow-y-auto px-6 py-8 lg:px-10">
+							<div className="flex-1 overflow-y-auto px-5 py-7 pb-[calc(1.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-10">
 								<div className="mx-auto max-w-[640px]">
 									{sections.map((section, i) => (
 										<div

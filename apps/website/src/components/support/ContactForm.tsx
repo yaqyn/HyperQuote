@@ -157,7 +157,7 @@ export function ContactForm() {
 	return (
 		<form
 			onSubmit={form.handleSubmit(onSubmit)}
-			className="flex flex-col gap-8"
+			className="mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8"
 		>
 			{/* Name */}
 			<Controller
@@ -297,7 +297,7 @@ export function ContactForm() {
 						<Label className={labelClass}>{t('support.form.message')}</Label>
 						<TextArea
 							rows={4}
-							className="w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent ps-0 pe-0 py-3 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40"
+							className="min-h-[120px] w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent py-3 ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40"
 						/>
 						<div className="mt-1.5 flex items-center justify-between">
 							{fieldState.error ? (
@@ -327,7 +327,7 @@ export function ContactForm() {
 			<Button
 				type="submit"
 				isDisabled={submitting}
-				className="mt-4 flex h-12 items-center justify-center rounded-lg bg-[var(--color-primary)] px-10 text-[15px] font-semibold text-white outline-none transition-all duration-200 hover:bg-[var(--color-primary-hover)] focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.2)] disabled:opacity-50"
+				className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[var(--color-primary)] px-10 text-[15px] font-semibold text-white outline-none transition-all duration-200 hover:bg-[var(--color-primary-hover)] focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.2)] disabled:opacity-50 md:mt-4"
 			>
 				{submitting ? (
 					<Loader2 size={18} className="animate-spin" />

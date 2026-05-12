@@ -74,10 +74,10 @@ export function ChatMessages({
 			<div
 				ref={scrollRef}
 				onScroll={handleScroll}
-				className="flex-1 overflow-y-auto px-10 pb-6"
+				className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6 lg:px-10"
 			>
 				<ul
-					className="mt-4 flex flex-col"
+					className="mt-3 flex flex-col sm:mt-4"
 					role="log"
 					aria-live="polite"
 					aria-relevant="additions"
@@ -98,7 +98,7 @@ export function ChatMessages({
 			</div>
 
 			{/* Margin glyph — jump to latest */}
-			<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[3] flex justify-end pe-10">
+			<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[3] flex justify-end pe-4 sm:pe-6 lg:pe-10">
 				<div className="pointer-events-auto">
 					<ScrollToBottom show={showScrollBtn} onClick={scrollToBottom} />
 				</div>

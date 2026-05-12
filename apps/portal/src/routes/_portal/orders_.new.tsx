@@ -15,9 +15,9 @@ function NewQuoteRoute() {
 
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-			<div className="w-full max-w-[800px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
+			<div className="w-full max-w-[800px] mx-auto px-4 pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8">
 				<h1
-					className="text-[22px] font-semibold tracking-tight mb-6"
+					className="mb-6 break-words text-[20px] font-semibold tracking-tight sm:text-[22px]"
 					style={{
 						background:
 							'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',

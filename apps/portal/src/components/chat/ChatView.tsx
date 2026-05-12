@@ -174,8 +174,8 @@ export function ChatView({ userName, locale }: ChatViewProps) {
 				}}
 				className="relative z-[2] shrink-0"
 			>
-				<div className="office-rule mx-10" />
-				<div className="px-10 pb-6 pt-4">
+				<div className="office-rule mx-4 sm:mx-6 lg:mx-10" />
+				<div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6 sm:pt-4 lg:px-10">
 					<ChatInput chat={chat} hasMessages={hasMessages} />
 				</div>
 			</motion.div>
@@ -200,7 +200,7 @@ function EmptyDesk({
 	locale: 'ar' | 'en'
 }) {
 	return (
-		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-10">
+		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+4rem)] sm:px-6 lg:px-10 lg:py-0">
 			{/* Ambient data grid — subtle, institutional */}
 			<DataGridBackdrop />
 
@@ -209,7 +209,7 @@ function EmptyDesk({
 					initial={{ opacity: 0, y: 4 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
-					className="voice-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]"
+					className="voice-mono max-w-full text-[9px] uppercase tracking-[0.24em] text-[var(--p-text-faint)] sm:text-[10px] sm:tracking-[0.32em]"
 				>
 					HyperQuote · Customer Portal
 				</motion.p>
@@ -220,8 +220,8 @@ function EmptyDesk({
 					transition={{ duration: 0.7, delay: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
 					className={`mt-4 text-[var(--p-text)] ${
 						isArabic
-							? 'voice-serif-ar text-[46px] leading-[1.1]'
-							: 'voice-display text-[56px] leading-[1] tracking-[-0.015em]'
+							? 'voice-serif-ar text-[36px] leading-[1.1] sm:text-[46px]'
+							: 'voice-display text-[42px] leading-[1] sm:text-[56px]'
 					}`}
 					style={isArabic ? undefined : { fontWeight: 300 }}
 				>
@@ -240,7 +240,7 @@ function EmptyDesk({
 					initial={{ opacity: 0, y: 4 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.6, delay: 1, ease: [0.2, 0.8, 0.2, 1] }}
-					className="mt-10 grid w-full grid-cols-1 gap-3 sm:grid-cols-3"
+					className="mt-8 grid w-full grid-cols-1 gap-2 sm:mt-10 sm:grid-cols-3 sm:gap-3"
 				>
 					<SuggestionChips onSelect={onSuggest} locale={locale} />
 				</motion.div>
@@ -326,19 +326,19 @@ function ActiveLedger({
 }) {
 	return (
 		<>
-			<header className="relative z-[2] flex shrink-0 items-baseline justify-between gap-4 px-10 pb-3 pt-8">
+			<header className="relative z-[2] flex shrink-0 flex-col gap-2 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:flex-row sm:items-baseline sm:justify-between sm:px-6 lg:px-10 lg:pt-8">
 				<span className="office-meta">{`Today · ${today} · Page`}</span>
 				<button
 					type="button"
 					onClick={onNewPage}
-					className="office-quiet"
+					className="office-quiet self-start sm:self-auto"
 					aria-label={newPageLabel}
 				>
 					{newPageLabel}
 				</button>
 			</header>
 
-			<div className="office-rule mx-10" />
+			<div className="office-rule mx-4 sm:mx-6 lg:mx-10" />
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				<div className="office-ledger flex min-h-0 flex-1 flex-col">
@@ -367,14 +367,14 @@ function FirstEntryGreeting({
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.5, ease: 'easeOut' }}
 			aria-labelledby="greeting-tag"
-			className="px-10 pt-7"
+			className="px-4 pt-5 sm:px-6 sm:pt-7 lg:px-10"
 		>
-			<div className="grid grid-cols-[60px_1fr] items-baseline gap-x-6">
+			<div className="grid grid-cols-1 gap-y-2 sm:grid-cols-[60px_1fr] sm:items-baseline sm:gap-x-6">
 				<span id="greeting-tag" className="office-tag">
 					{isArabic ? 'ليون' : 'Lyon'}
 				</span>
 				<p
-					className={`max-w-[640px] text-[var(--p-text)] ${
+					className={`max-w-[640px] break-words text-[var(--p-text)] ${
 						isArabic
 							? 'voice-serif-ar text-[17px] leading-[1.75]'
 							: 'voice-serif text-[18px] leading-[1.55]'

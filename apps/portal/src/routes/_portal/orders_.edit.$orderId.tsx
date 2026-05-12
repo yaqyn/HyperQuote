@@ -135,7 +135,7 @@ function EditSavedOrder() {
 	if (isLoading) {
 		return (
 			<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-				<div className="w-full max-w-[800px] mx-auto px-6 max-md:px-4 py-8">
+				<div className="w-full max-w-[800px] mx-auto px-4 pt-[calc(env(safe-area-inset-top)+4.25rem)] pb-8 sm:px-6 sm:pt-8">
 					<EditSkeleton />
 				</div>
 			</div>
@@ -145,7 +145,7 @@ function EditSavedOrder() {
 	if (isError || !order) {
 		return (
 			<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-				<div className="w-full max-w-[800px] mx-auto px-6 max-md:px-4 flex flex-col items-center justify-center gap-4 py-20">
+				<div className="w-full max-w-[800px] mx-auto px-4 sm:px-6 flex flex-col items-center justify-center gap-4 py-20">
 					<AlertTriangle size={36} className="text-[var(--p-text-muted)]" />
 					<p className="text-sm text-[var(--p-text-muted)]">
 						{t('orders.error')}
@@ -166,7 +166,7 @@ function EditSavedOrder() {
 			ref={scrollRef}
 			className="flex-1 flex flex-col h-full min-h-0 overflow-auto"
 		>
-			<div className="w-full max-w-[800px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
+			<div className="w-full max-w-[800px] mx-auto px-4 pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8">
 				{/* Back */}
 				<motion.div
 					initial={{ opacity: 0, x: -8 }}
@@ -175,7 +175,7 @@ function EditSavedOrder() {
 				>
 					<Button
 						onPress={() => navigate({ to: '/orders' })}
-						className="flex items-center gap-2 text-sm text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors cursor-pointer mb-8"
+						className="mb-6 flex min-h-10 items-center gap-2 text-sm text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:mb-8 sm:min-h-0"
 					>
 						<ArrowLeft size={14} className="rtl:rotate-180" />
 						{t('tracking.backToOrders')}
@@ -197,7 +197,7 @@ function EditSavedOrder() {
 							setHasChanges(true)
 						}}
 						placeholder={t('orders.orderName')}
-						className="text-[24px] font-semibold tracking-tight bg-transparent border-none outline-none w-full placeholder:text-[var(--p-text-muted)]"
+						className="w-full bg-transparent text-[22px] font-semibold tracking-tight border-none outline-none placeholder:text-[var(--p-text-muted)] sm:text-[24px]"
 						style={{
 							background:
 								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
@@ -228,7 +228,7 @@ function EditSavedOrder() {
 									animate={{ opacity: 1, y: 0 }}
 									exit={{ opacity: 0, x: -20, height: 0, marginBottom: 0 }}
 									transition={{ duration: 0.2 }}
-									className="flex items-center gap-4 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-4 hover:border-[var(--p-border-strong)] transition-colors group"
+									className="grid grid-cols-[56px_1fr] gap-3 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-3 transition-colors hover:border-[var(--p-border-strong)] group sm:flex sm:items-center sm:gap-4 sm:p-4"
 								>
 									{/* Product image */}
 									<div className="w-14 h-14 rounded-lg overflow-hidden bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0">
@@ -242,8 +242,8 @@ function EditSavedOrder() {
 									</div>
 
 									{/* Product info */}
-									<div className="flex-1 min-w-0">
-										<p className="text-sm text-[var(--p-text)] truncate">
+									<div className="min-w-0 sm:flex-1">
+										<p className="break-words text-sm text-[var(--p-text)] sm:truncate">
 											{isAr ? item.productNameAr : item.productName}
 										</p>
 										<p className="text-[13px] text-[var(--p-text-muted)] mt-0.5">
@@ -252,13 +252,13 @@ function EditSavedOrder() {
 									</div>
 
 									{/* Quantity controls */}
-									<div className="flex items-center gap-1 shrink-0">
+									<div className="col-span-2 flex items-center gap-1 shrink-0 sm:col-span-1">
 										<button
 											type="button"
 											onClick={() =>
 												updateQty(item.productId, item.quantity - 1)
 											}
-											className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-sm font-mono"
+											className="w-11 h-11 rounded-lg flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-sm font-mono sm:h-8 sm:w-8"
 										>
 											−
 										</button>
@@ -272,7 +272,7 @@ function EditSavedOrder() {
 											onClick={() =>
 												updateQty(item.productId, item.quantity + 1)
 											}
-											className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-sm font-mono"
+											className="w-11 h-11 rounded-lg flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-sm font-mono sm:h-8 sm:w-8"
 										>
 											+
 										</button>
@@ -282,7 +282,7 @@ function EditSavedOrder() {
 									<button
 										type="button"
 										onClick={() => removeItem(item.productId)}
-										className="p-2 rounded-lg text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--p-error)] hover:bg-[var(--p-hover)] transition-all shrink-0"
+										className="col-span-2 flex h-11 items-center justify-center rounded-lg text-[var(--p-text-muted)] hover:text-[var(--p-error)] hover:bg-[var(--p-hover)] transition-all shrink-0 sm:col-span-1 sm:h-auto sm:p-2 sm:opacity-0 sm:group-hover:opacity-100"
 										aria-label={t('orders.delete')}
 									>
 										<Trash2 size={14} strokeWidth={1.5} />
@@ -344,14 +344,14 @@ function EditSavedOrder() {
 					initial={{ opacity: 0, y: 12 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.3, delay: 0.15 }}
-					className="flex items-center gap-3 pt-6 border-t border-[var(--p-border)]"
+					className="flex flex-col gap-3 pt-6 border-t border-[var(--p-border)] sm:flex-row sm:items-center"
 				>
 					<Button
 						onPress={() => {
 							/* save changes — future */
 						}}
 						isDisabled={!hasChanges || items.length === 0}
-						className="flex items-center gap-2 h-10 px-5 rounded-xl border border-[var(--p-border)] text-[var(--p-text-secondary)] text-[13px] font-medium hover:text-[var(--p-text)] hover:bg-[var(--p-hover)] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+						className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-5 text-[13px] font-medium text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)] hover:bg-[var(--p-hover)] cursor-pointer disabled:opacity-30 disabled:cursor-default sm:h-10 sm:w-auto"
 					>
 						<Save size={14} strokeWidth={1.5} />
 						{t('orders.save')}
@@ -360,7 +360,7 @@ function EditSavedOrder() {
 					<Button
 						onPress={() => submitMutation.mutate()}
 						isDisabled={items.length === 0 || submitMutation.isPending}
-						className="flex items-center gap-2 h-10 px-6 rounded-xl bg-[var(--p-text)] text-[var(--p-bg)] text-[13px] font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-30 disabled:cursor-default"
+						className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-6 text-[13px] font-medium text-[var(--p-bg)] transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-30 disabled:cursor-default sm:h-10 sm:w-auto"
 					>
 						{submitMutation.isPending ? (
 							<Spinner />
@@ -370,12 +370,12 @@ function EditSavedOrder() {
 						{t('orders.submit')}
 					</Button>
 
-					<div className="flex-1" />
+					<div className="hidden flex-1 sm:block" />
 
 					<Button
 						onPress={() => deleteMutation.mutate()}
 						isDisabled={deleteMutation.isPending}
-						className="flex items-center gap-2 h-10 px-4 rounded-xl text-[var(--p-text-muted)] text-[13px] font-medium hover:text-[var(--p-error)] hover:bg-[var(--p-hover)] transition-colors cursor-pointer disabled:opacity-30"
+						className="flex h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-error)] hover:bg-[var(--p-hover)] cursor-pointer disabled:opacity-30 sm:h-10 sm:w-auto"
 					>
 						<Trash2 size={14} strokeWidth={1.5} />
 						{t('orders.deleteOrder')}
@@ -424,7 +424,7 @@ function QtyInput({
 				}
 			}}
 			data-qty-input={productId}
-			className="font-mono text-sm w-16 h-8 text-center text-[var(--p-text)] bg-[var(--p-input)] border border-[var(--p-border)] rounded-lg outline-none focus:border-[var(--p-border-strong)] transition-colors"
+			className="h-11 w-full min-w-0 flex-1 rounded-lg border border-[var(--p-border)] bg-[var(--p-input)] text-center font-mono text-[16px] text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-border-strong)] sm:h-8 sm:w-16 sm:flex-none sm:text-sm"
 		/>
 	)
 }
@@ -485,7 +485,7 @@ function ProductPicker({
 			className="mt-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] overflow-hidden"
 		>
 			{/* Search header */}
-			<div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--p-border)]">
+			<div className="flex items-center gap-3 border-b border-[var(--p-border)] px-3 py-3 sm:px-4">
 				<Search
 					size={14}
 					strokeWidth={1.5}
@@ -497,28 +497,28 @@ function ProductPicker({
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder={t('orders.searchProducts')}
-					className="flex-1 bg-transparent text-sm text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-muted)]"
+					className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-muted)] sm:min-h-0 sm:text-sm"
 				/>
 				<button
 					type="button"
 					onClick={onClose}
-					className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--p-text-muted)] hover:text-[var(--p-text)] hover:bg-[var(--p-hover)] transition-colors shrink-0"
+					className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] sm:h-8 sm:w-8"
 				>
 					<X size={14} />
 				</button>
 			</div>
 
 			{/* Product list */}
-			<div className="max-h-[320px] overflow-y-auto">
+			<div className="max-h-[min(62vh,420px)] overflow-y-auto">
 				{isLoading && (
 					<div className="flex flex-col gap-1 p-2">
 						{[1, 2, 3].map((i) => (
 							<div
 								key={i}
-								className="flex items-center gap-3 px-3 py-2.5 animate-pulse"
+								className="flex min-h-16 animate-pulse items-center gap-3 px-3 py-2.5"
 							>
 								<div className="w-10 h-10 rounded-lg bg-[var(--p-elevated)]" />
-								<div className="flex-1">
+								<div className="min-w-0 flex-1">
 									<div className="h-3.5 w-32 bg-[var(--p-border)] rounded mb-1.5" />
 									<div className="h-2.5 w-20 bg-[var(--p-border)] rounded" />
 								</div>
@@ -553,7 +553,7 @@ function ProductPicker({
 											category: product.category,
 										})
 									}
-									className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-start transition-colors hover:bg-[var(--p-hover)] w-full group"
+									className="group flex min-h-16 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors hover:bg-[var(--p-hover)]"
 								>
 									<div className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--p-elevated)] border border-[var(--p-border)] shrink-0">
 										<img
@@ -565,10 +565,10 @@ function ProductPicker({
 										/>
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-[13px] text-[var(--p-text)] truncate">
+										<p className="break-words text-[13px] text-[var(--p-text)] sm:truncate">
 											{isAr ? product.nameAr : product.name}
 										</p>
-										<p className="text-[13px] text-[var(--p-text-muted)]">
+										<p className="break-words text-[13px] text-[var(--p-text-muted)]">
 											{product.unitOfMeasure}
 										</p>
 									</div>
@@ -597,7 +597,7 @@ function ProductPicker({
 
 function EditSkeleton() {
 	return (
-		<div className="animate-pulse space-y-8 pt-12">
+		<div className="animate-pulse space-y-8 pt-4 sm:pt-12">
 			<div>
 				<div className="h-7 w-56 bg-[var(--p-card)] rounded mb-2" />
 				<div className="h-3 w-20 bg-[var(--p-card)] rounded" />
@@ -606,14 +606,14 @@ function EditSkeleton() {
 				{[1, 2, 3].map((i) => (
 					<div
 						key={i}
-						className="flex items-center gap-4 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-4"
+						className="grid grid-cols-[56px_1fr] gap-3 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-3 sm:flex sm:items-center sm:gap-4 sm:p-4"
 					>
 						<div className="w-14 h-14 rounded-lg bg-[var(--p-elevated)]" />
-						<div className="flex-1">
+						<div className="min-w-0 sm:flex-1">
 							<div className="h-4 w-40 bg-[var(--p-border)] rounded mb-2" />
 							<div className="h-3 w-16 bg-[var(--p-border)] rounded" />
 						</div>
-						<div className="h-8 w-24 bg-[var(--p-border)] rounded" />
+						<div className="col-span-2 h-11 w-full rounded bg-[var(--p-border)] sm:col-span-1 sm:h-8 sm:w-24" />
 					</div>
 				))}
 			</div>

@@ -1,9 +1,10 @@
 /**
- * Profile — clean, flat, vertically centered, no containers.
+ * Profile — clean, flat, scroll-safe on compact screens.
  */
 import { createFileRoute } from '@tanstack/react-router'
 import { Camera, Check, Loader2, User } from 'lucide-react'
 import { motion } from 'motion/react'
+import type { ChangeEvent } from 'react'
 import { useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -31,10 +32,10 @@ function ProfilePage() {
 	} | null
 	const user = typedAuth?.user
 	const meta = user?.user_metadata ?? {}
-	const fullName = meta.name ?? 'Dev User'
-	const phone = user?.phone ?? '+20 100 000 0000'
+	const fullName = meta.name ?? ''
+	const phone = user?.phone ?? ''
 
-	const [companyName, setCompanyName] = useState(meta.company_name ?? 'Dev Co')
+	const [companyName, setCompanyName] = useState(meta.company_name ?? '')
 	const [taxId, setTaxId] = useState(meta.tax_id ?? '')
 	const [defaultAddress, setDefaultAddress] = useState(
 		meta.default_address ?? '',
@@ -48,7 +49,7 @@ function ProfilePage() {
 	const [saved, setSaved] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0]
 		if (!file) return
 		setAvatarUrl(URL.createObjectURL(file))
@@ -66,47 +67,47 @@ function ProfilePage() {
 
 	const set =
 		(fn: (v: string) => void) =>
-		(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+		(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 			fn(e.target.value)
 			setHasChanges(true)
 			setSaved(false)
 		}
 
 	return (
-		<div className="flex-1 flex items-center justify-center h-full min-h-0 overflow-auto p-6 max-md:p-4">
+		<div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--p-bg)]">
 			<motion.div
-				initial={{ opacity: 0, y: 10 }}
+				initial={false}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.4 }}
-				className="w-full max-w-[520px]"
+				className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-start px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 md:justify-center md:py-10 lg:max-w-[620px] lg:px-8"
 			>
 				{/* Avatar centered */}
-				<div className="flex flex-col items-center mb-8">
-					<div className="relative mb-4">
+				<div className="mb-6 flex flex-col items-center text-center sm:mb-8">
+					<div className="relative mb-3 sm:mb-4">
 						<button
 							type="button"
 							onClick={() => fileInputRef.current?.click()}
-							className="relative overflow-hidden bg-[var(--p-card)] border border-[var(--p-border)] hover:border-[var(--p-border-strong)] transition-colors cursor-pointer group p-0"
-							style={{ width: 96, height: 96, borderRadius: '50%' }}
+							className="group relative h-20 w-20 cursor-pointer overflow-hidden rounded-full border border-[var(--p-border)] bg-[var(--p-card)] p-0 transition-colors hover:border-[var(--p-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--p-bg)] sm:h-24 sm:w-24"
+							aria-label={t('profilePage.changePhoto')}
 						>
 							{avatarUrl ? (
 								<img
 									src={avatarUrl}
 									alt=""
-									className="w-full h-full object-cover"
+									className="h-full w-full object-cover"
 								/>
 							) : (
-								<div className="w-full h-full flex items-center justify-center">
+								<div className="flex h-full w-full items-center justify-center">
 									<User
-										size={36}
+										size={32}
 										strokeWidth={0.8}
 										className="text-[var(--p-text-muted)]"
 									/>
 								</div>
 							)}
-							<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-full">
-								<Camera size={18} strokeWidth={1.5} className="text-white/90" />
-							</div>
+							<span className="absolute end-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-muted)] transition-colors group-hover:text-[var(--p-text)]">
+								<Camera size={18} strokeWidth={1.5} />
+							</span>
 						</button>
 						<input
 							ref={fileInputRef}
@@ -116,19 +117,21 @@ function ProfilePage() {
 							className="hidden"
 						/>
 					</div>
-					<h1 className="text-xl font-semibold tracking-tight text-[var(--p-text)]">
-						{fullName}
+					<h1 className="max-w-full break-words text-lg font-semibold tracking-normal text-[var(--p-text)] sm:text-xl">
+						{fullName || t('profilePage.title')}
 					</h1>
-					<p
-						className="text-[13px] font-mono text-[var(--p-text-muted)] mt-1 tracking-wide"
-						dir="ltr"
-					>
-						{phone}
-					</p>
+					{phone && (
+						<p
+							className="mt-1 font-mono text-[13px] tracking-normal text-[var(--p-text-muted)]"
+							dir="ltr"
+						>
+							{phone}
+						</p>
+					)}
 				</div>
 
 				{/* Fields */}
-				<div className="flex flex-col gap-5 mb-10">
+				<div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:gap-5">
 					<Field
 						label={t('profilePage.companyName')}
 						value={companyName}
@@ -138,32 +141,35 @@ function ProfilePage() {
 						label={t('profilePage.taxId')}
 						value={taxId}
 						onChange={set(setTaxId)}
+						placeholder={t('profilePage.taxIdPlaceholder')}
 						mono
 					/>
 					<Field
 						label={t('profilePage.defaultAddress')}
 						value={defaultAddress}
 						onChange={set(setDefaultAddress)}
+						placeholder={t('profilePage.addressPlaceholder')}
 					/>
 					<div>
-						<span className="mb-2 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
+						<span className="mb-1.5 block text-[13px] font-medium uppercase tracking-normal text-[var(--p-text-muted)]">
 							{t('profilePage.defaultNotes')}
 						</span>
 						<textarea
 							value={defaultNotes}
 							onChange={set(setDefaultNotes)}
 							rows={3}
-							className="w-full bg-transparent border-b border-[var(--p-border)] py-2.5 text-[15px] tracking-[-0.01em] leading-relaxed text-[var(--p-text)] outline-none focus:border-[var(--p-text-muted)] transition-colors duration-300 resize-none placeholder:text-[var(--p-text-muted)]/40 placeholder:font-light"
+							placeholder={t('profilePage.notesPlaceholder')}
+							className="min-h-28 w-full resize-none border-b border-[var(--p-border)] bg-transparent py-2.5 text-[16px] leading-relaxed tracking-normal text-[var(--p-text)] outline-none transition-colors duration-300 placeholder:font-light placeholder:text-[var(--p-text-muted)]/40 focus:border-[var(--p-text-muted)] sm:min-h-24 sm:text-[15px]"
 						/>
 					</div>
 				</div>
 
 				{/* Save */}
-				<div className="flex items-center gap-3">
+				<div className="sticky bottom-0 -mx-4 flex min-h-16 items-center gap-3 border-t border-[var(--p-border)] bg-[var(--p-bg)]/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:min-h-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
 					<Button
 						onPress={handleSave}
 						isDisabled={!hasChanges || saving}
-						className="flex h-10 items-center justify-center px-8 rounded-xl bg-[var(--p-text)] text-[13px] font-medium text-[var(--p-bg)] transition-all hover:opacity-90 pressed:opacity-80 cursor-pointer disabled:opacity-20 disabled:cursor-default"
+						className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md bg-[var(--p-text)] px-8 text-[13px] font-medium text-[var(--p-bg)] transition-all hover:opacity-90 pressed:opacity-80 disabled:cursor-default disabled:opacity-20 sm:w-auto"
 					>
 						{saving ? (
 							<Loader2 size={14} className="animate-spin" />
@@ -175,7 +181,7 @@ function ProfilePage() {
 						<motion.span
 							initial={{ opacity: 0, x: -4 }}
 							animate={{ opacity: 1, x: 0 }}
-							className="flex items-center gap-1.5 text-[13px] text-[var(--p-success)]"
+							className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--p-success)]"
 						>
 							<Check size={12} />
 							{t('profilePage.saved', 'Saved')}
@@ -196,13 +202,13 @@ function Field({
 }: {
 	label: string
 	value: string
-	onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+	onChange: (e: ChangeEvent<HTMLInputElement>) => void
 	placeholder?: string
 	mono?: boolean
 }) {
 	return (
 		<div>
-			<span className="mb-2 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
+			<span className="mb-1.5 block text-[13px] font-medium uppercase tracking-normal text-[var(--p-text-muted)]">
 				{label}
 			</span>
 			<input
@@ -210,7 +216,7 @@ function Field({
 				value={value}
 				onChange={onChange}
 				placeholder={placeholder}
-				className={`w-full bg-transparent border-b border-[var(--p-border)] py-2.5 text-[15px] tracking-[-0.01em] text-[var(--p-text)] outline-none focus:border-[var(--p-text-muted)] transition-colors duration-300 placeholder:text-[var(--p-text-muted)]/40 placeholder:font-light ${mono ? 'font-mono tracking-wider' : ''}`}
+				className={`min-h-11 w-full border-b border-[var(--p-border)] bg-transparent py-2.5 text-[16px] tracking-normal text-[var(--p-text)] outline-none transition-colors duration-300 placeholder:font-light placeholder:text-[var(--p-text-muted)]/40 focus:border-[var(--p-text-muted)] sm:text-[15px] ${mono ? 'font-mono' : ''}`}
 			/>
 		</div>
 	)

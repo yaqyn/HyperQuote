@@ -52,24 +52,24 @@ export function TicketList({ tickets, onSelect }: TicketListProps) {
 						key={ticket.id}
 						id={ticket.id}
 						textValue={ticket.subject}
-						className="flex items-center justify-between py-4 border-b border-[var(--color-border)] cursor-pointer outline-none transition-colors hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 rounded-sm -mx-2 px-2"
+						className="-mx-2 flex min-h-16 cursor-pointer flex-col gap-2 rounded-sm border-b border-[var(--color-border)] px-2 py-4 outline-none transition-colors hover:bg-[var(--color-surface)] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 sm:flex-row sm:items-center sm:justify-between"
 					>
 						<div className="flex flex-col gap-0.5 min-w-0 flex-1">
-							<span className="text-sm text-[var(--color-text)] truncate">
+							<span className="break-words text-sm text-[var(--color-text)] sm:truncate">
 								{ticket.subject}
 							</span>
-							<div className="flex items-center gap-3">
+							<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
 								<span className="text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
 									{statusLabel(ticket.status)}
 								</span>
 								{ticket.relatedOrderRef && (
-									<span className="font-mono text-[13px] text-[var(--color-text-muted)]">
+									<span className="break-all font-mono text-[13px] text-[var(--color-text-muted)]">
 										{ticket.relatedOrderRef}
 									</span>
 								)}
 							</div>
 						</div>
-						<span className="font-mono text-[13px] text-[var(--color-text-subtle)] shrink-0 ms-4">
+						<span className="shrink-0 font-mono text-[13px] text-[var(--color-text-subtle)] sm:ms-4">
 							{formattedDate}
 						</span>
 					</ListBoxItem>

@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { PanelLeft } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChatSidebar } from '../components/sidebar/ChatSidebar'
 import { useShortcut } from '../hooks/useShortcut'
@@ -33,10 +34,25 @@ export const Route = createFileRoute('/_portal')({
 
 function PortalLayout() {
 	const { auth, isInternalUser } = Route.useRouteContext()
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
 	const isSigningOut = usePortalStore((s) => s.isSigningOut)
 	const isSidebarOpen = usePortalStore((s) => s.isSidebarOpen)
 	const toggleSidebar = usePortalStore((s) => s.toggleSidebar)
+	const setSidebarOpen = usePortalStore((s) => s.setSidebarOpen)
+	const isCompactViewport = useCompactViewport()
+
+	useEffect(() => {
+		if (!isCompactViewport || !isSidebarOpen) return
+
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				setSidebarOpen(false)
+			}
+		}
+
+		document.addEventListener('keydown', handleKeyDown)
+		return () => document.removeEventListener('keydown', handleKeyDown)
+	}, [isCompactViewport, isSidebarOpen, setSidebarOpen])
 
 	if (isInternalUser) {
 		return (
@@ -61,6 +77,7 @@ function PortalLayout() {
 	const companyName = auth?.user?.user_metadata?.company_name ?? undefined
 	const roles: string[] = auth?.user?.user_metadata?.roles ?? []
 	const hasSupplierRole = roles.includes('supplier')
+	const sidebarInitialX = i18n.dir() === 'rtl' ? 24 : -24
 
 	return (
 		<div
@@ -69,7 +86,7 @@ function PortalLayout() {
 		>
 			{/* Office atmosphere — fades the whole interface during sign-out */}
 			<motion.div
-				initial={{ opacity: 0 }}
+				initial={false}
 				animate={isSigningOut ? { opacity: 0 } : { opacity: 1 }}
 				transition={
 					isSigningOut
@@ -81,7 +98,7 @@ function PortalLayout() {
 				{/* Very soft warm wash from above — pendant still on somewhere */}
 				<motion.div
 					className="pointer-events-none absolute inset-0 z-[1]"
-					initial={{ opacity: 0 }}
+					initial={false}
 					animate={{ opacity: 1 }}
 					transition={{ duration: 1.4, delay: 0.1, ease: 'easeOut' }}
 					style={{
@@ -89,28 +106,37 @@ function PortalLayout() {
 							'radial-gradient(ellipse 70% 30% at 50% 0%, rgba(243,214,163,0.035) 0%, transparent 70%)',
 					}}
 				/>
-				{/* Sidebar — width-animated so layout reflows as it opens/closes.
-				    Inner div keeps the fixed sidebar width; the outer wrapper
-				    clips it via overflow-hidden, and main content fills the
-				    freed space continuously instead of snapping. */}
 				<AnimatePresence initial={false}>
 					{isSidebarOpen && (
-						<motion.div
+						<motion.button
+							key="sidebar-scrim"
+							type="button"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.18, ease: 'easeOut' }}
+							className="fixed inset-0 z-30 bg-black/45 backdrop-blur-[2px] lg:hidden"
+							aria-label={t('sidebar.hide')}
+							onClick={() => setSidebarOpen(false)}
+						/>
+					)}
+					{isSidebarOpen && (
+						<motion.aside
 							key="sidebar"
-							initial={{ width: 0, opacity: 0 }}
-							animate={{ width: 260, opacity: 1 }}
-							exit={{ width: 0, opacity: 0 }}
-							transition={{ duration: 0.4, ease: SMOOTH_EASE }}
-							className="relative z-[2] h-full overflow-hidden"
+							initial={{ x: sidebarInitialX, opacity: 0 }}
+							animate={{ x: 0, opacity: 1 }}
+							exit={{ x: sidebarInitialX, opacity: 0 }}
+							transition={{ duration: 0.28, ease: SMOOTH_EASE }}
+							className="fixed inset-y-0 start-0 z-40 h-dvh w-[calc(100vw-3.5rem)] max-w-80 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:relative lg:z-[2] lg:h-full lg:w-[260px] lg:max-w-none lg:shrink-0 lg:p-0"
+							aria-label={t('sidebar.label')}
 						>
-							<div className="h-full" style={{ width: 260 }}>
-								<ChatSidebar
-									userName={userName}
-									companyName={companyName}
-									hasSupplierRole={hasSupplierRole}
-								/>
-							</div>
-						</motion.div>
+							<ChatSidebar
+								userName={userName}
+								companyName={companyName}
+								hasSupplierRole={hasSupplierRole}
+								closeOnNavigate={isCompactViewport}
+							/>
+						</motion.aside>
 					)}
 				</AnimatePresence>
 
@@ -119,11 +145,11 @@ function PortalLayout() {
 					<motion.button
 						type="button"
 						onClick={toggleSidebar}
-						initial={{ opacity: 0 }}
+						initial={false}
 						animate={{ opacity: 1 }}
 						transition={{ duration: 0.6, delay: 0.6, ease: 'easeOut' }}
-						className="absolute top-3 start-3 z-[3] inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-						aria-label="Show sidebar"
+						className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] start-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-md text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] lg:top-3 lg:h-9 lg:w-9"
+						aria-label={t('sidebar.show')}
 						aria-keyshortcuts="["
 					>
 						<PanelLeft size={16} strokeWidth={1.5} />
@@ -131,7 +157,7 @@ function PortalLayout() {
 				)}
 				{/* Main content — leads when sidebar is hidden by default */}
 				<motion.main
-					initial={{ opacity: 0, y: 8 }}
+					initial={false}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.75, delay: 0.2, ease: SMOOTH_EASE }}
 					className="relative z-[2] flex min-w-0 flex-1 flex-col"
@@ -148,6 +174,21 @@ function PortalLayout() {
 			<PortalShortcuts />
 		</div>
 	)
+}
+
+function useCompactViewport() {
+	const [isCompact, setIsCompact] = useState(false)
+
+	useEffect(() => {
+		const media = window.matchMedia('(max-width: 1023px)')
+		const update = () => setIsCompact(media.matches)
+
+		update()
+		media.addEventListener('change', update)
+		return () => media.removeEventListener('change', update)
+	}, [])
+
+	return isCompact
 }
 
 function PortalShortcuts() {

@@ -74,7 +74,7 @@ export function QuoteDetail({ quote }: QuoteDetailProps) {
 			setShowConfetti(true)
 			setShowAcceptModal(false)
 			toast.success(t('quoteDetail.acceptSuccess'))
-			navigate({ to: '/orders/$quoteId', params: { quoteId: quote.id } })
+			navigate({ to: '/orders/quotes/$quoteId', params: { quoteId: quote.id } })
 		},
 	})
 

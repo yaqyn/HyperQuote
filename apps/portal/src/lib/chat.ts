@@ -2,8 +2,7 @@
  * Portal AI chat server function.
  *
  * Two backends:
- *   1. Ollama (qwen3.5:cloud on localhost:11434) — when USE_OLLAMA=1 on the
- *      dev machine. Lyon actually talks.
+ *   1. Groq — when GROQ_API_KEY is configured and USE_AI is not disabled.
  *   2. Mock AG-UI stream — curated responses for prod and offline dev.
  *
  * Rich content (product / status / action cards) is keyword-matched on the

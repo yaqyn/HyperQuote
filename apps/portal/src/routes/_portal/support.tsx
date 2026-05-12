@@ -38,11 +38,11 @@ function SupportPage() {
 
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-			<div className="w-full max-w-[960px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
+			<div className="w-full max-w-[960px] mx-auto px-4 pb-10 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-8">
 				{/* Header */}
-				<motion.div {...stagger(0)} className="mb-10">
+				<motion.div {...stagger(0)} className="mb-8 sm:mb-10">
 					<h1
-						className="text-[22px] font-semibold tracking-tight"
+						className="break-words text-[20px] font-semibold tracking-tight sm:text-[22px]"
 						style={{
 							background:
 								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
@@ -56,7 +56,7 @@ function SupportPage() {
 				</motion.div>
 
 				{/* Service Grid — 4 tall cards */}
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+				<div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
 					<ServiceCard
 						index={0}
 						icon={Mail}
@@ -88,12 +88,12 @@ function SupportPage() {
 
 				{/* Resources — wide cards */}
 				<motion.div {...stagger(5)} className="mb-10">
-					<h2 className="text-[13px] uppercase tracking-[0.15em] text-[var(--p-text-muted)] mb-4">
+					<h2 className="mb-4 break-words text-[13px] uppercase tracking-[0.15em] text-[var(--p-text-muted)]">
 						{t('support.resources')}
 					</h2>
 
 					{/* Two-column row for docs + faq */}
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+					<div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
 						<ResourceCard
 							index={6}
 							icon={FileText}
@@ -116,9 +116,9 @@ function SupportPage() {
 						href="https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="flex items-center gap-5 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] transition-all group"
+						className="group flex min-h-20 items-start gap-4 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 transition-all hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] sm:items-center sm:gap-5 sm:p-5"
 					>
-						<div className="w-12 h-12 rounded-xl bg-[var(--p-elevated)] border border-[var(--p-border)] flex items-center justify-center shrink-0">
+						<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-elevated)] sm:h-12 sm:w-12">
 							<MapPin
 								size={20}
 								strokeWidth={1.5}
@@ -126,17 +126,17 @@ function SupportPage() {
 							/>
 						</div>
 						<div className="flex-1 min-w-0">
-							<p className="text-sm font-medium text-[var(--p-text)]">
+							<p className="break-words text-sm font-medium text-[var(--p-text)]">
 								{t('support.address')}
 							</p>
-							<p className="text-[13px] text-[var(--p-text-muted)] mt-0.5">
+							<p className="mt-0.5 break-words text-[13px] text-[var(--p-text-muted)]">
 								{t('support.addressValue')}
 							</p>
 						</div>
 						<ExternalLink
 							size={14}
 							strokeWidth={1.5}
-							className="text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+							className="shrink-0 text-[var(--p-text-muted)] opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
 						/>
 					</motion.a>
 				</motion.div>
@@ -176,26 +176,26 @@ function ServiceCard({
 			/>
 
 			{/* Icon */}
-			<div className="flex items-center justify-center h-28 mb-4">
+			<div className="mb-3 flex h-16 items-center justify-center sm:mb-4 sm:h-24 lg:h-28">
 				<Icon
-					size={38}
+					size={32}
 					strokeWidth={1}
-					className="text-[var(--p-text-secondary)] group-hover:text-[var(--p-text)] transition-all duration-500 ease-out group-hover:scale-110"
+					className="text-[var(--p-text-secondary)] transition-all duration-500 ease-out group-hover:scale-110 group-hover:text-[var(--p-text)] sm:size-[38px]"
 				/>
 			</div>
 
 			{/* Text */}
-			<h3 className="text-[14px] font-medium text-[var(--p-text)] mb-1.5">
+			<h3 className="mb-1.5 break-words text-[14px] font-medium text-[var(--p-text)]">
 				{t(labelKey)}
 			</h3>
-			<p className="text-[13px] text-[var(--p-text-muted)] leading-relaxed">
+			<p className="break-words text-[13px] leading-relaxed text-[var(--p-text-muted)]">
 				{t(descKey)}
 			</p>
 		</>
 	)
 
 	const className =
-		'group relative flex flex-col rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 pb-6 transition-all duration-500 ease-out hover:bg-[var(--p-elevated)] hover:border-[var(--p-border-strong)] cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)]'
+		'group relative flex min-h-[168px] flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 transition-all duration-500 ease-out hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--p-accent)] sm:min-h-[212px] sm:p-5 sm:pb-6'
 
 	if (href) {
 		return (
@@ -247,9 +247,9 @@ function ResourceCard({
 			href={href}
 			target="_blank"
 			rel="noopener noreferrer"
-			className="flex items-center gap-4 rounded-xl bg-[var(--p-card)] border border-[var(--p-border)] p-5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] transition-all group"
+			className="group flex min-h-20 items-start gap-4 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 transition-all hover:border-[var(--p-border-strong)] hover:bg-[var(--p-elevated)] sm:items-center sm:p-5"
 		>
-			<div className="w-10 h-10 rounded-lg bg-[var(--p-elevated)] border border-[var(--p-border)] flex items-center justify-center shrink-0">
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-elevated)]">
 				<Icon
 					size={16}
 					strokeWidth={1.5}
@@ -257,17 +257,17 @@ function ResourceCard({
 				/>
 			</div>
 			<div className="flex-1 min-w-0">
-				<p className="text-sm font-medium text-[var(--p-text)]">
+				<p className="break-words text-sm font-medium text-[var(--p-text)]">
 					{t(labelKey)}
 				</p>
-				<p className="text-[13px] text-[var(--p-text-muted)] mt-0.5">
+				<p className="mt-0.5 break-words text-[13px] text-[var(--p-text-muted)]">
 					{t(descKey)}
 				</p>
 			</div>
 			<ExternalLink
 				size={14}
 				strokeWidth={1.5}
-				className="text-[var(--p-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+				className="shrink-0 text-[var(--p-text-muted)] opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
 			/>
 		</motion.a>
 	)

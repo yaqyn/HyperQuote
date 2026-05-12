@@ -19,7 +19,14 @@ import {
 	X,
 } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+	type ReactNode,
+	type RefObject,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
@@ -31,6 +38,7 @@ interface ChatSidebarProps {
 	userName: string
 	companyName?: string
 	hasSupplierRole: boolean
+	closeOnNavigate?: boolean
 }
 
 const NAV_ITEMS = [
@@ -44,18 +52,19 @@ const NAV_ITEMS = [
 	{ labelKey: 'sidebar.nav.support', icon: LifeBuoy, to: '/support' as const },
 ]
 
+type NavTarget = (typeof NAV_ITEMS)[number]['to']
+
 export function ChatSidebar({
 	userName,
 	companyName,
 	hasSupplierRole,
+	closeOnNavigate = false,
 }: ChatSidebarProps) {
 	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
 	const matches = useMatches()
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const setActiveRole = usePortalStore((s) => s.setActiveRole)
-	const [collapsed, setCollapsed] = useState(false)
-	const [_historyOpen, _setHistoryOpen] = useState(true)
 	const [favoritesOpen, setFavoritesOpen] = useState(true)
 	const [chatsOpen, setChatsOpen] = useState(true)
 
@@ -72,214 +81,278 @@ export function ChatSidebar({
 
 	const favorites = conversations.filter((c) => c.pinned)
 	const recent = conversations.filter((c) => !c.pinned)
+	const firstName = userName?.trim().split(/\s+/)[0] ?? ''
+	const currentPath = matches[matches.length - 1]?.pathname ?? '/'
+
+	const closeSidebarAfterNavigate = useCallback(() => {
+		if (closeOnNavigate) {
+			usePortalStore.getState().setSidebarOpen(false)
+		}
+	}, [closeOnNavigate])
 
 	const handleNewChat = useCallback(() => {
 		clearActive(activeRole)
-	}, [clearActive, activeRole])
+		if (closeOnNavigate) {
+			navigate({ to: '/' })
+			closeSidebarAfterNavigate()
+		}
+	}, [
+		clearActive,
+		activeRole,
+		closeOnNavigate,
+		navigate,
+		closeSidebarAfterNavigate,
+	])
 
 	const handleSelect = useCallback(
 		(id: string) => {
 			loadConversation(activeRole, id)
+			if (closeOnNavigate) {
+				navigate({ to: '/' })
+				closeSidebarAfterNavigate()
+			}
 		},
-		[loadConversation, activeRole],
+		[
+			loadConversation,
+			activeRole,
+			closeOnNavigate,
+			navigate,
+			closeSidebarAfterNavigate,
+		],
 	)
 
-	if (collapsed) {
-		return (
-			<div className="office-wall flex flex-col items-center w-14 shrink-0 border-e border-[var(--p-border)] py-3 gap-3">
-				<button
-					type="button"
-					onClick={() => setCollapsed(false)}
-					className="w-9 h-9 flex items-center justify-center text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors"
-					aria-label="Expand sidebar"
-				>
-					<PanelLeft size={16} strokeWidth={1.5} />
-				</button>
-				<button
-					type="button"
-					onClick={handleNewChat}
-					className="w-9 h-9 flex items-center justify-center text-[var(--p-text-muted)] hover:text-[var(--p-text)] transition-colors"
-					aria-label={t('sidebar.newChat')}
-				>
-					<Plus size={16} strokeWidth={1.5} />
-				</button>
-				<div className="flex-1" />
-				<div className="w-8 h-8 flex items-center justify-center voice-serif italic text-[15px] text-[var(--p-text-muted)]">
-					{(userName || '?').charAt(0).toUpperCase()}.
-				</div>
-			</div>
-		)
-	}
+	const handleNavigate = useCallback(
+		(to: NavTarget) => {
+			navigate({ to })
+			closeSidebarAfterNavigate()
+		},
+		[navigate, closeSidebarAfterNavigate],
+	)
 
 	const stagger = (i: number) => ({
-		initial: { opacity: 0, y: 8 } as const,
+		initial: { opacity: 0, y: 6 } as const,
 		animate: { opacity: 1, y: 0 } as const,
 		transition: {
-			duration: 0.35,
-			delay: 0.45 + i * 0.07,
-			ease: [0.22, 1, 0.36, 1] as const,
+			duration: 0.28,
+			delay: 0.08 + i * 0.035,
+			ease: 'easeOut' as const,
 		},
 	})
 
 	return (
-		<div className="office-wall flex h-full w-[260px] shrink-0 flex-col border-e border-[var(--p-border)]">
-			{/* Masthead — personal welcome */}
-			<motion.div {...stagger(0)} className="px-5 pt-6 pb-4">
-				<div className="flex items-center justify-between gap-3">
-					<div className="flex flex-col gap-0.5">
-						<span className="voice-mono text-[9px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]">
-							Welcome
-						</span>
-						<span className="voice-display text-[20px] leading-none text-[var(--p-text)]">
-							{userName?.split(/\s+/)[0] ?? ''}
-						</span>
-					</div>
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							onClick={handleNewChat}
-							className="voice-mono inline-flex h-6 w-6 items-center justify-center border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:text-[var(--p-text)]"
-							aria-label={t('sidebar.newChat')}
-						>
-							<Plus size={12} strokeWidth={1.8} />
-						</button>
-						<button
-							type="button"
-							onClick={() => usePortalStore.getState().setSidebarOpen(false)}
-							className="inline-flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
-							aria-label="Hide sidebar"
-							aria-keyshortcuts="["
-						>
-							<PanelLeft size={13} strokeWidth={1.5} />
-						</button>
-					</div>
-				</div>
-			</motion.div>
+		<div className="relative flex h-full min-h-0 w-full max-w-full shrink-0 flex-col overflow-hidden border-e border-white/[0.07] bg-[#050505] shadow-2xl lg:shadow-none">
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-0"
+				style={{
+					background:
+						'radial-gradient(ellipse 120% 60% at 0% 0%, rgba(255,255,255,0.055), transparent 56%), linear-gradient(180deg, rgba(255,255,255,0.025), transparent 34%)',
+				}}
+			/>
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-y-0 end-0 w-px bg-gradient-to-b from-white/10 via-white/[0.035] to-transparent"
+			/>
 
-			<div className="office-rule mx-5 mb-2" />
+			<div className="relative flex h-full min-h-0 flex-col px-3 py-3 sm:px-4 sm:py-4">
+				<motion.header {...stagger(0)} className="shrink-0">
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex min-w-0 items-center gap-3">
+							<span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-[var(--p-text)] shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+								<span
+									aria-hidden
+									className="absolute inset-1 rounded-xl bg-white/[0.035]"
+								/>
+								<_NibMonogram />
+							</span>
+							<div className="min-w-0">
+								<p className="voice-mono truncate text-[9px] uppercase tracking-[0.26em] text-[var(--p-text-faint)]">
+									{t('sidebar.welcome')}
+								</p>
+								<p className="truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
+									{firstName}
+								</p>
+							</div>
+						</div>
 
-			{/* Nav — clean stack with ink-bar active indicator */}
-			<nav className="flex flex-col px-3 pb-4">
-				{NAV_ITEMS.map((item, idx) => {
-					const currentPath = matches[matches.length - 1]?.pathname ?? '/'
-					const isActive =
-						item.to === '/'
-							? currentPath === '/'
-							: currentPath.startsWith(item.to)
-					return (
-						<motion.button
-							key={item.labelKey}
-							{...stagger(1 + idx)}
-							type="button"
-							onClick={() => navigate({ to: item.to })}
-							aria-current={isActive ? 'page' : undefined}
-							className={`voice-mono relative flex h-9 items-center rounded-sm px-3 text-start text-[11px] uppercase tracking-[0.22em] transition-colors ${
-								isActive
-									? 'bg-[var(--p-hover)] text-[var(--p-text)]'
-									: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
-							}`}
-						>
-							<span
-								aria-hidden
-								className={`absolute inset-y-1.5 start-0 w-[2px] rounded-full transition-colors ${
-									isActive ? 'bg-[var(--p-text)]' : 'bg-transparent'
-								}`}
-							/>
-							<span>{t(item.labelKey)}</span>
-						</motion.button>
-					)
-				})}
-			</nav>
-
-			{/* Role toggle */}
-			{hasSupplierRole && (
-				<motion.div {...stagger(5)} className="px-5 pb-3">
-					<div className="flex items-center gap-4 border-y border-[var(--p-border)] py-2">
-						{(['customer', 'supplier'] as const).map((role) => (
+						<div className="flex shrink-0 items-center gap-1">
 							<button
-								key={role}
 								type="button"
-								onClick={() => setActiveRole(role)}
-								className={`voice-mono flex-1 text-[10px] uppercase tracking-[0.22em] transition-colors ${
-									activeRole === role
-										? 'text-[var(--p-text)]'
-										: 'text-[var(--p-text-muted)] hover:text-[var(--p-text-secondary)]'
+								onClick={handleNewChat}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.025] text-[var(--p-text-muted)] transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-[var(--p-text)]"
+								aria-label={t('sidebar.newChat')}
+							>
+								<Plus size={15} strokeWidth={1.8} />
+							</button>
+							<button
+								type="button"
+								onClick={() => usePortalStore.getState().setSidebarOpen(false)}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.045] hover:text-[var(--p-text)]"
+								aria-label={t('sidebar.hide')}
+								aria-keyshortcuts="["
+							>
+								<PanelLeft size={16} strokeWidth={1.5} />
+							</button>
+						</div>
+					</div>
+				</motion.header>
+
+				<motion.nav
+					{...stagger(1)}
+					className="mt-5 grid grid-cols-4 gap-1 lg:grid-cols-1"
+					aria-label={t('sidebar.label')}
+				>
+					{NAV_ITEMS.map((item) => {
+						const isActive =
+							item.to === '/'
+								? currentPath === '/'
+								: currentPath.startsWith(item.to)
+						const Icon = item.icon
+						return (
+							<button
+								key={item.labelKey}
+								type="button"
+								onClick={() => handleNavigate(item.to)}
+								aria-current={isActive ? 'page' : undefined}
+								className={`group relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-center transition-colors lg:h-11 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-xl lg:px-3 lg:text-start ${
+									isActive
+										? 'bg-white/[0.075] text-[var(--p-text)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
+										: 'text-[var(--p-text-muted)] hover:bg-white/[0.045] hover:text-[var(--p-text)]'
 								}`}
 							>
-								{t(`role.${role}`)}
+								<span
+									aria-hidden
+									className={`absolute start-2 top-2 hidden h-1.5 w-1.5 rounded-full transition-colors lg:block ${
+										isActive ? 'bg-[var(--p-text)]' : 'bg-transparent'
+									}`}
+								/>
+								<span
+									className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition-colors lg:h-8 lg:w-8 ${
+										isActive
+											? 'bg-white/10 text-[var(--p-text)]'
+											: 'bg-transparent text-[var(--p-text-faint)] group-hover:text-[var(--p-text-muted)]'
+									}`}
+								>
+									<Icon size={16} strokeWidth={1.65} />
+								</span>
+								<span className="min-w-0 max-w-full truncate text-[10px] font-medium leading-tight text-current lg:text-[13px]">
+									{t(item.labelKey)}
+								</span>
 							</button>
-						))}
-					</div>
-				</motion.div>
-			)}
+						)
+					})}
+				</motion.nav>
 
-			{/* Chat history */}
-			<motion.div {...stagger(6)} className="flex-1 overflow-y-auto px-2 pb-2">
-				{/* Draft Quote / Order History */}
-				<DraftSection />
+				{hasSupplierRole && (
+					<motion.div {...stagger(2)} className="mt-3 shrink-0">
+						<div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-1">
+							{(['customer', 'supplier'] as const).map((role) => (
+								<button
+									key={role}
+									type="button"
+									onClick={() => setActiveRole(role)}
+									className={`h-8 rounded-xl text-[11px] font-semibold transition-colors ${
+										activeRole === role
+											? 'bg-[var(--p-text)] text-[var(--p-bg)]'
+											: 'text-[var(--p-text-muted)] hover:bg-white/[0.045] hover:text-[var(--p-text)]'
+									}`}
+								>
+									{t(`role.${role}`)}
+								</button>
+							))}
+						</div>
+					</motion.div>
+				)}
 
-				{/* Favorites — pinned chats at top */}
+				<div className="my-4 h-px shrink-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-				{/* Chat History — favorites float to top */}
-				{favorites.length > 0 && (
-					<>
-						<SectionHeader
-							label={t('sidebar.starredChats')}
-							icon={<Star size={11} className="text-[var(--p-text-muted)]" />}
-							count={favorites.length}
-							open={favoritesOpen}
-							onToggle={() => setFavoritesOpen(!favoritesOpen)}
-						/>
-						{favoritesOpen && (
-							<div className="flex flex-col gap-px mb-2">
-								{favorites.map((conv) => (
+				<motion.div
+					{...stagger(3)}
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-2"
+				>
+					<DraftSection closeOnNavigate={closeOnNavigate} />
+
+					{favorites.length > 0 && (
+						<>
+							<SectionHeader
+								label={t('sidebar.starredChats')}
+								icon={<Star size={12} className="text-[var(--p-text-muted)]" />}
+								count={favorites.length}
+								open={favoritesOpen}
+								onToggle={() => setFavoritesOpen(!favoritesOpen)}
+							/>
+							{favoritesOpen && (
+								<div className="mb-2 flex flex-col gap-1">
+									{favorites.map((conv) => (
+										<ConversationItem
+											key={conv.id}
+											conversation={conv}
+											isActive={conv.id === activeConversationId}
+											onSelect={() => handleSelect(conv.id)}
+										/>
+									))}
+								</div>
+							)}
+						</>
+					)}
+
+					<SectionHeader
+						label={t('sidebar.chatHistory')}
+						count={recent.length}
+						open={chatsOpen}
+						onToggle={() => setChatsOpen(!chatsOpen)}
+					/>
+					{chatsOpen && (
+						<div className="mb-2 flex flex-col gap-1">
+							{recent.length > 0 ? (
+								recent.map((conv) => (
 									<ConversationItem
 										key={conv.id}
 										conversation={conv}
 										isActive={conv.id === activeConversationId}
 										onSelect={() => handleSelect(conv.id)}
 									/>
-								))}
-							</div>
-						)}
-					</>
-				)}
+								))
+							) : (
+								<p className="rounded-xl px-3 py-2 text-[13px] text-[var(--p-text-muted)]">
+									{t('sidebar.noChats')}
+								</p>
+							)}
+						</div>
+					)}
+				</motion.div>
 
-				<SectionHeader
-					label={t('sidebar.chatHistory')}
-					count={recent.length}
-					open={chatsOpen}
-					onToggle={() => setChatsOpen(!chatsOpen)}
-				/>
-				{chatsOpen && (
-					<div className="flex flex-col gap-px mb-2">
-						{recent.length > 0 ? (
-							recent.map((conv) => (
-								<ConversationItem
-									key={conv.id}
-									conversation={conv}
-									isActive={conv.id === activeConversationId}
-									onSelect={() => handleSelect(conv.id)}
-								/>
-							))
-						) : (
-							<p className="px-3 py-2 text-[13px] text-[var(--p-text-muted)]">
-								{t('sidebar.noChats')}
-							</p>
-						)}
-					</div>
-				)}
-			</motion.div>
-
-			{/* User profile with menu */}
-			<motion.div
-				{...stagger(7)}
-				className="border-t border-[var(--p-border)] px-3 py-3 relative"
-			>
-				<ProfileMenu userName={userName} companyName={companyName} />
-			</motion.div>
+				<motion.footer
+					{...stagger(4)}
+					className="relative shrink-0 border-t border-white/[0.07] pt-3"
+				>
+					<ProfileMenu
+						userName={userName}
+						companyName={companyName}
+						closeOnNavigate={closeOnNavigate}
+					/>
+				</motion.footer>
+			</div>
 		</div>
 	)
+}
+
+function useDraftModalFullscreen() {
+	const [isFullscreen, setIsFullscreen] = useState(() => {
+		if (typeof window === 'undefined') return false
+		return window.matchMedia('(max-width: 1023px)').matches
+	})
+
+	useEffect(() => {
+		const media = window.matchMedia('(max-width: 1023px)')
+		const update = () => setIsFullscreen(media.matches)
+
+		update()
+		media.addEventListener('change', update)
+		return () => media.removeEventListener('change', update)
+	}, [])
+
+	return isFullscreen
 }
 
 /* ============================================================================ */
@@ -320,9 +393,9 @@ function DisclosureGlyph({ open }: { open: boolean }) {
 	return (
 		<span
 			aria-hidden
-			className="voice-display text-[14px] leading-none text-[var(--p-text-faint)]"
+			className="text-[13px] leading-none text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]"
 		>
-			{open ? '−' : '+'}
+			{open ? '-' : '+'}
 		</span>
 	)
 }
@@ -335,7 +408,7 @@ function SectionHeader({
 	onToggle,
 }: {
 	label: string
-	icon?: React.ReactNode
+	icon?: ReactNode
 	count?: number
 	open: boolean
 	onToggle: () => void
@@ -344,18 +417,18 @@ function SectionHeader({
 		<button
 			type="button"
 			onClick={onToggle}
-			className="group flex w-full items-center gap-3 px-3 pt-6 pb-2 text-start"
+			className="group flex w-full items-center gap-2 px-1 pt-5 pb-2 text-start"
 		>
-			<span className="voice-mono flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]">
+			<span className="voice-mono flex min-w-0 items-center gap-2 truncate text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]">
 				{icon}
-				{label}
+				<span className="truncate">{label}</span>
 			</span>
 			<span
 				aria-hidden
-				className="h-px flex-1 bg-[var(--p-rule)] transition-colors group-hover:bg-[var(--p-rule-strong)]"
+				className="h-px flex-1 bg-white/[0.07] transition-colors group-hover:bg-white/[0.14]"
 			/>
 			{typeof count === 'number' && count > 0 && (
-				<span className="voice-mono tabular-nums text-[10px] text-[var(--p-text-faint)]">
+				<span className="voice-mono rounded-full bg-white/[0.045] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--p-text-muted)]">
 					{count}
 				</span>
 			)}
@@ -373,27 +446,28 @@ function ConversationItem({
 	isActive: boolean
 	onSelect: () => void
 }) {
-	const preview = conversation.preview || 'New conversation'
+	const { t } = useTranslation('portal')
+	const preview = conversation.preview || t('sidebar.newChat')
+
 	return (
 		<button
 			type="button"
 			onClick={onSelect}
-			className={`group relative w-full py-1.5 ps-3 text-start transition-colors ${
+			className={`group relative flex min-h-10 w-full items-center gap-2 rounded-xl px-2 py-2 text-start transition-colors ${
 				isActive
-					? 'text-[var(--p-text)]'
-					: 'text-[var(--p-text-muted)] hover:text-[var(--p-text)]'
+					? 'bg-white/[0.065] text-[var(--p-text)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
+					: 'text-[var(--p-text-muted)] hover:bg-white/[0.035] hover:text-[var(--p-text)]'
 			}`}
 		>
-			{/* Folder-tab ruled edge */}
 			<span
 				aria-hidden
-				className={`absolute inset-y-0 start-0 w-px transition-colors ${
+				className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
 					isActive
 						? 'bg-[var(--p-text)]'
-						: 'bg-[var(--p-rule)] group-hover:bg-[var(--p-rule-strong)]'
+						: 'bg-white/15 group-hover:bg-white/35'
 				}`}
 			/>
-			<span className="voice-serif block truncate text-[13px] italic leading-tight">
+			<span className="block min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
 				{preview}
 			</span>
 		</button>
@@ -403,9 +477,11 @@ function ConversationItem({
 function ProfileMenu({
 	userName,
 	companyName,
+	closeOnNavigate = false,
 }: {
 	userName: string
 	companyName?: string
+	closeOnNavigate?: boolean
 }) {
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
@@ -482,17 +558,17 @@ function ProfileMenu({
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="-mx-1 flex w-full items-baseline gap-3 px-1 py-1 text-start transition-colors hover:text-[var(--p-text)]"
+				className="group flex w-full min-w-0 items-center gap-3 rounded-2xl px-1 py-1.5 text-start transition-colors hover:bg-white/[0.035]"
 			>
-				<span className="voice-serif shrink-0 text-[20px] italic leading-none text-[var(--p-text-muted)]">
-					{initial}.
+				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-white/20">
+					{initial}
 				</span>
 				<div className="min-w-0 flex-1">
-					<p className="voice-mono truncate text-[11px] uppercase tracking-[0.16em] text-[var(--p-text)]">
+					<p className="truncate text-[13px] font-semibold leading-tight text-[var(--p-text)]">
 						{userName}
 					</p>
 					{companyName && (
-						<p className="voice-serif truncate text-[13px] italic text-[var(--p-text-muted)]">
+						<p className="truncate text-[12px] leading-tight text-[var(--p-text-muted)]">
 							{companyName}
 						</p>
 					)}
@@ -500,30 +576,40 @@ function ProfileMenu({
 			</button>
 
 			{open && (
-				<div className="absolute inset-x-0 bottom-full mb-2 overflow-hidden border border-[var(--p-border)] bg-[var(--p-card)] shadow-[0_8px_30px_rgba(0,0,0,0.55)]">
-					{menuItems.map((item) => (
-						<button
-							key={item.labelKey}
-							type="button"
-							onClick={() => {
-								setOpen(false)
-								item.action()
-							}}
-							className="voice-mono flex w-full items-center gap-2 px-4 py-2.5 text-start text-[11px] uppercase tracking-[0.2em] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-						>
-							<span>{t(item.labelKey)}</span>
-						</button>
-					))}
+				<div className="absolute inset-x-0 bottom-full mb-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080808]/95 p-1 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-xl">
+					{menuItems.map((item) => {
+						const Icon = item.icon
+						return (
+							<button
+								key={item.labelKey}
+								type="button"
+								onClick={() => {
+									setOpen(false)
+									item.action()
+									if (closeOnNavigate) {
+										usePortalStore.getState().setSidebarOpen(false)
+									}
+								}}
+								className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.055] hover:text-[var(--p-text)]"
+							>
+								<Icon size={15} strokeWidth={1.65} className="shrink-0" />
+								<span className="min-w-0 truncate">{t(item.labelKey)}</span>
+							</button>
+						)
+					})}
 				</div>
 			)}
 		</div>
 	)
 }
 
-function DraftSection() {
-	const { t, i18n } = useTranslation('portal')
+function DraftSection({
+	closeOnNavigate = false,
+}: {
+	closeOnNavigate?: boolean
+}) {
+	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
-	const _isAr = i18n.language === 'ar'
 	const items = useDraftQuoteStore((s) => s.items)
 	const [sectionOpen, setSectionOpen] = useState(true)
 	const [modalOpen, setModalOpen] = useState(false)
@@ -538,6 +624,11 @@ function DraftSection() {
 	const savedOrders = data?.orders?.filter((o) => o.type === 'saved') ?? []
 	const submittedOrders =
 		data?.orders?.filter((o) => o.type === 'submitted') ?? []
+	const closeSidebarAfterNavigate = useCallback(() => {
+		if (closeOnNavigate) {
+			usePortalStore.getState().setSidebarOpen(false)
+		}
+	}, [closeOnNavigate])
 
 	return (
 		<>
@@ -547,31 +638,31 @@ function DraftSection() {
 				onToggle={() => setSectionOpen(!sectionOpen)}
 			/>
 			{sectionOpen && (
-				<div className="flex flex-col mb-2">
-					{/* Draft */}
+				<div className="mb-2 flex flex-col gap-1">
 					{items.length > 0 && (
 						<button
 							ref={btnRef}
 							type="button"
 							onClick={() => setModalOpen(!modalOpen)}
-							className="flex items-center gap-2.5 px-3 py-2 rounded-md text-start transition-colors text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)] border border-transparent w-full"
+							className={`flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-start transition-colors ${
+								modalOpen
+									? 'border-white/15 bg-white/[0.07] text-[var(--p-text)]'
+									: 'border-white/[0.07] bg-white/[0.025] text-[var(--p-text-secondary)] hover:border-white/15 hover:bg-white/[0.05] hover:text-[var(--p-text)]'
+							}`}
 						>
-							<ClipboardList
-								size={14}
-								strokeWidth={1.5}
-								className="text-[var(--p-text)]"
-							/>
-							<span className="flex-1 text-[13px]">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-[var(--p-text)]">
+								<ClipboardList size={15} strokeWidth={1.6} />
+							</span>
+							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
 								{t('market.draftQuote')}
 							</span>
-							<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+							<span className="voice-mono rounded-full bg-[var(--p-text)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--p-bg)]">
 								{items.length}
 							</span>
 						</button>
 					)}
 
-					{/* Saved Orders */}
-					<p className="px-3 pt-3 pb-1 text-[13px] font-semibold text-[var(--p-text-muted)] uppercase tracking-wider">
+					<p className="voice-mono px-1 pt-3 pb-1 text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
 						{t('sidebar.savedOrders')}
 					</p>
 					{savedOrders.length > 0 ? (
@@ -579,30 +670,31 @@ function DraftSection() {
 							<button
 								key={order.id}
 								type="button"
-								onClick={() =>
+								onClick={() => {
 									navigate({
 										to: '/orders/edit/$orderId',
 										params: { orderId: order.id },
 									})
-								}
-								className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-start transition-colors text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)] w-full"
+									closeSidebarAfterNavigate()
+								}}
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.035] hover:text-[var(--p-text)]"
 							>
-								<span className="flex-1 text-[13px] truncate">
+								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/15" />
+								<span className="min-w-0 flex-1 truncate text-[13px] font-medium">
 									{order.name ?? 'Draft'}
 								</span>
-								<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+								<span className="voice-mono shrink-0 text-[11px] tabular-nums text-[var(--p-text-faint)]">
 									{order.itemCount}
 								</span>
 							</button>
 						))
 					) : (
-						<p className="px-3 py-1.5 text-[13px] text-[var(--p-text-muted)]">
+						<p className="rounded-xl px-2 py-1.5 text-[12px] text-[var(--p-text-faint)]">
 							{t('sidebar.noSavedOrders')}
 						</p>
 					)}
 
-					{/* Submitted Orders */}
-					<p className="px-3 pt-3 pb-1 text-[13px] font-semibold text-[var(--p-text-muted)] uppercase tracking-wider">
+					<p className="voice-mono px-1 pt-3 pb-1 text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
 						{t('sidebar.submittedOrders')}
 					</p>
 					{submittedOrders.length > 0 ? (
@@ -610,24 +702,26 @@ function DraftSection() {
 							<button
 								key={order.id}
 								type="button"
-								onClick={() =>
+								onClick={() => {
 									navigate({
 										to: '/orders/$orderId',
 										params: { orderId: order.id },
 									})
-								}
-								className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-start transition-colors text-[var(--p-text-secondary)] hover:bg-[var(--p-hover)] w-full"
+									closeSidebarAfterNavigate()
+								}}
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.035] hover:text-[var(--p-text)]"
 							>
-								<span className="flex-1 text-[13px] font-mono truncate">
+								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/15" />
+								<span className="voice-mono min-w-0 flex-1 truncate text-[12px] tabular-nums">
 									{order.reference}
 								</span>
-								<span className="font-mono text-[13px] text-[var(--p-text-muted)]">
+								<span className="voice-mono shrink-0 text-[11px] tabular-nums text-[var(--p-text-faint)]">
 									{order.itemCount}
 								</span>
 							</button>
 						))
 					) : (
-						<p className="px-3 py-1.5 text-[13px] text-[var(--p-text-muted)]">
+						<p className="rounded-xl px-2 py-1.5 text-[12px] text-[var(--p-text-faint)]">
 							{t('sidebar.noSubmittedOrders')}
 						</p>
 					)}
@@ -685,10 +779,11 @@ function DraftQuoteModal({
 	anchorRef,
 }: {
 	onClose: () => void
-	anchorRef: React.RefObject<HTMLButtonElement | null>
+	anchorRef: RefObject<HTMLButtonElement | null>
 }) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
+	const isCompactViewport = useDraftModalFullscreen()
 	const items = useDraftQuoteStore((s) => s.items)
 	const updateQuantity = useDraftQuoteStore((s) => s.updateQuantity)
 	const remove = useDraftQuoteStore((s) => s.remove)
@@ -696,13 +791,39 @@ function DraftQuoteModal({
 
 	const [pos, setPos] = useState({ top: 0, left: 0 })
 	useEffect(() => {
-		if (!anchorRef.current) return
-		const rect = anchorRef.current.getBoundingClientRect()
-		setPos({
-			top: rect.top,
-			left: rect.right + 8,
-		})
-	}, [anchorRef])
+		if (isCompactViewport || !anchorRef.current) return
+
+		function updatePosition() {
+			if (!anchorRef.current) return
+
+			const rect = anchorRef.current.getBoundingClientRect()
+			const modalWidth = Math.min(380, window.innerWidth - 24)
+			const modalHeight = Math.min(window.innerHeight * 0.6, 520)
+			const preferredLeft = isAr ? rect.left - modalWidth - 8 : rect.right + 8
+			const maxLeft = Math.max(12, window.innerWidth - modalWidth - 12)
+			const maxTop = Math.max(12, window.innerHeight - modalHeight - 12)
+
+			setPos({
+				top: Math.min(Math.max(rect.top, 12), maxTop),
+				left: Math.min(Math.max(preferredLeft, 12), maxLeft),
+			})
+		}
+
+		updatePosition()
+		window.addEventListener('resize', updatePosition)
+		return () => window.removeEventListener('resize', updatePosition)
+	}, [anchorRef, isAr, isCompactViewport])
+
+	useEffect(() => {
+		if (!isCompactViewport) return
+
+		const previousOverflow = document.body.style.overflow
+		document.body.style.overflow = 'hidden'
+
+		return () => {
+			document.body.style.overflow = previousOverflow
+		}
+	}, [isCompactViewport])
 
 	useEffect(() => {
 		function handleKey(e: KeyboardEvent) {
@@ -734,15 +855,29 @@ function DraftQuoteModal({
 				onClick={onClose}
 			/>
 			<motion.div
-				initial={{ opacity: 0, x: -8 }}
-				animate={{ opacity: 1, x: 0 }}
-				transition={{ duration: 0.15, ease: 'easeOut' }}
-				style={{ top: pos.top, left: pos.left }}
-				className="fixed z-[100] w-[380px] max-h-[60vh] flex flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_8px_40px_rgba(0,0,0,0.5)]"
+				initial={
+					isCompactViewport ? { opacity: 0, y: 16 } : { opacity: 0, x: -8 }
+				}
+				animate={
+					isCompactViewport ? { opacity: 1, y: 0 } : { opacity: 1, x: 0 }
+				}
+				transition={{ duration: 0.18, ease: 'easeOut' }}
+				style={isCompactViewport ? undefined : { top: pos.top, left: pos.left }}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="draft-quote-title"
+				className={
+					isCompactViewport
+						? 'fixed inset-0 z-[100] flex h-dvh w-screen flex-col overflow-hidden border-0 bg-[var(--p-bg)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-none'
+						: 'fixed z-[100] flex max-h-[min(60vh,520px)] w-[min(380px,calc(100vw-1.5rem))] flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_8px_40px_rgba(0,0,0,0.5)]'
+				}
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between px-6 py-4 border-b border-[var(--p-border)] shrink-0">
-					<h2 className="text-[16px] font-semibold text-[var(--p-text)]">
+					<h2
+						id="draft-quote-title"
+						className="text-[16px] font-semibold text-[var(--p-text)]"
+					>
 						{t('market.draftQuote')}
 					</h2>
 					<button
@@ -826,11 +961,11 @@ function DraftQuoteModal({
 				{/* Footer */}
 				{items.length > 0 && (
 					<div className="shrink-0 border-t border-[var(--p-border)] px-6 py-4 flex flex-col gap-3">
-						<div className="flex items-center gap-2">
+						<div className="grid grid-cols-2 gap-2 lg:flex lg:items-center">
 							<button
 								type="button"
 								onClick={handleShare}
-								className="h-9 px-3 rounded-lg border border-[var(--p-border)] text-[var(--p-text-secondary)] text-[13px] font-medium hover:text-[var(--p-text)] transition-colors flex items-center gap-1.5"
+								className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[var(--p-border)] px-3 text-[13px] font-medium text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)] lg:h-9"
 							>
 								<Share2 size={13} />
 								{t('market.share')}
@@ -840,16 +975,16 @@ function DraftQuoteModal({
 								onClick={() => {
 									/* save — already persisted */
 								}}
-								className="h-9 px-3 rounded-lg border border-[var(--p-border)] text-[var(--p-text-secondary)] text-[13px] font-medium hover:text-[var(--p-text)] transition-colors flex items-center gap-1.5"
+								className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[var(--p-border)] px-3 text-[13px] font-medium text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)] lg:h-9"
 							>
 								<Save size={13} />
 								{t('market.saveDraft')}
 							</button>
-							<div className="flex-1" />
+							<div className="hidden lg:block lg:flex-1" />
 							<button
 								type="button"
 								onClick={clear}
-								className="h-9 px-3 rounded-lg text-[var(--p-text-muted)] text-[13px] font-medium hover:text-[var(--p-error)] transition-colors flex items-center gap-1.5"
+								className="col-span-2 flex h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-error)] lg:col-span-1 lg:h-9"
 							>
 								<Trash2 size={13} />
 								{t('market.clearDraft')}

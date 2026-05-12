@@ -65,7 +65,7 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 							ease: [0.2, 0.8, 0.2, 1],
 							delay: 0.2 + idx * 0.08,
 						}}
-						className="group flex flex-col items-center gap-3 border border-[var(--p-border)] bg-transparent px-4 py-5 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+						className="group flex min-h-24 flex-col items-center gap-2 border border-[var(--p-border)] bg-transparent px-4 py-4 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-0 sm:gap-3 sm:py-5"
 					>
 						<span
 							aria-hidden
@@ -73,7 +73,7 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 						>
 							{numeral}
 						</span>
-						<span className="voice-mono text-[10px] uppercase tracking-[0.26em] text-[var(--p-text)]">
+						<span className="voice-mono text-[10px] uppercase tracking-[0.2em] text-[var(--p-text)] sm:tracking-[0.26em]">
 							{t(chip.labelKey)}
 						</span>
 						<span className="voice-serif text-[13px] leading-[1.4] text-[var(--p-text-muted)]">

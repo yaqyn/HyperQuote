@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
 import { useSharedChat } from '../../hooks/ChatProvider'
 import { useChatWidget } from '../../hooks/useChatWidget'
+import { ChatMarkdown } from '../chat/ChatMarkdown'
 import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
@@ -14,7 +15,8 @@ const MAPS_URL = 'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
 
 type HeroMode = 'hero' | 'contact' | 'docs' | 'chat'
 
-const transition = { duration: 0.5, ease: cubicBezier(0.25, 0.1, 0.25, 1) }
+const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
+const transition = { duration: 0.5, ease: EASE }
 
 export function HeroSection() {
 	const { t } = useTranslation('website')
@@ -58,7 +60,7 @@ export function HeroSection() {
 			>
 				<div className="overflow-hidden">
 					<span
-						className="block text-[56px] max-md:text-[40px] font-extrabold tracking-[-0.03em] text-[var(--color-text)]"
+						className="block text-[56px] max-md:text-[40px] font-extrabold tracking-normal text-[var(--color-text)]"
 						style={{
 							transform: stage >= 1 ? 'translateY(-120%)' : 'translateY(0)',
 							transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -69,11 +71,11 @@ export function HeroSection() {
 				</div>
 			</div>
 
-			{/* Hero section — 70vh default, 100vh when a mode is active */}
+			{/* Hero section — compact default, full screen when a mode is active */}
 			<section
 				className="relative flex flex-col bg-[var(--color-base)] overflow-hidden"
 				style={{
-					height: stage < 2 ? '100vh' : isExpanded ? '100vh' : '70vh',
+					height: stage < 2 || isExpanded ? '100svh' : 'min(820px, 78svh)',
 					transition: 'height 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
 				}}
 			>
@@ -82,7 +84,7 @@ export function HeroSection() {
 					className="absolute inset-0 flex items-center justify-center pointer-events-none"
 					aria-hidden="true"
 				>
-					<div className="relative w-[800px] h-[800px]">
+					<div className="relative h-[min(800px,120vw)] w-[min(800px,120vw)]">
 						<div
 							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
 							style={{ animation: 'hero-ring 12s linear infinite' }}
@@ -99,7 +101,7 @@ export function HeroSection() {
 				</div>
 
 				{/* Content area */}
-				<div className="flex-1 min-h-0 flex items-center justify-center relative">
+				<div className="flex-1 min-h-0 flex items-center justify-center relative px-5 sm:px-8">
 					<AnimatePresence mode="wait">
 						{mode === 'hero' && (
 							<motion.div
@@ -110,7 +112,7 @@ export function HeroSection() {
 								transition={transition}
 								className="text-center"
 							>
-								<h1 className="text-[56px] lg:text-[80px] leading-[1.3] font-extrabold tracking-[-0.03em]">
+								<h1 className="text-[48px] sm:text-[56px] md:text-[64px] lg:text-[80px] leading-[1.08] font-extrabold tracking-normal">
 									<span className="block overflow-hidden">
 										<span
 											className="block text-[var(--color-text)]"
@@ -144,7 +146,7 @@ export function HeroSection() {
 								{/* Mode buttons */}
 								<div
 									dir="ltr"
-									className="mt-8 flex items-center justify-center gap-1"
+									className="mt-7 flex flex-wrap items-center justify-center gap-x-1 gap-y-2 sm:mt-8"
 									style={{
 										opacity: stage >= 3 ? 1 : 0,
 										transform:
@@ -200,19 +202,19 @@ export function HeroSection() {
 								className="w-full h-full flex flex-col"
 							>
 								<div className="flex-1 overflow-y-auto">
-									<div className="max-w-[1200px] mx-auto px-6 lg:px-12 pt-24 pb-12">
+									<div className="mx-auto max-w-[1200px] px-4 pb-12 pt-24 sm:px-6 md:px-8 lg:px-12">
 										{/* Header */}
-										<div className="mb-12">
-											<p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-2">
+										<div className="mb-10 text-center md:mb-12 lg:text-start">
+											<p className="mb-2 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
 												{t('support.sectionContact')}
 											</p>
-											<h2 className="text-[32px] lg:text-[44px] font-extrabold text-[var(--color-text)] tracking-[-0.02em] leading-[1.05]">
+											<h2 className="text-[32px] lg:text-[44px] font-extrabold text-[var(--color-text)] tracking-normal leading-[1.05]">
 												{t('support.formHeading')}
 											</h2>
 										</div>
 
 										{/* Two-column: form + info */}
-										<div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-16 lg:gap-24">
+										<div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1fr] lg:gap-24">
 											<ContactForm />
 											<ContactInfo />
 										</div>
@@ -231,13 +233,13 @@ export function HeroSection() {
 								className="w-full h-full flex flex-col items-center justify-center px-6"
 							>
 								<div className="w-full max-w-[600px] text-center">
-									<h2 className="text-[48px] lg:text-[64px] font-extrabold tracking-[-0.03em] text-[var(--color-text)] leading-[1]">
+									<h2 className="text-[48px] lg:text-[64px] font-extrabold tracking-normal text-[var(--color-text)] leading-[1]">
 										{t('docs.heroHeading')}
 									</h2>
 									<p className="mt-5 text-[16px] text-[var(--color-text-muted)] leading-relaxed mx-auto max-w-[440px]">
 										{t('docs.heroSubheading')}
 									</p>
-									<p className="mt-2 font-mono text-[12px] text-[var(--color-text-subtle)] tracking-wide">
+									<p className="mt-2 font-mono text-[12px] tracking-normal text-[var(--color-text-subtle)]">
 										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)}{' '}
 										{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
 									</p>
@@ -283,8 +285,8 @@ export function HeroSection() {
 									initial={{ opacity: 0, y: 6 }}
 									animate={{ opacity: 1, y: 0 }}
 									exit={{ opacity: 0, y: -6 }}
-									transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-									className="flex items-center justify-between max-sm:flex-col max-sm:gap-4"
+									transition={{ duration: 0.3, ease: EASE }}
+									className="flex items-center justify-between gap-4 max-sm:flex-col"
 								>
 									<button
 										type="button"
@@ -329,10 +331,10 @@ export function HeroSection() {
 									initial={{ opacity: 0, y: 6 }}
 									animate={{ opacity: 1, y: 0 }}
 									exit={{ opacity: 0, y: -6 }}
-									transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-									className="flex items-center justify-between max-sm:flex-col max-sm:gap-4"
+									transition={{ duration: 0.3, ease: EASE }}
+									className="flex items-center justify-center gap-4 md:justify-between"
 								>
-									<div className="flex items-center gap-4">
+									<div className="hidden flex-wrap items-center justify-center gap-x-4 gap-y-2 md:flex">
 										<Link
 											to="/support"
 											hash="faq"
@@ -342,7 +344,7 @@ export function HeroSection() {
 										</Link>
 										<AddressCycle />
 									</div>
-									<div className="flex items-center gap-4">
+									<div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
 										<Link
 											to="/market"
 											className="inline-flex items-center text-[13px] font-semibold text-[var(--color-primary)] hover:text-white rounded-full border border-[var(--color-primary)]/30 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] px-3 py-1 transition-colors"
@@ -352,7 +354,7 @@ export function HeroSection() {
 										<button
 											type="button"
 											onClick={() => navigateTo({ to: '/login' })}
-											className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+											className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
 										>
 											{t('login.step1.heading')}
 										</button>
@@ -386,14 +388,11 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 		sendMessage(initialMessage)
 	}, [initialMessage, sendMessage])
 
-	const lastContent = messages[messages.length - 1]?.content ?? ''
-
 	useEffect(() => {
 		if (!messagesRef.current) return
 		messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-		// Re-run on new messages, on streaming-chunk growth of the last message,
-		// and when the typing indicator toggles — keeps the view stuck to bottom.
-	}, [messages.length, lastContent, isLoading])
+		// Runs after each render so streamed chat updates stay pinned to bottom.
+	})
 
 	async function send() {
 		const trimmed = input.trim()
@@ -419,7 +418,7 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 			<div ref={messagesRef} className="flex-1 min-h-0 overflow-y-auto">
 				{isEmpty && !isLoading ? (
 					<div className="h-full flex flex-col items-center justify-center gap-3">
-						<h2 className="text-[28px] lg:text-[40px] font-extrabold text-[var(--color-text)] tracking-[-0.03em]">
+						<h2 className="text-[28px] lg:text-[40px] font-extrabold text-[var(--color-text)] tracking-normal">
 							{t('chat.header')}
 						</h2>
 						<p className="text-[15px] text-[var(--color-text-subtle)] max-w-[360px] text-center">
@@ -433,16 +432,20 @@ function LyonChat({ initialMessage = '' }: { initialMessage?: string }) {
 								{msg.role === 'user' ? (
 									<div className="flex justify-end">
 										<div className="bg-[var(--color-surface)] rounded-2xl rounded-br-sm px-5 py-3 max-w-[75%]">
-											<p className="text-[15px] leading-[1.6] text-[var(--color-text)]">
-												{msg.content}
-											</p>
+											<ChatMarkdown
+												content={msg.content}
+												messageRole="user"
+												className="text-[15px] leading-[1.6] text-[var(--color-text)]"
+											/>
 										</div>
 									</div>
 								) : (
 									<div className="pe-12">
-										<p className="text-[15px] leading-[1.8] text-[var(--color-text)]">
-											{msg.content}
-										</p>
+										<ChatMarkdown
+											content={msg.content}
+											messageRole="assistant"
+											className="text-[15px] leading-[1.8] text-[var(--color-text)]"
+										/>
 									</div>
 								)}
 							</div>

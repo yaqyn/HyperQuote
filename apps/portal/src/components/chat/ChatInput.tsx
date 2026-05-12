@@ -243,12 +243,9 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 			</AnimatePresence>
 
 			{/* The Writing Line */}
-			<div className="flex items-end gap-4">
+			<div className="grid gap-2 sm:flex sm:items-end sm:gap-4">
 				{/* Margin label */}
-				<span
-					className="office-meta select-none shrink-0 pb-2 leading-none"
-					style={{ width: 60 }}
-				>
+				<span className="office-meta w-full select-none leading-none sm:w-[60px] sm:shrink-0 sm:pb-2">
 					{isAr ? 'اكتب' : 'Write'}
 				</span>
 
@@ -270,7 +267,7 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 							aria-multiline="true"
 							spellCheck={false}
 							dir="auto"
-							className="voice-mono flex-1 resize-none bg-transparent pb-2 text-[14px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+							className="voice-mono min-h-10 flex-1 resize-none bg-transparent pb-2 pt-2 text-[16px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)] sm:min-h-0 sm:pt-0 sm:text-[14px]"
 							style={{
 								height: `${LINE_HEIGHT + 4}px`,
 								lineHeight: `${LINE_HEIGHT}px`,
@@ -279,11 +276,11 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 						/>
 
 						{/* Margin glyphs — right side */}
-						<div className="flex items-center gap-1 pb-2 shrink-0">
+						<div className="flex shrink-0 items-center gap-1 pb-1 sm:pb-2">
 							<button
 								type="button"
 								onClick={startListening}
-								className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+								className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:h-6 sm:w-6"
 								aria-label={t('a11y.voiceInput')}
 							>
 								<Mic size={14} strokeWidth={1.5} />
@@ -292,7 +289,7 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 								<button
 									type="button"
 									onClick={() => chat.stop()}
-									className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+									className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:h-6 sm:w-6"
 									aria-label={t('a11y.stopGenerating')}
 								>
 									<Square size={11} strokeWidth={1.8} />
@@ -302,7 +299,7 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 									type="button"
 									onClick={handleSubmit}
 									disabled={!hasText}
-									className="flex h-6 w-6 items-center justify-center text-[var(--p-text-muted)] transition-colors enabled:hover:text-[var(--p-text)] disabled:opacity-40"
+									className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors enabled:hover:text-[var(--p-text)] disabled:opacity-40 sm:h-6 sm:w-6"
 									aria-label={t('a11y.sendMessage')}
 								>
 									<ArrowUp size={14} strokeWidth={1.8} />

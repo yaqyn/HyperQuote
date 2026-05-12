@@ -86,18 +86,19 @@ export function ArticleRenderer({
 							<div
 								key={key}
 								id={id}
-								className="scroll-mt-24 mb-4 mt-12 first:mt-0"
+								className="mb-4 mt-10 scroll-mt-24 first:mt-0 sm:mt-12"
 							>
-								<div className="flex items-center gap-3 justify-between">
-									<div className="flex items-baseline gap-3">
+								<div className="flex flex-col items-center gap-3 text-center lg:flex-row lg:items-start lg:justify-between lg:text-start">
+									<div className="flex min-w-0 flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-3">
 										<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
 											{String(headingCounter).padStart(2, '0')}
 										</span>
-										<Tag className="text-[18px] font-semibold tracking-[-0.01em]">
+										<Tag className="min-w-0 text-[18px] font-semibold tracking-normal">
 											{heading.text}
 										</Tag>
 									</div>
 									<AskLyonPill
+										className="self-center lg:self-start"
 										contextKey="docs.askLyonContext.tellMeAbout"
 										contextVars={{
 											heading: heading.text,
@@ -113,7 +114,7 @@ export function ArticleRenderer({
 						<Tag
 							key={key}
 							id={id}
-							className="scroll-mt-24 text-[16px] font-semibold mt-8 mb-3"
+							className="mb-3 mt-8 scroll-mt-24 text-center text-[16px] font-semibold lg:text-start"
 						>
 							{heading.text}
 						</Tag>
@@ -127,7 +128,7 @@ export function ArticleRenderer({
 						return (
 							<p
 								key={key}
-								className="drop-cap text-[15px] leading-[1.85] text-[var(--color-text-muted)] mb-5"
+								className="mb-5 text-start text-[15px] leading-[1.85] text-[var(--color-text-muted)] lg:drop-cap"
 							>
 								{renderInline(para.tokens)}
 							</p>
@@ -136,7 +137,7 @@ export function ArticleRenderer({
 					return (
 						<p
 							key={key}
-							className="text-[15px] leading-[1.85] text-[var(--color-text-muted)] mb-5"
+							className="mb-5 text-start text-[15px] leading-[1.85] text-[var(--color-text-muted)]"
 						>
 							{renderInline(para.tokens)}
 						</p>
@@ -149,8 +150,8 @@ export function ArticleRenderer({
 					return (
 						<Tag
 							key={key}
-							className={`mb-5 space-y-2 ${
-								list.ordered ? 'list-decimal ps-6' : 'list-disc ps-6'
+							className={`mb-5 list-outside space-y-2 ps-6 text-start ${
+								list.ordered ? 'list-decimal' : 'list-disc'
 							} text-[15px] leading-[1.85] text-[var(--color-text-muted)]`}
 						>
 							{list.items.map((item: Tokens.ListItem) => (
@@ -188,7 +189,7 @@ export function ArticleRenderer({
 					return (
 						<blockquote
 							key={key}
-							className="border-s-2 border-[var(--color-primary)]/30 ps-4 py-2 mb-5 text-[14px] text-[var(--color-text-muted)] leading-relaxed"
+							className="mx-auto mb-5 max-w-[620px] border-t border-[var(--color-primary)]/30 pt-4 text-start text-[14px] leading-relaxed text-[var(--color-text-muted)] lg:mx-0 lg:max-w-none lg:border-t-0 lg:border-s-2 lg:py-2 lg:ps-4"
 						>
 							{bq.tokens.map((tkn, i) => renderToken(tkn, i))}
 						</blockquote>
@@ -280,9 +281,9 @@ export function ArticleRenderer({
 	}, [markdown, articleTitle])
 
 	return (
-		<article className="flex-1 min-w-0 max-w-[800px]">
+		<article className="mx-auto min-w-0 max-w-[680px] flex-1 lg:mx-0 lg:max-w-[800px]">
 			{/* Breadcrumb */}
-			<div className="flex items-center gap-2 text-[12px] text-[var(--color-text-subtle)] mb-6">
+			<div className="mb-6 flex items-center justify-center gap-2 text-[12px] text-[var(--color-text-subtle)] lg:justify-start">
 				<Link
 					to="/docs"
 					className="hover:text-[var(--color-text)] transition-colors"
@@ -302,22 +303,19 @@ export function ArticleRenderer({
 			</div>
 
 			{/* Title */}
-			<h1
-				className="font-bold tracking-[-0.03em] leading-[1.1] mb-6"
-				style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)' }}
-			>
+			<h1 className="mb-6 text-center text-[1.85rem] font-bold leading-[1.1] tracking-normal sm:text-[2.1rem] lg:text-start lg:text-[2.25rem]">
 				{articleTitle}
 			</h1>
 
 			{/* Divider */}
-			<div className="mb-10 h-px bg-[var(--color-text)] opacity-[0.07]" />
+			<div className="mb-8 h-px bg-[var(--color-text)] opacity-[0.07] sm:mb-10" />
 
 			{/* Content */}
 			{elements}
 
 			{/* Bottom navigation */}
 			<div className="mt-16 pt-8 border-t border-[var(--color-text)]/[0.07]">
-				<div className="flex items-stretch justify-between gap-4">
+				<div className="flex flex-col gap-5 sm:flex-row sm:items-stretch sm:justify-between">
 					{prev ? (
 						<Link
 							to="/docs/$categorySlug/$articleSlug"
@@ -325,12 +323,12 @@ export function ArticleRenderer({
 								categorySlug: prev.categorySlug,
 								articleSlug: prev.slug,
 							}}
-							className="group flex flex-col items-start text-start"
+							className="group flex min-w-0 flex-col items-center text-center sm:items-start sm:text-start"
 						>
 							<span className="text-[11px] text-[var(--color-text-subtle)] mb-1">
 								{t('docs.nav.previous', { defaultValue: 'Previous' })}
 							</span>
-							<span className="text-[14px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">
+							<span className="break-words text-[14px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text)]">
 								{t(prev.titleKey, { defaultValue: displayName(prev.titleKey) })}
 							</span>
 						</Link>
@@ -345,13 +343,17 @@ export function ArticleRenderer({
 								categorySlug: next.categorySlug,
 								articleSlug: next.slug,
 							}}
-							className="group flex flex-col items-end text-end"
+							className="group flex min-w-0 flex-col items-center text-center sm:items-end sm:text-end"
 						>
 							<span className="text-[11px] text-[var(--color-text-subtle)] mb-1">
 								{t('docs.nav.next', { defaultValue: 'Next' })}
 							</span>
-							<span className="flex items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">
-								{t(next.titleKey, { defaultValue: displayName(next.titleKey) })}
+							<span className="flex items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text)]">
+								<span className="break-words">
+									{t(next.titleKey, {
+										defaultValue: displayName(next.titleKey),
+									})}
+								</span>
 								<ArrowRight size={14} className="icon-end" />
 							</span>
 						</Link>

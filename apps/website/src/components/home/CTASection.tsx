@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
@@ -8,12 +9,12 @@ export function CTASection() {
 	return (
 		<section
 			dir="ltr"
-			className="bg-[#101010] py-28 max-md:py-20 px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32"
+			className="bg-[#101010] px-5 py-20 sm:px-8 md:px-12 md:py-24 lg:px-24 lg:py-28 xl:px-32"
 		>
 			<SectionReveal>
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+				<div className="flex flex-col items-center gap-8 text-center lg:flex-row lg:items-center lg:justify-between lg:text-start">
 					<div>
-						<h2 className="text-[28px] lg:text-[36px] font-extrabold text-white tracking-[-0.02em] leading-tight">
+						<h2 className="text-[28px] lg:text-[36px] font-extrabold text-white tracking-normal leading-tight">
 							{t('cta.readyToBuild')}
 						</h2>
 						<p className="mt-2 text-[15px] text-[#808080]">
@@ -22,9 +23,10 @@ export function CTASection() {
 					</div>
 					<Link
 						to="/market"
-						className="inline-flex items-center justify-center text-[14px] font-semibold text-[#3B82F6] hover:text-white transition-colors shrink-0"
+						className="inline-flex items-center justify-center gap-2 text-[14px] font-semibold text-[#3B82F6] hover:text-white transition-colors shrink-0"
 					>
-						{t('cta.browseMarket')} →
+						{t('cta.browseMarket')}
+						<ArrowRight size={15} className="icon-end" aria-hidden="true" />
 					</Link>
 				</div>
 			</SectionReveal>

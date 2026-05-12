@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WizardStep } from '../../content/registry'
@@ -11,6 +11,8 @@ interface WizardRendererProps {
 	guideSlug: string
 	guideTitleKey: string
 }
+
+const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
 
 export function WizardRenderer({
 	steps,
@@ -53,13 +55,13 @@ export function WizardRenderer({
 	const isLast = currentStep === steps.length - 1
 
 	return (
-		<div className="max-w-[720px] mx-auto">
+		<div className="mx-auto max-w-[720px]">
 			{/* Progress */}
-			<div className="flex items-center justify-between mb-8">
+			<div className="mb-6 flex items-center justify-between sm:mb-8">
 				<span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-text-subtle)]">
 					{currentStep + 1} / {steps.length}
 				</span>
-				<div className="flex-1 mx-4 h-px bg-[var(--color-text)]/[0.07] relative">
+				<div className="relative mx-4 h-px flex-1 bg-[var(--color-text)]/[0.07]">
 					<div
 						className="absolute inset-y-0 start-0 bg-[var(--color-primary)] transition-all duration-300 ease-out"
 						style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
@@ -72,7 +74,7 @@ export function WizardRenderer({
 							key={s.id}
 							type="button"
 							onClick={() => goTo(i)}
-							className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
+							className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
 								i === currentStep
 									? 'bg-[var(--color-primary)] scale-125'
 									: i < currentStep
@@ -93,32 +95,32 @@ export function WizardRenderer({
 					initial={{ opacity: 0, x: direction * 40 }}
 					animate={{ opacity: 1, x: 0 }}
 					exit={{ opacity: 0, x: direction * -40 }}
-					transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+					transition={{ duration: 0.25, ease: EASE }}
 				>
 					{/* Illustration */}
 					<WizardIllustration
 						type={step.illustration}
-						className="aspect-[16/9] mb-8 rounded-lg"
+						className="mb-6 aspect-[16/9] rounded-lg sm:mb-8"
 					/>
 
 					{/* Text */}
-					<div className="flex items-baseline gap-3 mb-3">
+					<div className="mb-3 flex flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-3">
 						<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
 							{String(currentStep + 1).padStart(2, '0')}
 						</span>
-						<h2 className="text-[22px] font-semibold tracking-[-0.02em]">
+						<h2 className="min-w-0 text-[20px] font-semibold tracking-normal sm:text-[22px]">
 							{t(step.titleKey, { defaultValue: step.title })}
 						</h2>
 					</div>
 
-					<p className="text-[15px] leading-[1.8] text-[var(--color-text-muted)] ps-8 mb-4">
+					<p className="mx-auto mb-4 max-w-[560px] text-start text-[15px] leading-[1.8] text-[var(--color-text-muted)] lg:mx-0 lg:max-w-none lg:ps-8">
 						{t(step.bodyKey, { defaultValue: step.body })}
 					</p>
 
 					{step.tipText && (
-						<div className="ps-8 mb-4">
-							<div className="border-s-2 border-[var(--color-primary)]/30 ps-4 py-2">
-								<p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">
+						<div className="mb-4 lg:ps-8">
+							<div className="mx-auto max-w-[520px] border-t border-[var(--color-primary)]/30 pt-3 lg:mx-0 lg:max-w-none lg:border-t-0 lg:border-s-2 lg:py-2 lg:ps-4">
+								<p className="text-start text-[13px] leading-relaxed text-[var(--color-text-muted)]">
 									{t(step.tip ?? '', { defaultValue: step.tipText })}
 								</p>
 							</div>
@@ -127,7 +129,7 @@ export function WizardRenderer({
 
 					{/* Step link — opens in new tab to preserve wizard state */}
 					{step.link && (
-						<div className="ps-8 mt-4">
+						<div className="mt-4 text-center lg:ps-8 lg:text-start">
 							<a
 								href={step.link.to}
 								target="_blank"
@@ -141,7 +143,7 @@ export function WizardRenderer({
 					)}
 
 					{/* Ask Lyon for this step */}
-					<div className="ps-8 mt-4">
+					<div className="mt-4 text-center lg:ps-8 lg:text-start">
 						<AskLyonPill
 							contextKey="docs.askLyonContext.helpMeWith"
 							contextVars={{
@@ -154,12 +156,12 @@ export function WizardRenderer({
 			</AnimatePresence>
 
 			{/* Navigation */}
-			<div className="flex items-center justify-between mt-12 pt-8 border-t border-[var(--color-text)]/[0.07]">
+			<div className="mt-10 flex items-center justify-between gap-4 border-t border-[var(--color-text)]/[0.07] pt-6 sm:mt-12 sm:pt-8">
 				<button
 					type="button"
 					onClick={prev}
 					disabled={isFirst && !isLast}
-					className={`inline-flex items-center gap-2 text-[14px] font-medium transition-colors ${
+					className={`inline-flex min-h-11 items-center gap-2 text-[14px] font-medium transition-colors ${
 						isFirst && !isLast
 							? 'opacity-25 cursor-not-allowed'
 							: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
@@ -173,7 +175,7 @@ export function WizardRenderer({
 					<button
 						type="button"
 						onClick={() => goTo(0)}
-						className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+						className="inline-flex min-h-11 items-center gap-2 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
 					>
 						<RotateCcw size={14} />
 						{t('docs.wizard.startOver', { defaultValue: 'Start over' })}
@@ -182,7 +184,7 @@ export function WizardRenderer({
 					<button
 						type="button"
 						onClick={next}
-						className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+						className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
 					>
 						{t('docs.wizard.next', { defaultValue: 'Next' })}
 						<ArrowRight size={15} className="icon-end" />

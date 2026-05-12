@@ -188,15 +188,15 @@ function MarketPage() {
 	}
 
 	return (
-		<div className="min-h-screen pt-20 max-md:pt-16">
+		<div className="min-h-screen pt-[72px] pb-12 md:pt-[88px]">
 			{/* Top bar */}
-			<section className="px-6 lg:px-12 pb-6">
+			<section className="px-4 pb-5 sm:px-6 lg:px-12 lg:pb-6">
 				<div className="mx-auto max-w-[1400px]">
-					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-						<h1 className="text-[28px] lg:text-[36px] font-extrabold tracking-[-0.02em]">
+					<div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:items-center lg:justify-between lg:text-start">
+						<h1 className="w-full text-[28px] font-extrabold tracking-normal lg:w-auto lg:text-[36px]">
 							{t('market.pageTitle')}
 						</h1>
-						<div className="w-full md:w-auto md:min-w-[360px] lg:min-w-[420px]">
+						<div className="mx-auto w-full max-w-[520px] lg:mx-0 lg:w-[420px]">
 							<MarketSearch
 								items={data.items}
 								onSearch={(q) => nav({ q: q || undefined })}
@@ -208,9 +208,9 @@ function MarketPage() {
 
 			{/* Category strip + sort */}
 			<section className="border-y border-[var(--color-border)] py-3">
-				<div className="mx-auto max-w-[1400px] flex items-center gap-4 px-6 lg:px-12">
-					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-						<div className="flex items-center gap-2">
+				<div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 overflow-hidden px-4 sm:px-6 lg:flex-row lg:px-12">
+					<div className="w-full min-w-0 lg:flex-1">
+						<div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
 							{CATEGORIES.map((cat) => {
 								const isActive = categories.includes(cat)
 								return (
@@ -218,7 +218,7 @@ function MarketPage() {
 										key={cat}
 										type="button"
 										onClick={() => toggleCategory(cat)}
-										className={`shrink-0 px-3.5 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
+										className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
 											isActive
 												? 'bg-[var(--color-text)] text-[var(--color-base)]'
 												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
@@ -235,7 +235,7 @@ function MarketPage() {
 					</div>
 
 					{/* Sort */}
-					<div className="hidden md:flex items-center shrink-0">
+					<div className="hidden shrink-0 items-center sm:flex">
 						<Select
 							selectedKey={search.sort || 'relevance'}
 							onSelectionChange={(key) =>
@@ -277,7 +277,7 @@ function MarketPage() {
 			</section>
 
 			{/* Product grid */}
-			<section className="px-6 lg:px-12 py-8">
+			<section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
 				<div className="mx-auto max-w-[1400px]">
 					{data.items.length === 0 ? (
 						<EmptyState
@@ -306,7 +306,7 @@ function MarketPage() {
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}
 								transition={{ duration: 0.25, ease: 'easeOut' }}
-								className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6"
+								className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
 							>
 								{data.items.map((item) => (
 									<ProductCard key={item.id} product={item} variant="grid" />
@@ -338,14 +338,14 @@ const MARKET_CARD_SKELETON_KEYS = Array.from(
 
 function MarketLoading() {
 	return (
-		<div className="min-h-screen pt-20 max-md:pt-16">
-			<section className="px-6 lg:px-12 pb-6">
+		<div className="min-h-screen pt-[72px] md:pt-[88px]">
+			<section className="px-4 pb-5 sm:px-6 lg:px-12 lg:pb-6">
 				<div className="mx-auto max-w-[1400px]">
 					<div className="h-10 w-48 rounded-lg bg-[var(--color-surface)] animate-pulse" />
 				</div>
 			</section>
 			<section className="border-y border-[var(--color-border)] py-3">
-				<div className="mx-auto max-w-[1400px] px-6 lg:px-12 flex gap-2">
+				<div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12 flex gap-2">
 					{MARKET_FILTER_SKELETON_KEYS.map((k) => (
 						<div
 							key={k}
@@ -354,9 +354,9 @@ function MarketLoading() {
 					))}
 				</div>
 			</section>
-			<section className="px-6 lg:px-12 py-8">
+			<section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
 				<div className="mx-auto max-w-[1400px]">
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+					<div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6">
 						{MARKET_CARD_SKELETON_KEYS.map((k) => (
 							<div key={k} className="animate-pulse">
 								<div className="aspect-[3/2] rounded-lg bg-[var(--color-surface)]" />

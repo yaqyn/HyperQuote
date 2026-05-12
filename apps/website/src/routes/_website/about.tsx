@@ -42,20 +42,17 @@ function AboutPage() {
 				initial="hidden"
 				animate="visible"
 				variants={reveal}
-				className="px-6 lg:px-16 pt-28 pb-16 lg:pt-40 lg:pb-20"
+				className="px-4 pt-24 pb-12 sm:px-6 sm:pt-28 md:px-8 md:pt-32 md:pb-16 lg:px-16 lg:pt-40 lg:pb-20"
 			>
-				<div className="max-w-[1400px] mx-auto">
-					<span className="block font-mono text-[12px] tracking-[0.1em] uppercase mb-10 opacity-25">
+				<div className="mx-auto max-w-[1400px] text-center lg:text-start">
+					<span className="mb-8 block font-mono text-[12px] uppercase tracking-normal text-[var(--color-text-subtle)] sm:mb-10">
 						{t('about.established')}
 					</span>
-					<h1
-						className="leading-[1.05] tracking-[-0.04em]"
-						style={{ fontSize: 'clamp(2.8rem, 7vw, 6rem)' }}
-					>
+					<h1 className="mx-auto max-w-[920px] text-[clamp(2.65rem,13vw,4.75rem)] leading-[1.04] tracking-normal lg:mx-0 lg:text-[clamp(3.75rem,7vw,6rem)]">
 						<span className="block font-light">{t('about.heroLine1')}</span>
 						<span className="block font-bold">{t('about.heroLine2')}</span>
 					</h1>
-					<p className="mt-10 text-[16px] leading-[1.85] text-[var(--color-text-muted)] max-w-[520px]">
+					<p className="mx-auto mt-8 max-w-[560px] text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:mt-10 sm:text-[16px] lg:mx-0">
 						{t('about.heroSubheadline')}
 					</p>
 				</div>
@@ -67,10 +64,10 @@ function AboutPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 lg:px-16"
+				className="px-4 sm:px-6 md:px-8 lg:px-16"
 			>
 				<div className="max-w-[1400px] mx-auto">
-					<div className="aspect-[21/8] overflow-hidden rounded-2xl">
+					<div className="aspect-[16/10] overflow-hidden rounded-xl sm:aspect-[16/7] sm:rounded-2xl lg:aspect-[21/8]">
 						<img
 							src="https://websiteassets.hyperquote.net/Images/boxtree.webp"
 							alt=""
@@ -86,14 +83,14 @@ function AboutPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 lg:px-16"
+				className="px-4 sm:px-6 md:px-8 lg:px-16"
 			>
-				<div className="max-w-[1400px] mx-auto border-t border-[var(--color-text)]/[0.06] py-20 lg:py-28">
-					<div className="grid grid-cols-1 lg:grid-cols-[0.35fr_0.65fr] gap-12 lg:gap-24">
-						<h2 className="text-[24px] lg:text-[28px] font-bold tracking-[-0.02em] leading-tight lg:sticky lg:top-24">
+				<div className="max-w-[1400px] mx-auto border-t border-[var(--color-text)]/[0.06] py-14 sm:py-16 lg:py-24">
+					<div className="grid grid-cols-1 gap-8 lg:grid-cols-[0.35fr_0.65fr] lg:gap-24">
+						<h2 className="text-center text-[24px] font-bold leading-tight tracking-normal lg:sticky lg:top-24 lg:text-start lg:text-[28px]">
 							{t('about.story.heading')}
 						</h2>
-						<div className="space-y-6">
+						<div className="space-y-5 sm:space-y-6">
 							<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
 								{t('about.story.p1')}
 							</p>
@@ -116,14 +113,17 @@ function AboutPage() {
 				variants={reveal}
 				className="bg-[#0A0A0A]"
 			>
-				<div className="max-w-[1400px] mx-auto px-6 lg:px-16 py-20 lg:py-28">
-					<h2 className="text-[24px] lg:text-[28px] font-bold tracking-[-0.02em] text-white mb-14">
+				<div className="max-w-[1400px] mx-auto px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24">
+					<h2 className="mb-10 text-center text-[24px] font-bold tracking-normal text-white md:mb-12 lg:mb-14 lg:text-start lg:text-[28px]">
 						{t('about.mission.heading')}
 					</h2>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
 						{VALUE_KEYS.map((key) => (
-							<div key={key} className="rounded-2xl bg-[#161616] p-8">
-								<h3 className="text-[17px] font-semibold text-white mb-3">
+							<div
+								key={key}
+								className="rounded-xl bg-[#161616] p-6 text-center lg:p-8 lg:text-start"
+							>
+								<h3 className="mb-3 text-[17px] font-semibold text-white">
 									{t(`about.mission.${key}.title` as ParseKeys<'website'>)}
 								</h3>
 								<p className="text-[14px] leading-[1.75] text-[#707070]">
@@ -143,15 +143,15 @@ function AboutPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 lg:px-16 py-20 lg:py-28"
+				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24"
 			>
 				<div className="max-w-[1400px] mx-auto">
-					<h2 className="text-[24px] lg:text-[28px] font-bold tracking-[-0.02em] mb-14">
+					<h2 className="mb-10 text-center text-[24px] font-bold tracking-normal md:mb-12 lg:mb-14 lg:text-start lg:text-[28px]">
 						{t('about.team.heading')}
 					</h2>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-10">
+					<div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4 lg:gap-x-8 lg:gap-y-10">
 						{TEAM_KEYS.map((key) => (
-							<div key={key}>
+							<div key={key} className="text-center lg:text-start">
 								<p className="text-[15px] font-semibold">
 									{t(`about.team.${key}.name` as ParseKeys<'website'>)}
 								</p>
@@ -170,21 +170,21 @@ function AboutPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 lg:px-16 pb-20 lg:pb-28"
+				className="px-4 pb-14 sm:px-6 sm:pb-16 md:px-8 lg:px-16 lg:pb-24"
 			>
 				<div className="max-w-[1400px] mx-auto">
-					<div className="rounded-2xl bg-[var(--color-surface)] px-8 py-12 lg:px-14 lg:py-16 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+					<div className="flex flex-col items-center gap-8 rounded-xl bg-[var(--color-surface)] px-6 py-9 text-center sm:px-8 sm:py-12 lg:flex-row lg:items-center lg:justify-between lg:px-14 lg:py-16 lg:text-start">
 						<div>
-							<h2 className="text-[24px] lg:text-[32px] font-bold tracking-[-0.02em] leading-tight">
+							<h2 className="text-[24px] font-bold leading-tight tracking-normal lg:text-[32px]">
 								{t('about.careers.heading')}
 							</h2>
-							<p className="mt-3 text-[15px] leading-[1.7] text-[var(--color-text-muted)] max-w-[480px]">
+							<p className="mx-auto mt-3 max-w-[480px] text-[15px] leading-[1.7] text-[var(--color-text-muted)] lg:mx-0">
 								{t('about.careers.description')}
 							</p>
 						</div>
 						<Link
 							to="/careers"
-							className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors shrink-0"
+							className="inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-auto"
 						>
 							{t('about.careers.cta')}
 							<ArrowRight size={16} className="icon-end" />

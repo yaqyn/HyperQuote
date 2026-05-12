@@ -31,7 +31,7 @@ function getTargetRoute(
 ): string {
 	switch (targetType) {
 		case 'quote':
-			return `/quotes/${targetId}`
+			return `/orders/quotes/${targetId}`
 		case 'order':
 			return `/orders/${targetId}`
 		case 'delivery':

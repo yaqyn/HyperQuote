@@ -3,7 +3,7 @@ import { QuoteDetail } from '../../components/quote-detail/QuoteDetail'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { getQuoteDetail } from '../../lib/server/quotes'
 
-export const Route = createFileRoute('/_portal/orders_/$quoteId')({
+export const Route = createFileRoute('/_portal/orders_/quotes/$quoteId')({
 	loader: async ({ params }) => {
 		return getQuoteDetail({ data: { quoteId: params.quoteId } })
 	},
@@ -14,10 +14,10 @@ function QuoteDetailRoute() {
 	const quote = Route.useLoaderData()
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-			<div className="w-full max-w-[800px] mx-auto px-6 max-md:px-4 py-8 max-md:py-5">
-				<div className="flex items-center gap-3 mb-6">
+			<div className="w-full max-w-[800px] mx-auto px-4 pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8">
+				<div className="mb-6 flex flex-wrap items-center gap-3">
 					<h1
-						className="text-[22px] font-semibold tracking-tight font-mono"
+						className="break-all font-mono text-[20px] font-semibold tracking-tight sm:text-[22px]"
 						style={{
 							background:
 								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
@@ -28,7 +28,7 @@ function QuoteDetailRoute() {
 					>
 						{quote.quoteNumber}
 					</h1>
-					<span className="text-sm text-[var(--p-text-muted)]">
+					<span className="text-sm text-[var(--p-text-muted)] break-words">
 						{quote.status}
 					</span>
 				</div>

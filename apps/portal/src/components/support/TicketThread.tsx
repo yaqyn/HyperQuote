@@ -6,6 +6,7 @@
  * Timestamps on hover.
  */
 
+import { ArrowLeft, ArrowUp } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -40,22 +41,22 @@ export function TicketThread({
 		ticket.status === 'closed' || ticket.status === 'resolved'
 
 	return (
-		<div className="flex flex-col">
+		<div className="flex min-w-0 flex-col">
 			{/* Back + subject */}
-			<div className="flex items-baseline gap-4 mb-10">
+			<div className="mb-8 flex items-start gap-3 sm:mb-10 sm:items-baseline sm:gap-4">
 				<button
 					type="button"
 					onClick={onBack}
-					className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors shrink-0"
+					className="flex min-h-10 shrink-0 items-center text-[13px] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text-muted)] sm:min-h-0"
 					aria-label={t('support.backToTickets')}
 				>
-					&larr;
+					<ArrowLeft size={14} strokeWidth={1.5} className="rtl:rotate-180" />
 				</button>
-				<div>
-					<h2 className="text-sm font-normal text-[var(--color-text)]">
+				<div className="min-w-0">
+					<h2 className="break-words text-sm font-normal text-[var(--color-text)]">
 						{ticket.subject}
 					</h2>
-					<span className="text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+					<span className="break-words text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
 						{ticket.status.replace('_', ' ').toUpperCase()}
 					</span>
 				</div>
@@ -76,15 +77,15 @@ export function TicketThread({
 							initial={{ opacity: 0, y: 4 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-							className={`group flex flex-col ${isCustomer ? 'items-end' : 'items-start'}`}
-							style={{
-								maxWidth: isCustomer ? '75%' : '80%',
-								alignSelf: isCustomer ? 'flex-end' : 'flex-start',
-							}}
+							className={`group flex max-w-full flex-col ${
+								isCustomer
+									? 'items-end self-end sm:max-w-[75%]'
+									: 'items-start self-start sm:max-w-[80%]'
+							}`}
 						>
 							<p
 								className={[
-									'text-[14px] leading-[1.65] whitespace-pre-wrap',
+									'break-words text-[14px] leading-[1.65] whitespace-pre-wrap',
 									isCustomer
 										? 'text-[var(--color-text)] font-medium'
 										: 'text-[var(--color-text-muted)]',
@@ -95,7 +96,7 @@ export function TicketThread({
 
 							{/* Attachments */}
 							{reply.attachments && reply.attachments.length > 0 && (
-								<div className="flex gap-2 mt-1">
+								<div className="mt-1 flex flex-wrap gap-2">
 									{reply.attachments.map((url, i) => (
 										<a
 											key={`${reply.id}-${url}`}
@@ -111,7 +112,7 @@ export function TicketThread({
 							)}
 
 							{/* Time — hover reveal */}
-							<span className="font-mono text-[13px] text-[var(--color-text-subtle)] mt-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
+							<span className="mt-1 font-mono text-[13px] text-[var(--color-text-subtle)] opacity-60 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-60">
 								{time}
 							</span>
 						</motion.div>
@@ -121,7 +122,7 @@ export function TicketThread({
 
 			{/* Reply input — underline style */}
 			{!isClosedOrResolved && (
-				<div className="flex items-end gap-3 border-t border-[var(--color-border)] pt-6">
+				<div className="flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-end">
 					<textarea
 						value={replyText}
 						onChange={(e) => setReplyText(e.target.value)}
@@ -129,7 +130,7 @@ export function TicketThread({
 						rows={2}
 						aria-label={t('support.replyLabel')}
 						spellCheck={false}
-						className="flex-1 bg-transparent border-0 border-b border-[var(--color-border)] pb-2 text-sm text-[var(--color-text)] outline-none resize-none focus:border-[#2563EB] transition-colors placeholder:text-[var(--color-border)]"
+						className="min-h-24 flex-1 resize-none border-0 border-b border-[var(--color-border)] bg-transparent pb-2 text-[16px] text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-border)] focus:border-[#2563EB] sm:min-h-0 sm:text-sm"
 						onKeyDown={(e) => {
 							if (e.key === 'Enter' && !e.shiftKey) {
 								e.preventDefault()
@@ -142,25 +143,10 @@ export function TicketThread({
 							type="button"
 							onClick={handleSubmitReply}
 							disabled={isReplying}
-							className="shrink-0 mb-0.5 disabled:opacity-30"
+							className="mb-0.5 flex h-11 w-full shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text)] disabled:opacity-30 sm:w-11"
 							aria-label={t('support.sendReply')}
 						>
-							<svg
-								aria-hidden="true"
-								width="14"
-								height="14"
-								viewBox="0 0 14 14"
-								fill="none"
-								className="text-[var(--color-text)]"
-							>
-								<path
-									d="M7 12V2M7 2L3 6M7 2L11 6"
-									stroke="currentColor"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
+							<ArrowUp size={16} strokeWidth={1.5} aria-hidden />
 						</button>
 					)}
 				</div>

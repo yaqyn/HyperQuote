@@ -232,6 +232,16 @@
 		"regionAr": "Egypt · العربية"
 	},
 	"offline": "You're offline",
+	"contextMenu": {
+		"label": "Page actions",
+		"refresh": "Refresh",
+		"selectText": "Select text",
+		"sharePage": "Share page",
+		"shareUrl": "Share URL",
+		"print": "Print",
+		"home": "Home",
+		"pages": "Pages"
+	},
 	"product": {
 		"specsLabel": "Details",
 		"specsHeading": "Specifications",
@@ -549,16 +559,42 @@
 		}
 	},
 	"login": {
+		"context": {
+			"eyebrow": "Customer access",
+			"heading": "Your purchasing desk for building materials.",
+			"body": "Sign in with your Egyptian mobile number to request quotes, track orders, and manage project purchasing from one secure workspace.",
+			"stat1": "Passwordless OTP",
+			"stat2": "Built for Egyptian contractors",
+			"benefits": {
+				"quotes": {
+					"title": "Quote faster",
+					"description": "Send one material list and compare supplier pricing."
+				},
+				"projects": {
+					"title": "Keep projects clean",
+					"description": "Tie quotes, orders, invoices, and notes to the right job."
+				},
+				"delivery": {
+					"title": "Track delivery",
+					"description": "Follow confirmed orders from dispatch to site."
+				}
+			}
+		},
+		"cardEyebrow": "Secure sign in",
+		"cardSubtitle": "No password required. We verify your number before opening your workspace.",
 		"step1": {
-			"heading": "Sign In"
+			"heading": "Sign In",
+			"subtitle": "Enter the mobile number connected to your company account."
 		},
 		"step2": {
 			"heading": "Verify"
 		},
 		"step3": {
-			"heading": "Create Account"
+			"heading": "Create Account",
+			"subtitle": "Add the basic company details we need to prepare your workspace."
 		},
 		"phoneLabel": "Phone Number",
+		"phoneHint": "Egyptian mobile numbers only. We never show your number publicly.",
 		"phoneRequired": "Phone number is required",
 		"phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
 		"whatsappCTA": "Verify via WhatsApp",
@@ -578,6 +614,7 @@
 		"privacyLink": "Privacy Policy",
 		"claiming": {
 			"heading": "We found your account",
+			"subtitle": "Confirm the company below to continue into your existing workspace.",
 			"confirm": "Yes, that's me",
 			"deny": "No, create a new one"
 		},

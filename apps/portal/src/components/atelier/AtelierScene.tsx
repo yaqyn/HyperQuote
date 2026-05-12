@@ -20,7 +20,7 @@ export function AtelierScene({
 	children: ReactNode
 }) {
 	return (
-		<div className="relative flex h-full w-full items-center justify-center">
+		<div className="relative flex min-h-dvh w-full items-center justify-center overflow-visible px-4 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:px-6 sm:py-8 sm:pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
 			{lit && (
 				<div className={`absolute inset-0 atelier-lamp-on`} aria-hidden>
 					<div className="atelier-pendant" />
@@ -28,7 +28,7 @@ export function AtelierScene({
 					<DustMotes />
 				</div>
 			)}
-			<div className="relative z-10 flex w-full items-center justify-center px-6">
+			<div className="relative z-10 flex w-full items-center justify-center">
 				{children}
 			</div>
 		</div>

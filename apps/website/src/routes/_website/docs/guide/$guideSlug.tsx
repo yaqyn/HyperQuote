@@ -57,25 +57,27 @@ function WizardGuidePage() {
 	}
 
 	return (
-		<div className="max-w-[1200px] mx-auto px-6 lg:px-12 pt-24 pb-20 lg:pt-32 lg:pb-28">
+		<div className="mx-auto max-w-[1200px] px-4 pb-16 pt-24 sm:px-6 md:px-8 lg:px-12 lg:pb-24 lg:pt-32">
 			{/* Back to docs */}
 			<Link
 				to="/docs"
-				className="inline-flex items-center gap-2 text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors mb-8"
+				className="mx-auto mb-8 flex w-fit items-center gap-2 text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] lg:mx-0"
 			>
 				<ArrowLeft size={14} className="icon-end" />
 				{t('docs.backToDocs', { defaultValue: 'Back to docs' })}
 			</Link>
 
 			{/* Guide title */}
-			<motion.div initial="hidden" animate="visible" variants={reveal}>
-				<h1
-					className="font-bold tracking-[-0.03em] leading-[1.1] mb-3"
-					style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)' }}
-				>
+			<motion.div
+				initial="hidden"
+				animate="visible"
+				variants={reveal}
+				className="text-center lg:text-start"
+			>
+				<h1 className="mb-3 text-[1.85rem] font-bold leading-[1.1] tracking-normal sm:text-[2.1rem] lg:text-[2.25rem]">
 					{t(wizard.titleKey, { defaultValue: displayName(wizard.titleKey) })}
 				</h1>
-				<p className="text-[15px] opacity-35 mb-12 max-w-[500px]">
+				<p className="mx-auto mb-8 max-w-[500px] text-start text-[15px] leading-relaxed text-[var(--color-text-muted)] sm:mb-12 lg:mx-0">
 					{t(wizard.descriptionKey, {
 						defaultValue: displayName(wizard.descriptionKey),
 					})}

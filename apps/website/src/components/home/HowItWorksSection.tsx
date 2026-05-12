@@ -18,12 +18,21 @@ export function HowItWorksSection() {
 	const { t } = useTranslation('website')
 	const sectionRef = useRef<HTMLElement>(null)
 	const [activeImg, setActiveImg] = useState(0)
+	const [isCompactViewport, setIsCompactViewport] = useState(false)
 
 	useEffect(() => {
 		const id = setInterval(() => {
 			setActiveImg((p) => (p + 1) % IMAGES.length)
 		}, 30000)
 		return () => clearInterval(id)
+	}, [])
+
+	useEffect(() => {
+		const query = window.matchMedia('(max-width: 1023px)')
+		const update = () => setIsCompactViewport(query.matches)
+		update()
+		query.addEventListener('change', update)
+		return () => query.removeEventListener('change', update)
 	}, [])
 
 	const { scrollYProgress } = useScroll({
@@ -37,9 +46,17 @@ export function HowItWorksSection() {
 	const clipPath = useMotionTemplate`inset(0px ${inset}px 0px ${inset}px round ${radius}px)`
 
 	return (
-		<section ref={sectionRef} id="process" className="relative">
+		<section
+			ref={sectionRef}
+			id="process"
+			className="relative scroll-mt-14 md:scroll-mt-16 lg:scroll-mt-0"
+		>
 			<motion.div
-				style={{ clipPath }}
+				style={{
+					clipPath: isCompactViewport
+						? 'inset(0px 0px 0px 0px round 0px)'
+						: clipPath,
+				}}
 				className="relative overflow-hidden bg-[#101010]"
 			>
 				{/* Images — crossfade */}
@@ -56,21 +73,23 @@ export function HowItWorksSection() {
 				</div>
 
 				{/* Content — left side */}
-				<div className="relative z-10 mx-auto px-8 sm:px-16 md:px-24 lg:px-32 xl:px-40 2xl:px-52">
-					<div className="py-24 max-md:py-16 lg:w-[55%] lg:pe-16">
+				<div className="relative z-10 mx-auto px-14 sm:px-16 md:px-20 lg:px-32 xl:px-40 2xl:px-52">
+					<div className="pt-10 pb-14 sm:pt-14 sm:pb-16 lg:w-[55%] lg:py-24 lg:pe-16">
 						<SectionReveal>
-							<p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[#3B82F6] mb-3">
-								{t('howItWorks.label')}
-							</p>
-							<h2 className="text-[36px] lg:text-[48px] font-extrabold text-white leading-[1.05] tracking-[-0.02em] whitespace-pre-line">
-								{t('howItWorks.heading')}
-							</h2>
+							<div className="text-center lg:text-start">
+								<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[#3B82F6]">
+									{t('howItWorks.label')}
+								</p>
+								<h2 className="text-[32px] sm:text-[36px] lg:text-[48px] font-extrabold text-white leading-[1.08] tracking-normal whitespace-pre-line">
+									{t('howItWorks.heading')}
+								</h2>
+							</div>
 						</SectionReveal>
 
-						<div className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-0">
+						<div className="mt-10 grid grid-cols-1 gap-0 sm:mt-12 sm:grid-cols-2">
 							{STEP_KEYS.map((key, i) => (
 								<SectionReveal key={key} delay={i * 0.06}>
-									<div className="py-5 pe-6 border-t border-[#1E1E1E]">
+									<div className="border-t border-[#1E1E1E] py-5 text-center lg:pe-6 lg:text-start">
 										<span className="font-mono text-[12px] text-[#505050] block mb-2">
 											{String(i + 1).padStart(2, '0')}
 										</span>

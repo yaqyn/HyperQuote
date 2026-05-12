@@ -30,20 +30,20 @@ const viewportOnce = { once: true, margin: '-60px' as const }
 function PrivacyPage() {
 	return (
 		<div dir="ltr" className="min-h-screen">
-			<header className="px-6 pt-24 pb-12 lg:px-12 lg:pt-36 lg:pb-16">
+			<header className="px-4 pt-24 pb-10 sm:px-6 sm:pb-12 md:px-8 lg:px-12 lg:pt-36 lg:pb-16">
 				<div className="mx-auto max-w-[720px]">
 					<motion.div initial="hidden" animate="visible" variants={reveal}>
-						<h1 className="text-[32px] lg:text-[40px] font-bold tracking-[-0.02em] leading-tight">
+						<h1 className="text-center text-[32px] font-bold leading-tight tracking-normal lg:text-start lg:text-[40px]">
 							Privacy Policy
 						</h1>
-						<p className="mt-4 font-mono text-[12px] opacity-25 tracking-wide">
+						<p className="mt-4 text-center font-mono text-[12px] tracking-normal text-[var(--color-text-subtle)] lg:text-start">
 							Effective January 2026
 						</p>
 					</motion.div>
 				</div>
 			</header>
 
-			<div className="px-6 pb-24 lg:px-12">
+			<div className="px-4 pb-20 sm:px-6 md:px-8 lg:px-12 lg:pb-24">
 				<div className="mx-auto max-w-[720px]">
 					{SECTIONS.map((section, i) => (
 						<motion.section
@@ -58,7 +58,7 @@ function PrivacyPage() {
 									: ''
 							}
 						>
-							<h2 className="text-[18px] font-semibold tracking-[-0.01em]">
+							<h2 className="text-center text-[18px] font-semibold tracking-normal lg:text-start">
 								{section.title}
 							</h2>
 							<div className="mt-4 space-y-4">
@@ -74,7 +74,7 @@ function PrivacyPage() {
 						</motion.section>
 					))}
 
-					<footer className="mt-16 pt-8 border-t border-[var(--color-text)]/[0.06] flex items-center justify-between">
+					<footer className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-[var(--color-text)]/[0.06] pt-8 text-center lg:flex-row lg:text-start">
 						<span className="font-mono text-[11px] opacity-20">
 							HyperQuote Technologies Ltd. · Cairo, Egypt
 						</span>

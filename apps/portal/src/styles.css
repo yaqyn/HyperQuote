@@ -191,12 +191,21 @@ textarea,
 	}
 }
 
-/* Scrollbar — hidden globally */
-::-webkit-scrollbar {
-	display: none;
-}
+/* Scrollbars — keep scroll behavior, remove every visible rail/thumb. */
+html,
+body,
+#root,
 * {
+	-ms-overflow-style: none;
 	scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar,
+*::-webkit-scrollbar {
+	display: none;
+	width: 0;
+	height: 0;
 }
 
 /* Selection — warm ink stain on paper */
@@ -472,8 +481,8 @@ input::placeholder {
 .atelier-page {
 	position: relative;
 	z-index: 3;
-	width: min(460px, calc(100vw - 48px));
-	padding: 34px 38px 24px;
+	width: min(460px, calc(100vw - 32px));
+	padding: 30px 28px 22px;
 	background: linear-gradient(
 		180deg,
 		var(--atelier-paper-top) 0%,
@@ -606,8 +615,9 @@ input::placeholder {
 /* OTP rule cells — six short underlines */
 .atelier-otp-cell {
 	position: relative;
-	width: 44px;
-	height: 52px;
+	width: 100%;
+	min-width: 0;
+	height: 48px;
 	display: flex;
 	align-items: flex-end;
 	justify-content: center;
@@ -709,10 +719,13 @@ input::placeholder {
 	justify-content: center;
 	gap: 14px;
 	width: 100%;
+	min-height: 44px;
 	padding: 14px 0 12px;
 	font-family: "Geist Mono", ui-monospace, monospace;
 	font-size: 11px;
+	line-height: 1.35;
 	letter-spacing: 0.22em;
+	text-align: center;
 	text-transform: uppercase;
 	color: var(--atelier-ink);
 	background: transparent;
@@ -725,7 +738,8 @@ input::placeholder {
 .atelier-command::before,
 .atelier-command::after {
 	content: "";
-	flex: 1;
+	flex: 1 1 24px;
+	min-width: 18px;
 	height: 1px;
 	background: var(--atelier-rule);
 	transition:
@@ -749,11 +763,70 @@ input::placeholder {
 	pointer-events: none;
 }
 
+.atelier-whatsapp-command {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	width: 100%;
+	min-height: 46px;
+	padding: 0 18px;
+	font-family:
+		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: 0;
+	color: #fff;
+	background: linear-gradient(180deg, #33e075 0%, #25d366 52%, #1fb75e 100%);
+	border: 1px solid rgba(255, 255, 255, 0.28);
+	border-radius: 8px;
+	box-shadow:
+		0 12px 28px rgba(18, 140, 126, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.32);
+	outline: none;
+	transition:
+		transform 160ms ease-out,
+		box-shadow 160ms ease-out,
+		filter 160ms ease-out,
+		opacity 160ms ease-out;
+}
+.atelier-whatsapp-icon {
+	display: block;
+	width: 22px;
+	height: 22px;
+	flex-shrink: 0;
+	pointer-events: none;
+}
+.atelier-whatsapp-command span {
+	min-width: 0;
+}
+.atelier-whatsapp-command:hover,
+.atelier-whatsapp-command:focus-visible {
+	filter: saturate(1.06) brightness(1.02);
+	box-shadow:
+		0 14px 32px rgba(18, 140, 126, 0.22),
+		inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+.atelier-whatsapp-command[data-pressed="true"] {
+	transform: translateY(1px);
+	box-shadow:
+		0 8px 20px rgba(18, 140, 126, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.atelier-whatsapp-command[disabled] {
+	opacity: 0.45;
+	pointer-events: none;
+}
+
 /* Quiet secondary — unadorned mono line */
 .atelier-quiet {
 	font-family: "Geist Mono", ui-monospace, monospace;
 	font-size: 11px;
+	line-height: 1.35;
 	letter-spacing: 0.22em;
+	text-align: center;
 	text-transform: uppercase;
 	color: var(--atelier-ink-muted);
 	background: transparent;
@@ -768,6 +841,47 @@ input::placeholder {
 .atelier-quiet[disabled] {
 	opacity: 0.4;
 	pointer-events: none;
+}
+
+@media (min-width: 640px) {
+	.atelier-page {
+		width: min(460px, calc(100vw - 48px));
+		padding: 34px 38px 24px;
+	}
+
+	.atelier-otp-cell {
+		height: 52px;
+	}
+}
+
+@media (max-width: 380px) {
+	.atelier-page {
+		width: min(100%, calc(100vw - 24px));
+		padding: 24px 18px 18px;
+	}
+
+	.atelier-command {
+		gap: 10px;
+		font-size: 10px;
+		letter-spacing: 0.16em;
+	}
+
+	.atelier-command::before,
+	.atelier-command::after {
+		flex-basis: 16px;
+		min-width: 12px;
+	}
+
+	.atelier-whatsapp-command {
+		min-height: 44px;
+		padding: 0 14px;
+		font-size: 13px;
+	}
+
+	.atelier-quiet {
+		font-size: 10px;
+		letter-spacing: 0.16em;
+	}
 }
 
 /* Focus ring — ruled, not outlined */
@@ -785,6 +899,19 @@ input::placeholder {
 }
 
 /* Legal footer link */
+.atelier-legal-copy {
+	font-family:
+		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+	font-size: 11px;
+	line-height: 1.45;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--atelier-ink-muted);
+	text-rendering: geometricPrecision;
+	-webkit-font-smoothing: antialiased;
+}
+
 .atelier-link {
 	color: var(--atelier-ink-muted);
 	text-decoration: underline;

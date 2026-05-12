@@ -10,7 +10,7 @@ export function ContactInfo() {
 	const { t } = useTranslation('website')
 
 	return (
-		<div className="lg:pt-2">
+		<div className="mx-auto w-full max-w-[560px] text-center lg:max-w-none lg:pt-2 lg:text-start">
 			{/* ── Channels: data-first, no icons ── */}
 			<div className="flex flex-col">
 				{/* WhatsApp */}
@@ -18,10 +18,10 @@ export function ContactInfo() {
 					href={WHATSAPP_URL}
 					target="_blank"
 					rel="noopener noreferrer"
-					className="group flex items-center justify-between border-b border-[var(--color-text)]/[0.06] py-6"
+					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
 				>
-					<div>
-						<div className="text-[18px] font-semibold tracking-[-0.02em]">
+					<div className="min-w-0">
+						<div className="text-[17px] font-semibold tracking-normal sm:text-[18px]">
 							{t('support.whatsappLabel')}
 						</div>
 						<div className="mt-1 text-[13px] opacity-40">
@@ -30,17 +30,17 @@ export function ContactInfo() {
 					</div>
 					<ArrowUpRight
 						size={18}
-						className="shrink-0 opacity-0 transition-all duration-200 group-hover:opacity-40 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+						className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
 					/>
 				</a>
 
 				{/* Email */}
 				<a
 					href={`mailto:${EMAIL}`}
-					className="group flex items-center justify-between border-b border-[var(--color-text)]/[0.06] py-6"
+					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
 				>
-					<div>
-						<div className="text-[18px] font-semibold tracking-[-0.02em]">
+					<div className="min-w-0">
+						<div className="break-all text-[17px] font-semibold tracking-normal sm:text-[18px]">
 							{EMAIL}
 						</div>
 						<div className="mt-1 text-[13px] opacity-40">
@@ -49,17 +49,17 @@ export function ContactInfo() {
 					</div>
 					<ArrowUpRight
 						size={18}
-						className="shrink-0 opacity-0 transition-all duration-200 group-hover:opacity-40 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+						className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
 					/>
 				</a>
 
 				{/* Phone */}
 				<a
 					href={`tel:${PHONE_RAW}`}
-					className="group flex items-center justify-between border-b border-[var(--color-text)]/[0.06] py-6"
+					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
 				>
-					<div>
-						<div className="font-[family-name:var(--font-mono)] text-[18px] font-semibold tracking-[-0.01em]">
+					<div className="min-w-0">
+						<div className="font-[family-name:var(--font-mono)] text-[17px] font-semibold tracking-normal sm:text-[18px]">
 							{PHONE_NUMBER}
 						</div>
 						<div className="mt-1 font-[family-name:var(--font-sans)] text-[13px] opacity-40">
@@ -68,13 +68,13 @@ export function ContactInfo() {
 					</div>
 					<ArrowUpRight
 						size={18}
-						className="shrink-0 opacity-0 transition-all duration-200 group-hover:opacity-40 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+						className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
 					/>
 				</a>
 			</div>
 
 			{/* ── Address + Hours: inline footer ── */}
-			<div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2">
+			<div className="mt-8 grid grid-cols-1 gap-7 sm:grid-cols-2 md:grid-cols-1 lg:mt-10 lg:grid-cols-2 lg:gap-8">
 				<div>
 					<div className="mb-3 text-[11px] font-medium uppercase tracking-[.1em] opacity-30">
 						{t('support.info.office')}
@@ -93,19 +93,19 @@ export function ContactInfo() {
 						{t('support.info.hours')}
 					</div>
 					<div className="flex flex-col gap-1.5">
-						<div className="flex items-baseline justify-between">
+						<div className="flex items-baseline justify-center gap-4 sm:justify-between">
 							<span className="text-[14px] opacity-60">
 								{t('support.info.weekdays')}
 							</span>
-							<span className="font-[family-name:var(--font-mono)] text-[13px] opacity-45">
+							<span className="shrink-0 font-[family-name:var(--font-mono)] text-[13px] opacity-45">
 								{t('support.businessHours')}
 							</span>
 						</div>
-						<div className="flex items-baseline justify-between">
+						<div className="flex items-baseline justify-center gap-4 sm:justify-between">
 							<span className="text-[14px] opacity-60">
 								{t('support.info.weekends')}
 							</span>
-							<span className="text-[13px] opacity-30">
+							<span className="shrink-0 text-[13px] opacity-30">
 								{t('support.info.closed')}
 							</span>
 						</div>

@@ -54,33 +54,33 @@ export function PaymentInstructionsCard({
 	}).format(amount)
 
 	return (
-		<div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)] space-y-3">
-			<h3 className="text-base font-semibold text-[var(--color-text)]">
+		<div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+			<h3 className="break-words text-base font-semibold text-[var(--color-text)]">
 				{t('tracking.paymentInstructions')}
 			</h3>
 
 			<div className="space-y-2">
 				{/* Bank name */}
-				<div className="flex justify-between items-center">
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 					<span className="text-sm text-[var(--color-text-muted)]">
 						{t('tracking.bankName')}
 					</span>
-					<span className="text-sm font-medium text-[var(--color-text)]">
+					<span className="break-words text-sm font-medium text-[var(--color-text)] sm:text-end">
 						{bankName}
 					</span>
 				</div>
 
 				{/* IBAN with copy */}
-				<div className="flex justify-between items-center">
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 					<span className="text-sm text-[var(--color-text-muted)]">IBAN</span>
-					<div className="flex items-center gap-2">
-						<span className="font-mono text-sm text-[var(--color-text)]">
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--color-text)] sm:text-end">
 							{iban}
 						</span>
 						<Button
 							onPress={handleCopyIBAN}
 							aria-label={t('tracking.copyIBAN')}
-							className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition-colors cursor-pointer"
+							className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/10 sm:h-8 sm:w-8"
 						>
 							{copied ? <Check size={14} /> : <Copy size={14} />}
 						</Button>
@@ -88,21 +88,21 @@ export function PaymentInstructionsCard({
 				</div>
 
 				{/* Reference */}
-				<div className="flex justify-between items-center">
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 					<span className="text-sm text-[var(--color-text-muted)]">
 						{t('tracking.reference')}
 					</span>
-					<span className="font-mono text-sm text-[var(--color-text)]">
+					<span className="break-all font-mono text-sm text-[var(--color-text)] sm:text-end">
 						{reference}
 					</span>
 				</div>
 
 				{/* Amount */}
-				<div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
+				<div className="flex flex-col gap-1 border-t border-[var(--color-border)] pt-2 sm:flex-row sm:items-center sm:justify-between">
 					<span className="text-sm font-medium text-[var(--color-text)]">
 						{t('tracking.amount')}
 					</span>
-					<span className="font-mono text-sm font-semibold text-[var(--color-text)]">
+					<span className="break-all font-mono text-sm font-semibold text-[var(--color-text)] sm:text-end">
 						{currency} {formattedAmount}
 					</span>
 				</div>

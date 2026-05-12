@@ -1,16 +1,21 @@
 /**
- * Product detail — referenced material plate, expanded.
+ * Product detail - responsive catalog view.
  *
- * Same inventory-plate language as the grid: reference number stamped above,
- * 4:3 image on the inline-start, name + price + record action on the inline-end,
- * specs as a grid of hairline cells, related plates as smaller siblings below.
- * Inter throughout, Geist Mono for figures.
+ * Follows the website market detail interaction model: image-first hero,
+ * centered mobile/tablet copy, desktop quote action card, and mobile bottom CTA.
  */
 
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Check, Pencil, Plus, Undo2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import {
+	ArrowLeft,
+	Check,
+	ChevronRight,
+	Pencil,
+	Plus,
+	Undo2,
+} from 'lucide-react'
+import { type KeyboardEvent, useCallback, useEffect, useState } from 'react'
 import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { getMarketProducts } from '../../../lib/server/market'
@@ -34,9 +39,6 @@ function ProductDetailPage() {
 
 	const allProducts = allData?.products ?? []
 	const product = allProducts.find((p) => p.slug === productSlug)
-	const refIndex = product
-		? allProducts.findIndex((p) => p.id === product.id) + 1
-		: 0
 	const related = product
 		? allProducts
 				.filter((p) => p.category === product.category && p.id !== product.id)
@@ -71,110 +73,102 @@ function ProductDetailPage() {
 		return null
 	}
 	const priceLabel = formatPrice(product.priceRangeMin, product.priceRangeMax)
-	const refNo = isAr
-		? refIndex.toLocaleString('ar-EG')
-		: String(refIndex).padStart(3, '0')
 
 	return (
-		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
-			{/* Top bar */}
-			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-6 py-3.5 lg:px-12">
-				<div className="mx-auto flex w-full max-w-[1280px] items-center gap-4">
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)] pb-40 md:pb-0">
+			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pt-7">
+				<div className="mx-auto flex w-full max-w-[1400px] items-center gap-2">
 					<button
 						type="button"
 						onClick={() => navigate({ to: '/market' })}
-						className="inline-flex items-center gap-2 text-[13px] text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+						className="inline-flex min-h-10 items-center gap-2 text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:min-h-0"
 					>
 						<ArrowLeft size={14} className="rtl:rotate-180" />
 						{t('market.backToMarket')}
 					</button>
-					<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
-						/
-					</span>
-					<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+					<ChevronRight
+						size={11}
+						className="shrink-0 text-[var(--p-text-faint)] rtl:rotate-180"
+					/>
+					<span className="min-w-0 truncate text-[13px] text-[var(--p-text-muted)]">
 						{categoryLabel}
 					</span>
 				</div>
 			</div>
 
-			{/* Body */}
-			<div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-12 lg:py-14">
-				{/* Reference + name */}
-				<div className="mb-8 flex items-baseline justify-between gap-4">
-					<span className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]">
-						№ {refNo}
-					</span>
-					<AvailabilityTag
-						status={product.availabilityStatus}
-						label={availLabel}
-					/>
-				</div>
+			<main className="mx-auto w-full max-w-[1400px] px-4 pb-12 sm:px-6 lg:px-12 lg:pb-16">
+				<div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_1fr] lg:gap-16 xl:gap-20">
+					<ProductImage imageUrl={product.imageUrl} name={productName} />
 
-				<div className="grid grid-cols-1 gap-10 lg:grid-cols-[5fr_4fr] lg:gap-16">
-					{/* Image plate */}
-					<div className="overflow-hidden rounded-sm bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
-						<div className="aspect-[4/3]">
-							<img
-								src={product.imageUrl}
-								alt={productName}
-								className="h-full w-full object-cover"
-							/>
-						</div>
-					</div>
+					<section className="flex flex-col items-center text-center lg:items-start lg:py-2 lg:text-start">
+						<p className="text-[12px] font-semibold uppercase text-[var(--p-accent)]">
+							{categoryLabel}
+						</p>
 
-					{/* Info */}
-					<div className="flex flex-col">
-						<h1 className="text-[28px] font-medium leading-tight tracking-tight text-[var(--p-text)] lg:text-[36px]">
+						<h1 className="mt-4 break-words text-[30px] font-semibold leading-[1.08] text-[var(--p-text)] sm:text-[36px] lg:text-[44px]">
 							{productName}
 						</h1>
 
+						<div className="mt-5 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+							<span className="max-w-full truncate font-mono text-[12px] text-[var(--p-text-muted)]">
+								{product.slug}
+							</span>
+							<span className="h-3.5 w-px bg-[var(--p-border)]" />
+							<AvailabilityTag
+								status={product.availabilityStatus}
+								label={availLabel}
+							/>
+						</div>
+
 						{priceLabel && (
-							<div className="mt-6 flex items-baseline gap-2 border-t border-[var(--p-border)] pt-5">
+							<div className="mt-6 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1 md:mt-8 lg:justify-start">
 								<p
-									className="font-mono text-[28px] font-medium text-[var(--p-text)]"
+									className="break-all font-mono text-[24px] font-semibold text-[var(--p-accent)] sm:text-[28px]"
 									style={{ fontVariantNumeric: 'tabular-nums' }}
 								>
 									EGP {priceLabel}
 								</p>
-								<span className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+								<span className="font-mono text-[12px] text-[var(--p-text-muted)]">
 									/ {product.unitOfMeasure}
 								</span>
 							</div>
 						)}
 
 						{description && (
-							<p className="mt-6 max-w-prose text-[14px] leading-relaxed text-[var(--p-text-secondary)]">
+							<p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--p-text-secondary)] lg:mx-0 lg:mt-6">
 								{description}
 							</p>
 						)}
 
-						<div className="mt-9">
+						<div className="mx-auto mt-8 hidden w-full max-w-[560px] md:block lg:mx-0 lg:mt-10 lg:max-w-none">
 							<RecordAction product={product} />
 						</div>
-					</div>
+					</section>
 				</div>
 
-				{/* Specs */}
 				{product.specs.length > 0 && (
-					<section className="mt-16">
-						<header className="mb-3 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
-							<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
+					<section className="mt-12 sm:mt-16">
+						<header className="mb-4 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-border)] pb-3">
+							<h2 className="text-[18px] font-semibold text-[var(--p-text)]">
 								{t('market.specifications')}
 							</h2>
-							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+							<span className="font-mono text-[12px] text-[var(--p-text-faint)]">
 								{isAr
 									? product.specs.length.toLocaleString('ar-EG')
 									: String(product.specs.length).padStart(2, '0')}
 							</span>
 						</header>
-						<div className="grid grid-cols-2 gap-px overflow-hidden rounded-sm border border-[var(--p-border)] bg-[var(--p-border)] sm:grid-cols-3 md:grid-cols-4">
+						<div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
 							{product.specs.map((spec) => (
-								<div key={spec.label} className="bg-[var(--p-bg)] px-4 py-4">
-									<p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+								<div
+									key={spec.label}
+									className="min-w-0 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-4"
+								>
+									<p className="text-[12px] font-medium text-[var(--p-text-muted)]">
 										{isAr ? spec.labelAr : spec.label}
 									</p>
 									<p
-										className="mt-2 font-mono text-[15px] font-medium text-[var(--p-text)]"
+										className="mt-2 break-words font-mono text-[15px] font-medium text-[var(--p-text)]"
 										style={{ fontVariantNumeric: 'tabular-nums' }}
 									>
 										{spec.value}
@@ -185,18 +179,17 @@ function ProductDetailPage() {
 					</section>
 				)}
 
-				{/* Related */}
 				{related.length > 0 && (
-					<section className="mt-16">
-						<header className="mb-3 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
-							<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
+					<section className="mt-12 sm:mt-16">
+						<header className="mb-4 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-border)] pb-3">
+							<h2 className="text-[18px] font-semibold text-[var(--p-text)]">
 								{t('market.relatedProducts')}
 							</h2>
-							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+							<span className="max-w-full truncate text-[13px] text-[var(--p-text-muted)]">
 								{categoryLabel}
 							</span>
 						</header>
-						<div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+						<div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10">
 							{related.map((rel) => {
 								const relName = isAr ? rel.nameAr : rel.name
 								return (
@@ -211,7 +204,7 @@ function ProductDetailPage() {
 										}
 										className="group block text-start"
 									>
-										<div className="aspect-[4/3] overflow-hidden rounded-sm bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
+										<div className="aspect-square overflow-hidden rounded-xl bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
 											<img
 												src={rel.imageUrl}
 												alt={relName}
@@ -219,8 +212,11 @@ function ProductDetailPage() {
 												className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
 											/>
 										</div>
-										<p className="mt-3 line-clamp-2 px-0.5 text-[13px] font-medium text-[var(--p-text)]">
+										<p className="mt-3 line-clamp-2 break-words px-0.5 text-[14px] font-semibold leading-snug text-[var(--p-text)] sm:text-[13px]">
 											{relName}
+										</p>
+										<p className="mt-1 px-0.5 font-mono text-[11px] text-[var(--p-text-muted)]">
+											{rel.unitOfMeasure}
 										</p>
 									</button>
 								)
@@ -228,7 +224,9 @@ function ProductDetailPage() {
 						</div>
 					</section>
 				)}
-			</div>
+			</main>
+
+			<MobileRecordBar product={product} />
 		</div>
 	)
 }
@@ -251,10 +249,37 @@ function AvailabilityTag({
 				? 'bg-[var(--p-warning)]'
 				: 'bg-[var(--p-text-faint)]'
 	return (
-		<span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+		<span className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--p-text-muted)]">
 			<span className={`h-1.5 w-1.5 rounded-full ${cls}`} />
 			{label}
 		</span>
+	)
+}
+
+// ---------------------------------------------------------------------------
+// Product image + mobile action surface
+// ---------------------------------------------------------------------------
+
+function ProductImage({ imageUrl, name }: { imageUrl: string; name: string }) {
+	return (
+		<div className="lg:sticky lg:top-8 lg:self-start">
+			<div className="group aspect-[16/10] overflow-hidden rounded-2xl bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)] lg:aspect-[5/6]">
+				<img
+					src={imageUrl}
+					alt={name}
+					loading="eager"
+					className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+				/>
+			</div>
+		</div>
+	)
+}
+
+function MobileRecordBar({ product }: { product: ActionProduct }) {
+	return (
+		<div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--p-border)] bg-[var(--p-bg)]/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-18px_45px_rgba(15,15,15,0.12)] backdrop-blur md:hidden">
+			<RecordAction product={product} variant="bar" />
+		</div>
 	)
 }
 
@@ -263,6 +288,7 @@ function AvailabilityTag({
 // ---------------------------------------------------------------------------
 
 type RecordMode = 'idle' | 'selecting' | 'added'
+type RecordVariant = 'panel' | 'bar'
 
 interface ActionProduct {
 	id: string
@@ -274,12 +300,23 @@ interface ActionProduct {
 	imageUrl: string
 }
 
-function RecordAction({ product }: { product: ActionProduct }) {
+function RecordAction({
+	product,
+	variant = 'panel',
+}: {
+	product: ActionProduct
+	variant?: RecordVariant
+}) {
 	const { t } = useTranslation('portal')
 	const { add, remove, items, updateQuantity } = useDraftQuoteStore()
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
 	const [mode, setMode] = useState<RecordMode>(cartItem ? 'added' : 'idle')
+	const isBar = variant === 'bar'
+	const shellClass = isBar
+		? 'w-full'
+		: 'rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:p-5 lg:p-6'
+	const primaryClass = `${isBar ? 'h-12' : 'h-14'} inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-5 text-[14px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90`
 
 	useEffect(() => {
 		if (!cartItem && mode === 'added') setMode('idle')
@@ -333,110 +370,119 @@ function RecordAction({ product }: { product: ActionProduct }) {
 
 	if (mode === 'idle') {
 		return (
-			<button
-				type="button"
-				onClick={() => setMode('selecting')}
-				className="inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-[var(--p-text)] px-6 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-bg)] hover:opacity-90"
-			>
-				<Plus size={14} />
-				{t('market.record')}
-			</button>
+			<div className={shellClass}>
+				<button
+					type="button"
+					onClick={() => setMode('selecting')}
+					className={primaryClass}
+				>
+					<Plus size={16} />
+					{t('market.record')}
+				</button>
+			</div>
 		)
 	}
 
 	if (mode === 'selecting') {
 		return (
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+			<div className={shellClass}>
 				<NumberField
 					value={quantity}
 					onChange={(v) => setQuantity(v)}
 					minValue={1}
 					step={1}
+					className={isBar ? 'mb-2' : 'mb-4'}
 				>
 					<Label className="sr-only">{t('market.quantity')}</Label>
-					<Group className="flex h-12 items-center overflow-hidden rounded-sm border border-[var(--p-border-strong)] bg-[var(--p-input)]">
+					<Group
+						className={`${isBar ? 'h-12' : 'h-14'} flex items-center overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-input)]`}
+					>
 						<Button
 							slot="decrement"
-							className="flex h-full w-12 items-center justify-center text-[18px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+							className="flex h-full w-12 shrink-0 items-center justify-center border-e border-[var(--p-border)] text-[20px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] sm:w-14"
 						>
-							−
+							-
 						</Button>
 						<div className="flex flex-1 items-center justify-center gap-2 px-3">
 							<Input
 								ref={inputRef}
-								onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+								onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
 									if (e.key === 'Enter')
 										confirmWith(parseInt(e.currentTarget.value, 10) || 1)
 									if (e.key === 'Escape') setMode(cartItem ? 'added' : 'idle')
 								}}
-								className="w-16 bg-transparent text-center font-mono text-[18px] font-medium text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								className="h-full w-16 bg-transparent text-center font-mono text-[20px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 								style={{ fontVariantNumeric: 'tabular-nums' }}
 							/>
-							<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
+							<span className="min-w-0 truncate text-[13px] font-medium text-[var(--p-text-muted)]">
 								{product.unitOfMeasure}
 							</span>
 						</div>
 						<Button
 							slot="increment"
-							className="flex h-full w-12 items-center justify-center text-[18px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+							className="flex h-full w-12 shrink-0 items-center justify-center border-s border-[var(--p-border)] text-[20px] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] sm:w-14"
 						>
 							+
 						</Button>
 					</Group>
 				</NumberField>
-				<button
-					type="button"
-					onClick={() => confirmWith(quantity)}
-					className="inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-[var(--p-text)] px-6 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-bg)] hover:opacity-90"
-				>
-					<Check size={14} />
-					{t('market.confirm')}
-				</button>
-				<button
-					type="button"
-					onClick={() => setMode(cartItem ? 'added' : 'idle')}
-					className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)] hover:text-[var(--p-text)]"
-				>
-					{t('orders.cancel')}
-				</button>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={() => setMode(cartItem ? 'added' : 'idle')}
+						className={`${isBar ? 'h-12 w-12' : 'h-14 w-14'} inline-flex shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]`}
+						aria-label={t('orders.cancel')}
+					>
+						<ArrowLeft size={18} className="rtl:rotate-180" />
+					</button>
+					<button
+						type="button"
+						onClick={() => confirmWith(quantity)}
+						className={primaryClass}
+					>
+						<Check size={18} />
+						{t('market.confirm')}
+					</button>
+				</div>
 			</div>
 		)
 	}
 
 	// added
 	return (
-		<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-			<div
-				className="inline-flex h-12 items-center gap-3 rounded-sm border border-[var(--p-border-strong)] bg-[var(--p-input)] px-4"
-				aria-live="polite"
-			>
-				<Check size={14} className="text-[var(--p-text)]" />
-				<span
-					className="font-mono text-[14px] font-medium text-[var(--p-text)]"
-					style={{ fontVariantNumeric: 'tabular-nums' }}
+		<div className={shellClass}>
+			{cartItem && (
+				<p
+					className={`${isBar ? 'mb-2 text-[12px]' : 'mb-4 text-[13px]'} text-[var(--p-text-muted)]`}
+					aria-live="polite"
 				>
-					{cartItem?.quantity}
-				</span>
-				<span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)]">
-					{product.unitOfMeasure} · {t('market.inQuote')}
-				</span>
+					<span
+						className="font-mono font-semibold text-[var(--p-text)]"
+						style={{ fontVariantNumeric: 'tabular-nums' }}
+					>
+						{cartItem.quantity}
+					</span>{' '}
+					{product.unitOfMeasure} {t('market.inQuote')}
+				</p>
+			)}
+			<div className="flex items-center gap-2">
+				<button
+					type="button"
+					onClick={handleRemove}
+					className={`${isBar ? 'h-12 w-12' : 'h-14 w-14'} inline-flex shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-error)] hover:text-[var(--p-error)]`}
+					aria-label={t('market.removeItem')}
+				>
+					<Undo2 size={18} />
+				</button>
+				<button
+					type="button"
+					onClick={handleEdit}
+					className={`${isBar ? 'h-12' : 'h-14'} inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-text)] hover:bg-[var(--p-hover)]`}
+				>
+					<Pencil size={16} />
+					{t('market.amend')}
+				</button>
 			</div>
-			<button
-				type="button"
-				onClick={handleEdit}
-				className="inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-[var(--p-border-strong)] px-5 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-text)] hover:bg-[var(--p-hover)]"
-			>
-				<Pencil size={13} />
-				{t('market.amend')}
-			</button>
-			<button
-				type="button"
-				onClick={handleRemove}
-				className="inline-flex h-12 items-center justify-center gap-2 px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text-muted)] hover:text-[var(--p-error)]"
-			>
-				<Undo2 size={13} />
-				{t('market.removeItem')}
-			</button>
 		</div>
 	)
 }
@@ -450,32 +496,33 @@ const SK_SPECS = ['s1', 's2', 's3', 's4'] as const
 function DetailSkeleton() {
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
-			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-6 py-3.5 lg:px-12">
-				<div className="mx-auto h-3 w-32 max-w-[1280px] animate-pulse bg-[var(--p-border)]" />
+			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pt-7">
+				<div className="mx-auto h-4 w-44 max-w-[1400px] animate-pulse rounded-full bg-[var(--p-border)]" />
 			</div>
-			<div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-12 lg:py-14">
-				<div className="mb-8 flex items-baseline justify-between">
-					<div className="h-3 w-16 animate-pulse bg-[var(--p-border)]" />
-					<div className="h-3 w-20 animate-pulse bg-[var(--p-border)]" />
-				</div>
-				<div className="grid grid-cols-1 gap-10 lg:grid-cols-[5fr_4fr] lg:gap-16">
-					<div className="aspect-[4/3] animate-pulse rounded-sm bg-[var(--p-surface)]" />
-					<div className="space-y-5">
-						<div className="h-9 w-3/4 animate-pulse bg-[var(--p-border)]" />
-						<div className="h-7 w-1/2 animate-pulse bg-[var(--p-border)]" />
+			<div className="mx-auto w-full max-w-[1400px] px-4 pb-12 sm:px-6 lg:px-12 lg:pb-16">
+				<div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_1fr] lg:gap-16 xl:gap-20">
+					<div className="aspect-[16/10] animate-pulse rounded-2xl bg-[var(--p-surface)] lg:aspect-[5/6]" />
+					<div className="flex flex-col items-center space-y-5 text-center lg:items-start lg:text-start">
+						<div className="h-4 w-28 animate-pulse rounded-full bg-[var(--p-border)]" />
+						<div className="h-10 w-3/4 animate-pulse rounded-full bg-[var(--p-border)] sm:h-12" />
+						<div className="h-4 w-1/2 animate-pulse rounded-full bg-[var(--p-border)]" />
+						<div className="h-7 w-44 animate-pulse rounded-full bg-[var(--p-border)]" />
 						<div className="space-y-2 pt-4">
-							<div className="h-3 w-full animate-pulse bg-[var(--p-border)]" />
-							<div className="h-3 w-5/6 animate-pulse bg-[var(--p-border)]" />
-							<div className="h-3 w-2/3 animate-pulse bg-[var(--p-border)]" />
+							<div className="h-3 w-80 max-w-full animate-pulse rounded-full bg-[var(--p-border)]" />
+							<div className="h-3 w-72 max-w-full animate-pulse rounded-full bg-[var(--p-border)]" />
+							<div className="h-3 w-56 max-w-full animate-pulse rounded-full bg-[var(--p-border)]" />
 						</div>
-						<div className="h-12 w-40 animate-pulse rounded-sm bg-[var(--p-border)]" />
+						<div className="hidden h-24 w-full max-w-[560px] animate-pulse rounded-2xl bg-[var(--p-card)] md:block lg:max-w-none" />
 					</div>
 				</div>
-				<div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-sm bg-[var(--p-border)] sm:grid-cols-4">
+				<div className="mt-12 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:mt-16 sm:grid-cols-4">
 					{SK_SPECS.map((s) => (
-						<div key={s} className="space-y-2 bg-[var(--p-bg)] p-4">
-							<div className="h-3 w-16 animate-pulse bg-[var(--p-border)]" />
-							<div className="h-4 w-24 animate-pulse bg-[var(--p-border)]" />
+						<div
+							key={s}
+							className="space-y-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4"
+						>
+							<div className="h-3 w-16 animate-pulse rounded-full bg-[var(--p-border)]" />
+							<div className="h-4 w-24 animate-pulse rounded-full bg-[var(--p-border)]" />
 						</div>
 					))}
 				</div>
@@ -494,7 +541,7 @@ function NotFound({ onBack }: { onBack: () => void }) {
 			<button
 				type="button"
 				onClick={onBack}
-				className="rounded-sm border border-[var(--p-border-strong)] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-text)] hover:bg-[var(--p-hover)]"
+				className="rounded-xl border border-[var(--p-border-strong)] px-4 py-2 text-[13px] font-semibold text-[var(--p-text)] hover:bg-[var(--p-hover)]"
 			>
 				{t('market.backToMarket')}
 			</button>

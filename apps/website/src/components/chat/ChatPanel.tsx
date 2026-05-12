@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Modal, ModalOverlay } from 'react-aria-components'
@@ -14,27 +14,45 @@ interface ChatPanelProps {
 	sendMessage: (content: string) => Promise<void>
 }
 
-function useIsMobile() {
-	const [isMobile, setIsMobile] = useState(false)
+function useUsesFullScreenPanel() {
+	const [usesFullScreenPanel, setUsesFullScreenPanel] = useState(false)
 	useEffect(() => {
-		const mql = window.matchMedia('(max-width: 767px)')
-		setIsMobile(mql.matches)
+		const mql = window.matchMedia('(max-width: 1023px)')
+		setUsesFullScreenPanel(mql.matches)
 		const handler = (e: MediaQueryListEvent) => {
-			setIsMobile(e.matches)
+			setUsesFullScreenPanel(e.matches)
 		}
 		mql.addEventListener('change', handler)
 		return () => mql.removeEventListener('change', handler)
 	}, [])
-	return isMobile
+	return usesFullScreenPanel
 }
 
-function ChatHeader() {
+function ChatHeader({ isFullScreen = false }: { isFullScreen?: boolean }) {
 	const { t } = useTranslation('website')
 	const close = useChatWidget((s) => s.close)
 
+	if (isFullScreen) {
+		return (
+			<div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--color-text)]/[0.06] px-4 sm:px-6">
+				<button
+					type="button"
+					onClick={close}
+					aria-label={t('chat.closeLabel')}
+					className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text)]/65 transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+				>
+					<ArrowLeft size={20} />
+				</button>
+				<span className="text-[16px] font-semibold tracking-normal">
+					{t('chat.header')}
+				</span>
+			</div>
+		)
+	}
+
 	return (
 		<div className="flex h-12 shrink-0 items-baseline justify-between px-5 pt-5">
-			<span className="text-[15px] font-semibold tracking-[-0.02em]">
+			<span className="text-[15px] font-semibold tracking-normal">
 				{t('chat.header')}
 			</span>
 			<button
@@ -49,14 +67,33 @@ function ChatHeader() {
 	)
 }
 
-function PanelShell({ messages, isLoading, sendMessage }: ChatPanelProps) {
+function PanelShell({
+	messages,
+	isLoading,
+	sendMessage,
+	isFullScreen = false,
+}: ChatPanelProps & { isFullScreen?: boolean }) {
 	return (
 		<>
-			<ChatHeader />
-			<div className="min-h-0 flex-1">
+			<ChatHeader isFullScreen={isFullScreen} />
+			<div
+				className={
+					isFullScreen
+						? 'mx-auto min-h-0 w-full max-w-[760px] flex-1'
+						: 'min-h-0 flex-1'
+				}
+			>
 				<ChatMessages messages={messages} isLoading={isLoading} />
 			</div>
-			<ChatInput onSend={sendMessage} isLoading={isLoading} />
+			<div
+				className={isFullScreen ? 'mx-auto w-full max-w-[760px]' : undefined}
+			>
+				<ChatInput
+					onSend={sendMessage}
+					isLoading={isLoading}
+					isFullScreen={isFullScreen}
+				/>
+			</div>
 		</>
 	)
 }
@@ -64,8 +101,6 @@ function PanelShell({ messages, isLoading, sendMessage }: ChatPanelProps) {
 const open = { opacity: 0, scale: 0.95, y: 10 }
 const visible = { opacity: 1, scale: 1, y: 0 }
 const closed = { opacity: 0, scale: 0.95, y: 10 }
-const _enterTransition = { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }
-const _exitTransition = { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
 
 function DesktopPanel(props: ChatPanelProps) {
 	const isOpen = useChatWidget((s) => s.isOpen)
@@ -89,7 +124,7 @@ function DesktopPanel(props: ChatPanelProps) {
 	)
 }
 
-function MobilePanel(props: ChatPanelProps) {
+function FullScreenPanel(props: ChatPanelProps) {
 	const { isOpen, close } = useChatWidget()
 
 	return (
@@ -99,19 +134,23 @@ function MobilePanel(props: ChatPanelProps) {
 				if (!o) close()
 			}}
 			isDismissable
-			className="fixed inset-0 z-50 flex items-end bg-black/25"
+			className="fixed inset-0 z-50 bg-[var(--color-base)]"
 		>
 			<Modal
 				dir="ltr"
-				className="flex h-[75vh] w-full flex-col rounded-t-2xl border-t border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_-16px_60px_rgba(0,0,0,0.1)] outline-none"
+				className="flex h-[100dvh] w-full flex-col bg-[var(--color-base)] pt-[env(safe-area-inset-top)] outline-none"
 			>
-				<PanelShell {...props} />
+				<PanelShell {...props} isFullScreen />
 			</Modal>
 		</ModalOverlay>
 	)
 }
 
 export function ChatPanel(props: ChatPanelProps) {
-	const isMobile = useIsMobile()
-	return isMobile ? <MobilePanel {...props} /> : <DesktopPanel {...props} />
+	const usesFullScreenPanel = useUsesFullScreenPanel()
+	return usesFullScreenPanel ? (
+		<FullScreenPanel {...props} />
+	) : (
+		<DesktopPanel {...props} />
+	)
 }

@@ -15,6 +15,7 @@ export function WebsiteHeader() {
 	const [mobileNavOpen, setMobileNavOpen] = useState(false)
 	const [cartOpen, setCartOpen] = useState(false)
 	const [, setIsDark] = useState(false)
+	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, updateQuantity, remove } = useQuoteCart()
 	const navigateTo = useNavigate()
 	const routerState = useRouterState()
@@ -50,10 +51,46 @@ export function WebsiteHeader() {
 		return () => observer.disconnect()
 	}, [])
 
+	useEffect(() => {
+		const compactFooterQuery = window.matchMedia('(max-width: 1023px)')
+
+		function updateBottomState() {
+			const remaining =
+				document.documentElement.scrollHeight -
+				window.innerHeight -
+				window.scrollY
+			setAtPageBottom(compactFooterQuery.matches && remaining <= 24)
+		}
+
+		updateBottomState()
+		compactFooterQuery.addEventListener('change', updateBottomState)
+		window.addEventListener('scroll', updateBottomState, { passive: true })
+		window.addEventListener('resize', updateBottomState)
+		return () => {
+			compactFooterQuery.removeEventListener('change', updateBottomState)
+			window.removeEventListener('scroll', updateBottomState)
+			window.removeEventListener('resize', updateBottomState)
+		}
+	}, [])
+
 	const navLinkClass =
 		'text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors'
 	const navLinkActiveClass =
 		'text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] pb-1'
+
+	const scrollToProcess = useCallback(() => {
+		document
+			.getElementById('process')
+			?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+	}, [])
+
+	const handleHomeLogoClick = useCallback(() => {
+		if (window.matchMedia('(max-width: 1023px)').matches) {
+			scrollToProcess()
+			return
+		}
+		window.scrollTo({ top: 0, behavior: 'smooth' })
+	}, [scrollToProcess])
 
 	return (
 		<>
@@ -69,17 +106,13 @@ export function WebsiteHeader() {
 				>
 					<button
 						type="button"
-						onClick={() =>
-							document
-								.getElementById('process')
-								?.scrollIntoView({ behavior: 'smooth' })
-						}
+						onClick={scrollToProcess}
 						className="pointer-events-auto transition-transform duration-700 ease-out"
 						style={{
 							transform: scrolled ? 'translateY(-100%)' : 'translateY(0)',
 						}}
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-[var(--color-text)] block overflow-hidden">
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-[var(--color-text)] block overflow-hidden">
 							<span
 								className="block"
 								style={{
@@ -115,17 +148,18 @@ export function WebsiteHeader() {
 				data-theme="dark"
 				className="fixed top-0 inset-x-0 z-40 h-16 max-md:h-14 flex items-center justify-between px-6 bg-[#101010] transition-all duration-700 ease-out"
 				style={{
-					transform: heroMode ? 'translateY(-100%)' : 'translateY(0)',
+					transform:
+						heroMode || atPageBottom ? 'translateY(-100%)' : 'translateY(0)',
 				}}
 			>
 				{/* Logo */}
 				{isHome ? (
 					<button
 						type="button"
-						onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+						onClick={handleHomeLogoClick}
 						className="flex items-center gap-3"
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-white">
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-white">
 							HyperQuote
 						</span>
 					</button>
@@ -135,7 +169,7 @@ export function WebsiteHeader() {
 						aria-label={t('a11y.home')}
 						className="flex items-center gap-3"
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-[-0.02em] text-white">
+						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-white">
 							HyperQuote
 						</span>
 					</Link>
@@ -208,7 +242,7 @@ export function WebsiteHeader() {
 						type="button"
 						onClick={() => setMobileNavOpen(true)}
 						aria-label={t('a11y.openNav')}
-						className="md:hidden p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+						className="rounded-lg p-2 text-white transition-colors hover:bg-white/10 md:hidden"
 					>
 						<Menu size={24} />
 					</button>
@@ -224,9 +258,9 @@ export function WebsiteHeader() {
 						className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px]"
 						onClick={() => setCartOpen(false)}
 					/>
-					<div className="fixed top-14 right-4 z-50 w-[360px] max-h-[75vh] bg-[var(--color-base)] rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col border border-[var(--color-text)]/[0.06]">
+					<div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden border border-[var(--color-text)]/[0.06] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] md:inset-auto md:top-16 md:right-4 md:max-h-[calc(100dvh-5rem)] md:w-[420px] md:rounded-2xl">
 						{/* Header */}
-						<div className="flex items-center justify-between px-5 pt-5 pb-4">
+						<div className="flex items-center justify-between px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 md:pt-5">
 							<span className="text-[15px] font-semibold text-[var(--color-text)]">
 								{t('cart.title')}
 							</span>
@@ -241,7 +275,7 @@ export function WebsiteHeader() {
 
 						{/* Items */}
 						{items.length === 0 ? (
-							<div className="px-5 pb-6 pt-4 text-center">
+							<div className="flex flex-1 flex-col items-center justify-center px-8 pb-10 pt-4 text-center md:block md:flex-none md:px-5 md:pb-6">
 								<p className="text-[13px] text-[var(--color-text-muted)] mb-4">
 									{t('cart.empty')}
 								</p>
@@ -262,19 +296,29 @@ export function WebsiteHeader() {
 											className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
 										>
 											{/* Name + remove */}
-											<div className="flex items-start justify-between gap-3">
-												<Link
-													to="/market/$productSlug"
-													params={{ productSlug: item.slug }}
-													onClick={() => setCartOpen(false)}
-													className="text-[13px] font-medium text-[var(--color-text)] line-clamp-1 hover:text-[var(--color-primary)] transition-colors"
-												>
-													{item.name}
-												</Link>
+											<div className="flex items-start gap-3">
+												{item.imageUrl && (
+													<img
+														src={item.imageUrl}
+														alt=""
+														className="h-11 w-11 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
+													/>
+												)}
+												<div className="min-w-0 flex-1">
+													<Link
+														to="/market/$productSlug"
+														params={{ productSlug: item.slug }}
+														onClick={() => setCartOpen(false)}
+														className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
+													>
+														{item.name}
+													</Link>
+												</div>
 												<button
 													type="button"
 													onClick={() => remove(item.productId)}
 													className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5"
+													aria-label={t('cart.remove')}
 												>
 													<X size={13} />
 												</button>
@@ -473,7 +517,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 
 	if (step === 'submit') {
 		return (
-			<div className="px-4 py-3 border-t border-[var(--color-border)]">
+			<div className="border-t border-[var(--color-border)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 				<button
 					type="button"
 					onClick={() => setStep('phone')}

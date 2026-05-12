@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import type { ChatMessage } from '../../hooks/useAIChat'
+import { ChatMarkdown } from './ChatMarkdown'
 import { TypingIndicator } from './TypingIndicator'
 
 interface ChatMessagesProps {
@@ -16,14 +17,12 @@ const enter = {
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
-	const lastContent = messages[messages.length - 1]?.content ?? ''
 
 	useEffect(() => {
 		const el = scrollRef.current
 		if (el) el.scrollTop = el.scrollHeight
-		// Re-run on new messages, on streaming-chunk growth of the last message,
-		// and when the typing indicator toggles — keeps the view stuck to bottom.
-	}, [messages.length, lastContent, isLoading])
+		// Runs after each render so streamed chat updates stay pinned to bottom.
+	})
 
 	return (
 		<div ref={scrollRef} className="h-full overflow-y-auto px-5 py-5">
@@ -32,16 +31,20 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 					msg.role === 'user' ? (
 						<motion.div key={msg.id} {...enter} className="flex justify-end">
 							<div className="max-w-[80%]">
-								<p className="text-[14px] leading-[1.6] text-end font-medium">
-									{msg.content}
-								</p>
+								<ChatMarkdown
+									content={msg.content}
+									messageRole="user"
+									className="text-[14px] font-medium leading-[1.6] text-[var(--color-text)]"
+								/>
 							</div>
 						</motion.div>
 					) : (
 						<motion.div key={msg.id} {...enter} className="max-w-[90%]">
-							<p className="text-[14px] leading-[1.7] opacity-60">
-								{msg.content}
-							</p>
+							<ChatMarkdown
+								content={msg.content}
+								messageRole="assistant"
+								className="text-[14px] leading-[1.7] text-[var(--color-text-muted)]"
+							/>
 						</motion.div>
 					),
 				)}

@@ -114,15 +114,15 @@ export function ChatBubble({
 			/>
 
 			<article
-				className="grid grid-cols-[60px_1fr] items-baseline gap-x-6 pb-4"
+				className="grid grid-cols-1 gap-y-2 pb-4 sm:grid-cols-[60px_1fr] sm:items-baseline sm:gap-x-6"
 				aria-label={isUser ? 'You' : 'Lyon'}
 			>
 				<span className="office-tag">{speakerTag}</span>
 
-				<div className="max-w-[640px]">
+				<div className="min-w-0 max-w-[640px]">
 					{isUser ? (
 						<p
-							className="voice-mono whitespace-pre-wrap text-[13.5px] leading-[1.65] text-[var(--p-text)]"
+							className="voice-mono whitespace-pre-wrap break-words text-[13.5px] leading-[1.65] text-[var(--p-text)]"
 							style={{ letterSpacing: '0.01em' }}
 						>
 							{processedContent}
@@ -130,7 +130,7 @@ export function ChatBubble({
 					) : (
 						<>
 							<p
-								className={`whitespace-pre-wrap text-[var(--p-text)] ${
+								className={`whitespace-pre-wrap break-words text-[var(--p-text)] ${
 									isArabic
 										? 'voice-serif-ar text-[16px] leading-[1.75]'
 										: 'voice-serif text-[18px] leading-[1.55]'

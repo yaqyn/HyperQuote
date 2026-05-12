@@ -63,7 +63,7 @@ export function FavoriteButton({
 					? t('tracking.removeFromFavorites')
 					: t('tracking.addToFavorites')
 			}
-			className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
+			className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)] sm:h-9 sm:w-9"
 		>
 			<Heart
 				size={16}

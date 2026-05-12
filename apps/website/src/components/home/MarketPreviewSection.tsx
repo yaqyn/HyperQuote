@@ -34,15 +34,15 @@ export function MarketPreviewSection() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="py-28 max-md:py-20 px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32">
+		<section className="px-5 py-20 sm:px-8 md:px-12 md:py-24 lg:px-24 lg:py-28 xl:px-32">
 			<SectionReveal>
-				<div className="flex items-end justify-between mb-14">
-					<h2 className="text-[28px] lg:text-[36px] font-extrabold text-[var(--color-text)] tracking-[-0.02em] leading-tight">
+				<div className="mb-10 flex flex-col items-center justify-between gap-4 text-center sm:mb-12 lg:mb-14 lg:flex-row lg:items-end lg:text-start">
+					<h2 className="text-[28px] lg:text-[36px] font-extrabold text-[var(--color-text)] tracking-normal leading-tight">
 						{t('marketPreview.heading')}
 					</h2>
 					<Link
 						to="/market"
-						className="hidden sm:inline-flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+						className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
 					>
 						{t('marketPreview.viewAll')}
 						<ArrowRight size={14} className="icon-end" aria-hidden="true" />
@@ -51,7 +51,7 @@ export function MarketPreviewSection() {
 			</SectionReveal>
 
 			{/* 3-col grid on desktop, 2-col tablet, 1-col mobile */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+			<div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-10">
 				{categories.map((cat, i) => (
 					<SectionReveal key={cat.slug} delay={i * 0.06}>
 						<Link
@@ -71,7 +71,7 @@ export function MarketPreviewSection() {
 							</div>
 
 							{/* Title + arrow beneath */}
-							<div className="mt-4 flex items-center justify-between">
+							<div className="mt-4 flex items-center justify-center gap-3 text-center lg:justify-between lg:text-start">
 								<span className="text-[16px] font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
 									{t(`marketPreview.categories.${cat.slug}`)}
 								</span>
@@ -83,17 +83,6 @@ export function MarketPreviewSection() {
 						</Link>
 					</SectionReveal>
 				))}
-			</div>
-
-			{/* Mobile View All */}
-			<div className="mt-10 sm:hidden text-center">
-				<Link
-					to="/market"
-					className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-primary)] hover:opacity-70 transition-opacity"
-				>
-					{t('marketPreview.viewAll')}
-					<ArrowRight size={14} className="icon-end" />
-				</Link>
 			</div>
 		</section>
 	)

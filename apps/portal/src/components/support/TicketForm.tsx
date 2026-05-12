@@ -1,7 +1,9 @@
 /**
  * TicketForm — underline inputs, minimal. Data is the design.
  */
-import { useState } from 'react'
+import type { ParseKeys } from 'i18next'
+import { ChevronDown } from 'lucide-react'
+import { type FormEvent, type Key, useState } from 'react'
 import {
 	Button,
 	Form,
@@ -32,6 +34,11 @@ const CATEGORY_LABELS: Record<TicketCategory, string> = {
 	account: 'Account',
 	other: 'Other',
 }
+const CATEGORY_SET = new Set<string>(CATEGORIES)
+
+function isTicketCategory(key: Key | null): key is TicketCategory {
+	return typeof key === 'string' && CATEGORY_SET.has(key)
+}
 
 interface TicketFormProps {
 	onSubmit: (data: {
@@ -44,9 +51,9 @@ interface TicketFormProps {
 }
 
 const labelClass =
-	'mb-3 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
+	'mb-2.5 block text-[13px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-subtle)] sm:mb-3'
 const inputClass =
-	'w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB]'
+	'w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] sm:text-sm'
 
 export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 	const { t } = useTranslation('portal')
@@ -54,8 +61,12 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 	const [category, setCategory] = useState<TicketCategory>('order_issue')
 	const [message, setMessage] = useState('')
 	const [orderId, setOrderId] = useState('')
+	const getCategoryLabel = (cat: TicketCategory) =>
+		t(`support.category.${cat}` as ParseKeys<'portal'>, {
+			defaultValue: CATEGORY_LABELS[cat],
+		})
 
-	function handleSubmit(e: React.FormEvent) {
+	function handleSubmit(e: FormEvent) {
 		e.preventDefault()
 		if (!subject.trim() || !message.trim()) return
 		onSubmit({
@@ -67,7 +78,7 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 	}
 
 	return (
-		<Form onSubmit={handleSubmit} className="flex flex-col gap-10">
+		<Form onSubmit={handleSubmit} className="flex flex-col gap-8 sm:gap-10">
 			{/* Subject */}
 			<TextField isRequired value={subject} onChange={setSubject}>
 				<Label className={labelClass}>{t('support.formSubject')}</Label>
@@ -80,38 +91,30 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 			{/* Category */}
 			<Select
 				selectedKey={category}
-				onSelectionChange={(key) => setCategory(key as TicketCategory)}
+				onSelectionChange={(key) => {
+					if (isTicketCategory(key)) setCategory(key)
+				}}
 			>
 				<Label className={labelClass}>{t('support.formCategory')}</Label>
-				<Button className="flex items-center justify-between w-full bg-transparent border-0 border-b border-[var(--color-border)] pb-2.5 text-sm text-[var(--color-text)] outline-none cursor-pointer transition-colors focus:border-[#2563EB]">
+				<Button className="flex min-h-11 w-full cursor-pointer items-center justify-between border-0 border-b border-[var(--color-border)] bg-transparent pb-2.5 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] sm:min-h-0 sm:text-sm">
 					<SelectValue />
-					<svg
-						aria-hidden="true"
-						width="10"
-						height="10"
-						viewBox="0 0 10 10"
-						fill="none"
+					<ChevronDown
+						aria-hidden
+						size={14}
+						strokeWidth={1.5}
 						className="text-[var(--color-text-subtle)]"
-					>
-						<path
-							d="M2 4L5 7L8 4"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
+					/>
 				</Button>
-				<Popover className="rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] shadow-lg overflow-hidden">
+				<Popover className="w-[var(--trigger-width)] max-h-[min(18rem,60vh)] overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] shadow-lg">
 					<ListBox className="p-1 outline-none">
 						{CATEGORIES.map((cat) => (
 							<ListBoxItem
 								key={cat}
 								id={cat}
-								textValue={CATEGORY_LABELS[cat]}
-								className="px-3 py-2 text-sm text-[var(--color-text)] cursor-pointer outline-none rounded-md hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)]"
+								textValue={getCategoryLabel(cat)}
+								className="min-h-11 cursor-pointer rounded-md px-3 py-3 text-[15px] text-[var(--color-text)] outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] sm:min-h-0 sm:py-2 sm:text-sm"
 							>
-								{CATEGORY_LABELS[cat]}
+								{getCategoryLabel(cat)}
 							</ListBoxItem>
 						))}
 					</ListBox>
@@ -126,7 +129,7 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 					onChange={(e) => setMessage(e.target.value)}
 					placeholder={t('support.formDescriptionPlaceholder')}
 					rows={4}
-					className={`${inputClass} resize-y placeholder:text-[var(--color-border)]`}
+					className={`${inputClass} min-h-28 resize-y placeholder:text-[var(--color-border)]`}
 				/>
 			</div>
 
@@ -143,7 +146,7 @@ export function TicketForm({ onSubmit, isSubmitting }: TicketFormProps) {
 			<button
 				type="submit"
 				disabled={isSubmitting || !subject.trim() || !message.trim()}
-				className="self-start h-9 px-5 rounded-lg bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-[13px] font-medium transition-opacity hover:opacity-80 disabled:opacity-30"
+				className="h-11 w-full self-start rounded-lg bg-[#0F172A] px-5 text-[13px] font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-30 dark:bg-[#FAFAFA] dark:text-[#09090B] sm:h-9 sm:w-auto"
 			>
 				{isSubmitting ? t('support.submitting') : t('support.submitTicket')}
 			</button>

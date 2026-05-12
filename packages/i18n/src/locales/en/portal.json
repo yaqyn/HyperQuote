@@ -27,7 +27,11 @@
 		"starredChats": "Starred",
 		"chatHistory": "Chat History",
 		"noChats": "No conversations yet",
-		"newChat": "New conversation"
+		"newChat": "New conversation",
+		"welcome": "Welcome",
+		"label": "Navigation and chat history",
+		"show": "Show sidebar",
+		"hide": "Hide sidebar"
 	},
 	"chat": {
 		"placeholder1": "What do you need?",
@@ -145,9 +149,9 @@
 		"claimFailed": "Could not claim account. Try again.",
 		"atelier": {
 			"caption": "Lyon · Broker of Record · Est. 2026",
-			"pageNo": "No. 0001",
-			"signature": "Prepared by L.",
-			"legalPrefix": "On this page, you agree to HyperQuote's",
+			"legalPrefix": "By continuing, you agree to",
+			"termsLink": "Terms",
+			"privacyLink": "Privacy",
 			"step1": {
 				"heading": "Who shall I prepare this for?"
 			},
@@ -180,7 +184,10 @@
 		"confirmDelivery": "Confirm Delivery",
 		"confirmSuccess": "Delivery confirmed",
 		"copyIBAN": "Copy IBAN",
+		"confirmed": "Confirmed",
 		"delivered": "Delivered",
+		"beingPrepared": "Being prepared",
+		"deliveryDetails": "Delivery tracking",
 		"dispute": "Report Issue",
 		"disputeHeading": "Report a delivery issue",
 		"disputePhotoLabel": "Photos",
@@ -188,11 +195,17 @@
 		"disputeSubmitted": "Issue reported",
 		"disputeSuccess": "Issue reported successfully",
 		"documents": "Documents",
+		"driver": "Driver",
+		"driverPhone": "Phone",
 		"error": "Something went wrong",
 		"errorState": "Failed to load order",
+		"eta": "ETA {{time}}",
 		"goBack": "Go Back",
 		"ibanCopied": "IBAN copied",
+		"invoiceGenerated": "Invoice generated",
+		"lastUpdated": "Updated {{time}}",
 		"loading": "Loading...",
+		"outForDelivery": "Out for delivery",
 		"paymentInstructions": "Payment Instructions",
 		"podBanner": "Confirm delivery to proceed with payment",
 		"reference": "Reference",
@@ -200,7 +213,8 @@
 		"removeFromFavorites": "Remove from favorites",
 		"retry": "Retry",
 		"submitDispute": "Submit",
-		"timeline": "Timeline"
+		"timeline": "Timeline",
+		"vehicle": "Vehicle"
 	},
 	"floatingAI": {
 		"orders": "I see you're looking at Orders -- need help?",
@@ -449,7 +463,14 @@
 		"docs": "Documentation",
 		"docsDesc": "Guides, API docs, and how-to articles",
 		"faq": "FAQ",
-		"faqDesc": "Frequently asked questions and answers"
+		"faqDesc": "Frequently asked questions and answers",
+		"category": {
+			"order_issue": "Order issue",
+			"delivery_problem": "Delivery problem",
+			"billing": "Billing",
+			"account": "Account",
+			"other": "Other"
+		}
 	},
 	"settings": {
 		"windowTitle": "Settings",
@@ -897,6 +918,8 @@
 		"windowTitle": "Market",
 		"locate": "Locate",
 		"locateHint": "name, category, specification",
+		"clearSearch": "Clear search",
+		"resultCount": "{{count}} products",
 		"allEntries": "All entries",
 		"openLedger": "Open the ledger",
 		"record": "Record",
@@ -915,6 +938,21 @@
 		"relatedProducts": "Related Products",
 		"clearFilters": "Clear filters",
 		"draftQuote": "Draft Quote",
+		"openCart": "Open cart",
+		"closeCart": "Close cart",
+		"cartItemCount": "{{count}} items",
+		"cartEmptyTitle": "Your cart is empty",
+		"cartEmptyBody": "Add products from the market to prepare a quote request.",
+		"cartNotesLabel": "Notes",
+		"cartNotesPlaceholder": "Site access, delivery timing, brand preferences...",
+		"submitHint": "We'll send this cart as a quote request. Prices are prepared after supplier review.",
+		"submitSuccessTitle": "Quote request submitted",
+		"submitSuccessBody": "Reference {{ref}}. We'll notify you when pricing is ready.",
+		"submitSuccessToast": "Quote request {{ref}} submitted.",
+		"submitError": "Could not submit this quote request. Please try again.",
+		"continueBrowsing": "Continue browsing",
+		"decreaseQuantity": "Decrease quantity",
+		"increaseQuantity": "Increase quantity",
 		"draftEmpty": "Add products to start building your quote",
 		"openInOrders": "Open in Orders",
 		"clearDraft": "Clear draft",
@@ -966,6 +1004,7 @@
 		"terms": "Terms of Use",
 		"privacy": "Privacy Policy",
 		"support": "Support",
-		"website": "hyperquote.net"
+		"website": "hyperquote.net",
+		"toggleLights": "Toggle lights"
 	}
 }

@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
+import whatsappLightUrl from '../../../../essential/brand/whatsapp-light.svg'
 import { AtelierScene } from '../components/atelier/AtelierScene'
 import { WaxSeal } from '../components/atelier/WaxSeal'
 import {
@@ -42,20 +43,10 @@ export const Route = createFileRoute('/login')({
 
 type AuthStep = 'phone' | 'otp' | 'create' | 'claiming' | 'farewell'
 type Stage = 'dark' | 'logo' | 'scene' | 'leaving'
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-const DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
-	day: '2-digit',
-	month: 'short',
-	year: 'numeric',
-})
-
-function formatToday(): string {
-	return DATE_FORMATTER.format(new Date()).toUpperCase()
-}
+const STEP_EASE = cubicBezier(0.2, 0.8, 0.2, 1)
+const INTRO_LOGO_IN_MS = 300
+const INTRO_LOGO_OUT_MS = 1450
+const INTRO_SCENE_IN_MS = 2150
 
 // ============================================================================
 // Login Page — THE ATELIER
@@ -79,11 +70,13 @@ function LoginPage() {
 	}, [setSigningOut])
 
 	useEffect(() => {
-		const t1 = setTimeout(() => setStage('logo'), 300)
-		const t2 = setTimeout(() => setStage('scene'), 1700)
+		const t1 = setTimeout(() => setStage('logo'), INTRO_LOGO_IN_MS)
+		const t2 = setTimeout(() => setStage('dark'), INTRO_LOGO_OUT_MS)
+		const t3 = setTimeout(() => setStage('scene'), INTRO_SCENE_IN_MS)
 		return () => {
 			clearTimeout(t1)
 			clearTimeout(t2)
+			clearTimeout(t3)
 		}
 	}, [])
 
@@ -101,14 +94,14 @@ function LoginPage() {
 
 	return (
 		<motion.div
-			className="atelier-scene relative min-h-dvh w-full overflow-hidden"
+			className="atelier-scene relative min-h-dvh w-full overflow-x-hidden overflow-y-auto overscroll-none"
 			animate={{ opacity: leaving ? 0 : 1 }}
 			transition={{ duration: leaving ? 1.2 : 0, ease: 'easeInOut' }}
 		>
 			<div className="atelier-vignette" />
 
-			<div className="relative flex min-h-dvh w-full items-center justify-center">
-				<AnimatePresence mode="wait">
+			<div className="relative min-h-dvh w-full">
+				<AnimatePresence>
 					{stage === 'logo' && (
 						<motion.div
 							key="logo"
@@ -116,7 +109,7 @@ function LoginPage() {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ duration: 0.6, ease: 'easeOut' }}
-							className="relative z-20"
+							className="absolute inset-0 z-20 flex items-center justify-center"
 						>
 							<img
 								src="/brand/LyonWhite.svg"
@@ -130,13 +123,13 @@ function LoginPage() {
 					{showScene && (
 						<motion.div
 							key="scene"
-							initial={{ opacity: 0 }}
+							initial={false}
 							animate={{ opacity: stage === 'leaving' ? 0 : 1 }}
 							transition={{
 								duration: stage === 'leaving' ? 0.7 : 0.9,
 								ease: 'easeOut',
 							}}
-							className="absolute inset-0"
+							className="relative min-h-dvh w-full"
 						>
 							<AtelierScene lit>
 								<OrderBookPage>
@@ -214,27 +207,13 @@ function OrderBookPage({ children }: { children: ReactNode }) {
 	const { t } = useTranslation('portal')
 	return (
 		<div className="atelier-page atelier-page-enter">
-			<p className="atelier-mono text-center text-[10px] uppercase tracking-[0.32em] text-[var(--atelier-ink-faint)]">
+			<p className="atelier-mono text-center text-[10px] uppercase tracking-[0.18em] text-[var(--atelier-ink-faint)] sm:tracking-[0.32em]">
 				{t('login.atelier.caption', 'Lyon · Broker of Record · Est. 2026')}
 			</p>
 
 			<div className="atelier-rule-draw mt-3 h-px origin-left bg-[var(--atelier-rule)]" />
 
 			<div className="relative mt-6">{children}</div>
-
-			<div className="mt-6 h-px bg-[var(--atelier-rule)]" />
-
-			<div className="mt-3 flex items-baseline justify-between gap-3">
-				<p className="atelier-mono text-[10px] uppercase tracking-[0.18em] text-[var(--atelier-ink-faint)]">
-					{t('login.atelier.pageNo', 'No. 0001')}
-				</p>
-				<p className="atelier-mono text-[10px] uppercase tracking-[0.18em] text-[var(--atelier-ink-faint)]">
-					{formatToday()}
-				</p>
-				<p className="atelier-serif text-[13px] italic leading-none text-[var(--atelier-ink-muted)]">
-					{t('login.atelier.signature', 'Prepared by L.')}
-				</p>
-			</div>
 		</div>
 	)
 }
@@ -278,7 +257,7 @@ function StepFrame({ children }: { children: ReactNode }) {
 			initial={{ opacity: 0, x: 18 }}
 			animate={{ opacity: 1, x: 0 }}
 			exit={{ opacity: 0, x: -20, filter: 'blur(1.5px)' }}
-			transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+			transition={{ duration: 0.28, ease: STEP_EASE }}
 		>
 			{children}
 		</motion.div>
@@ -347,7 +326,7 @@ function PhoneStep({
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[28px] leading-[1.1] tracking-[-0.01em] text-[var(--atelier-ink)]">
+			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
 				{t('login.atelier.step1.heading', 'Who shall I prepare this for?')}
 			</h1>
 
@@ -363,7 +342,7 @@ function PhoneStep({
 					key={hintKey}
 					className={`atelier-rule-line mt-3 flex items-baseline gap-3 pb-2 ${hintKey > 0 ? 'atelier-border-hint' : ''}`}
 				>
-					<span className="atelier-mono text-[13px] text-[var(--atelier-ink-muted)]">
+					<span className="atelier-mono shrink-0 text-[13px] text-[var(--atelier-ink-muted)]">
 						+20
 					</span>
 					<input
@@ -383,7 +362,7 @@ function PhoneStep({
 							if (e.key === 'Enter') handleSend('whatsapp')
 						}}
 						aria-label={t('login.phoneLabel', 'Phone')}
-						className="atelier-mono w-full bg-transparent text-[15px] tracking-[0.02em] text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+						className="atelier-mono min-w-0 flex-1 bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
 					/>
 				</div>
 			</div>
@@ -392,12 +371,22 @@ function PhoneStep({
 				<Button
 					onPress={() => handleSend('whatsapp')}
 					isDisabled={loading}
-					className="atelier-command"
+					className="atelier-whatsapp-command"
 				>
 					{loading && sendingMethod === 'whatsapp' ? (
 						<AtelierDots />
 					) : (
-						t('login.whatsappCTA', 'Continue with WhatsApp')
+						<>
+							<img
+								src={whatsappLightUrl}
+								alt=""
+								width={22}
+								height={22}
+								className="atelier-whatsapp-icon"
+								draggable={false}
+							/>
+							<span>{t('login.whatsappCTA', 'Continue with WhatsApp')}</span>
+						</>
 					)}
 				</Button>
 				<button
@@ -559,7 +548,7 @@ function OTPStep({
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[28px] leading-[1.1] tracking-[-0.01em] text-[var(--atelier-ink)]">
+			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
 				{t('login.atelier.step2.heading', 'Enter the six figures I sent.')}
 			</h1>
 			<p className="atelier-mono mt-3 text-[11px] uppercase tracking-[0.22em] text-[var(--atelier-ink-muted)]">
@@ -567,17 +556,21 @@ function OTPStep({
 				<span className="text-[var(--atelier-ink)]">+20 {phone}</span>
 			</p>
 
-			<div dir="ltr" className="mt-8 flex gap-3" onPaste={handlePaste}>
+			<div
+				dir="ltr"
+				className="mt-8 grid grid-cols-6 gap-2 sm:gap-3"
+				onPaste={handlePaste}
+			>
 				{OTP_SLOTS.map((slot, i) => (
 					<div
 						key={slot}
-						className={`atelier-otp-cell relative flex-1 ${striking ? 'atelier-otp-strike' : ''}`}
+						className={`atelier-otp-cell relative min-w-0 ${striking ? 'atelier-otp-strike' : ''}`}
 						data-focused={focusedIndex === i}
 					>
 						{code[i] && (
 							<span
 								key={`${slot}-${code[i]}`}
-								className="atelier-ink-bleed atelier-serif pointer-events-none text-[28px] italic leading-none text-[var(--atelier-ink)]"
+								className="atelier-ink-bleed atelier-serif pointer-events-none text-[26px] italic leading-none text-[var(--atelier-ink)] sm:text-[28px]"
 							>
 								{code[i]}
 							</span>
@@ -596,7 +589,7 @@ function OTPStep({
 							onBlur={() => setFocusedIndex(-1)}
 							disabled={loading}
 							aria-label={`Digit ${i + 1}`}
-							className="atelier-serif absolute inset-0 h-full w-full bg-transparent text-center text-[28px] italic leading-none text-transparent outline-none caret-[var(--atelier-ink)] disabled:opacity-40"
+							className="atelier-serif absolute inset-0 h-full w-full bg-transparent text-center text-[26px] italic leading-none text-transparent outline-none caret-[var(--atelier-ink)] disabled:opacity-40 sm:text-[28px]"
 						/>
 					</div>
 				))}
@@ -611,7 +604,7 @@ function OTPStep({
 				</p>
 			)}
 
-			<div className="atelier-mono mt-8 flex items-center justify-between text-[11px] uppercase tracking-[0.18em]">
+			<div className="atelier-mono mt-8 flex flex-col gap-3 text-[11px] uppercase tracking-[0.14em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.18em]">
 				<button
 					type="button"
 					onClick={onBack}
@@ -692,7 +685,7 @@ function AccountCreationStep({
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[28px] leading-[1.1] tracking-[-0.01em] text-[var(--atelier-ink)]">
+			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
 				{t('login.atelier.step3.heading', 'Record your details.')}
 			</h1>
 
@@ -724,7 +717,7 @@ function AccountCreationStep({
 								}
 							}}
 							aria-label={t('login.fullName', 'Full name')}
-							className="atelier-mono w-full bg-transparent text-[15px] tracking-[0.02em] text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+							className="atelier-mono w-full bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
 						/>
 					</div>
 				</div>
@@ -750,7 +743,7 @@ function AccountCreationStep({
 								if (e.key === 'Enter') handleCreate()
 							}}
 							aria-label={t('login.companyName', 'Company name')}
-							className="atelier-mono w-full bg-transparent text-[15px] tracking-[0.02em] text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+							className="atelier-mono w-full bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
 						/>
 					</div>
 				</div>
@@ -815,7 +808,7 @@ function AccountClaimingStep({
 
 	return (
 		<div className="flex flex-col items-center">
-			<h1 className="atelier-serif text-center text-[28px] leading-[1.1] tracking-[-0.01em] text-[var(--atelier-ink)]">
+			<h1 className="atelier-serif text-center text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
 				{t('login.atelier.claiming.heading', 'A page already exists.')}
 			</h1>
 			<p className="atelier-mono mt-3 text-center text-[11px] uppercase tracking-[0.22em] text-[var(--atelier-ink-muted)]">
@@ -879,7 +872,7 @@ function FarewellStep({ onDone }: { onDone: () => void }) {
 
 	return (
 		<div className="flex flex-col items-center py-6">
-			<p className="atelier-serif text-center text-[30px] italic leading-[1.15] tracking-[-0.01em] text-[var(--atelier-ink)]">
+			<p className="atelier-serif text-center text-[28px] italic leading-[1.15] tracking-normal text-[var(--atelier-ink)] sm:text-[30px]">
 				{t('login.atelier.farewell.heading', 'Pleasure doing business.')}
 			</p>
 			<div className="atelier-rule-draw mt-7 h-px w-14 origin-left bg-[var(--atelier-rule-strong)]" />
@@ -898,27 +891,24 @@ function LegalFooter({ leaving }: { leaving: boolean }) {
 	const { t } = useTranslation('portal')
 	return (
 		<motion.div
-			initial={{ opacity: 0 }}
+			initial={false}
 			animate={{ opacity: leaving ? 0 : 1 }}
 			transition={{
 				duration: leaving ? 0.6 : 1,
 				delay: leaving ? 0 : 0.9,
 				ease: 'easeOut',
 			}}
-			className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center pb-6 pt-3"
+			className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6"
 		>
-			<p className="atelier-mono pointer-events-auto text-center text-[10px] uppercase tracking-[0.22em] text-[var(--atelier-ink-faint)]">
-				{t(
-					'login.atelier.legalPrefix',
-					"On this page, you agree to HyperQuote's",
-				)}{' '}
+			<p className="atelier-legal-copy pointer-events-auto max-w-[36rem] text-center">
+				{t('login.atelier.legalPrefix', 'By continuing, you agree to')}{' '}
 				<a
 					href="https://www.hyperquote.net/docs/legal/terms-of-service"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="atelier-link"
 				>
-					{t('login.termsLink', 'Terms of Use')}
+					{t('login.atelier.termsLink', 'Terms')}
 				</a>{' '}
 				{t('login.and', 'and')}{' '}
 				<a
@@ -927,7 +917,7 @@ function LegalFooter({ leaving }: { leaving: boolean }) {
 					rel="noopener noreferrer"
 					className="atelier-link"
 				>
-					{t('login.privacyLink', 'Privacy Policy')}
+					{t('login.atelier.privacyLink', 'Privacy')}
 				</a>
 				.
 			</p>

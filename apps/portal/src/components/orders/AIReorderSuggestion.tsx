@@ -72,8 +72,8 @@ export function AIReorderSuggestion({
 	if (hidden) return null
 
 	return (
-		<div className="bg-[var(--color-info-bg)] rounded-xl p-3 flex items-center gap-3">
-			<p className="flex-1 text-sm text-[var(--color-text)]">
+		<div className="relative flex flex-col gap-3 rounded-xl bg-[var(--color-info-bg)] p-3 pe-12 sm:flex-row sm:items-center sm:pe-3">
+			<p className="min-w-0 flex-1 break-words text-sm text-[var(--color-text)]">
 				{t('tracking.aiSuggestion', {
 					product: productName,
 					days: daysSinceOrder,
@@ -82,7 +82,7 @@ export function AIReorderSuggestion({
 
 			<Button
 				onPress={handleReorder}
-				className="shrink-0 h-8 px-4 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer hover:opacity-90 transition-opacity"
+				className="h-11 w-full shrink-0 cursor-pointer rounded-lg bg-[var(--color-primary)] px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:h-9 sm:w-auto"
 			>
 				{t('tracking.reorder')}
 			</Button>
@@ -90,7 +90,7 @@ export function AIReorderSuggestion({
 			<Button
 				onPress={handleDismiss}
 				aria-label={t('window.close')}
-				className="shrink-0 flex items-center justify-center w-5 h-5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+				className="absolute end-2 top-2 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] sm:static sm:h-8 sm:w-8"
 			>
 				<X size={12} />
 			</Button>

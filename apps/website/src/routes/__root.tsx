@@ -10,6 +10,7 @@ import { I18nProvider } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { ChatWidget } from '../components/chat/ChatWidget'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
+import { SiteContextMenu } from '../components/layout/SiteContextMenu'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { ChatProvider } from '../hooks/ChatProvider'
 import { setupI18n } from '../lib/i18n'
@@ -115,7 +116,6 @@ function RootComponent() {
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: global UX polish on <body> — cannot be swapped for a button */}
 			<body
 				className="bg-[var(--color-base)] text-[var(--color-text)] transition-colors"
-				onContextMenu={(e) => e.preventDefault()}
 				onKeyDown={(e) => {
 					if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
 						const tag = (e.target as HTMLElement).tagName
@@ -141,6 +141,7 @@ function RootComponent() {
 						<Outlet />
 						<ChatWidget />
 						<SelectionCopy />
+						<SiteContextMenu />
 					</ChatProvider>
 				</I18nProvider>
 				<Scripts />

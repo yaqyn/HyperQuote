@@ -247,7 +247,7 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 			params={{ productSlug: product.slug }}
 			className="group block"
 		>
-			<div className="relative aspect-[3/2] overflow-hidden bg-[var(--color-surface)]">
+			<div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[var(--color-surface)] sm:aspect-[3/2]">
 				<img
 					src={image}
 					alt={name}
@@ -258,7 +258,7 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					ref={btnRef}
 					type="button"
 					onClick={handleBtnClick}
-					className={`absolute bottom-3 end-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ring-1 shadow-lg ${
+					className={`absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 ring-1 shadow-lg sm:bottom-3 sm:end-3 sm:h-10 sm:w-10 ${
 						inCart
 							? 'backdrop-blur-md bg-white ring-white/40'
 							: 'backdrop-blur-xl bg-black/20 ring-white/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:bg-black/35'
@@ -287,11 +287,11 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					/>
 				)}
 			</AnimatePresence>
-			<div className="mt-3 px-0.5">
-				<h3 className="text-[15px] font-medium text-[var(--color-text)] line-clamp-2 leading-snug">
+			<div className="mt-2.5 px-0.5 sm:mt-3">
+				<h3 className="text-[14px] font-medium text-[var(--color-text)] line-clamp-2 leading-snug sm:text-[15px]">
 					{name}
 				</h3>
-				<p className="text-[13px] text-[var(--color-text-muted)] mt-1">
+				<p className="mt-1 text-[12px] text-[var(--color-text-muted)] sm:text-[13px]">
 					{t(`categories.${product.category}` as ParseKeys<'website'>)} · {unit}
 				</p>
 			</div>

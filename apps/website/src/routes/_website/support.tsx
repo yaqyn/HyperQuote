@@ -86,19 +86,16 @@ function SupportPage() {
 				initial="hidden"
 				animate="visible"
 				variants={reveal}
-				className="px-6 lg:px-12 min-h-[70vh] flex items-center justify-center"
+				className="flex min-h-[56svh] items-center justify-center px-4 pb-12 pt-28 sm:min-h-[52svh] sm:px-6 md:px-8 lg:min-h-[64vh] lg:px-12"
 			>
 				<div className="mx-auto max-w-[1200px] text-center">
-					<h1
-						className="font-extrabold leading-[1] tracking-[-0.03em]"
-						style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}
-					>
+					<h1 className="text-[clamp(2.4rem,11vw,4.5rem)] font-extrabold leading-[1] tracking-normal md:text-[clamp(3rem,6vw,4.5rem)]">
 						{t('support.heading')}
 					</h1>
-					<p className="mt-5 text-[15px] opacity-35 mx-auto max-w-[400px] leading-[1.7]">
+					<p className="mx-auto mt-5 max-w-[400px] text-[15px] leading-[1.7] text-[var(--color-text-muted)]">
 						{t('support.responseTime')}
 					</p>
-					<p className="mt-2 font-[family-name:var(--font-mono)] text-[12px] tracking-[0.04em] opacity-25">
+					<p className="mx-auto mt-2 max-w-[320px] font-[family-name:var(--font-mono)] text-[11px] leading-relaxed tracking-normal text-[var(--color-text-subtle)] sm:max-w-none sm:text-[12px]">
 						{isArabic
 							? '\u0627\u0644\u0623\u062D\u062F \u2013 \u0627\u0644\u062E\u0645\u064A\u0633 \u060C \u0668:\u0660\u0660 \u0635 \u2013 \u0666:\u0660\u0660 \u0645 \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
 							: 'Sun\u2013Thu, 8:00 AM \u2013 6:00 PM Cairo time'}
@@ -114,7 +111,7 @@ function SupportPage() {
 							askLyonLabel={t('support.askAI', { defaultValue: 'Ask Lyon' })}
 							onSelect={handleSelect}
 							onAskLyon={handleAskLyon}
-							className="max-w-[480px] w-full"
+							className="w-full max-w-[480px] [&_input]:placeholder:opacity-50 [&_svg]:opacity-40"
 							idPrefix="support-search"
 						/>
 					</div>
@@ -122,7 +119,7 @@ function SupportPage() {
 			</motion.section>
 
 			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-6 lg:px-12">
+			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
 				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
 			</div>
 
@@ -132,20 +129,17 @@ function SupportPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 py-20 lg:px-12 lg:py-28"
+				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
-					<div className="mb-14">
+					<div className="mb-10 text-center md:mb-12 lg:mb-14 lg:text-start">
 						<SectionNumber n={1} />
-						<h2
-							className="mt-3 font-bold tracking-[-0.02em]"
-							style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
-						>
+						<h2 className="mt-3 text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal">
 							{t('support.sectionContact')}
 						</h2>
 					</div>
 
-					<div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-[1fr_1fr] lg:gap-24">
+					<div className="grid grid-cols-1 items-start justify-items-center gap-12 lg:grid-cols-[1fr_1fr] lg:justify-items-stretch lg:gap-24">
 						<ContactForm />
 						<div className="h-px bg-[var(--color-text)] opacity-[0.07] lg:hidden" />
 						<ContactInfo />
@@ -154,7 +148,7 @@ function SupportPage() {
 			</motion.section>
 
 			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-6 lg:px-12">
+			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
 				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
 			</div>
 
@@ -165,19 +159,18 @@ function SupportPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={reveal}
-				className="px-6 py-20 lg:px-12 lg:py-28"
+				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
-					<div className="mb-14">
+					<div className="mb-10 text-center md:mb-12 lg:mb-14 lg:text-start">
 						<SectionNumber n={2} />
-						<h2
-							className="mt-3 font-bold tracking-[-0.02em]"
-							style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}
-						>
+						<h2 className="mt-3 text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal">
 							{t('support.faq.heading')}
 						</h2>
 					</div>
-					<FAQAccordion expandId={expandFaqId} />
+					<div className="mx-auto max-w-[760px] lg:max-w-none">
+						<FAQAccordion expandId={expandFaqId} />
+					</div>
 
 					<motion.div
 						initial="hidden"

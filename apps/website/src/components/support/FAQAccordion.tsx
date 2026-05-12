@@ -81,17 +81,18 @@ export function FAQAccordion({ expandId }: FAQAccordionProps) {
 							type="button"
 							onClick={() => toggleItem(item.id)}
 							aria-expanded={isOpen}
-							className="flex w-full items-center justify-between gap-8 py-8 text-start outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+							className="grid w-full grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 py-6 text-center outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] md:gap-4 md:py-7 lg:grid-cols-[minmax(0,1fr)_2rem] lg:text-start"
 						>
+							<span aria-hidden="true" className="lg:hidden" />
 							<span
-								className={`text-[17px] font-semibold leading-snug tracking-[-0.015em] transition-colors duration-700 ${
+								className={`col-start-2 min-w-0 text-[15px] font-semibold leading-snug tracking-normal transition-colors duration-700 sm:text-[16px] md:text-[17px] lg:col-start-1 ${
 									highlightId === item.id ? 'text-[var(--color-primary)]' : ''
 								}`}
 							>
 								{t(item.questionKey as ParseKeys<'website'>)}
 							</span>
 							<span
-								className={`shrink-0 transition-colors duration-200 ${
+								className={`col-start-3 flex justify-end transition-colors duration-200 lg:col-start-2 ${
 									isOpen ? 'text-[var(--color-primary)]' : 'opacity-25'
 								}`}
 							>
@@ -111,7 +112,7 @@ export function FAQAccordion({ expandId }: FAQAccordionProps) {
 							}}
 						>
 							<div className="overflow-hidden">
-								<div className="pb-9 pe-16 text-[15px] leading-[1.8] opacity-65">
+								<div className="mx-auto max-w-[620px] px-7 pb-7 text-start text-[14px] leading-[1.75] opacity-65 sm:px-10 md:px-12 md:text-[15px] lg:mx-0 lg:max-w-none lg:px-0 lg:pe-16">
 									{t(item.answerKey as ParseKeys<'website'>)}
 								</div>
 							</div>
