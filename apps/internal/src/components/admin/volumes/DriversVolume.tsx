@@ -43,7 +43,11 @@ export function DriversVolume() {
 	const openEditor = useAdminStore((s) => s.openEditor)
 	const closeEditor = useAdminStore((s) => s.closeEditor)
 
-	const { data: trucks = [] } = useQuery({
+	const {
+		data: trucks = [],
+		isError: trucksError,
+		isPending: trucksPending,
+	} = useQuery({
 		queryKey: ['admin', 'drivers'],
 		queryFn: () => adminListTrucks(),
 	})
@@ -151,6 +155,7 @@ export function DriversVolume() {
 			labelKey: 'volumes.drivers.columns.plate',
 			width: '120px',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => (
 				<span className="text-[var(--color-text)]">{r.plateNumber}</span>
 			),
@@ -159,8 +164,9 @@ export function DriversVolume() {
 			key: 'driver',
 			labelKey: 'volumes.drivers.columns.driver',
 			width: 'minmax(140px, 1.4fr)',
+			mobileRole: 'primary',
 			render: (r) => (
-				<span className="truncate font-medium text-[var(--color-text)]">
+				<span className="break-words font-semibold text-[var(--color-text)]">
 					{r.driverName}
 				</span>
 			),
@@ -170,6 +176,7 @@ export function DriversVolume() {
 			labelKey: 'volumes.drivers.columns.phone',
 			width: 'minmax(120px, 1fr)',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.driverPhone}</>,
 		},
 		{
@@ -178,6 +185,7 @@ export function DriversVolume() {
 			width: '100px',
 			mono: true,
 			align: 'end',
+			mobileRole: 'detail',
 			render: (r) => (
 				<span>
 					{r.capacityTons}
@@ -191,6 +199,7 @@ export function DriversVolume() {
 			key: 'body',
 			labelKey: 'volumes.drivers.columns.body',
 			width: '120px',
+			mobileRole: 'detail',
 			render: (r) => (
 				<span className="text-[var(--color-text-muted)]">
 					{t(`editor.enums.bodyType.${r.bodyType}`)}
@@ -201,6 +210,7 @@ export function DriversVolume() {
 			key: 'status',
 			labelKey: 'volumes.drivers.columns.status',
 			width: '140px',
+			mobileRole: 'detail',
 			render: (r) => (
 				<StatusTag
 					label={t(`editor.enums.truckStatus.${r.status}`)}
@@ -233,6 +243,8 @@ export function DriversVolume() {
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
+				isLoading={trucksPending}
+				isError={trucksError}
 			/>
 
 			<EntityEditor
@@ -243,7 +255,7 @@ export function DriversVolume() {
 				footer={
 					draft ? (
 						<>
-							<div className="flex items-center gap-6">
+							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
 								{mode === 'view' && (
 									<LinkAction tone="primary" onClick={handleEdit}>
 										{t('actions.edit')}
@@ -290,7 +302,7 @@ export function DriversVolume() {
 								ariaLabel={t('editor.fields.plateNumber')}
 							/>
 						</Field>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.bodyType')}>
 								<SelectControl
 									value={draft.bodyType}

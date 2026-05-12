@@ -11,7 +11,7 @@ export function WarehouseTabSwitch() {
 	const setActiveTab = useWarehouseStore((s) => s.setActiveTab)
 
 	return (
-		<div className="mt-6 grid grid-cols-2 gap-2">
+		<div className="mt-6 flex flex-col gap-2 sm:grid sm:grid-cols-2">
 			<Tab
 				id="loading"
 				label="Loading · Outgoing"

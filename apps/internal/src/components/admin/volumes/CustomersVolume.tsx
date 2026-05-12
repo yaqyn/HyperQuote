@@ -57,7 +57,11 @@ export function CustomersVolume() {
 	const openEditor = useAdminStore((s) => s.openEditor)
 	const closeEditor = useAdminStore((s) => s.closeEditor)
 
-	const { data: customers = [] } = useQuery({
+	const {
+		data: customers = [],
+		isError: customersError,
+		isPending: customersPending,
+	} = useQuery({
 		queryKey: ['admin', 'customers'],
 		queryFn: () => adminListCustomers(),
 	})
@@ -157,8 +161,9 @@ export function CustomersVolume() {
 			key: 'company',
 			labelKey: 'volumes.customers.columns.company',
 			width: 'minmax(180px, 2fr)',
+			mobileRole: 'primary',
 			render: (r) => (
-				<span className="truncate font-medium text-[var(--color-text)]">
+				<span className="break-words font-semibold text-[var(--color-text)]">
 					{r.companyName}
 				</span>
 			),
@@ -167,6 +172,7 @@ export function CustomersVolume() {
 			key: 'tier',
 			labelKey: 'volumes.customers.columns.tier',
 			width: '80px',
+			mobileRole: 'detail',
 			render: (r) => (
 				<StatusTag
 					label={tierLabel(r.tier)}
@@ -180,6 +186,7 @@ export function CustomersVolume() {
 			key: 'status',
 			labelKey: 'volumes.customers.columns.status',
 			width: '120px',
+			mobileRole: 'detail',
 			render: (r) => (
 				<StatusTag
 					label={statusLabel(r.status)}
@@ -197,7 +204,8 @@ export function CustomersVolume() {
 			key: 'city',
 			labelKey: 'volumes.customers.columns.city',
 			width: 'minmax(120px, 1fr)',
-			render: (r) => <span className="truncate">{r.city || '—'}</span>,
+			mobileRole: 'detail',
+			render: (r) => <span className="break-words">{r.city || '—'}</span>,
 		},
 		{
 			key: 'orders',
@@ -205,6 +213,7 @@ export function CustomersVolume() {
 			width: '80px',
 			align: 'end',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.orderCount}</>,
 		},
 		{
@@ -213,6 +222,7 @@ export function CustomersVolume() {
 			width: '120px',
 			align: 'end',
 			mono: true,
+			mobileRole: 'hidden',
 			render: (r) => <>{r.joinedAt.slice(0, 10)}</>,
 		},
 	]
@@ -260,6 +270,8 @@ export function CustomersVolume() {
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
+				isLoading={customersPending}
+				isError={customersError}
 			/>
 
 			<EntityEditor
@@ -270,7 +282,7 @@ export function CustomersVolume() {
 				footer={
 					draft ? (
 						<>
-							<div className="flex items-center gap-6">
+							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
 								{mode === 'view' && (
 									<LinkAction tone="primary" onClick={handleEdit}>
 										{t('actions.edit')}
@@ -317,7 +329,7 @@ export function CustomersVolume() {
 								ariaLabel={t('editor.fields.companyName')}
 							/>
 						</Field>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.tier')}>
 								<SelectControl
 									value={draft.tier}
@@ -347,7 +359,7 @@ export function CustomersVolume() {
 								ariaLabel={t('editor.fields.contactName')}
 							/>
 						</Field>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.phone')} required>
 								<TextControl
 									value={draft.phone}
@@ -388,7 +400,7 @@ export function CustomersVolume() {
 						</Field>
 
 						<Section title={t('editor.section.commercial')} />
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.creditLimit')}>
 								<NumberControl
 									value={draft.creditLimit}

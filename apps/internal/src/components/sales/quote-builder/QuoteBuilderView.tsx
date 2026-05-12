@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleAlert } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
 	Fragment,
@@ -26,6 +26,10 @@ import type {
 	QuoteStatus,
 } from '../../../types/sales'
 import { getMarginLevel } from '../../../types/sales'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../../shared/EmployeeControls'
 import { isValidEGPhone, PhoneInput } from '../../shared/PhoneInput'
 import { SlidePanel } from '../../shared/SlidePanel'
 import { DeclineRFQDialog } from '../rfq/DeclineRFQDialog'
@@ -108,6 +112,8 @@ function makeSearchSuppliers(pool: SupplierRecord[]) {
 // --- Step indicator ─────────────────────────────────────
 
 const STEP_LABELS = ['customer', 'build quote', 'review & submit'] as const
+const DELIVERY_DATE_REQUIRED_MESSAGE = 'Please select a delivery date'
+const DELIVERY_ATTENTION_DURATION_MS = 1400
 
 function StepIndicator({
 	currentStep,
@@ -119,11 +125,8 @@ function StepIndicator({
 	onStepClick: (step: number) => void
 }) {
 	return (
-		<nav
-			aria-label="Quote builder progress"
-			className="flex items-center gap-0"
-		>
-			<ol className="flex items-center gap-0">
+		<nav aria-label="Quote builder progress" className="min-w-0">
+			<ol className="flex flex-wrap items-center gap-x-0 gap-y-2">
 				{STEP_LABELS.map((label, i) => {
 					const step = i + 1
 					const isCompleted = completedSteps.has(step)
@@ -188,7 +191,7 @@ function StepIndicator({
 										0{step}
 									</span>
 									<span
-										className="transition-colors"
+										className="hidden transition-colors sm:inline"
 										style={{
 											fontSize: '13px',
 											fontFamily: 'var(--font-archivo)',
@@ -276,7 +279,7 @@ function AutoSavedLine({ lastSavedAt }: { lastSavedAt: Date | null }) {
 	// caller's concern.
 	return (
 		<span
-			className="font-[family-name:var(--font-archivo)] italic shrink-0 text-[var(--color-text-subtle)] truncate"
+			className="min-w-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
 			style={{ fontSize: '11px' }}
 			aria-hidden="true"
 		>
@@ -295,9 +298,9 @@ function FieldGroup({
 	children: React.ReactNode
 }) {
 	return (
-		<div className="grid grid-cols-[140px_1fr] gap-x-10 gap-y-5 items-start">
+		<div className="flex flex-col gap-4 sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-x-10 sm:gap-y-5">
 			<span
-				className="font-[family-name:var(--font-archivo)] italic pt-2 text-[var(--color-text-muted)]"
+				className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)] sm:pt-2"
 				style={{ fontSize: '12px' }}
 			>
 				{label}
@@ -359,9 +362,8 @@ function HairlineField({
 	)
 }
 
-/** Chrome header action — italic word button with a focus-visible /
- *  hover underline sweep. Shared by reject/save so both sides of the
- *  chrome have the same keyboard + pointer affordance. */
+/** Chrome header action — compact command button. Kept local so the
+ *  builder header can map reject/save language without repeating styles. */
 function HeaderAction({
 	label,
 	onClick,
@@ -374,25 +376,39 @@ function HeaderAction({
 	trailing?: React.ReactNode
 }) {
 	return (
-		<button
+		<EmployeeActionButton
 			type="button"
 			onClick={onClick}
-			className="group relative inline-flex items-baseline gap-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-			style={{
-				fontSize: '12px',
-				color:
-					tone === 'warn' ? 'var(--color-signal-amber)' : 'var(--color-text)',
-			}}
+			size="sm"
+			tone={tone === 'warn' ? 'danger' : 'neutral'}
+			trailing={trailing}
 		>
-			<span className="relative">
+			{label}
+		</EmployeeActionButton>
+	)
+}
+
+function FooterAmount({
+	label,
+	value,
+	suffix,
+}: {
+	label: string
+	value: number
+	suffix?: string
+}) {
+	return (
+		<div className="min-w-0">
+			<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
 				{label}
-				<span
-					aria-hidden="true"
-					className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-				/>
 			</span>
-			{trailing}
-		</button>
+			<span className="mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+				{value.toLocaleString('en-EG', {
+					minimumFractionDigits: suffix === '%' ? 0 : 2,
+				})}
+				{suffix}
+			</span>
+		</div>
 	)
 }
 
@@ -410,8 +426,8 @@ function ReviewStratum({
 }) {
 	return (
 		<div
-			className={`grid grid-cols-[110px_1fr] gap-x-8 py-5 ${
-				align === 'start' ? 'items-start' : 'items-baseline'
+			className={`flex flex-col gap-2 py-5 sm:grid sm:grid-cols-[110px_1fr] sm:gap-x-8 ${
+				align === 'start' ? 'sm:items-start' : 'sm:items-baseline'
 			}`}
 			style={{
 				borderBottom: '1px solid var(--color-border)',
@@ -428,6 +444,220 @@ function ReviewStratum({
 			</dt>
 			<dd>{children}</dd>
 		</div>
+	)
+}
+
+function LineMetric({
+	label,
+	children,
+}: {
+	label: string
+	children: React.ReactNode
+}) {
+	return (
+		<div className="min-w-0">
+			<span
+				className="block font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+				style={{ fontSize: '10.5px' }}
+			>
+				{label}
+			</span>
+			<div className="mt-1 min-w-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]">
+				{children}
+			</div>
+		</div>
+	)
+}
+
+function QuoteLineCard({
+	item,
+	index,
+	marginColor,
+	sourceLabel,
+	onReplace,
+	onSelectSource,
+	onQuantityChange,
+	onEditMargin,
+	onRemove,
+}: {
+	item: LineItemFormValues
+	index: number
+	marginColor: string
+	sourceLabel: string
+	onReplace: () => void
+	onSelectSource: () => void
+	onQuantityChange: (quantity: number) => void
+	onEditMargin: () => void
+	onRemove: () => void
+}) {
+	return (
+		<article
+			className="border-b border-[var(--color-border)] py-4"
+			aria-label={`Line ${index + 1}: ${item.productName}`}
+		>
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
+						style={{ fontSize: '10.5px', letterSpacing: '0.04em' }}
+					>
+						{(index + 1).toString().padStart(2, '0')}
+					</p>
+					<button
+						type="button"
+						onClick={onReplace}
+						className="mt-1 text-start font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none transition-colors hover:text-[var(--color-primary)] focus-visible:text-[var(--color-primary)]"
+						style={{
+							fontSize: '15px',
+							fontWeight: 500,
+							letterSpacing: '-0.005em',
+							lineHeight: 1.25,
+						}}
+					>
+						{item.productName}
+					</button>
+				</div>
+				<div className="flex shrink-0 flex-col items-end gap-2">
+					<PriceStatusBadge
+						priceStatus={item.priceStatus ?? 'updated'}
+						recentlyOrdered={item.recentlyOrdered ?? false}
+					/>
+					<EmployeeActionButton
+						type="button"
+						onClick={onReplace}
+						tone="neutral"
+						size="sm"
+					>
+						Replace
+					</EmployeeActionButton>
+				</div>
+			</div>
+
+			{item.specification && (
+				<p
+					className="mt-1 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+					style={{ fontSize: '11.5px', lineHeight: 1.45 }}
+				>
+					{item.specification}
+				</p>
+			)}
+
+			<div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
+				<LineMetric label="qty">
+					<input
+						type="number"
+						min={1}
+						step={1}
+						value={item.quantity ?? ''}
+						onChange={(e) => {
+							const raw = Number(e.target.value)
+							onQuantityChange(Number.isFinite(raw) && raw > 0 ? raw : 1)
+						}}
+						onFocus={(e) => e.currentTarget.select()}
+						aria-label={`Quantity for ${item.productName}`}
+						className="h-10 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						style={{ fontSize: '14px', fontWeight: 500 }}
+					/>
+				</LineMetric>
+				<LineMetric label="cost">
+					<span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+						{item.supplierCost
+							? item.supplierCost.toLocaleString('en-EG')
+							: '—'}
+					</span>
+				</LineMetric>
+				<LineMetric label="source">
+					<EmployeeActionButton
+						type="button"
+						onClick={onSelectSource}
+						tone="neutral"
+						size="sm"
+					>
+						{sourceLabel}
+					</EmployeeActionButton>
+				</LineMetric>
+				<LineMetric label="margin">
+					<button
+						type="button"
+						onClick={onEditMargin}
+						aria-label={`Edit margin for ${item.productName}, currently ${item.marginPercent || 0}%`}
+						className="inline-flex items-baseline gap-1.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+						style={{ fontSize: '13px', fontWeight: 500 }}
+					>
+						<span
+							aria-hidden="true"
+							className="shrink-0 self-center rounded-full"
+							style={{ width: 6, height: 6, backgroundColor: marginColor }}
+						/>
+						{item.marginPercent || 0}%
+					</button>
+				</LineMetric>
+				<LineMetric label="price">
+					<span style={{ fontSize: '13px', fontWeight: 500 }}>
+						{item.sellPrice ? item.sellPrice.toLocaleString('en-EG') : '—'}
+					</span>
+				</LineMetric>
+				<LineMetric label="line total">
+					<span style={{ fontSize: '15px', fontWeight: 600 }}>
+						{(item.lineTotal || 0).toLocaleString('en-EG', {
+							minimumFractionDigits: 2,
+						})}
+					</span>
+				</LineMetric>
+				<div className="flex items-end justify-end">
+					<EmployeeActionButton
+						type="button"
+						onClick={onRemove}
+						tone="danger"
+						size="sm"
+					>
+						Remove
+					</EmployeeActionButton>
+				</div>
+			</div>
+		</article>
+	)
+}
+
+function ReviewLineCard({ item }: { item: LineItemFormValues }) {
+	return (
+		<article className="border-b border-[var(--color-border)] py-4">
+			<p
+				className="font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+				style={{ fontSize: '14px', fontWeight: 500, letterSpacing: '-0.005em' }}
+			>
+				{item.productName}
+			</p>
+			<div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+				<LineMetric label="qty">
+					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+						{item.quantity}
+					</span>
+				</LineMetric>
+				<LineMetric label="cost">
+					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+						{item.supplierCost?.toLocaleString('en-EG') ?? '—'}
+					</span>
+				</LineMetric>
+				<LineMetric label="margin">
+					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+						{item.marginPercent}%
+					</span>
+				</LineMetric>
+				<LineMetric label="price">
+					<span style={{ fontSize: '12px' }}>
+						{item.sellPrice?.toLocaleString('en-EG')}
+					</span>
+				</LineMetric>
+				<LineMetric label="total">
+					<span style={{ fontSize: '13px', fontWeight: 500 }}>
+						{(item.lineTotal || 0).toLocaleString('en-EG', {
+							minimumFractionDigits: 2,
+						})}
+					</span>
+				</LineMetric>
+			</div>
+		</article>
 	)
 }
 
@@ -497,6 +727,12 @@ export function QuoteBuilderView({
 		() => `QR-2026-${rfqId.slice(-5).padStart(5, '0')}`,
 	)
 	const [deliveryAddress, setDeliveryAddress] = useState('')
+	const deliverySectionRef = useRef<HTMLDivElement | null>(null)
+	const deliveryAttentionTimerRef = useRef<ReturnType<
+		typeof setTimeout
+	> | null>(null)
+	const [isDeliveryDateAttentionVisible, setDeliveryDateAttentionVisible] =
+		useState(false)
 	const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
 	// Customer form fields (Step 1)
@@ -510,7 +746,6 @@ export function QuoteBuilderView({
 	const [completedSteps, setCompletedSteps] = useState<Set<number>>(
 		isFromRfq ? new Set([1]) : new Set(),
 	)
-	const [_sourcingDone, _setSourcingDone] = useState(false)
 	const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
 	const [declineOpen, setDeclineOpen] = useState(false)
 	const [marginIndex, setMarginIndex] = useState<number | null>(null)
@@ -527,6 +762,14 @@ export function QuoteBuilderView({
 		return () => clearTimeout(t)
 	}, [])
 
+	useEffect(() => {
+		return () => {
+			if (deliveryAttentionTimerRef.current) {
+				clearTimeout(deliveryAttentionTimerRef.current)
+			}
+		}
+	}, [])
+
 	// Sourcing state — built from line items + inventory
 	const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
 	// Live reference data loaded from getQuoteBuilderData — no hardcoded
@@ -539,6 +782,18 @@ export function QuoteBuilderView({
 		() => makeSearchSuppliers(suppliersPool),
 		[suppliersPool],
 	)
+	const getSourceLabel = useCallback(
+		(sourceId: string, stockAvailable = 0) => {
+			if (sourceId === 'warehouse') return `Warehouse · ${stockAvailable} avail`
+			if (!sourceId)
+				return stockAvailable > 0 ? 'Choose source' : 'Choose supplier'
+			return (
+				suppliersPool.find((supplier) => supplier.id === sourceId)?.name ??
+				'Selected source'
+			)
+		},
+		[suppliersPool],
+	)
 
 	const methods = useForm<QuoteFormValues>({
 		defaultValues: {
@@ -547,7 +802,7 @@ export function QuoteBuilderView({
 			paymentTerms: '',
 			deliveryMethod: '',
 			deliveryDate: '',
-			deliveryWindow: '08:00-17:00',
+			deliveryWindow: '08:00-13:00',
 			specialInstructions: '',
 			earlyPaymentDiscount: '',
 			scheduledSendAt: null,
@@ -580,11 +835,23 @@ export function QuoteBuilderView({
 	// the Evaluate button is shown — hidden once the order is already
 	// committed (quote accepted) or dead (rfq declined/expired).
 	const [rfqStatus, setRfqStatus] = useState<string>('submitted')
-	const canEvaluate =
+	const [approvalBlocked, setApprovalBlocked] = useState(false)
+	const [approvalBlockReason, setApprovalBlockReason] = useState<string | null>(
+		null,
+	)
+	const handleApprovalBlockedChange = useCallback(
+		(blocked: boolean, reason: string | null) => {
+			setApprovalBlocked(blocked)
+			setApprovalBlockReason(reason)
+		},
+		[],
+	)
+	const canEvaluateByStatus =
 		status !== 'accepted' &&
 		status !== 'declined' &&
 		rfqStatus !== 'declined' &&
 		rfqStatus !== 'expired'
+	const canEvaluate = canEvaluateByStatus && !approvalBlocked
 
 	// Evaluate = phone-confirmed order. Saves the draft so a quote row
 	// exists, flips quote.status → 'accepted', freezes totalDue, seeds
@@ -707,21 +974,6 @@ export function QuoteBuilderView({
 		)
 	}
 
-	// Cycle through sources: warehouse → first three suppliers → warehouse.
-	// Supplier IDs come from the live pool, not hardcoded slugs.
-	const _toggleItemSource = (index: number) => {
-		const topSupplierIds = suppliersPool.slice(0, 3).map((s) => s.id)
-		const sourceIds = ['warehouse', ...topSupplierIds]
-		if (sourceIds.length === 1) return
-		setSourcingState((prev) =>
-			prev.map((s, i) => {
-				if (i !== index) return s
-				const currentIdx = sourceIds.indexOf(s.sourceId)
-				const nextIdx = (currentIdx + 1) % sourceIds.length
-				return { ...s, sourceId: sourceIds[nextIdx] }
-			}),
-		)
-	}
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
 
 	const markStepCompleted = (step: number) => {
@@ -758,7 +1010,7 @@ export function QuoteBuilderView({
 				errors.push('Add at least one item')
 			if (!isValidText(deliveryAddress, 4, 300))
 				errors.push('Please enter a full delivery address')
-			if (!values.deliveryDate) errors.push('Please select a delivery date')
+			if (!values.deliveryDate) errors.push(DELIVERY_DATE_REQUIRED_MESSAGE)
 			const hasZeroPrice = (values.lineItems ?? []).some(
 				(item) => !item.sellPrice || item.sellPrice <= 0,
 			)
@@ -777,10 +1029,31 @@ export function QuoteBuilderView({
 	)
 	const queryClient = useQueryClient()
 
+	const showDeliveryDateAttention = useCallback(() => {
+		if (deliveryAttentionTimerRef.current) {
+			clearTimeout(deliveryAttentionTimerRef.current)
+		}
+		setDeliveryDateAttentionVisible(true)
+		deliverySectionRef.current?.scrollIntoView({
+			behavior: reduceMotion ? 'auto' : 'smooth',
+			block: 'center',
+		})
+		deliveryAttentionTimerRef.current = setTimeout(() => {
+			setDeliveryDateAttentionVisible(false)
+			deliveryAttentionTimerRef.current = null
+		}, DELIVERY_ATTENTION_DURATION_MS)
+	}, [reduceMotion])
+
 	const tryGoToStep = async (nextStep: number) => {
 		const errors = validateStep(currentStep)
 		if (errors.length > 0) {
-			setValidationErrors(errors)
+			const shouldHighlightDeliveryDate = errors.includes(
+				DELIVERY_DATE_REQUIRED_MESSAGE,
+			)
+			if (shouldHighlightDeliveryDate) showDeliveryDateAttention()
+			setValidationErrors(
+				errors.filter((error) => error !== DELIVERY_DATE_REQUIRED_MESSAGE),
+			)
 			return
 		}
 		// When leaving Step 1 on a brand-new customer flow, persist the customer
@@ -1055,7 +1328,7 @@ export function QuoteBuilderView({
 	return (
 		<div className="flex h-full flex-col">
 			{/* Chrome — quote meta · step indicator · actions */}
-			<header className="flex items-center justify-between gap-8 border-b border-black/[0.06] px-6 py-3 dark:border-white/[0.06]">
+			<header className="flex flex-col items-stretch gap-3 border-b border-black/[0.06] px-4 py-3 dark:border-white/[0.06] sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
 				{/* Left: quote meta */}
 				<div className="flex min-w-0 items-baseline gap-3">
 					<span
@@ -1084,15 +1357,15 @@ export function QuoteBuilderView({
 					onStepClick={(s) => goToStep(s)}
 				/>
 
-				{/* Right: actions as italic word-links */}
-				<div className="flex items-center gap-5 shrink-0">
+				{/* Right: durable quote commands */}
+				<div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
 					<HeaderAction
-						label="reject"
+						label="Reject"
 						onClick={() => setDeclineOpen(true)}
 						tone="warn"
 					/>
 					<HeaderAction
-						label="save"
+						label="Save for later"
 						trailing={
 							<span aria-hidden="true" style={{ fontSize: '10px' }}>
 								✓
@@ -1113,7 +1386,10 @@ export function QuoteBuilderView({
 			{/* Step content */}
 			<div className="flex flex-1 overflow-hidden">
 				{/* Main content — scrollable */}
-				<div className="flex-1 overflow-y-auto px-8 pb-16" data-module-content>
+				<div
+					className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-16 sm:px-6 lg:px-8"
+					data-module-content
+				>
 					<FormProvider {...methods}>
 						<AnimatePresence mode="wait">
 							{/* ==================== STEP 1: Customer ==================== */}
@@ -1124,7 +1400,7 @@ export function QuoteBuilderView({
 									animate={{ opacity: 1 }}
 									exit={reduceMotion ? undefined : stepExit}
 									transition={reduceMotion ? { duration: 0 } : stepTransition}
-									className="flex items-start justify-center pt-16"
+									className="flex items-start justify-center pt-8 sm:pt-16"
 								>
 									<section
 										aria-label="Customer confirmation"
@@ -1224,9 +1500,8 @@ export function QuoteBuilderView({
 													? 'cust-name-error'
 													: 'cust-name-hint'
 											}
-											className="w-full bg-transparent py-1 font-[family-name:var(--font-literata)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 focus-visible:placeholder:text-[var(--color-text-subtle)]/60"
+											className="w-full bg-transparent py-1 font-[family-name:var(--font-literata)] text-[30px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 focus-visible:placeholder:text-[var(--color-text-subtle)]/60 sm:text-[38px]"
 											style={{
-												fontSize: '38px',
 												fontWeight: 500,
 												letterSpacing: '-0.022em',
 												lineHeight: 1.2,
@@ -1286,7 +1561,7 @@ export function QuoteBuilderView({
 														}
 													/>
 												</HairlineField>
-												<div className="grid grid-cols-2 gap-x-6">
+												<div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
 													<HairlineField
 														label="email"
 														htmlFor="cust-email"
@@ -1433,7 +1708,7 @@ export function QuoteBuilderView({
 
 										{/* Action bar */}
 										<div
-											className="mt-12 flex items-center justify-between pt-5"
+											className="mt-12 flex flex-col-reverse items-stretch gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between"
 											style={{ borderTop: '1px solid var(--color-border)' }}
 										>
 											<p
@@ -1462,43 +1737,24 @@ export function QuoteBuilderView({
 													</>
 												)}
 											</p>
-											<button
+											<EmployeeActionButton
 												type="button"
 												onClick={() => tryGoToStep(2)}
 												disabled={isPersistingCustomer}
 												aria-disabled={isPersistingCustomer}
-												className="group inline-flex items-baseline gap-2 font-[family-name:var(--font-literata)] italic outline-none transition-colors disabled:cursor-not-allowed"
-												style={{
-													fontSize: '22px',
-													fontWeight: 500,
-													letterSpacing: '-0.02em',
-													color: isPersistingCustomer
-														? 'var(--color-text-subtle)'
-														: 'var(--color-text)',
-												}}
-											>
-												<span className="relative">
-													{isPersistingCustomer ? 'saving…' : 'build quote'}
-													{/* Hover / focus-visible: blue hairline sweeps in
-													    beneath the label, left-to-right. */}
-													<span
+												fullWidthOnMobile
+												trailing={
+													<ArrowRight
+														size={14}
+														strokeWidth={2.25}
 														aria-hidden="true"
-														className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
 													/>
-												</span>
-												<span
-													aria-hidden="true"
-													className="transition-transform group-hover:translate-x-1"
-													style={{
-														fontSize: '18px',
-														color: isPersistingCustomer
-															? 'var(--color-text-subtle)'
-															: 'inherit',
-													}}
-												>
-													→
-												</span>
-											</button>
+												}
+											>
+												{isPersistingCustomer
+													? 'Saving customer'
+													: 'Build quote'}
+											</EmployeeActionButton>
 										</div>
 									</section>
 								</motion.div>
@@ -1552,10 +1808,10 @@ export function QuoteBuilderView({
 									{/* Customer dedication — proper running head with a
 									    subhead that counts the entry as it's being built. */}
 									<header className="mt-6 mb-5">
-										<div className="flex items-end justify-between gap-4">
+										<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-4">
 											<div className="min-w-0 flex-1">
 												<h2
-													className="truncate font-[family-name:var(--font-literata)] text-[var(--color-text)]"
+													className="break-words font-[family-name:var(--font-literata)] text-[var(--color-text)]"
 													style={{
 														fontSize: '30px',
 														fontWeight: 500,
@@ -1603,24 +1859,17 @@ export function QuoteBuilderView({
 													</span>
 												</p>
 											</div>
-											<button
+											<EmployeeActionButton
 												type="button"
 												onClick={() =>
 													window.open(`/api/call/${rfqId}`, '_blank')
 												}
 												aria-label={`Call ${customerName || 'customer'}`}
-												className="group relative inline-flex shrink-0 items-baseline gap-1 font-[family-name:var(--font-archivo)] italic text-[var(--color-primary)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-												style={{ fontSize: '12px' }}
+												size="sm"
+												trailing={<span aria-hidden="true">→</span>}
 											>
-												<span className="relative">
-													call
-													<span
-														aria-hidden="true"
-														className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-													/>
-												</span>
-												<span aria-hidden="true">→</span>
-											</button>
+												Call customer
+											</EmployeeActionButton>
 										</div>
 									</header>
 
@@ -1639,15 +1888,69 @@ export function QuoteBuilderView({
 										/>
 									)}
 
-									{/* Line items table */}
+									{/* Line items */}
 									<div className="mt-6">
+										<div className="lg:hidden">
+											{(watchedItems ?? []).map((item, i) => {
+												const level =
+													marginThresholds.length > 0
+														? getMarginLevel(
+																item.marginPercent || 0,
+																marginThresholds[0],
+															)
+														: 'green'
+												const marginColor = {
+													green: 'var(--color-primary)',
+													yellow: 'var(--color-signal-amber)',
+													red: 'var(--color-signal-red)',
+													blocked: 'var(--color-signal-red)',
+												}[level]
+												const sourceState = sourcingState[i]
+												return (
+													<QuoteLineCard
+														key={item.id || i}
+														item={item}
+														index={i}
+														marginColor={marginColor}
+														sourceLabel={getSourceLabel(
+															sourceState?.sourceId ?? '',
+															sourceState?.stockAvailable ?? 0,
+														)}
+														onReplace={() => {
+															setSearchOpen(true)
+															replaceItemIndexRef.current = i
+														}}
+														onSelectSource={() => setTableSourceOpen(i)}
+														onQuantityChange={(next) => {
+															methods.setValue(
+																`lineItems.${i}.quantity`,
+																next,
+																{ shouldDirty: true },
+															)
+															const sellPrice = item.sellPrice || 0
+															methods.setValue(
+																`lineItems.${i}.lineTotal`,
+																Math.round(sellPrice * next * 100) / 100,
+																{ shouldDirty: true },
+															)
+														}}
+														onEditMargin={() => {
+															setMapOpen(false)
+															setMarginIndex(i)
+														}}
+														onRemove={() => removeItem(i)}
+													/>
+												)
+											})}
+										</div>
 										<table
-											className="w-full"
+											className="hidden w-full lg:table"
 											aria-label={`Line items (${(watchedItems ?? []).length})`}
 										>
 											<caption className="sr-only">
 												Quote line items. Each row shows the product, quantity,
-												supplier cost, margin, sell price, and line total.
+												source, supplier cost, margin, sell price, and line
+												total.
 											</caption>
 											<thead>
 												<tr
@@ -1678,6 +1981,17 @@ export function QuoteBuilderView({
 														}}
 													>
 														item
+													</th>
+													<th
+														scope="col"
+														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
+														style={{
+															fontSize: '11px',
+															color: 'var(--color-text-subtle)',
+															fontWeight: 400,
+														}}
+													>
+														source
 													</th>
 													<th
 														scope="col"
@@ -1754,6 +2068,7 @@ export function QuoteBuilderView({
 														red: 'var(--color-signal-red)',
 														blocked: 'var(--color-signal-red)',
 													}[level]
+													const sourceState = sourcingState[i]
 													return (
 														<tr
 															key={item.id || i}
@@ -1820,6 +2135,22 @@ export function QuoteBuilderView({
 																		{item.specification}
 																	</p>
 																)}
+															</td>
+															{/* Source */}
+															<td className="px-3 py-4 text-end align-top">
+																<button
+																	type="button"
+																	onClick={() => setTableSourceOpen(i)}
+																	className="inline-flex max-w-[150px] items-center justify-end rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-end font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-[var(--color-text)] outline-none transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+																	aria-label={`Choose source for ${item.productName}`}
+																>
+																	<span className="truncate">
+																		{getSourceLabel(
+																			sourceState?.sourceId ?? '',
+																			sourceState?.stockAvailable ?? 0,
+																		)}
+																	</span>
+																</button>
 															</td>
 															{/* Qty — editable inline */}
 															<td className="px-3 py-4 text-end align-top">
@@ -1941,7 +2272,7 @@ export function QuoteBuilderView({
 																	type="button"
 																	onClick={() => removeItem(i)}
 																	aria-label={`Remove ${item.productName}`}
-																	className="inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-0 outline-none transition-all focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--color-signal-red)]/40 hover:text-[var(--color-signal-red)] group-hover/row:opacity-70 hover:opacity-100"
+																	className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent opacity-70 outline-none transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-signal-red)]/40 hover:border-[var(--color-signal-red)]/30 hover:bg-[var(--color-signal-red)]/[0.08] hover:text-[var(--color-signal-red)] group-hover/row:opacity-100"
 																	style={{
 																		color: 'var(--color-text-subtle)',
 																	}}
@@ -1967,43 +2298,14 @@ export function QuoteBuilderView({
 
 										{(watchedItems ?? []).length === 0 && (
 											<div className="mt-4 flex justify-center border-t border-[var(--color-border)] pt-10">
-												<button
+												<EmployeeActionButton
 													type="button"
 													onClick={() => setSearchOpen(true)}
-													className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-													style={{
-														fontSize: '20px',
-														fontWeight: 500,
-														color: 'var(--color-primary)',
-														letterSpacing: '-0.016em',
-													}}
+													tone="success"
+													trailing={<span aria-hidden="true">→</span>}
 												>
-													<span
-														aria-hidden="true"
-														className="transition-transform group-hover:rotate-45"
-														style={{
-															fontSize: '18px',
-															lineHeight: 1,
-															display: 'inline-block',
-														}}
-													>
-														+
-													</span>
-													<span className="relative">
-														pen the first line
-														<span
-															aria-hidden="true"
-															className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-														/>
-													</span>
-													<span
-														aria-hidden="true"
-														className="transition-transform group-hover:translate-x-[3px]"
-														style={{ fontSize: '18px', lineHeight: 1 }}
-													>
-														→
-													</span>
-												</button>
+													Add first line
+												</EmployeeActionButton>
 											</div>
 										)}
 									</div>
@@ -2012,39 +2314,28 @@ export function QuoteBuilderView({
 									    already has entries. The empty-state invitation above
 									    handles the first add, so this one stays quiet. */}
 									{(watchedItems ?? []).length > 0 && (
-										<button
+										<EmployeeActionButton
 											type="button"
 											onClick={() => setSearchOpen(true)}
-											className="group relative mt-4 inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-											style={{
-												fontSize: '13px',
-												color: 'var(--color-primary)',
-											}}
+											tone="neutral"
+											size="sm"
+											className="mt-4"
 										>
-											<span
-												aria-hidden="true"
-												className="transition-transform group-hover:rotate-45"
-												style={{
-													fontSize: '14px',
-													lineHeight: 1,
-													display: 'inline-block',
-												}}
-											>
-												+
-											</span>
-											<span className="relative">
-												add another line
-												<span
-													aria-hidden="true"
-													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-												/>
-											</span>
-										</button>
+											Add another line
+										</EmployeeActionButton>
 									)}
 
 									<ProductSearchMenu
 										isOpen={searchOpen}
-										onClose={() => setSearchOpen(false)}
+										onClose={() => {
+											setSearchOpen(false)
+											replaceItemIndexRef.current = null
+										}}
+										mode={
+											replaceItemIndexRef.current !== null
+												? 'replace'
+												: 'append'
+										}
 										onAddProduct={(product, quantity) => {
 											const margin = 18
 											const sellPrice =
@@ -2082,7 +2373,6 @@ export function QuoteBuilderView({
 											} else {
 												appendItem(newItem)
 											}
-											setSearchOpen(false)
 										}}
 									/>
 
@@ -2112,7 +2402,7 @@ export function QuoteBuilderView({
 									/>
 
 									{/* Delivery section — own rule eyebrow + hairline input */}
-									<div className="mt-12">
+									<div ref={deliverySectionRef} className="mt-12">
 										<div className="flex items-center gap-4 mb-4">
 											<span
 												className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
@@ -2124,13 +2414,15 @@ export function QuoteBuilderView({
 												aria-hidden="true"
 												className="h-px flex-1"
 												style={{
-													backgroundColor: 'var(--color-border)',
-													opacity: 0.6,
+													backgroundColor: isDeliveryDateAttentionVisible
+														? 'var(--color-signal-red)'
+														: 'var(--color-border)',
+													opacity: isDeliveryDateAttentionVisible ? 1 : 0.6,
 												}}
 											/>
 										</div>
 
-										<div className="mb-4 flex items-baseline gap-3">
+										<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-baseline">
 											<label htmlFor="delivery-address" className="sr-only">
 												Delivery address
 											</label>
@@ -2156,7 +2448,7 @@ export function QuoteBuilderView({
 												/>
 											</svg>
 											<div
-												className="flex-1 pb-1.5 transition-colors"
+												className="w-full min-w-0 flex-1 pb-1.5 transition-colors"
 												style={{
 													borderBottom: '1px solid var(--color-border)',
 												}}
@@ -2179,7 +2471,7 @@ export function QuoteBuilderView({
 													}}
 												/>
 											</div>
-											<button
+											<EmployeeActionButton
 												type="button"
 												onClick={() => {
 													setMarginIndex(null)
@@ -2187,121 +2479,18 @@ export function QuoteBuilderView({
 												}}
 												aria-expanded={mapOpen}
 												aria-controls="delivery-map-panel"
-												className="group relative shrink-0 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-												style={{
-													fontSize: '12px',
-													color: 'var(--color-text-muted)',
-												}}
+												tone="neutral"
+												size="sm"
 											>
-												<span className="relative">
-													{mapOpen ? 'hide map' : 'pick on map'}
-													<span
-														aria-hidden="true"
-														className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-													/>
-												</span>
-											</button>
+												{mapOpen ? 'Hide map' : 'Pick on map'}
+											</EmployeeActionButton>
 										</div>
 										<DeliveryTerms
 											deliveryAddress={deliveryAddress}
+											highlightDate={isDeliveryDateAttentionVisible}
 											totalWeightTons={12}
 											leadTimeDays={2}
 										/>
-									</div>
-
-									{/* Totals — ruled footer, Literata for the grand total */}
-									<div
-										className="mt-10 pt-5"
-										style={{ borderTop: '1px solid var(--color-border)' }}
-									>
-										<div className="flex items-baseline justify-end gap-6">
-											<dl className="flex items-baseline gap-5">
-												<div className="flex items-baseline gap-2">
-													<dt
-														className="font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-														}}
-													>
-														subtotal
-													</dt>
-													<dd
-														className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-														style={{
-															fontSize: '12px',
-															color: 'var(--color-text-muted)',
-														}}
-													>
-														{subtotal.toLocaleString('en-EG', {
-															minimumFractionDigits: 2,
-														})}
-													</dd>
-												</div>
-												<div className="flex items-baseline gap-2">
-													<dt
-														className="font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-														}}
-													>
-														vat 14%
-													</dt>
-													<dd
-														className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-														style={{
-															fontSize: '12px',
-															color: 'var(--color-text-muted)',
-														}}
-													>
-														{vatAmount.toLocaleString('en-EG', {
-															minimumFractionDigits: 2,
-														})}
-													</dd>
-												</div>
-											</dl>
-											<div
-												className="flex items-baseline gap-2 ps-6"
-												style={{
-													borderInlineStart: '1px solid var(--color-border)',
-												}}
-											>
-												<span
-													className="font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '11px',
-														color: 'var(--color-text-subtle)',
-													}}
-												>
-													total
-												</span>
-												<span
-													className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-													style={{
-														fontSize: '12px',
-														color: 'var(--color-text-subtle)',
-														letterSpacing: '0.06em',
-													}}
-												>
-													EGP
-												</span>
-												<span
-													className="font-[family-name:var(--font-literata)] tabular-nums"
-													style={{
-														fontSize: '26px',
-														color: 'var(--color-text)',
-														fontWeight: 500,
-														letterSpacing: '-0.022em',
-														lineHeight: 1.15,
-													}}
-												>
-													{total.toLocaleString('en-EG', {
-														minimumFractionDigits: 2,
-													})}
-												</span>
-											</div>
-										</div>
 									</div>
 
 									{/* Validation errors — inline style matches Step 1 */}
@@ -2343,75 +2532,6 @@ export function QuoteBuilderView({
 											</ul>
 										</div>
 									)}
-
-									{/* Navigation — italic word-actions with focus sweeps */}
-									<div
-										className="mt-10 flex items-center justify-between pt-5"
-										style={{ borderTop: '1px solid var(--color-border)' }}
-									>
-										<button
-											type="button"
-											onClick={() => goToStep(1)}
-											className="group relative inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-											style={{
-												fontSize: '12px',
-												color: 'var(--color-text-muted)',
-											}}
-										>
-											<span aria-hidden="true">←</span>
-											<span className="relative">
-												customer
-												<span
-													aria-hidden="true"
-													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-												/>
-											</span>
-										</button>
-										<div className="flex flex-col items-end gap-1">
-											{outdatedItems.length > 0 && (
-												<p
-													className="font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '11px',
-														color: 'var(--color-signal-amber)',
-													}}
-												>
-													all prices must be updated before submitting
-												</p>
-											)}
-											<button
-												type="button"
-												onClick={() => tryGoToStep(3)}
-												disabled={outdatedItems.length > 0}
-												aria-disabled={outdatedItems.length > 0}
-												className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm disabled:cursor-not-allowed"
-												style={{
-													fontSize: '22px',
-													fontWeight: 500,
-													letterSpacing: '-0.02em',
-													color:
-														outdatedItems.length > 0
-															? 'var(--color-text-subtle)'
-															: 'var(--color-text)',
-												}}
-											>
-												<span className="relative">
-													review & submit
-													<span
-														aria-hidden="true"
-														className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-													/>
-												</span>
-												<span
-													aria-hidden="true"
-													className="transition-transform group-hover:translate-x-1"
-													style={{ fontSize: '18px' }}
-												>
-													→
-												</span>
-											</button>
-										</div>
-									</div>
 								</motion.div>
 							)}
 
@@ -2423,7 +2543,7 @@ export function QuoteBuilderView({
 									animate={{ opacity: 1 }}
 									exit={reduceMotion ? undefined : stepExit}
 									transition={reduceMotion ? { duration: 0 } : stepTransition}
-									className="flex items-start justify-center pt-16"
+									className="flex items-start justify-center pt-8 sm:pt-16"
 								>
 									<section
 										aria-label="Final review"
@@ -2481,9 +2601,8 @@ export function QuoteBuilderView({
 
 										{/* Headline — Literata, parallel to Step 1 */}
 										<h2
-											className="py-1 font-[family-name:var(--font-literata)] text-[var(--color-text)] truncate"
+											className="break-words py-1 font-[family-name:var(--font-literata)] text-[30px] text-[var(--color-text)] sm:text-[38px]"
 											style={{
-												fontSize: '38px',
 												fontWeight: 500,
 												letterSpacing: '-0.022em',
 												lineHeight: 1.2,
@@ -2531,119 +2650,126 @@ export function QuoteBuilderView({
 											</span>
 										</div>
 
-										{/* Items table — workbench dialect */}
-										<table className="w-full">
-											<thead>
-												<tr
-													style={{
-														borderBottom: '1px solid var(--color-border)',
-													}}
-												>
-													<th
-														scope="col"
-														className="py-2 text-start font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														item
-													</th>
-													<th
-														scope="col"
-														className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														qty
-													</th>
-													<th
-														scope="col"
-														className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														cost
-													</th>
-													<th
-														scope="col"
-														className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														margin
-													</th>
-													<th
-														scope="col"
-														className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														price
-													</th>
-													<th
-														scope="col"
-														className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-														style={{ fontSize: '11px' }}
-													>
-														total
-													</th>
-												</tr>
-											</thead>
-											<tbody>
+										{/* Items ledger */}
+										<div>
+											<div className="lg:hidden">
 												{(watchedItems ?? []).map((item, idx) => (
+													<ReviewLineCard key={item.id || idx} item={item} />
+												))}
+											</div>
+											<table className="hidden w-full lg:table">
+												<thead>
 													<tr
-														key={item.id || idx}
 														style={{
 															borderBottom: '1px solid var(--color-border)',
-															opacity: 0.95,
 														}}
 													>
-														<td
-															className="py-3 pe-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
-															style={{
-																fontSize: '14px',
-																letterSpacing: '-0.005em',
-															}}
+														<th
+															scope="col"
+															className="py-2 text-start font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{item.productName}
-														</td>
-														<td
-															className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-															style={{ fontSize: '12px' }}
+															item
+														</th>
+														<th
+															scope="col"
+															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{item.quantity}
-														</td>
-														<td
-															className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-															style={{ fontSize: '12px' }}
+															qty
+														</th>
+														<th
+															scope="col"
+															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{item.supplierCost?.toLocaleString('en-EG') ??
-																'—'}
-														</td>
-														<td
-															className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-															style={{ fontSize: '12px' }}
+															cost
+														</th>
+														<th
+															scope="col"
+															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{item.marginPercent}%
-														</td>
-														<td
-															className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
-															style={{ fontSize: '12px' }}
+															margin
+														</th>
+														<th
+															scope="col"
+															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{item.sellPrice?.toLocaleString('en-EG')}
-														</td>
-														<td
-															className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
-															style={{
-																fontSize: '13px',
-																fontWeight: 500,
-															}}
+															price
+														</th>
+														<th
+															scope="col"
+															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
+															style={{ fontSize: '11px' }}
 														>
-															{(item.lineTotal || 0).toLocaleString('en-EG', {
-																minimumFractionDigits: 2,
-															})}
-														</td>
+															total
+														</th>
 													</tr>
-												))}
-											</tbody>
-										</table>
+												</thead>
+												<tbody>
+													{(watchedItems ?? []).map((item, idx) => (
+														<tr
+															key={item.id || idx}
+															style={{
+																borderBottom: '1px solid var(--color-border)',
+																opacity: 0.95,
+															}}
+														>
+															<td
+																className="py-3 pe-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+																style={{
+																	fontSize: '14px',
+																	letterSpacing: '-0.005em',
+																}}
+															>
+																{item.productName}
+															</td>
+															<td
+																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
+																style={{ fontSize: '12px' }}
+															>
+																{item.quantity}
+															</td>
+															<td
+																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
+																style={{ fontSize: '12px' }}
+															>
+																{item.supplierCost?.toLocaleString('en-EG') ??
+																	'—'}
+															</td>
+															<td
+																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
+																style={{ fontSize: '12px' }}
+															>
+																{item.marginPercent}%
+															</td>
+															<td
+																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
+																style={{ fontSize: '12px' }}
+															>
+																{item.sellPrice?.toLocaleString('en-EG')}
+															</td>
+															<td
+																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
+																style={{
+																	fontSize: '13px',
+																	fontWeight: 500,
+																}}
+															>
+																{(item.lineTotal || 0).toLocaleString('en-EG', {
+																	minimumFractionDigits: 2,
+																})}
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
 
 										{/* Totals lockup — page anchor */}
-										<div className="mt-8 flex items-end justify-between gap-6">
+										<div className="mt-8 flex flex-col items-stretch gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
 											<div
 												className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
 												style={{
@@ -2673,7 +2799,7 @@ export function QuoteBuilderView({
 													</span>
 												</span>
 											</div>
-											<div className="text-end">
+											<div className="min-w-0 text-end">
 												<p
 													className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
 													style={{
@@ -2684,9 +2810,8 @@ export function QuoteBuilderView({
 													total
 												</p>
 												<p
-													className="mt-1 py-1 font-[family-name:var(--font-literata)] tabular-nums text-[var(--color-text)]"
+													className="mt-1 break-words py-1 font-[family-name:var(--font-literata)] text-[34px] tabular-nums text-[var(--color-text)] sm:text-[44px] lg:text-[52px]"
 													style={{
-														fontSize: '52px',
 														fontWeight: 500,
 														letterSpacing: '-0.035em',
 														lineHeight: 1.1,
@@ -2820,6 +2945,7 @@ export function QuoteBuilderView({
 													onStatusChange={(newStatus) =>
 														setStatus(newStatus as QuoteStatus)
 													}
+													showRequestAction={false}
 												/>
 												{status === 'pending_approval' && (
 													<p
@@ -2835,82 +2961,6 @@ export function QuoteBuilderView({
 												)}
 											</ReviewStratum>
 										</dl>
-
-										{/* Action bar — typographic word-actions */}
-										<div className="mt-12 flex items-end justify-between gap-6">
-											{/* Back — italic Archivo word-action */}
-											<button
-												type="button"
-												onClick={() => goToStep(2)}
-												className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-												style={{
-													fontSize: '13px',
-													color: 'var(--color-text-muted)',
-												}}
-											>
-												<span
-													aria-hidden="true"
-													className="rtl:rotate-180"
-													style={{ fontSize: '12px' }}
-												>
-													←
-												</span>
-												<span className="relative">
-													back to quote
-													<span
-														aria-hidden="true"
-														className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-text-muted)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-													/>
-												</span>
-											</button>
-
-											{/* Evaluate — Literata word-action, the commit moment */}
-											<div className="flex flex-col items-end gap-1.5">
-												<button
-													type="button"
-													onClick={handleEvaluate}
-													disabled={!canEvaluate || isEvaluating}
-													aria-busy={isEvaluating}
-													className="group relative inline-flex items-baseline gap-2.5 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm disabled:cursor-not-allowed"
-													style={{
-														fontSize: '26px',
-														fontWeight: 500,
-														letterSpacing: '-0.02em',
-														color:
-															!canEvaluate || isEvaluating
-																? 'var(--color-text-subtle)'
-																: 'var(--color-primary)',
-													}}
-												>
-													<span className="relative">
-														{isEvaluating ? 'evaluating…' : 'evaluate'}
-														{canEvaluate && !isEvaluating && (
-															<span
-																aria-hidden="true"
-																className="absolute inset-x-0 -bottom-1 h-px origin-right scale-x-100 bg-[var(--color-primary)] transition-all duration-200 group-hover:h-[2px] group-focus-visible:h-[2px]"
-															/>
-														)}
-													</span>
-													{!isEvaluating && (
-														<ArrowRight
-															size={20}
-															strokeWidth={1.75}
-															className="self-center transition-transform group-enabled:group-hover:translate-x-1 rtl:rotate-180"
-															aria-hidden="true"
-														/>
-													)}
-												</button>
-												<p
-													className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-													style={{
-														fontSize: '11px',
-														letterSpacing: '0.005em',
-													}}
-												>
-													pushes to finance · freezes total
-												</p>
-											</div>
-										</div>
 									</section>
 								</motion.div>
 							)}
@@ -2918,6 +2968,176 @@ export function QuoteBuilderView({
 					</FormProvider>
 				</div>
 			</div>
+
+			{currentStep === 2 && (
+				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
+					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+							<FooterAmount label="subtotal" value={subtotal} />
+							<FooterAmount label="vat 14%" value={vatAmount} />
+							<div className="min-w-0">
+								<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
+									total
+								</span>
+								<span className="mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+									EGP{' '}
+									{total.toLocaleString('en-EG', {
+										minimumFractionDigits: 2,
+									})}
+								</span>
+							</div>
+						</div>
+
+						<div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+							<EmployeeActionButton
+								type="button"
+								onClick={() => goToStep(1)}
+								tone="neutral"
+								size="sm"
+								leading={<span aria-hidden="true">←</span>}
+							>
+								Customer
+							</EmployeeActionButton>
+							<EmployeeStatusPill
+								tone={outdatedItems.length > 0 ? 'warning' : 'success'}
+								leading={
+									outdatedItems.length > 0 ? (
+										<CircleAlert
+											size={14}
+											strokeWidth={2.25}
+											aria-hidden="true"
+										/>
+									) : (
+										<CheckCircle2
+											size={14}
+											strokeWidth={2.5}
+											aria-hidden="true"
+										/>
+									)
+								}
+							>
+								{outdatedItems.length > 0
+									? `${outdatedItems.length} price${outdatedItems.length === 1 ? '' : 's'} need update`
+									: 'Ready to review'}
+							</EmployeeStatusPill>
+							<EmployeeActionButton
+								type="button"
+								onClick={() => tryGoToStep(3)}
+								disabled={outdatedItems.length > 0}
+								aria-disabled={outdatedItems.length > 0}
+								trailing={
+									<ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+								}
+								fullWidthOnMobile
+							>
+								Review & submit
+							</EmployeeActionButton>
+						</div>
+					</div>
+				</footer>
+			)}
+
+			{currentStep === 3 && (
+				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
+					<div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+						<div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+							<FooterAmount label="margin" value={blendedMargin} suffix="%" />
+							<FooterAmount label="vat 14%" value={vatAmount} />
+							<div className="min-w-0">
+								<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
+									total
+								</span>
+								<span className="mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+									EGP{' '}
+									{total.toLocaleString('en-EG', {
+										minimumFractionDigits: 2,
+									})}
+								</span>
+							</div>
+						</div>
+
+						<div className="flex min-w-0 flex-col gap-2 xl:items-end">
+							<ApprovalWorkflow
+								layout="footer"
+								quoteId={quoteId ?? 'new'}
+								marginPercent={blendedMargin}
+								totalValue={total}
+								customerTier="A"
+								thresholds={marginThresholds}
+								status={
+									status === 'pending_approval'
+										? 'pending_approval'
+										: status === 'approved'
+											? 'approved'
+											: 'draft'
+								}
+								onStatusChange={(newStatus) =>
+									setStatus(newStatus as QuoteStatus)
+								}
+								onSendBlockedChange={handleApprovalBlockedChange}
+							/>
+							<div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
+								<EmployeeActionButton
+									type="button"
+									onClick={() => goToStep(2)}
+									tone="neutral"
+									size="sm"
+									leading={
+										<span aria-hidden="true" className="rtl:rotate-180">
+											←
+										</span>
+									}
+								>
+									Back to quote
+								</EmployeeActionButton>
+								<EmployeeStatusPill
+									tone={canEvaluate ? 'success' : 'warning'}
+									leading={
+										canEvaluate ? (
+											<CheckCircle2
+												size={14}
+												strokeWidth={2.5}
+												aria-hidden="true"
+											/>
+										) : (
+											<CircleAlert
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+											/>
+										)
+									}
+								>
+									{canEvaluate
+										? 'Ready to evaluate · finance receives this order'
+										: (approvalBlockReason ??
+											'Evaluation blocked · quote is closed')}
+								</EmployeeStatusPill>
+								<EmployeeActionButton
+									type="button"
+									onClick={handleEvaluate}
+									disabled={!canEvaluate || isEvaluating}
+									aria-busy={isEvaluating}
+									tone="success"
+									fullWidthOnMobile
+									trailing={
+										!isEvaluating && (
+											<ArrowRight
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+												className="rtl:rotate-180"
+											/>
+										)
+									}
+								>
+									{isEvaluating ? 'Evaluating' : 'Evaluate & send to finance'}
+								</EmployeeActionButton>
+							</div>
+						</div>
+					</div>
+				</footer>
+			)}
 
 			{/* Map side panel — DeliveryMap carries its own header/footer chrome. */}
 			<SlidePanel

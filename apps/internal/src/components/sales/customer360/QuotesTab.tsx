@@ -58,9 +58,9 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
 		data.length > 0 ? Math.round((wonCount / data.length) * 100) : 0
 
 	return (
-		<div className="p-6 space-y-5">
+		<div className="space-y-5 p-4 sm:p-6">
 			{/* Win/Loss Summary + Filter */}
-			<div className="flex items-center gap-6">
+			<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
 				<div className="flex items-center gap-2">
 					<span className="text-[11px] text-black/35 dark:text-white/35">
 						{t('sales.customer360.quotes.winRate')}
@@ -88,7 +88,7 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
 					</span>
 				</div>
 
-				<div className="ms-auto">
+				<div className="sm:ms-auto">
 					<Select
 						selectedKey={statusFilter}
 						onSelectionChange={(key) => setStatusFilter(key as StatusFilter)}
@@ -102,7 +102,7 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
 						</Button>
 						<Popover
 							aria-label="Filter quotes"
-							className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[var(--color-surface)] shadow-lg p-1"
+							className="w-[min(220px,calc(100vw-24px))] rounded-lg border border-black/[0.06] bg-white p-1 shadow-lg dark:border-white/[0.06] dark:bg-[var(--color-surface)]"
 						>
 							<ListBox className="outline-none">
 								<ListBoxItem
@@ -144,20 +144,20 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
 						onClick={() =>
 							setExpandedId(expandedId === quote.id ? null : quote.id)
 						}
-						className="w-full text-start flex items-center gap-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04] last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.02] transition-colors"
+						className="flex w-full flex-col gap-2 border-b border-black/[0.04] py-3 text-start transition-colors last:border-b-0 hover:bg-black/[0.01] dark:border-white/[0.04] dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:gap-4"
 					>
 						{/* Quote number */}
-						<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-medium text-[#2563EB] w-[100px] shrink-0">
+						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[#2563EB] sm:w-[100px] sm:shrink-0">
 							{quote.quoteNumber}
 						</span>
 
 						{/* Date */}
-						<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40 w-[90px] shrink-0">
+						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/40 dark:text-white/40 sm:w-[90px] sm:shrink-0">
 							{new Date(quote.createdAt).toLocaleDateString()}
 						</span>
 
 						{/* Total */}
-						<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text)] dark:text-white flex-1">
+						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] dark:text-white sm:flex-1">
 							{formatCurrency(quote.total)}
 						</span>
 
@@ -178,7 +178,7 @@ export function QuotesTab({ customerId, enabled }: QuotesTabProps) {
 function OutcomeBadge({ outcome }: { outcome: string | null }) {
 	if (!outcome || outcome === 'pending') {
 		return (
-			<span className="w-[50px] text-end text-[11px] text-black/20 dark:text-white/20">
+			<span className="text-[11px] text-black/20 dark:text-white/20 sm:w-[50px] sm:text-end">
 				&mdash;
 			</span>
 		)
@@ -187,7 +187,7 @@ function OutcomeBadge({ outcome }: { outcome: string | null }) {
 	const isWon = outcome === 'won'
 	return (
 		<span
-			className={`w-[50px] text-end text-[11px] font-medium ${
+			className={`text-[11px] font-medium sm:w-[50px] sm:text-end ${
 				isWon ? 'text-[#22c55e]' : 'text-[#ef4444]'
 			}`}
 		>

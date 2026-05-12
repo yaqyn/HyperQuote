@@ -118,14 +118,14 @@ export function DeclineRFQDialog({
 								</Button>
 								<Popover
 									aria-label="Decline reason"
-									className="w-[var(--trigger-width)] border border-black/80 dark:border-white/85 bg-[var(--color-surface)] shadow-lg"
+									className="w-[calc(100vw-32px)] max-w-[var(--trigger-width)] border border-black/80 bg-[var(--color-surface)] shadow-lg dark:border-white/85 lg:w-[var(--trigger-width)]"
 								>
 									<ListBox className="p-1 outline-none">
 										{DECLINE_REASONS.map((r) => (
 											<ListBoxItem
 												key={r.value}
 												id={r.value}
-												className="px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] cursor-pointer outline-none data-[hovered]:bg-black/[0.06] dark:data-[hovered]:bg-white/[0.06] data-[focused]:bg-[var(--color-primary)]/[0.08] data-[selected]:font-semibold"
+												className="cursor-pointer px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] leading-snug outline-none data-[hovered]:bg-black/[0.06] data-[focused]:bg-[var(--color-primary)]/[0.08] data-[selected]:font-semibold dark:data-[hovered]:bg-white/[0.06]"
 											>
 												{r.label}
 											</ListBoxItem>

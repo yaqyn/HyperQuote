@@ -1,6 +1,7 @@
 import type { CatalogProduct } from '@hyperquote/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Star, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SupplierPriceRow } from '../../lib/db/db'
@@ -11,6 +12,10 @@ import {
 	adminRemoveSupplierItem,
 	adminUpdateSupplierItem,
 } from '../../lib/server/admin'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 import { LinkAction, NumberControl, SelectControl } from './AdminControls'
 
 /**
@@ -32,14 +37,22 @@ export function SupplierItems({
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 
-	const { data: items = [] } = useQuery({
+	const {
+		data: items = [],
+		isError: itemsError,
+		isPending: itemsPending,
+	} = useQuery({
 		queryKey: ['admin', 'supplierItems', supplierName ?? ''],
 		queryFn: () =>
 			adminListSupplierItems({ data: { supplierName: supplierName ?? '' } }),
 		enabled: Boolean(supplierName),
 	})
 
-	const { data: products = [] } = useQuery({
+	const {
+		data: products = [],
+		isError: productsError,
+		isPending: productsPending,
+	} = useQuery({
 		queryKey: ['admin', 'products'],
 		queryFn: () => adminListProducts(),
 	})
@@ -137,8 +150,8 @@ export function SupplierItems({
 
 	if (!supplierName) {
 		return (
-			<div className="py-4 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
-				{t('items.saveFirst')}
+			<div className="py-2">
+				<EmployeeStatusPill>{t('items.saveFirst')}</EmployeeStatusPill>
 			</div>
 		)
 	}
@@ -146,9 +159,9 @@ export function SupplierItems({
 	return (
 		<div className="space-y-3">
 			{/* Header row — field labels in mono */}
-			{items.length > 0 && (
+			{!itemsPending && !itemsError && items.length > 0 && (
 				<div
-					className="grid items-center gap-3 px-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]"
+					className="hidden px-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)] lg:grid lg:items-center lg:gap-3"
 					style={{
 						gridTemplateColumns: '20px minmax(0, 1fr) 90px 70px 70px 20px',
 					}}
@@ -163,10 +176,14 @@ export function SupplierItems({
 			)}
 
 			{/* Item rows */}
-			{items.length === 0 ? (
-				<p className="py-3 font-[family-name:var(--font-fraunces)] italic text-[14px] text-[var(--color-text-muted)]">
-					{t('items.empty')}
-				</p>
+			{itemsError ? (
+				<EmployeeStatusPill tone="danger">
+					{t('items.error')}
+				</EmployeeStatusPill>
+			) : itemsPending ? (
+				<EmployeeStatusPill>{t('items.loading')}</EmployeeStatusPill>
+			) : items.length === 0 ? (
+				<EmployeeStatusPill>{t('items.empty')}</EmployeeStatusPill>
 			) : (
 				<ul className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
 					{items.map((it) => {
@@ -174,75 +191,83 @@ export function SupplierItems({
 						return (
 							<li key={it.id}>
 								<div
-									className="grid items-center gap-3 px-1 py-2.5"
+									className="flex flex-col gap-3 px-1 py-3 lg:grid lg:items-center lg:gap-3 lg:py-2.5"
 									style={{
 										gridTemplateColumns:
 											'20px minmax(0, 1fr) 90px 70px 70px 20px',
 									}}
 								>
-									{/* Primary star toggle */}
-									<button
-										type="button"
-										disabled={readOnly || updateMutation.isPending}
-										onClick={() =>
-											updateMutation.mutate({
-												id: it.id,
-												isPrimary: !it.isPrimary,
-											})
-										}
-										aria-label={t('items.togglePrimary')}
-										className="inline-flex items-center justify-center outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 rounded-sm disabled:opacity-60"
-									>
-										<Star
-											size={13}
-											strokeWidth={1.5}
-											className={
-												it.isPrimary
-													? 'fill-[var(--color-primary)] text-[var(--color-primary)]'
-													: 'text-[var(--color-text-subtle)]'
+									<div className="flex items-center gap-3 lg:contents">
+										{/* Primary star toggle */}
+										<button
+											type="button"
+											disabled={readOnly || updateMutation.isPending}
+											onClick={() =>
+												updateMutation.mutate({
+													id: it.id,
+													isPrimary: !it.isPrimary,
+												})
 											}
-										/>
-									</button>
+											aria-label={t('items.togglePrimary')}
+											className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-black/[0.08] bg-[var(--color-surface)] outline-none transition-colors hover:bg-[var(--color-primary)]/[0.05] disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:border-white/[0.1]"
+										>
+											<Star
+												size={15}
+												strokeWidth={2}
+												className={
+													it.isPrimary
+														? 'fill-[var(--color-primary)] text-[var(--color-primary)]'
+														: 'text-[var(--color-text-subtle)]'
+												}
+											/>
+										</button>
 
-									{/* Product name */}
-									<span className="font-[family-name:var(--font-inter)] text-[13px] text-[var(--color-text)] truncate">
-										{product?.name ?? it.productSlug}
-									</span>
+										{/* Product name */}
+										<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[13px] font-semibold leading-snug text-[var(--color-text)]">
+											{product?.name ?? it.productSlug}
+										</span>
+									</div>
 
 									{/* Cost — react-aria NumberField commits on blur/Enter */}
-									<NumberControl
-										value={it.rawCost}
-										readOnly={readOnly}
-										onChange={(v) =>
-											updateMutation.mutate({ id: it.id, rawCost: v })
-										}
-										suffix="EGP"
-										min={0}
-										ariaLabel={t('items.columns.cost')}
-									/>
+									<ItemValue label={t('items.columns.cost')}>
+										<NumberControl
+											value={it.rawCost}
+											readOnly={readOnly}
+											onChange={(v) =>
+												updateMutation.mutate({ id: it.id, rawCost: v })
+											}
+											suffix="EGP"
+											min={0}
+											ariaLabel={t('items.columns.cost')}
+										/>
+									</ItemValue>
 
 									{/* Lead days */}
-									<NumberControl
-										value={it.leadTimeDays}
-										readOnly={readOnly}
-										onChange={(v) =>
-											updateMutation.mutate({ id: it.id, leadTimeDays: v })
-										}
-										suffix="d"
-										min={0}
-										ariaLabel={t('items.columns.lead')}
-									/>
+									<ItemValue label={t('items.columns.lead')}>
+										<NumberControl
+											value={it.leadTimeDays}
+											readOnly={readOnly}
+											onChange={(v) =>
+												updateMutation.mutate({ id: it.id, leadTimeDays: v })
+											}
+											suffix="d"
+											min={0}
+											ariaLabel={t('items.columns.lead')}
+										/>
+									</ItemValue>
 
 									{/* Min order qty */}
-									<NumberControl
-										value={it.minOrderQty}
-										readOnly={readOnly}
-										onChange={(v) =>
-											updateMutation.mutate({ id: it.id, minOrderQty: v })
-										}
-										min={0}
-										ariaLabel={t('items.columns.minQty')}
-									/>
+									<ItemValue label={t('items.columns.minQty')}>
+										<NumberControl
+											value={it.minOrderQty}
+											readOnly={readOnly}
+											onChange={(v) =>
+												updateMutation.mutate({ id: it.id, minOrderQty: v })
+											}
+											min={0}
+											ariaLabel={t('items.columns.minQty')}
+										/>
+									</ItemValue>
 
 									{/* Remove */}
 									{!readOnly ? (
@@ -258,9 +283,9 @@ export function SupplierItems({
 											}}
 											aria-label={t('items.remove')}
 											disabled={removeMutation.isPending}
-											className="inline-flex items-center justify-center w-5 h-5 rounded-sm text-[var(--color-text-subtle)] hover:text-[#B3261E] dark:hover:text-[#E46B63] outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 transition-colors disabled:opacity-40"
+											className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-600/20 bg-red-600/[0.05] text-red-700 outline-none transition-colors hover:bg-red-600/[0.09] disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-red-600/25 dark:text-red-300"
 										>
-											<X size={12} strokeWidth={1.75} />
+											<X size={14} strokeWidth={2.1} />
 										</button>
 									) : (
 										<span />
@@ -274,29 +299,43 @@ export function SupplierItems({
 
 			{/* Add row — only surfaced in edit/create mode and only when at least
           one product isn't already in the supplier's list. */}
-			{!readOnly && availableProducts.length > 0 && (
-				<div className="pt-2">
-					{adding ? (
-						<AddItemForm
-							products={availableProducts}
-							draft={addDraft}
-							setDraft={setAddDraft}
-							onCommit={commitAdd}
-							onCancel={() => setAdding(false)}
-							committing={addMutation.isPending}
-						/>
-					) : (
-						<button
-							type="button"
-							onClick={startAdd}
-							className="inline-flex items-center gap-1.5 font-[family-name:var(--font-inter)] text-[13px] font-medium text-[var(--color-primary)] border-b border-transparent hover:border-[var(--color-primary)] transition-colors outline-none focus-visible:border-[var(--color-primary)]"
-						>
-							<Plus size={13} strokeWidth={1.75} />
-							{t('items.add')}
-						</button>
-					)}
-				</div>
+			{!readOnly && productsError && (
+				<EmployeeStatusPill tone="danger">
+					{t('items.productsError')}
+				</EmployeeStatusPill>
 			)}
+
+			{!readOnly && productsPending && (
+				<EmployeeStatusPill>{t('items.productsLoading')}</EmployeeStatusPill>
+			)}
+
+			{!readOnly &&
+				!productsPending &&
+				!productsError &&
+				availableProducts.length > 0 && (
+					<div className="pt-2">
+						{adding ? (
+							<AddItemForm
+								products={availableProducts}
+								draft={addDraft}
+								setDraft={setAddDraft}
+								onCommit={commitAdd}
+								onCancel={() => setAdding(false)}
+								committing={addMutation.isPending}
+							/>
+						) : (
+							<EmployeeActionButton
+								onClick={startAdd}
+								tone="primary"
+								size="sm"
+								leading={<Plus size={14} strokeWidth={2.2} />}
+								fullWidthOnMobile
+							>
+								{t('items.add')}
+							</EmployeeActionButton>
+						)}
+					</div>
+				)}
 		</div>
 	)
 }
@@ -330,14 +369,14 @@ function AddItemForm({
 	}))
 
 	return (
-		<div className="rounded-md border border-[var(--color-border)] bg-black/[0.015] dark:bg-white/[0.02] p-3 space-y-3">
+		<div className="space-y-3 rounded-md border border-[var(--color-border)] bg-black/[0.015] p-3 dark:bg-white/[0.02]">
 			<SelectControl
 				value={draft.productSlug}
 				onChange={(v) => setDraft({ ...draft, productSlug: v })}
 				options={options}
 				ariaLabel={t('items.columns.product')}
 			/>
-			<div className="grid grid-cols-3 gap-3">
+			<div className="flex flex-col gap-3 lg:grid lg:grid-cols-3">
 				<NumberControl
 					value={draft.rawCost}
 					onChange={(v) => setDraft({ ...draft, rawCost: v })}
@@ -359,7 +398,7 @@ function AddItemForm({
 					min={0}
 				/>
 			</div>
-			<div className="flex items-center gap-4 pt-1">
+			<div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-center">
 				<LinkAction
 					tone="primary"
 					onClick={onCommit}
@@ -369,6 +408,23 @@ function AddItemForm({
 				</LinkAction>
 				<LinkAction onClick={onCancel}>{t('actions.cancel')}</LinkAction>
 			</div>
+		</div>
+	)
+}
+
+function ItemValue({
+	label,
+	children,
+}: {
+	label: string
+	children: ReactNode
+}) {
+	return (
+		<div className="min-w-0">
+			<span className="mb-1 block font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)] lg:hidden">
+				{label}
+			</span>
+			{children}
 		</div>
 	)
 }

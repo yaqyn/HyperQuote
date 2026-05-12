@@ -38,7 +38,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 	).length
 
 	return (
-		<div className="p-6 flex gap-12">
+		<div className="flex flex-col gap-8 p-4 sm:p-6 lg:flex-row lg:gap-12">
 			{/* Left column — summary metrics first, then details */}
 			<div className="flex-1 min-w-0">
 				{/* Credit status — the #1 thing a sales rep checks */}
@@ -46,7 +46,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 					<p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mb-3 font-medium">
 						{t('sales.customer360.overview.creditStatus', 'Credit Status')}
 					</p>
-					<div className="flex items-end gap-8">
+					<div className="flex flex-wrap items-end gap-x-8 gap-y-4">
 						<div>
 							<p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
 								{formatCurrency(availableCredit)}
@@ -83,7 +83,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 				</div>
 
 				{/* Activity counts — open quotes/orders at a glance */}
-				<div className="mb-6 flex items-center gap-8">
+				<div className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:items-center sm:gap-8">
 					{[
 						{ value: String(openQuotes), label: 'Open Quotes' },
 						{ value: String(openOrders), label: 'Open Orders' },
@@ -125,7 +125,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 					].map((item) => (
 						<div
 							key={item.label}
-							className="flex items-baseline justify-between py-2"
+							className="flex flex-col gap-1 py-2 sm:flex-row sm:items-baseline sm:justify-between"
 						>
 							<span className="text-[11px] text-black/35 dark:text-white/35">
 								{item.label}
@@ -153,7 +153,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 							{contacts.slice(0, 3).map((contact) => (
 								<div
 									key={contact.id}
-									className="flex items-baseline justify-between"
+									className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between"
 								>
 									<div>
 										<span className="text-[13px] font-medium text-[var(--color-text)] dark:text-white">
@@ -174,7 +174,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 			</div>
 
 			{/* Right column — recent activity */}
-			<div className="w-[320px] shrink-0">
+			<div className="min-w-0 lg:w-[320px] lg:shrink-0">
 				<p className="text-[9px] uppercase tracking-widest text-black/35 dark:text-white/35 mb-3 font-medium">
 					{t('sales.customer360.overview.recentActivity')}
 				</p>
@@ -183,7 +183,7 @@ export function OverviewTab({ customerId, enabled }: OverviewTabProps) {
 						<div key={comm.id} className="flex items-start gap-3">
 							<CommIcon type={comm.type} />
 							<div className="flex-1 min-w-0">
-								<p className="text-[13px] text-[var(--color-text)] dark:text-white/80 truncate leading-snug">
+								<p className="text-[13px] leading-snug text-[var(--color-text)] dark:text-white/80">
 									{comm.summary}
 								</p>
 								<p className="text-[11px] text-black/30 dark:text-white/30 mt-0.5">

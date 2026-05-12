@@ -60,7 +60,11 @@ export function ProductsVolume() {
 	const openEditor = useAdminStore((s) => s.openEditor)
 	const closeEditor = useAdminStore((s) => s.closeEditor)
 
-	const { data: products = [] } = useQuery({
+	const {
+		data: products = [],
+		isError: productsError,
+		isPending: productsPending,
+	} = useQuery({
 		queryKey: ['admin', 'products'],
 		queryFn: () => adminListProducts(),
 	})
@@ -207,14 +211,16 @@ export function ProductsVolume() {
 			key: 'thumb',
 			labelKey: 'volumes.products.columns.thumb',
 			width: '44px',
+			mobileRole: 'media',
 			render: (r) => <Thumbnail src={r.pictureUrl} alt={r.name} />,
 		},
 		{
 			key: 'name',
 			labelKey: 'volumes.products.columns.name',
 			width: 'minmax(200px, 2fr)',
+			mobileRole: 'primary',
 			render: (r) => (
-				<span className="truncate font-medium text-[var(--color-text)]">
+				<span className="break-words font-semibold text-[var(--color-text)]">
 					{r.name}
 				</span>
 			),
@@ -223,8 +229,9 @@ export function ProductsVolume() {
 			key: 'category',
 			labelKey: 'volumes.products.columns.category',
 			width: 'minmax(140px, 1fr)',
+			mobileRole: 'detail',
 			render: (r) => (
-				<span className="truncate text-[var(--color-text-muted)]">
+				<span className="break-words text-[var(--color-text-muted)]">
 					{r.category}
 				</span>
 			),
@@ -234,6 +241,7 @@ export function ProductsVolume() {
 			labelKey: 'volumes.products.columns.unit',
 			width: '90px',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.unit_of_measure}</>,
 		},
 		{
@@ -241,6 +249,7 @@ export function ProductsVolume() {
 			labelKey: 'volumes.products.columns.sku',
 			width: '110px',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.sku}</>,
 		},
 		{
@@ -249,6 +258,7 @@ export function ProductsVolume() {
 			width: 'minmax(140px, 1fr)',
 			align: 'end',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => (
 				<span>
 					{r.price_range_min.toLocaleString()} –{' '}
@@ -276,6 +286,8 @@ export function ProductsVolume() {
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
+				isLoading={productsPending}
+				isError={productsError}
 			/>
 
 			<EntityEditor
@@ -286,7 +298,7 @@ export function ProductsVolume() {
 				footer={
 					draft ? (
 						<>
-							<div className="flex items-center gap-6">
+							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
 								{mode === 'view' && (
 									<LinkAction tone="primary" onClick={handleEdit}>
 										{t('actions.edit')}
@@ -350,7 +362,7 @@ export function ProductsVolume() {
 								ariaLabel={t('editor.fields.nameAr')}
 							/>
 						</Field>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.sku')} required>
 								<TextControl
 									value={draft.sku}
@@ -370,7 +382,7 @@ export function ProductsVolume() {
 						</div>
 
 						<Section title={t('editor.section.taxonomy')} />
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.category')} required>
 								<TextControl
 									value={draft.category}
@@ -406,7 +418,7 @@ export function ProductsVolume() {
 						</div>
 
 						<Section title={t('editor.section.commercial')} />
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.priceRangeMin')}>
 								<NumberControl
 									value={draft.price_range_min}
@@ -465,7 +477,7 @@ export function ProductsVolume() {
 						</div>
 
 						<Section title={t('editor.section.specifications')} />
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.unitOfMeasure')} required>
 								<TextControl
 									value={draft.unit_of_measure}
@@ -488,7 +500,7 @@ export function ProductsVolume() {
 						</div>
 						<Field label={t('editor.fields.isStockable')}>
 							{readOnly ? (
-								<span className="block font-[family-name:var(--font-inter)] text-[14px] text-[var(--color-text)]">
+								<span className="block font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)]">
 									{draft.is_stockable ? '✓' : '—'}
 								</span>
 							) : (
@@ -583,7 +595,7 @@ function PictureField({
 				) : (
 					<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--color-text-subtle)]">
 						<Package size={22} strokeWidth={1.5} />
-						<span className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.18em]">
+						<span className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.11em]">
 							{failed ? 'unreachable' : 'no image'}
 						</span>
 					</div>
@@ -591,11 +603,11 @@ function PictureField({
 			</div>
 
 			{/* URL input — switches to readonly text in view mode */}
-			<span className="block">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+			<div className="block">
+				<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
 					{label}
 				</span>
-				<span className="block mt-1.5">
+				<div className="block mt-1.5">
 					<TextControl
 						value={value ?? ''}
 						onChange={(v) => {
@@ -606,8 +618,8 @@ function PictureField({
 						ariaLabel={label}
 						placeholder="https://…"
 					/>
-				</span>
-			</span>
+				</div>
+			</div>
 		</div>
 	)
 }

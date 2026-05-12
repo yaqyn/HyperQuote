@@ -1,11 +1,21 @@
 import { useQueryClient } from '@tanstack/react-query'
+import {
+	ArrowLeft,
+	CheckCircle2,
+	Clock,
+	Mail,
+	MessageCircle,
+	UserRound,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { updateConversationStatus } from '../../lib/server/customer-service'
 import { useSupportStore } from '../../stores/customer-service'
 import type { Conversation, Message } from '../../types/customer-service'
-import { ChannelCode } from './ChannelIcons'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 import { EmailComposer } from './EmailComposer'
 import type { EmailAction } from './EmailMessage'
 import { EmailMessage } from './EmailMessage'
@@ -15,6 +25,7 @@ import { PriorityMark, SlaTicker } from './SlaTicker'
 
 interface ConversationViewProps {
 	conversation: Conversation
+	onOpenInbox?: () => void
 	onOpenProfile: () => void
 }
 
@@ -26,15 +37,23 @@ function formatCreatedAt(iso: string): string {
 	return `${date} ${hh}:${mm}`
 }
 
+function priorityTone(conversation: Conversation) {
+	if (conversation.slaBreached || conversation.priority === 'urgent') {
+		return 'danger' as const
+	}
+	if (conversation.priority === 'high') return 'warning' as const
+	return 'neutral' as const
+}
+
 /**
  * Correspondence — the switchboard's main panel when a line is open.
  *
- * Layout reads top-to-bottom like a letter: who's writing, meta about the
- * transmission, the subject, then the exchange itself. Actions are text
- * links at the top-right — "Sign off" (resolve) and a "Profile" anchor.
+ * Layout reads top-to-bottom: current customer, issue context, messages,
+ * then the action composer the agent uses to respond.
  */
 export function ConversationView({
 	conversation,
+	onOpenInbox,
 	onOpenProfile,
 }: ConversationViewProps) {
 	const { t, i18n } = useTranslation('customer-service')
@@ -47,6 +66,7 @@ export function ConversationView({
 	const isEmail = conversation.channel === 'email'
 	const isActive =
 		conversation.status !== 'closed' && conversation.status !== 'resolved'
+	const threadScrollVersion = `${conversation.id}:${conversation.messages.length}`
 
 	useEffect(() => {
 		if (isEmail && isActive) {
@@ -64,10 +84,10 @@ export function ConversationView({
 	}, [isEmail, isActive, conversation.messages.length, conversation.messages]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
-		if (threadRef.current) {
+		if (threadScrollVersion && threadRef.current) {
 			threadRef.current.scrollTop = threadRef.current.scrollHeight
 		}
-	}, [conversation.id, conversation.messages.length])
+	}, [threadScrollVersion])
 
 	const handleEmailAction = useCallback(
 		(action: EmailAction, message: Message) => {
@@ -124,84 +144,102 @@ export function ConversationView({
 			: conversation.customer.company
 
 	return (
-		<div className="flex flex-col h-full min-h-0">
+		<div className="flex h-full min-h-0 flex-col">
 			{/* ── Transmission header ─────────────────────────────
           Reads like the top of a letter: recipient framing on the left,
           metadata strip below, actions parked at the trailing edge. */}
-			<div className="shrink-0 px-10 pt-8 pb-6 border-b border-black/[0.06] dark:border-white/[0.08]">
+			<div className="shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:px-8">
 				{/* Eyebrow — mono metadata row */}
-				<div className="flex items-center justify-between gap-4 mb-5">
-					<div className="flex items-center gap-3 flex-wrap">
-						<ChannelCode
-							channel={conversation.channel}
-							className="text-[var(--color-text-subtle)]"
-						/>
-						<span aria-hidden className="text-[var(--color-border)]">
-							·
-						</span>
-						<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
-							{conversation.ticketId ?? '—'}
-						</span>
-						<span aria-hidden className="text-[var(--color-border)]">
-							·
-						</span>
-						<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-							{formatCreatedAt(conversation.createdAt)}
-						</span>
+				<div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+					<div className="flex flex-wrap items-center gap-2">
+						<EmployeeStatusPill
+							tone="neutral"
+							leading={
+								conversation.channel === 'email' ? (
+									<Mail size={13} strokeWidth={2.2} />
+								) : (
+									<MessageCircle size={13} strokeWidth={2.2} />
+								)
+							}
+						>
+							{conversation.channel === 'email'
+								? 'Email conversation'
+								: 'Live chat'}
+						</EmployeeStatusPill>
+						<EmployeeStatusPill tone="neutral">
+							{conversation.ticketId ?? 'No ticket yet'}
+						</EmployeeStatusPill>
+						<EmployeeStatusPill
+							tone={priorityTone(conversation)}
+							leading={<PriorityMark priority={conversation.priority} />}
+						>
+							{t(`priority.${conversation.priority}`)}
+						</EmployeeStatusPill>
 						{conversation.slaDeadline && (
-							<>
-								<span aria-hidden className="text-[var(--color-border)]">
-									·
-								</span>
+							<EmployeeStatusPill
+								tone={conversation.slaBreached ? 'danger' : 'neutral'}
+								leading={<Clock size={13} strokeWidth={2.2} />}
+							>
 								<SlaTicker
 									createdAt={conversation.createdAt}
 									deadline={conversation.slaDeadline}
 									breached={conversation.slaBreached}
-									className="text-[10px]"
+									bare
 								/>
-							</>
+							</EmployeeStatusPill>
 						)}
-						<span aria-hidden className="text-[var(--color-border)]">
-							·
-						</span>
-						<span className="inline-flex items-center gap-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
-							<PriorityMark priority={conversation.priority} />
-							{t(`priority.${conversation.priority}`)}
-						</span>
 					</div>
 
-					<div className="flex items-center gap-5 shrink-0">
-						{isActive && !isEmail && (
-							<Button
-								onPress={handleResolve}
-								aria-label={t('status.resolved')}
-								className="font-[family-name:var(--font-inter)] text-[12.5px] font-medium text-[var(--color-primary)] border-b border-transparent hover:border-[var(--color-primary)] outline-none focus-visible:border-[var(--color-primary)] transition-colors"
+					<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:shrink-0 lg:justify-end">
+						{onOpenInbox && (
+							<EmployeeActionButton
+								onClick={onOpenInbox}
+								aria-label="Open line list"
+								tone="neutral"
+								size="sm"
+								leading={<ArrowLeft size={14} strokeWidth={2.2} />}
+								className="lg:hidden"
 							>
-								Sign off →
-							</Button>
+								Customers
+							</EmployeeActionButton>
 						)}
-						<Button
-							onPress={onOpenProfile}
+						{isActive && !isEmail && (
+							<EmployeeActionButton
+								onClick={() => {
+									void handleResolve()
+								}}
+								aria-label={t('status.resolved')}
+								tone="success"
+								size="sm"
+								leading={<CheckCircle2 size={14} strokeWidth={2.2} />}
+							>
+								Sign off chat
+							</EmployeeActionButton>
+						)}
+						<EmployeeActionButton
+							onClick={onOpenProfile}
 							aria-label={t('profile.title')}
-							className="font-[family-name:var(--font-inter)] text-[12.5px] font-medium text-[var(--color-text-muted)] border-b border-transparent hover:text-[var(--color-text)] hover:border-[var(--color-text)] outline-none focus-visible:border-[var(--color-text)] transition-colors"
+							tone="neutral"
+							size="sm"
+							leading={<UserRound size={14} strokeWidth={2.2} />}
 						>
-							{t('profile.title')}
-						</Button>
+							Customer file
+						</EmployeeActionButton>
 					</div>
 				</div>
 
 				{/* To: — letter-style recipient line */}
-				<p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-subtle)] mb-1.5">
-					to
+				<p className="mb-1.5 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+					Customer
 				</p>
 				<h2
-					className="font-[family-name:var(--font-bricolage)] text-[34px] leading-[1.05] tracking-[-0.015em] text-[var(--color-text)]"
+					className="break-words font-[family-name:var(--font-bricolage)] text-[26px] leading-[1.08] text-[var(--color-text)] sm:text-[30px] lg:text-[32px]"
 					style={{ fontVariationSettings: '"opsz" 72, "wght" 520' }}
 				>
 					{customerName}
 					{companyName && (
 						<span
-							className="ms-3 align-middle font-[family-name:var(--font-literata)] italic text-[16px] text-[var(--color-text-muted)]"
+							className="mt-1 block break-words font-[family-name:var(--font-archivo)] text-[14px] font-medium text-[var(--color-text-muted)] sm:ms-3 sm:inline sm:align-middle"
 							style={{ fontVariationSettings: '"opsz" 18, "wght" 400' }}
 						>
 							· {companyName}
@@ -211,10 +249,13 @@ export function ConversationView({
 
 				{/* Subject — italic letter subject */}
 				<p
-					className="mt-3 font-[family-name:var(--font-literata)] italic text-[15px] leading-relaxed text-[var(--color-text-muted)]"
+					className="mt-3 break-words font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed text-[var(--color-text-muted)]"
 					style={{ fontVariationSettings: '"opsz" 16, "wght" 420' }}
 				>
-					Re: {conversation.subject}
+					{conversation.subject}
+				</p>
+				<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+					Opened {formatCreatedAt(conversation.createdAt)}
 				</p>
 			</div>
 
@@ -222,9 +263,9 @@ export function ConversationView({
           Backdrop lines turn the reading area into stationery. */}
 			<div
 				ref={threadRef}
-				className="flex-1 overflow-y-auto min-h-0 px-10 pt-7 pb-4 bg-line-paper"
+				className="min-h-0 flex-1 overflow-y-auto bg-line-paper px-4 pb-4 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pt-7"
 			>
-				<div className="max-w-[680px] flex flex-col gap-6">
+				<div className="flex max-w-[760px] flex-col gap-6">
 					{isEmail
 						? conversation.messages.map((message, i) => (
 								<EmailMessage
@@ -264,14 +305,15 @@ export function ConversationView({
 							onDiscard={handleDiscardEmail}
 						/>
 					) : (
-						<div className="shrink-0 px-10 py-4 border-t border-black/[0.06] dark:border-white/[0.08]">
-							<Button
-								onPress={handleOpenReply}
+						<div className="shrink-0 border-t border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:px-10">
+							<EmployeeActionButton
+								onClick={handleOpenReply}
 								aria-label={t('email.reply')}
-								className="w-full text-start font-[family-name:var(--font-literata)] italic text-[13px] text-[var(--color-text-subtle)] py-3 border-b border-dashed border-black/[0.1] dark:border-white/[0.1] hover:text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)] transition-colors outline-none"
+								tone="primary"
+								fullWidthOnMobile
 							>
-								{t('email.clickToReply')}
-							</Button>
+								Reply to customer
+							</EmployeeActionButton>
 						</div>
 					)
 				) : (

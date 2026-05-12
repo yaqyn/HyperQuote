@@ -60,7 +60,7 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
 	return (
 		<div className="flex flex-col h-full">
 			{/* Full-width header — no card wrapper */}
-			<div className="shrink-0 px-6 pt-6 pb-4">
+			<div className="shrink-0 px-4 pt-5 pb-4 sm:px-6">
 				<CustomerHeader
 					customer={data.customer}
 					accountManager={data.customer.assignedSalesRep}
@@ -76,18 +76,18 @@ export function Customer360View({ customerId }: Customer360ViewProps) {
 				selectedKey={selectedTab}
 				onSelectionChange={(key) => setSelectedTab(key as TabKey)}
 				orientation="vertical"
-				className="flex-1 flex min-h-0"
+				className="flex min-h-0 flex-1 flex-col lg:flex-row"
 			>
 				{/* Left sidebar navigation */}
 				<TabList
 					aria-label={t('sales.customer360.tabs')}
-					className="w-[160px] shrink-0 flex flex-col py-2 border-e border-black/[0.06] dark:border-white/[0.06]"
+					className="flex shrink-0 flex-wrap gap-1 border-b border-black/[0.06] px-3 py-2 dark:border-white/[0.06] lg:w-[160px] lg:flex-col lg:border-e lg:border-b-0 lg:px-0"
 				>
 					{TAB_KEYS.map((key) => (
 						<Tab
 							key={key}
 							id={key}
-							className="relative cursor-pointer text-start px-5 py-2 text-[13px] outline-none transition-colors
+							className="relative shrink-0 cursor-pointer px-3 py-2 text-start text-[13px] outline-none transition-colors lg:px-5
                 text-black/40 dark:text-white/40
                 data-[selected]:text-[var(--color-text)] data-[selected]:font-semibold dark:data-[selected]:text-white
                 data-[hovered]:bg-black/[0.02] dark:data-[hovered]:bg-white/[0.03]

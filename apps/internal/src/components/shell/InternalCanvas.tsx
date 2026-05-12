@@ -1,5 +1,6 @@
 import { type AuthSession, hasPermission } from '@hyperquote/auth'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, DialogTrigger, Popover } from 'react-aria-components'
@@ -70,6 +71,14 @@ interface AttentionRow {
 	count: number
 	label: string
 	moduleId: string
+}
+
+interface PanelOption {
+	id: string
+	icon: LucideIcon
+	label: string
+	hotkey: string
+	hasAttention: boolean
 }
 
 function buildAttentionFeed(breakdown?: {
@@ -176,6 +185,13 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const attention = buildAttentionFeed(urgentData?.breakdown)
 	const urgentCount = urgentData?.total ?? 0
 	const modulesWithAttention = new Set(attention.map((a) => a.moduleId))
+	const panelOptions: PanelOption[] = allowedModules.map((mod) => ({
+		id: mod.id,
+		icon: mod.icon,
+		label: t(mod.labelKey),
+		hotkey: mod.hotkey,
+		hasAttention: modulesWithAttention.has(mod.id),
+	}))
 
 	return (
 		<div className="relative flex h-full w-full flex-col overflow-hidden select-none bg-dot-grid">
@@ -190,7 +206,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 			{/* Centerpiece — clock + greeting. Clicking the clock pulls
 			    the away screen down over the entire canvas. */}
-			<div className="relative z-10 flex flex-1 min-h-0 flex-col items-center justify-center px-12">
+			<div className="relative z-10 flex flex-1 min-h-0 flex-col items-center justify-center px-4 sm:px-8 lg:px-12">
 				<button
 					type="button"
 					onClick={() => setAwayActive(true)}
@@ -211,7 +227,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 			</div>
 
 			{/* Bottom stack — attention feed + module roll */}
-			<div className="relative z-10 shrink-0 px-12 pb-10">
+			<div className="relative z-10 shrink-0 px-4 pb-5 sm:px-8 sm:pb-8 lg:px-12 lg:pb-10">
 				<SectionRule label={attentionHeadline(urgentCount)} />
 				{attention.length > 0 && (
 					<div className="mt-5 flex flex-col gap-2.5 max-w-[640px] mx-auto">
@@ -228,16 +244,22 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 				<div className="mt-10">
 					<SectionRule label="modules" />
-					<div className="mt-5 flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
-						{allowedModules.map((mod, i) => (
+					<div className="mt-5 hidden flex-wrap items-center justify-center gap-x-7 gap-y-3 lg:flex">
+						{panelOptions.map((mod, i) => (
 							<ModuleLink
 								key={mod.id}
-								label={t(mod.labelKey)}
-								hasAttention={modulesWithAttention.has(mod.id)}
+								label={mod.label}
+								hasAttention={mod.hasAttention}
 								index={i}
 								onJump={() => setActiveModule(mod.id)}
 							/>
 						))}
+					</div>
+					<div className="mt-5 flex justify-center lg:hidden">
+						<PanelMenu
+							modules={panelOptions}
+							onJump={(id) => setActiveModule(id)}
+						/>
 					</div>
 				</div>
 			</div>
@@ -273,7 +295,7 @@ function Masthead({
 	onOpenNotifications: () => void
 }) {
 	return (
-		<div className="relative z-10 shrink-0 px-12 pt-5 pb-3">
+		<div className="relative z-10 shrink-0 px-4 pt-4 pb-3 sm:px-8 lg:px-12 lg:pt-5">
 			<div className="flex items-start justify-between gap-6">
 				{/* Left — organizational identity. Clicking the wordmark
 				    toggles paper mode; that's the only entry point now. */}
@@ -537,6 +559,90 @@ function ModuleLink({
 			)}
 			{label.toLowerCase()}
 		</motion.button>
+	)
+}
+
+// ─── Panel menu ──────────────────────────────────────────
+
+function PanelMenu({
+	modules,
+	onJump,
+}: {
+	modules: PanelOption[]
+	onJump: (id: string) => void
+}) {
+	const [isOpen, setIsOpen] = useState(false)
+
+	return (
+		<DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+			<Button
+				aria-label="Open panels"
+				className="inline-flex h-12 min-w-[176px] items-center justify-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-colors hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+				style={{ fontSize: '14px', fontWeight: 600, letterSpacing: 0 }}
+			>
+				<PanelsTopLeft
+					aria-hidden="true"
+					size={18}
+					strokeWidth={1.75}
+					className="text-[var(--color-primary)]"
+				/>
+				<span>Panels</span>
+				<ChevronDown
+					aria-hidden="true"
+					size={16}
+					strokeWidth={1.75}
+					className="text-[var(--color-text-muted)]"
+				/>
+			</Button>
+			<Popover
+				placement="top"
+				offset={10}
+				aria-label="Panels"
+				className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl shadow-black/10 outline-none"
+				style={{ width: 'min(360px, calc(100vw - 32px))' }}
+			>
+				<div className="flex flex-col">
+					{modules.map((mod) => (
+						<Button
+							key={mod.id}
+							onPress={() => {
+								onJump(mod.id)
+								setIsOpen(false)
+							}}
+							className="group flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-start outline-none transition-colors hover:bg-[var(--color-primary)]/8 focus-visible:bg-[var(--color-primary)]/8"
+						>
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)]/8 text-[var(--color-primary)]">
+								<mod.icon aria-hidden="true" size={17} strokeWidth={1.75} />
+							</span>
+							<span className="min-w-0 flex-1">
+								<span
+									className="block truncate font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+									style={{
+										fontSize: '14px',
+										fontWeight: 600,
+										letterSpacing: 0,
+									}}
+								>
+									{mod.label}
+								</span>
+							</span>
+							{mod.hasAttention && (
+								<span
+									aria-hidden="true"
+									className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]"
+								/>
+							)}
+							<span
+								className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[var(--color-text-subtle)]"
+								style={{ fontSize: '11px', letterSpacing: 0 }}
+							>
+								{mod.hotkey}
+							</span>
+						</Button>
+					))}
+				</div>
+			</Popover>
+		</DialogTrigger>
 	)
 }
 

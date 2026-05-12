@@ -304,7 +304,7 @@ export function SourcingCanvas({
 											})
 											setAddSupplierOpen(false)
 										}}
-										className="w-full text-left flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none"
+										className="flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:items-center"
 									>
 										<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
 											<span className="text-[10px] font-semibold text-[var(--color-text-subtle)]">
@@ -312,7 +312,7 @@ export function SourcingCanvas({
 											</span>
 										</span>
 										<div className="flex-1 min-w-0">
-											<span className="text-[13px] font-medium text-[var(--color-text)] truncate">
+											<span className="break-words text-[13px] font-medium text-[var(--color-text)] lg:truncate">
 												{sup.name}
 											</span>
 											<p className="text-[10px] text-[var(--color-text-subtle)] mt-0.5">

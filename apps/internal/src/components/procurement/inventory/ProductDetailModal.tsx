@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Pencil, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { sanitizeCost } from '../../../lib/inputs'
 import type { QuoteFreshness } from '../../../lib/server/inventory'
@@ -6,6 +7,7 @@ import {
 	getInventoryProductDetail,
 	updateSupplierQuote,
 } from '../../../lib/server/inventory'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { SlidePanel } from '../../shared/SlidePanel'
 import { PriceConfirmDialog } from './PriceConfirmDialog'
 import { SupplierProfileView } from './SupplierProfileView'
@@ -159,30 +161,16 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 						</div>
 					) : activeSupplier ? (
 						<div className="flex h-full flex-col">
-							<button
-								type="button"
-								onClick={() => setActiveSupplier(null)}
-								className="group mx-8 mt-6 mb-2 inline-flex w-fit items-baseline gap-1.5 outline-none"
-							>
-								<span
-									aria-hidden="true"
-									className="transition-transform group-hover:-translate-x-[3px]"
-									style={{
-										fontFamily: 'var(--font-fraunces)',
-										fontStyle: 'italic',
-										fontSize: '14px',
-										color: 'var(--compendium-brand)',
-									}}
+							<div className="mx-4 mt-5 mb-2 sm:mx-8 sm:mt-6">
+								<EmployeeActionButton
+									size="sm"
+									tone="neutral"
+									leading={<ArrowLeft size={13} strokeWidth={2.4} />}
+									onClick={() => setActiveSupplier(null)}
 								>
-									←
-								</span>
-								<span
-									className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]"
-									style={{ fontSize: '12px' }}
-								>
-									back to the plate
-								</span>
-							</button>
+									Back to product
+								</EmployeeActionButton>
+							</div>
 							<div className="flex-1 min-h-0 overflow-y-auto">
 								<SupplierProfileView
 									name={activeSupplier}
@@ -194,7 +182,7 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 						<>
 							<ProductMasthead data={data} />
 
-							<div className="flex-1 min-h-0 overflow-y-auto px-8 pb-8">
+							<div className="flex-1 min-h-0 overflow-y-auto px-4 pb-8 sm:px-8">
 								<SectionRule label="Description" />
 								<p
 									className="mt-3 font-[family-name:var(--font-fraunces)] text-[var(--ink-soft)]"
@@ -208,7 +196,7 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 								</p>
 
 								<SectionRule label="Specifications" />
-								<dl className="mt-2 grid grid-cols-2 gap-x-6">
+								<dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
 									{Object.entries(data.specifications).map(([k, v]) => (
 										<div
 											key={k}
@@ -277,38 +265,23 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 							</div>
 
 							{/* Footer */}
-							<div className="shrink-0 border-t border-[var(--rule)] px-8 py-4">
-								<div className="flex items-baseline justify-between">
+							<div className="shrink-0 border-t border-[var(--rule)] px-4 py-4 sm:px-8">
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<span
 										className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
 										style={{ fontSize: '11px' }}
 									>
 										last price saved {formatRelative(data.lastUpdatedAt)}
 									</span>
-									<button
-										type="button"
+									<EmployeeActionButton
+										tone="neutral"
+										size="sm"
+										leading={<X size={13} strokeWidth={2.4} />}
 										onClick={onClose}
-										className="group inline-flex items-baseline gap-1.5 outline-none"
+										fullWidthOnMobile
 									>
-										<span
-											className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]"
-											style={{ fontSize: '12px' }}
-										>
-											close the plate
-										</span>
-										<span
-											aria-hidden="true"
-											className="transition-transform group-hover:translate-x-[3px]"
-											style={{
-												fontFamily: 'var(--font-fraunces)',
-												fontStyle: 'italic',
-												fontSize: '13px',
-												color: 'var(--compendium-brand)',
-											}}
-										>
-											→
-										</span>
-									</button>
+										Close product
+									</EmployeeActionButton>
 								</div>
 							</div>
 						</>
@@ -339,7 +312,7 @@ function ProductMasthead({
 	}
 }) {
 	return (
-		<header className="shrink-0 border-b border-[var(--rule)] px-8 pt-7 pb-6">
+		<header className="shrink-0 border-b border-[var(--rule)] px-4 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6">
 			{/* Eyebrow */}
 			<div className="flex items-baseline gap-2">
 				<span
@@ -357,7 +330,7 @@ function ProductMasthead({
 			</div>
 
 			{/* Title + image */}
-			<div className="mt-2 flex items-start gap-5">
+			<div className="mt-2 flex flex-col items-start gap-4 sm:flex-row sm:gap-5">
 				<div className="min-w-0 flex-1">
 					<h2
 						className="font-[family-name:var(--font-fraunces)] leading-[1.06] text-[var(--ink)]"
@@ -405,8 +378,8 @@ function ProductMasthead({
 				<div
 					className="shrink-0 overflow-hidden"
 					style={{
-						width: '96px',
-						height: '96px',
+						width: '88px',
+						height: '88px',
 						border: '1px solid var(--rule)',
 						padding: '4px',
 						background: 'var(--folio-deep)',
@@ -422,7 +395,7 @@ function ProductMasthead({
 			</div>
 
 			{/* Cost band */}
-			<div className="mt-6 flex items-end justify-between gap-6 border-t border-[var(--rule-soft)] pt-5">
+			<div className="mt-6 flex flex-col gap-5 border-t border-[var(--rule-soft)] pt-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
 				<div className="flex flex-col">
 					<span
 						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
@@ -452,7 +425,7 @@ function ProductMasthead({
 					</span>
 				</div>
 
-				<div className="flex flex-col items-end gap-0.5">
+				<div className="flex flex-col items-start gap-0.5 sm:items-end">
 					<span
 						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
 						style={{ fontSize: '10.5px' }}
@@ -549,13 +522,7 @@ function SupplierEntry({
 	const freshTone = QUOTE_TONE[supplier.quoteFreshness]
 
 	return (
-		<li
-			className="relative grid border-t border-[var(--rule-soft)] py-4"
-			style={{
-				gridTemplateColumns: '22px 1fr auto',
-				columnGap: '20px',
-			}}
-		>
+		<li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-x-4 border-t border-[var(--rule-soft)] py-4 sm:grid-cols-[22px_minmax(0,1fr)_auto] sm:gap-x-5">
 			<div className="pt-1">
 				<span
 					className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--ink-ghost)]"
@@ -655,7 +622,7 @@ function SupplierEntry({
 				)}
 			</div>
 
-			<div className="flex flex-col items-end pt-1">
+			<div className="col-start-2 mt-3 flex flex-row items-end justify-between gap-3 pt-1 sm:col-start-auto sm:mt-0 sm:flex-col sm:items-end">
 				{editing ? (
 					<input
 						value={draft}
@@ -716,6 +683,17 @@ function SupplierEntry({
 				>
 					EGP / {unit}
 				</span>
+				{!editing && (
+					<EmployeeActionButton
+						size="sm"
+						tone="neutral"
+						leading={<Pencil size={12} strokeWidth={2.4} />}
+						onClick={beginEdit}
+						disabled={isSaving}
+					>
+						Edit quote
+					</EmployeeActionButton>
+				)}
 			</div>
 		</li>
 	)

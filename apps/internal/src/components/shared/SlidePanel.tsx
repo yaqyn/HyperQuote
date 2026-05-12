@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import {
+	type CSSProperties,
 	createContext,
 	type ReactNode,
 	useContext,
@@ -107,6 +108,9 @@ type SlidePanelScope =
 	| 'customer-service'
 	| 'admin'
 type SlidePanelSide = 'start' | 'end'
+type SlidePanelStyle = CSSProperties & {
+	'--slide-panel-max-width': string
+}
 
 interface SlidePanelProps {
 	isOpen: boolean
@@ -154,9 +158,15 @@ export function SlidePanel({
 	// (start/end), which the runtime resolves to left/right based on dir.
 	// For the animation we use raw x and flip the sign when side==='start'.
 	const enterOffset = side === 'start' ? '-100%' : '100%'
-	const edgeClass = side === 'start' ? 'start-0 border-e' : 'end-0 border-s'
+	const edgeClass =
+		side === 'start'
+			? 'start-0 end-0 lg:end-auto lg:border-e'
+			: 'start-0 end-0 lg:start-auto lg:border-s'
 	const shadowClass =
 		side === 'start' ? 'slide-drawer-start' : 'slide-drawer-end'
+	const panelStyle: SlidePanelStyle = {
+		'--slide-panel-max-width': `${maxWidth}px`,
+	}
 
 	// SSR / pre-mount guard: if the panel host isn't available yet, render
 	// nothing on the first paint and catch up once it mounts.
@@ -254,7 +264,7 @@ export function SlidePanel({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.15 }}
-						className="absolute inset-0 z-20 cursor-default bg-transparent"
+						className="fixed inset-0 z-20 cursor-default bg-transparent lg:absolute"
 					/>
 
 					<motion.div
@@ -265,8 +275,8 @@ export function SlidePanel({
 						animate={{ x: 0 }}
 						exit={{ x: enterOffset }}
 						transition={{ type: 'spring', stiffness: 300, damping: 34 }}
-						className={`absolute inset-y-0 ${edgeClass} ${shadowClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08]`}
-						style={{ maxWidth: `${maxWidth}px` }}
+						className={`fixed inset-y-0 ${edgeClass} ${shadowClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] lg:absolute lg:max-w-[var(--slide-panel-max-width)]`}
+						style={panelStyle}
 					>
 						{children}
 					</motion.div>

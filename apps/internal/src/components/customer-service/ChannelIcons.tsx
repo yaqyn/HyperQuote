@@ -25,18 +25,3 @@ export function ChannelCode({ channel, className = '' }: ChannelCodeProps) {
 		</span>
 	)
 }
-
-/**
- * Backwards-compatible shim so any lingering consumer can still import
- * CHANNEL_ICONS. Each entry is a small component that renders the code
- * at the requested nominal size (ignored — codes auto-size via parent).
- */
-const CHANNEL_ICONS: Record<
-	ChannelType,
-	React.ComponentType<{ size?: number; className?: string }>
-> = {
-	email: ({ className }) => (
-		<ChannelCode channel="email" className={className} />
-	),
-	live: ({ className }) => <ChannelCode channel="live" className={className} />,
-}

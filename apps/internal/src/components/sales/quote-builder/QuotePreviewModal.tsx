@@ -73,7 +73,7 @@ export function QuotePreviewModal({
 			title={`For ${customerName}`}
 			caption="What the customer will see when this goes out."
 		>
-			<div className="flex items-center justify-between px-8 py-2 border-b border-dashed border-black/[0.1] dark:border-white/[0.12]">
+			<div className="flex flex-col gap-2 border-b border-dashed border-black/[0.1] px-4 py-3 dark:border-white/[0.12] lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-2">
 				<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
 					render mode
 				</span>
@@ -87,7 +87,7 @@ export function QuotePreviewModal({
 			<DispatchBody className="bg-[var(--color-surface)]">
 				<div className="mx-auto max-w-2xl space-y-6">
 					{/* Seller */}
-					<div className="flex items-start justify-between">
+					<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 						<div>
 							<p className="font-[family-name:var(--font-archivo)] text-[18px] font-bold text-[var(--color-text)]">
 								HyperQuote Trading Co.
@@ -115,7 +115,7 @@ export function QuotePreviewModal({
 					</div>
 
 					{/* Metadata */}
-					<div className="grid grid-cols-3 gap-6">
+					<div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-6">
 						<MetaItem label="Reference" value={quoteNumber} mono />
 						<MetaItem label="Date" value={dateFmt.format(todayDate)} mono />
 						<MetaItem
@@ -133,8 +133,53 @@ export function QuotePreviewModal({
 					)}
 
 					{/* Line items */}
-					<div className="overflow-x-auto">
-						<table className="w-full font-[family-name:var(--font-archivo)] text-[13px]">
+					<div>
+						<div className="lg:hidden">
+							{(lineItems ?? []).map((item, idx) => (
+								<article
+									key={item.id}
+									className="border-b border-black/[0.06] py-3 last:border-b-0 dark:border-white/[0.08]"
+								>
+									<div className="flex items-start justify-between gap-3">
+										<div className="min-w-0">
+											<p className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+												{String(idx + 1).padStart(2, '0')}
+											</p>
+											<p className="mt-1 text-[13px] font-medium leading-snug text-[var(--color-text)]">
+												{item.productName}
+											</p>
+										</div>
+										<p className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[13px] font-medium tabular-nums text-[var(--color-text)]">
+											{fmt.format(item.lineTotal)}
+										</p>
+									</div>
+									<div className="mt-2 flex flex-col gap-2 lg:flex-row lg:gap-5">
+										<div>
+											<span className="text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)]">
+												Qty
+											</span>
+											<p className="font-[family-name:var(--font-plex-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+												{item.quantity.toLocaleString(locale)} {item.unit}
+											</p>
+										</div>
+										<div>
+											<span className="text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)]">
+												Unit
+											</span>
+											<p className="font-[family-name:var(--font-plex-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+												{fmt.format(item.sellPrice)}
+											</p>
+										</div>
+									</div>
+									{showSpecDetails && item.specification && (
+										<p className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
+											{item.specification}
+										</p>
+									)}
+								</article>
+							))}
+						</div>
+						<table className="hidden w-full font-[family-name:var(--font-archivo)] text-[13px] lg:table">
 							<thead>
 								<tr className="border-b border-black/80 dark:border-white/85">
 									{[
@@ -187,7 +232,7 @@ export function QuotePreviewModal({
 					</div>
 
 					{/* Totals */}
-					<div className="ms-auto w-60 space-y-1.5">
+					<div className="space-y-1.5 lg:ms-auto lg:w-60">
 						<TotalRow label="Subtotal" value={fmt.format(subtotal)} />
 						<TotalRow label="VAT (14%)" value={fmt.format(vatAmount)} />
 						<div className="flex justify-between border-t border-black/80 dark:border-white/85 pt-2 font-[family-name:var(--font-archivo-black)] text-[15px] uppercase tracking-[-0.01em] text-[var(--color-text)]">
@@ -215,7 +260,7 @@ export function QuotePreviewModal({
 					</p>
 
 					{/* Signature */}
-					<div className="flex items-end justify-between border-t border-dashed border-black/[0.1] dark:border-white/[0.12] pt-5">
+					<div className="flex flex-col gap-4 border-t border-dashed border-black/[0.1] pt-5 dark:border-white/[0.12] lg:flex-row lg:items-end lg:justify-between">
 						<div>
 							<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
 								Authorized signature

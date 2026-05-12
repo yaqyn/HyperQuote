@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Handshake, PhoneCall, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
 	isValidProof,
@@ -13,6 +14,7 @@ import {
 	type StockStatus,
 	type StockSupplierOffer,
 } from '../../../lib/server/stock'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface RefillPanelProps {
@@ -111,7 +113,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 					<>
 						<RefillMasthead data={data} />
 
-						<div className="flex-1 min-h-0 overflow-y-auto px-8 pb-8">
+						<div className="flex-1 min-h-0 overflow-y-auto px-4 pb-8 sm:px-8">
 							<SectionRule
 								label={`Who sells this · ${data.suppliers.length}`}
 							/>
@@ -181,7 +183,7 @@ function RefillMasthead({
 }) {
 	const tone = STATUS_TONE[data.status]
 	return (
-		<header className="shrink-0 border-b border-[var(--rule)] px-8 pt-7 pb-6">
+		<header className="shrink-0 border-b border-[var(--rule)] px-4 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6">
 			<div className="flex items-baseline gap-2">
 				<span
 					className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--compendium-brand)]"
@@ -225,7 +227,7 @@ function RefillMasthead({
 			</div>
 
 			{/* Editorial stock tally — three numbers on one baseline. */}
-			<div className="mt-6 flex items-end justify-between gap-6">
+			<div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
 				<TallyNumeral
 					value={data.stockLevel}
 					label={`on hand · ${data.unit}`}
@@ -426,13 +428,7 @@ function SupplierEntry({
 	)
 
 	return (
-		<li
-			className="relative grid border-t border-[var(--rule-soft)] py-5"
-			style={{
-				gridTemplateColumns: '22px 1fr',
-				columnGap: '20px',
-			}}
-		>
+		<li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-x-4 border-t border-[var(--rule-soft)] py-5 sm:gap-x-5">
 			<div className="pt-1">
 				<span
 					className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--ink-ghost)]"
@@ -444,7 +440,7 @@ function SupplierEntry({
 
 			<div className="min-w-0">
 				{/* Supplier line */}
-				<div className="flex items-start justify-between gap-3">
+				<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
 					<div className="min-w-0 flex-1">
 						<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
 							<span
@@ -503,8 +499,8 @@ function SupplierEntry({
 						)}
 					</div>
 
-					<div className="flex flex-col items-end gap-1.5">
-						<div className="flex flex-col items-end">
+					<div className="flex w-full flex-col items-start gap-1.5 sm:w-auto sm:items-end">
+						<div className="flex flex-col items-start sm:items-end">
 							<span
 								className="compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
 								style={{
@@ -523,34 +519,15 @@ function SupplierEntry({
 							</span>
 						</div>
 						{!isCalling && (
-							<button
-								type="button"
+							<EmployeeActionButton
+								size="sm"
+								leading={<PhoneCall size={13} strokeWidth={2.4} />}
 								onClick={onOpenCall}
-								className="group inline-flex items-baseline gap-1.5 outline-none"
+								fullWidthOnMobile
+								className="sm:w-auto"
 							>
-								<span
-									className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--ink)]"
-									style={{
-										fontSize: '13px',
-										fontWeight: 500,
-										letterSpacing: '-0.005em',
-									}}
-								>
-									call & set deal
-								</span>
-								<span
-									aria-hidden="true"
-									className="transition-transform group-hover:translate-x-[3px]"
-									style={{
-										fontFamily: 'var(--font-fraunces)',
-										fontStyle: 'italic',
-										fontSize: '14px',
-										color: 'var(--compendium-brand)',
-									}}
-								>
-									→
-								</span>
-							</button>
+								Start supplier call
+							</EmployeeActionButton>
 						)}
 					</div>
 				</div>
@@ -567,7 +544,7 @@ function SupplierEntry({
 							!mutation.isPending
 
 						return (
-							<div className="mt-4 border-l-2 border-[var(--compendium-brand)] pl-4">
+							<div className="mt-4 border-l-2 border-[var(--compendium-brand)] pl-3 sm:pl-4">
 								<div className="mb-3 flex items-baseline justify-between">
 									<span className="font-[family-name:var(--font-geist-mono)] text-[9.5px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-mid)]">
 										at the telephone · {lines.length} item
@@ -613,23 +590,18 @@ function SupplierEntry({
 														)}
 													</p>
 													{!isPrimary && (
-														<button
-															type="button"
+														<EmployeeActionButton
+															size="sm"
+															tone="danger"
+															leading={<Trash2 size={12} strokeWidth={2.4} />}
 															onClick={() => removeLine(line.productSlug)}
-															className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)] hover:text-[var(--compendium-stale)]"
-															style={{ fontSize: '11px' }}
 														>
-															remove
-														</button>
+															Remove
+														</EmployeeActionButton>
 													)}
 												</div>
 
-												<div
-													className="mt-2 grid items-end gap-3"
-													style={{
-														gridTemplateColumns: '1fr 1fr auto',
-													}}
-												>
+												<div className="mt-2 grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
 													<FieldStack
 														label={`qty · ${line.unit}`}
 														error={qtyBelowMOQ}
@@ -731,34 +703,33 @@ function SupplierEntry({
 
 								{/* + Add item */}
 								{!showPicker ? (
-									<button
-										type="button"
+									<EmployeeActionButton
+										size="sm"
+										tone="neutral"
+										leading={<Plus size={13} strokeWidth={2.4} />}
 										onClick={() => setShowPicker(true)}
 										disabled={availableToAdd.length === 0}
-										className="mt-4 w-full border-t border-dashed border-[var(--rule)] pt-3 text-start font-[family-name:var(--font-fraunces)] italic transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-										style={{
-											fontSize: '12px',
-											color: 'var(--ink-soft)',
-										}}
+										fullWidthOnMobile
+										className="mt-4"
 									>
 										{availableToAdd.length === 0
-											? '— supplier catalog exhausted —'
-											: `+ pile on another item (${availableToAdd.length} more from this supplier) →`}
-									</button>
+											? 'Supplier catalog exhausted'
+											: `Add item from supplier (${availableToAdd.length})`}
+									</EmployeeActionButton>
 								) : (
 									<div className="mt-4 max-h-[220px] overflow-y-auto border-t border-[var(--rule)] pt-3">
 										<div className="mb-2 flex items-baseline justify-between">
 											<span className="font-[family-name:var(--font-geist-mono)] text-[9.5px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-mid)]">
 												from {supplier.supplierName}
 											</span>
-											<button
-												type="button"
+											<EmployeeActionButton
+												size="sm"
+												tone="neutral"
+												leading={<X size={12} strokeWidth={2.4} />}
 												onClick={() => setShowPicker(false)}
-												className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)] hover:text-[var(--ink)]"
-												style={{ fontSize: '11px' }}
 											>
-												close
-											</button>
+												Close
+											</EmployeeActionButton>
 										</div>
 										<ul className="flex flex-col">
 											{availableToAdd.map((p) => (
@@ -899,21 +870,19 @@ function SupplierEntry({
 									</span>
 								</div>
 
-								<div className="mt-5 flex items-center gap-4">
-									<button
-										type="button"
+								<div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+									<EmployeeActionButton
+										size="sm"
+										tone="neutral"
+										leading={<X size={13} strokeWidth={2.4} />}
 										onClick={onCancelCall}
-										className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] hover:text-[var(--ink)]"
-										style={{ fontSize: '13px' }}
+										fullWidthOnMobile
 									>
-										hang up
-									</button>
-									<div
-										aria-hidden="true"
-										className="h-4 w-px bg-[var(--rule)]"
-									/>
-									<button
-										type="button"
+										Cancel call
+									</EmployeeActionButton>
+									<EmployeeActionButton
+										tone="success"
+										leading={<Handshake size={14} strokeWidth={2.4} />}
 										disabled={!canSubmit}
 										onClick={() =>
 											mutation.mutate({
@@ -928,33 +897,13 @@ function SupplierEntry({
 												},
 											})
 										}
-										className="group ms-auto inline-flex items-baseline gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+										fullWidthOnMobile
+										className="sm:ms-auto sm:w-auto"
 									>
-										<span
-											className="font-[family-name:var(--font-fraunces)] text-[var(--ink)]"
-											style={{
-												fontSize: '13.5px',
-												fontWeight: 500,
-												letterSpacing: '-0.005em',
-											}}
-										>
-											{mutation.isPending
-												? 'sealing…'
-												: 'seal deal & ship to finance'}
-										</span>
-										<span
-											aria-hidden="true"
-											className="transition-transform group-hover:translate-x-[3px]"
-											style={{
-												fontFamily: 'var(--font-fraunces)',
-												fontStyle: 'italic',
-												fontSize: '14px',
-												color: 'var(--compendium-brand)',
-											}}
-										>
-											→
-										</span>
-									</button>
+										{mutation.isPending
+											? 'Saving deal'
+											: 'Seal deal & send to finance'}
+									</EmployeeActionButton>
 								</div>
 							</div>
 						)

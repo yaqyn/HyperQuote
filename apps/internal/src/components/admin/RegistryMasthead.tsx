@@ -1,5 +1,7 @@
+import { BookMarked, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { VolumeDefinition } from '../../types/admin'
+import { EmployeeStatusPill } from '../shared/EmployeeControls'
 
 interface RegistryMastheadProps {
 	volume: VolumeDefinition
@@ -7,11 +9,8 @@ interface RegistryMastheadProps {
 }
 
 /**
- * The masthead of every volume. A typographic hierarchy: mono eyebrow
- * with volume numeral and live count, then a large Fraunces title, then
- * a small italic subtitle, then a hairline rule that terminates the
- * block. The subtitle is the one place each volume gets to speak in
- * its own voice.
+ * Shared masthead for every admin volume. It keeps counts and volume state
+ * visible without taking over the working screen on smaller devices.
  */
 export function RegistryMasthead({
 	volume,
@@ -20,46 +19,32 @@ export function RegistryMasthead({
 	const { t } = useTranslation('admin')
 
 	return (
-		<header className="px-12 pt-12 pb-7 border-b border-black/[0.06] dark:border-white/[0.08]">
-			{/* Eyebrow — mono, tracked, tabular metadata */}
-			<p className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-subtle)] flex items-center gap-3">
-				<span>
+		<header className="border-b border-black/[0.06] px-4 pb-5 pt-20 dark:border-white/[0.08] sm:px-6 sm:pb-6 lg:px-12 lg:pb-7 lg:pt-8">
+			<div className="flex flex-wrap items-center gap-2">
+				<EmployeeStatusPill
+					tone="neutral"
+					leading={<BookMarked size={13} strokeWidth={2.2} />}
+				>
 					{t('masthead.metaVolume')} {volume.roman}
-				</span>
-				<span aria-hidden className="text-[var(--color-border)]">
-					‖
-				</span>
-				<span className="tabular-nums">
+				</EmployeeStatusPill>
+				<EmployeeStatusPill tone="neutral">
 					{t('masthead.metaEntries', { count: entryCount })}
-				</span>
+				</EmployeeStatusPill>
 				{volume.readOnly && (
-					<>
-						<span aria-hidden className="text-[var(--color-border)]">
-							‖
-						</span>
-						<span className="text-[var(--color-primary)]">
-							{t('masthead.metaReadOnly')}
-						</span>
-					</>
+					<EmployeeStatusPill
+						tone="warning"
+						leading={<CheckCircle2 size={13} strokeWidth={2.2} />}
+					>
+						{t('masthead.metaReadOnly')}
+					</EmployeeStatusPill>
 				)}
-			</p>
+			</div>
 
-			{/* Volume title — big Fraunces display */}
-			<h1
-				className="mt-4 font-[family-name:var(--font-fraunces)] text-[56px] leading-[1.02] tracking-[-0.02em] text-[var(--color-text)]"
-				style={{
-					fontFeatureSettings: '"ss01" on, "liga" on',
-					fontVariationSettings: '"opsz" 144, "wght" 430, "SOFT" 40',
-				}}
-			>
+			<h1 className="mt-4 break-words font-[family-name:var(--font-bricolage)] text-[32px] font-semibold leading-[1.05] text-[var(--color-text)] sm:text-[38px] lg:text-[44px]">
 				{t(volume.labelKey)}
 			</h1>
 
-			{/* Subtitle — serif italic, softer */}
-			<p
-				className="mt-3 font-[family-name:var(--font-fraunces)] italic text-[15px] leading-snug text-[var(--color-text-muted)] max-w-[52ch]"
-				style={{ fontVariationSettings: '"opsz" 14, "wght" 400' }}
-			>
+			<p className="mt-3 max-w-[62ch] font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed text-[var(--color-text-muted)]">
 				{t(volume.subtitleKey)}
 			</p>
 		</header>

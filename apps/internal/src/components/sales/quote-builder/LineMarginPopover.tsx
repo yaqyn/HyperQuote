@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { clampMargin, MAX_MARGIN_PCT } from '../../../lib/inputs'
 import { getMarginLevel, type MarginThresholds } from '../../../types/sales'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 
 interface LineMarginItem {
 	productName: string
@@ -50,9 +51,8 @@ const LEVEL_LABEL = {
  * LineMarginPanel — the margin workbench. Each rep decision is a
  * typographic moment: the sovereign margin % in Literata, the derived
  * sell price in Plex Mono, threshold markers as ruled ticks on a bar.
- * Presets and nudges are italic word-actions, not rounded pills. The
- * breakdown is a ruled strata of dt/dd pairs. Footer has one primary
- * `Done` wordmark and an italic escape-hatch `apply to all items`.
+ * Presets and nudges are compact controls. The breakdown is a ruled strata
+ * of dt/dd pairs, and the footer carries the durable margin commands.
  */
 export function LineMarginPanel({
 	items,
@@ -107,7 +107,7 @@ export function LineMarginPanel({
 	return (
 		<div className="flex h-full flex-col">
 			{/* Section rule eyebrow + product name */}
-			<div className="px-7 pt-6 pb-4">
+			<div className="px-4 pt-6 pb-4 lg:px-7">
 				<div className="flex items-center gap-4">
 					<span
 						className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
@@ -125,7 +125,7 @@ export function LineMarginPanel({
 					/>
 				</div>
 				<h2
-					className="mt-3 truncate font-[family-name:var(--font-literata)]"
+					className="mt-3 break-words font-[family-name:var(--font-literata)]"
 					style={{
 						fontSize: '22px',
 						fontWeight: 500,
@@ -140,14 +140,13 @@ export function LineMarginPanel({
 
 			{/* Hero — sovereign margin + sell price on a ruled row */}
 			<div
-				className="flex items-baseline justify-between px-7 pb-5 pt-1"
+				className="flex flex-col gap-3 px-4 pb-5 pt-1 lg:flex-row lg:items-baseline lg:justify-between lg:px-7"
 				style={{ borderBottom: '1px solid var(--color-border)' }}
 			>
 				<div className="flex flex-col items-start">
 					<span
-						className="block py-1 font-[family-name:var(--font-literata)] tabular-nums"
+						className="block py-1 font-[family-name:var(--font-literata)] text-[44px] tabular-nums lg:text-[64px]"
 						style={{
-							fontSize: '64px',
 							fontWeight: 500,
 							letterSpacing: '-0.04em',
 							color: heroColor,
@@ -179,7 +178,7 @@ export function LineMarginPanel({
 						{levelLabel}
 					</span>
 				</div>
-				<div className="flex flex-col items-end">
+				<div className="flex flex-col items-start lg:items-end">
 					<span
 						className="block py-1 font-[family-name:var(--font-plex-mono)] tabular-nums"
 						style={{
@@ -205,7 +204,7 @@ export function LineMarginPanel({
 			</div>
 
 			{/* Threshold bar — ruled track with colored ticks + current indicator */}
-			<div className="px-7 pt-6 pb-5">
+			<div className="px-4 pt-6 pb-5 lg:px-7">
 				<div
 					className="relative h-px w-full"
 					style={{ backgroundColor: 'var(--color-border)' }}
@@ -252,8 +251,8 @@ export function LineMarginPanel({
 			</div>
 
 			{/* Range + numeric input */}
-			<div className="px-7 pb-6">
-				<div className="flex items-center gap-4">
+			<div className="px-4 pb-6 lg:px-7">
+				<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
 					<input
 						type="range"
 						min={marginFloor}
@@ -296,9 +295,9 @@ export function LineMarginPanel({
 				</div>
 			</div>
 
-			{/* Presets — italic word-actions */}
+			{/* Presets */}
 			<StratumRow label="presets">
-				<div className="flex items-baseline gap-5">
+				<div className="grid grid-cols-3 gap-2">
 					{presets.map((p) => {
 						const selected = Math.abs(draft - p.value) < 0.01
 						return (
@@ -307,13 +306,17 @@ export function LineMarginPanel({
 								type="button"
 								onClick={() => commit(p.value)}
 								aria-pressed={selected}
-								className="group relative inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
+								className={`group relative flex min-h-14 flex-col justify-center rounded-md border px-3 py-2 text-start font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
+									selected
+										? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.06]'
+										: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+								}`}
 							>
 								<span
+									className="block"
 									style={{
 										fontSize: '13px',
-										fontStyle: selected ? 'normal' : 'italic',
-										fontWeight: selected ? 500 : 400,
+										fontWeight: selected ? 600 : 500,
 										color: selected
 											? 'var(--color-text)'
 											: 'var(--color-text-muted)',
@@ -323,7 +326,7 @@ export function LineMarginPanel({
 									{p.label}
 								</span>
 								<span
-									className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+									className="mt-0.5 block font-[family-name:var(--font-plex-mono)] tabular-nums"
 									style={{
 										fontSize: '11px',
 										color: selected
@@ -334,21 +337,15 @@ export function LineMarginPanel({
 								>
 									{p.value}%
 								</span>
-								{selected && (
-									<span
-										aria-hidden="true"
-										className="absolute inset-x-0 -bottom-0.5 h-px bg-[var(--color-primary)]"
-									/>
-								)}
 							</button>
 						)
 					})}
 				</div>
 			</StratumRow>
 
-			{/* Nudge — row of word-actions with Δ total preview */}
+			{/* Nudge */}
 			<StratumRow label="nudge">
-				<div className="grid grid-cols-4 gap-4">
+				<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
 					{nudges.map((step) => {
 						const next = clamp(draft + step)
 						const nextTotal =
@@ -369,7 +366,7 @@ export function LineMarginPanel({
 								type="button"
 								disabled={disabled}
 								onClick={() => commit(next)}
-								className="group relative flex flex-col items-start gap-0.5 py-1 text-start font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm disabled:cursor-not-allowed disabled:opacity-30"
+								className="group relative flex min-h-14 flex-col items-start justify-center rounded-md border border-[var(--color-border)] px-3 py-2 text-start font-[family-name:var(--font-archivo)] outline-none transition-colors hover:border-[var(--color-primary)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 disabled:cursor-not-allowed disabled:opacity-40"
 							>
 								<span
 									className="font-[family-name:var(--font-plex-mono)] tabular-nums"
@@ -402,7 +399,7 @@ export function LineMarginPanel({
 
 			{/* Breakdown — ruled dt/dd strata */}
 			<div
-				className="mx-7 mt-1"
+				className="mx-4 mt-1 lg:mx-7"
 				style={{ borderTop: '1px solid var(--color-border)' }}
 			>
 				<dl className="py-3">
@@ -430,7 +427,7 @@ export function LineMarginPanel({
 			{/* Other items — typographic roster, only when there are siblings */}
 			{items.length > 1 && (
 				<div
-					className="mx-7 mt-4"
+					className="mx-4 mt-4 lg:mx-7"
 					style={{ borderTop: '1px solid var(--color-border)' }}
 				>
 					<div className="flex items-center gap-4 pt-4">
@@ -478,7 +475,7 @@ export function LineMarginPanel({
 										}}
 									/>
 									<span
-										className="flex-1 min-w-0 truncate font-[family-name:var(--font-archivo)]"
+										className="flex-1 min-w-0 break-words font-[family-name:var(--font-archivo)] lg:truncate"
 										style={{
 											fontSize: '13px',
 											fontStyle: isActive ? 'normal' : 'italic',
@@ -510,57 +507,30 @@ export function LineMarginPanel({
 				</div>
 			)}
 
-			{/* Actions — italic escape-hatch + sovereign Done word */}
+			{/* Actions — clear margin commands */}
 			<div
-				className="mt-auto flex items-center justify-between gap-6 px-7 py-5"
+				className="mt-auto flex flex-col-reverse items-stretch gap-4 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-7"
 				style={{ borderTop: '1px solid var(--color-border)' }}
 			>
-				<button
+				<EmployeeActionButton
 					type="button"
 					onClick={() => {
 						onApplyToAll(draft)
 						onClose()
 					}}
-					className="group relative inline-flex items-baseline font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-					style={{
-						fontSize: '12px',
-						color: 'var(--color-text-muted)',
-					}}
+					tone="neutral"
+					size="sm"
 				>
-					<span className="relative">
-						apply to all items
-						<span
-							aria-hidden="true"
-							className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-						/>
-					</span>
-				</button>
-				<button
+					Apply to all items
+				</EmployeeActionButton>
+				<EmployeeActionButton
 					type="button"
 					onClick={onClose}
-					className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-					style={{
-						fontSize: '22px',
-						fontWeight: 500,
-						color: 'var(--color-text)',
-						letterSpacing: '-0.02em',
-					}}
+					tone="success"
+					trailing={<span aria-hidden="true">→</span>}
 				>
-					<span className="relative">
-						done
-						<span
-							aria-hidden="true"
-							className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-						/>
-					</span>
-					<span
-						aria-hidden="true"
-						className="transition-transform group-hover:translate-x-1"
-						style={{ fontSize: '18px' }}
-					>
-						→
-					</span>
-				</button>
+					Done
+				</EmployeeActionButton>
 			</div>
 		</div>
 	)
@@ -617,7 +587,7 @@ function StratumRow({
 }) {
 	return (
 		<div
-			className="grid grid-cols-[72px_1fr] items-baseline gap-x-5 px-7 py-3"
+			className="flex flex-col gap-2 px-4 py-3 lg:grid lg:grid-cols-[72px_1fr] lg:items-baseline lg:gap-x-5 lg:px-7"
 			style={{
 				borderTop: '1px solid var(--color-border)',
 			}}

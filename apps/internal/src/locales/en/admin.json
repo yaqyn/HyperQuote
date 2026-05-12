@@ -1,14 +1,19 @@
 {
 	"masthead": {
 		"eyebrow": "The Registry",
-		"caption": "A developer's index of the living record",
+		"caption": "Manage the records the team relies on every day",
 		"metaVolume": "Vol.",
 		"metaEntries": "{{count}} entries",
 		"metaReadOnly": "read-only"
 	},
 	"rail": {
 		"title": "Volumes",
-		"entryCount": "{{count}} entries"
+		"entryCount": "{{count}} entries",
+		"countLoading": "…",
+		"countError": "!",
+		"countLoadingLabel": "Entry count loading",
+		"countErrorLabel": "Entry count unavailable",
+		"status": "Registry data is editable here"
 	},
 	"volumes": {
 		"customers": {
@@ -72,12 +77,16 @@
 	},
 	"items": {
 		"title": "Items sold",
+		"loading": "Loading supplier items",
+		"error": "Supplier items could not load",
 		"empty": "No items yet.",
 		"add": "Add item",
 		"remove": "Remove item",
 		"confirmRemove": "Remove this item from the supplier?",
 		"togglePrimary": "Toggle primary supplier",
 		"saveFirst": "Save the supplier first to add items",
+		"productsLoading": "Loading product list",
+		"productsError": "Product list could not load",
 		"columns": {
 			"product": "Product",
 			"cost": "Cost",
@@ -86,7 +95,9 @@
 		}
 	},
 	"search": {
-		"placeholder": "Filter entries…"
+		"placeholder": "Filter entries…",
+		"records": "{{count}} records",
+		"filtered": "{{shown}} of {{total}} shown"
 	},
 	"actions": {
 		"new": "New entry",
@@ -101,7 +112,7 @@
 		"titleCreate": "New entry",
 		"titleView": "Entry · {{id}}",
 		"titleEdit": "Editing · {{id}}",
-		"caption": "Fields map directly to the underlying table",
+		"caption": "Review and update this record",
 		"requiredMark": "Required",
 		"section": {
 			"identity": "Identity",
@@ -195,8 +206,13 @@
 		}
 	},
 	"empty": {
+		"loading": "Loading records",
+		"loadingSub": "The registry is fetching the latest data",
+		"error": "Records could not load",
+		"errorSub": "Refresh the panel or try again in a moment",
 		"volume": "Registry · empty",
 		"volumeSub": "No entries in this volume yet",
+		"noMatches": "No records match this filter",
 		"selection": "Select an entry to inspect it",
 		"selectionSub": "Or press New entry to add one"
 	}

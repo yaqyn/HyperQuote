@@ -161,11 +161,11 @@ export function OutdatedPricesCard() {
 								return (
 									<li
 										key={item.productName}
-										className="py-3 flex items-start gap-3"
+										className="flex flex-col gap-3 py-3 lg:flex-row lg:items-start"
 									>
 										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2">
-												<span className="font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)] truncate">
+											<div className="flex flex-wrap items-center gap-2">
+												<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)] lg:truncate">
 													{item.productName}
 												</span>
 												<PriceStatusBadge
@@ -174,7 +174,7 @@ export function OutdatedPricesCard() {
 													size="xs"
 												/>
 											</div>
-											<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10.5px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)] truncate">
+											<p className="mt-1 break-words font-[family-name:var(--font-plex-mono)] text-[10.5px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)] lg:truncate">
 												{item.specification} · {item.supplierName}
 											</p>
 											<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
@@ -202,7 +202,7 @@ export function OutdatedPricesCard() {
 												onPress={() =>
 													notifyOne(item.productName, item.supplierName)
 												}
-												className="shrink-0 font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-primary)] border-b border-transparent hover:border-[var(--color-primary)] outline-none transition-colors"
+												className="self-start font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-primary)] border-b border-transparent hover:border-[var(--color-primary)] outline-none transition-colors lg:shrink-0"
 											>
 												Notify →
 											</AriaButton>

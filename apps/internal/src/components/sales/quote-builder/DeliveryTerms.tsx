@@ -57,6 +57,7 @@ function hasHeavyMaterials(lineItems: { productName: string }[]): boolean {
 
 interface DeliveryTermsProps {
 	deliveryAddress: string
+	highlightDate?: boolean
 	/** Total shipment weight in tonnes — may be derived by a future commit
 	 *  from line items × unit weight. For now the parent supplies an
 	 *  estimate. Drives the truck count and the heavy-order detection for
@@ -72,13 +73,19 @@ const WINDOWS = [
 	{ id: '13:00-17:00', label: 'midday', range: '13:00–17:00' },
 	{ id: '17:00-20:00', label: 'evening', range: '17:00–20:00' },
 ] as const
+const NIGHT_WINDOW = {
+	id: '00:00-06:00',
+	label: 'night',
+	range: '00:00–06:00',
+} as const
 
-type WindowId = (typeof WINDOWS)[number]['id']
+type WindowId = (typeof WINDOWS)[number]['id'] | typeof NIGHT_WINDOW.id
 
 // ─── Component ────────────────────────────────────────────
 
 export function DeliveryTerms({
 	deliveryAddress,
+	highlightDate = false,
 	totalWeightTons,
 	leadTimeDays = 3,
 }: DeliveryTermsProps) {
@@ -87,6 +94,7 @@ export function DeliveryTerms({
 	const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
 
 	const lineItems = useWatch({ control, name: 'lineItems' })
+	const deliveryWindow = useWatch({ control, name: 'deliveryWindow' })
 	const itemCount = lineItems?.length ?? 0
 	const truckCount = Math.max(
 		1,
@@ -107,6 +115,13 @@ export function DeliveryTerms({
 			setFormValue('deliveryWindow', '00:00-06:00')
 		}
 	}, [truckBanActive, setFormValue])
+
+	useEffect(() => {
+		if (truckBanActive) return
+		if (!deliveryWindow || deliveryWindow === '08:00-17:00') {
+			setFormValue('deliveryWindow', '08:00-13:00')
+		}
+	}, [deliveryWindow, truckBanActive, setFormValue])
 
 	const earliestDate = useMemo(() => {
 		return today(getLocalTimeZone()).add({ days: leadTimeDays })
@@ -133,7 +148,7 @@ export function DeliveryTerms({
 	return (
 		<dl className="mt-5 flex flex-col gap-0">
 			{/* Row — date + earliest context */}
-			<StratumRow label="date">
+			<StratumRow label="date" highlight={highlightDate}>
 				<Controller
 					control={control}
 					name="deliveryDate"
@@ -151,11 +166,20 @@ export function DeliveryTerms({
 									.toLowerCase()
 							: null
 						return (
-							<div className="flex items-baseline gap-4">
+							<div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:gap-4">
 								<DialogTrigger>
 									<AriaButton
-										aria-label="Pick delivery date"
-										className="group relative inline-flex items-baseline gap-2 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
+										aria-label={
+											highlightDate
+												? 'Pick delivery date, required'
+												: 'Pick delivery date'
+										}
+										aria-invalid={highlightDate || undefined}
+										className={`group relative inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
+											highlightDate
+												? 'border-[var(--color-signal-red)] bg-[var(--color-signal-red)]/[0.04]'
+												: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+										}`}
 									>
 										<svg
 											width="12"
@@ -164,7 +188,11 @@ export function DeliveryTerms({
 											fill="none"
 											aria-hidden="true"
 											className="shrink-0 self-center"
-											style={{ color: 'var(--color-text-subtle)' }}
+											style={{
+												color: highlightDate
+													? 'var(--color-signal-red)'
+													: 'var(--color-text-subtle)',
+											}}
 										>
 											<rect
 												x="1.5"
@@ -206,19 +234,28 @@ export function DeliveryTerms({
 													className="font-[family-name:var(--font-archivo)] italic"
 													style={{
 														fontSize: '13px',
-														color: 'var(--color-text-subtle)',
+														color: highlightDate
+															? 'var(--color-signal-red)'
+															: 'var(--color-text-subtle)',
 													}}
 												>
 													pick a date
 												</span>
 												<span
 													aria-hidden="true"
-													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+													className={`absolute inset-x-0 -bottom-0.5 h-px origin-left transition-transform duration-200 ${
+														highlightDate
+															? 'scale-x-100 bg-[var(--color-signal-red)]'
+															: 'scale-x-0 bg-[var(--color-primary)] group-hover:scale-x-100 group-focus-visible:scale-x-100'
+													}`}
 												/>
 											</span>
 										)}
 									</AriaButton>
-									<Popover placement="bottom start">
+									<Popover
+										placement="bottom start"
+										className="max-w-[calc(100vw-24px)]"
+									>
 										<Dialog
 											aria-label="Delivery date picker"
 											className="cursor-default select-none p-4 outline-none"
@@ -346,18 +383,30 @@ export function DeliveryTerms({
 					control={control}
 					name="deliveryWindow"
 					render={({ field }) => {
-						const value = (field.value ?? '08:00-13:00') as WindowId
+						const value = (
+							field.value === '08:00-17:00'
+								? '08:00-13:00'
+								: (field.value ?? '08:00-13:00')
+						) as WindowId
+						const windows =
+							truckBanActive || value === NIGHT_WINDOW.id
+								? [NIGHT_WINDOW, ...WINDOWS]
+								: WINDOWS
 						return (
-							<fieldset className="flex items-baseline gap-5 border-0 p-0 m-0">
+							<fieldset className="m-0 grid grid-cols-1 gap-2 border-0 p-0 sm:grid-cols-3">
 								<legend className="sr-only">Delivery window</legend>
-								{WINDOWS.map((w) => {
+								{windows.map((w) => {
 									const selected = value === w.id
 									const inputId = `window-${w.id}`
 									return (
 										<label
 											key={w.id}
 											htmlFor={inputId}
-											className="group relative inline-flex cursor-pointer items-baseline gap-1.5 font-[family-name:var(--font-archivo)] transition-colors rounded-sm"
+											className={`group relative flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] transition-colors ${
+												selected
+													? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.06]'
+													: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+											}`}
 										>
 											<input
 												id={inputId}
@@ -368,12 +417,37 @@ export function DeliveryTerms({
 												onChange={() => field.onChange(w.id)}
 												className="sr-only peer"
 											/>
+											<span className="min-w-0">
+												<span
+													className="block"
+													style={{
+														fontSize: '13px',
+														fontWeight: selected ? 600 : 500,
+														color: selected
+															? 'var(--color-text)'
+															: 'var(--color-text-muted)',
+														letterSpacing: '-0.005em',
+													}}
+												>
+													{w.label}
+												</span>
+												<span
+													className="mt-0.5 block font-[family-name:var(--font-plex-mono)] tabular-nums"
+													style={{
+														fontSize: '10px',
+														color: 'var(--color-text-subtle)',
+														letterSpacing: '0.04em',
+													}}
+												>
+													{w.range}
+												</span>
+											</span>
 											<span
 												aria-hidden="true"
-												className="shrink-0 self-center rounded-full transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-primary)]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
+												className="shrink-0 rounded-full transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-primary)]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
 												style={{
-													width: 7,
-													height: 7,
+													width: 8,
+													height: 8,
 													backgroundColor: selected
 														? 'var(--color-primary)'
 														: 'transparent',
@@ -382,36 +456,13 @@ export function DeliveryTerms({
 														: '1px solid var(--color-text-subtle)',
 												}}
 											/>
-											<span
-												style={{
-													fontSize: '13px',
-													fontStyle: selected ? 'normal' : 'italic',
-													fontWeight: selected ? 500 : 400,
-													color: selected
-														? 'var(--color-text)'
-														: 'var(--color-text-muted)',
-													letterSpacing: '-0.005em',
-												}}
-											>
-												{w.label}
-											</span>
-											<span
-												className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-												style={{
-													fontSize: '10px',
-													color: 'var(--color-text-subtle)',
-													letterSpacing: '0.04em',
-												}}
-											>
-												{w.range}
-											</span>
 										</label>
 									)
 								})}
 								{truckBanActive && (
 									<span
 										role="note"
-										className="font-[family-name:var(--font-archivo)] italic"
+										className="sm:col-span-3 font-[family-name:var(--font-archivo)] italic"
 										style={{
 											fontSize: '11px',
 											color: 'var(--color-signal-amber)',
@@ -429,7 +480,7 @@ export function DeliveryTerms({
 			{/* Row — shipment summary */}
 			<StratumRow label="shipment">
 				<div
-					className="flex items-baseline gap-4 font-[family-name:var(--font-plex-mono)] tabular-nums"
+					className="flex flex-wrap items-baseline gap-x-4 gap-y-2 font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
 						fontSize: '12px',
 						color: 'var(--color-text)',
@@ -524,18 +575,22 @@ function StratumRow({
 	label,
 	children,
 	align = 'baseline',
+	highlight = false,
 }: {
 	label: string
 	children: React.ReactNode
 	align?: 'baseline' | 'start'
+	highlight?: boolean
 }) {
 	return (
 		<div
-			className={`grid grid-cols-[80px_1fr] gap-x-6 py-3 ${
-				align === 'start' ? 'items-start' : 'items-baseline'
+			className={`flex flex-col gap-2 py-3 sm:grid sm:grid-cols-[80px_1fr] sm:gap-x-6 ${
+				align === 'start' ? 'sm:items-start' : 'sm:items-baseline'
 			}`}
 			style={{
-				borderBottom: '1px solid var(--color-border)',
+				borderBottom: `1px solid ${
+					highlight ? 'var(--color-signal-red)' : 'var(--color-border)'
+				}`,
 				borderBottomStyle: 'solid',
 				opacity: 1,
 			}}
@@ -544,7 +599,9 @@ function StratumRow({
 				className="font-[family-name:var(--font-archivo)] italic"
 				style={{
 					fontSize: '11px',
-					color: 'var(--color-text-subtle)',
+					color: highlight
+						? 'var(--color-signal-red)'
+						: 'var(--color-text-subtle)',
 					paddingTop: align === 'start' ? '3px' : undefined,
 				}}
 			>

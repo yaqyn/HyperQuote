@@ -169,7 +169,7 @@ export function FinancialsTab({ customerId, enabled }: FinancialsTabProps) {
 								/>
 								{/* Tooltip on hover */}
 								<div className="absolute bottom-full mb-2 hidden group-hover:block">
-									<div className="bg-[var(--color-text)] dark:bg-white text-white dark:text-black text-[10px] px-2 py-1 rounded whitespace-nowrap font-[family-name:var(--font-geist-mono)] tabular-nums">
+									<div className="max-w-[180px] rounded bg-[var(--color-text)] px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-white dark:bg-white dark:text-black">
 										{formatCurrency(payment.amount)} &middot;{' '}
 										{payment.daysLate === 0
 											? 'On time'

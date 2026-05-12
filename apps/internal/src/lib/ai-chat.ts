@@ -1,8 +1,8 @@
 /**
  * Internal AI chat server function.
  *
- * Streams assistant replies via Ollama (USE_OLLAMA=1 and OLLAMA_API_KEY set
- * in .env.local) or a minimal stub when Ollama is not available.
+ * Streams assistant replies via Groq when GROQ_API_KEY is configured, or a
+ * minimal stub when AI is not available.
  *
  * Accumulates chunks into a StreamChunk[] that the client walks to fill the
  * assistant message in the Zustand store. Not true streaming yet — that's
@@ -37,7 +37,7 @@ async function* stubStream(): AsyncGenerator<StreamChunk> {
 		type: 'TEXT_MESSAGE_CONTENT',
 		timestamp: Date.now(),
 		messageId,
-		delta: 'Ollama is not configured on this server.',
+		delta: 'AI is not configured on this server.',
 	}
 	yield { type: 'TEXT_MESSAGE_END', timestamp: Date.now(), messageId }
 	yield {

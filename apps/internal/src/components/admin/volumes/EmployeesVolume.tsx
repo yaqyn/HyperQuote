@@ -30,7 +30,11 @@ export function EmployeesVolume() {
 	const openEditor = useAdminStore((s) => s.openEditor)
 	const closeEditor = useAdminStore((s) => s.closeEditor)
 
-	const { data: employees = [] } = useQuery({
+	const {
+		data: employees = [],
+		isError: employeesError,
+		isPending: employeesPending,
+	} = useQuery({
 		queryKey: ['admin', 'employees'],
 		queryFn: () => adminListEmployees(),
 	})
@@ -124,14 +128,16 @@ export function EmployeesVolume() {
 			labelKey: 'volumes.employees.columns.id',
 			width: '160px',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.id}</>,
 		},
 		{
 			key: 'name',
 			labelKey: 'volumes.employees.columns.name',
 			width: 'minmax(160px, 1.4fr)',
+			mobileRole: 'primary',
 			render: (r) => (
-				<span className="truncate font-medium text-[var(--color-text)]">
+				<span className="break-words font-semibold text-[var(--color-text)]">
 					{r.name}
 				</span>
 			),
@@ -140,8 +146,9 @@ export function EmployeesVolume() {
 			key: 'nameAr',
 			labelKey: 'volumes.employees.columns.nameAr',
 			width: 'minmax(160px, 1.4fr)',
+			mobileRole: 'detail',
 			render: (r) => (
-				<span className="truncate text-[var(--color-text-muted)]">
+				<span className="break-words text-[var(--color-text-muted)]">
 					{r.name_ar}
 				</span>
 			),
@@ -151,6 +158,7 @@ export function EmployeesVolume() {
 			labelKey: 'volumes.employees.columns.phone',
 			width: 'minmax(140px, 1fr)',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.phone}</>,
 		},
 	]
@@ -172,6 +180,8 @@ export function EmployeesVolume() {
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
+				isLoading={employeesPending}
+				isError={employeesError}
 			/>
 
 			<EntityEditor
@@ -182,7 +192,7 @@ export function EmployeesVolume() {
 				footer={
 					draft ? (
 						<>
-							<div className="flex items-center gap-6">
+							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
 								{mode === 'view' && (
 									<LinkAction tone="primary" onClick={handleEdit}>
 										{t('actions.edit')}

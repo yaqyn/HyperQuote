@@ -1,5 +1,6 @@
 import type { BroadCategory } from '@hyperquote/types'
 import { useQuery } from '@tanstack/react-query'
+import { PackagePlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
 	getStockOverview,
@@ -7,6 +8,11 @@ import {
 	type StockStatus,
 } from '../../../lib/server/stock'
 import { useProcurementStore } from '../../../stores/procurement'
+import {
+	EmployeeActionButton,
+	EmployeeFilterChip,
+	EmployeeSearchField,
+} from '../../shared/EmployeeControls'
 import { RefillPanel } from './RefillPanel'
 
 const CATEGORY_LABELS: Record<BroadCategory, string> = {
@@ -19,7 +25,7 @@ const CATEGORY_LABELS: Record<BroadCategory, string> = {
 }
 
 const STATUS_COPY: Record<StockStatus, string> = {
-	healthy: 'tended',
+	healthy: 'in stock',
 	low: 'running low',
 	critical: 'critical',
 	out: 'out of stock',
@@ -50,7 +56,7 @@ const STATUS_WEIGHT: Record<StockStatus, number> = {
 export function StockView() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['stock-overview'],
 		queryFn: () => getStockOverview({ data: {} }),
 		staleTime: 30_000,
@@ -84,6 +90,21 @@ export function StockView() {
 		})
 	}, [data, activeCategory, onlyAttention, search])
 
+	if (isError) {
+		return (
+			<div className="flex h-full items-center justify-center px-6 text-center">
+				<div className="max-w-sm rounded-md border border-red-600/20 bg-red-600/[0.04] px-4 py-3">
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
+						Stock could not load.
+					</p>
+					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
+						Refresh the panel before approving or refilling inventory.
+					</p>
+				</div>
+			</div>
+		)
+	}
+
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full items-center justify-center">
@@ -101,7 +122,7 @@ export function StockView() {
 
 	return (
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
-			<div className="mx-auto flex max-w-[920px] flex-col px-10 pt-8 pb-16">
+			<div className="mx-auto flex max-w-[920px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-8">
 				<AtlasMasthead
 					totals={data.totals}
 					activeCategory={activeCategory}
@@ -114,6 +135,7 @@ export function StockView() {
 					onlyAttention={onlyAttention}
 					setOnlyAttention={setOnlyAttention}
 					visibleAttention={visibleAttention}
+					totalCount={data.totals.total}
 				/>
 
 				{filtered.length > 0 ? (
@@ -264,71 +286,41 @@ function DeskToolbar({
 	onlyAttention,
 	setOnlyAttention,
 	visibleAttention,
+	totalCount,
 }: {
 	search: string
 	setSearch: (s: string) => void
 	onlyAttention: boolean
 	setOnlyAttention: (v: boolean | ((prev: boolean) => boolean)) => void
 	visibleAttention: number
+	totalCount: number
 }) {
 	return (
-		<div className="mt-6 flex items-center gap-5 border-b border-[var(--rule-soft)] pb-3">
-			<div className="flex flex-1 items-baseline gap-2">
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '11.5px' }}
+		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-4 lg:flex-row lg:items-center lg:gap-4">
+			<EmployeeSearchField
+				value={search}
+				onChange={setSearch}
+				label="Search stock"
+				placeholder="Search material, SKU, or supplier"
+				className="lg:flex-1"
+			/>
+			<div className="flex flex-wrap gap-2">
+				<EmployeeFilterChip
+					active={!onlyAttention}
+					count={totalCount}
+					onClick={() => setOnlyAttention(false)}
 				>
-					find
-				</span>
-				<input
-					type="search"
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					placeholder="a material, sku, or supplier"
-					className="w-full bg-transparent font-[family-name:var(--font-fraunces)] text-[14px] text-[var(--ink)] outline-none placeholder:font-[family-name:var(--font-fraunces)] placeholder:italic placeholder:text-[var(--ink-ghost)]"
-				/>
-				{search && (
-					<button
-						type="button"
-						onClick={() => setSearch('')}
-						className="font-[family-name:var(--font-fraunces)] italic text-[11px] text-[var(--ink-mid)] hover:text-[var(--ink)]"
-					>
-						clear
-					</button>
-				)}
+					All stock
+				</EmployeeFilterChip>
+				<EmployeeFilterChip
+					active={onlyAttention}
+					count={visibleAttention}
+					tone="danger"
+					onClick={() => setOnlyAttention((v) => !v)}
+				>
+					Needs stock
+				</EmployeeFilterChip>
 			</div>
-
-			<button
-				type="button"
-				onClick={() => setOnlyAttention((v) => !v)}
-				aria-pressed={onlyAttention}
-				className="group flex items-center gap-2 outline-none"
-			>
-				<span
-					aria-hidden="true"
-					className="h-[9px] w-[9px] rounded-full transition-all"
-					style={{
-						background: onlyAttention
-							? 'var(--compendium-stale)'
-							: 'transparent',
-						border: onlyAttention ? '0' : '1px solid var(--rule)',
-					}}
-				/>
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic transition-colors"
-					style={{
-						fontSize: '12px',
-						color: onlyAttention ? 'var(--ink)' : 'var(--ink-soft)',
-					}}
-				>
-					only what needs minding
-				</span>
-				{visibleAttention > 0 && (
-					<span className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--ink-mid)]">
-						{visibleAttention}
-					</span>
-				)}
-			</button>
 		</div>
 	)
 }
@@ -351,18 +343,12 @@ function StockPlate({
 	const thresholdPct = 50
 
 	return (
-		<li
-			className="relative grid border-t border-[var(--rule-soft)] py-5"
-			style={{
-				gridTemplateColumns: '22px 1fr auto',
-				columnGap: '24px',
-			}}
-		>
+		<li className="relative flex flex-col gap-4 border-t border-[var(--rule-soft)] py-5 pl-8 md:grid md:grid-cols-[22px_minmax(0,1fr)_auto] md:gap-x-6 md:gap-y-0 md:pl-0">
 			{/* Status margin — a vertical ink strip on the leading edge. Only
 			    ever visible for items that need attention. Typographers would
 			    call this a "marginal mark"; it lets the employee scan the
 			    spread for trouble in one sweep. */}
-			<div className="relative">
+			<div className="absolute left-0 top-5 md:relative md:left-auto md:top-auto">
 				{hasAttention && (
 					<span
 						aria-hidden="true"
@@ -457,8 +443,8 @@ function StockPlate({
 			</div>
 
 			{/* Trailing column — the hero number + action. */}
-			<div className="flex flex-col items-end justify-between gap-3">
-				<div className="flex flex-col items-end">
+			<div className="flex flex-row items-end justify-between gap-4 md:col-auto md:flex-col md:items-end md:gap-3">
+				<div className="flex flex-col items-start md:items-end">
 					<span
 						className="compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
 						style={{
@@ -491,37 +477,16 @@ function StockPlate({
 					)}
 				</div>
 
-				<button
-					type="button"
+				<EmployeeActionButton
+					size="sm"
+					tone={hasAttention ? 'primary' : 'neutral'}
+					leading={<PackagePlus size={13} strokeWidth={2.4} />}
 					onClick={() => onRefill(product.slug)}
-					className="group inline-flex items-baseline gap-1.5 border-b border-transparent pb-0.5 text-end outline-none transition-colors"
-					style={{
-						color: hasAttention ? 'var(--ink)' : 'var(--ink-mid)',
-					}}
+					fullWidthOnMobile
+					className="md:w-auto"
 				>
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic transition-transform"
-						style={{
-							fontSize: '13.5px',
-							letterSpacing: '-0.005em',
-							fontWeight: hasAttention ? 500 : 400,
-						}}
-					>
-						refill
-					</span>
-					<span
-						aria-hidden="true"
-						className="transition-transform group-hover:translate-x-[3px]"
-						style={{
-							fontFamily: 'var(--font-fraunces)',
-							fontStyle: 'italic',
-							fontSize: '14px',
-							color: hasAttention ? accent : 'var(--ink-mid)',
-						}}
-					>
-						→
-					</span>
-				</button>
+					{hasAttention ? 'Refill stock' : 'Review stock'}
+				</EmployeeActionButton>
 			</div>
 		</li>
 	)

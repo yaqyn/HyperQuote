@@ -49,11 +49,12 @@ export function SourceSearchMenu({
 						{stockAvailable > 0 && !search && (
 							<button
 								type="button"
+								data-searchmenu-row="true"
 								onClick={() => {
 									onSelect('warehouse')
 									onClose()
 								}}
-								className={`w-full text-left flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none ${currentSourceId === 'warehouse' ? 'bg-[var(--color-primary)]/[0.04]' : ''}`}
+								className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left outline-none transition-colors data-[active=true]:bg-[var(--color-primary)]/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:items-center ${currentSourceId === 'warehouse' ? 'bg-[var(--color-primary)]/[0.04]' : ''}`}
 							>
 								<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10">
 									<svg
@@ -79,7 +80,7 @@ export function SourceSearchMenu({
 										In-stock · fastest delivery
 									</p>
 								</div>
-								<span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-green-600 dark:text-green-400">
+								<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-green-600 dark:text-green-400">
 									{stockAvailable} avail
 								</span>
 							</button>
@@ -102,11 +103,12 @@ export function SourceSearchMenu({
 								<button
 									key={sup.id}
 									type="button"
+									data-searchmenu-row="true"
 									onClick={() => {
 										onSelect(sup.id)
 										onClose()
 									}}
-									className={`w-full text-left flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors outline-none ${currentSourceId === sup.id ? 'bg-[var(--color-primary)]/[0.04]' : ''}`}
+									className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left outline-none transition-colors data-[active=true]:bg-[var(--color-primary)]/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:items-center ${currentSourceId === sup.id ? 'bg-[var(--color-primary)]/[0.04]' : ''}`}
 								>
 									<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
 										<span className="text-[10px] font-semibold text-[var(--color-text-subtle)]">
@@ -114,7 +116,7 @@ export function SourceSearchMenu({
 										</span>
 									</span>
 									<div className="flex-1 min-w-0">
-										<span className="text-[13px] font-medium text-[var(--color-text)] truncate">
+										<span className="block break-words text-[13px] font-medium text-[var(--color-text)] lg:truncate">
 											{sup.name}
 										</span>
 										<p
@@ -123,7 +125,7 @@ export function SourceSearchMenu({
 											{sup.tier}
 										</p>
 									</div>
-									<span className="font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
+									<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
 										{sup.score}
 									</span>
 								</button>

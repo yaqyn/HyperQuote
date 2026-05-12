@@ -1,10 +1,16 @@
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAdminStore } from '../../stores/admin'
 import type { AdminKey, VolumeId } from '../../types/admin'
+import {
+	EmployeeActionButton,
+	EmployeeSearchField,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 
 /**
- * Column definition for the registry index. `width` follows CSS grid
+ * Column definition for the registry index. `width` follows desktop table
  * track sizing (e.g. "1fr", "120px", "min-content"). `mono` switches the
  * cell typography to Geist Mono — used for IDs, codes, and quantities.
  */
@@ -12,10 +18,11 @@ export interface ColumnDef<T> {
 	key: string
 	/** i18n key under `admin.volumes.{volume}.columns.*` */
 	labelKey: AdminKey
-	render: (row: T) => React.ReactNode
+	render: (row: T) => ReactNode
 	width: string
 	align?: 'start' | 'end'
 	mono?: boolean
+	mobileRole?: 'media' | 'primary' | 'detail' | 'hidden'
 }
 
 interface EntityIndexProps<T> {
@@ -29,8 +36,10 @@ interface EntityIndexProps<T> {
 	onNewEntry: (() => void) | null
 	/** Free-text filter applied by the caller; this component renders the UI */
 	filter: (row: T, query: string) => boolean
+	isLoading?: boolean
+	isError?: boolean
 	/** Optional row-level decoration — used by the Products volume for the read-only note */
-	topNote?: React.ReactNode
+	topNote?: ReactNode
 }
 
 export function EntityIndex<T>({
@@ -41,6 +50,8 @@ export function EntityIndex<T>({
 	onRowSelect,
 	onNewEntry,
 	filter,
+	isLoading = false,
+	isError = false,
 	topNote,
 }: EntityIndexProps<T>) {
 	const { t } = useTranslation('admin')
@@ -51,48 +62,61 @@ export function EntityIndex<T>({
 	const filtered = searchQuery
 		? rows.filter((r) => filter(r, searchQuery.toLowerCase()))
 		: rows
+	const resultLabel = searchQuery
+		? t('search.filtered', {
+				shown: filtered.length.toLocaleString(),
+				total: rows.length.toLocaleString(),
+			})
+		: t('search.records', { count: rows.length.toLocaleString() })
+	const mobileColumns = columns.filter((c) => c.mobileRole !== 'hidden')
+	const mediaColumns = mobileColumns.filter((c) => c.mobileRole === 'media')
+	const primaryColumn =
+		mobileColumns.find((c) => c.mobileRole === 'primary') ??
+		mobileColumns.find((c) => t(c.labelKey).trim().length > 0) ??
+		mobileColumns[0]
+	const mobileDetailColumns = mobileColumns.filter(
+		(c) => c !== primaryColumn && c.mobileRole !== 'media',
+	)
 
-	// Grid template built from column widths + a leading "№" track
+	// Desktop table template built from column widths + a leading "№" track
 	const gridTemplate = `64px ${columns.map((c) => c.width).join(' ')}`
 
 	return (
 		<div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 			{/* Toolbar ────────────────────────────────────────── */}
-			<div className="px-12 pt-6 pb-5 flex items-center gap-6 border-b border-black/[0.06] dark:border-white/[0.08]">
-				<label className="flex-1 flex items-center gap-3 text-[13px]">
-					<Search
-						size={14}
-						strokeWidth={1.5}
-						className="text-[var(--color-text-subtle)] shrink-0"
-					/>
-					<input
-						type="search"
-						value={searchQuery}
-						onChange={(e) => setSearch(volume, e.target.value)}
-						placeholder={t('search.placeholder')}
-						className="flex-1 bg-transparent outline-none placeholder:text-[var(--color-text-subtle)] font-[family-name:var(--font-inter)] text-[14px] text-[var(--color-text)]"
-					/>
-				</label>
+			<div className="flex flex-col gap-3 border-b border-black/[0.06] px-4 pb-4 pt-5 dark:border-white/[0.08] sm:px-6 lg:flex-row lg:items-center lg:gap-4 lg:px-12 lg:pb-5 lg:pt-6">
+				<EmployeeSearchField
+					value={searchQuery}
+					onChange={(value) => setSearch(volume, value)}
+					placeholder={t('search.placeholder')}
+					label={t('search.placeholder')}
+					className="lg:flex-1"
+				/>
 
-				{onNewEntry && (
-					<button
-						type="button"
-						onClick={onNewEntry}
-						className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 rounded-sm px-0.5"
-					>
-						<Plus size={14} strokeWidth={1.75} />
-						<span className="border-b border-transparent group-hover:border-[var(--color-primary)] transition-colors">
+				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
+					<EmployeeStatusPill className="w-full justify-center sm:w-auto">
+						{resultLabel}
+					</EmployeeStatusPill>
+
+					{onNewEntry && (
+						<EmployeeActionButton
+							onClick={onNewEntry}
+							tone="primary"
+							size="sm"
+							leading={<Plus size={14} strokeWidth={2.2} />}
+							fullWidthOnMobile
+						>
 							{t('actions.new')}
-						</span>
-					</button>
-				)}
+						</EmployeeActionButton>
+					)}
+				</div>
 			</div>
 
 			{topNote}
 
 			{/* Column headers ─────────────────────────────────── */}
 			<div
-				className="px-12 py-3 grid items-center gap-4 border-b border-black/[0.06] dark:border-white/[0.08] font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]"
+				className="hidden border-b border-black/[0.06] px-12 py-3 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)] dark:border-white/[0.08] lg:grid lg:items-center lg:gap-4"
 				style={{ gridTemplateColumns: gridTemplate }}
 			>
 				<span className="tabular-nums">№</span>
@@ -108,7 +132,18 @@ export function EntityIndex<T>({
 
 			{/* Rows ───────────────────────────────────────────── */}
 			<div className="flex-1 overflow-y-auto">
-				{filtered.length === 0 ? (
+				{isError ? (
+					<IndexState
+						title={t('empty.error')}
+						detail={t('empty.errorSub')}
+						tone="danger"
+					/>
+				) : isLoading && rows.length === 0 ? (
+					<IndexState
+						title={t('empty.loading')}
+						detail={t('empty.loadingSub')}
+					/>
+				) : filtered.length === 0 ? (
 					<EmptyIndex hasQuery={Boolean(searchQuery)} />
 				) : (
 					<ol className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -120,7 +155,7 @@ export function EntityIndex<T>({
 									<button
 										type="button"
 										onClick={() => onRowSelect(row)}
-										className={`group relative w-full text-start px-12 py-4 grid items-center gap-4 outline-none transition-colors
+										className={`group relative flex w-full flex-col gap-3 px-4 py-4 text-start outline-none transition-colors sm:px-6 lg:grid lg:items-center lg:gap-4 lg:px-12
                       ${
 												isSelected
 													? 'bg-[var(--color-primary)]/[0.04]'
@@ -137,9 +172,59 @@ export function EntityIndex<T>({
 											/>
 										)}
 
-										{/* Entry number — position-based, not the entity id */}
+										<div className="flex min-w-0 items-start gap-3 lg:hidden">
+											{mediaColumns.map((c) => (
+												<div key={c.key} className="shrink-0">
+													{c.render(row)}
+												</div>
+											))}
+											<div className="min-w-0 flex-1">
+												<div className="flex items-start justify-between gap-3">
+													<div className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-snug text-[var(--color-text)]">
+														{primaryColumn?.render(row)}
+													</div>
+													<span
+														className={`shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums transition-colors
+                              ${
+																isSelected
+																	? 'text-[var(--color-primary)]'
+																	: 'text-[var(--color-text-subtle)] group-hover:text-[var(--color-text-muted)]'
+															}`}
+													>
+														№ {String(i + 1).padStart(3, '0')}
+													</span>
+												</div>
+
+												{mobileDetailColumns.length > 0 && (
+													<div className="mt-3 flex flex-wrap gap-2">
+														{mobileDetailColumns.map((c) => {
+															const label = t(c.labelKey).trim()
+															if (!label) return null
+															return (
+																<div
+																	key={c.key}
+																	className={`inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.06] bg-black/[0.02] px-2.5 py-1.5 text-[12px] dark:border-white/[0.08] dark:bg-white/[0.04] ${
+																		c.mono
+																			? 'font-[family-name:var(--font-geist-mono)] tabular-nums'
+																			: 'font-[family-name:var(--font-archivo)]'
+																	}`}
+																>
+																	<span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+																		{label}
+																	</span>
+																	<div className="min-w-0 break-words leading-snug text-[var(--color-text)]">
+																		{c.render(row)}
+																	</div>
+																</div>
+															)
+														})}
+													</div>
+												)}
+											</div>
+										</div>
+
 										<span
-											className={`font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums transition-colors
+											className={`hidden font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums transition-colors lg:block
                         ${
 													isSelected
 														? 'text-[var(--color-primary)]'
@@ -150,15 +235,17 @@ export function EntityIndex<T>({
 										</span>
 
 										{columns.map((c) => (
-											<span
+											<div
 												key={c.key}
-												className={`text-[13px] truncate
-                          ${c.mono ? 'font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px]' : 'font-[family-name:var(--font-inter)]'}
-                          ${c.align === 'end' ? 'text-end' : 'text-start'}
+												className={`hidden min-w-0 text-start text-[13px] lg:block
+                          ${c.mono ? 'font-[family-name:var(--font-geist-mono)] tabular-nums text-[12px]' : 'font-[family-name:var(--font-archivo)]'}
+                          ${c.align === 'end' ? 'lg:text-end' : 'lg:text-start'}
                           ${isSelected ? 'text-[var(--color-text)]' : 'text-[var(--color-text)]'}`}
 											>
-												{c.render(row)}
-											</span>
+												<div className="min-w-0 break-words leading-snug">
+													{c.render(row)}
+												</div>
+											</div>
 										))}
 									</button>
 								</li>
@@ -171,19 +258,35 @@ export function EntityIndex<T>({
 	)
 }
 
+function IndexState({
+	title,
+	detail,
+	tone = 'neutral',
+}: {
+	title: string
+	detail: string
+	tone?: 'neutral' | 'danger'
+}) {
+	return (
+		<div className="flex h-full select-none flex-col items-center justify-center gap-3 px-4 py-20 text-center sm:px-6 lg:px-12">
+			<p className="max-w-sm font-[family-name:var(--font-bricolage)] text-[24px] font-semibold leading-tight text-[var(--color-text)]">
+				{title}
+			</p>
+			<EmployeeStatusPill tone={tone}>{detail}</EmployeeStatusPill>
+		</div>
+	)
+}
+
 function EmptyIndex({ hasQuery }: { hasQuery: boolean }) {
 	const { t } = useTranslation('admin')
 	return (
-		<div className="flex flex-col items-center justify-center h-full gap-2 px-12 py-20 text-center select-none">
-			<p
-				className="font-[family-name:var(--font-fraunces)] italic text-[28px] text-[var(--color-text-muted)]"
-				style={{ fontVariationSettings: '"opsz" 144, "wght" 400' }}
-			>
+		<div className="flex h-full select-none flex-col items-center justify-center gap-3 px-4 py-20 text-center sm:px-6 lg:px-12">
+			<p className="max-w-sm font-[family-name:var(--font-bricolage)] text-[24px] font-semibold leading-tight text-[var(--color-text)]">
 				{t('empty.volume')}
 			</p>
-			<p className="font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-				{hasQuery ? t('search.placeholder') : t('empty.volumeSub')}
-			</p>
+			<EmployeeStatusPill>
+				{hasQuery ? t('empty.noMatches') : t('empty.volumeSub')}
+			</EmployeeStatusPill>
 		</div>
 	)
 }

@@ -87,7 +87,7 @@ export function CustomerHeader({
 			)}
 
 			{/* Company name + tier pill */}
-			<div className="flex items-center gap-3 mb-1">
+			<div className="mb-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 				<h1 className="text-[20px] font-semibold text-[var(--color-text)] dark:text-white leading-tight">
 					{customer.companyName}
 				</h1>
@@ -97,7 +97,7 @@ export function CustomerHeader({
 			</div>
 
 			{/* Subtitle: account manager + since */}
-			<div className="flex items-center gap-4 text-[11px] text-black/35 dark:text-white/35 mb-5">
+			<div className="mb-5 flex flex-col gap-1 text-[11px] text-black/35 dark:text-white/35 sm:flex-row sm:items-center sm:gap-4">
 				{accountManager && (
 					<span>
 						{t('sales.customer360.accountManager')}: {accountManager}
@@ -112,13 +112,13 @@ export function CustomerHeader({
 			</div>
 
 			{/* Stat row — horizontal strip */}
-			<div className="flex items-start gap-8">
+			<div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:items-start sm:gap-8">
 				{stats.map((stat) => (
 					<div key={stat.label} className="min-w-0">
 						<p className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[18px] font-semibold text-[var(--color-text)] dark:text-white leading-tight">
 							{stat.value}
 						</p>
-						<p className="text-[11px] text-black/35 dark:text-white/35 mt-0.5 whitespace-nowrap">
+						<p className="mt-0.5 text-[11px] text-black/35 dark:text-white/35">
 							{stat.label}
 						</p>
 					</div>

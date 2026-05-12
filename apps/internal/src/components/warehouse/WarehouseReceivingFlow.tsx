@@ -29,7 +29,7 @@ export function WarehouseReceivingFlow({ dealId }: { dealId: string | null }) {
 					animate={{ x: 0, opacity: 1 }}
 					exit={reduce ? undefined : { x: 40, opacity: 0 }}
 					transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-					className="hidden h-full w-[55%] shrink-0 md:flex"
+					className="flex h-full w-full shrink-0 lg:w-[55%]"
 				>
 					<FlowInner dealId={dealId} />
 				</motion.div>
@@ -40,7 +40,7 @@ export function WarehouseReceivingFlow({ dealId }: { dealId: string | null }) {
 					animate={{ opacity: 1 }}
 					exit={reduce ? undefined : { opacity: 0 }}
 					transition={{ duration: 0.2 }}
-					className="hidden h-full w-[55%] shrink-0 md:flex"
+					className="hidden h-full w-[55%] shrink-0 lg:flex"
 				>
 					<EmptyPanel />
 				</motion.div>
@@ -151,7 +151,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 
 	if (isLoading || !deal) {
 		return (
-			<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
+			<aside className="flex h-full w-full flex-col items-center justify-center border-[var(--color-text)] bg-[var(--color-surface)] lg:border-s-[3px]">
 				<p className="font-[family-name:var(--font-geist-mono)] text-[12px] uppercase tracking-[0.22em] text-black/40">
 					Loading delivery…
 				</p>
@@ -171,10 +171,10 @@ function FlowInner({ dealId }: { dealId: string }) {
 	const ready = allDecided && nameOk && tokenOk && proofOk && reasonOk
 
 	return (
-		<aside className="flex h-full w-full flex-col border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
+		<aside className="flex h-full w-full flex-col border-[var(--color-text)] bg-[var(--color-surface)] lg:border-s-[3px]">
 			{/* Header */}
-			<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-6 pb-5">
-				<div className="flex items-start justify-between gap-6">
+			<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-4 pt-5 pb-5 sm:px-6 lg:px-8 lg:pt-6">
+				<div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:gap-6">
 					<div className="min-w-0">
 						<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.3em] text-black/50">
 							Receiving · {deal.dealId}
@@ -198,7 +198,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 				</div>
 			</header>
 
-			<div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
 				<ReceivingBody
 					deal={deal}
 					decisions={decisions}
@@ -299,7 +299,7 @@ function ReceivingBody({
 							return (
 								<div
 									key={item.productSlug}
-									className="flex items-center gap-3 border-[3px] border-[#0A5C2E] bg-[#F0F7F0] px-5 py-4"
+									className="flex flex-col items-start gap-3 border-[3px] border-[#0A5C2E] bg-[#F0F7F0] px-4 py-4 sm:flex-row sm:items-center sm:px-5"
 								>
 									<div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#0A5C2E]">
 										<svg
@@ -335,7 +335,7 @@ function ReceivingBody({
 								key={item.productSlug}
 								className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-4"
 							>
-								<div className="flex items-start justify-between gap-3">
+								<div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
 									<div className="min-w-0">
 										<p className="truncate text-[16px] font-bold leading-tight">
 											{item.productName}
@@ -348,7 +348,7 @@ function ReceivingBody({
 										{Math.round(item.lineTotal).toLocaleString('en-EG')} EGP
 									</p>
 								</div>
-								<div className="mt-3 grid grid-cols-2 gap-2">
+								<div className="mt-3 flex flex-col gap-2 sm:grid sm:grid-cols-2">
 									<DecisionButton
 										active={decision === 'receive'}
 										color="#0A5C2E"
@@ -411,7 +411,7 @@ function ReceivingBody({
 				<p className="mt-2 text-[12px] text-black/55 max-w-[480px]">
 					Who inspected the delivery. Name comes from the employee directory.
 				</p>
-				<div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+				<div className="mt-3 flex flex-col gap-2 md:grid md:grid-cols-2">
 					{employees.map((e) => {
 						const active = advisorId === e.id
 						return (
@@ -449,7 +449,7 @@ function ReceivingBody({
 					<strong>your badge</strong>. Ties the receipt to whoever authenticates
 					here.
 				</p>
-				<div className="mt-3 grid grid-cols-2 gap-2">
+				<div className="mt-3 flex flex-col gap-2 sm:grid sm:grid-cols-2">
 					<SecurityTab
 						active={securityMethod === 'password'}
 						onPress={() => {

@@ -12,6 +12,7 @@ import type { MapLayerMouseEvent, MapRef } from 'react-map-gl/maplibre'
 import MapGL, { Layer, Marker, Source } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { MAP_STYLE } from '../../../lib/map-style'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 
 // ─── Nominatim Geocoding (OpenStreetMap, free) ───────────
 
@@ -455,46 +456,27 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 					)}
 				</div>
 				{clickedPoint && reverseResult && !isReversing && (
-					<div className="flex shrink-0 items-baseline gap-5">
-						<button
+					<div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+						<EmployeeActionButton
 							type="button"
 							onClick={() => {
 								setClickedPoint(null)
 								setReverseResult(null)
 							}}
-							className="group relative font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-							style={{
-								fontSize: '12px',
-								color: 'var(--color-text-muted)',
-							}}
+							tone="neutral"
+							size="sm"
 						>
-							<span className="relative">
-								cancel
-								<span
-									aria-hidden="true"
-									className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-								/>
-							</span>
-						</button>
-						<button
+							Cancel
+						</EmployeeActionButton>
+						<EmployeeActionButton
 							type="button"
 							onClick={handleChangeDelivery}
-							className="group relative inline-flex items-baseline gap-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-							style={{
-								fontSize: '12px',
-								fontWeight: 500,
-								color: 'var(--color-primary)',
-							}}
+							tone="success"
+							size="sm"
+							trailing={<span aria-hidden="true">→</span>}
 						>
-							<span className="relative">
-								deliver here
-								<span
-									aria-hidden="true"
-									className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-								/>
-							</span>
-							<span aria-hidden="true">→</span>
-						</button>
+							Deliver here
+						</EmployeeActionButton>
 					</div>
 				)}
 			</div>

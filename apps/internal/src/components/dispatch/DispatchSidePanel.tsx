@@ -9,7 +9,18 @@
  * signature through the disciplined palette.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+	AlertTriangle,
+	ArrowLeft,
+	Ban,
+	CheckCircle2,
+	MapPinned,
+	Phone,
+	Truck,
+	X,
+} from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import {
 	type DispatchBoardTotals,
@@ -24,6 +35,11 @@ import {
 } from '../../lib/server/dispatch'
 import type { SecurityMethod } from '../../lib/server/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
+import {
+	EmployeeActionButton,
+	EmployeeFilterChip,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 
 type Mode = 'orders' | 'fleet'
 
@@ -76,15 +92,12 @@ export function DispatchSidePanel({
 			<AnimatePresence>
 				{isOpen && (
 					<motion.aside
-						initial={reduce ? false : { x: 440 }}
+						initial={reduce ? false : { x: '100%' }}
 						animate={{ x: 0 }}
-						exit={reduce ? undefined : { x: 440 }}
+						exit={reduce ? undefined : { x: '100%' }}
 						transition={{ type: 'spring', stiffness: 280, damping: 34 }}
-						className="dispatch-theme dispatch-paper absolute inset-y-0 end-0 z-10 flex w-[440px] flex-col shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)]"
-						style={{
-							color: 'var(--ink)',
-							borderInlineStart: '1px solid var(--rule-soft)',
-						}}
+						className="dispatch-theme dispatch-paper absolute inset-0 z-10 flex w-full flex-col shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)] lg:inset-y-0 lg:start-auto lg:end-0 lg:w-[440px] lg:border-s lg:border-[var(--rule-soft)]"
+						style={{ color: 'var(--ink)' }}
 					>
 						<div className="flex-1 min-h-0 flex flex-col">
 							<AnimatePresence mode="wait">
@@ -124,36 +137,23 @@ export function DispatchSidePanel({
 
 function EdgeHandle({ onToggle }: { onToggle: () => void }) {
 	return (
-		<button
-			type="button"
-			onClick={onToggle}
+		<EmployeeActionButton
+			tone="primary"
+			size="sm"
+			leading={<MapPinned aria-hidden="true" size={15} />}
 			aria-label="Open dispatch panel"
-			className="dispatch-theme absolute end-0 top-1/2 z-20 -translate-y-1/2 flex h-32 w-[26px] items-center justify-center dispatch-paper shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)]"
-			style={{
-				color: 'var(--ink)',
-				borderInlineStart: '1px solid var(--rule)',
-			}}
+			onClick={onToggle}
+			className="dispatch-theme absolute end-4 bottom-4 z-20 shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)] lg:end-3 lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
 		>
-			<span
-				className="font-[family-name:var(--font-literata)] italic"
-				style={{
-					fontSize: '11px',
-					color: 'var(--ink-soft)',
-					writingMode: 'vertical-rl',
-					transform: 'rotate(180deg)',
-					letterSpacing: '0.06em',
-				}}
-			>
-				dispatch
-			</span>
-		</button>
+			Open dispatch
+		</EmployeeActionButton>
 	)
 }
 
 // ─── Orders view ─────────────────────────────────────────
 
 function OrdersView({ reduce }: { reduce: boolean | null }) {
-	const { data, isLoading } = useQuery({
+	const { data, isError, isLoading } = useQuery({
 		queryKey: ['dispatch-board'],
 		queryFn: () => getDispatchBoard({ data: {} }),
 		staleTime: 5_000,
@@ -172,9 +172,14 @@ function OrdersView({ reduce }: { reduce: boolean | null }) {
 			className="flex-1 min-h-0 flex flex-col"
 		>
 			{/* Sovereign header — compact, left-aligned */}
-			<div className="shrink-0 px-8 pt-6 pb-5">
+			<div className="shrink-0 px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8">
 				{isLoading ? (
 					<SovereignSkeleton />
+				) : isError ? (
+					<PanelStateMessage
+						title="Dispatch board did not load"
+						copy="Refresh and try again. No delivery record was changed."
+					/>
 				) : (
 					<SovereignOrders totals={totals} />
 				)}
@@ -186,10 +191,15 @@ function OrdersView({ reduce }: { reduce: boolean | null }) {
 			<div className="flex-1 min-h-0 overflow-y-auto">
 				{isLoading ? (
 					<LoadingWhisper />
+				) : isError ? (
+					<EmptyVoid
+						text="dispatch board unavailable"
+						sub="refresh and try again before marking any delivery."
+					/>
 				) : routes.length === 0 ? (
 					<EmptyVoid
-						text="nothing in motion"
-						sub="routes surface here the moment the warehouse hands them off."
+						text="No deliveries in transit"
+						sub="Warehouse handoffs appear here when trucks leave."
 					/>
 				) : (
 					routes.map((r, i) => (
@@ -220,32 +230,33 @@ function SovereignOrders({ totals }: { totals?: DispatchBoardTotals }) {
 		color = 'var(--overdue)'
 		annotation =
 			inTransit === overdue
-				? `${overdue === 1 ? 'truck' : 'trucks'} overdue`
-				: `overdue · ${inTransit} in transit`
+				? `${overdue === 1 ? 'delivery' : 'deliveries'} need attention now`
+				: `${overdue} need attention · ${inTransit} in transit`
 	} else if (inTransit > 0) {
 		value = String(inTransit)
 		color = 'var(--ink)'
-		annotation = inTransit === 1 ? 'truck in transit' : 'trucks in transit'
+		annotation =
+			inTransit === 1 ? 'delivery in transit' : 'deliveries in transit'
 	} else {
 		value = '—'
 		color = 'var(--ink-ghost)'
-		annotation = 'nothing in motion'
+		annotation = 'no deliveries in transit'
 	}
 
 	const aside =
 		deliveredToday > 0 || returnedToday > 0
-			? `${deliveredToday} delivered${returnedToday > 0 ? ` · ${returnedToday} returned` : ''} today`
+			? `${deliveredToday} delivered today${returnedToday > 0 ? ` · ${returnedToday} returned` : ''}`
 			: null
 
 	return (
-		<div className="flex items-baseline gap-5">
+		<div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
 			<p
 				className="font-[family-name:var(--font-literata)] leading-none tabular-nums animate-sovereign-rise shrink-0"
 				style={{
 					fontSize: '56px',
 					fontWeight: 400,
 					color,
-					letterSpacing: '-0.04em',
+					letterSpacing: 0,
 				}}
 			>
 				{value}
@@ -297,7 +308,7 @@ function OrderBand({
 	const driverFirst = leadTruck?.driverName?.split(' ')[0]?.toLowerCase() ?? ''
 	const urgency =
 		route.deliveryUrgencyDays <= 0
-			? 'today'
+			? 'due today'
 			: route.deliveryUrgencyDays === 1
 				? 'tomorrow'
 				: `in ${route.deliveryUrgencyDays}d`
@@ -309,9 +320,7 @@ function OrderBand({
 	const remaining = Math.sqrt(dLat * dLat + dLng * dLng)
 	const progressPct = Math.max(0, Math.min(1, 1 - remaining / 0.8)) * 100
 	return (
-		<motion.button
-			type="button"
-			onClick={onSelect}
+		<motion.article
 			initial={reduce ? false : { opacity: 0, y: 4 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{
@@ -319,7 +328,7 @@ function OrderBand({
 				duration: 0.26,
 				ease: [0.16, 1, 0.3, 1],
 			}}
-			className="group relative flex w-full items-stretch text-start transition-colors hover:bg-[var(--rule-soft)]"
+			className="relative grid w-full gap-3 px-3 py-4 transition-colors hover:bg-[var(--rule-soft)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start lg:grid-cols-[34px_minmax(0,1fr)_auto] lg:px-0 lg:py-0"
 			style={{
 				minHeight: '84px',
 				borderBottom: '1px solid var(--rule-soft)',
@@ -328,7 +337,7 @@ function OrderBand({
 			{/* Left gutter — quote number rotated, plus an index dot so
 			    the eye can anchor scanning count. */}
 			<div
-				className="flex w-[42px] flex-col items-center justify-between py-3"
+				className="hidden flex-col items-center justify-between py-3 lg:flex lg:w-[34px]"
 				style={{ borderInlineEnd: '1px solid var(--rule-soft)' }}
 			>
 				<span
@@ -356,21 +365,42 @@ function OrderBand({
 			</div>
 
 			{/* Center */}
-			<div className="flex-1 min-w-0 px-4 py-3">
+			<div className="min-w-0 lg:px-4 lg:py-3">
+				<div className="mb-2 flex flex-wrap items-center gap-2 lg:hidden">
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.08em',
+						}}
+					>
+						{(index + 1).toString().padStart(2, '0')}
+					</span>
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+						style={{
+							fontSize: '10px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.08em',
+						}}
+					>
+						{route.quoteNumber}
+					</span>
+				</div>
 				<p
-					className="font-[family-name:var(--font-archivo)] truncate"
+					className="break-words font-[family-name:var(--font-archivo)]"
 					style={{
 						fontSize: '15px',
-						fontWeight: 500,
+						fontWeight: 600,
 						color: 'var(--ink)',
-						letterSpacing: '-0.005em',
-						lineHeight: 1.1,
+						lineHeight: 1.2,
 					}}
 				>
 					{route.customerName}
 				</p>
 				<p
-					className="mt-0.5 truncate font-[family-name:var(--font-archivo)] italic"
+					className="mt-1 break-words font-[family-name:var(--font-archivo)]"
 					style={{ fontSize: '11px', color: 'var(--ink-soft)' }}
 				>
 					{route.deliveryCity.toLowerCase()}
@@ -385,7 +415,7 @@ function OrderBand({
 				</p>
 
 				{/* Metadata strip */}
-				<div className="mt-1.5 flex items-baseline gap-1.5">
+				<div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
 					<span
 						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0"
 						style={{
@@ -415,7 +445,7 @@ function OrderBand({
 								·
 							</span>
 							<span
-								className="font-[family-name:var(--font-archivo)] italic truncate"
+								className="font-[family-name:var(--font-archivo)] italic"
 								style={{ fontSize: '10px', color: 'var(--ink-mid)' }}
 							>
 								{driverFirst}
@@ -454,70 +484,43 @@ function OrderBand({
 			</div>
 
 			{/* Right gutter — status glyph + plate */}
-			<div className="flex w-[56px] flex-col items-center justify-between py-3">
-				<StatusGlyph isOverdue={route.isOverdue} />
+			<div className="flex flex-col items-stretch gap-2 sm:w-[170px] lg:w-[152px] lg:justify-center lg:pe-4">
+				<EmployeeStatusPill
+					tone={route.isOverdue ? 'warning' : 'neutral'}
+					leading={
+						route.isOverdue ? (
+							<AlertTriangle aria-hidden="true" size={14} />
+						) : (
+							<Truck aria-hidden="true" size={14} />
+						)
+					}
+					className="w-full"
+				>
+					{route.isOverdue ? 'Needs attention' : 'On route'}
+				</EmployeeStatusPill>
 				{leadTruck?.plateNumber && (
 					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-center"
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 						style={{
-							fontSize: '8.5px',
-							color: 'var(--ink-ghost)',
-							letterSpacing: '0.12em',
-							lineHeight: 1.1,
+							fontSize: '10px',
+							color: 'var(--ink-mid)',
+							letterSpacing: '0.08em',
 						}}
 					>
 						{leadTruck.plateNumber}
 					</span>
 				)}
+				<EmployeeActionButton
+					tone="primary"
+					size="sm"
+					leading={<MapPinned aria-hidden="true" size={14} />}
+					fullWidthOnMobile
+					onClick={onSelect}
+				>
+					Open delivery
+				</EmployeeActionButton>
 			</div>
-		</motion.button>
-	)
-}
-
-function StatusGlyph({ isOverdue }: { isOverdue: boolean }) {
-	if (isOverdue) {
-		return (
-			<svg
-				width="12"
-				height="12"
-				viewBox="0 0 12 12"
-				aria-hidden="true"
-				className="animate-glyph-draw"
-			>
-				<rect
-					x="3"
-					y="3"
-					width="6"
-					height="6"
-					transform="rotate(45 6 6)"
-					fill="var(--overdue)"
-				/>
-			</svg>
-		)
-	}
-	return (
-		<svg
-			width="26"
-			height="8"
-			viewBox="0 0 26 8"
-			aria-hidden="true"
-			className="animate-glyph-draw"
-		>
-			<path
-				d="M0 4 L20 4"
-				stroke="var(--motion)"
-				strokeWidth="1.3"
-				strokeLinecap="square"
-			/>
-			<path
-				d="M16 1 L20 4 L16 7"
-				stroke="var(--motion)"
-				strokeWidth="1.3"
-				strokeLinecap="square"
-				strokeLinejoin="miter"
-				fill="none"
-			/>
-		</svg>
+		</motion.article>
 	)
 }
 
@@ -564,45 +567,25 @@ function OrderDetail({
 			className="flex-1 min-h-0 flex flex-col"
 		>
 			{/* Back */}
-			<button
-				type="button"
-				onClick={onBack}
-				className="flex items-center gap-2 px-8 pt-5 self-start font-[family-name:var(--font-archivo)] italic"
-				style={{ fontSize: '12px', color: 'var(--ink-mid)' }}
-			>
-				<svg
-					width="18"
-					height="8"
-					viewBox="0 0 18 8"
-					aria-hidden="true"
-					style={{ opacity: 0.7 }}
+			<div className="px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+				<EmployeeActionButton
+					tone="neutral"
+					size="sm"
+					leading={<ArrowLeft aria-hidden="true" size={14} />}
+					onClick={onBack}
 				>
-					<path
-						d="M18 4 L2 4"
-						stroke="currentColor"
-						strokeWidth="1"
-						strokeLinecap="square"
-					/>
-					<path
-						d="M6 1 L2 4 L6 7"
-						stroke="currentColor"
-						strokeWidth="1"
-						strokeLinecap="square"
-						fill="none"
-					/>
-				</svg>
-				back
-			</button>
+					Back to deliveries
+				</EmployeeActionButton>
+			</div>
 
 			{/* Hero — customer heading */}
-			<div className="px-8 pt-3 pb-5">
+			<div className="px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:px-8">
 				<h2
-					className="font-[family-name:var(--font-literata)] animate-sovereign-rise"
+					className="break-words font-[family-name:var(--font-literata)] animate-sovereign-rise"
 					style={{
 						fontSize: '24px',
 						fontWeight: 500,
 						color: 'var(--ink)',
-						letterSpacing: '-0.018em',
 						lineHeight: 1.1,
 					}}
 				>
@@ -652,12 +635,30 @@ function OrderDetail({
 						</>
 					)}
 				</p>
+				<div className="mt-3 flex flex-wrap gap-2">
+					<EmployeeStatusPill
+						tone={route.isOverdue ? 'warning' : 'neutral'}
+						leading={
+							route.isOverdue ? (
+								<AlertTriangle aria-hidden="true" size={14} />
+							) : (
+								<Truck aria-hidden="true" size={14} />
+							)
+						}
+					>
+						{route.isOverdue ? 'Needs dispatcher attention' : 'On route'}
+					</EmployeeStatusPill>
+					<EmployeeStatusPill tone="neutral">
+						{route.trucks.length} truck{route.trucks.length === 1 ? '' : 's'} ·{' '}
+						{route.items.length} item{route.items.length === 1 ? '' : 's'}
+					</EmployeeStatusPill>
+				</div>
 			</div>
 
 			<HorizonRule />
 
 			{/* Content strata */}
-			<div className="flex-1 min-h-0 overflow-y-auto px-8 py-4">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
 				<DetailStratum label="destination">
 					<DataLine label="contact" value={route.customerContactName} />
 					<DataLine
@@ -672,17 +673,16 @@ function OrderDetail({
 					{route.trucks.map((t) => (
 						<div
 							key={t.truckId}
-							className="flex items-center justify-between py-3"
+							className="flex flex-col gap-2 py-3 lg:flex-row lg:items-center lg:justify-between"
 							style={{ borderBottom: '1px solid var(--rule-soft)' }}
 						>
-							<div className="min-w-0 flex-1">
+							<div className="min-w-0 lg:flex-1">
 								<p
-									className="font-[family-name:var(--font-archivo)] truncate"
+									className="break-words font-[family-name:var(--font-archivo)]"
 									style={{
 										fontSize: '14px',
-										fontWeight: 500,
+										fontWeight: 600,
 										color: 'var(--ink)',
-										letterSpacing: '-0.005em',
 										lineHeight: 1.15,
 									}}
 								>
@@ -701,10 +701,11 @@ function OrderDetail({
 							</div>
 							<a
 								href={`tel:${t.driverPhone}`}
-								className="font-[family-name:var(--font-archivo)] italic shrink-0 ms-4"
-								style={{ fontSize: '12px', color: 'var(--motion)' }}
+								className="inline-flex min-h-9 items-center gap-2 self-start rounded-md border border-black/[0.1] px-3 font-[family-name:var(--font-archivo)] text-[var(--motion)] transition-colors hover:border-[var(--motion)]/40 dark:border-white/[0.12] lg:ms-4 lg:shrink-0"
+								style={{ fontSize: '12px', fontWeight: 600 }}
 							>
-								call →
+								<Phone aria-hidden="true" size={13} />
+								Call driver
 							</a>
 						</div>
 					))}
@@ -714,11 +715,11 @@ function OrderDetail({
 					{route.items.map((item) => (
 						<div
 							key={item.productSlug}
-							className="flex items-baseline justify-between gap-4 py-2"
+							className="flex flex-col gap-1 py-2 lg:flex-row lg:items-baseline lg:justify-between lg:gap-4"
 							style={{ borderBottom: '1px solid var(--rule-soft)' }}
 						>
 							<span
-								className="font-[family-name:var(--font-archivo)] truncate min-w-0"
+								className="min-w-0 break-words font-[family-name:var(--font-archivo)]"
 								style={{ fontSize: '13px', color: 'var(--ink-soft)' }}
 							>
 								{item.productName}
@@ -743,22 +744,27 @@ function OrderDetail({
 				</DetailStratum>
 			</div>
 
-			{/* Actions — two stamp-words side by side */}
+			{/* Actions */}
 			<div
-				className="flex-shrink-0 grid grid-cols-2"
+				className="flex-shrink-0 grid grid-cols-1 gap-2 px-4 py-4 sm:px-6 lg:grid-cols-2 lg:px-8"
 				style={{ borderTop: '1px solid var(--rule)' }}
 			>
-				<StampWord
-					label="Deliver"
+				<EmployeeActionButton
+					tone="success"
+					leading={<CheckCircle2 aria-hidden="true" size={15} />}
+					fullWidthOnMobile
 					onClick={() => setShowDelivered(true)}
-					tone="ink"
-				/>
-				<StampWord
-					label="Return"
+				>
+					Confirm delivered
+				</EmployeeActionButton>
+				<EmployeeActionButton
+					tone="danger"
+					leading={<Ban aria-hidden="true" size={15} />}
+					fullWidthOnMobile
 					onClick={() => setShowReturned(true)}
-					tone="returned"
-					divider
-				/>
+				>
+					Return to warehouse
+				</EmployeeActionButton>
 			</div>
 
 			<AnimatePresence>
@@ -794,7 +800,7 @@ function OrderDetail({
 // ─── Fleet view (horizon inverted) ───────────────────────
 
 function FleetView({ reduce }: { reduce: boolean | null }) {
-	const { data, isLoading } = useQuery({
+	const { data, isError, isLoading } = useQuery({
 		queryKey: ['dispatch-drivers'],
 		queryFn: () => getDispatchDrivers({ data: {} }),
 		staleTime: 5_000,
@@ -821,10 +827,15 @@ function FleetView({ reduce }: { reduce: boolean | null }) {
 			>
 				{isLoading ? (
 					<LoadingWhisper />
+				) : isError ? (
+					<EmptyVoid
+						text="Fleet status unavailable"
+						sub="Refresh before assigning or calling a driver."
+					/>
 				) : drivers.length === 0 ? (
 					<EmptyVoid
-						text="no fleet registered"
-						sub="trucks show up once the motor pool is provisioned."
+						text="No fleet registered"
+						sub="Trucks show up once the motor pool is provisioned."
 					/>
 				) : (
 					<>
@@ -856,9 +867,14 @@ function FleetView({ reduce }: { reduce: boolean | null }) {
 			<HorizonRule />
 
 			{/* Sovereign — utilization as foundation, compact */}
-			<div className="shrink-0 px-8 pt-5 pb-6">
+			<div className="shrink-0 px-4 pt-5 pb-5 sm:px-6 sm:pb-6 lg:px-8">
 				{isLoading ? (
 					<SovereignSkeleton />
+				) : isError ? (
+					<PanelStateMessage
+						title="Fleet did not load"
+						copy="Driver availability could not be refreshed."
+					/>
 				) : (
 					<SovereignFleet
 						total={drivers.length}
@@ -885,14 +901,14 @@ function SovereignFleet({
 	const pct = total === 0 ? 0 : Math.round((dispatched / total) * 100)
 	return (
 		<div>
-			<div className="flex items-baseline gap-5">
+			<div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
 				<p
 					className="font-[family-name:var(--font-literata)] leading-none tabular-nums animate-sovereign-rise shrink-0"
 					style={{
 						fontSize: '56px',
 						fontWeight: 400,
 						color: 'var(--ink)',
-						letterSpacing: '-0.04em',
+						letterSpacing: 0,
 					}}
 				>
 					{dispatched}
@@ -902,7 +918,7 @@ function SovereignFleet({
 							fontSize: '22px',
 							color: 'var(--ink-ghost)',
 							fontWeight: 400,
-							letterSpacing: '-0.02em',
+							letterSpacing: 0,
 							marginInlineStart: '2px',
 						}}
 					>
@@ -911,7 +927,7 @@ function SovereignFleet({
 				</p>
 				<div className="min-w-0 flex-1">
 					<p
-						className="font-[family-name:var(--font-archivo)] italic animate-sovereign-rise"
+						className="font-[family-name:var(--font-archivo)] animate-sovereign-rise"
 						style={{
 							fontSize: '13px',
 							color: 'var(--ink-mid)',
@@ -919,7 +935,7 @@ function SovereignFleet({
 							lineHeight: 1.3,
 						}}
 					>
-						{dispatched === 1 ? 'truck' : 'trucks'} on route
+						{dispatched === 1 ? 'truck' : 'trucks'} currently on route
 					</p>
 					<p
 						className="mt-1.5 font-[family-name:var(--font-plex-mono)] tabular-nums animate-sovereign-rise"
@@ -930,7 +946,8 @@ function SovereignFleet({
 							animationDelay: '200ms',
 						}}
 					>
-						{available} available{offline > 0 ? ` · ${offline} offline` : ''}
+						{available} available for dispatch
+						{offline > 0 ? ` · ${offline} unavailable` : ''}
 					</p>
 				</div>
 			</div>
@@ -966,10 +983,14 @@ function DriverGroup({
 }) {
 	return (
 		<section>
-			<div className="flex items-center gap-3 px-10 pt-5 pb-2">
+			<div className="flex items-center gap-3 px-4 pt-5 pb-2 sm:px-6 lg:px-10">
 				<span
-					className="font-[family-name:var(--font-archivo)] italic"
-					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+					style={{
+						fontSize: '11px',
+						color: 'var(--ink-mid)',
+						letterSpacing: '0.1em',
+					}}
 				>
 					{label}
 				</span>
@@ -1005,13 +1026,12 @@ function DriverBand({
 			initial={reduce ? false : { opacity: 0, y: 4 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ delay: 0.06 + index * 0.025, duration: 0.22 }}
-			className="flex items-center"
+			className="grid min-h-[72px] grid-cols-[34px_minmax(0,1fr)] gap-2 px-3 py-3 sm:grid-cols-[42px_minmax(0,1fr)_150px] sm:items-center sm:px-0 sm:py-0"
 			style={{
-				height: '56px',
 				borderTop: '1px solid var(--rule-soft)',
 			}}
 		>
-			<div className="flex h-full w-[42px] items-center justify-center">
+			<div className="flex w-[34px] items-center justify-center sm:w-[42px]">
 				<span
 					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
@@ -1028,24 +1048,23 @@ function DriverBand({
 				</span>
 			</div>
 
-			<div className="flex-1 min-w-0 px-4">
+			<div className="min-w-0 sm:px-4 sm:py-2">
 				<p
-					className="font-[family-name:var(--font-archivo)] truncate"
+					className="break-words font-[family-name:var(--font-archivo)]"
 					style={{
 						fontSize: '14px',
-						fontWeight: 500,
+						fontWeight: 600,
 						color: isDispatched
 							? 'var(--ink)'
 							: isAvailable
 								? 'var(--ink-soft)'
 								: 'var(--ink-ghost)',
-						letterSpacing: '-0.005em',
 						lineHeight: 1.1,
 					}}
 				>
 					{driver.driverName}
 				</p>
-				<div className="mt-0.5 flex items-baseline gap-1.5">
+				<div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
 					<span
 						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0"
 						style={{
@@ -1064,83 +1083,44 @@ function DriverBand({
 							<button
 								type="button"
 								onClick={() => setSelectedQuoteId(driver.assignedQuoteId)}
-								className="font-[family-name:var(--font-archivo)] italic truncate min-w-0"
+								className="min-w-0 break-words font-[family-name:var(--font-archivo)] font-semibold"
 								style={{ fontSize: '11px', color: 'var(--motion)' }}
 							>
-								{driver.assignedCustomerName.toLowerCase()} →
+								{driver.assignedCustomerName.toLowerCase()}
 							</button>
 						</>
 					)}
 				</div>
 			</div>
 
-			<div className="flex h-full w-[56px] items-center justify-center gap-2">
-				<DriverGlyph status={driver.status} />
+			<div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-1 sm:flex sm:w-[150px] sm:flex-col sm:items-stretch sm:justify-center sm:pe-4">
+				<EmployeeStatusPill
+					tone={isDispatched ? 'neutral' : isAvailable ? 'success' : 'warning'}
+					leading={<Truck aria-hidden="true" size={14} />}
+					className="w-full"
+				>
+					{driverStatusLabel(driver.status)}
+				</EmployeeStatusPill>
 				<a
 					href={`tel:${driver.driverPhone}`}
 					aria-label={`Call ${driver.driverName}`}
-					className="font-[family-name:var(--font-archivo)] italic"
-					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+					className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-black/[0.1] px-3 font-[family-name:var(--font-archivo)] font-semibold uppercase tracking-[0.1em] text-[var(--ink)] transition-colors hover:border-[var(--motion)]/40 hover:text-[var(--motion)] dark:border-white/[0.12]"
+					style={{ fontSize: '10.5px' }}
 				>
-					call
+					<Phone aria-hidden="true" size={13} />
+					Call
 				</a>
 			</div>
 		</motion.div>
 	)
 }
 
-function DriverGlyph({ status }: { status: string }) {
-	if (status === 'dispatched') {
-		return (
-			<svg
-				width="10"
-				height="10"
-				viewBox="0 0 10 10"
-				aria-hidden="true"
-				className="animate-glyph-draw"
-			>
-				<circle cx="5" cy="5" r="3.5" fill="var(--motion)" />
-			</svg>
-		)
-	}
-	if (status === 'available') {
-		return (
-			<svg
-				width="10"
-				height="10"
-				viewBox="0 0 10 10"
-				aria-hidden="true"
-				className="animate-glyph-draw"
-			>
-				<circle
-					cx="5"
-					cy="5"
-					r="3.2"
-					fill="none"
-					stroke="var(--ink-soft)"
-					strokeWidth="1"
-				/>
-			</svg>
-		)
-	}
-	return (
-		<svg
-			width="12"
-			height="2"
-			viewBox="0 0 12 2"
-			aria-hidden="true"
-			className="animate-glyph-draw"
-		>
-			<line
-				x1="0"
-				y1="1"
-				x2="12"
-				y2="1"
-				stroke="var(--ink-ghost)"
-				strokeWidth="1"
-			/>
-		</svg>
-	)
+function driverStatusLabel(status: string): string {
+	if (status === 'dispatched') return 'On route'
+	if (status === 'available') return 'Available'
+	if (status === 'maintenance') return 'Maintenance'
+	if (status === 'loading') return 'Loading'
+	return 'Unavailable'
 }
 
 // ─── Mode toggle (bottom rail) ──────────────────────────
@@ -1156,65 +1136,35 @@ function ModeToggle({
 }) {
 	return (
 		<div
-			className="flex-shrink-0 flex items-center justify-between px-10 py-5"
+			className="flex-shrink-0 grid grid-cols-1 gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:px-10 lg:py-5"
 			style={{ borderTop: '1px solid var(--rule)' }}
 		>
-			<div className="flex items-baseline gap-4">
-				<ToggleWord
-					label="orders"
+			<div className="grid grid-cols-2 gap-2">
+				<EmployeeFilterChip
 					active={mode === 'orders'}
+					tone="primary"
 					onClick={() => onChange('orders')}
-				/>
-				<span
-					style={{
-						color: 'var(--ink-ghost)',
-						fontSize: '11px',
-					}}
 				>
-					·
-				</span>
-				<ToggleWord
-					label="fleet"
+					Deliveries
+				</EmployeeFilterChip>
+				<EmployeeFilterChip
 					active={mode === 'fleet'}
+					tone="primary"
 					onClick={() => onChange('fleet')}
-				/>
+				>
+					Fleet
+				</EmployeeFilterChip>
 			</div>
-			<button
-				type="button"
+			<EmployeeActionButton
+				tone="neutral"
+				size="sm"
+				leading={<X aria-hidden="true" size={14} />}
+				fullWidthOnMobile
 				onClick={onClose}
-				className="font-[family-name:var(--font-archivo)] italic"
-				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
 			>
-				close →
-			</button>
+				Close dispatch
+			</EmployeeActionButton>
 		</div>
-	)
-}
-
-function ToggleWord({
-	label,
-	active,
-	onClick,
-}: {
-	label: string
-	active: boolean
-	onClick: () => void
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className="font-[family-name:var(--font-literata)]"
-			style={{
-				fontSize: '16px',
-				fontStyle: active ? 'normal' : 'italic',
-				fontWeight: active ? 500 : 400,
-				color: active ? 'var(--ink)' : 'var(--ink-ghost)',
-				letterSpacing: active ? '-0.01em' : '0',
-			}}
-		>
-			{label}
-		</button>
 	)
 }
 
@@ -1336,7 +1286,7 @@ function ConfirmDialog({
 			initial={reduce ? false : { opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={reduce ? undefined : { opacity: 0 }}
-			className="fixed inset-0 z-50 flex items-center justify-center"
+			className="fixed inset-0 z-50 flex items-stretch justify-center sm:items-center"
 			style={{
 				backgroundColor: 'rgba(20, 18, 15, 0.28)',
 				backdropFilter: 'blur(8px)',
@@ -1350,25 +1300,28 @@ function ConfirmDialog({
 				animate={{ scale: 1, opacity: 1 }}
 				exit={reduce ? undefined : { scale: 0.96, opacity: 0 }}
 				transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-				className="dispatch-theme dispatch-paper mx-4 w-full max-w-[480px] shadow-[0_40px_90px_-20px_rgba(20,15,10,0.4)]"
+				className="dispatch-theme dispatch-paper flex h-full w-full flex-col overflow-hidden shadow-[0_40px_90px_-20px_rgba(20,15,10,0.4)] sm:mx-4 sm:h-auto sm:max-h-[92vh] sm:max-w-[520px]"
 				style={{ color: 'var(--ink)' }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}
-				<div className="px-10 pt-9 pb-7">
+				<div className="shrink-0 px-5 pt-7 pb-6 sm:px-10 sm:pt-9 sm:pb-7">
 					<p
-						className="font-[family-name:var(--font-archivo)] italic"
-						style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+						className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+						style={{
+							fontSize: '11px',
+							color: isDelivered ? 'var(--motion)' : 'var(--returned)',
+							letterSpacing: '0.1em',
+						}}
 					>
-						confirm {isDelivered ? 'delivery of' : 'return of'}
+						{isDelivered ? 'Confirm delivery' : 'Return to warehouse'}
 					</p>
 					<h3
-						className="mt-2 font-[family-name:var(--font-literata)]"
+						className="mt-2 break-words font-[family-name:var(--font-literata)]"
 						style={{
 							fontSize: '26px',
 							fontWeight: 500,
 							color: 'var(--ink)',
-							letterSpacing: '-0.02em',
 							lineHeight: 1.05,
 						}}
 					>
@@ -1384,41 +1337,51 @@ function ConfirmDialog({
 					>
 						{route.quoteNumber}
 					</p>
+					<EmployeeStatusPill
+						tone={isDelivered ? 'success' : 'danger'}
+						leading={
+							isDelivered ? (
+								<CheckCircle2 aria-hidden="true" size={14} />
+							) : (
+								<Ban aria-hidden="true" size={14} />
+							)
+						}
+						className="mt-4"
+					>
+						{isDelivered
+							? 'Stock will be consumed and trucks become available.'
+							: 'Order returns to warehouse for review.'}
+					</EmployeeStatusPill>
 				</div>
 
 				<HorizonRule />
 
 				{/* Fields */}
-				<div className="px-10 py-7 flex flex-col gap-6">
+				<div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-6 sm:px-10 sm:py-7">
 					{!isDelivered && (
-						<DialogField label="reason for return">
+						<DialogField label="Reason for return">
 							<HairlineInput
 								value={reason}
 								onChange={setReason}
-								placeholder="customer refused — wrong quantities"
+								placeholder="customer refused, wrong quantities"
 							/>
 						</DialogField>
 					)}
 
-					<DialogField label="signed off by">
-						<div className="grid grid-cols-2 gap-x-6 gap-y-0">
+					<DialogField label="Signed off by">
+						<div className="grid grid-cols-1 gap-2">
 							{employees.map((e) => (
 								<button
 									key={e.id}
 									type="button"
 									onClick={() => setAdvisorId(e.id)}
-									className="font-[family-name:var(--font-archivo)] text-start py-2"
-									style={{
-										fontSize: '14px',
-										color: advisorId === e.id ? 'var(--ink)' : 'var(--ink-mid)',
-										fontStyle: advisorId === e.id ? 'normal' : 'italic',
-										fontWeight: advisorId === e.id ? 500 : 400,
-										letterSpacing: '-0.005em',
-										borderBottom:
-											advisorId === e.id
-												? '1px solid var(--ink)'
-												: '1px solid var(--rule-soft)',
-									}}
+									aria-pressed={advisorId === e.id}
+									className={`min-h-10 rounded-md border px-3 text-start font-[family-name:var(--font-archivo)] transition-colors ${
+										advisorId === e.id
+											? 'border-[var(--motion)] bg-[var(--motion)]/[0.08] text-[var(--ink)]'
+											: 'border-black/[0.1] text-[var(--ink-mid)] hover:border-[var(--motion)]/40 dark:border-white/[0.12]'
+									}`}
+									style={{ fontSize: '14px', fontWeight: 600 }}
 								>
 									{e.name}
 								</button>
@@ -1426,31 +1389,20 @@ function ConfirmDialog({
 						</div>
 					</DialogField>
 
-					<DialogField label="credential">
-						<div className="flex items-baseline gap-5 mb-3">
+					<DialogField label="Credential">
+						<div className="mb-3 grid grid-cols-2 gap-2">
 							{(['password', 'qr'] as const).map((m) => (
-								<button
+								<EmployeeFilterChip
 									key={m}
-									type="button"
+									active={securityMethod === m}
+									tone="primary"
 									onClick={() => {
 										setSecurityMethod(m)
 										setSecurityToken('')
 									}}
-									className="font-[family-name:var(--font-archivo)]"
-									style={{
-										fontSize: '12px',
-										fontStyle: securityMethod === m ? 'normal' : 'italic',
-										color:
-											securityMethod === m ? 'var(--ink)' : 'var(--ink-ghost)',
-										borderBottom:
-											securityMethod === m
-												? '1px solid var(--ink)'
-												: '1px solid transparent',
-										paddingBottom: '2px',
-									}}
 								>
-									{m === 'password' ? 'password' : 'qr scan'}
-								</button>
+									{m === 'password' ? 'Password' : 'QR scan'}
+								</EmployeeFilterChip>
 							))}
 						</div>
 						<HairlineInput
@@ -1463,7 +1415,7 @@ function ConfirmDialog({
 							autoComplete="off"
 						/>
 						<p
-							className="mt-2 font-[family-name:var(--font-archivo)] italic"
+							className="mt-2 font-[family-name:var(--font-archivo)]"
 							style={{ fontSize: '10px', color: 'var(--ink-ghost)' }}
 						>
 							dev mock · 1234
@@ -1471,7 +1423,7 @@ function ConfirmDialog({
 					</DialogField>
 
 					<DialogField
-						label={`proof of ${isDelivered ? 'delivery' : 'return'}`}
+						label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}
 					>
 						<HairlineInput
 							value={proofUrl}
@@ -1481,47 +1433,47 @@ function ConfirmDialog({
 					</DialogField>
 
 					{error && (
-						<p
-							className="font-[family-name:var(--font-archivo)] italic"
-							style={{ fontSize: '12px', color: 'var(--returned)' }}
+						<EmployeeStatusPill
+							tone="danger"
+							leading={<AlertTriangle aria-hidden="true" size={14} />}
 						>
 							{error}
-						</p>
+						</EmployeeStatusPill>
 					)}
 				</div>
 
 				<HorizonRule />
 
 				{/* Actions */}
-				<div className="px-10 py-6 flex items-center justify-between">
-					<button
-						type="button"
+				<div className="shrink-0 grid grid-cols-1 gap-2 px-5 py-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:px-10 sm:py-6">
+					<EmployeeActionButton
+						tone="neutral"
+						leading={<X aria-hidden="true" size={14} />}
+						fullWidthOnMobile
 						onClick={onClose}
-						className="font-[family-name:var(--font-archivo)] italic"
-						style={{ fontSize: '12px', color: 'var(--ink-mid)' }}
 					>
-						cancel
-					</button>
-					<button
-						type="button"
+						Cancel
+					</EmployeeActionButton>
+					<EmployeeActionButton
+						tone={isDelivered ? 'success' : 'danger'}
+						leading={
+							isDelivered ? (
+								<CheckCircle2 aria-hidden="true" size={14} />
+							) : (
+								<Ban aria-hidden="true" size={14} />
+							)
+						}
+						fullWidthOnMobile
 						disabled={!ready || isPending}
 						onClick={confirm}
-						className={`font-[family-name:var(--font-literata)] ${pressed ? 'animate-stamp-press' : ''}`}
-						style={{
-							fontSize: '22px',
-							fontWeight: 500,
-							color: ready ? 'var(--ink)' : 'var(--ink-ghost)',
-							letterSpacing: '-0.022em',
-							cursor: ready && !isPending ? 'pointer' : 'not-allowed',
-							transition: 'color 200ms',
-						}}
+						className={`sm:justify-self-end ${pressed ? 'animate-stamp-press' : ''}`}
 					>
 						{isPending
-							? 'confirming…'
+							? 'Confirming...'
 							: isDelivered
 								? 'Confirm delivery'
 								: 'Confirm return'}
-					</button>
+					</EmployeeActionButton>
 				</div>
 			</motion.div>
 		</motion.div>
@@ -1529,6 +1481,25 @@ function ConfirmDialog({
 }
 
 // ─── Primitives ──────────────────────────────────────────
+
+function PanelStateMessage({ title, copy }: { title: string; copy: string }) {
+	return (
+		<div className="py-2">
+			<p
+				className="font-[family-name:var(--font-archivo)] font-semibold text-[var(--ink)]"
+				style={{ fontSize: '14px' }}
+			>
+				{title}
+			</p>
+			<p
+				className="mt-1 font-[family-name:var(--font-archivo)] text-[var(--ink-mid)]"
+				style={{ fontSize: '12px', lineHeight: 1.45 }}
+			>
+				{copy}
+			</p>
+		</div>
+	)
+}
 
 function HorizonRule() {
 	return (
@@ -1546,14 +1517,18 @@ function DetailStratum({
 	children,
 }: {
 	label: string
-	children: React.ReactNode
+	children: ReactNode
 }) {
 	return (
 		<section className="pb-6 last:pb-2">
 			<div className="flex items-center gap-3 mb-3">
 				<span
-					className="font-[family-name:var(--font-archivo)] italic"
-					style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+					style={{
+						fontSize: '11px',
+						color: 'var(--ink-mid)',
+						letterSpacing: '0.1em',
+					}}
 				>
 					{label}
 				</span>
@@ -1577,9 +1552,9 @@ function DataLine({
 	href?: string
 }) {
 	return (
-		<div className="flex items-baseline gap-5 py-2">
+		<div className="flex flex-col gap-1 py-2 lg:flex-row lg:items-baseline lg:gap-5">
 			<span
-				className="w-[68px] shrink-0 font-[family-name:var(--font-archivo)] italic"
+				className="w-auto shrink-0 font-[family-name:var(--font-archivo)] italic lg:w-[68px]"
 				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
 			>
 				{label}
@@ -1587,55 +1562,20 @@ function DataLine({
 			{href ? (
 				<a
 					href={href}
-					className="font-[family-name:var(--font-archivo)] flex-1 truncate"
+					className="flex-1 break-words font-[family-name:var(--font-archivo)]"
 					style={{ fontSize: '13px', color: 'var(--motion)' }}
 				>
 					{value}
 				</a>
 			) : (
 				<span
-					className="font-[family-name:var(--font-archivo)] flex-1 truncate"
+					className="flex-1 break-words font-[family-name:var(--font-archivo)]"
 					style={{ fontSize: '13px', color: 'var(--ink)' }}
 				>
 					{value}
 				</span>
 			)}
 		</div>
-	)
-}
-
-function StampWord({
-	label,
-	onClick,
-	tone = 'ink',
-	divider,
-}: {
-	label: string
-	onClick: () => void
-	tone?: 'ink' | 'returned'
-	divider?: boolean
-}) {
-	const [pressed, setPressed] = useState(false)
-	return (
-		<button
-			type="button"
-			onClick={() => {
-				setPressed(true)
-				setTimeout(() => setPressed(false), 280)
-				onClick()
-			}}
-			className={`flex items-center justify-center py-5 font-[family-name:var(--font-literata)] ${pressed ? 'animate-stamp-press' : ''}`}
-			style={{
-				fontSize: '22px',
-				fontWeight: 500,
-				color: tone === 'returned' ? 'var(--returned)' : 'var(--ink)',
-				letterSpacing: '-0.02em',
-				borderInlineStart: divider ? '1px solid var(--rule)' : undefined,
-				transition: 'color 200ms',
-			}}
-		>
-			{label}
-		</button>
 	)
 }
 
@@ -1659,12 +1599,10 @@ function HairlineInput({
 			onChange={(e) => onChange(e.target.value)}
 			placeholder={placeholder}
 			autoComplete={autoComplete}
-			className="w-full bg-transparent outline-none font-[family-name:var(--font-archivo)]"
+			className="min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--paper)] px-3 font-[family-name:var(--font-archivo)] outline-none transition-colors focus:border-[var(--motion)]/50 focus:ring-2 focus:ring-[var(--motion)]/15 dark:border-white/[0.12]"
 			style={{
 				fontSize: '15px',
 				color: 'var(--ink)',
-				borderBottom: '1px solid var(--rule)',
-				paddingBottom: '8px',
 			}}
 		/>
 	)
@@ -1675,13 +1613,17 @@ function DialogField({
 	children,
 }: {
 	label: string
-	children: React.ReactNode
+	children: ReactNode
 }) {
 	return (
 		<div>
 			<span
-				className="mb-2 block font-[family-name:var(--font-archivo)] italic"
-				style={{ fontSize: '11px', color: 'var(--ink-mid)' }}
+				className="mb-2 block font-[family-name:var(--font-archivo)] font-semibold uppercase"
+				style={{
+					fontSize: '11px',
+					color: 'var(--ink-mid)',
+					letterSpacing: '0.1em',
+				}}
 			>
 				{label}
 			</span>
@@ -1724,7 +1666,7 @@ function LoadingWhisper() {
 
 function EmptyVoid({ text, sub }: { text: string; sub: string }) {
 	return (
-		<div className="flex flex-col items-center justify-center py-16 px-10">
+		<div className="flex flex-col items-center justify-center px-4 py-16 sm:px-10">
 			<p
 				className="font-[family-name:var(--font-literata)] italic"
 				style={{ fontSize: '18px', color: 'var(--ink-ghost)' }}

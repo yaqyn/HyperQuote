@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { requestApproval } from '../../../lib/server/sales-quotes'
 import type { CustomerTier, MarginThresholds } from '../../../types/sales'
-import { Button, UnderlineTextArea } from '../../ui'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../../shared/EmployeeControls'
+import { UnderlineTextArea } from '../../ui'
 
 interface ApprovalWorkflowProps {
 	quoteId: string
@@ -12,6 +16,8 @@ interface ApprovalWorkflowProps {
 	thresholds: MarginThresholds[]
 	status: 'draft' | 'pending_approval' | 'approved' | 'rejected'
 	isApprover?: boolean
+	layout?: 'inline' | 'footer'
+	showRequestAction?: boolean
 	onStatusChange?: (status: string) => void
 	/** Called whenever send-blocking state changes. Parent uses this to disable/enable Send button. */
 	onSendBlockedChange?: (blocked: boolean, reason: string | null) => void
@@ -138,11 +144,13 @@ export function ApprovalWorkflow({
 	thresholds,
 	status,
 	isApprover = false,
+	layout = 'inline',
+	showRequestAction = true,
 	onStatusChange,
 	onSendBlockedChange,
 }: ApprovalWorkflowProps) {
 	const [justification, setJustification] = useState('')
-	const [_submitting, setSubmitting] = useState(false)
+	const [isSubmitting, setSubmitting] = useState(false)
 
 	const { chain, highestRole, summaryLabel } = determineApprovalChain(
 		marginPercent,
@@ -151,6 +159,7 @@ export function ApprovalWorkflow({
 	)
 	const needsApproval = chain.length > 0
 	const sendBlocked = needsApproval && status !== 'approved'
+	const isFooter = layout === 'footer'
 
 	// Notify parent of send-blocked state
 	useEffect(() => {
@@ -160,8 +169,8 @@ export function ApprovalWorkflow({
 		)
 	}, [sendBlocked, summaryLabel, onSendBlockedChange])
 
-	const _handleRequestApproval = async () => {
-		if (!highestRole || highestRole === 'none') return
+	const handleRequestApproval = async () => {
+		if (!highestRole || highestRole === 'none' || isSubmitting) return
 		setSubmitting(true)
 		try {
 			const approverRole =
@@ -187,134 +196,152 @@ export function ApprovalWorkflow({
 
 	// Auto-approved
 	if (!needsApproval) {
+		if (isFooter) return null
+
 		return (
-			<p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)]">
-				<svg
-					width="12"
-					height="12"
-					viewBox="0 0 14 14"
-					fill="none"
-					aria-hidden="true"
-				>
-					<path
-						d="M3.5 7l2.5 2.5L10.5 5"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-				</svg>
+			<EmployeeStatusPill tone="success" leading={<ApprovalCheckIcon />}>
 				Auto-approved
-			</p>
+			</EmployeeStatusPill>
 		)
 	}
 
 	// Approved
 	if (status === 'approved') {
+		if (isFooter) return null
+
 		return (
-			<p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)]">
-				<svg
-					width="12"
-					height="12"
-					viewBox="0 0 14 14"
-					fill="none"
-					aria-hidden="true"
-				>
-					<path
-						d="M3.5 7l2.5 2.5L10.5 5"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-				</svg>
+			<EmployeeStatusPill tone="success" leading={<ApprovalCheckIcon />}>
 				Approved
-			</p>
+			</EmployeeStatusPill>
 		)
 	}
 
 	// Pending
 	if (status === 'pending_approval') {
 		return (
-			<div className="flex items-center gap-3">
-				<div className="flex items-center gap-1.5">
-					<div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-primary)]" />
-					<span className="text-[13px] font-medium text-[var(--color-text)]">
-						Pending {chain[chain.length - 1]?.label ?? 'approver'}
-					</span>
-				</div>
-
-				<span className="text-[12px] text-black/30 dark:text-white/30">
-					Auto-escalates in 2h
-				</span>
+			<div
+				className={
+					isFooter
+						? 'flex flex-col gap-2 sm:flex-row sm:items-center'
+						: 'flex flex-col gap-3 lg:flex-row lg:items-center'
+				}
+			>
+				<EmployeeStatusPill tone="warning">
+					Pending {chain[chain.length - 1]?.label ?? 'approver'} · escalates in
+					2h
+				</EmployeeStatusPill>
 
 				{isApprover && (
-					<>
-						<Button
-							variant="subtle"
-							onPress={() => onStatusChange?.('approved')}
+					<div className="flex flex-wrap gap-2">
+						<EmployeeActionButton
+							size="sm"
+							tone="success"
+							onClick={() => onStatusChange?.('approved')}
 						>
 							Approve
-						</Button>
-						<Button
-							variant="ghost"
-							onPress={() => onStatusChange?.('rejected')}
+						</EmployeeActionButton>
+						<EmployeeActionButton
+							size="sm"
+							tone="danger"
+							onClick={() => onStatusChange?.('rejected')}
 						>
 							Reject
-						</Button>
-						<Button
-							variant="ghost"
-							onPress={() => onStatusChange?.('changes_requested')}
+						</EmployeeActionButton>
+						<EmployeeActionButton
+							size="sm"
+							tone="neutral"
+							onClick={() => onStatusChange?.('changes_requested')}
 						>
 							Changes
-						</Button>
-					</>
+						</EmployeeActionButton>
+					</div>
 				)}
 			</div>
 		)
 	}
 
-	// Needs approval -- compact card: approver + reason on one line, justify + button below
+	// Needs approval -- approver + reason, justification, submit.
 	return (
-		<div className="space-y-2">
-			{/* Approver chain on one line */}
-			<div className="flex items-center gap-2">
-				{chain.map((entry, i) => (
-					<span key={entry.role} className="flex items-center gap-1">
-						<span className="text-[13px] font-medium">{entry.label}</span>
-						<span className="text-[12px] text-[var(--color-text-subtle)]">
-							({entry.reason})
+		<div
+			className={
+				isFooter ? 'flex flex-col gap-2 lg:flex-row lg:items-end' : 'space-y-3'
+			}
+		>
+			<EmployeeStatusPill tone="warning">{summaryLabel}</EmployeeStatusPill>
+			{!isFooter && (
+				<div className="flex flex-wrap items-center gap-2">
+					{chain.map((entry, i) => (
+						<span key={entry.role} className="flex items-center gap-1">
+							<span className="text-[13px] font-medium">{entry.label}</span>
+							<span className="text-[12px] text-[var(--color-text-subtle)]">
+								({entry.reason})
+							</span>
+							{i < chain.length - 1 && (
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 10 10"
+									fill="none"
+									className="text-[var(--color-text-subtle)]"
+									aria-hidden="true"
+								>
+									<path
+										d="M3.5 2l3.5 3-3.5 3"
+										stroke="currentColor"
+										strokeWidth="1.25"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									/>
+								</svg>
+							)}
 						</span>
-						{i < chain.length - 1 && (
-							<svg
-								width="10"
-								height="10"
-								viewBox="0 0 10 10"
-								fill="none"
-								className="text-[var(--color-text-subtle)]"
-								aria-hidden="true"
-							>
-								<path
-									d="M3.5 2l3.5 3-3.5 3"
-									stroke="currentColor"
-									strokeWidth="1.25"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
-						)}
-					</span>
-				))}
-			</div>
+					))}
+				</div>
+			)}
 
-			{/* Justification */}
-			<UnderlineTextArea
-				label="Justification"
-				placeholder="Strategic account, competitor priced at..."
-				value={justification}
-				onChange={setJustification}
-				rows={1}
-			/>
+			{showRequestAction && (
+				<>
+					<div className={isFooter ? 'min-w-[220px] flex-1' : undefined}>
+						<UnderlineTextArea
+							label="Justification"
+							placeholder="Strategic account, competitor priced at..."
+							value={justification}
+							onChange={setJustification}
+							rows={1}
+						/>
+					</div>
+					<EmployeeActionButton
+						onClick={handleRequestApproval}
+						disabled={isSubmitting}
+						aria-busy={isSubmitting}
+						tone="primary"
+						size="sm"
+						fullWidthOnMobile={isFooter}
+					>
+						{isSubmitting ? 'Requesting approval' : 'Request approval'}
+					</EmployeeActionButton>
+				</>
+			)}
 		</div>
+	)
+}
+
+function ApprovalCheckIcon() {
+	return (
+		<svg
+			width="14"
+			height="14"
+			viewBox="0 0 14 14"
+			fill="none"
+			aria-hidden="true"
+		>
+			<path
+				d="M3.5 7l2.5 2.5L10.5 5"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
 	)
 }

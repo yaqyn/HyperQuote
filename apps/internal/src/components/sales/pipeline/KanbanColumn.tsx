@@ -135,7 +135,7 @@ export function KanbanColumn({
 
 	return (
 		<div
-			className={`flex w-52 shrink-0 flex-col border-t-2 ${getColumnAccent(stage.id)} ${getColumnBg(stage.id)}`}
+			className={`flex w-full shrink-0 flex-col border-t-2 lg:w-52 ${getColumnAccent(stage.id)} ${getColumnBg(stage.id)}`}
 		>
 			{/* Column header: stage name (11px uppercase) + deal count (24px mono) + value below */}
 			<div className="px-3 pt-3 pb-2">

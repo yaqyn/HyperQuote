@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+	AlertTriangle,
+	ArrowLeft,
+	Ban,
+	CheckCircle2,
+	ReceiptText,
+	X,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Button } from 'react-aria-components'
 import {
 	cancelDealFromFinance,
 	cancelOrderFromFinance,
@@ -12,6 +19,10 @@ import {
 	recordOrderFullPayment,
 	recordOrderPartialPayment,
 } from '../../lib/server/finance'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface FinancePaymentPanelProps {
@@ -211,7 +222,7 @@ export function FinancePaymentPanel({
 							}
 						/>
 
-						<div className="flex-1 overflow-y-auto px-8 pb-6">
+						<div className="flex-1 overflow-y-auto px-4 pb-6 sm:px-6 lg:px-8">
 							<TotalsLine
 								totalDue={totalDue}
 								paid={row.amountPaid}
@@ -242,10 +253,10 @@ export function FinancePaymentPanel({
 											amount={amountThisStep}
 											caption={
 												paymentStatus === 'unpaid' && payMode === 'full'
-													? 'full settlement — the order skips the partial stage.'
+													? 'This closes the payment now.'
 													: paymentStatus === 'unpaid' && payMode === 'partial'
-														? 'fixed 50% split. the rest chases after delivery.'
-														: 'remaining 50% — this entry closes on commit.'
+														? 'This records the first 50% payment.'
+														: 'This records the remaining balance and settles the entry.'
 											}
 										/>
 									)}
@@ -283,21 +294,19 @@ export function FinancePaymentPanel({
 							)}
 
 							{error && (
-								<p
-									className="mt-5 border-l-2 pl-3 font-[family-name:var(--font-bricolage)] italic"
-									style={{
-										fontSize: '12.5px',
-										color: 'var(--ledger-out)',
-										borderColor: 'var(--ledger-out)',
-										lineHeight: 1.5,
-									}}
+								<EmployeeStatusPill
+									tone="danger"
+									leading={<AlertTriangle aria-hidden="true" size={14} />}
+									className="mt-5"
 								>
 									{error}
-								</p>
+								</EmployeeStatusPill>
 							)}
 						</div>
 
-						{!isTerminal && (
+						{isTerminal ? (
+							<PanelCloseFooter onClose={onClose} />
+						) : (
 							<PanelFooter
 								stage={stage}
 								mode={mode}
@@ -346,8 +355,8 @@ function PanelMasthead({
 	reference: string
 }) {
 	return (
-		<header className="shrink-0 border-b border-[var(--color-border)] px-8 pt-7 pb-5">
-			<div className="flex items-baseline gap-2">
+		<header className="shrink-0 border-b border-[var(--color-border)] px-4 pt-6 pb-5 sm:px-6 lg:px-8 lg:pt-7">
+			<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 				<span
 					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
 					style={{
@@ -366,18 +375,17 @@ function PanelMasthead({
 				</span>
 			</div>
 			<h2
-				className="mt-2 truncate font-[family-name:var(--font-bricolage)]"
+				className="mt-2 break-words font-[family-name:var(--font-bricolage)]"
 				style={{
 					fontSize: '22px',
 					fontWeight: 600,
-					letterSpacing: '-0.015em',
 					color: 'var(--color-text)',
 				}}
 			>
 				{name}
 			</h2>
 			<p
-				className="mt-1 truncate font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+				className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
 				style={{
 					fontSize: '10.5px',
 					color: 'var(--color-text-subtle)',
@@ -402,7 +410,7 @@ function TotalsLine({
 	remaining: number
 }) {
 	return (
-		<dl className="mt-6 grid grid-cols-3 gap-6 border-b border-[var(--color-border)] pb-5">
+		<dl className="mt-5 grid grid-cols-1 gap-2 border-b border-[var(--color-border)] pb-5 sm:grid-cols-3">
 			<TotalCell label="total due" value={totalDue} tone="neutral" />
 			<TotalCell label="paid" value={paid} tone="in" />
 			<TotalCell label="remaining" value={remaining} tone="chase" />
@@ -425,7 +433,7 @@ function TotalCell({
 		chase: 'var(--ledger-chase)',
 	}[tone]
 	return (
-		<div className="flex flex-col">
+		<div className="rounded-md border border-black/[0.08] bg-black/[0.02] px-3 py-2 dark:border-white/[0.1] dark:bg-white/[0.04]">
 			<dt
 				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
 				style={{
@@ -437,7 +445,7 @@ function TotalCell({
 				{label}
 			</dt>
 			<dd
-				className="mt-1 font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
+				className="mt-1 break-words font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
 				style={{
 					fontSize: '15px',
 					color: value > 0 ? color : 'var(--color-text-subtle)',
@@ -492,11 +500,11 @@ function DealItemList({
 				{items.map((it, i) => (
 					<li
 						key={it.productSlug}
-						className="flex items-baseline justify-between gap-4 border-t border-[var(--color-border)] py-2 first:border-t-0 first:pt-0"
+						className="flex flex-col items-start gap-1 border-t border-[var(--color-border)] py-2 first:border-t-0 first:pt-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
 					>
 						<div className="min-w-0 flex-1">
 							<p
-								className="truncate font-[family-name:var(--font-bricolage)]"
+								className="break-words font-[family-name:var(--font-bricolage)]"
 								style={{
 									fontSize: '13px',
 									fontWeight: 500,
@@ -517,7 +525,7 @@ function DealItemList({
 								{it.productName}
 							</p>
 							<p
-								className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+								className="mt-0.5 break-words font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
 								style={{
 									fontSize: '10px',
 									color: 'var(--color-text-subtle)',
@@ -529,7 +537,7 @@ function DealItemList({
 							</p>
 						</div>
 						<span
-							className="shrink-0 font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
+							className="shrink-0 font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums sm:text-end"
 							style={{
 								fontSize: '13px',
 								color: 'var(--color-text)',
@@ -559,19 +567,15 @@ function SettledBanner({
 			className="mt-6 border-y-2 py-4"
 			style={{ borderColor: 'var(--ledger-in)' }}
 		>
-			<div
-				className="flex items-baseline gap-2 font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-				style={{
-					fontSize: '11px',
-					letterSpacing: '0.22em',
-					color: 'var(--ledger-in)',
-				}}
+			<EmployeeStatusPill
+				tone="success"
+				leading={<CheckCircle2 aria-hidden="true" size={15} />}
 			>
-				✓ settled in full
-			</div>
+				Settled in full
+			</EmployeeStatusPill>
 			{paidAt && (
 				<p
-					className="mt-2 font-[family-name:var(--font-bricolage)] italic"
+					className="mt-3 font-[family-name:var(--font-bricolage)]"
 					style={{
 						fontSize: '11.5px',
 						color: 'var(--color-text-muted)',
@@ -582,7 +586,7 @@ function SettledBanner({
 			)}
 			{proof && (
 				<p
-					className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)]"
+					className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)]"
 					style={{
 						fontSize: '10.5px',
 						color: 'var(--color-text-subtle)',
@@ -615,78 +619,84 @@ function PayModePicker({
 	}[] = [
 		{
 			id: 'partial',
-			label: 'partial · 50%',
+			label: 'collect 50%',
 			amount: Math.round(totalDue * 0.5 * 100) / 100,
-			hint: 'collect now, chase the rest later',
+			hint: 'record half now, balance later',
 		},
 		{
 			id: 'full',
-			label: 'full · 100%',
+			label: 'settle full',
 			amount: totalDue,
-			hint: 'settle in one shot',
+			hint: 'close the payment now',
 		},
 	]
 
 	return (
-		<div className="mt-6 flex flex-col gap-1">
-			{entries.map((entry) => {
-				const isActive = payMode === entry.id
-				return (
-					<button
-						key={entry.id}
-						type="button"
-						onClick={() => onChange(entry.id)}
-						className="group flex items-baseline justify-between gap-4 border-t border-[var(--color-border)] py-3 text-start outline-none first:border-t-0"
-					>
-						<div className="flex items-baseline gap-2">
-							<span
-								aria-hidden="true"
-								className="h-[7px] w-[7px] shrink-0 self-center rounded-full transition-colors"
-								style={{
-									background: isActive
-										? 'var(--color-primary)'
-										: 'var(--color-text-subtle)',
-									opacity: isActive ? 1 : 0.35,
-								}}
-							/>
-							<span
-								className="font-[family-name:var(--font-bricolage)] transition-colors"
-								style={{
-									fontSize: '13.5px',
-									fontWeight: isActive ? 600 : 400,
-									fontStyle: isActive ? 'normal' : 'italic',
-									color: isActive
-										? 'var(--color-text)'
-										: 'var(--color-text-muted)',
-									letterSpacing: '-0.008em',
-								}}
-							>
-								{entry.label}
-							</span>
-							<span
-								className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
-								style={{ fontSize: '11px' }}
-							>
-								· {entry.hint}
-							</span>
-						</div>
-						<span
-							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
-							style={{
-								fontSize: '13px',
-								color: isActive
-									? 'var(--color-text)'
-									: 'var(--color-text-muted)',
-								fontWeight: isActive ? 600 : 400,
-								letterSpacing: '-0.012em',
-							}}
+		<section className="mt-6">
+			<span
+				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+				style={{
+					fontSize: '9.5px',
+					letterSpacing: '0.2em',
+					color: 'var(--color-text-subtle)',
+				}}
+			>
+				Payment amount
+			</span>
+			<div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+				{entries.map((entry) => {
+					const isActive = payMode === entry.id
+					return (
+						<button
+							key={entry.id}
+							type="button"
+							aria-pressed={isActive}
+							onClick={() => onChange(entry.id)}
+							className={`flex min-h-[82px] flex-col justify-between gap-2 rounded-md border px-3 py-3 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+								isActive
+									? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.06]'
+									: 'border-black/[0.1] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.04] dark:border-white/[0.12]'
+							}`}
 						>
-							{formatEgp(entry.amount)}
-						</span>
-					</button>
-				)
-			})}
-		</div>
+							<div className="flex items-start justify-between gap-2">
+								<span
+									className="font-[family-name:var(--font-archivo)] font-semibold uppercase transition-colors"
+									style={{
+										fontSize: '11px',
+										color: isActive
+											? 'var(--color-text)'
+											: 'var(--color-text-muted)',
+										letterSpacing: '0.1em',
+									}}
+								>
+									{entry.label}
+								</span>
+								<span
+									className="font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
+									style={{
+										fontSize: '12px',
+										color: isActive
+											? 'var(--color-primary)'
+											: 'var(--color-text)',
+									}}
+								>
+									{formatEgp(entry.amount)}
+								</span>
+							</div>
+							<span
+								className="font-[family-name:var(--font-bricolage)] text-[var(--color-text-subtle)]"
+								style={{
+									fontSize: '12px',
+									lineHeight: 1.35,
+								}}
+							>
+								{entry.hint}
+							</span>
+						</button>
+					)
+				})}
+			</div>
+		</section>
 	)
 }
 
@@ -709,15 +719,13 @@ function AmountDisplay({
 					color: 'var(--color-primary)',
 				}}
 			>
-				due now
+				amount to record
 			</span>
-			<div className="mt-2 flex items-baseline gap-2">
+			<div className="mt-2 flex flex-wrap items-baseline gap-2">
 				<span
-					className="font-[family-name:var(--font-archivo-black)] tabular-nums leading-none"
+					className="break-words font-[family-name:var(--font-archivo-black)] text-[34px] leading-none tabular-nums text-[var(--color-text)] sm:text-[40px]"
 					style={{
-						fontSize: '40px',
-						color: 'var(--color-text)',
-						letterSpacing: '-0.028em',
+						fontFeatureSettings: '"tnum" on, "lnum" on',
 					}}
 				>
 					{formatEgp(amount)}
@@ -734,7 +742,7 @@ function AmountDisplay({
 				</span>
 			</div>
 			<p
-				className="mt-2 font-[family-name:var(--font-bricolage)] italic"
+				className="mt-2 font-[family-name:var(--font-bricolage)]"
 				style={{
 					fontSize: '11.5px',
 					color: 'var(--color-text-muted)',
@@ -759,7 +767,7 @@ function PreviousPartial({
 	proof: string
 }) {
 	return (
-		<div className="mt-4 border-l-2 border-[var(--color-border)] pl-3">
+		<div className="mt-4 border-t-2 border-[var(--color-border)] pt-3 sm:border-t-0 sm:border-l-2 sm:pt-0 sm:pl-3">
 			<span
 				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
 				style={{
@@ -784,7 +792,7 @@ function PreviousPartial({
 					: '—'}
 			</p>
 			<p
-				className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)]"
+				className="mt-0.5 break-all font-[family-name:var(--font-jetbrains-mono)]"
 				style={{
 					fontSize: '10px',
 					color: 'var(--color-text-subtle)',
@@ -810,14 +818,14 @@ function ProofInput({
 		<div className="mt-6">
 			<label
 				htmlFor="proof-filename"
-				className="flex items-baseline gap-2 font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+				className="flex items-baseline gap-2 font-[family-name:var(--font-archivo)] font-semibold uppercase"
 				style={{
-					fontSize: '9.5px',
-					letterSpacing: '0.22em',
+					fontSize: '11px',
+					letterSpacing: '0.1em',
 					color: 'var(--color-text-subtle)',
 				}}
 			>
-				proof of payment
+				Payment proof
 			</label>
 			<input
 				id="proof-filename"
@@ -825,23 +833,21 @@ function ProofInput({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="e.g. nbe-transfer-2026-04-15.pdf"
-				className="mt-2 w-full bg-transparent font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/50"
+				className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 				style={{
 					fontSize: '14px',
-					borderBottom: '1px solid var(--color-border)',
-					paddingBottom: '6px',
-					letterSpacing: '-0.005em',
 				}}
 			/>
 			<p
-				className="mt-2 font-[family-name:var(--font-bricolage)] italic"
+				className="mt-2 font-[family-name:var(--font-bricolage)]"
 				style={{
 					fontSize: '11px',
 					color: 'var(--color-text-muted)',
 					letterSpacing: '0.002em',
 				}}
 			>
-				required. nothing commits without a reference file on the audit trail.
+				Required before review. Use the bank transfer file name or internal
+				reference.
 			</p>
 		</div>
 	)
@@ -867,18 +873,14 @@ function CancelForm({
 			className="mt-6 border-y-2 py-4"
 			style={{ borderColor: 'var(--ledger-out)' }}
 		>
-			<span
-				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-				style={{
-					fontSize: '9.5px',
-					letterSpacing: '0.22em',
-					color: 'var(--ledger-out)',
-				}}
+			<EmployeeStatusPill
+				tone="danger"
+				leading={<AlertTriangle aria-hidden="true" size={14} />}
 			>
-				cancel {mode === 'order' ? 'order' : 'deal'}
-			</span>
+				Cancel {mode === 'order' ? 'order' : 'deal'}
+			</EmployeeStatusPill>
 			<p
-				className="mt-2 font-[family-name:var(--font-bricolage)] italic"
+				className="mt-3 font-[family-name:var(--font-bricolage)]"
 				style={{
 					fontSize: '12px',
 					color: 'var(--color-text-muted)',
@@ -886,20 +888,20 @@ function CancelForm({
 					letterSpacing: '0.002em',
 				}}
 			>
-				walks the record to <em>declined</em>, stamps the report, and releases
-				reserved stock. irreversible.
+				This marks the record declined, stamps the report, and releases reserved
+				stock. This cannot be undone.
 			</p>
 			<div className="mt-4">
 				<label
 					htmlFor="cancel-reason"
-					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
 					style={{
-						fontSize: '9.5px',
-						letterSpacing: '0.22em',
+						fontSize: '11px',
+						letterSpacing: '0.1em',
 						color: 'var(--color-text-subtle)',
 					}}
 				>
-					reason
+					Reason
 				</label>
 				<input
 					id="cancel-reason"
@@ -907,25 +909,23 @@ function CancelForm({
 					value={reason}
 					onChange={(e) => setReason(e.target.value)}
 					placeholder="e.g. customer withdrew, duplicate order"
-					className="mt-1.5 w-full bg-transparent font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/50"
+					className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 					style={{
 						fontSize: '13.5px',
-						borderBottom: '1px solid var(--color-border)',
-						paddingBottom: '5px',
 					}}
 				/>
 			</div>
 			<div className="mt-4">
 				<label
 					htmlFor="cancel-note"
-					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
 					style={{
-						fontSize: '9.5px',
-						letterSpacing: '0.22em',
+						fontSize: '11px',
+						letterSpacing: '0.1em',
 						color: 'var(--color-text-subtle)',
 					}}
 				>
-					note · optional
+					Note · optional
 				</label>
 				<input
 					id="cancel-note"
@@ -933,11 +933,9 @@ function CancelForm({
 					value={note}
 					onChange={(e) => setNote(e.target.value)}
 					placeholder="additional context for the audit trail"
-					className="mt-1.5 w-full bg-transparent font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/50"
+					className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 					style={{
 						fontSize: '13.5px',
-						borderBottom: '1px solid var(--color-border)',
-						paddingBottom: '5px',
 					}}
 				/>
 			</div>
@@ -958,19 +956,15 @@ function ConfirmReview({
 }) {
 	return (
 		<div className="mt-6 border-y-2 border-[var(--color-primary)] py-4">
-			<span
-				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-				style={{
-					fontSize: '9.5px',
-					letterSpacing: '0.22em',
-					color: 'var(--color-primary)',
-				}}
+			<EmployeeStatusPill
+				tone="neutral"
+				leading={<ReceiptText aria-hidden="true" size={14} />}
 			>
-				review & commit
-			</span>
-			<dl className="mt-3 grid grid-cols-[auto,1fr] gap-x-5 gap-y-2">
+				Review before recording
+			</EmployeeStatusPill>
+			<dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3">
 				<dt
-					className="font-[family-name:var(--font-bricolage)] italic"
+					className="font-[family-name:var(--font-bricolage)]"
 					style={{
 						fontSize: '11.5px',
 						color: 'var(--color-text-subtle)',
@@ -989,13 +983,13 @@ function ConfirmReview({
 					{formatEgp(amount)} EGP
 				</dd>
 				<dt
-					className="font-[family-name:var(--font-bricolage)] italic"
+					className="font-[family-name:var(--font-bricolage)]"
 					style={{
 						fontSize: '11.5px',
 						color: 'var(--color-text-subtle)',
 					}}
 				>
-					moves to
+					status
 				</dt>
 				<dd
 					className="font-[family-name:var(--font-bricolage)]"
@@ -1006,10 +1000,12 @@ function ConfirmReview({
 						letterSpacing: '-0.008em',
 					}}
 				>
-					{nextTransition}
+					{nextTransition === 'paid'
+						? 'Paid in full'
+						: 'Partial payment recorded'}
 				</dd>
 				<dt
-					className="font-[family-name:var(--font-bricolage)] italic"
+					className="font-[family-name:var(--font-bricolage)]"
 					style={{
 						fontSize: '11.5px',
 						color: 'var(--color-text-subtle)',
@@ -1018,7 +1014,7 @@ function ConfirmReview({
 					proof
 				</dt>
 				<dd
-					className="truncate font-[family-name:var(--font-jetbrains-mono)]"
+					className="break-all font-[family-name:var(--font-jetbrains-mono)]"
 					style={{
 						fontSize: '11.5px',
 						color: 'var(--color-text)',
@@ -1029,21 +1025,37 @@ function ConfirmReview({
 				</dd>
 			</dl>
 			<p
-				className="mt-3 font-[family-name:var(--font-bricolage)] italic"
+				className="mt-4 font-[family-name:var(--font-bricolage)]"
 				style={{
 					fontSize: '11px',
 					color: 'var(--color-text-muted)',
 					letterSpacing: '0.002em',
 				}}
 			>
-				transitions can't be reversed. verify the amount and proof before
-				committing.
+				Verify the amount and proof before recording. Payment transitions cannot
+				be reversed.
 			</p>
 		</div>
 	)
 }
 
 // ─── Footer ──────────────────────────────────────────────
+
+function PanelCloseFooter({ onClose }: { onClose: () => void }) {
+	return (
+		<footer className="shrink-0 border-t border-[var(--color-border)] px-4 py-4 sm:px-6 lg:px-8">
+			<EmployeeActionButton
+				tone="neutral"
+				leading={<X aria-hidden="true" size={14} />}
+				fullWidthOnMobile
+				onClick={onClose}
+				className="sm:w-full"
+			>
+				Close record
+			</EmployeeActionButton>
+		</footer>
+	)
+}
 
 function PanelFooter({
 	stage,
@@ -1070,100 +1082,73 @@ function PanelFooter({
 	onBack: () => void
 	onCommitCancel: () => void
 }) {
+	const actionLabel =
+		stage === 'preview'
+			? 'Review payment'
+			: `Record ${formatEgp(amountThisStep)} EGP`
+
 	return (
-		<footer className="shrink-0 border-t border-[var(--color-border)] px-8 py-4">
+		<footer className="shrink-0 border-t border-[var(--color-border)] px-4 py-4 sm:px-6 lg:px-8">
 			{stage === 'cancel' ? (
-				<div className="flex items-baseline justify-between gap-3">
-					<Button
-						onPress={onBack}
-						className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)] outline-none hover:text-[var(--color-text)] data-[focus-visible]:underline"
-						style={{ fontSize: '12.5px' }}
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
+					<EmployeeActionButton
+						tone="neutral"
+						leading={<ArrowLeft aria-hidden="true" size={14} />}
+						fullWidthOnMobile
+						onClick={onBack}
 					>
-						← back
-					</Button>
-					<Button
-						onPress={onCommitCancel}
-						isDisabled={!cancelReasonOk || isCancelling}
-						className="group inline-flex items-baseline gap-1.5 outline-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40"
+						Back
+					</EmployeeActionButton>
+					<EmployeeActionButton
+						tone="danger"
+						leading={<Ban aria-hidden="true" size={14} />}
+						fullWidthOnMobile
+						disabled={!cancelReasonOk || isCancelling}
+						onClick={onCommitCancel}
+						className="sm:justify-self-end"
 					>
-						<span
-							className="font-[family-name:var(--font-bricolage)]"
-							style={{
-								fontSize: '13.5px',
-								fontWeight: 500,
-								color: 'var(--ledger-out)',
-								letterSpacing: '-0.005em',
-							}}
-						>
-							{isCancelling ? 'canceling…' : 'confirm cancel'}
-						</span>
-						<span
-							aria-hidden="true"
-							className="transition-transform group-hover:translate-x-[3px]"
-							style={{
-								fontFamily: 'var(--font-bricolage)',
-								fontStyle: 'italic',
-								fontSize: '14px',
-								color: 'var(--ledger-out)',
-							}}
-						>
-							→
-						</span>
-					</Button>
+						{isCancelling ? 'Canceling...' : 'Confirm cancel'}
+					</EmployeeActionButton>
 				</div>
 			) : (
-				<div className="flex items-baseline justify-between gap-3">
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
 					{stage === 'preview' && (
-						<Button
-							onPress={onStartCancel}
-							className="font-[family-name:var(--font-bricolage)] italic outline-none hover:underline data-[focus-visible]:underline"
-							style={{ fontSize: '12px', color: 'var(--ledger-out)' }}
+						<EmployeeActionButton
+							tone="danger"
+							size="sm"
+							leading={<Ban aria-hidden="true" size={14} />}
+							fullWidthOnMobile
+							onClick={onStartCancel}
 						>
-							cancel {mode === 'order' ? 'order' : 'deal'}
-						</Button>
+							Cancel {mode === 'order' ? 'order' : 'deal'}
+						</EmployeeActionButton>
 					)}
 					{stage === 'confirm' && (
-						<Button
-							onPress={onBack}
-							className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)] outline-none hover:text-[var(--color-text)] data-[focus-visible]:underline"
-							style={{ fontSize: '12.5px' }}
+						<EmployeeActionButton
+							tone="neutral"
+							leading={<ArrowLeft aria-hidden="true" size={14} />}
+							fullWidthOnMobile
+							onClick={onBack}
 						>
-							← back
-						</Button>
+							Back
+						</EmployeeActionButton>
 					)}
-					<Button
-						onPress={onAdvance}
-						isDisabled={!proofOk || isPending}
-						className="group inline-flex items-baseline gap-2 outline-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40"
+					<EmployeeActionButton
+						tone={stage === 'confirm' ? 'success' : 'primary'}
+						leading={
+							stage === 'confirm' ? (
+								<CheckCircle2 aria-hidden="true" size={14} />
+							) : (
+								<ReceiptText aria-hidden="true" size={14} />
+							)
+						}
+						fullWidthOnMobile
+						disabled={!proofOk || isPending}
+						onClick={onAdvance}
+						className="sm:justify-self-end"
 					>
-						<span
-							className="font-[family-name:var(--font-bricolage)]"
-							style={{
-								fontSize: '14px',
-								fontWeight: 600,
-								color: 'var(--color-text)',
-								letterSpacing: '-0.008em',
-							}}
-						>
-							{isPending
-								? 'recording…'
-								: stage === 'preview'
-									? 'review payment'
-									: `commit ${formatEgp(amountThisStep)} EGP`}
-						</span>
-						<span
-							aria-hidden="true"
-							className="transition-transform group-hover:translate-x-[3px]"
-							style={{
-								fontFamily: 'var(--font-bricolage)',
-								fontStyle: 'italic',
-								fontSize: '15px',
-								color: 'var(--color-primary)',
-							}}
-						>
-							→
-						</span>
-					</Button>
+						{isPending ? 'Recording...' : actionLabel}
+					</EmployeeActionButton>
 				</div>
 			)}
 		</footer>

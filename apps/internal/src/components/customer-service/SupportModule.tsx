@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getConversations } from '../../lib/server/customer-service'
 import { useSupportStore } from '../../stores/customer-service'
+import { EmployeeStatusPill } from '../shared/EmployeeControls'
 import { ConversationView } from './ConversationView'
 import { CustomerProfilePanel } from './CustomerProfilePanel'
 import { SupportInbox } from './SupportInbox'
 
 /**
  * Switchboard — the customer-service shell. Three zones:
- *   1. inbox  (260px)  — operator's logbook
+ *   1. inbox  (desktop rail) — operator's logbook
  *   2. center (flex)   — correspondence with whoever is on the line
  *   3. dossier (slide) — customer reference card, triggered from the header
  *
@@ -20,9 +22,11 @@ import { SupportInbox } from './SupportInbox'
 export function CustomerServiceModule() {
 	const { t } = useTranslation('customer-service')
 	const selectedId = useSupportStore((s) => s.selectedConversationId)
+	const [isDesktop, setIsDesktop] = useState(false)
+	const [inboxOpen, setInboxOpen] = useState(false)
 	const [profileOpen, setProfileOpen] = useState(false)
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['support-inbox'],
 		queryFn: () => getConversations(),
 		staleTime: 10_000,
@@ -32,26 +36,79 @@ export function CustomerServiceModule() {
 	const selectedConversation =
 		conversations.find((c) => c.id === selectedId) ?? null
 
+	useEffect(() => {
+		if (typeof window === 'undefined' || !window.matchMedia) return
+		const query = window.matchMedia('(min-width: 1024px)')
+		const update = () => setIsDesktop(query.matches)
+		update()
+		query.addEventListener('change', update)
+		return () => query.removeEventListener('change', update)
+	}, [])
+
+	useEffect(() => {
+		if (isDesktop) setInboxOpen(false)
+	}, [isDesktop])
+
 	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center h-full">
-				<div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
+			<div className="flex h-full items-center justify-center bg-line-paper px-4">
+				<div className="flex flex-col items-center gap-3 text-center">
+					<div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
+					<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+						Loading customer conversations
+					</p>
+				</div>
+			</div>
+		)
+	}
+
+	if (isError) {
+		return (
+			<div className="flex h-full items-center justify-center bg-line-paper px-4">
+				<div className="flex max-w-sm flex-col items-center gap-3 text-center">
+					<EmployeeStatusPill
+						tone="danger"
+						leading={<AlertTriangle size={14} strokeWidth={2.2} />}
+					>
+						Customer service queue did not load
+					</EmployeeStatusPill>
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+						Refresh the panel before replying to customers. No messages were
+						changed.
+					</p>
+				</div>
 			</div>
 		)
 	}
 
 	return (
-		<div className="flex h-full min-h-0 overflow-hidden">
+		<div className="relative flex h-full min-h-0 overflow-hidden bg-[var(--color-surface)] lg:flex-row">
 			{/* ── Inbox ─────────────────────────────────────── */}
-			<div className="w-[320px] shrink-0 border-inline-end border-black/[0.06] dark:border-white/[0.08] flex flex-col min-h-0">
-				<SupportInbox conversations={conversations} selectedId={selectedId} />
+			<div
+				className={`min-h-0 w-full shrink-0 flex-col border-black/[0.06] dark:border-white/[0.08] lg:flex lg:w-[320px] lg:border-inline-end ${
+					selectedConversation && !inboxOpen ? 'hidden lg:flex' : 'flex'
+				}`}
+			>
+				<SupportInbox
+					conversations={conversations}
+					selectedId={selectedId}
+					autoSelect={isDesktop}
+					onConversationSelect={() => {
+						if (!isDesktop) setInboxOpen(false)
+					}}
+				/>
 			</div>
 
 			{/* ── Conversation ───────────────────────────────── */}
-			<div className="flex-1 min-w-0 flex flex-col min-h-0">
+			<div
+				className={`min-h-0 min-w-0 flex-1 flex-col lg:flex ${
+					selectedConversation && !inboxOpen ? 'flex' : 'hidden lg:flex'
+				}`}
+			>
 				{selectedConversation ? (
 					<ConversationView
 						conversation={selectedConversation}
+						onOpenInbox={() => setInboxOpen(true)}
 						onOpenProfile={() => setProfileOpen(true)}
 					/>
 				) : (
@@ -74,20 +131,14 @@ export function CustomerServiceModule() {
 
 function EmptyLine({ label, hint }: { label: string; hint: string }) {
 	return (
-		<div className="flex flex-col items-center justify-center h-full gap-3 select-none bg-line-paper">
-			<p
-				className="font-[family-name:var(--font-literata)] italic text-[28px] text-[var(--color-text-muted)]"
-				style={{ fontVariationSettings: '"opsz" 72, "wght" 400' }}
-			>
-				the line is quiet.
-			</p>
-			<p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
+		<div className="flex h-full select-none flex-col items-center justify-center gap-3 bg-line-paper px-5 text-center">
+			<EmployeeStatusPill tone="neutral">
+				No conversation open
+			</EmployeeStatusPill>
+			<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text)]">
 				{label}
 			</p>
-			<p
-				className="font-[family-name:var(--font-literata)] italic text-[13px] text-[var(--color-text-subtle)] max-w-[36ch] text-center"
-				style={{ fontVariationSettings: '"opsz" 14, "wght" 400' }}
-			>
+			<p className="max-w-[36ch] font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
 				{hint}
 			</p>
 		</div>

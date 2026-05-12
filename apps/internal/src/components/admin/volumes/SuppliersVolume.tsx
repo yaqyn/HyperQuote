@@ -48,7 +48,11 @@ export function SuppliersVolume() {
 	const openEditor = useAdminStore((s) => s.openEditor)
 	const closeEditor = useAdminStore((s) => s.closeEditor)
 
-	const { data: suppliers = [] } = useQuery({
+	const {
+		data: suppliers = [],
+		isError: suppliersError,
+		isPending: suppliersPending,
+	} = useQuery({
 		queryKey: ['admin', 'suppliers'],
 		queryFn: () => adminListSuppliers(),
 	})
@@ -151,8 +155,9 @@ export function SuppliersVolume() {
 			key: 'name',
 			labelKey: 'volumes.suppliers.columns.name',
 			width: 'minmax(200px, 2fr)',
+			mobileRole: 'primary',
 			render: (r) => (
-				<span className="truncate font-medium text-[var(--color-text)]">
+				<span className="break-words font-semibold text-[var(--color-text)]">
 					{r.name}
 				</span>
 			),
@@ -161,6 +166,7 @@ export function SuppliersVolume() {
 			key: 'tier',
 			labelKey: 'volumes.suppliers.columns.tier',
 			width: '120px',
+			mobileRole: 'detail',
 			render: (r) => (
 				<StatusTag
 					label={t(`editor.enums.supplierTier.${r.tier}`)}
@@ -178,8 +184,9 @@ export function SuppliersVolume() {
 			key: 'paymentTerms',
 			labelKey: 'volumes.suppliers.columns.paymentTerms',
 			width: 'minmax(120px, 1.4fr)',
+			mobileRole: 'detail',
 			render: (r) => (
-				<span className="truncate text-[var(--color-text-muted)]">
+				<span className="break-words text-[var(--color-text-muted)]">
 					{r.paymentTerms}
 				</span>
 			),
@@ -190,6 +197,7 @@ export function SuppliersVolume() {
 			width: '90px',
 			align: 'end',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.rating.toFixed(1)}</>,
 		},
 		{
@@ -198,6 +206,7 @@ export function SuppliersVolume() {
 			width: '70px',
 			align: 'end',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <SupplierItemCountCell name={r.name} />,
 		},
 		{
@@ -205,6 +214,7 @@ export function SuppliersVolume() {
 			labelKey: 'volumes.suppliers.columns.phone',
 			width: 'minmax(120px, 1fr)',
 			mono: true,
+			mobileRole: 'detail',
 			render: (r) => <>{r.phone ?? '—'}</>,
 		},
 	]
@@ -225,6 +235,8 @@ export function SuppliersVolume() {
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
+				isLoading={suppliersPending}
+				isError={suppliersError}
 			/>
 
 			<EntityEditor
@@ -235,7 +247,7 @@ export function SuppliersVolume() {
 				footer={
 					draft ? (
 						<>
-							<div className="flex items-center gap-6">
+							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
 								{mode === 'view' && (
 									<LinkAction tone="primary" onClick={handleEdit}>
 										{t('actions.edit')}
@@ -282,7 +294,7 @@ export function SuppliersVolume() {
 								ariaLabel={t('editor.fields.supplierName')}
 							/>
 						</Field>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.tier')}>
 								<SelectControl
 									value={draft.tier}

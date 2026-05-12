@@ -146,7 +146,7 @@ export function ConvertToOrderDialog({
 							<Checkbox
 								isSelected={requestAdvancePayment}
 								onChange={setRequestAdvancePayment}
-								className="flex cursor-pointer items-center gap-3"
+								className="flex cursor-pointer items-start gap-3 lg:items-center"
 							>
 								<span
 									aria-hidden
@@ -183,7 +183,7 @@ export function ConvertToOrderDialog({
 								</span>
 							</Checkbox>
 
-							<div className="grid grid-cols-2 gap-3">
+							<div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
 								<PathChoice
 									active={conversionPath === 'standard'}
 									label={t('sales.negotiation.convert.standard', 'Standard')}

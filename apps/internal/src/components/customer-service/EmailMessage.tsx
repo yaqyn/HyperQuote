@@ -1,8 +1,12 @@
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Forward, Reply, ReplyAll } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import type { Message } from '../../types/customer-service'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 
 export type EmailAction = 'reply' | 'reply-all' | 'forward'
 
@@ -35,6 +39,11 @@ function formatEmailDate(iso: string): string {
 	})}, ${time}`
 }
 
+function stringMetadata(message: Message, key: string): string {
+	const value = message.metadata[key]
+	return typeof value === 'string' ? value : ''
+}
+
 /**
  * Email in correspondence form. Collapsed: a single line that reads like
  * an index entry in a letter archive. Expanded: a proper letter with
@@ -48,9 +57,9 @@ export function EmailMessage({
 	const { t } = useTranslation('customer-service')
 	const [expanded, setExpanded] = useState(isLatest)
 
-	const from = (message.metadata.from as string) ?? message.senderName
-	const to = (message.metadata.to as string) ?? ''
-	const cc = (message.metadata.cc as string | null) ?? null
+	const from = stringMetadata(message, 'from') || message.senderName
+	const to = stringMetadata(message, 'to')
+	const cc = stringMetadata(message, 'cc')
 	const isInbound = message.direction === 'inbound'
 
 	if (!expanded) {
@@ -58,28 +67,26 @@ export function EmailMessage({
 			<Button
 				onPress={() => setExpanded(true)}
 				aria-label={`${t('email.expand')} — ${message.senderName}`}
-				className="group w-full text-start grid items-baseline gap-4 py-3 outline-none border-b border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[var(--color-text-muted)] transition-colors"
-				style={{ gridTemplateColumns: '72px 1fr auto auto' }}
+				className="group flex w-full flex-col gap-2 border-b border-dashed border-black/[0.08] py-4 text-start outline-none transition-colors hover:border-[var(--color-text-muted)] hover:bg-black/[0.015] dark:border-white/[0.08] dark:hover:bg-white/[0.02] lg:flex-row lg:items-start lg:gap-4"
 			>
-				<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+				<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)] lg:w-[84px] lg:shrink-0">
 					{formatEmailDate(message.timestamp).split(',')[0]}
 				</span>
 				<span
-					className={`font-[family-name:var(--font-bricolage)] text-[12.5px] uppercase tracking-[0.12em] truncate ${
+					className={`break-words font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase tracking-[0.1em] lg:w-[10rem] lg:shrink-0 ${
 						isInbound
 							? 'text-[var(--color-text)]'
 							: 'text-[var(--color-primary)]'
 					}`}
-					style={{ fontVariationSettings: '"opsz" 14, "wght" 600' }}
 				>
 					{message.senderName}
 				</span>
-				<span className="font-[family-name:var(--font-literata)] italic text-[13px] text-[var(--color-text-subtle)] truncate min-w-0 max-w-[28rem]">
-					&ldquo;{message.content.split('\n')[0]}&rdquo;
+				<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)] lg:flex-1">
+					{message.content.split('\n')[0]}
 				</span>
 				<ChevronDown
-					size={12}
-					className="text-[var(--color-text-subtle)] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+					size={14}
+					className="shrink-0 text-[var(--color-text-subtle)] transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
 				/>
 			</Button>
 		)
@@ -90,36 +97,49 @@ export function EmailMessage({
 			{/* Address plate — monospace like a postmark */}
 			<header className="flex items-start justify-between gap-4 mb-4">
 				<div className="flex-1 min-w-0 space-y-0.5">
-					<div className="flex items-baseline gap-3 flex-wrap">
+					<div className="flex flex-wrap items-center gap-2">
 						<span
-							className={`font-[family-name:var(--font-bricolage)] text-[13px] uppercase tracking-[0.14em] ${
+							className={`break-words font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase tracking-[0.1em] ${
 								isInbound
 									? 'text-[var(--color-text)]'
 									: 'text-[var(--color-primary)]'
 							}`}
-							style={{ fontVariationSettings: '"opsz" 14, "wght" 600' }}
 						>
 							{message.senderName}
 						</span>
-						<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+						<EmployeeStatusPill tone={isInbound ? 'neutral' : 'success'}>
+							{isInbound ? 'Customer message' : 'Support reply'}
+						</EmployeeStatusPill>
+						<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
 							{formatEmailDate(message.timestamp)}
 						</span>
 					</div>
-					<dl
-						className="grid gap-x-3 gap-y-0.5 mt-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-[var(--color-text-subtle)]"
-						style={{ gridTemplateColumns: 'auto minmax(0, 1fr)' }}
-					>
-						<dt className="uppercase tracking-[0.18em]">from</dt>
-						<dd className="truncate text-[var(--color-text-muted)]">{from}</dd>
-						<dt className="uppercase tracking-[0.18em]">to</dt>
-						<dd className="truncate text-[var(--color-text-muted)]">{to}</dd>
+					<dl className="mt-3 flex flex-col gap-2 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-subtle)]">
+						<div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+							<dt className="font-semibold uppercase tracking-[0.12em] lg:w-12 lg:shrink-0">
+								from
+							</dt>
+							<dd className="min-w-0 break-all text-[var(--color-text-muted)]">
+								{from}
+							</dd>
+						</div>
+						<div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+							<dt className="font-semibold uppercase tracking-[0.12em] lg:w-12 lg:shrink-0">
+								to
+							</dt>
+							<dd className="min-w-0 break-all text-[var(--color-text-muted)]">
+								{to}
+							</dd>
+						</div>
 						{cc && (
-							<>
-								<dt className="uppercase tracking-[0.18em]">cc</dt>
-								<dd className="truncate text-[var(--color-text-muted)]">
+							<div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+								<dt className="font-semibold uppercase tracking-[0.12em] lg:w-12 lg:shrink-0">
+									cc
+								</dt>
+								<dd className="min-w-0 break-all text-[var(--color-text-muted)]">
 									{cc}
 								</dd>
-							</>
+							</div>
 						)}
 					</dl>
 				</div>
@@ -137,9 +157,8 @@ export function EmailMessage({
 
 			{/* Body in Literata — the customer's actual voice */}
 			<p
-				className={`font-[family-name:var(--font-literata)] text-[14.5px] leading-[1.75] whitespace-pre-wrap
+				className={`whitespace-pre-wrap break-words font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed
           ${isInbound ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}
-				style={{ fontVariationSettings: '"opsz" 16, "wght" 400' }}
 			>
 				{message.content}
 			</p>
@@ -150,9 +169,9 @@ export function EmailMessage({
 					{message.attachments.map((att) => (
 						<span
 							key={att.id}
-							className="inline-flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] border-b border-[var(--color-border)] pb-0.5"
+							className="inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]"
 						>
-							<span>{att.name}</span>
+							<span className="min-w-0 break-words">{att.name}</span>
 							<span className="text-[var(--color-text-subtle)] tabular-nums">
 								{(att.sizeBytes / 1024).toFixed(0)}KB
 							</span>
@@ -162,30 +181,36 @@ export function EmailMessage({
 			)}
 
 			{/* Actions — text links that sit beneath the letter */}
-			<div className="flex items-center gap-5 mt-5">
-				<Button
-					onPress={() => onAction('reply', message)}
+			<div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+				<EmployeeActionButton
+					onClick={() => onAction('reply', message)}
 					aria-label={t('email.reply')}
-					className="font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-text-muted)] border-b border-transparent hover:text-[var(--color-text)] hover:border-[var(--color-text)] outline-none transition-colors"
+					tone="primary"
+					size="sm"
+					leading={<Reply size={14} strokeWidth={2.2} />}
 				>
 					{t('email.reply')}
-				</Button>
+				</EmployeeActionButton>
 				{cc && (
-					<Button
-						onPress={() => onAction('reply-all', message)}
+					<EmployeeActionButton
+						onClick={() => onAction('reply-all', message)}
 						aria-label={t('email.replyAll')}
-						className="font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-text-muted)] border-b border-transparent hover:text-[var(--color-text)] hover:border-[var(--color-text)] outline-none transition-colors"
+						tone="neutral"
+						size="sm"
+						leading={<ReplyAll size={14} strokeWidth={2.2} />}
 					>
 						{t('email.replyAll')}
-					</Button>
+					</EmployeeActionButton>
 				)}
-				<Button
-					onPress={() => onAction('forward', message)}
+				<EmployeeActionButton
+					onClick={() => onAction('forward', message)}
 					aria-label={t('email.forward')}
-					className="font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-text-muted)] border-b border-transparent hover:text-[var(--color-text)] hover:border-[var(--color-text)] outline-none transition-colors"
+					tone="neutral"
+					size="sm"
+					leading={<Forward size={14} strokeWidth={2.2} />}
 				>
 					{t('email.forward')}
-				</Button>
+				</EmployeeActionButton>
 			</div>
 		</article>
 	)

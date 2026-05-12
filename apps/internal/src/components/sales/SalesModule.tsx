@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
 import { getCustomerList } from '../../lib/server/sales-customers'
 import { getRFQQueue, saveRFQForLater } from '../../lib/server/sales-rfq'
 import { useSalesStore } from '../../stores/sales'
@@ -11,6 +10,7 @@ import {
 	DispatchDialog,
 	DispatchFooter,
 } from '../shared/DispatchDialog'
+import { EmployeeActionButton } from '../shared/EmployeeControls'
 import { ReportViewerModal } from '../shared/ReportViewer'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
@@ -199,52 +199,31 @@ export function SalesModule() {
 		<div className="sales-theme sales-paper flex h-full flex-col">
 			{/* ── Top bar ──────────────────────────────────────────── */}
 			<div
-				className="shrink-0 flex items-center gap-6 px-6 py-3"
+				className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 lg:flex-nowrap"
 				style={{ borderBottom: '1px solid var(--color-border)' }}
 			>
-				{/* New quote — italic Literata word-action with a + mark */}
-				<Button
-					onPress={() => setCustomerSelectOpen(true)}
+				<EmployeeActionButton
+					type="button"
+					onClick={() => setCustomerSelectOpen(true)}
 					aria-label="Start a new quote"
-					className="group relative inline-flex shrink-0 items-baseline gap-1.5 font-[family-name:var(--font-literata)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 cursor-pointer rounded-sm"
-					style={{
-						fontSize: '17px',
-						fontWeight: 500,
-						color: 'var(--color-text)',
-						letterSpacing: '-0.018em',
-					}}
+					size="sm"
+					trailing={<span aria-hidden="true">→</span>}
 				>
-					<span className="relative">
-						new quote
-						<span
-							aria-hidden="true"
-							className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-						/>
-					</span>
-					<span
-						aria-hidden="true"
-						className="transition-transform group-hover:translate-x-[3px]"
-						style={{
-							fontFamily: 'var(--font-literata)',
-							fontStyle: 'italic',
-							fontSize: '18px',
-							color: 'var(--color-primary)',
-							lineHeight: 1,
-						}}
-					>
-						→
-					</span>
-				</Button>
+					New quote
+				</EmployeeActionButton>
 
 				<span
 					aria-hidden="true"
-					className="h-5 w-px shrink-0"
+					className="hidden h-5 w-px shrink-0 sm:block"
 					style={{ backgroundColor: 'var(--color-border)' }}
 				/>
 
 				{/* Stage filter tabs — typographic with hover-popover rosters */}
-				<nav aria-label="Quote stage filters" className="shrink-0">
-					<ol className="flex items-baseline gap-5">
+				<nav
+					aria-label="Quote stage filters"
+					className="min-w-0 max-w-full shrink grow sm:shrink-0 sm:grow-0"
+				>
+					<ol className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
 						{[
 							{
 								key: 'submitted' as const,
@@ -304,6 +283,7 @@ export function SalesModule() {
 										aria-expanded={isOpen}
 										aria-haspopup="true"
 										onFocus={() => setOpenPopover(key)}
+										onClick={() => setOpenPopover(key)}
 										className="group relative inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
 									>
 										<span
@@ -352,7 +332,7 @@ export function SalesModule() {
 												animate={{ opacity: 1, y: 0 }}
 												exit={{ opacity: 0, y: -4 }}
 												transition={{ duration: 0.14 }}
-												className="absolute top-full start-0 mt-2 z-50 w-[280px]"
+												className="absolute top-full start-0 z-50 mt-2 w-[min(280px,calc(100vw-32px))]"
 												style={{
 													backgroundColor: 'var(--color-surface)',
 													border: '1px solid var(--color-border)',
@@ -482,43 +462,25 @@ export function SalesModule() {
 					</ol>
 				</nav>
 
-				<div className="flex-1" />
+				<div className="hidden flex-1 lg:block" />
 
 				{/* Pipeline strip — active quotes inline; becomes a return-action
 				    when working on a saved order, italic empty-state when idle. */}
 				{workingSavedOrder ? (
-					<button
+					<EmployeeActionButton
 						type="button"
 						onClick={handleReturnToPipeline}
-						className="group relative inline-flex shrink-0 items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-signal-red)]/40 rounded-sm"
-						style={{
-							fontSize: '12px',
-							color: 'var(--color-signal-red)',
-						}}
+						tone="neutral"
+						size="sm"
+						leading={<span aria-hidden="true">←</span>}
+						className="order-3 lg:order-none"
+						fullWidthOnMobile
 					>
-						<span
-							aria-hidden="true"
-							className="transition-transform group-hover:-translate-x-[3px]"
-							style={{
-								fontFamily: 'var(--font-literata)',
-								fontStyle: 'italic',
-								fontSize: '14px',
-								lineHeight: 1,
-							}}
-						>
-							←
-						</span>
-						<span className="relative">
-							return to queue
-							<span
-								aria-hidden="true"
-								className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-							/>
-						</span>
-					</button>
+						Return to queue
+					</EmployeeActionButton>
 				) : pipeline.length === 0 ? (
 					<span
-						className="shrink-0 font-[family-name:var(--font-archivo)] italic"
+						className="order-3 w-full shrink-0 text-center font-[family-name:var(--font-archivo)] italic lg:order-none lg:w-auto lg:text-start"
 						style={{
 							fontSize: '11px',
 							color: 'var(--color-text-subtle)',
@@ -527,10 +489,7 @@ export function SalesModule() {
 						queue is empty
 					</span>
 				) : (
-					<div
-						className="relative shrink-0 overflow-hidden"
-						style={{ width: '320px' }}
-					>
+					<div className="relative order-3 w-full shrink-0 overflow-hidden lg:order-none lg:w-[320px]">
 						{/* Leading gradient — quiet start to the running log */}
 						<div
 							aria-hidden="true"
@@ -734,45 +693,25 @@ export function SalesModule() {
 				caption="This quote returns to the running queue when time is up."
 			>
 				<DispatchBody>
-					<ul className="divide-y divide-black/[0.08] dark:divide-white/[0.1]">
+					<ul className="grid gap-2">
 						{SAVE_DURATIONS.map(({ label, minutes }) => (
 							<li key={minutes}>
 								<button
 									type="button"
 									onClick={() => handleSaveConfirm(minutes)}
-									className="group flex w-full items-baseline justify-between px-1 py-3 text-start transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+									className="group flex min-h-14 w-full items-center justify-between gap-4 rounded-md border border-[var(--color-border)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
 								>
-									<span className="flex items-baseline gap-2">
-										<span
-											className="font-[family-name:var(--font-literata)] italic"
-											style={{
-												fontSize: '15px',
-												fontWeight: 500,
-												color: 'var(--color-text)',
-												letterSpacing: '-0.012em',
-											}}
-										>
-											in {label.toLowerCase()}
+									<span className="min-w-0">
+										<span className="block font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+											Return in {label.toLowerCase()}
+										</span>
+										<span className="mt-0.5 block font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+											Move this quote out of the live queue
 										</span>
 									</span>
-									<span
-										className="inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic transition-colors group-hover:text-[var(--color-primary)]"
-										style={{
-											fontSize: '11.5px',
-											color: 'var(--color-text-subtle)',
-										}}
-									>
-										<span>save</span>
-										<span
-											aria-hidden="true"
-											className="transition-transform group-hover:translate-x-[3px]"
-											style={{
-												fontStyle: 'italic',
-												color: 'var(--color-primary)',
-											}}
-										>
-											→
-										</span>
+									<span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--color-primary)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-transform group-hover:translate-x-0.5">
+										Save
+										<span aria-hidden="true">→</span>
 									</span>
 								</button>
 							</li>
@@ -832,15 +771,16 @@ export function SalesModule() {
 								<button
 									key={customer.id}
 									type="button"
+									data-searchmenu-row="true"
 									onClick={() => {
 										setCustomerSelectOpen(false)
 										setNewQuoteCustomer(customer)
 									}}
-									className="group flex w-full items-baseline gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+									className="group flex w-full flex-col gap-1 px-4 py-3 text-left outline-none transition-colors data-[active=true]:bg-[var(--color-primary)]/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:flex-row lg:items-baseline lg:gap-3"
 								>
 									<div className="min-w-0 flex-1">
 										<div
-											className="truncate font-[family-name:var(--font-literata)] italic transition-colors group-hover:text-[var(--color-primary)]"
+											className="break-words font-[family-name:var(--font-literata)] italic transition-colors group-hover:text-[var(--color-primary)] lg:truncate"
 											style={{
 												fontSize: '14.5px',
 												fontWeight: 500,
@@ -852,7 +792,7 @@ export function SalesModule() {
 										</div>
 										{customer.address && (
 											<p
-												className="mt-0.5 truncate font-[family-name:var(--font-archivo)] italic"
+												className="mt-0.5 break-words font-[family-name:var(--font-archivo)] italic lg:truncate"
 												style={{
 													fontSize: '10.5px',
 													color: 'var(--color-text-subtle)',
@@ -880,6 +820,7 @@ export function SalesModule() {
 										<div className="mx-4 my-1 border-t border-black/[0.04] dark:border-white/[0.04]" />
 										<button
 											type="button"
+											data-searchmenu-row="true"
 											onClick={() => {
 												setCustomerSelectOpen(false)
 												setNewQuoteCustomer({
@@ -887,11 +828,11 @@ export function SalesModule() {
 													name: search.trim(),
 												})
 											}}
-											className="group flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left outline-none transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+											className="group flex w-full flex-col gap-3 px-4 py-3 text-left outline-none transition-colors data-[active=true]:bg-[var(--color-primary)]/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:flex-row lg:items-start lg:justify-between"
 										>
 											<div className="min-w-0">
 												<div
-													className="truncate font-[family-name:var(--font-literata)] italic"
+													className="break-words font-[family-name:var(--font-literata)] italic lg:truncate"
 													style={{
 														fontSize: '14.5px',
 														fontWeight: 500,

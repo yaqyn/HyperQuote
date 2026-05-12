@@ -34,25 +34,29 @@ export function WarehouseReceivingQueue() {
 	}
 
 	return (
-		<div className="flex h-full w-full flex-col overflow-hidden">
+		<div
+			className={`h-full w-full flex-col overflow-hidden lg:flex ${
+				selectedDealId ? 'hidden' : 'flex'
+			}`}
+		>
 			<motion.header
 				initial={reduce ? false : { opacity: 0, y: -8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-				className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-8 pb-5"
+				className="shrink-0 border-b-[3px] border-[var(--color-text)] px-4 pt-6 pb-5 sm:px-6 lg:px-8 lg:pt-8"
 			>
-				<div className="flex items-start justify-between gap-8">
+				<div className="flex flex-col items-start gap-5 sm:flex-row sm:justify-between sm:gap-8">
 					<div>
 						<p className="font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.32em] text-black/60">
 							Dock · Bay 01
 						</p>
-						<h1 className="mt-2 font-[family-name:var(--font-geist-mono)] text-[44px] font-bold uppercase leading-[0.9] tracking-[-0.02em]">
+						<h1 className="mt-2 font-[family-name:var(--font-geist-mono)] text-[36px] font-bold uppercase leading-[0.9] tracking-[-0.02em] sm:text-[44px]">
 							Receiving
 							<br />
 							queue
 						</h1>
 					</div>
-					<div className="grid grid-cols-3 gap-6 text-end">
+					<div className="flex flex-wrap gap-x-6 gap-y-3 sm:justify-end sm:text-end">
 						<StatBlock label="Open" value={data.totals.total} />
 						<StatBlock label="Retry" value={data.totals.retrying} accent />
 						<StatBlock label="Fresh" value={data.totals.fresh} />
@@ -61,7 +65,7 @@ export function WarehouseReceivingQueue() {
 				<WarehouseTabSwitch />
 			</motion.header>
 
-			<div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
 				{data.deals.length === 0 ? (
 					<EmptyState />
 				) : (
@@ -102,7 +106,7 @@ function StatBlock({
 	accent?: boolean
 }) {
 	return (
-		<div className="flex flex-col items-end">
+		<div className="flex flex-col items-start sm:items-end">
 			<span
 				className={`font-[family-name:var(--font-geist-mono)] text-[44px] font-bold leading-none tabular-nums ${
 					accent ? 'text-[#CC3300]' : 'text-[var(--color-text)]'
@@ -180,7 +184,7 @@ function DealCard({
 			}`}
 			style={{ minHeight: '128px' }}
 		>
-			<div className="flex items-center justify-between">
+			<div className="flex flex-wrap items-center justify-between gap-y-1">
 				<span
 					className="inline-flex h-9 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em]"
 					style={{
@@ -195,8 +199,8 @@ function DealCard({
 				</span>
 			</div>
 
-			<div className="px-6 pb-5 pt-3">
-				<div className="grid grid-cols-[1fr,auto] gap-x-8 gap-y-3 items-end">
+			<div className="px-4 pb-5 pt-3 sm:px-6">
+				<div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto] sm:items-end sm:gap-x-8">
 					<div className="min-w-0">
 						<p className="truncate text-[22px] font-bold leading-tight text-[var(--color-text)]">
 							{deal.supplierName}
@@ -209,8 +213,8 @@ function DealCard({
 						</p>
 					</div>
 
-					<div className="text-end">
-						<div className="flex items-baseline gap-1 justify-end">
+					<div className="sm:text-end">
+						<div className="flex items-baseline gap-1 sm:justify-end">
 							<span className="font-[family-name:var(--font-geist-mono)] text-[26px] font-bold leading-none tabular-nums">
 								{deal.receivedCount}
 							</span>
@@ -239,7 +243,7 @@ function DealCard({
 					</span>
 				</div>
 
-				<div className="mt-2 flex items-center justify-between font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.18em] text-black/50">
+				<div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.18em] text-black/50">
 					<span>
 						{deal.pendingCount} pending
 						{deal.previousAttemptCount > 0 &&

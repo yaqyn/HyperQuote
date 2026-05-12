@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { useFinanceStore } from '../../stores/finance'
 import { FinanceDealsOrdersView } from './FinanceDealsOrdersView'
 import { FinanceTabStrip } from './FinanceTabStrip'
@@ -13,7 +14,7 @@ import { FinanceTabStrip } from './FinanceTabStrip'
 export function FinanceModule() {
 	const activeTab = useFinanceStore((s) => s.activeTab)
 
-	const tabContent: Record<string, React.ReactNode> = {
+	const tabContent: Record<string, ReactNode> = {
 		'deals-orders': <FinanceDealsOrdersView />,
 		history: <HistoryPlaceholder />,
 	}
@@ -48,12 +49,21 @@ export function FinanceModule() {
 function HistoryPlaceholder() {
 	return (
 		<div className="flex h-full items-center justify-center px-10">
-			<p
-				className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
-				style={{ fontSize: '14px', letterSpacing: '-0.008em' }}
-			>
-				the archives · a volume still in binding.
-			</p>
+			<div className="max-w-[360px] text-center">
+				<p
+					className="font-[family-name:var(--font-bricolage)] font-semibold text-[var(--color-text)]"
+					style={{ fontSize: '16px' }}
+				>
+					History is not connected yet
+				</p>
+				<p
+					className="mt-1 font-[family-name:var(--font-bricolage)] text-[var(--color-text-subtle)]"
+					style={{ fontSize: '12.5px', lineHeight: 1.5 }}
+				>
+					Settled receipts and supplier payments will appear here when the
+					archive source is ready.
+				</p>
+			</div>
 		</div>
 	)
 }

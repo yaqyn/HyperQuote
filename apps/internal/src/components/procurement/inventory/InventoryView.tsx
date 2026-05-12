@@ -1,5 +1,6 @@
 import type { BroadCategory } from '@hyperquote/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { sanitizeCost } from '../../../lib/inputs'
 import {
@@ -10,6 +11,11 @@ import {
 	updateInventoryPrice,
 } from '../../../lib/server/inventory'
 import { useProcurementStore } from '../../../stores/procurement'
+import {
+	EmployeeActionButton,
+	EmployeeFilterChip,
+	EmployeeSearchField,
+} from '../../shared/EmployeeControls'
 import { PriceConfirmDialog } from './PriceConfirmDialog'
 import { ProductDetailModal } from './ProductDetailModal'
 import { SupplierProfileModal } from './SupplierProfileModal'
@@ -55,7 +61,7 @@ export function InventoryView() {
 	const qc = useQueryClient()
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['inventory-overview'],
 		queryFn: () => getInventoryOverview({ data: {} }),
 		staleTime: 30_000,
@@ -152,6 +158,21 @@ export function InventoryView() {
 		})
 	}, [data, activeCategory, onlyUrgent, search])
 
+	if (isError) {
+		return (
+			<div className="flex h-full items-center justify-center px-6 text-center">
+				<div className="max-w-sm rounded-md border border-red-600/20 bg-red-600/[0.04] px-4 py-3">
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
+						Price desk could not load.
+					</p>
+					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
+						Refresh before confirming supplier prices.
+					</p>
+				</div>
+			</div>
+		)
+	}
+
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full items-center justify-center">
@@ -167,7 +188,7 @@ export function InventoryView() {
 
 	return (
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
-			<div className="mx-auto flex max-w-[920px] flex-col px-10 pt-8 pb-16">
+			<div className="mx-auto flex max-w-[920px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-8">
 				<DeskMasthead
 					totals={data.totals}
 					activeCategory={activeCategory}
@@ -184,6 +205,8 @@ export function InventoryView() {
 					setSearch={setSearch}
 					onlyUrgent={onlyUrgent}
 					setOnlyUrgent={setOnlyUrgent}
+					totalCount={data.totals.total}
+					urgentCount={data.totals.urgent}
 				/>
 
 				{filtered.length > 0 ? (
@@ -366,7 +389,7 @@ function TelephoneSpread({
 			aria-labelledby="telephone-heading"
 			className="mt-7 border-y border-[var(--rule-soft)] py-5"
 		>
-			<div className="flex items-baseline justify-between gap-4 pb-3">
+			<div className="flex flex-col items-start gap-1 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
 				<h2
 					id="telephone-heading"
 					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink)]"
@@ -394,48 +417,27 @@ function TelephoneSpread({
 				</p>
 			</div>
 
-			<ul
-				className="grid gap-x-8 gap-y-1"
-				style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
-			>
+			<ul className="grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
 				{suppliers.map((supplier) => (
 					<li key={supplier.name}>
 						<button
 							type="button"
 							onClick={() => onOpen(supplier.name)}
-							className="group flex w-full items-baseline gap-2 py-1.5 text-start outline-none"
+							className="group flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-[var(--rule-soft)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--compendium-brand)]/35 hover:bg-[var(--compendium-brand)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--compendium-brand)]/25"
 						>
-							<span
-								className="font-[family-name:var(--font-fraunces)] transition-colors text-[var(--ink)] group-hover:text-[var(--compendium-brand)]"
-								style={{
-									fontSize: '13.5px',
-									fontWeight: 500,
-									letterSpacing: '-0.005em',
-								}}
-							>
-								{supplier.name}
-							</span>
-							<span
-								aria-hidden="true"
-								className="h-px flex-1 translate-y-[-3px] bg-[var(--rule-soft)]"
-							/>
-							<span className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums text-[var(--ink-mid)]">
-								{supplier.outdatedQuotes}
-							</span>
-							{supplier.urgentQuotes > 0 && (
-								<span
-									className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums"
-									style={{ color: 'var(--compendium-stale)' }}
-								>
-									{supplier.urgentQuotes}
+							<div className="min-w-0">
+								<span className="block truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--ink)]">
+									{supplier.name}
 								</span>
-							)}
-							<span
-								aria-hidden="true"
-								className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)] opacity-0 transition-opacity group-hover:opacity-100"
-								style={{ fontSize: '13px' }}
-							>
-								→
+								<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--ink-mid)]">
+									{supplier.outdatedQuotes} outdated
+									{supplier.urgentQuotes > 0
+										? ` · ${supplier.urgentQuotes} urgent`
+										: ''}
+								</span>
+							</div>
+							<span className="shrink-0 rounded-md bg-[var(--color-primary)] px-2 py-1 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+								Open
 							</span>
 						</button>
 					</li>
@@ -452,63 +454,42 @@ function DeskToolbar({
 	setSearch,
 	onlyUrgent,
 	setOnlyUrgent,
+	totalCount,
+	urgentCount,
 }: {
 	search: string
 	setSearch: (s: string) => void
 	onlyUrgent: boolean
 	setOnlyUrgent: (v: boolean | ((prev: boolean) => boolean)) => void
+	totalCount: number
+	urgentCount: number
 }) {
 	return (
-		<div className="mt-6 flex items-center gap-5 border-b border-[var(--rule-soft)] pb-3">
-			<div className="flex flex-1 items-baseline gap-2">
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '11.5px' }}
+		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-4 lg:flex-row lg:items-center lg:gap-4">
+			<EmployeeSearchField
+				value={search}
+				onChange={setSearch}
+				label="Search prices"
+				placeholder="Search product, SKU, or supplier"
+				className="lg:flex-1"
+			/>
+			<div className="flex flex-wrap gap-2">
+				<EmployeeFilterChip
+					active={!onlyUrgent}
+					count={totalCount}
+					onClick={() => setOnlyUrgent(false)}
 				>
-					find
-				</span>
-				<input
-					type="search"
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					placeholder="a product, sku, or supplier"
-					className="w-full bg-transparent font-[family-name:var(--font-fraunces)] text-[14px] text-[var(--ink)] outline-none placeholder:font-[family-name:var(--font-fraunces)] placeholder:italic placeholder:text-[var(--ink-ghost)]"
-				/>
-				{search && (
-					<button
-						type="button"
-						onClick={() => setSearch('')}
-						className="font-[family-name:var(--font-fraunces)] italic text-[11px] text-[var(--ink-mid)] hover:text-[var(--ink)]"
-					>
-						clear
-					</button>
-				)}
+					All prices
+				</EmployeeFilterChip>
+				<EmployeeFilterChip
+					active={onlyUrgent}
+					count={urgentCount}
+					tone="primary"
+					onClick={() => setOnlyUrgent((v) => !v)}
+				>
+					Needs update
+				</EmployeeFilterChip>
 			</div>
-
-			<button
-				type="button"
-				onClick={() => setOnlyUrgent((v) => !v)}
-				aria-pressed={onlyUrgent}
-				className="group flex items-center gap-2 outline-none"
-			>
-				<span
-					aria-hidden="true"
-					className="h-[9px] w-[9px] rounded-full transition-all"
-					style={{
-						background: onlyUrgent ? 'var(--compendium-stale)' : 'transparent',
-						border: onlyUrgent ? '0' : '1px solid var(--rule)',
-					}}
-				/>
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic transition-colors"
-					style={{
-						fontSize: '12px',
-						color: onlyUrgent ? 'var(--ink)' : 'var(--ink-soft)',
-					}}
-				>
-					only the urgent
-				</span>
-			</button>
 		</div>
 	)
 }
@@ -533,11 +514,13 @@ function PriceEntry({
 	const [editing, setEditing] = useState(false)
 	const [draft, setDraft] = useState('')
 	const tone = toneFor(product.hoursSinceUpdate, product.isUrgent)
-	const toneColor = {
-		fresh: 'var(--compendium-fresh)',
-		aging: 'var(--compendium-aging)',
-		stale: 'var(--compendium-stale)',
-	}[tone]
+	const toneColor = product.isUrgent
+		? 'var(--compendium-brand)'
+		: {
+				fresh: 'var(--compendium-fresh)',
+				aging: 'var(--compendium-aging)',
+				stale: 'var(--compendium-stale)',
+			}[tone]
 
 	const beginEdit = () => {
 		setDraft(String(product.rawCost))
@@ -556,15 +539,9 @@ function PriceEntry({
 	}
 
 	return (
-		<li
-			className="relative grid items-start border-t border-[var(--rule-soft)] py-5"
-			style={{
-				gridTemplateColumns: '22px 1fr auto 96px',
-				columnGap: '24px',
-			}}
-		>
+		<li className="relative flex flex-col gap-4 border-t border-[var(--rule-soft)] py-5 pl-8 md:grid md:grid-cols-[22px_minmax(0,1fr)_auto_132px] md:items-start md:gap-x-6 md:gap-y-0 md:pl-0">
 			{/* Left margin: index number + alert mark. */}
-			<div className="relative pt-1">
+			<div className="absolute left-0 top-5 md:relative md:left-auto md:top-auto md:pt-1">
 				{tone === 'stale' && (
 					<span
 						aria-hidden="true"
@@ -584,10 +561,10 @@ function PriceEntry({
 			<button
 				type="button"
 				onClick={() => onOpenDetail(product.slug)}
-				className="min-w-0 text-start outline-none"
+				className="group/body min-w-0 text-start outline-none"
 			>
 				<p
-					className="font-[family-name:var(--font-fraunces)] leading-[1.12] text-[var(--ink)] transition-colors group-hover:text-[var(--compendium-brand)]"
+					className="font-[family-name:var(--font-fraunces)] leading-[1.12] text-[var(--ink)] transition-colors group-hover/body:text-[var(--compendium-brand)]"
 					style={{
 						fontSize: '19px',
 						fontWeight: 500,
@@ -638,7 +615,7 @@ function PriceEntry({
 			</button>
 
 			{/* Cost — inline editable */}
-			<div className="flex flex-col items-end pt-1">
+			<div className="flex flex-col items-start pt-1 md:col-auto md:items-end">
 				{editing ? (
 					<input
 						value={draft}
@@ -695,42 +672,55 @@ function PriceEntry({
 			</div>
 
 			{/* Right gutter: age + status */}
-			<div className="flex flex-col items-end pt-1">
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-					style={{ fontSize: '11.5px' }}
-				>
-					last quoted
-				</span>
-				<span
-					className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums"
-					style={{ color: toneColor }}
-				>
-					{formatHoursAgo(product.hoursSinceUpdate)} ago
-				</span>
-				<span
-					className="mt-1 font-[family-name:var(--font-fraunces)] italic"
-					style={{
-						fontSize: '10.5px',
-						color: isSaving
-							? 'var(--compendium-brand)'
+			<div className="flex flex-col items-start gap-2 pt-1 md:col-auto md:items-end">
+				<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:flex-col md:items-end md:gap-0">
+					<span
+						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
+						style={{ fontSize: '11.5px' }}
+					>
+						last quoted
+					</span>
+					<span
+						className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums"
+						style={{ color: toneColor }}
+					>
+						{formatHoursAgo(product.hoursSinceUpdate)} ago
+					</span>
+					<span
+						className="mt-1 font-[family-name:var(--font-fraunces)] italic"
+						style={{
+							fontSize: '10.5px',
+							color: isSaving
+								? 'var(--compendium-brand)'
+								: justSaved
+									? 'var(--compendium-fresh)'
+									: toneColor,
+						}}
+					>
+						{isSaving
+							? 'saving…'
 							: justSaved
-								? 'var(--compendium-fresh)'
-								: toneColor,
-					}}
+								? 'saved'
+								: product.isUrgent
+									? 'needs update'
+									: product.priceStatus === 'outdated'
+										? tone === 'aging'
+											? 'aging'
+											: 'stale'
+										: 'fresh'}
+					</span>
+				</div>
+				<EmployeeActionButton
+					size="sm"
+					tone={product.isUrgent ? 'primary' : 'neutral'}
+					leading={<Pencil size={13} strokeWidth={2.4} />}
+					onClick={beginEdit}
+					disabled={isSaving || editing}
+					fullWidthOnMobile
+					className="md:w-auto"
 				>
-					{isSaving
-						? 'saving…'
-						: justSaved
-							? 'saved'
-							: product.isUrgent
-								? 'urgent'
-								: product.priceStatus === 'outdated'
-									? tone === 'aging'
-										? 'aging'
-										: 'stale'
-									: 'fresh'}
-				</span>
+					{editing ? 'Editing price' : 'Update price'}
+				</EmployeeActionButton>
 			</div>
 		</li>
 	)

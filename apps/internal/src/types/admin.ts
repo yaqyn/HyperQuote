@@ -1,10 +1,8 @@
-// Admin domain — the developer's registry
+// Admin domain — the internal registry
 //
-// The admin module is a dev-facing console for direct CRUD over the
-// underlying data tables (customers, products, employees, drivers,
-// suppliers). It intentionally bypasses the business-flow affordances
-// the other modules provide: no tiering workflow, no quote pipeline,
-// no assignment rules — just the raw records.
+// The admin module is an ops-facing console for direct maintenance of
+// records that other internal panels rely on: customers, products,
+// employees, drivers, and suppliers.
 //
 // Volumes are the organizing metaphor: each volume is one table in
 // the registry. The UI surfaces them as roman-numeraled entries in a

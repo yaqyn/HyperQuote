@@ -1,24 +1,33 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Paperclip } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { AlertTriangle, Paperclip, Send } from 'lucide-react'
+import {
+	type ChangeEvent,
+	type KeyboardEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { sendReply } from '../../lib/server/customer-service'
 import type { Conversation } from '../../types/customer-service'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 
 interface ResponseComposerProps {
 	conversation: Conversation
 }
 
 /**
- * Letterhead — narrow outbound column on the switchboard. The textarea
- * has no visible border until you type; the send action reads as prose
- * ("Transmit →") rather than a button. Enter commits; Shift+Enter
- * inserts a line break.
+ * Live reply composer. Enter commits; Shift+Enter inserts a line break.
  */
 export function ResponseComposer({ conversation }: ResponseComposerProps) {
 	const { t } = useTranslation('customer-service')
 	const [content, setContent] = useState('')
+	const [isSending, setIsSending] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const queryClient = useQueryClient()
 
@@ -27,90 +36,102 @@ export function ResponseComposer({ conversation }: ResponseComposerProps) {
 	}, [])
 
 	const handleSend = useCallback(async () => {
-		if (!content.trim()) return
+		if (!content.trim() || isSending) return
 		const text = content.trim()
-		setContent('')
-		if (textareaRef.current) {
-			textareaRef.current.style.height = 'auto'
+		setIsSending(true)
+		setError(null)
+		try {
+			await sendReply({
+				data: {
+					conversationId: conversation.id,
+					channel: conversation.channel,
+					content: text,
+				},
+			})
+			setContent('')
+			if (textareaRef.current) {
+				textareaRef.current.style.height = 'auto'
+			}
+			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+		} catch {
+			setError('Reply was not sent. Keep the text and try again.')
+		} finally {
+			setIsSending(false)
 		}
-		await sendReply({
-			data: {
-				conversationId: conversation.id,
-				channel: conversation.channel,
-				content: text,
-			},
-		})
-		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
-	}, [content, conversation.id, conversation.channel, queryClient])
+	}, [content, conversation.id, conversation.channel, isSending, queryClient])
 
 	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		(e: KeyboardEvent<HTMLTextAreaElement>) => {
 			if (e.key === 'Enter' && !e.shiftKey) {
 				e.preventDefault()
-				handleSend()
+				void handleSend()
 			}
 		},
 		[handleSend],
 	)
 
-	function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+	function handleInput(e: ChangeEvent<HTMLTextAreaElement>) {
 		setContent(e.target.value)
+		setError(null)
 		const el = e.target
 		el.style.height = 'auto'
-		el.style.height = `${Math.min(el.scrollHeight, 180)}px`
+		el.style.height = `${Math.min(el.scrollHeight, 220)}px`
 	}
 
 	const hasContent = content.trim().length > 0
 
 	return (
-		<div className="shrink-0 border-t border-black/[0.06] dark:border-white/[0.08] px-10 py-4">
-			{/* Letterhead eyebrow */}
-			<div className="flex items-center justify-between mb-2">
-				<p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
-					broadcasting · support
+		<div className="shrink-0 border-t border-black/[0.06] bg-[var(--color-surface)] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:px-8">
+			<div className="mb-3 flex items-center justify-between gap-3">
+				<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+					Reply to customer
 				</p>
-				<Button
+				<button
+					type="button"
 					aria-label={t('composer.attach')}
-					className="flex items-center justify-center w-6 h-6 text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
+					className="flex h-9 w-9 items-center justify-center rounded-md border border-black/[0.1] text-[var(--color-text-subtle)] transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] dark:border-white/[0.12]"
 				>
-					<Paperclip size={13} strokeWidth={1.5} />
-				</Button>
+					<Paperclip size={15} strokeWidth={2.1} />
+				</button>
 			</div>
 
-			{/* Textarea — no border except an on-focus hairline */}
 			<textarea
 				ref={textareaRef}
 				value={content}
 				onChange={handleInput}
 				onKeyDown={handleKeyDown}
 				placeholder={t('composer.placeholder')}
-				rows={1}
-				className="w-full resize-none bg-transparent outline-none py-1
-          font-[family-name:var(--font-literata)] text-[14.5px] leading-[1.7]
-          text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)]
-          placeholder:italic border-b border-transparent
-          focus:border-[var(--color-text)]/30 transition-colors"
-				style={{ fontVariationSettings: '"opsz" 16, "wght" 400' }}
+				rows={2}
+				className="max-h-[220px] min-h-20 w-full resize-none rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-3 font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 			/>
 
-			{/* Transmit line */}
-			<div className="flex items-center justify-between mt-2.5">
-				<span className="font-[family-name:var(--font-jetbrains-mono)] text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-					{t('composer.sendShortcut')}
+			{error && (
+				<div className="mt-3">
+					<EmployeeStatusPill
+						tone="danger"
+						leading={<AlertTriangle size={13} strokeWidth={2.2} />}
+					>
+						{error}
+					</EmployeeStatusPill>
+				</div>
+			)}
+
+			<div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<span className="font-[family-name:var(--font-archivo)] text-[12px] leading-snug text-[var(--color-text-muted)]">
+					{t('composer.sendShortcut')} · Shift+Enter for a new line
 				</span>
-				<Button
-					onPress={handleSend}
-					isDisabled={!hasContent}
+				<EmployeeActionButton
+					onClick={() => {
+						void handleSend()
+					}}
+					disabled={!hasContent || isSending}
 					aria-label={t('composer.send')}
-					className={`font-[family-name:var(--font-inter)] text-[13px] font-medium transition-colors outline-none border-b border-transparent focus-visible:border-[var(--color-primary)]
-            ${
-							hasContent
-								? 'text-[var(--color-primary)] hover:border-[var(--color-primary)]'
-								: 'text-[var(--color-text-subtle)]/60'
-						}`}
+					tone="primary"
+					leading={<Send size={14} strokeWidth={2.2} />}
+					fullWidthOnMobile
 				>
-					Transmit →
-				</Button>
+					{isSending ? 'Sending reply' : 'Send reply'}
+				</EmployeeActionButton>
 			</div>
 		</div>
 	)

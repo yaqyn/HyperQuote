@@ -63,7 +63,7 @@ export function NegotiationView({
 		<div className="flex h-full flex-col">
 			{/* Top bar: Back + Actions — actions at the TOP, not buried */}
 			<div className="shrink-0 border-b border-black/[0.06] px-5 py-3 dark:border-white/[0.06]">
-				<div className="flex items-center gap-2">
+				<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 					{onBack && (
 						<button
 							type="button"
@@ -89,7 +89,7 @@ export function NegotiationView({
 						{t('sales.negotiation.actions.reviseQuote', 'Revise Quote')}
 					</Button>
 
-					<div className="flex-1" />
+					<div className="hidden flex-1 lg:block" />
 
 					<Button variant="ghost" onPress={() => setShowLostDialog(true)}>
 						{t('sales.negotiation.actions.markAsLost', 'Mark as Lost')}
@@ -98,9 +98,9 @@ export function NegotiationView({
 			</div>
 
 			{/* Split layout: Timeline (narrow left) + Content (right) */}
-			<div className="flex min-h-0 flex-1">
+			<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 				{/* Version Timeline — vertical thread on the left */}
-				<div className="w-[280px] shrink-0 overflow-y-auto border-e border-black/[0.06] dark:border-white/[0.06]">
+				<div className="max-h-48 shrink-0 overflow-y-auto border-b border-black/[0.06] dark:border-white/[0.06] lg:max-h-none lg:w-[280px] lg:border-e lg:border-b-0">
 					<VersionTimeline
 						quoteId={quoteId}
 						selectedVersions={selectedVersions}
@@ -111,9 +111,9 @@ export function NegotiationView({
 				{/* Main content area */}
 				<div className="flex min-w-0 flex-1 flex-col">
 					{/* Comparison + collapsible What-If */}
-					<div className="flex min-h-0 flex-1">
+					<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 						<div
-							className={`flex flex-col overflow-hidden ${whatIfExpanded ? 'w-[60%]' : 'flex-1'}`}
+							className={`flex min-h-0 flex-col overflow-hidden ${whatIfExpanded ? 'lg:w-[60%]' : 'flex-1'}`}
 						>
 							<SideBySideComparison
 								versionAId={selectedVersions[0]}
@@ -121,18 +121,18 @@ export function NegotiationView({
 							/>
 						</div>
 						{whatIfExpanded ? (
-							<div className="w-[40%] overflow-hidden border-s border-black/[0.06] dark:border-white/[0.06]">
+							<div className="min-h-[360px] overflow-hidden border-t border-black/[0.06] dark:border-white/[0.06] lg:w-[40%] lg:border-s lg:border-t-0">
 								<WhatIfCalculator
 									quoteId={quoteId}
 									onApplyMargins={onReviseQuote}
 								/>
 							</div>
 						) : (
-							<div className="shrink-0 border-s border-black/[0.06] dark:border-white/[0.06]">
+							<div className="shrink-0 border-t border-black/[0.06] dark:border-white/[0.06] lg:border-s lg:border-t-0">
 								<button
 									type="button"
 									onClick={() => setWhatIfExpanded(true)}
-									className="h-full px-3 text-[11px] font-medium text-[var(--color-primary)] transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] [writing-mode:vertical-rl] rotate-180"
+									className="w-full px-3 py-2 text-[11px] font-medium text-[var(--color-primary)] transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] lg:h-full lg:w-auto lg:rotate-180 lg:[writing-mode:vertical-rl]"
 								>
 									{t(
 										'sales.negotiation.whatIfCalculator',

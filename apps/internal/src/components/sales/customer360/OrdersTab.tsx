@@ -31,7 +31,7 @@ export function OrdersTab({ customerId, enabled }: OrdersTabProps) {
 	}
 
 	return (
-		<div className="p-6">
+		<div className="p-4 sm:p-6">
 			{/* Order rows — same pattern as quotes: clean expandable list */}
 			<div className="space-y-0">
 				{data.map((order) => (
@@ -41,20 +41,20 @@ export function OrdersTab({ customerId, enabled }: OrdersTabProps) {
 							onClick={() =>
 								setExpandedId(expandedId === order.id ? null : order.id)
 							}
-							className="w-full text-start flex items-center gap-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04] last:border-b-0 hover:bg-black/[0.01] dark:hover:bg-white/[0.02] transition-colors"
+							className="flex w-full flex-col gap-2 border-b border-black/[0.04] py-3 text-start transition-colors last:border-b-0 hover:bg-black/[0.01] dark:border-white/[0.04] dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:gap-4"
 						>
 							{/* Order number */}
-							<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] font-medium text-[#2563EB] w-[100px] shrink-0">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums text-[#2563EB] sm:w-[100px] sm:shrink-0">
 								{order.orderNumber}
 							</span>
 
 							{/* Date */}
-							<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-black/40 dark:text-white/40 w-[90px] shrink-0">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-black/40 dark:text-white/40 sm:w-[90px] sm:shrink-0">
 								{new Date(order.createdAt).toLocaleDateString()}
 							</span>
 
 							{/* Total */}
-							<span className="font-[family-name:var(--font-geist-mono)] tabular-nums text-[13px] text-[var(--color-text)] dark:text-white flex-1">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] dark:text-white sm:flex-1">
 								{formatCurrency(order.total)}
 							</span>
 
@@ -66,7 +66,7 @@ export function OrdersTab({ customerId, enabled }: OrdersTabProps) {
 
 						{/* Expanded details */}
 						{expandedId === order.id && (
-							<div className="ps-[100px] py-3 flex gap-6 text-[11px] border-b border-black/[0.04] dark:border-white/[0.04]">
+							<div className="flex flex-col gap-3 border-b border-black/[0.04] py-3 text-[11px] dark:border-white/[0.04] sm:flex-row sm:gap-6 sm:ps-[100px]">
 								<div>
 									<span className="text-black/30 dark:text-white/30">
 										{t('sales.customer360.orders.delivery')}

@@ -23,14 +23,14 @@ export function ProcurementModule() {
 	}
 
 	return (
-		<div className="compendium-theme compendium-paper relative flex h-full text-[var(--ink)]">
+		<div className="compendium-theme compendium-paper relative flex h-full flex-col overflow-hidden text-[var(--ink)] lg:flex-row">
 			<ProcurementShortcuts />
 
-			{/* Persistent index — left rail */}
+			{/* Persistent index — left rail on desktop, bounded top shelf below it. */}
 			<CompendiumIndex />
 
 			{/* Spread — tab strip + chapter content */}
-			<div className="relative flex flex-1 min-w-0 flex-col">
+			<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
 				<div className="shrink-0">
 					<ProcurementTabStrip />
 				</div>

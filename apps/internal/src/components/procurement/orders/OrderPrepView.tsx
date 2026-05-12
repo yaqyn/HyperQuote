@@ -14,6 +14,10 @@ import {
 	getCustomerOrderDetail,
 	type OrderLineItemView,
 } from '../../../lib/server/orders'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../../shared/EmployeeControls'
 import { RefillPanel } from '../stock/RefillPanel'
 
 interface OrderPrepViewProps {
@@ -23,7 +27,7 @@ interface OrderPrepViewProps {
 
 export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 	const qc = useQueryClient()
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['customer-order-detail', quoteId],
 		queryFn: () => getCustomerOrderDetail({ data: { quoteId } }),
 		staleTime: 10_000,
@@ -41,6 +45,30 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 		},
 	})
 
+	if (isError) {
+		return (
+			<div className="flex h-full items-center justify-center px-6 text-center">
+				<div className="max-w-sm rounded-md border border-red-600/20 bg-red-600/[0.04] px-4 py-3">
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
+						Order prep could not load.
+					</p>
+					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
+						Return to orders and reopen this one before approving it.
+					</p>
+					<EmployeeActionButton
+						tone="neutral"
+						size="sm"
+						leading={<ArrowLeft size={13} strokeWidth={2.4} />}
+						onClick={onBack}
+						className="mt-3"
+					>
+						Back to orders
+					</EmployeeActionButton>
+				</div>
+			</div>
+		)
+	}
+
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-subtle)]">
@@ -51,11 +79,17 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 
 	const shortages = data.items.filter((i) => i.status === 'shortage')
 	const readyItems = data.items.filter((i) => i.status === 'ready')
+	const approveOrder = () =>
+		approveMutation.mutate({ data: { quoteId: data.quoteId } })
+	const deliveryNeed =
+		data.deliveryUrgencyDays <= 0
+			? 'needs today'
+			: `needs in ${data.deliveryUrgencyDays}d`
 
 	return (
 		<div className="relative flex h-full flex-col bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
 			<div
-				className="flex-1 min-h-0 overflow-y-auto px-6 py-5"
+				className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6"
 				data-module-content
 			>
 				<div className="mx-auto flex max-w-[1080px] flex-col gap-6">
@@ -70,7 +104,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 					</button>
 
 					{/* Header */}
-					<header className="flex items-start justify-between gap-8 border-b border-black/[0.04] pb-5 dark:border-white/[0.04]">
+					<header className="flex flex-col items-start gap-4 border-b border-black/[0.04] pb-5 dark:border-white/[0.04] sm:flex-row sm:justify-between sm:gap-8">
 						<div>
 							<p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
 								Order prep
@@ -93,58 +127,35 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 								</span>
 								<span className="inline-flex items-center gap-1">
 									<Clock size={10} strokeWidth={2} />
-									needs in {data.deliveryUrgencyDays}d
+									{deliveryNeed}
 								</span>
 							</div>
 						</div>
 
-						<div className="flex flex-col items-end gap-2">
-							{/* Readiness hero */}
+						<div className="flex flex-col items-start gap-2 sm:items-end">
 							{data.allReady ? (
-								<div className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/[0.08] px-3 py-2 text-emerald-700 dark:text-emerald-400">
-									<CheckCircle2 size={14} strokeWidth={2.5} />
-									<span className="text-[12px] font-semibold">
-										Ready to ship · every item in stock
-									</span>
-								</div>
+								<EmployeeStatusPill
+									tone="success"
+									leading={<CheckCircle2 size={14} strokeWidth={2.5} />}
+								>
+									Ready to ship · every item in stock
+								</EmployeeStatusPill>
 							) : (
-								<div className="inline-flex items-center gap-2 rounded-lg bg-amber-500/[0.1] px-3 py-2 text-amber-700 dark:text-amber-400">
-									<AlertTriangle size={14} strokeWidth={2.5} />
-									<span className="text-[12px] font-semibold">
-										{shortages.length} item{shortages.length !== 1 ? 's' : ''}{' '}
-										short
-									</span>
-								</div>
+								<EmployeeStatusPill
+									tone="warning"
+									leading={<AlertTriangle size={14} strokeWidth={2.5} />}
+								>
+									{shortages.length} item{shortages.length !== 1 ? 's' : ''}{' '}
+									short
+								</EmployeeStatusPill>
 							)}
-
-							<button
-								type="button"
-								disabled={!data.allReady || approveMutation.isPending}
-								onClick={() =>
-									approveMutation.mutate({ data: { quoteId: data.quoteId } })
-								}
-								className={`inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
-									data.allReady
-										? 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60'
-										: 'cursor-not-allowed border border-black/[0.08] text-[var(--color-text-subtle)] dark:border-white/[0.1]'
-								}`}
-							>
-								{approveMutation.isPending && (
-									<Loader2
-										size={12}
-										strokeWidth={2.5}
-										className="animate-spin"
-									/>
-								)}
-								Approve & ship to warehouse
-							</button>
 						</div>
 					</header>
 
 					{/* Shortages block — only if something's missing */}
 					{shortages.length > 0 && (
 						<section>
-							<div className="mb-3 flex items-center gap-2">
+							<div className="mb-3 flex flex-wrap items-center gap-2">
 								<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
 									Missing from inventory · {shortages.length}
 								</span>
@@ -168,7 +179,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 					{/* Ready items — collapsible summary */}
 					{readyItems.length > 0 && (
 						<section>
-							<div className="mb-3 flex items-center gap-2">
+							<div className="mb-3 flex flex-wrap items-center gap-2">
 								<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
 									Ready · {readyItems.length}
 								</span>
@@ -181,6 +192,54 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 							</div>
 						</section>
 					)}
+				</div>
+			</div>
+
+			<div className="shrink-0 border-t border-black/[0.06] bg-[var(--color-surface)] px-4 py-3 dark:border-white/[0.08] dark:bg-[#0A0A0A] sm:px-6">
+				<div className="mx-auto flex max-w-[1080px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<EmployeeActionButton
+						tone="neutral"
+						size="sm"
+						leading={<ArrowLeft size={13} strokeWidth={2.4} />}
+						onClick={onBack}
+						fullWidthOnMobile
+					>
+						Back to orders
+					</EmployeeActionButton>
+					{data.allReady ? (
+						<EmployeeStatusPill
+							tone="success"
+							leading={<CheckCircle2 size={14} strokeWidth={2.5} />}
+							className="justify-center"
+						>
+							Ready · {readyItems.length} item
+							{readyItems.length === 1 ? '' : 's'} in stock
+						</EmployeeStatusPill>
+					) : (
+						<EmployeeStatusPill
+							tone="warning"
+							leading={<AlertTriangle size={14} strokeWidth={2.5} />}
+							className="justify-center"
+						>
+							Refill {shortages.length} item
+							{shortages.length === 1 ? '' : 's'} before warehouse
+						</EmployeeStatusPill>
+					)}
+					<EmployeeActionButton
+						tone="success"
+						leading={
+							approveMutation.isPending ? (
+								<Loader2 size={13} strokeWidth={2.5} className="animate-spin" />
+							) : (
+								<CheckCircle2 size={14} strokeWidth={2.5} />
+							)
+						}
+						disabled={!data.allReady || approveMutation.isPending}
+						onClick={approveOrder}
+						fullWidthOnMobile
+					>
+						Approve & ship to warehouse
+					</EmployeeActionButton>
 				</div>
 			</div>
 
@@ -210,17 +269,11 @@ function ShortageRow({
 	const onHandPct =
 		item.requiredQty > 0 ? (item.stockLevel / item.requiredQty) * 100 : 0
 	return (
-		<div
-			className="grid items-center gap-4 border-b border-black/[0.04] px-3 py-3 dark:border-white/[0.04]"
-			style={{
-				gridTemplateColumns:
-					'14px minmax(0,1.6fr) minmax(160px,1.2fr) minmax(180px,1.4fr) 130px',
-			}}
-		>
-			<div className="h-2 w-2 rounded-full bg-amber-500" />
+		<div className="relative flex flex-col items-start gap-3 border-b border-black/[0.04] py-3 pr-3 pl-8 dark:border-white/[0.04] md:grid md:grid-cols-[14px_minmax(0,1.6fr)_minmax(160px,1.2fr)_minmax(180px,1.4fr)_130px] md:items-center md:gap-4 md:px-3">
+			<div className="absolute left-3 top-4 h-2 w-2 rounded-full bg-amber-500 md:static" />
 
 			<div className="min-w-0">
-				<p className="truncate text-[12.5px] font-medium text-[var(--color-text)]">
+				<p className="text-[12.5px] font-medium leading-snug text-[var(--color-text)]">
 					{item.productName}
 				</p>
 				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
@@ -229,7 +282,7 @@ function ShortageRow({
 			</div>
 
 			{/* Required vs available */}
-			<div className="flex flex-col">
+			<div className="flex w-full flex-col md:col-auto">
 				<div className="flex items-baseline gap-1">
 					<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
 						{item.stockLevel.toLocaleString('en-EG')}
@@ -250,7 +303,7 @@ function ShortageRow({
 			</div>
 
 			{/* Shortage callout */}
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-2 md:col-auto">
 				<span
 					aria-hidden="true"
 					className="inline-block h-6 w-0.5 rounded-full bg-red-500/60"
@@ -266,14 +319,15 @@ function ShortageRow({
 			</div>
 
 			{/* Refill action */}
-			<button
-				type="button"
+			<EmployeeActionButton
+				size="sm"
+				leading={<Phone size={13} strokeWidth={2.5} />}
 				onClick={onRefill}
-				className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--color-primary)] py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[var(--color-primary)]/90"
+				fullWidthOnMobile
+				className="md:col-auto md:w-full"
 			>
-				<Phone size={10} strokeWidth={2.5} />
 				Refill
-			</button>
+			</EmployeeActionButton>
 		</div>
 	)
 }
@@ -282,17 +336,11 @@ function ShortageRow({
 
 function ReadyRow({ item }: { item: OrderLineItemView }) {
 	return (
-		<div
-			className="grid items-center gap-4 border-b border-black/[0.04] px-3 py-2.5 dark:border-white/[0.04]"
-			style={{
-				gridTemplateColumns:
-					'14px minmax(0,1.6fr) minmax(160px,1.2fr) minmax(180px,1.4fr) 130px',
-			}}
-		>
-			<div className="h-2 w-2 rounded-full bg-emerald-500" />
+		<div className="relative flex flex-col items-start gap-2 border-b border-black/[0.04] py-2.5 pr-3 pl-8 dark:border-white/[0.04] md:grid md:grid-cols-[14px_minmax(0,1.6fr)_minmax(160px,1.2fr)_minmax(180px,1.4fr)_130px] md:items-center md:gap-4 md:px-3">
+			<div className="absolute left-3 top-3.5 h-2 w-2 rounded-full bg-emerald-500 md:static" />
 
 			<div className="min-w-0">
-				<p className="truncate text-[12px] text-[var(--color-text)]">
+				<p className="text-[12px] leading-snug text-[var(--color-text)]">
 					{item.productName}
 				</p>
 				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
@@ -300,7 +348,7 @@ function ReadyRow({ item }: { item: OrderLineItemView }) {
 				</p>
 			</div>
 
-			<div className="flex items-baseline gap-1">
+			<div className="flex items-baseline gap-1 md:col-auto">
 				<span className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums text-[var(--color-text)]">
 					{item.requiredQty.toLocaleString('en-EG')}
 				</span>
@@ -309,11 +357,11 @@ function ReadyRow({ item }: { item: OrderLineItemView }) {
 				</span>
 			</div>
 
-			<div className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+			<div className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)] md:col-auto">
 				on hand {item.stockLevel.toLocaleString('en-EG')}
 			</div>
 
-			<div className="text-end font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
+			<div className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)] md:col-auto md:text-end">
 				{item.lineTotal.toLocaleString('en-EG')} EGP
 			</div>
 		</div>

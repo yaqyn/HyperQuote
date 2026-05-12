@@ -38,7 +38,7 @@ export function WarehousePrepFlow({ quoteId }: { quoteId: string | null }) {
 					animate={{ x: 0, opacity: 1 }}
 					exit={reduce ? undefined : { x: 40, opacity: 0 }}
 					transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-					className="hidden h-full w-[55%] shrink-0 md:flex"
+					className="flex h-full w-full shrink-0 lg:w-[55%]"
 				>
 					<PrepFlowInner quoteId={quoteId} />
 				</motion.div>
@@ -49,7 +49,7 @@ export function WarehousePrepFlow({ quoteId }: { quoteId: string | null }) {
 					animate={{ opacity: 1 }}
 					exit={reduce ? undefined : { opacity: 0 }}
 					transition={{ duration: 0.2 }}
-					className="hidden h-full w-[55%] shrink-0 md:flex"
+					className="hidden h-full w-[55%] shrink-0 lg:flex"
 				>
 					<EmptyPanel />
 				</motion.div>
@@ -98,7 +98,7 @@ function PrepFlowInner({ quoteId }: { quoteId: string }) {
 
 	if (isLoading || !order) {
 		return (
-			<aside className="flex h-full w-full flex-col items-center justify-center border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
+			<aside className="flex h-full w-full flex-col items-center justify-center border-[var(--color-text)] bg-[var(--color-surface)] lg:border-s-[3px]">
 				<p className="font-[family-name:var(--font-geist-mono)] text-[12px] uppercase tracking-[0.22em] text-black/40">
 					Loading order…
 				</p>
@@ -107,13 +107,13 @@ function PrepFlowInner({ quoteId }: { quoteId: string }) {
 	}
 
 	return (
-		<aside className="flex h-full w-full flex-col border-s-[3px] border-[var(--color-text)] bg-[var(--color-surface)]">
+		<aside className="flex h-full w-full flex-col border-[var(--color-text)] bg-[var(--color-surface)] lg:border-s-[3px]">
 			<PrepHeader
 				order={order}
 				onClose={() => setSelectedQuoteId(null)}
 				onReset={invalidate}
 			/>
-			<div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
 				<AnimatePresence mode="wait">
 					<motion.div
 						key={order.stage}
@@ -153,8 +153,8 @@ function PrepHeader({
 	})
 
 	return (
-		<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-8 pt-6 pb-5">
-			<div className="flex items-start justify-between gap-6">
+		<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-4 pt-5 pb-5 sm:px-6 lg:px-8 lg:pt-6">
+			<div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:gap-6">
 				<div className="min-w-0">
 					<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.3em] text-black/50">
 						Order in prep · {order.quoteNumber}
@@ -167,7 +167,7 @@ function PrepHeader({
 						{order.deliveryCity || '—'} · {order.itemCount} items
 					</p>
 				</div>
-				<div className="flex shrink-0 flex-col items-end gap-2">
+				<div className="flex shrink-0 flex-wrap items-start gap-2 sm:flex-col sm:items-end">
 					<motion.button
 						type="button"
 						onClick={onClose}
@@ -189,7 +189,7 @@ function PrepHeader({
 			</div>
 
 			{/* Stage rail */}
-			<div className="mt-5 grid grid-cols-4 gap-2">
+			<div className="mt-5 flex gap-2 overflow-x-auto sm:grid sm:grid-cols-4">
 				<StageTick
 					label="Truck"
 					active={order.stage !== 'unstarted'}
@@ -251,7 +251,7 @@ function StageTick({
 			layout
 			animate={{ backgroundColor: bg, color: textColor }}
 			transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
-			className="flex h-9 items-center justify-center border-[3px] border-[var(--color-text)] font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em]"
+			className="flex h-9 min-w-[112px] items-center justify-center border-[3px] border-[var(--color-text)] font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] sm:min-w-0"
 		>
 			{label}
 		</motion.div>
@@ -288,7 +288,7 @@ function ResetConfirmDialog({
 				animate={{ opacity: 1, scale: 1, y: 0 }}
 				exit={{ opacity: 0, scale: 0.94, y: 12 }}
 				transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-				className="fixed left-1/2 top-1/2 z-[80] w-[min(440px,90vw)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-[#CC3300] bg-[var(--color-surface)] p-7 shadow-[10px_10px_0_0_var(--color-text)]"
+				className="fixed left-1/2 top-1/2 z-[80] w-[min(440px,90vw)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-[#CC3300] bg-[var(--color-surface)] p-5 shadow-[6px_6px_0_0_var(--color-text)] sm:p-7 sm:shadow-[10px_10px_0_0_var(--color-text)]"
 			>
 				<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.24em] text-[#CC3300]">
 					Reset order
@@ -301,7 +301,7 @@ function ResetConfirmDialog({
 					the signoff if it was pending. Use this only if something went wrong —
 					the inventory reservation stays, so you won't lose the order.
 				</p>
-				<div className="mt-6 grid grid-cols-2 gap-3">
+				<div className="mt-6 flex flex-col gap-3 sm:grid sm:grid-cols-2">
 					<motion.button
 						type="button"
 						onClick={onCancel}
@@ -401,7 +401,7 @@ function LoadStage({
 			{order.truckAssignments.length > 0 && (
 				<section>
 					<SectionHeading index="01" title="Assigned trucks" />
-					<div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+					<div className="mt-3 flex flex-col gap-3 md:grid md:grid-cols-2">
 						{order.truckAssignments.map((a, idx) => {
 							const isEmpty = a.itemsLoaded.length === 0
 							return (
@@ -600,7 +600,7 @@ function TruckPicker({
 				where new trucks land.
 			</p>
 			<motion.div
-				className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2"
+				className="mt-4 flex flex-col gap-3 md:grid md:grid-cols-2"
 				initial="hidden"
 				animate="visible"
 				variants={{
@@ -704,7 +704,7 @@ function ItemChecklist({
 							: 'rgba(10,10,10,0.2)',
 						backgroundColor: item.loadedOnTruckId ? '#F0F7F0' : '#FFFFFF',
 					}}
-					className="flex flex-wrap items-center gap-3 border-[3px] px-5 py-4"
+					className="flex flex-col items-start gap-3 border-[3px] px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:px-5"
 					style={{ minHeight: '72px' }}
 				>
 					{/* Big check indicator */}
@@ -753,7 +753,7 @@ function ItemChecklist({
 					</div>
 
 					{/* Truck buttons — one per assigned truck */}
-					<div className="flex flex-wrap gap-2">
+					<div className="flex w-full flex-wrap gap-2 sm:w-auto">
 						{order.truckAssignments.map((a) => {
 							const isHere = item.loadedOnTruckId === a.truckId
 							return (
@@ -925,7 +925,7 @@ function SignoffStage({
 					Pick whoever is actually doing the signoff. Name comes from the
 					employee directory — the admin panel will manage who's on the list.
 				</p>
-				<div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+				<div className="mt-3 flex flex-col gap-2 md:grid md:grid-cols-2">
 					{employees.length === 0 && (
 						<div className="col-span-full border-[3px] border-dashed border-black/20 px-5 py-6 text-center font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.18em] text-black/45">
 							Loading employees…
@@ -977,7 +977,7 @@ function SignoffStage({
 					<strong>your badge</strong>. The signoff is locked to whoever
 					authenticates here — don't let anyone press pass behind your back.
 				</p>
-				<div className="mt-3 grid grid-cols-2 gap-2">
+				<div className="mt-3 flex flex-col gap-2 sm:grid sm:grid-cols-2">
 					<SecurityMethodTab
 						active={securityMethod === 'password'}
 						onPress={() => {
@@ -1017,7 +1017,7 @@ function SignoffStage({
 				<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
 					Quality check
 				</p>
-				<div className="mt-3 grid grid-cols-2 gap-3">
+				<div className="mt-3 flex flex-col gap-3 sm:grid sm:grid-cols-2">
 					<ToggleButton
 						active={qualityPass === true}
 						accent="#0A5C2E"
@@ -1199,7 +1199,7 @@ function ToggleButton({
 				color: active ? '#FFFFFF' : 'var(--color-text)',
 			}}
 			transition={{ duration: 0.22 }}
-			className="border-[3px] border-[var(--color-text)] px-5 py-5 text-start"
+			className="border-[3px] border-[var(--color-text)] px-4 py-5 text-start sm:px-5"
 			style={{ minHeight: '88px' }}
 		>
 			<p className="font-[family-name:var(--font-geist-mono)] text-[22px] font-bold uppercase tracking-[0.08em]">
@@ -1264,11 +1264,11 @@ function CompleteStage({
 				</p>
 			</motion.div>
 
-			<div className="grid gap-3">
+			<div className="flex flex-col gap-3">
 				{order.truckAssignments.map((a) => (
 					<div
 						key={a.truckId}
-						className="flex items-center justify-between border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-3"
+						className="flex flex-col items-start gap-2 border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
 					>
 						<div>
 							<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">

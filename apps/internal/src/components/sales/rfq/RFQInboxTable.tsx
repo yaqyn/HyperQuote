@@ -183,12 +183,12 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
 		>
 			{/* Top bar — stage filter nav + right actions */}
 			<div
-				className="shrink-0 flex items-center gap-6 px-6 py-3"
+				className="flex shrink-0 flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:gap-6"
 				style={{ borderBottom: '1px solid var(--color-border)' }}
 			>
 				{/* Stage filter tabs */}
-				<nav aria-label="RFQ stage filter">
-					<ol className="flex items-baseline gap-5">
+				<nav aria-label="RFQ stage filter" className="min-w-0">
+					<ol className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
 						{STAGE_FILTERS.map((stage) => {
 							const count = stageCounts[stage.id] ?? 0
 							const isActive = rfqStageFilter === stage.id
@@ -206,9 +206,9 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
 					</ol>
 				</nav>
 
-				<div className="flex-1" />
+				<div className="hidden flex-1 lg:block" />
 
-				<div className="shrink-0">
+				<div className="min-w-0 lg:shrink-0">
 					<OutdatedPricesCard />
 				</div>
 
@@ -245,7 +245,7 @@ export function RFQInboxTable({ onCreateQuote }: RFQInboxTableProps) {
 
 			{/* List content */}
 			<div
-				className="flex-1 min-h-0 overflow-y-auto px-6 py-6"
+				className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
 				data-module-content
 			>
 				{filteredRfqs.length === 0 ? (
@@ -424,7 +424,7 @@ function RfqRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 		<button
 			type="button"
 			onClick={onOpen}
-			className="group grid w-full grid-cols-[1fr_auto_auto] items-baseline gap-6 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02]"
+			className="group flex w-full flex-col gap-3 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02] lg:grid lg:grid-cols-[1fr_auto_auto] lg:items-baseline lg:gap-6"
 			style={{
 				borderBottom: '1px solid var(--color-border)',
 			}}
@@ -452,7 +452,7 @@ function RfqRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 						</span>
 					)}
 				</div>
-				<div className="mt-1 flex items-baseline gap-2">
+				<div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
 					{rfq.deliveryCity && (
 						<span
 							className="font-[family-name:var(--font-archivo)] italic truncate"
@@ -487,7 +487,7 @@ function RfqRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 				</div>
 			</div>
 
-			<div className="flex flex-col items-end">
+			<div className="flex flex-row items-baseline justify-between gap-3 lg:flex-col lg:items-end lg:justify-start">
 				<span
 					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
@@ -510,7 +510,7 @@ function RfqRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 				</span>
 			</div>
 
-			<div className="flex flex-col items-end">
+			<div className="flex flex-row items-baseline justify-between gap-3 lg:flex-col lg:items-end lg:justify-start">
 				<span
 					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
@@ -552,7 +552,7 @@ function EvaluatedRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 		<button
 			type="button"
 			onClick={onOpen}
-			className="grid w-full grid-cols-[1fr_auto_auto] items-baseline gap-6 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02]"
+			className="flex w-full flex-col gap-3 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02] lg:grid lg:grid-cols-[1fr_auto_auto] lg:items-baseline lg:gap-6"
 			style={{ borderBottom: '1px solid var(--color-border)' }}
 			aria-label={`Open RFQ for ${rfq.customerName}`}
 		>
@@ -587,7 +587,7 @@ function EvaluatedRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 						· {status}
 					</span>
 				</div>
-				<div className="mt-1 flex items-baseline gap-2">
+				<div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
 					{previewItems.length > 0 && (
 						<span
 							className="truncate font-[family-name:var(--font-archivo)] italic"
@@ -608,7 +608,7 @@ function EvaluatedRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 				</div>
 			</div>
 
-			<div className="flex flex-col items-end">
+			<div className="flex flex-row items-baseline justify-between gap-3 lg:flex-col lg:items-end lg:justify-start">
 				<span
 					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
@@ -631,7 +631,7 @@ function EvaluatedRow({ rfq, onOpen }: { rfq: RFQ; onOpen: () => void }) {
 				</span>
 			</div>
 
-			<div className="flex flex-col items-end">
+			<div className="flex flex-row items-baseline justify-between gap-3 lg:flex-col lg:items-end lg:justify-start">
 				<span
 					className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 					style={{
@@ -675,7 +675,7 @@ function CanceledRow({
 		<button
 			type="button"
 			onClick={() => onOpenReport(rfq.id)}
-			className="grid w-full grid-cols-[1fr_auto] items-baseline gap-6 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02]"
+			className="flex w-full flex-col gap-3 py-4 text-start outline-none transition-colors hover:bg-black/[0.015] focus-visible:bg-[var(--color-primary)]/[0.04] dark:hover:bg-white/[0.02] sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
 			style={{
 				borderBottom: '1px solid var(--color-border)',
 				opacity: 0.7,

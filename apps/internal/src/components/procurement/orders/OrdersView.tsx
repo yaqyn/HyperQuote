@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
 	type CustomerOrderView,
 	getCustomerOrdersList,
 } from '../../../lib/server/orders'
 import { useProcurementStore } from '../../../stores/procurement'
+import {
+	EmployeeActionButton,
+	EmployeeFilterChip,
+	EmployeeSearchField,
+} from '../../shared/EmployeeControls'
 import { OrderPrepView } from './OrderPrepView'
 
 function formatHoursAgo(hours: number): string {
@@ -37,7 +43,7 @@ type StatusFilter = 'all' | 'ready' | 'blocked'
 export function OrdersView() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['customer-orders'],
 		queryFn: () => getCustomerOrdersList({ data: {} }),
 		staleTime: 30_000,
@@ -77,6 +83,21 @@ export function OrdersView() {
 		)
 	}
 
+	if (isError) {
+		return (
+			<div className="flex h-full items-center justify-center px-6 text-center">
+				<div className="max-w-sm rounded-md border border-red-600/20 bg-red-600/[0.04] px-4 py-3">
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
+						Orders could not load.
+					</p>
+					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
+						Refresh before approving anything for warehouse.
+					</p>
+				</div>
+			</div>
+		)
+	}
+
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full items-center justify-center">
@@ -92,7 +113,7 @@ export function OrdersView() {
 
 	return (
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
-			<div className="mx-auto flex max-w-[920px] flex-col px-10 pt-8 pb-16">
+			<div className="mx-auto flex max-w-[920px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-8">
 				<CommitmentsMasthead
 					totals={data.totals}
 					activeCategoryNote={activeCategory !== 'all'}
@@ -274,104 +295,41 @@ function CommitmentsToolbar({
 	totals: { total: number; ready: number; blocked: number }
 }) {
 	return (
-		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-3">
-			<div className="flex items-center gap-5">
-				<div className="flex flex-1 items-baseline gap-2">
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-						style={{ fontSize: '11.5px' }}
-					>
-						find
-					</span>
-					<input
-						type="search"
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						placeholder="a customer, quote number, or PO"
-						className="w-full bg-transparent font-[family-name:var(--font-fraunces)] text-[14px] text-[var(--ink)] outline-none placeholder:font-[family-name:var(--font-fraunces)] placeholder:italic placeholder:text-[var(--ink-ghost)]"
-					/>
-					{search && (
-						<button
-							type="button"
-							onClick={() => setSearch('')}
-							className="font-[family-name:var(--font-fraunces)] italic text-[11px] text-[var(--ink-mid)] hover:text-[var(--ink)]"
-						>
-							clear
-						</button>
-					)}
-				</div>
-			</div>
+		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-4 lg:flex-row lg:items-center lg:gap-4">
+			<EmployeeSearchField
+				value={search}
+				onChange={setSearch}
+				label="Search orders"
+				placeholder="Search customer, quote number, or PO"
+				className="lg:flex-1"
+			/>
 
-			<div className="flex items-center gap-5">
-				<StatusChip
-					label="all"
+			<div className="flex flex-wrap gap-2">
+				<EmployeeFilterChip
 					count={totals.total}
 					active={statusFilter === 'all'}
-					onPress={() => setStatusFilter('all')}
-				/>
-				<StatusChip
-					label="ready"
+					onClick={() => setStatusFilter('all')}
+				>
+					All orders
+				</EmployeeFilterChip>
+				<EmployeeFilterChip
 					count={totals.ready}
 					active={statusFilter === 'ready'}
-					onPress={() => setStatusFilter('ready')}
-					tone="fresh"
-				/>
-				<StatusChip
-					label="blocked"
+					onClick={() => setStatusFilter('ready')}
+					tone="success"
+				>
+					Ready
+				</EmployeeFilterChip>
+				<EmployeeFilterChip
 					count={totals.blocked}
 					active={statusFilter === 'blocked'}
-					onPress={() => setStatusFilter('blocked')}
-					tone="aging"
-				/>
+					onClick={() => setStatusFilter('blocked')}
+					tone="warning"
+				>
+					Blocked
+				</EmployeeFilterChip>
 			</div>
 		</div>
-	)
-}
-
-function StatusChip({
-	label,
-	count,
-	active,
-	onPress,
-	tone = 'neutral',
-}: {
-	label: string
-	count: number
-	active: boolean
-	onPress: () => void
-	tone?: 'neutral' | 'fresh' | 'aging'
-}) {
-	const color = {
-		neutral: 'var(--ink)',
-		fresh: 'var(--compendium-fresh)',
-		aging: 'var(--compendium-aging)',
-	}[tone]
-	return (
-		<button
-			type="button"
-			onClick={onPress}
-			aria-pressed={active}
-			className="group inline-flex items-baseline gap-1.5 outline-none"
-		>
-			<span
-				className="font-[family-name:var(--font-fraunces)] transition-colors"
-				style={{
-					fontSize: '12.5px',
-					fontStyle: active ? 'normal' : 'italic',
-					fontWeight: active ? 600 : 400,
-					color: active ? color : 'var(--ink-soft)',
-					letterSpacing: active ? '-0.005em' : '0',
-				}}
-			>
-				{label}
-			</span>
-			<span
-				className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums"
-				style={{ color: active ? color : 'var(--ink-mid)' }}
-			>
-				{count.toString().padStart(2, '0')}
-			</span>
-		</button>
 	)
 }
 
@@ -398,15 +356,9 @@ function CommitmentPlate({
 		order.itemCount > 0 ? (order.readyCount / order.itemCount) * 100 : 0
 
 	return (
-		<li
-			className="relative grid items-start border-t border-[var(--rule-soft)] py-5"
-			style={{
-				gridTemplateColumns: '22px 1fr auto auto',
-				columnGap: '24px',
-			}}
-		>
+		<li className="relative flex flex-col gap-4 border-t border-[var(--rule-soft)] py-5 pl-8 md:grid md:grid-cols-[22px_minmax(0,1fr)_auto_auto] md:items-start md:gap-x-6 md:gap-y-0 md:pl-0">
 			{/* Left margin */}
-			<div className="relative pt-1">
+			<div className="absolute left-0 top-5 md:relative md:left-auto md:top-auto md:pt-1">
 				{(blocked || urgent) && (
 					<span
 						aria-hidden="true"
@@ -465,9 +417,9 @@ function CommitmentPlate({
 				</p>
 
 				{/* Readiness band */}
-				<div className="mt-3 flex items-center gap-3">
+				<div className="mt-3 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
 					<div
-						className="compendium-strata flex-1"
+						className="compendium-strata w-full sm:flex-1"
 						aria-hidden="true"
 						title={`${order.readyCount} of ${order.itemCount} items in stock`}
 					>
@@ -496,7 +448,7 @@ function CommitmentPlate({
 			</div>
 
 			{/* Value */}
-			<div className="flex flex-col items-end pt-1">
+			<div className="flex flex-col items-start pt-1 md:col-auto md:items-end">
 				<span
 					className="compendium-numeral font-[family-name:var(--font-fraunces)] text-[var(--ink)]"
 					style={{
@@ -517,36 +469,23 @@ function CommitmentPlate({
 			</div>
 
 			{/* Action */}
-			<div className="flex items-center pt-2">
-				<button
-					type="button"
+			<div className="flex items-center pt-1 md:col-auto md:pt-2">
+				<EmployeeActionButton
+					size="sm"
+					tone={blocked ? 'primary' : 'success'}
+					leading={
+						blocked ? (
+							<AlertTriangle size={13} strokeWidth={2.4} />
+						) : (
+							<CheckCircle2 size={13} strokeWidth={2.4} />
+						)
+					}
 					onClick={() => onOpen(order.quoteId)}
-					className="group inline-flex items-baseline gap-1.5 border-b border-transparent pb-0.5 outline-none"
+					fullWidthOnMobile
+					className="md:w-auto"
 				>
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic"
-						style={{
-							fontSize: '13.5px',
-							letterSpacing: '-0.005em',
-							fontWeight: blocked ? 500 : 400,
-							color: blocked ? 'var(--ink)' : 'var(--ink-mid)',
-						}}
-					>
-						{blocked ? 'check shortage' : 'approve'}
-					</span>
-					<span
-						aria-hidden="true"
-						className="transition-transform group-hover:translate-x-[3px]"
-						style={{
-							fontFamily: 'var(--font-fraunces)',
-							fontStyle: 'italic',
-							fontSize: '14px',
-							color: accent,
-						}}
-					>
-						→
-					</span>
-				</button>
+					{blocked ? 'Fix shortage' : 'Approve order'}
+				</EmployeeActionButton>
 			</div>
 		</li>
 	)

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { sanitizeCost } from '../../../lib/inputs'
 import {
@@ -8,6 +9,7 @@ import {
 	updateSupplierProfile,
 	updateSupplierQuoteByRow,
 } from '../../../lib/server/inventory'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { PriceConfirmDialog } from './PriceConfirmDialog'
 
 interface SupplierProfileViewProps {
@@ -170,7 +172,7 @@ export function SupplierProfileView({
 	)
 
 	return (
-		<div className="compendium-theme flex max-h-[85vh] flex-col bg-[var(--folio)] text-[var(--ink)]">
+		<div className="compendium-theme flex h-full max-h-none flex-col bg-[var(--folio)] text-[var(--ink)]">
 			<SupplierMasthead
 				name={supplier.name}
 				rating={supplier.rating}
@@ -183,9 +185,9 @@ export function SupplierProfileView({
 				staleCount={staleCount}
 			/>
 
-			<div className="flex-1 min-h-0 overflow-y-auto px-8 pb-6">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 sm:px-8">
 				<SectionRule label="Tier" />
-				<div className="mt-2 flex items-baseline gap-6">
+				<div className="mt-2 flex flex-wrap items-baseline gap-x-5 gap-y-2">
 					{TIER_OPTIONS.map((opt) => {
 						const active = supplier.tier === opt.value
 						return (
@@ -248,7 +250,7 @@ export function SupplierProfileView({
 					))}
 
 					{addBadgeOpen ? (
-						<div className="inline-flex items-baseline gap-3">
+						<div className="inline-flex flex-wrap items-center gap-2">
 							{availableBadges.length === 0 ? (
 								<span
 									className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
@@ -269,25 +271,25 @@ export function SupplierProfileView({
 									</button>
 								))
 							)}
-							<button
-								type="button"
+							<EmployeeActionButton
+								size="sm"
+								tone="neutral"
+								leading={<X size={12} strokeWidth={2.4} />}
 								onClick={() => setAddBadgeOpen(false)}
-								className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)] hover:text-[var(--ink)]"
-								style={{ fontSize: '10.5px' }}
 								aria-label="Close badge picker"
 							>
-								close
-							</button>
+								Close
+							</EmployeeActionButton>
 						</div>
 					) : (
-						<button
-							type="button"
+						<EmployeeActionButton
+							size="sm"
+							tone="neutral"
+							leading={<Plus size={12} strokeWidth={2.4} />}
 							onClick={() => setAddBadgeOpen(true)}
-							className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors hover:text-[var(--compendium-brand)]"
-							style={{ fontSize: '11.5px' }}
 						>
-							+ add a badge
-						</button>
+							Add badge
+						</EmployeeActionButton>
 					)}
 				</div>
 
@@ -315,11 +317,7 @@ export function SupplierProfileView({
 							return (
 								<li
 									key={q.supplierRowId}
-									className="grid items-baseline border-t border-[var(--rule-soft)] py-3"
-									style={{
-										gridTemplateColumns: '1fr auto',
-										columnGap: '20px',
-									}}
+									className="grid grid-cols-1 items-start gap-3 border-t border-[var(--rule-soft)] py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-5"
 								>
 									<div className="min-w-0">
 										<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -366,7 +364,7 @@ export function SupplierProfileView({
 										</p>
 									</div>
 
-									<div className="flex flex-col items-end">
+									<div className="flex flex-row items-end justify-between gap-3 sm:flex-col sm:items-end">
 										{isEditing ? (
 											<input
 												value={quoteDraft}
@@ -456,8 +454,8 @@ export function SupplierProfileView({
 			</div>
 
 			{/* Footer */}
-			<div className="shrink-0 border-t border-[var(--rule)] px-8 py-3">
-				<div className="flex items-baseline justify-between">
+			<div className="shrink-0 border-t border-[var(--rule)] px-4 py-3 sm:px-8">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<span
 						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
 						style={{ fontSize: '11px' }}
@@ -466,30 +464,15 @@ export function SupplierProfileView({
 							? 'saving the dossier…'
 							: 'dossier up to date'}
 					</span>
-					<button
-						type="button"
+					<EmployeeActionButton
+						size="sm"
+						tone="neutral"
+						leading={<ArrowLeft size={13} strokeWidth={2.4} />}
 						onClick={onBack}
-						className="group inline-flex items-baseline gap-1.5 outline-none"
+						fullWidthOnMobile
 					>
-						<span
-							aria-hidden="true"
-							className="transition-transform group-hover:-translate-x-[3px]"
-							style={{
-								fontFamily: 'var(--font-fraunces)',
-								fontStyle: 'italic',
-								fontSize: '13px',
-								color: 'var(--compendium-brand)',
-							}}
-						>
-							←
-						</span>
-						<span
-							className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]"
-							style={{ fontSize: '12px' }}
-						>
-							back to the product
-						</span>
-					</button>
+						Back to product
+					</EmployeeActionButton>
 				</div>
 			</div>
 
@@ -531,7 +514,7 @@ function SupplierMasthead({
 	staleCount: number
 }) {
 	return (
-		<header className="shrink-0 border-b border-[var(--rule)] px-8 pt-7 pb-6">
+		<header className="shrink-0 border-b border-[var(--rule)] px-4 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6">
 			<div className="flex items-baseline gap-2">
 				<span
 					className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--compendium-brand)]"

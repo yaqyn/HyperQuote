@@ -1,3 +1,4 @@
+import { CheckCircle2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
 	isValidProof,
@@ -6,11 +7,11 @@ import {
 	proofNeededFor,
 } from '../../../lib/inputs'
 import {
-	DispatchAction,
 	DispatchBody,
 	DispatchDialog,
 	DispatchFooter,
 } from '../../shared/DispatchDialog'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 
 interface PriceConfirmDialogProps {
 	isOpen: boolean
@@ -88,7 +89,7 @@ export function PriceConfirmDialog({
 			<div className="compendium-theme bg-[var(--folio)] text-[var(--ink)]">
 				<DispatchBody>
 					{/* Was / will be / delta — editorial baseline, no cells. */}
-					<div className="flex items-end justify-between gap-4 border-y border-[var(--rule-soft)] py-5">
+					<div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-4 border-y border-[var(--rule-soft)] py-5">
 						<PriceColumn
 							label="was"
 							value={
@@ -195,15 +196,24 @@ export function PriceConfirmDialog({
 				</DispatchBody>
 
 				<DispatchFooter>
-					<DispatchAction tone="ghost" onPress={onCancel}>
-						cancel
-					</DispatchAction>
-					<DispatchAction
-						onPress={handleConfirm}
-						isDisabled={!proofOk || !armed}
+					<EmployeeActionButton
+						size="sm"
+						tone="neutral"
+						leading={<X size={13} strokeWidth={2.4} />}
+						onClick={onCancel}
+						fullWidthOnMobile
 					>
-						confirm update
-					</DispatchAction>
+						Cancel
+					</EmployeeActionButton>
+					<EmployeeActionButton
+						size="sm"
+						leading={<CheckCircle2 size={13} strokeWidth={2.4} />}
+						onClick={handleConfirm}
+						disabled={!proofOk || !armed}
+						fullWidthOnMobile
+					>
+						Confirm update
+					</EmployeeActionButton>
 				</DispatchFooter>
 			</div>
 		</DispatchDialog>

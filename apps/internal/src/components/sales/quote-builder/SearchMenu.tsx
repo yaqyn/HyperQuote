@@ -89,15 +89,11 @@ export function SearchMenu({
 						role="dialog"
 						aria-label={placeholder}
 						aria-modal="true"
-						initial={
-							reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }
-						}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
-						exit={
-							reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }
-						}
+						initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
 						transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-						className="fixed left-1/2 top-[15vh] -translate-x-1/2 z-50 flex w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-[var(--color-surface)] max-h-[70vh]"
+						className="fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden rounded-none bg-[var(--color-surface)] lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-[15vh] lg:h-auto lg:max-h-[70vh] lg:w-[calc(100vw-24px)] lg:max-w-2xl lg:-translate-x-1/2 lg:rounded-xl"
 						style={{
 							boxShadow:
 								'inset 0 1px 0 rgba(255,255,255,0.72), 0 2px 6px -2px rgba(0,0,0,0.12), 0 24px 56px -12px rgba(0,0,0,0.28)',
@@ -105,7 +101,7 @@ export function SearchMenu({
 					>
 						{/* Search input */}
 						<div
-							className="shrink-0 flex items-center gap-3 px-5 py-3.5"
+							className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 lg:px-5 lg:py-3.5"
 							style={{ borderBottom: '1px solid var(--color-border)' }}
 						>
 							<Search
@@ -138,13 +134,12 @@ export function SearchMenu({
 									}
 								}}
 								placeholder={placeholder}
-								className="flex-1 bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/50"
-								style={{ fontSize: '14px', letterSpacing: '-0.005em' }}
+								className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-archivo)] text-[16px] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/50 lg:text-[14px]"
 								aria-label={placeholder}
 							/>
 							{resultStatus && (
 								<span
-									className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+									className="order-3 w-full shrink-0 text-end font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)] lg:order-none lg:w-auto"
 									style={{ fontSize: '11px' }}
 									aria-live="polite"
 								>
@@ -154,21 +149,16 @@ export function SearchMenu({
 							<Button
 								onPress={onClose}
 								aria-label="Close search"
-								className="group relative shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 cursor-pointer transition-colors"
+								className="group relative shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 cursor-pointer transition-colors lg:h-6 lg:w-6"
 							>
 								<X size={13} strokeWidth={1.5} aria-hidden="true" />
 							</Button>
 						</div>
 
 						{/* Body: optional sidebar + results */}
-						<div className="flex min-h-0 flex-1">
+						<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 							{sidebar && (
-								<aside
-									className="shrink-0 w-[160px] overflow-y-auto py-2"
-									style={{
-										borderInlineEnd: '1px solid var(--color-border)',
-									}}
-								>
+								<aside className="max-h-[50dvh] w-full shrink-0 overflow-y-auto border-b border-[var(--color-border)] py-0 lg:max-h-none lg:w-[172px] lg:border-e lg:border-b-0 lg:py-2">
 									{sidebar}
 								</aside>
 							)}
@@ -184,7 +174,7 @@ export function SearchMenu({
 						{/* Keyboard hint footer */}
 						<div
 							aria-hidden="true"
-							className="shrink-0 flex items-center justify-end gap-4 px-5 py-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+							className="hidden shrink-0 items-center justify-end gap-4 px-5 py-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)] lg:flex"
 							style={{
 								fontSize: '10px',
 								borderTop: '1px solid var(--color-border)',

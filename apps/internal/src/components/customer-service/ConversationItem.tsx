@@ -1,21 +1,20 @@
+import {
+	AlertTriangle,
+	Lock,
+	MailOpen,
+	MessageSquare,
+	UserRound,
+} from 'lucide-react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
-import type { Conversation } from '../../types/customer-service'
+import type {
+	Conversation,
+	ConversationStatus,
+} from '../../types/customer-service'
+import { EmployeeStatusPill } from '../shared/EmployeeControls'
 import { ChannelCode } from './ChannelIcons'
-import { LiveDot, PriorityMark, SlaTicker } from './SlaTicker'
+import { SlaTicker } from './SlaTicker'
 
-/**
- * A single "line" in the switchboard inbox.
- *
- * Layout reads like an operator's logbook entry:
- *   [dot] [PRI]  Customer name                     [CODE]  [timer]
- *                Subject line                              [n unread]
- *                " last message preview in italic serif "
- *
- * Selected state is *not* a solid fill — it's a faint tint plus a blue
- * hairline on the leading edge. The row stays readable; the choice
- * whispers.
- */
 interface ConversationItemProps {
 	conversation: Conversation
 	isSelected: boolean
@@ -28,10 +27,32 @@ interface ConversationItemProps {
 
 function queueOpacity(position: number, isLocked: boolean): number {
 	if (!isLocked) return 1
-	if (position <= 1) return 0.6
-	if (position <= 2) return 0.4
-	if (position <= 3) return 0.25
-	return 0.15
+	if (position <= 1) return 0.78
+	if (position <= 2) return 0.62
+	if (position <= 3) return 0.48
+	return 0.36
+}
+
+function statusTone(status: ConversationStatus) {
+	if (status === 'open') return 'neutral' as const
+	if (status === 'pending') return 'warning' as const
+	return 'success' as const
+}
+
+function priorityLabel(conversation: Conversation): {
+	label: string
+	tone: 'danger' | 'warning' | 'neutral'
+} {
+	if (conversation.slaBreached) {
+		return { label: 'SLA breached', tone: 'danger' }
+	}
+	if (conversation.priority === 'urgent') {
+		return { label: 'Urgent', tone: 'danger' }
+	}
+	if (conversation.priority === 'high') {
+		return { label: 'High priority', tone: 'warning' }
+	}
+	return { label: conversation.priority, tone: 'neutral' }
 }
 
 export function ConversationItem({
@@ -44,124 +65,122 @@ export function ConversationItem({
 }: ConversationItemProps) {
 	const { i18n } = useTranslation()
 	const hasUnread = conversation.unreadCount > 0
-	const isUrgent =
-		conversation.priority === 'urgent' || conversation.slaBreached
 	const name =
 		i18n.language === 'ar'
 			? conversation.customer.nameAr
 			: conversation.customer.name
-
-	const opacity = isFaded ? 0.45 : queueOpacity(queuePosition, isLocked)
-
-	const dotTone =
-		isUrgent || conversation.slaBreached
-			? 'red'
-			: conversation.priority === 'high'
-				? 'amber'
-				: hasUnread
-					? 'primary'
-					: 'muted'
+	const company =
+		i18n.language === 'ar'
+			? conversation.customer.companyAr
+			: conversation.customer.company
+	const priority = priorityLabel(conversation)
+	const opacity = isFaded ? 0.58 : queueOpacity(queuePosition, isLocked)
+	const cardTone =
+		priority.tone === 'danger'
+			? 'border-s-red-600'
+			: priority.tone === 'warning'
+				? 'border-s-amber-600'
+				: 'border-s-transparent'
 
 	return (
 		<Button
 			onPress={() => {
 				if (!isLocked) onSelect()
 			}}
+			isDisabled={isLocked}
 			aria-label={`${name} — ${conversation.subject}`}
-			className={`group w-full text-start relative outline-none transition-colors
-        focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 focus-visible:ring-inset
-        ${
-					isSelected
-						? 'bg-[var(--color-primary)]/[0.045] dark:bg-[var(--color-primary)]/[0.08]'
-						: isLocked
-							? ''
-							: 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
-				}`}
+			className={`group w-full border-s-4 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:ring-inset disabled:cursor-not-allowed ${cardTone} ${
+				isSelected
+					? 'bg-[var(--color-primary)]/[0.075] dark:bg-[var(--color-primary)]/[0.12]'
+					: 'bg-[var(--color-surface)]/72 hover:bg-[var(--color-primary)]/[0.045] dark:bg-[var(--color-surface)]/80'
+			}`}
 			style={{ opacity: isSelected ? 1 : opacity }}
 		>
-			{/* Leading hairline — blue when selected, accent for urgent otherwise */}
-			<span
-				aria-hidden
-				className={`absolute inset-y-0 start-0 transition-all duration-200
-          ${
-						isSelected
-							? 'w-[2px] bg-[var(--color-primary)]'
-							: isUrgent && !isLocked
-								? 'w-[2px] bg-[var(--color-signal-red)]/60'
-								: 'w-0'
-					}`}
-			/>
+			<div className="flex min-w-0 flex-col gap-3 px-4 py-4 sm:px-5">
+				<div className="flex min-w-0 items-start justify-between gap-3">
+					<div className="min-w-0">
+						<div className="flex flex-wrap items-center gap-2">
+							<UserRound
+								aria-hidden="true"
+								size={14}
+								strokeWidth={2.2}
+								className="shrink-0 text-[var(--color-text-muted)]"
+							/>
+							<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold leading-snug text-[var(--color-text)]">
+								{name}
+							</span>
+							{company && (
+								<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[12px] leading-snug text-[var(--color-text-muted)]">
+									{company}
+								</span>
+							)}
+						</div>
+						<h3 className="mt-2 break-words font-[family-name:var(--font-bricolage)] text-[15px] font-semibold leading-snug text-[var(--color-text)]">
+							{conversation.subject}
+						</h3>
+					</div>
 
-			<div className="px-5 py-4">
-				{/* Row 1 — live dot, priority, name, channel, SLA ticker */}
-				<div className="flex items-center gap-2.5 mb-1.5">
-					<LiveDot active={hasUnread && !isLocked && !isFaded} tone={dotTone} />
-					<PriorityMark priority={conversation.priority} />
-					<span
-						className={`font-[family-name:var(--font-bricolage)] text-[13.5px] leading-none truncate
-              ${
-								isSelected
-									? 'text-[var(--color-text)] font-semibold'
-									: hasUnread
-										? 'text-[var(--color-text)] font-semibold'
-										: 'text-[var(--color-text-muted)] font-medium'
-							}`}
-						style={{ fontVariationSettings: '"opsz" 14, "wght" 500' }}
-					>
-						{name}
-					</span>
-
-					<span className="ms-auto flex items-center gap-2 shrink-0">
+					<div className="flex shrink-0 flex-col items-end gap-2">
 						<ChannelCode
 							channel={conversation.channel}
-							className="text-[var(--color-text-subtle)]"
+							className="rounded-md bg-black/[0.04] px-2 py-1 text-[var(--color-text-muted)] dark:bg-white/[0.06]"
 						/>
-						{conversation.slaDeadline && (
-							<SlaTicker
-								createdAt={conversation.createdAt}
-								deadline={conversation.slaDeadline}
-								breached={conversation.slaBreached}
-								bare
-								className="text-[10px]"
-							/>
+						{isLocked && (
+							<EmployeeStatusPill
+								tone="neutral"
+								leading={<Lock size={12} strokeWidth={2.2} />}
+								className="px-2 py-1 text-[10px]"
+							>
+								Waiting
+							</EmployeeStatusPill>
 						)}
-					</span>
+					</div>
 				</div>
 
-				{/* Row 2 — subject headline */}
-				<h3
-					className={`font-[family-name:var(--font-bricolage)] leading-snug line-clamp-2 transition-colors ps-[22px]
-            ${
-							isSelected
-								? 'text-[14.5px] font-semibold text-[var(--color-text)]'
-								: isUrgent
-									? 'text-[14.5px] font-semibold text-[var(--color-text)]'
-									: hasUnread
-										? 'text-[14px] font-semibold text-[var(--color-text)]'
-										: 'text-[13px] font-medium text-[var(--color-text-muted)]'
-						}`}
-					style={{ fontVariationSettings: '"opsz" 18, "wght" 550' }}
-				>
-					{conversation.subject}
-				</h3>
+				<p className="break-words font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+					{conversation.lastMessagePreview}
+				</p>
 
-				{/* Row 3 — preview as correspondence quote (Literata italic) */}
-				<div className="flex items-baseline gap-2 mt-1.5 ps-[22px]">
-					<p
-						className={`flex-1 line-clamp-1 leading-relaxed font-[family-name:var(--font-literata)] italic text-[12.5px]
-              ${
-								isSelected
-									? 'text-[var(--color-text-muted)]'
-									: 'text-[var(--color-text-subtle)]'
-							}`}
-						style={{ fontVariationSettings: '"opsz" 14' }}
+				<div className="flex flex-wrap items-center gap-2">
+					<EmployeeStatusPill
+						tone={statusTone(conversation.status)}
+						leading={
+							conversation.status === 'open' ? (
+								<MessageSquare size={12} strokeWidth={2.2} />
+							) : (
+								<MailOpen size={12} strokeWidth={2.2} />
+							)
+						}
+						className="px-2 py-1 text-[10.5px]"
 					>
-						&ldquo;{conversation.lastMessagePreview}&rdquo;
-					</p>
+						{conversation.status.replace('_', ' ')}
+					</EmployeeStatusPill>
+					<EmployeeStatusPill
+						tone={priority.tone}
+						leading={
+							priority.tone === 'danger' ? (
+								<AlertTriangle size={12} strokeWidth={2.2} />
+							) : undefined
+						}
+						className="px-2 py-1 text-[10.5px]"
+					>
+						{priority.label}
+					</EmployeeStatusPill>
 					{hasUnread && (
-						<span className="shrink-0 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-medium tabular-nums text-[var(--color-primary)]">
-							+{conversation.unreadCount}
-						</span>
+						<EmployeeStatusPill
+							tone="warning"
+							className="px-2 py-1 text-[10.5px]"
+						>
+							{conversation.unreadCount} unread
+						</EmployeeStatusPill>
+					)}
+					{conversation.slaDeadline && (
+						<SlaTicker
+							createdAt={conversation.createdAt}
+							deadline={conversation.slaDeadline}
+							breached={conversation.slaBreached}
+							className="rounded-md bg-black/[0.04] px-2 py-1 text-[10.5px] dark:bg-white/[0.06]"
+						/>
 					)}
 				</div>
 			</div>

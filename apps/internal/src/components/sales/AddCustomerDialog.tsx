@@ -311,7 +311,7 @@ export function AddCustomerDialog({
 									</DispatchField>
 								)}
 							/>
-							<div className="grid grid-cols-2 gap-6">
+							<div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:gap-6">
 								<Controller
 									name="projectName"
 									control={control}
@@ -379,7 +379,7 @@ function DuplicateBanner({
 }) {
 	const setActiveTab = useSalesStore((s) => s.setActiveTab)
 	return (
-		<div className="flex items-center justify-between gap-3 px-3 py-2 border border-[#D97706]/40 bg-[#D97706]/[0.06]">
+		<div className="flex flex-col items-start justify-between gap-3 px-3 py-2 border border-[#D97706]/40 bg-[#D97706]/[0.06] lg:flex-row lg:items-center">
 			<span className="font-[family-name:var(--font-archivo)] italic text-[12px] text-[var(--color-text-muted)]">
 				{message}
 			</span>

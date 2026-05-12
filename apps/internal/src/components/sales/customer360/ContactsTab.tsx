@@ -93,9 +93,9 @@ export function ContactsTab({ customerId, enabled }: ContactsTabProps) {
 	}
 
 	return (
-		<div className="p-6 space-y-6">
+		<div className="space-y-6 p-4 sm:p-6">
 			{/* Mini profile cards -- 2-column grid */}
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+			<div className="grid grid-cols-1 gap-1 lg:grid-cols-2">
 				{allContacts.map((contact) => (
 					<ContactCard key={contact.id} contact={contact} />
 				))}

@@ -91,8 +91,8 @@ export function KanbanBoard() {
 
 	return (
 		<div className="flex h-full">
-			{/* Kanban columns -- horizontal scroll, no gaps between swimlanes */}
-			<div className="flex flex-1 gap-0 overflow-x-auto px-6 py-3">
+			{/* Kanban columns -- stack below desktop, swimlanes on large screens */}
+			<div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 sm:px-6 lg:flex-row lg:gap-0">
 				{data.stages.map((stage) => {
 					const stageDeals = data.deals.filter((d) => d.stage === stage.id)
 					return (

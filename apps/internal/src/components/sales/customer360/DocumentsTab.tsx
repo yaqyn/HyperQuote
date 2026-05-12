@@ -193,7 +193,7 @@ export function DocumentsTab({ customerId, enabled }: DocumentsTabProps) {
 
 			{/* Existing documents file grid */}
 			{data && data.length > 0 && (
-				<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+				<div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
 					{data.map((doc) => (
 						<div
 							key={doc.id}

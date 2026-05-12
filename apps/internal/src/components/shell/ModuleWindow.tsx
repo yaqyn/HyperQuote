@@ -106,6 +106,15 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 	}, [isOpen, moduleId, getWindowState])
 
 	function handleClose() {
+		// Lyon is a global leading-edge panel. If it's open, the module X
+		// dismisses Lyon first; a second click then continues down the normal
+		// module / contextual-panel close ladder.
+		const aiChat = useAIChatStore.getState()
+		if (aiChat.isOpen) {
+			aiChat.close()
+			return
+		}
+
 		// In the sales module, the close button walks down a dismissal ladder:
 		//   1. If the quote builder has a slide-in overlay (map / line margin)
 		//      open, close that first. Prevents the accidental "clicked map X,

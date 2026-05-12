@@ -9,6 +9,7 @@ import {
 	type CompendiumCategory,
 	useProcurementStore,
 } from '../../stores/procurement'
+import { EmployeeActionButton } from '../shared/EmployeeControls'
 
 const CATEGORY_LABELS: Record<BroadCategory, string> = {
 	cement: 'Cement',
@@ -68,14 +69,14 @@ export function CompendiumIndex() {
 	return (
 		<aside
 			aria-label="Compendium index"
-			className="compendium-theme compendium-index compendium-foreedge relative flex h-full w-[240px] shrink-0 flex-col overflow-hidden"
+			className="compendium-theme compendium-index compendium-foreedge relative hidden h-full min-h-0 w-[240px] shrink-0 flex-col overflow-hidden lg:flex"
 		>
 			{/* Masthead — small type title. The "sigil" dot is the only
 			    permanent brand-blue mark in the sidebar. */}
 			<Masthead />
 
 			{/* Scrollable middle: category index + today's desk */}
-			<div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
+			<div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 sm:px-5">
 				<SectionRule label="Index" />
 				<CategoryIndex
 					activeCategory={activeCategory}
@@ -103,25 +104,24 @@ export function CompendiumIndex() {
 			</div>
 
 			{/* Dock — keyboard + help */}
-			<div className="border-t border-[var(--rule-soft)] px-5 py-3">
-				<button
-					type="button"
+			<div className="border-t border-[var(--rule-soft)] px-4 py-3 sm:px-5">
+				<EmployeeActionButton
+					size="sm"
+					tone="neutral"
 					onClick={toggleAIChat}
-					className="group flex w-full items-center justify-between py-1 text-start outline-none"
+					fullWidthOnMobile
+					className="w-full"
+					trailing={
+						<kbd
+							className="font-[family-name:var(--font-geist-mono)] text-[9px] tracking-wider opacity-75"
+							aria-label="Command K"
+						>
+							⌘K
+						</kbd>
+					}
 				>
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]"
-						style={{ fontSize: '12.5px', letterSpacing: '0.005em' }}
-					>
-						ask the compendium
-					</span>
-					<kbd
-						className="font-[family-name:var(--font-geist-mono)] text-[9.5px] tracking-wider text-[var(--ink-mid)]"
-						aria-label="Command K"
-					>
-						⌘K
-					</kbd>
-				</button>
+					Ask Lyon AI
+				</EmployeeActionButton>
 			</div>
 		</aside>
 	)
@@ -184,7 +184,7 @@ function toRoman(n: number): string {
 function Masthead() {
 	const now = useCurrentDate()
 	return (
-		<header className="border-b border-[var(--rule-soft)] px-5 pt-6 pb-4">
+		<header className="border-b border-[var(--rule-soft)] px-4 pt-5 pb-4 sm:px-5 sm:pt-6">
 			<div className="flex items-baseline gap-1.5">
 				<span
 					aria-hidden="true"
@@ -266,7 +266,7 @@ function CategoryIndex({
 	inventoryCategories,
 }: CategoryIndexProps) {
 	return (
-		<ul className="flex flex-col">
+		<ul className="flex min-w-0 flex-col overflow-hidden">
 			<IndexRow
 				label="All materials"
 				active={activeCategory === 'all'}
@@ -320,10 +320,10 @@ function IndexRow({
 				type="button"
 				onClick={onPress}
 				data-active={active ? 'true' : 'false'}
-				className="compendium-thumb group flex w-full items-baseline gap-2 py-1.5 text-start outline-none"
+				className="compendium-thumb group flex w-full min-w-0 items-baseline gap-2 overflow-hidden py-1.5 text-start outline-none"
 			>
 				<span
-					className="font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)] transition-all"
+					className="min-w-0 truncate font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)] transition-all"
 					style={{
 						fontSize: isAll ? '15px' : '13.5px',
 						fontWeight: active ? 600 : 400,
@@ -335,7 +335,7 @@ function IndexRow({
 				</span>
 				<span
 					aria-hidden="true"
-					className="h-px flex-1 translate-y-[-3px]"
+					className="h-px min-w-0 flex-1 translate-y-[-3px]"
 					style={{
 						background: active
 							? 'linear-gradient(90deg, var(--rule) 0%, transparent 85%)'
@@ -343,14 +343,14 @@ function IndexRow({
 					}}
 				/>
 				<span
-					className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums"
+					className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums"
 					style={{ color: active ? 'var(--ink)' : 'var(--ink-mid)' }}
 				>
 					{count.toString().padStart(2, '0')}
 				</span>
 				{hasAlert && (
 					<span
-						className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums leading-none text-[var(--compendium-stale)]"
+						className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums leading-none text-[var(--compendium-stale)]"
 						title={`${attention} items need attention`}
 					>
 						{attention}

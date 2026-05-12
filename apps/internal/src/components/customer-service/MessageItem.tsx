@@ -34,11 +34,10 @@ export function MessageItem({
 
 	return (
 		<article
-			className={`relative grid gap-x-6 ${isFirstInGroup ? 'pt-3' : 'pt-1.5'}`}
-			style={{ gridTemplateColumns: '64px minmax(0, 1fr)' }}
+			className={`relative flex min-w-0 flex-col gap-1 lg:flex-row lg:gap-6 ${isFirstInGroup ? 'pt-3' : 'pt-1.5'}`}
 		>
 			{/* Hanging timestamp in the leading margin */}
-			<div className="text-end pt-[3px]">
+			<div className="pt-[3px] text-start lg:w-16 lg:shrink-0 lg:text-end">
 				{isFirstInGroup && (
 					<span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
 						{formatTimestamp(message.timestamp)}
@@ -47,7 +46,9 @@ export function MessageItem({
 			</div>
 
 			{/* Reading column */}
-			<div className={isInbound ? '' : 'text-end'}>
+			<div
+				className={`min-w-0 max-w-[680px] ${isInbound ? '' : 'ms-auto text-end'}`}
+			>
 				{isFirstInGroup && (
 					<header
 						className={`mb-1.5 flex items-center gap-2.5 ${
@@ -61,12 +62,11 @@ export function MessageItem({
 							/>
 						)}
 						<span
-							className={`font-[family-name:var(--font-bricolage)] text-[10.5px] uppercase tracking-[0.18em] ${
+							className={`min-w-0 break-words font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] ${
 								isInbound
 									? 'text-[var(--color-text)]'
 									: 'text-[var(--color-primary)]'
 							}`}
-							style={{ fontVariationSettings: '"opsz" 12, "wght" 600' }}
 						>
 							{message.senderName}
 						</span>
@@ -81,9 +81,8 @@ export function MessageItem({
 
 				{/* Body — Literata for the actual human words */}
 				<p
-					className={`font-[family-name:var(--font-literata)] text-[14.5px] leading-[1.75] whitespace-pre-wrap
+					className={`whitespace-pre-wrap break-words font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed
             ${isInbound ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}
-					style={{ fontVariationSettings: '"opsz" 16, "wght" 400' }}
 				>
 					{message.content}
 				</p>
@@ -98,9 +97,9 @@ export function MessageItem({
 						{message.attachments.map((att) => (
 							<span
 								key={att.id}
-								className="inline-flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] border-b border-[var(--color-border)] pb-0.5"
+								className="inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]"
 							>
-								<span>{att.name}</span>
+								<span className="min-w-0 break-words">{att.name}</span>
 								<span className="text-[var(--color-text-subtle)] tabular-nums">
 									{(att.sizeBytes / 1024).toFixed(0)}KB
 								</span>

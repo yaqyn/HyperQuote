@@ -1,3 +1,4 @@
+import { BookOpen, History, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Button } from 'react-aria-components'
 import { type FinanceTab, useFinanceStore } from '../../stores/finance'
@@ -7,28 +8,29 @@ interface Register {
 	mark: string
 	title: string
 	dek: string
+	icon: LucideIcon
 }
 
 const REGISTERS: Register[] = [
 	{
 		id: 'deals-orders',
 		mark: 'i',
-		title: 'Ledger',
-		dek: 'money in · money out',
+		title: 'Live ledger',
+		dek: 'payments to record',
+		icon: BookOpen,
 	},
 	{
 		id: 'history',
 		mark: 'ii',
-		title: 'Archives',
-		dek: 'settled volumes',
+		title: 'History',
+		dek: 'settled records',
+		icon: History,
 	},
 ]
 
 /**
- * Finance's pair of registers — the live ledger and the bound archives.
- * Bricolage italic title + JetBrains Mono mark + small italic dek
- * underneath. Mirrors the Compendium chapter pattern but with its own
- * typographic register so the two panels don't twin.
+ * Finance's pair of work areas. The tabs stay as two fixed columns on
+ * smaller screens so the operator never has to discover horizontal scroll.
  */
 export function FinanceTabStrip() {
 	const activeTab = useFinanceStore((s) => s.activeTab)
@@ -37,22 +39,37 @@ export function FinanceTabStrip() {
 	return (
 		<nav
 			aria-label="Finance registers"
-			className="relative border-b border-[var(--color-border)] px-8 pt-3 pb-2"
+			className="relative border-b border-[var(--color-border)] px-3 py-3 sm:px-6 lg:px-8"
 		>
-			<ul className="flex items-end gap-8">
+			<ul className="grid grid-cols-2 gap-2">
 				{REGISTERS.map((register) => {
 					const isActive = register.id === activeTab
+					const Icon = register.icon
 					return (
-						<li key={register.id} className="relative pb-2">
+						<li key={register.id} className="relative">
 							<Button
 								onPress={() => setActiveTab(register.id)}
 								aria-current={isActive ? 'page' : undefined}
-								className="group relative flex items-baseline gap-2.5 rounded-sm text-start outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+								className={`group relative flex min-h-[64px] w-full items-start gap-2 rounded-md border px-3 py-3 text-start outline-none transition-colors data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 ${
+									isActive
+										? 'border-[var(--color-primary)]/55 bg-[var(--color-primary)]/[0.06]'
+										: 'border-black/[0.08] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.04] dark:border-white/[0.12]'
+								}`}
 							>
+								<Icon
+									aria-hidden="true"
+									size={16}
+									strokeWidth={2}
+									className={`mt-0.5 shrink-0 ${
+										isActive
+											? 'text-[var(--color-primary)]'
+											: 'text-[var(--color-text-subtle)]'
+									}`}
+								/>
 								<span
-									className="font-[family-name:var(--font-jetbrains-mono)] leading-none tabular-nums transition-colors"
+									className="mt-1 hidden font-[family-name:var(--font-jetbrains-mono)] leading-none tabular-nums transition-colors sm:inline"
 									style={{
-										fontSize: '10.5px',
+										fontSize: '10px',
 										color: isActive
 											? 'var(--color-primary)'
 											: 'var(--color-text-subtle)',
@@ -61,14 +78,12 @@ export function FinanceTabStrip() {
 								>
 									{register.mark.toUpperCase()}
 								</span>
-								<div className="flex flex-col">
+								<div className="flex min-w-0 flex-col">
 									<span
-										className="font-[family-name:var(--font-bricolage)] leading-none transition-colors"
+										className="break-words font-[family-name:var(--font-bricolage)] leading-tight transition-colors"
 										style={{
-											fontSize: '20px',
+											fontSize: '14px',
 											fontWeight: isActive ? 600 : 400,
-											fontStyle: isActive ? 'normal' : 'italic',
-											letterSpacing: '-0.018em',
 											color: isActive
 												? 'var(--color-text)'
 												: 'var(--color-text-muted)',
@@ -77,13 +92,12 @@ export function FinanceTabStrip() {
 										{register.title}
 									</span>
 									<span
-										className="mt-1 font-[family-name:var(--font-bricolage)] italic transition-colors"
+										className="mt-1 break-words font-[family-name:var(--font-bricolage)] transition-colors"
 										style={{
-											fontSize: '10.5px',
+											fontSize: '11px',
 											color: isActive
 												? 'var(--color-text-muted)'
 												: 'var(--color-text-subtle)',
-											letterSpacing: '0.005em',
 										}}
 									>
 										{register.dek}
@@ -95,7 +109,7 @@ export function FinanceTabStrip() {
 								<motion.span
 									layoutId="ledger-tab-rule"
 									aria-hidden="true"
-									className="absolute -bottom-[1px] left-0 right-0 h-[2px] rounded-[1px] bg-[var(--color-primary)]"
+									className="absolute inset-x-2 -bottom-[1px] h-[2px] rounded-[1px] bg-[var(--color-primary)]"
 									transition={{
 										type: 'spring',
 										stiffness: 400,

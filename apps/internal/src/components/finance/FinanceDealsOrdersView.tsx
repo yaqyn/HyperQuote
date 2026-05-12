@@ -1,4 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import {
+	AlertTriangle,
+	BookOpen,
+	CheckCircle2,
+	CircleDollarSign,
+	ReceiptText,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import {
 	type FinanceDealView,
@@ -6,6 +14,11 @@ import {
 	getFinanceInbox,
 } from '../../lib/server/finance'
 import { type FinanceInboxFilter, useFinanceStore } from '../../stores/finance'
+import {
+	EmployeeActionButton,
+	EmployeeFilterChip,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 import { FinancePaymentPanel } from './FinancePaymentPanel'
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -42,15 +55,15 @@ function toRoman(n: number): string {
 }
 
 const FILTER_COPY: Record<FinanceInboxFilter, string> = {
-	unpaid: 'unpaid',
-	partial: 'partial',
-	paid: 'paid',
+	unpaid: 'Need payment',
+	partial: 'Balance due',
+	paid: 'Settled',
 }
 
 // ─── View ────────────────────────────────────────────────
 
 export function FinanceDealsOrdersView() {
-	const { data, isLoading } = useQuery({
+	const { data, isError, isLoading } = useQuery({
 		queryKey: ['finance-inbox'],
 		queryFn: () => getFinanceInbox({ data: {} }),
 		staleTime: 30_000,
@@ -79,16 +92,21 @@ export function FinanceDealsOrdersView() {
 		return { filteredOrders: orders, filteredDeals: deals }
 	}, [data, inboxFilter])
 
+	if (isError) {
+		return (
+			<FinanceStateMessage
+				title="Ledger did not open"
+				copy="Refresh and try again. No payment record was changed."
+			/>
+		)
+	}
+
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full items-center justify-center">
-				<p
-					className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
-					style={{ fontSize: '14px', letterSpacing: '-0.008em' }}
-				>
-					opening the ledger…
-				</p>
-			</div>
+			<FinanceStateMessage
+				title="Opening ledger"
+				copy="Loading customer receipts and supplier payments."
+			/>
 		)
 	}
 
@@ -100,7 +118,7 @@ export function FinanceDealsOrdersView() {
 
 	return (
 		<div className="relative h-full overflow-y-auto">
-			<div className="mx-auto flex max-w-[1040px] flex-col px-12 pt-10 pb-16">
+			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-12 lg:pt-10">
 				<LedgerMasthead
 					totalOutstanding={data.totals.totalOutstanding}
 					chaseCount={data.totals.deliveredPartialCount}
@@ -185,6 +203,27 @@ export function FinanceDealsOrdersView() {
 	)
 }
 
+function FinanceStateMessage({ title, copy }: { title: string; copy: string }) {
+	return (
+		<div className="flex h-full items-center justify-center px-5">
+			<div className="max-w-[360px] text-center">
+				<p
+					className="font-[family-name:var(--font-bricolage)] font-semibold text-[var(--color-text)]"
+					style={{ fontSize: '16px' }}
+				>
+					{title}
+				</p>
+				<p
+					className="mt-1 font-[family-name:var(--font-bricolage)] text-[var(--color-text-subtle)]"
+					style={{ fontSize: '12.5px', lineHeight: 1.5 }}
+				>
+					{copy}
+				</p>
+			</div>
+		</div>
+	)
+}
+
 // ─── Masthead ────────────────────────────────────────────
 
 function LedgerMasthead({
@@ -205,8 +244,8 @@ function LedgerMasthead({
 		.toLowerCase()
 
 	return (
-		<header className="flex flex-col border-b border-[var(--color-border)] pb-10">
-			<div className="flex items-baseline justify-between gap-4">
+		<header className="flex flex-col border-b border-[var(--color-border)] pb-7 sm:pb-10">
+			<div className="flex flex-col items-start gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
 				<span
 					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
 					style={{
@@ -215,7 +254,7 @@ function LedgerMasthead({
 						letterSpacing: '0.22em',
 					}}
 				>
-					The Ledger · intake
+					Finance · live ledger
 				</span>
 				<span
 					className="font-[family-name:var(--font-bricolage)] italic"
@@ -229,60 +268,41 @@ function LedgerMasthead({
 				</span>
 			</div>
 
-			<div className="mt-8 flex flex-wrap items-end justify-between gap-6">
-				<div className="flex flex-col">
+			<div className="mt-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+				<div className="flex min-w-0 flex-col">
 					<span
-						className="font-[family-name:var(--font-archivo-black)] tabular-nums leading-[0.92] text-[var(--color-text)]"
+						className="font-[family-name:var(--font-bricolage)] font-semibold text-[var(--color-text)]"
+						style={{ fontSize: '16px' }}
+					>
+						Total waiting for finance
+					</span>
+					<span
+						className="mt-2 max-w-full break-words font-[family-name:var(--font-archivo-black)] text-[42px] leading-none text-[var(--color-text)] tabular-nums sm:text-[68px] lg:text-[96px]"
 						style={{
-							fontSize: 'clamp(68px, 9vw, 108px)',
-							letterSpacing: '-0.045em',
 							fontFeatureSettings: '"tnum" on, "lnum" on',
 						}}
 					>
 						{formatEgp(totalOutstanding)}
 					</span>
-					<div className="mt-3 flex items-baseline gap-2">
+					<div className="mt-2 flex items-baseline gap-2">
 						<span
-							className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)]"
-							style={{ fontSize: '14px', letterSpacing: '-0.004em' }}
+							className="font-[family-name:var(--font-bricolage)] text-[var(--color-text-muted)]"
+							style={{ fontSize: '13px' }}
 						>
-							EGP outstanding across both books
+							EGP across customer receipts and supplier payments
 						</span>
 					</div>
 				</div>
 
 				{chaseCount > 0 && (
-					<div
-						className="flex flex-col items-end border-l-2 pl-5"
-						style={{ borderColor: 'var(--ledger-chase)' }}
+					<EmployeeStatusPill
+						tone="warning"
+						leading={<AlertTriangle aria-hidden="true" size={15} />}
+						className="lg:max-w-[260px]"
 					>
-						<span
-							className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-							style={{
-								fontSize: '9.5px',
-								letterSpacing: '0.22em',
-								color: 'var(--ledger-chase)',
-							}}
-						>
-							chase
-						</span>
-						<span
-							className="mt-1 font-[family-name:var(--font-archivo-black)] tabular-nums leading-none"
-							style={{
-								fontSize: '32px',
-								letterSpacing: '-0.025em',
-								color: 'var(--ledger-chase)',
-							}}
-						>
-							{chaseCount}
-						</span>
-						<span
-							className="mt-1 font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-muted)]"
-							style={{ fontSize: '11px' }}
-						>
-							delivered · partial paid
-						</span>
-					</div>
+						{chaseCount} delivered order{chaseCount === 1 ? '' : 's'} still need
+						balance collection
+					</EmployeeStatusPill>
 				)}
 			</div>
 		</header>
@@ -309,72 +329,44 @@ function FilterStrip({
 	const entries: {
 		id: FinanceInboxFilter
 		count: number
-		attention: number
+		tone: 'primary' | 'warning' | 'success'
 	}[] = [
-		{ id: 'unpaid', count: unpaid, attention: unpaid },
-		{ id: 'partial', count: partial, attention: chase },
-		{ id: 'paid', count: paid, attention: 0 },
+		{ id: 'unpaid', count: unpaid, tone: 'primary' },
+		{
+			id: 'partial',
+			count: partial,
+			tone: chase > 0 ? 'warning' : 'primary',
+		},
+		{ id: 'paid', count: paid, tone: 'success' },
 	]
 
 	return (
-		<div
-			className="mt-6 flex items-center gap-8 border-b border-[var(--color-border)] pb-4"
-			role="tablist"
-			aria-label="Payment state"
-		>
-			{entries.map((entry) => {
-				const isActive = entry.id === active
-				return (
-					<button
+		<fieldset className="mt-5 flex min-w-0 flex-col gap-3 border-b border-[var(--color-border)] pb-4">
+			<legend className="sr-only">Payment state</legend>
+			<div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+				{entries.map((entry) => (
+					<EmployeeFilterChip
 						key={entry.id}
-						type="button"
-						role="tab"
-						aria-selected={isActive}
+						active={entry.id === active}
+						count={entry.count}
+						tone={entry.tone}
 						onClick={() => onSelect(entry.id)}
-						className="group inline-flex items-baseline gap-2 outline-none"
+						className="w-full justify-between"
 					>
-						<span
-							aria-hidden="true"
-							className="h-[7px] w-[7px] rounded-full transition-colors"
-							style={{
-								background: isActive
-									? 'var(--color-primary)'
-									: entry.attention > 0
-										? 'var(--ledger-chase)'
-										: 'var(--color-text-subtle)',
-								opacity: isActive ? 1 : 0.4,
-							}}
-						/>
-						<span
-							className="font-[family-name:var(--font-bricolage)] transition-colors"
-							style={{
-								fontSize: '14px',
-								fontWeight: isActive ? 600 : 400,
-								fontStyle: isActive ? 'normal' : 'italic',
-								letterSpacing: '-0.008em',
-								color: isActive
-									? 'var(--color-text)'
-									: 'var(--color-text-muted)',
-							}}
-						>
-							{FILTER_COPY[entry.id]}
-						</span>
-						<span
-							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
-							style={{
-								fontSize: '11px',
-								color: isActive
-									? 'var(--color-primary)'
-									: 'var(--color-text-subtle)',
-								letterSpacing: '0.04em',
-							}}
-						>
-							{entry.count.toString().padStart(2, '0')}
-						</span>
-					</button>
-				)
-			})}
-		</div>
+						{FILTER_COPY[entry.id]}
+					</EmployeeFilterChip>
+				))}
+			</div>
+			{chase > 0 && active === 'partial' && (
+				<EmployeeStatusPill
+					tone="warning"
+					leading={<AlertTriangle aria-hidden="true" size={14} />}
+				>
+					{chase} delivered balance{chase === 1 ? '' : 's'} should be collected
+					first
+				</EmployeeStatusPill>
+			)}
+		</fieldset>
 	)
 }
 
@@ -391,12 +383,12 @@ function LedgerSection({
 	dek: string
 	count: number
 	emptyCopy: string
-	children: React.ReactNode
+	children: ReactNode
 }) {
 	return (
 		<section className="mt-10">
-			<div className="flex items-baseline justify-between border-b border-[var(--color-border)] pb-2">
-				<div className="flex items-baseline gap-2">
+			<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-[var(--color-border)] pb-2">
+				<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 					<h3
 						className="font-[family-name:var(--font-bricolage)] text-[var(--color-text)]"
 						style={{
@@ -450,7 +442,7 @@ function SectionTotal({
 	tone: 'in' | 'out'
 }) {
 	return (
-		<li className="mt-1 flex items-baseline justify-end gap-3 pt-3">
+		<li className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-3 sm:justify-end">
 			<span
 				className="font-[family-name:var(--font-bricolage)] italic"
 				style={{
@@ -504,7 +496,7 @@ function NetBalance({
 	const displayValue = Math.abs(value)
 
 	return (
-		<section className="mt-14 flex flex-col items-end">
+		<section className="mt-14 flex flex-col items-start sm:items-end">
 			<div
 				aria-hidden="true"
 				className="mb-4 h-[2px] w-48"
@@ -512,7 +504,7 @@ function NetBalance({
 					background: `linear-gradient(to right, transparent, var(--color-border))`,
 				}}
 			/>
-			<div className="flex items-baseline gap-3">
+			<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 				<span
 					className="font-[family-name:var(--font-bricolage)] italic"
 					style={{
@@ -565,6 +557,8 @@ function LedgerEntry({
 	paymentLabel,
 	paymentTone,
 	actionLabel,
+	actionTone,
+	actionKind,
 	onPress,
 }: {
 	index: number
@@ -576,28 +570,23 @@ function LedgerEntry({
 	paymentLabel: string
 	paymentTone: 'neutral' | 'chase' | 'in' | 'out'
 	actionLabel: string
+	actionTone: 'primary' | 'neutral'
+	actionKind: 'record' | 'open'
 	onPress: () => void
 }) {
-	const toneColor = {
-		neutral: 'var(--color-text)',
-		chase: 'var(--ledger-chase)',
-		in: 'var(--ledger-in)',
-		out: 'var(--ledger-out)',
+	const statusTone: 'success' | 'warning' = {
+		neutral: 'warning',
+		chase: 'warning',
+		in: 'success',
+		out: 'success',
 	}[paymentTone]
+	const ActionIcon = actionKind === 'record' ? ReceiptText : BookOpen
 
 	return (
-		<li>
-			<button
-				type="button"
-				onClick={onPress}
-				className="ledger-row group/row grid w-full items-baseline py-4 ps-4 text-start outline-none"
-				style={{
-					gridTemplateColumns: '32px minmax(0,1.4fr) minmax(0,1fr) auto 80px',
-					columnGap: '20px',
-				}}
-			>
+		<li className="border-t border-[var(--color-border)] first:border-t-0">
+			<div className="ledger-row grid gap-3 rounded-md px-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start lg:grid-cols-[32px_minmax(0,1.35fr)_minmax(0,1fr)_auto_152px] lg:items-center lg:gap-x-5">
 				<span
-					className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+					className="hidden font-[family-name:var(--font-jetbrains-mono)] tabular-nums lg:block"
 					style={{
 						fontSize: '10.5px',
 						color: 'var(--color-text-subtle)',
@@ -608,26 +597,37 @@ function LedgerEntry({
 				</span>
 
 				<div className="min-w-0">
+					<div className="flex items-start gap-2 lg:block">
+						<span
+							className="mt-1 shrink-0 font-[family-name:var(--font-jetbrains-mono)] tabular-nums lg:hidden"
+							style={{
+								fontSize: '10.5px',
+								color: 'var(--color-text-subtle)',
+								letterSpacing: '0.06em',
+							}}
+						>
+							{toRoman(index + 1).padStart(3, ' ')}
+						</span>
+						<p
+							className="break-words font-[family-name:var(--font-bricolage)]"
+							style={{
+								fontSize: '15px',
+								fontWeight: 600,
+								color: 'var(--color-text)',
+							}}
+						>
+							{counterparty}
+						</p>
+					</div>
 					<p
-						className="truncate font-[family-name:var(--font-bricolage)]"
-						style={{
-							fontSize: '15px',
-							fontWeight: 500,
-							color: 'var(--color-text)',
-							letterSpacing: '-0.01em',
-						}}
-					>
-						{counterparty}
-					</p>
-					<p
-						className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0"
+						className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
 						style={{
 							fontSize: '10.5px',
 							color: 'var(--color-text-subtle)',
 						}}
 					>
 						<span
-							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
+							className="break-all font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
 							style={{ letterSpacing: '0.04em' }}
 						>
 							{reference}
@@ -635,7 +635,7 @@ function LedgerEntry({
 						<span aria-hidden="true" className="opacity-60">
 							·
 						</span>
-						<span className="font-[family-name:var(--font-bricolage)] italic">
+						<span className="break-words font-[family-name:var(--font-bricolage)] italic">
 							{context}
 						</span>
 						<span aria-hidden="true" className="opacity-60">
@@ -650,20 +650,23 @@ function LedgerEntry({
 					</p>
 				</div>
 
-				<div className="flex flex-col items-start">
-					<span
-						className="font-[family-name:var(--font-bricolage)] italic transition-colors"
-						style={{
-							fontSize: '12px',
-							color: toneColor,
-							letterSpacing: '-0.002em',
-						}}
-					>
+				<EmployeeStatusPill
+					tone={statusTone}
+					leading={
+						paymentTone === 'in' || paymentTone === 'out' ? (
+							<CheckCircle2 aria-hidden="true" size={14} />
+						) : (
+							<CircleDollarSign aria-hidden="true" size={14} />
+						)
+					}
+					className="w-full sm:col-span-2 sm:w-auto lg:col-span-1"
+				>
+					<span className="font-[family-name:var(--font-bricolage)]">
 						{paymentLabel}
 					</span>
-				</div>
+				</EmployeeStatusPill>
 
-				<div className="flex items-baseline gap-1.5">
+				<div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 sm:justify-end lg:justify-start">
 					<span
 						className="font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums"
 						style={{
@@ -686,31 +689,17 @@ function LedgerEntry({
 					</span>
 				</div>
 
-				<div className="flex items-baseline justify-end gap-1.5 pe-4">
-					<span
-						className="font-[family-name:var(--font-bricolage)] italic transition-colors"
-						style={{
-							fontSize: '12.5px',
-							color: 'var(--color-text-muted)',
-							letterSpacing: '-0.005em',
-						}}
-					>
-						{actionLabel}
-					</span>
-					<span
-						aria-hidden="true"
-						className="transition-transform group-hover/row:translate-x-[3px]"
-						style={{
-							fontFamily: 'var(--font-bricolage)',
-							fontStyle: 'italic',
-							fontSize: '13px',
-							color: 'var(--color-primary)',
-						}}
-					>
-						→
-					</span>
-				</div>
-			</button>
+				<EmployeeActionButton
+					tone={actionTone}
+					size="sm"
+					leading={<ActionIcon aria-hidden="true" size={14} />}
+					fullWidthOnMobile
+					onClick={onPress}
+					className="sm:col-span-2 lg:col-span-1 lg:w-full"
+				>
+					{actionLabel}
+				</EmployeeActionButton>
+			</div>
 		</li>
 	)
 }
@@ -727,12 +716,12 @@ function OrderEntry({
 	const urgent = order.paymentStatus === 'partial' && order.isDelivered
 	const paymentLabel =
 		order.paymentStatus === 'paid'
-			? 'settled'
+			? 'Paid in full'
 			: order.paymentStatus === 'partial'
 				? urgent
-					? 'delivered · chase'
-					: `${formatEgp(order.remainingDue)} EGP remaining`
-				: '50% due now · book and release'
+					? `Collect ${formatEgp(order.remainingDue)} EGP balance`
+					: `${formatEgp(order.remainingDue)} EGP balance due`
+				: 'Collect 50% to release order'
 	const paymentTone: 'neutral' | 'chase' | 'in' = urgent
 		? 'chase'
 		: order.paymentStatus === 'paid'
@@ -753,7 +742,11 @@ function OrderEntry({
 			amount={order.totalDue}
 			paymentLabel={paymentLabel}
 			paymentTone={paymentTone}
-			actionLabel={order.paymentStatus === 'paid' ? 'open' : 'record'}
+			actionLabel={
+				order.paymentStatus === 'paid' ? 'Open record' : 'Record receipt'
+			}
+			actionTone={order.paymentStatus === 'paid' ? 'neutral' : 'primary'}
+			actionKind={order.paymentStatus === 'paid' ? 'open' : 'record'}
 			onPress={() => onOpen(order.quoteId)}
 		/>
 	)
@@ -770,10 +763,10 @@ function DealEntry({
 }) {
 	const paymentLabel =
 		deal.paymentStatus === 'paid'
-			? 'settled'
+			? 'Paid in full'
 			: deal.paymentStatus === 'partial'
-				? `${formatEgp(deal.remainingDue)} EGP remaining`
-				: '50% due now · release the deal'
+				? `${formatEgp(deal.remainingDue)} EGP supplier balance`
+				: 'Pay 50% to release deal'
 	const paymentTone: 'neutral' | 'out' =
 		deal.paymentStatus === 'paid' ? 'out' : 'neutral'
 
@@ -792,7 +785,11 @@ function DealEntry({
 			amount={deal.totalDue}
 			paymentLabel={paymentLabel}
 			paymentTone={paymentTone}
-			actionLabel={deal.paymentStatus === 'paid' ? 'open' : 'record'}
+			actionLabel={
+				deal.paymentStatus === 'paid' ? 'Open record' : 'Record payment'
+			}
+			actionTone={deal.paymentStatus === 'paid' ? 'neutral' : 'primary'}
+			actionKind={deal.paymentStatus === 'paid' ? 'open' : 'record'}
 			onPress={() => onOpen(deal.dealId)}
 		/>
 	)
@@ -803,21 +800,21 @@ function DealEntry({
 function LedgerEmpty({ filter }: { filter: FinanceInboxFilter }) {
 	const copy =
 		filter === 'unpaid'
-			? 'the unpaid column is empty. accepted quotes and fresh deals land here first.'
+			? 'New accepted quotes and supplier deals will appear here when payment is needed.'
 			: filter === 'partial'
-				? 'no entries in the partial column. fifty-percent collections show up here until they settle.'
-				: 'the settled column is empty. completed payments accumulate here.'
+				? 'Partial payments stay here until the remaining balance is recorded.'
+				: 'Settled customer receipts and supplier payments will collect here.'
 
 	return (
 		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--color-border)] py-14">
 			<span
-				className="font-[family-name:var(--font-bricolage)] italic text-[var(--color-text)]"
-				style={{ fontSize: '20px', letterSpacing: '-0.012em' }}
+				className="font-[family-name:var(--font-bricolage)] font-semibold text-[var(--color-text)]"
+				style={{ fontSize: '20px' }}
 			>
-				nothing on this page.
+				No records here
 			</span>
 			<span
-				className="max-w-[420px] text-center font-[family-name:var(--font-bricolage)] italic text-[var(--color-text-subtle)]"
+				className="max-w-[420px] text-center font-[family-name:var(--font-bricolage)] text-[var(--color-text-subtle)]"
 				style={{ fontSize: '12.5px', lineHeight: 1.5 }}
 			>
 				{copy}
