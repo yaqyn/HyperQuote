@@ -35,7 +35,7 @@ The single edit test: change the source of truth in one place → the new value 
 
 ## Stack pins
 
-Defaults are in `~/.claude/CLAUDE.md`. This project's version pins and gotchas:
+Defaults are in `~/.AGENTS/AGENTS.md`. This project's version pins and gotchas:
 
 - **Vite 7** — Vite 8 is incompatible with our setup. Do not upgrade.
 - Check `package.json` before adding or upgrading any dependency.
@@ -113,6 +113,49 @@ For broad lint passes, typecheck sweeps, or cross-app refactors:
 - **Codemods: sample before scripting.** Biome points at 66 `<label>` errors — half will be pseudo-headers needing `<span>`, half will wrap custom components needing `Label` rewiring. Read 3–5 by hand before assuming one pattern.
 - **Dispatch parallel agents by non-overlapping scope.** For a monorepo-wide cleanup, one agent per app (website / portal / driver / internal / ceo) + one for packages. Brief each with: scope, exact file tree, rules/errors they own, verification commands, and hard constraints (no `as any`, no blanket ignores). Never let two agents touch the same files.
 - **Verify in the foreground after agents report done.** Agents' self-reports describe intent, not always reality. Run `biome check` + `tsc --noEmit` + `bun run build` from the parent before claiming done.
+
+## Code review and scan tooling
+
+Use these terminal tools before and after broad cleanup, dependency changes,
+architecture changes, or agent-generated code. Prefer read-only scans first;
+run fix/write modes only after reading the report and deciding the change is
+safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
+`osv-scanner`, and `semgrep` are expected user-space CLIs on PATH.
+
+- **Biome**: `bun run check:ci` is read-only. `bun run check` writes fixes.
+  If Biome reports huge noise, inspect paths first; generated/vendor output is
+  usually slipping through excludes.
+- **TypeScript**: `bun run typecheck` is the intended root command, but verify
+  Turbo actually executes workspace tasks. If it reports `0 total`, run the
+  relevant app/package `tsc --noEmit` directly or add the missing workspace
+  script before claiming type safety.
+- **Knip**: start narrow with `bun run knip:deps` or
+  `bun run knip:exports`; run `bun run knip` for the full unused
+  file/export/dependency report. Do not use Knip fix mode until false positives
+  are classified.
+- **Syncpack**: `bun run sync` checks dependency version drift. Use
+  `bun run sync:fix` only after confirming the target versions respect project
+  pins, especially Vite and TanStack packages.
+- **Gitleaks**: `bun run scan:secrets` scans git history with redaction. Never
+  print secret values from findings; rotate at the source if a real token is
+  detected.
+- **OSV Scanner**: `bun run scan:vulns` scans source and lockfiles for known
+  dependency vulnerabilities. Treat findings as triage input, not automatic
+  permission to upgrade pinned packages.
+- **dependency-cruiser**: `bun run scan:arch` inspects app/package import
+  relationships. Add a checked-in config before enforcing new architecture
+  rules in CI.
+- **jscpd**: `bun run scan:duplicates` finds copy/paste blocks across
+  `apps/` and `packages/`. Refactor only real shared concepts; do not abstract
+  coincidental visual similarity.
+- **ast-grep**: use `sg` for structural searches that `rg` cannot express
+  safely, such as `watch()` calls, `.validator()` server functions,
+  wrong `motion` imports, or `useRef<T>()` without an initializer.
+- **Semgrep**: `bun run scan:semgrep` runs registry-backed semantic/security
+  rules. Expect network use and review findings manually before patching.
+- **rollup-plugin-visualizer**: use only during bundle-size investigations for
+  a specific app build. Do not commit generated reports unless they are the
+  requested artifact.
 
 ## Frontend conventions
 

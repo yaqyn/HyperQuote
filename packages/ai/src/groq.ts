@@ -4,19 +4,18 @@
  * SSE format is the standard OpenAI event stream.
  *
  * Env:
- *   GROQ_API_KEY   required (sk-... / gsk_...)
- *   GROQ_MODEL     default llama-3.3-70b-versatile
+ *   GROQ_API_KEY   required
+ *   GROQ_MODEL     default openai/gpt-oss-120b
  *   GROQ_URL       default https://api.groq.com/openai/v1/chat/completions
+ *   GROQ_REASONING_EFFORT optional for Qwen models
  *   USE_AI         1/true forces on, 0/false forces off.
  *                  Default: on in dev (NODE_ENV !== 'production'), off in prod.
  */
 
 import type { StreamChunk } from '@tanstack/ai'
 
-const GROQ_URL =
-	process.env.GROQ_URL ?? 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile'
-const GROQ_API_KEY = process.env.GROQ_API_KEY ?? ''
+const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
 
 interface ChatMessage {
 	role: 'system' | 'user' | 'assistant'
@@ -31,6 +30,32 @@ interface GroqSSEChunk {
 	error?: { message?: string } | string
 }
 
+interface GroqEnv {
+	apiKey: string
+	model: string
+	reasoningEffort?: string
+	url: string
+}
+
+function readGroqEnv(): GroqEnv {
+	const env =
+		typeof process !== 'undefined'
+			? (process.env as Record<string, string | undefined>)
+			: undefined
+
+	const model = env?.GROQ_MODEL ?? DEFAULT_GROQ_MODEL
+	const supportsReasoningEffort = model.includes('qwen')
+
+	return {
+		apiKey: env?.GROQ_API_KEY ?? '',
+		model,
+		reasoningEffort: supportsReasoningEffort
+			? (env?.GROQ_REASONING_EFFORT ?? 'none')
+			: undefined,
+		url: env?.GROQ_URL ?? DEFAULT_GROQ_URL,
+	}
+}
+
 /**
  * Returns true when the server should call Groq (vs a mock). Default: on in
  * dev, off in prod. Override with USE_AI=1 / USE_AI=0.
@@ -43,8 +68,8 @@ export function isAIEnabled(): boolean {
 	if (!env) return false
 	const flag = env.USE_AI ?? env.VITE_USE_AI
 	if (flag === '0' || flag === 'false') return false
+	if (!readGroqEnv().apiKey) return false
 	if (flag === '1' || flag === 'true') return true
-	if (!env.GROQ_API_KEY) return false
 	return env.NODE_ENV !== 'production'
 }
 
@@ -59,6 +84,7 @@ export async function* streamChat(
 ): AsyncGenerator<StreamChunk> {
 	const runId = crypto.randomUUID()
 	const messageId = crypto.randomUUID()
+	const groq = readGroqEnv()
 
 	yield { type: 'RUN_STARTED' as const, timestamp: Date.now(), runId }
 	yield {
@@ -69,7 +95,7 @@ export async function* streamChat(
 	}
 
 	const payload = {
-		model: GROQ_MODEL,
+		model: groq.model,
 		messages: [
 			{ role: 'system', content: systemPrompt } as ChatMessage,
 			...messages.map(
@@ -77,18 +103,19 @@ export async function* streamChat(
 			),
 		],
 		stream: true,
+		...(groq.reasoningEffort ? { reasoning_effort: groq.reasoningEffort } : {}),
 	}
 
 	try {
-		if (!GROQ_API_KEY) {
+		if (!groq.apiKey) {
 			throw new Error('GROQ_API_KEY is not set')
 		}
 
-		const resp = await fetch(GROQ_URL, {
+		const resp = await fetch(groq.url, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: `Bearer ${GROQ_API_KEY}`,
+				Authorization: `Bearer ${groq.apiKey}`,
 			},
 			body: JSON.stringify(payload),
 		})
