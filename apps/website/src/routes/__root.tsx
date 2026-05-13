@@ -1,3 +1,4 @@
+import { i18n } from '@hyperquote/i18n'
 import {
 	createRootRoute,
 	HeadContent,
@@ -7,7 +8,7 @@ import {
 import { createServerFn } from '@tanstack/react-start'
 import { useEffect } from 'react'
 import { I18nProvider } from 'react-aria-components'
-import { useTranslation } from 'react-i18next'
+import { I18nextProvider, useTranslation } from 'react-i18next'
 import { ChatWidget } from '../components/chat/ChatWidget'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
 import { SiteContextMenu } from '../components/layout/SiteContextMenu'
@@ -88,7 +89,6 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-	const { i18n, t } = useTranslation('website')
 	const routeContext = Route.useRouteContext() as { locale?: 'ar' | 'en' }
 	const locale = routeContext.locale ?? (i18n.language === 'ar' ? 'ar' : 'en')
 	const dir = locale === 'ar' ? 'rtl' : 'ltr'
@@ -129,23 +129,33 @@ function RootComponent() {
 					}
 				}}
 			>
-				<OfflineBanner />
-				<a
-					href="#main"
-					className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--color-primary)] focus:text-white"
-				>
-					{t('a11y.skipToContent')}
-				</a>
-				<I18nProvider locale={locale}>
-					<ChatProvider>
-						<Outlet />
-						<ChatWidget />
-						<SelectionCopy />
-						<SiteContextMenu />
-					</ChatProvider>
-				</I18nProvider>
+				<I18nextProvider i18n={i18n}>
+					<OfflineBanner />
+					<SkipLink />
+					<I18nProvider locale={locale}>
+						<ChatProvider>
+							<Outlet />
+							<ChatWidget />
+							<SelectionCopy />
+							<SiteContextMenu />
+						</ChatProvider>
+					</I18nProvider>
+				</I18nextProvider>
 				<Scripts />
 			</body>
 		</html>
+	)
+}
+
+function SkipLink() {
+	const { t } = useTranslation('website')
+
+	return (
+		<a
+			href="#main"
+			className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--color-primary)] focus:text-white"
+		>
+			{t('a11y.skipToContent')}
+		</a>
 	)
 }

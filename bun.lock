@@ -107,7 +107,7 @@
         "react-aria-components": "^1.16.0",
         "react-dom": "^19.2.4",
         "react-hook-form": "^7.72.1",
-        "react-i18next": "^17.0.0",
+        "react-i18next": "^17.0.2",
         "react-map-gl": "^8.1.0",
         "zustand": "^5.0.12",
       },
@@ -193,7 +193,7 @@
         "@tanstack/react-router": "^1.168.0",
         "@tanstack/react-start": "^1.167.12",
         "fuse.js": "^7.1.0",
-        "i18next": "^25.10.10",
+        "i18next": "^26.0.3",
         "lucide-react": "^1.7.0",
         "marked": "^17.0.5",
         "motion": "^12.38.0",
@@ -201,7 +201,7 @@
         "react-aria-components": "^1.16.0",
         "react-dom": "^19.2.4",
         "react-hook-form": "^7.72.0",
-        "react-i18next": "^17.0.0",
+        "react-i18next": "^17.0.2",
         "zod": "^4.3.6",
         "zustand": "^5.0.12",
       },
@@ -305,11 +305,11 @@
         "@types/react": "^19.2.14",
       },
       "peerDependencies": {
-        "i18next": "^25.10.10",
+        "i18next": "^26.0.3",
         "react": "^19.0.0",
         "react-aria-components": "^1.16.0",
         "react-dom": "^19.0.0",
-        "react-i18next": "^17.0.0",
+        "react-i18next": "^17.0.2",
       },
     },
   },
@@ -2657,10 +2657,6 @@
     "@cspotcode/source-map-support/@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
 
     "@hyperquote/driver/lucide-react": ["lucide-react@0.546.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Z94u6fKT43lKeYHiVyvyR8fT7pwCzDu7RyMPpTvh054+xahSgj4HFQ+NmflvzdXsoAjYGdCguGaFKYuvq0ThCQ=="],
-
-    "@hyperquote/ui/i18next": ["i18next@25.10.10", "", { "dependencies": { "@babel/runtime": "^7.29.2" }, "peerDependencies": { "typescript": "^5 || ^6" }, "optionalPeers": ["typescript"] }, "sha512-cqUW2Z3EkRx7NqSyywjkgCLK7KLCL6IFVFcONG7nVYIJ3ekZ1/N5jUsihHV6Bq37NfhgtczxJcxduELtjTwkuQ=="],
-
-    "@hyperquote/website/i18next": ["i18next@25.10.10", "", { "dependencies": { "@babel/runtime": "^7.29.2" }, "peerDependencies": { "typescript": "^5 || ^6" }, "optionalPeers": ["typescript"] }, "sha512-cqUW2Z3EkRx7NqSyywjkgCLK7KLCL6IFVFcONG7nVYIJ3ekZ1/N5jUsihHV6Bq37NfhgtczxJcxduELtjTwkuQ=="],
 
     "@ionic/utils-fs/fs-extra": ["fs-extra@9.1.0", "", { "dependencies": { "at-least-node": "^1.0.0", "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ=="],
 

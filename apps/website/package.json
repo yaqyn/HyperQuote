@@ -23,7 +23,7 @@
 		"@tanstack/react-router": "^1.168.0",
 		"@tanstack/react-start": "^1.167.12",
 		"fuse.js": "^7.1.0",
-		"i18next": "^25.10.10",
+		"i18next": "^26.0.3",
 		"lucide-react": "^1.7.0",
 		"marked": "^17.0.5",
 		"motion": "^12.38.0",
@@ -31,7 +31,7 @@
 		"react-aria-components": "^1.16.0",
 		"react-dom": "^19.2.4",
 		"react-hook-form": "^7.72.0",
-		"react-i18next": "^17.0.0",
+		"react-i18next": "^17.0.2",
 		"zod": "^4.3.6",
 		"zustand": "^5.0.12"
 	},
