@@ -226,6 +226,13 @@ The codebase is not the spec — my workflow is.
 
 Don't build after every edit. Run `bun run build` in the relevant app after a completed feature or when I ask. Constant builds are disruptive.
 
+## Deploy
+
+This monorepo deploys from GitHub. Cloudflare deploy secrets live in GitHub
+Actions, so the normal production path is: commit the verified change, push to
+GitHub, and let the workflow deploy. Do not try to bypass this with local
+Wrangler/Infisical deploys unless I explicitly ask.
+
 ## Task hygiene
 
 Every feature/edit that reshapes existing code gets a follow-up cleanup task in the same session — duplicated helpers, abandoned components, stale types, dead imports, unused mocks, old store keys get deleted now, not "later."

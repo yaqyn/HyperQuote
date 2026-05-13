@@ -1,4 +1,4 @@
-export { initI18n } from './config'
+export { i18n, initI18n } from './config'
 export { formatCurrency } from './formatters/currency'
 export { formatDate, formatRelativeTime } from './formatters/date'
 export { formatNumber } from './formatters/number'

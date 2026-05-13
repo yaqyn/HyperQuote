@@ -1,3 +1,4 @@
+import { i18n } from '@hyperquote/i18n'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
 	createRootRoute,
@@ -7,7 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { I18nProvider } from 'react-aria-components'
-import { useTranslation } from 'react-i18next'
+import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { setupI18n } from '../lib/i18n'
 import styles from '../styles.css?url'
@@ -89,7 +90,6 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-	const { t } = useTranslation('portal')
 	const routeContext = Route.useRouteContext() as { locale?: 'ar' | 'en' }
 	const locale = routeContext.locale ?? 'en'
 	const [queryClient] = useState(() => new QueryClient())
@@ -134,19 +134,29 @@ function RootComponent() {
 				className={`bg-[var(--p-bg)] text-[var(--p-text)] antialiased ${locale === 'ar' ? 'font-arabic' : 'font-sans'}`}
 			>
 				<QueryClientProvider client={queryClient}>
-					<a
-						href="#main"
-						className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--p-accent)] focus:text-white"
-					>
-						{t('a11y.skipToContent')}
-					</a>
-					<I18nProvider locale={locale}>
-						<Outlet />
-					</I18nProvider>
+					<I18nextProvider i18n={i18n}>
+						<SkipLink />
+						<I18nProvider locale={locale}>
+							<Outlet />
+						</I18nProvider>
+					</I18nextProvider>
 				</QueryClientProvider>
 				<SelectionCopy />
 				<Scripts />
 			</body>
 		</html>
+	)
+}
+
+function SkipLink() {
+	const { t } = useTranslation('portal')
+
+	return (
+		<a
+			href="#main"
+			className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--p-accent)] focus:text-white"
+		>
+			{t('a11y.skipToContent')}
+		</a>
 	)
 }

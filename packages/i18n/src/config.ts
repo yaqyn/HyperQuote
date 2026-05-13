@@ -10,6 +10,8 @@ import enPortal from './locales/en/portal.json'
 import enUnits from './locales/en/units.json'
 import enWebsite from './locales/en/website.json'
 
+export { i18n }
+
 const resources = {
 	en: {
 		common: enCommon,
@@ -43,6 +45,6 @@ export function initI18n(locale: 'ar' | 'en' = 'en') {
 		interpolation: {
 			escapeValue: false, // React already escapes
 		},
-		initImmediate: false, // Sync init — resources are bundled, no backend needed
+		initAsync: false, // Sync init — resources are bundled, no backend needed
 	})
 }
