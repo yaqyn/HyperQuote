@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { getUrgentItems } from '../../lib/server/urgent-items'
 import { useInternalStore } from '../../stores/internal'
+import { AppActionsMenu } from './AppActionsMenu'
 
 /**
  * InternalCanvas — the Front Page.
@@ -342,12 +343,7 @@ function Masthead({ now }: { now: Date }) {
 					>
 						HyperQuote
 					</button>
-					<span
-						className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-						style={{ fontSize: '11px', lineHeight: 1 }}
-					>
-						· internal ops
-					</span>
+					<AppActionsMenu />
 				</div>
 
 				{/* Right — dateline */}

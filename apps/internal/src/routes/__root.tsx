@@ -9,17 +9,34 @@ import { useEffect, useState } from 'react'
 import { I18nProvider } from 'react-aria-components'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import '../lib/i18n'
+import { registerInternalServiceWorker } from '../lib/pwa'
 import styles from '../styles.css?url'
 
 export const Route = createRootRoute({
 	head: () => ({
+		title: 'HyperQuote Internal Ops',
 		meta: [
 			{ charSet: 'utf-8' },
 			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
-			{ name: 'title', content: 'HyperQuote' },
+			{ name: 'title', content: 'HyperQuote Internal Ops' },
+			{ name: 'application-name', content: 'HyperQuote Internal Ops' },
+			{
+				name: 'description',
+				content:
+					'HyperQuote operations console for sales, procurement, warehouse, finance, dispatch, and support teams.',
+			},
+			{ name: 'mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
-			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
-			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
+			{
+				name: 'apple-mobile-web-app-status-bar-style',
+				content: 'default',
+			},
+			{ name: 'apple-mobile-web-app-title', content: 'HQ Ops' },
+			{ name: 'format-detection', content: 'telephone=no' },
+			{ name: 'color-scheme', content: 'light dark' },
+			{ name: 'msapplication-TileColor', content: '#0A0A0A' },
+			{ name: 'msapplication-TileImage', content: '/mstile-150x150.png' },
+			{ name: 'msapplication-config', content: '/browserconfig.xml' },
 			{
 				name: 'theme-color',
 				content: '#ffffff',
@@ -45,7 +62,23 @@ export const Route = createRootRoute({
 				href: '/favicon.svg',
 			},
 			{ rel: 'icon', href: '/favicon.ico' },
+			{
+				rel: 'apple-touch-icon',
+				sizes: '152x152',
+				href: '/apple-touch-icon-152x152.png',
+			},
+			{
+				rel: 'apple-touch-icon',
+				sizes: '167x167',
+				href: '/apple-touch-icon-167x167.png',
+			},
+			{
+				rel: 'apple-touch-icon',
+				sizes: '180x180',
+				href: '/apple-touch-icon-180x180.png',
+			},
 			{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+			{ rel: 'mask-icon', href: '/favicon.svg', color: '#2563EB' },
 			{ rel: 'manifest', href: '/site.webmanifest' },
 			{ rel: 'stylesheet', href: styles },
 			{
@@ -110,6 +143,8 @@ function RootComponent() {
 	// pure landmark (biome's noStaticElementInteractions flags handlers on
 	// the body element otherwise).
 	useEffect(() => {
+		if (import.meta.env.PROD) registerInternalServiceWorker()
+
 		function handleContextMenu(e: MouseEvent) {
 			e.preventDefault()
 		}
