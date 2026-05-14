@@ -3,12 +3,10 @@ import {
 	AlertTriangle,
 	ArrowLeft,
 	CheckCircle2,
-	Clock,
 	Loader2,
-	MapPin,
-	Phone,
+	PackagePlus,
 } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import {
 	approveOrderForWarehouse,
 	getCustomerOrderDetail,
@@ -23,6 +21,12 @@ import { RefillPanel } from '../stock/RefillPanel'
 interface OrderPrepViewProps {
 	quoteId: string
 	onBack: () => void
+}
+
+function formatUrgency(days: number): string {
+	if (days <= 0) return 'Today'
+	if (days === 1) return 'Tomorrow'
+	return `${days} days`
 }
 
 export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
@@ -62,7 +66,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 						onClick={onBack}
 						className="mt-3"
 					>
-						Back to orders
+						Back
 					</EmployeeActionButton>
 				</div>
 			</div>
@@ -71,184 +75,150 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-subtle)]">
-				{isLoading ? 'Loading order…' : 'Order not found or already approved.'}
+			<div className="flex h-full items-center justify-center">
+				<p className="font-[family-name:var(--font-archivo)] text-[13px] text-[var(--ink-mid)]">
+					{isLoading ? 'Loading order...' : 'Order not found.'}
+				</p>
 			</div>
 		)
 	}
 
-	const shortages = data.items.filter((i) => i.status === 'shortage')
-	const readyItems = data.items.filter((i) => i.status === 'ready')
+	const shortages = data.items.filter((item) => item.status === 'shortage')
+	const readyItems = data.items.filter((item) => item.status === 'ready')
 	const approveOrder = () =>
 		approveMutation.mutate({ data: { quoteId: data.quoteId } })
-	const deliveryNeed =
-		data.deliveryUrgencyDays <= 0
-			? 'needs today'
-			: `needs in ${data.deliveryUrgencyDays}d`
 
 	return (
-		<div className="relative flex h-full flex-col bg-[var(--color-surface)] dark:bg-[#0A0A0A]">
-			<div
-				className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6"
-				data-module-content
-			>
-				<div className="mx-auto flex max-w-[1080px] flex-col gap-6">
-					{/* Back bar */}
-					<button
-						type="button"
-						onClick={onBack}
-						className="inline-flex w-fit items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
-					>
-						<ArrowLeft size={12} strokeWidth={2} />
-						Back to orders
-					</button>
-
-					{/* Header */}
-					<header className="flex flex-col items-start gap-4 border-b border-black/[0.04] pb-5 dark:border-white/[0.04] sm:flex-row sm:justify-between sm:gap-8">
-						<div>
-							<p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Order prep
-							</p>
-							<h1 className="mt-1 text-[22px] font-semibold text-[var(--color-text)]">
-								{data.customerName}
-							</h1>
-							<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
-								<span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-									{data.quoteNumber}
-								</span>
-								{data.customerPoNumber && (
-									<span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-										PO {data.customerPoNumber}
+		<div className="compendium-theme flex h-full flex-col bg-[var(--folio)] text-[var(--ink)]">
+			<header className="shrink-0 border-b border-[var(--rule-soft)] px-4 py-3 sm:px-6 lg:py-4">
+				<div className="hidden flex-wrap items-start justify-between gap-3 lg:flex">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-mid)]">
+							Order prep
+						</p>
+						<h2 className="mt-1 min-w-0 break-words font-[family-name:var(--font-archivo)] text-[20px] font-semibold leading-6 text-[var(--ink)]">
+							{data.customerName}
+						</h2>
+						<p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+							<span>{data.quoteNumber}</span>
+							{data.customerPoNumber && (
+								<>
+									<span aria-hidden="true" className="opacity-60">
+										·
 									</span>
-								)}
-								<span className="inline-flex items-center gap-1">
-									<MapPin size={10} strokeWidth={2} />
-									{data.deliveryCity || '—'}
-								</span>
-								<span className="inline-flex items-center gap-1">
-									<Clock size={10} strokeWidth={2} />
-									{deliveryNeed}
-								</span>
-							</div>
-						</div>
-
-						<div className="flex flex-col items-start gap-2 sm:items-end">
-							{data.allReady ? (
-								<EmployeeStatusPill
-									tone="success"
-									leading={<CheckCircle2 size={14} strokeWidth={2.5} />}
-								>
-									Ready to ship · every item in stock
-								</EmployeeStatusPill>
-							) : (
-								<EmployeeStatusPill
-									tone="warning"
-									leading={<AlertTriangle size={14} strokeWidth={2.5} />}
-								>
-									{shortages.length} item{shortages.length !== 1 ? 's' : ''}{' '}
-									short
-								</EmployeeStatusPill>
+									<span>PO {data.customerPoNumber}</span>
+								</>
 							)}
-						</div>
-					</header>
+							<span aria-hidden="true" className="opacity-60">
+								·
+							</span>
+							<span>{data.deliveryCity || 'No city'}</span>
+						</p>
+					</div>
 
-					{/* Shortages block — only if something's missing */}
-					{shortages.length > 0 && (
-						<section>
-							<div className="mb-3 flex flex-wrap items-center gap-2">
-								<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-									Missing from inventory · {shortages.length}
-								</span>
-								<span className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-								<span className="text-[10px] text-[var(--color-text-subtle)]">
-									Refill each to unblock the order
-								</span>
-							</div>
-							<div className="flex flex-col">
-								{shortages.map((item) => (
-									<ShortageRow
-										key={item.productSlug}
-										item={item}
-										onRefill={() => setRefillSlug(item.productSlug)}
-									/>
-								))}
-							</div>
-						</section>
-					)}
-
-					{/* Ready items — collapsible summary */}
-					{readyItems.length > 0 && (
-						<section>
-							<div className="mb-3 flex flex-wrap items-center gap-2">
-								<span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
-									Ready · {readyItems.length}
-								</span>
-								<span className="h-px flex-1 bg-black/[0.06] dark:bg-white/[0.06]" />
-							</div>
-							<div className="flex flex-col">
-								{readyItems.map((item) => (
-									<ReadyRow key={item.productSlug} item={item} />
-								))}
-							</div>
-						</section>
-					)}
-				</div>
-			</div>
-
-			<div className="shrink-0 border-t border-black/[0.06] bg-[var(--color-surface)] px-4 py-3 dark:border-white/[0.08] dark:bg-[#0A0A0A] sm:px-6">
-				<div className="mx-auto flex max-w-[1080px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<EmployeeActionButton
-						tone="neutral"
-						size="sm"
-						leading={<ArrowLeft size={13} strokeWidth={2.4} />}
-						onClick={onBack}
-						fullWidthOnMobile
-					>
-						Back to orders
-					</EmployeeActionButton>
-					{data.allReady ? (
-						<EmployeeStatusPill
-							tone="success"
-							leading={<CheckCircle2 size={14} strokeWidth={2.5} />}
-							className="justify-center"
-						>
-							Ready · {readyItems.length} item
-							{readyItems.length === 1 ? '' : 's'} in stock
-						</EmployeeStatusPill>
-					) : (
-						<EmployeeStatusPill
-							tone="warning"
-							leading={<AlertTriangle size={14} strokeWidth={2.5} />}
-							className="justify-center"
-						>
-							Refill {shortages.length} item
-							{shortages.length === 1 ? '' : 's'} before warehouse
-						</EmployeeStatusPill>
-					)}
-					<EmployeeActionButton
-						tone="success"
+					<EmployeeStatusPill
+						tone={data.allReady ? 'success' : 'warning'}
 						leading={
-							approveMutation.isPending ? (
-								<Loader2 size={13} strokeWidth={2.5} className="animate-spin" />
-							) : (
+							data.allReady ? (
 								<CheckCircle2 size={14} strokeWidth={2.5} />
+							) : (
+								<AlertTriangle size={14} strokeWidth={2.5} />
 							)
 						}
-						disabled={!data.allReady || approveMutation.isPending}
-						onClick={approveOrder}
-						fullWidthOnMobile
+						className="shrink-0"
 					>
-						Approve & ship to warehouse
-					</EmployeeActionButton>
+						{data.allReady ? 'Ready' : `${shortages.length} short`}
+					</EmployeeStatusPill>
 				</div>
+
+				<div className="grid grid-cols-3 overflow-hidden rounded-md border border-[var(--rule-soft)] lg:mt-4">
+					<OrderMetric
+						label="Needed"
+						value={formatUrgency(data.deliveryUrgencyDays)}
+					/>
+					<OrderMetric
+						label="Items"
+						value={`${data.readyCount}/${data.itemCount}`}
+						middle
+					/>
+					<OrderMetric
+						label="Value"
+						value={`${Math.round(data.totalValue).toLocaleString('en-EG')} EGP`}
+					/>
+				</div>
+			</header>
+
+			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 sm:px-6">
+				{shortages.length > 0 && (
+					<OrderSection title={`Shortages · ${shortages.length}`}>
+						<ol className="-mx-4 overflow-hidden border-y border-[var(--rule-soft)] sm:mx-0 sm:rounded-md sm:border">
+							{shortages.map((item, index) => (
+								<ShortageRow
+									key={item.productSlug}
+									item={item}
+									index={index}
+									onRefill={() => setRefillSlug(item.productSlug)}
+								/>
+							))}
+						</ol>
+					</OrderSection>
+				)}
+
+				{readyItems.length > 0 && (
+					<OrderSection title={`Ready · ${readyItems.length}`}>
+						<ol className="-mx-4 overflow-hidden border-y border-[var(--rule-soft)] sm:mx-0 sm:rounded-md sm:border">
+							{readyItems.map((item, index) => (
+								<ReadyRow key={item.productSlug} item={item} index={index} />
+							))}
+						</ol>
+					</OrderSection>
+				)}
 			</div>
 
-			{/* Shared refill slide-in — same pattern used in Inventory tab */}
+			<footer className="shrink-0 border-t border-[var(--rule-soft)] bg-[var(--folio)] px-4 py-4 sm:px-6">
+				<div className="flex flex-col gap-3">
+					<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-mid)]">
+						{data.allReady
+							? 'All order lines are available. Inventory can release this order to warehouse.'
+							: `Refill ${shortages.length} short item${shortages.length === 1 ? '' : 's'} before warehouse release.`}
+					</p>
+					<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+						<EmployeeActionButton
+							tone="neutral"
+							leading={<ArrowLeft size={14} strokeWidth={2.4} />}
+							onClick={onBack}
+							disabled={approveMutation.isPending}
+							aria-label="Back to orders"
+						>
+							Back
+						</EmployeeActionButton>
+						<EmployeeActionButton
+							tone="success"
+							leading={
+								approveMutation.isPending ? (
+									<Loader2
+										size={13}
+										strokeWidth={2.5}
+										className="animate-spin"
+									/>
+								) : (
+									<CheckCircle2 size={14} strokeWidth={2.5} />
+								)
+							}
+							disabled={!data.allReady || approveMutation.isPending}
+							onClick={approveOrder}
+							fullWidthOnMobile
+						>
+							Approve for warehouse
+						</EmployeeActionButton>
+					</div>
+				</div>
+			</footer>
+
 			<RefillPanel
 				productSlug={refillSlug}
 				onClose={() => {
 					setRefillSlug(null)
-					// Refresh stock snapshot so readiness updates after deal is sealed.
 					qc.invalidateQueries({ queryKey: ['customer-order-detail', quoteId] })
 				}}
 			/>
@@ -256,114 +226,142 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 	)
 }
 
-// ─── Shortage row ────────────────────────────────────────
-
-function ShortageRow({
-	item,
-	onRefill,
+function OrderMetric({
+	label,
+	value,
+	middle,
 }: {
-	item: OrderLineItemView
-	onRefill: () => void
+	label: string
+	value: string
+	middle?: boolean
 }) {
-	// On-hand visualized against required so the user sees how much is missing
-	const onHandPct =
-		item.requiredQty > 0 ? (item.stockLevel / item.requiredQty) * 100 : 0
 	return (
-		<div className="relative flex flex-col items-start gap-3 border-b border-black/[0.04] py-3 pr-3 pl-8 dark:border-white/[0.04] md:grid md:grid-cols-[14px_minmax(0,1.6fr)_minmax(160px,1.2fr)_minmax(180px,1.4fr)_130px] md:items-center md:gap-4 md:px-3">
-			<div className="absolute left-3 top-4 h-2 w-2 rounded-full bg-amber-500 md:static" />
-
-			<div className="min-w-0">
-				<p className="text-[12.5px] font-medium leading-snug text-[var(--color-text)]">
-					{item.productName}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{item.productSku}
-				</p>
-			</div>
-
-			{/* Required vs available */}
-			<div className="flex w-full flex-col md:col-auto">
-				<div className="flex items-baseline gap-1">
-					<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-						{item.stockLevel.toLocaleString('en-EG')}
-					</span>
-					<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
-						/ {item.requiredQty.toLocaleString('en-EG')}
-					</span>
-					<span className="text-[10px] text-[var(--color-text-subtle)]">
-						{item.unit}
-					</span>
-				</div>
-				<div className="mt-1 relative h-1 w-full rounded-full bg-black/[0.05] dark:bg-white/[0.08]">
-					<div
-						className="absolute inset-y-0 start-0 rounded-full bg-amber-500"
-						style={{ width: `${Math.min(100, onHandPct)}%` }}
-					/>
-				</div>
-			</div>
-
-			{/* Shortage callout */}
-			<div className="flex items-center gap-2 md:col-auto">
-				<span
-					aria-hidden="true"
-					className="inline-block h-6 w-0.5 rounded-full bg-red-500/60"
-				/>
-				<div>
-					<p className="font-[family-name:var(--font-geist-mono)] text-[14px] font-semibold tabular-nums text-red-600 dark:text-red-400">
-						−{item.shortage.toLocaleString('en-EG')}
-					</p>
-					<p className="text-[9px] uppercase tracking-wider text-[var(--color-text-subtle)]">
-						short · {item.unit}
-					</p>
-				</div>
-			</div>
-
-			{/* Refill action */}
-			<EmployeeActionButton
-				size="sm"
-				leading={<Phone size={13} strokeWidth={2.5} />}
-				onClick={onRefill}
-				fullWidthOnMobile
-				className="md:col-auto md:w-full"
-			>
-				Refill
-			</EmployeeActionButton>
+		<div
+			className={`px-3 py-2 ${middle ? 'border-x border-[var(--rule-soft)]' : ''}`}
+		>
+			<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+				{label}
+			</span>
+			<span className="mt-1 block break-words font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--ink)]">
+				{value}
+			</span>
 		</div>
 	)
 }
 
-// ─── Ready row ────────────────────────────────────────────
-
-function ReadyRow({ item }: { item: OrderLineItemView }) {
+function OrderSection({
+	title,
+	children,
+}: {
+	title: string
+	children: ReactNode
+}) {
 	return (
-		<div className="relative flex flex-col items-start gap-2 border-b border-black/[0.04] py-2.5 pr-3 pl-8 dark:border-white/[0.04] md:grid md:grid-cols-[14px_minmax(0,1.6fr)_minmax(160px,1.2fr)_minmax(180px,1.4fr)_130px] md:items-center md:gap-4 md:px-3">
-			<div className="absolute left-3 top-3.5 h-2 w-2 rounded-full bg-emerald-500 md:static" />
-
-			<div className="min-w-0">
-				<p className="text-[12px] leading-snug text-[var(--color-text)]">
-					{item.productName}
-				</p>
-				<p className="truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-					{item.productSku}
-				</p>
-			</div>
-
-			<div className="flex items-baseline gap-1 md:col-auto">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums text-[var(--color-text)]">
-					{item.requiredQty.toLocaleString('en-EG')}
+		<section className="mt-5">
+			<div className="mb-2 flex items-center gap-2">
+				<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-mid)]">
+					{title}
 				</span>
-				<span className="text-[10px] text-[var(--color-text-subtle)]">
-					{item.unit}
-				</span>
+				<span
+					aria-hidden="true"
+					className="h-px flex-1 bg-[var(--rule-soft)]"
+				/>
 			</div>
+			{children}
+		</section>
+	)
+}
 
-			<div className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)] md:col-auto">
-				on hand {item.stockLevel.toLocaleString('en-EG')}
+function ShortageRow({
+	item,
+	index,
+	onRefill,
+}: {
+	item: OrderLineItemView
+	index: number
+	onRefill: () => void
+}) {
+	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
+	return (
+		<li
+			className={`border-b border-[var(--rule-soft)] last:border-b-0 ${rowTone}`}
+		>
+			<div className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_8rem_7rem_auto] md:items-center">
+				<div className="min-w-0">
+					<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold leading-5 text-[var(--ink)]">
+						{item.productName}
+					</h3>
+					<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+						{item.productSku}
+					</p>
+				</div>
+				<OrderQty label="Available" value={item.stockLevel} unit={item.unit} />
+				<OrderQty
+					label="Short"
+					value={item.shortage}
+					unit={item.unit}
+					tone="attention"
+				/>
+				<EmployeeActionButton
+					size="sm"
+					leading={<PackagePlus size={13} strokeWidth={2.4} />}
+					onClick={onRefill}
+					fullWidthOnMobile
+				>
+					Refill
+				</EmployeeActionButton>
 			</div>
+		</li>
+	)
+}
 
-			<div className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)] md:col-auto md:text-end">
-				{item.lineTotal.toLocaleString('en-EG')} EGP
+function ReadyRow({ item, index }: { item: OrderLineItemView; index: number }) {
+	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
+	return (
+		<li
+			className={`border-b border-[var(--rule-soft)] last:border-b-0 ${rowTone}`}
+		>
+			<div className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_8rem_7rem] md:items-center">
+				<div className="min-w-0">
+					<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold leading-5 text-[var(--ink)]">
+						{item.productName}
+					</h3>
+					<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+						{item.productSku}
+					</p>
+				</div>
+				<OrderQty label="Required" value={item.requiredQty} unit={item.unit} />
+				<OrderQty label="Available" value={item.stockLevel} unit={item.unit} />
 			</div>
+		</li>
+	)
+}
+
+function OrderQty({
+	label,
+	value,
+	unit,
+	tone,
+}: {
+	label: string
+	value: number
+	unit: string
+	tone?: 'attention'
+}) {
+	return (
+		<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:flex-col md:items-end md:gap-1">
+			<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+				{label}
+			</span>
+			<span
+				className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums"
+				style={{
+					color:
+						tone === 'attention' ? 'var(--compendium-attention)' : 'var(--ink)',
+				}}
+			>
+				{value.toLocaleString('en-EG')} {unit}
+			</span>
 		</div>
 	)
 }

@@ -175,7 +175,7 @@ export function EmployeeFilterChip({
 			aria-pressed={active}
 			className={`inline-flex min-h-9 max-w-full items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
 				active
-					? `border-current bg-black/[0.04] dark:bg-white/[0.06] ${filterToneClass[tone]}`
+					? `border-transparent bg-black/[0.045] dark:bg-white/[0.06] ${filterToneClass[tone]}`
 					: 'border-black/[0.1] text-[var(--color-text-subtle)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.05] hover:text-[var(--color-text)] dark:border-white/[0.12]'
 			} ${className}`}
 		>

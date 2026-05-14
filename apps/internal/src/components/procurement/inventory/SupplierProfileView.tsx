@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, X } from 'lucide-react'
 import { useState } from 'react'
-import { sanitizeCost } from '../../../lib/inputs'
+import { normalizeDecimalInput, sanitizeCost } from '../../../lib/inputs'
 import {
 	getSupplierProfile,
+	type PriceProofInput,
 	type QuoteFreshness,
 	type SupplierTier,
 	updateSupplierProfile,
@@ -155,13 +156,14 @@ export function SupplierProfileView({
 		setQuoteDraft('')
 	}
 
-	const commitPendingEdit = (_proof?: string) => {
+	const commitPendingEdit = (proof: PriceProofInput) => {
 		if (!pendingEdit) return
 		priceMutation.mutate({
 			data: {
 				slug: pendingEdit.slug,
 				supplierRowId: pendingEdit.supplierRowId,
 				rawCost: pendingEdit.newCost,
+				proof,
 			},
 		})
 		setPendingEdit(null)
@@ -367,8 +369,12 @@ export function SupplierProfileView({
 									<div className="flex flex-row items-end justify-between gap-3 sm:flex-col sm:items-end">
 										{isEditing ? (
 											<input
+												type="text"
+												inputMode="decimal"
 												value={quoteDraft}
-												onChange={(e) => setQuoteDraft(e.target.value)}
+												onChange={(e) =>
+													setQuoteDraft(normalizeDecimalInput(e.target.value))
+												}
 												onBlur={() =>
 													savePrice(
 														q.productSlug,

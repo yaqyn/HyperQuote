@@ -1,9 +1,14 @@
 import { useState } from 'react'
-import { Button } from 'react-aria-components'
 import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import { useShortcut } from '../../hooks/useShortcut'
 import { useInternalStore } from '../../stores/internal'
 import { useProcurementStore } from '../../stores/procurement'
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchFooter,
+} from '../shared/DispatchDialog'
 
 /**
  * Procurement-specific keyboard shortcuts (CONTEXT.md Section 2.7).
@@ -126,44 +131,40 @@ export function ProcurementShortcuts() {
 	]
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl dark:bg-black/90">
-				<div className="mb-5 flex items-center justify-between">
-					<h3 className="text-[13px] font-semibold tracking-tight">
-						Keyboard Shortcuts
-					</h3>
-					<Button
-						onPress={() => setShowHelp(false)}
-						className="rounded-md px-2 py-1 text-xs text-[var(--color-text-muted)] outline-none transition-colors
-              data-[hovered]:bg-black/[0.04] dark:data-[hovered]:bg-white/[0.04]
-              data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
+		<DispatchDialog
+			isOpen={showHelp}
+			onClose={() => setShowHelp(false)}
+			size="sm"
+			eyebrow="Inventory"
+			title="Shortcuts"
+		>
+			<DispatchBody className="space-y-2">
+				{shortcuts.map((shortcut) => (
+					<div
+						key={shortcut.keys}
+						className="flex items-center justify-between gap-4 rounded-md px-1 py-1.5"
 					>
-						Close
-					</Button>
-				</div>
-				<div className="flex flex-col gap-2.5">
-					{shortcuts.map((shortcut) => (
-						<div
-							key={shortcut.keys}
-							className="flex items-center justify-between"
-						>
-							<span className="text-[13px] text-[var(--color-text-muted)]">
-								{shortcut.action}
-							</span>
-							<div className="flex items-center gap-1">
-								{shortcut.keys.split(' ').map((k) => (
-									<kbd
-										key={k}
-										className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-black/[0.08] bg-black/[0.03] px-1.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums dark:border-white/[0.08] dark:bg-white/[0.03]"
-									>
-										{k}
-									</kbd>
-								))}
-							</div>
+						<span className="text-[13px] text-[var(--color-text-muted)]">
+							{shortcut.action}
+						</span>
+						<div className="flex items-center gap-1">
+							{shortcut.keys.split(' ').map((k) => (
+								<kbd
+									key={k}
+									className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-black/[0.08] bg-black/[0.03] px-1.5 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums dark:border-white/[0.1] dark:bg-white/[0.04]"
+								>
+									{k}
+								</kbd>
+							))}
 						</div>
-					))}
-				</div>
-			</div>
-		</div>
+					</div>
+				))}
+			</DispatchBody>
+			<DispatchFooter>
+				<DispatchAction tone="ghost" onPress={() => setShowHelp(false)}>
+					Close
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
 	)
 }

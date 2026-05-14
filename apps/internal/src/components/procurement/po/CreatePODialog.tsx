@@ -1,5 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import {
+	normalizeDecimalInput,
+	normalizeIntegerInput,
+} from '../../../lib/inputs'
 import { createPurchaseOrder } from '../../../lib/server/procurement-po'
 import { useProcurementStore } from '../../../stores/procurement'
 import {
@@ -218,22 +222,32 @@ export function CreatePODialog({ isOpen, onOpenChange }: CreatePODialogProps) {
 								className={DispatchInputClass()}
 							/>
 							<input
-								type="number"
+								type="text"
+								inputMode="numeric"
+								pattern="[0-9]*"
 								min={0}
 								value={line.quantity || ''}
 								onChange={(e) =>
-									updateLine(i, 'quantity', Number(e.target.value) || 0)
+									updateLine(
+										i,
+										'quantity',
+										Number(normalizeIntegerInput(e.target.value)) || 0,
+									)
 								}
 								placeholder="0"
 								className={`${DispatchInputClass()} font-[family-name:var(--font-plex-mono)] tabular-nums`}
 							/>
 							<input
-								type="number"
+								type="text"
+								inputMode="decimal"
 								min={0}
-								step={0.01}
 								value={line.unitCost || ''}
 								onChange={(e) =>
-									updateLine(i, 'unitCost', Number(e.target.value) || 0)
+									updateLine(
+										i,
+										'unitCost',
+										Number(normalizeDecimalInput(e.target.value)) || 0,
+									)
 								}
 								placeholder="0.00"
 								className={`${DispatchInputClass()} font-[family-name:var(--font-plex-mono)] tabular-nums`}

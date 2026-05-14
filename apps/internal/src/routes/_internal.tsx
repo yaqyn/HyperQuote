@@ -6,6 +6,7 @@ import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
+import { InternalAuthProvider } from '../lib/internal-auth'
 import { useInternalStore } from '../stores/internal'
 import { keyboardScopeStore } from '../stores/keyboard-scope'
 import { useNotificationStore } from '../stores/notifications'
@@ -118,32 +119,34 @@ function InternalLayout() {
 	}, [])
 
 	return (
-		<div id="main" className="relative h-dvh w-full overflow-hidden">
-			<InternalShortcuts
-				auth={auth}
-				commandPaletteOpen={false}
-				onToggleCommandPalette={() => {}}
-				onCloseCommandPalette={() => {}}
-			/>
+		<InternalAuthProvider auth={auth}>
+			<div id="main" className="relative h-dvh w-full overflow-hidden">
+				<InternalShortcuts
+					auth={auth}
+					commandPaletteOpen={false}
+					onToggleCommandPalette={() => {}}
+					onCloseCommandPalette={() => {}}
+				/>
 
-			{/* Notifications window */}
-			<NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
+				{/* Notifications window */}
+				<NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
 
-			{/* Module window system — always mounted so GlassWindow can run its
+				{/* Module window system — always mounted so GlassWindow can run its
           open/close fade. `isOpen` drives visibility; `moduleId` falls back
           to the last opened module so content stays stable during the
           exit animation. */}
-			{(activeModule || lastOpenedModule) && (
-				<ModuleWindow
-					moduleId={activeModule ?? lastOpenedModule ?? ''}
-					isOpen={!!activeModule}
-					onClose={() => setActiveModule(null)}
-				/>
-			)}
+				{(activeModule || lastOpenedModule) && (
+					<ModuleWindow
+						moduleId={activeModule ?? lastOpenedModule ?? ''}
+						isOpen={!!activeModule}
+						onClose={() => setActiveModule(null)}
+					/>
+				)}
 
-			<main className="h-full">
-				<Outlet />
-			</main>
-		</div>
+				<main className="h-full">
+					<Outlet />
+				</main>
+			</div>
+		</InternalAuthProvider>
 	)
 }

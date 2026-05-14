@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCustomerList } from '../../lib/server/sales-customers'
 import { getRFQQueue, saveRFQForLater } from '../../lib/server/sales-rfq'
 import { useSalesStore } from '../../stores/sales'
@@ -28,22 +28,20 @@ const SAVE_DURATIONS = [
 
 export function SalesModule() {
 	const qc = useQueryClient()
-	const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-	const leaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 	const editingRfqId = useSalesStore((s) => s.editingRfqId)
 	const setEditingRfqId = useSalesStore((s) => s.setEditingRfqId)
 	const newQuoteCustomer = useSalesStore((s) => s.newQuoteCustomer)
 	const setNewQuoteCustomer = useSalesStore((s) => s.setNewQuoteCustomer)
+	const newQuoteRequestId = useSalesStore((s) => s.newQuoteRequestId)
+	const statusDialogRequestId = useSalesStore((s) => s.statusDialogRequestId)
 	const setActiveTab = useSalesStore((s) => s.setActiveTab)
 	const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(
 		null,
 	)
 	const [customerSelectOpen, setCustomerSelectOpen] = useState(false)
+	const [statusDialogOpen, setStatusDialogOpen] = useState(false)
 
 	// Floating windows
-	const [openPopover, setOpenPopover] = useState<
-		'submitted' | 'saved' | 'evaluated' | 'rejected' | null
-	>(null)
 	const [reportRfqId, setReportRfqId] = useState<string | null>(null)
 
 	// Save timer
@@ -134,7 +132,7 @@ export function SalesModule() {
 	// Open saved order in builder
 	const handleOpenSavedOrder = useCallback(
 		(rfqId: string) => {
-			setOpenPopover(null)
+			setStatusDialogOpen(false)
 			setWorkingSavedOrder(true)
 			setEditingRfqId(rfqId)
 		},
@@ -163,6 +161,14 @@ export function SalesModule() {
 			})),
 		[customerData],
 	)
+
+	useEffect(() => {
+		if (newQuoteRequestId > 0) setCustomerSelectOpen(true)
+	}, [newQuoteRequestId])
+
+	useEffect(() => {
+		if (statusDialogRequestId > 0) setStatusDialogOpen(true)
+	}, [statusDialogRequestId])
 
 	// Negotiate events
 	useEffect(() => {
@@ -193,415 +199,35 @@ export function SalesModule() {
 		)
 	}
 
+	const statusGroups = [
+		{ key: 'submitted', label: 'submitted', items: pipeline },
+		{ key: 'saved', label: 'saved', items: saved },
+		{ key: 'evaluated', label: 'evaluated', items: evaluated },
+		{ key: 'rejected', label: 'rejected', items: rejected },
+	] as const
+	const statusTotal =
+		pipeline.length + saved.length + evaluated.length + rejected.length
 	const isNew = !!newQuoteCustomer?.id.startsWith('new-')
 
 	return (
 		<div className="sales-theme sales-paper flex h-full flex-col">
-			{/* ── Top bar ──────────────────────────────────────────── */}
-			<div
-				className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 lg:flex-nowrap"
-				style={{ borderBottom: '1px solid var(--color-border)' }}
-			>
-				<EmployeeActionButton
-					type="button"
-					onClick={() => setCustomerSelectOpen(true)}
-					aria-label="Start a new quote"
-					size="sm"
-					trailing={<span aria-hidden="true">→</span>}
+			{workingSavedOrder && (
+				<div
+					className="flex shrink-0 items-center justify-end px-3 py-1.5 sm:px-5"
+					style={{ borderBottom: '1px solid var(--color-border)' }}
 				>
-					New quote
-				</EmployeeActionButton>
-
-				<span
-					aria-hidden="true"
-					className="hidden h-5 w-px shrink-0 sm:block"
-					style={{ backgroundColor: 'var(--color-border)' }}
-				/>
-
-				{/* Stage filter tabs — typographic with hover-popover rosters */}
-				<nav
-					aria-label="Quote stage filters"
-					className="min-w-0 max-w-full shrink grow sm:shrink-0 sm:grow-0"
-				>
-					<ol className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
-						{[
-							{
-								key: 'submitted' as const,
-								label: 'submitted',
-								count: pipeline.length,
-								items: pipeline,
-								clickable: false,
-								action: null,
-							},
-							{
-								key: 'saved' as const,
-								label: 'saved',
-								count: saved.length,
-								items: saved,
-								clickable: true,
-								action: 'resume →',
-							},
-							{
-								key: 'evaluated' as const,
-								label: 'evaluated',
-								count: evaluated.length,
-								items: evaluated,
-								clickable: true,
-								action: 'report →',
-							},
-							{
-								key: 'rejected' as const,
-								label: 'rejected',
-								count: rejected.length,
-								items: rejected,
-								clickable: true,
-								action: 'report →',
-							},
-						].map(({ key, label, count, items, clickable, action }) => {
-							const isOpen = openPopover === key
-							return (
-								<li
-									key={key}
-									className="relative"
-									onMouseEnter={() => {
-										clearTimeout(leaveTimerRef.current)
-										hoverTimerRef.current = setTimeout(
-											() => setOpenPopover(key),
-											120,
-										)
-									}}
-									onMouseLeave={() => {
-										clearTimeout(hoverTimerRef.current)
-										leaveTimerRef.current = setTimeout(
-											() => setOpenPopover((cur) => (cur === key ? null : cur)),
-											200,
-										)
-									}}
-								>
-									<button
-										type="button"
-										aria-expanded={isOpen}
-										aria-haspopup="true"
-										onFocus={() => setOpenPopover(key)}
-										onClick={() => setOpenPopover(key)}
-										className="group relative inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-									>
-										<span
-											style={{
-												fontSize: '13px',
-												fontStyle: isOpen || count > 0 ? 'normal' : 'italic',
-												fontWeight: isOpen || count > 0 ? 500 : 400,
-												color: isOpen
-													? 'var(--color-text)'
-													: count > 0
-														? 'var(--color-text-muted)'
-														: 'var(--color-text-subtle)',
-												letterSpacing: '-0.005em',
-											}}
-										>
-											{label}
-										</span>
-										{count > 0 && (
-											<span
-												className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-												style={{
-													fontSize: '11px',
-													color: isOpen
-														? 'var(--color-primary)'
-														: 'var(--color-text-subtle)',
-													letterSpacing: '0.04em',
-												}}
-											>
-												{count}
-											</span>
-										)}
-										<span
-											aria-hidden="true"
-											className={`absolute inset-x-0 -bottom-0.5 h-px origin-left bg-[var(--color-primary)] transition-transform duration-200 ${
-												isOpen
-													? 'scale-x-100'
-													: 'scale-x-0 group-hover:scale-x-100 group-focus-visible:scale-x-100'
-											}`}
-										/>
-									</button>
-
-									<AnimatePresence>
-										{isOpen && items.length > 0 && (
-											<motion.div
-												initial={{ opacity: 0, y: -4 }}
-												animate={{ opacity: 1, y: 0 }}
-												exit={{ opacity: 0, y: -4 }}
-												transition={{ duration: 0.14 }}
-												className="absolute top-full start-0 z-50 mt-2 w-[min(280px,calc(100vw-32px))]"
-												style={{
-													backgroundColor: 'var(--color-surface)',
-													border: '1px solid var(--color-border)',
-													boxShadow:
-														'0 4px 12px -4px rgba(0,0,0,0.1), 0 20px 40px -12px rgba(0,0,0,0.16)',
-												}}
-											>
-												<div
-													className="flex items-baseline justify-between px-4 py-2.5"
-													style={{
-														borderBottom: '1px solid var(--color-border)',
-													}}
-												>
-													<span
-														className="font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-muted)',
-														}}
-													>
-														{label}
-													</span>
-													<span
-														className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-														style={{
-															fontSize: '10px',
-															color: 'var(--color-text-subtle)',
-															letterSpacing: '0.06em',
-														}}
-													>
-														{count}
-													</span>
-												</div>
-												<div className="max-h-[280px] overflow-y-auto">
-													{items.map((rfq) => {
-														const age = Math.floor(
-															(Date.now() - new Date(rfq.createdAt).getTime()) /
-																3_600_000,
-														)
-														const timeLabel =
-															age < 24 ? `${age}h` : `${Math.floor(age / 24)}d`
-														const handleClick = clickable
-															? () => {
-																	if (key === 'saved') {
-																		handleOpenSavedOrder(rfq.id)
-																	} else {
-																		setOpenPopover(null)
-																		setReportRfqId(rfq.id)
-																	}
-																}
-															: undefined
-														const Row = clickable ? 'button' : 'div'
-														return (
-															<Row
-																key={rfq.id}
-																{...(clickable
-																	? {
-																			type: 'button' as const,
-																			onClick: handleClick,
-																		}
-																	: {})}
-																className={`grid w-full grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-2.5 text-start outline-none transition-colors ${
-																	clickable
-																		? 'cursor-pointer hover:bg-[var(--color-primary)]/[0.04] focus-visible:bg-[var(--color-primary)]/[0.06]'
-																		: ''
-																}`}
-																style={{
-																	borderBottom: '1px solid var(--color-border)',
-																	borderBottomStyle: 'solid',
-																}}
-															>
-																<div className="min-w-0">
-																	<p
-																		className="truncate font-[family-name:var(--font-archivo)]"
-																		style={{
-																			fontSize: '13px',
-																			fontWeight: 500,
-																			color: 'var(--color-text)',
-																			letterSpacing: '-0.005em',
-																		}}
-																	>
-																		{rfq.customerName}
-																	</p>
-																	<p
-																		className="mt-0.5 flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic"
-																		style={{
-																			fontSize: '10px',
-																			color: 'var(--color-text-subtle)',
-																		}}
-																	>
-																		<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
-																			{rfq.lineItemCount}{' '}
-																			{rfq.lineItemCount === 1
-																				? 'item'
-																				: 'items'}
-																		</span>
-																		<span aria-hidden="true">·</span>
-																		<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
-																			{timeLabel}
-																		</span>
-																	</p>
-																</div>
-																{action && (
-																	<span
-																		className="shrink-0 font-[family-name:var(--font-archivo)] italic"
-																		style={{
-																			fontSize: '11px',
-																			color:
-																				key === 'saved'
-																					? 'var(--color-primary)'
-																					: 'var(--color-text-muted)',
-																		}}
-																	>
-																		{action}
-																	</span>
-																)}
-															</Row>
-														)
-													})}
-												</div>
-											</motion.div>
-										)}
-									</AnimatePresence>
-								</li>
-							)
-						})}
-					</ol>
-				</nav>
-
-				<div className="hidden flex-1 lg:block" />
-
-				{/* Pipeline strip — active quotes inline; becomes a return-action
-				    when working on a saved order, italic empty-state when idle. */}
-				{workingSavedOrder ? (
 					<EmployeeActionButton
 						type="button"
 						onClick={handleReturnToPipeline}
 						tone="neutral"
 						size="sm"
 						leading={<span aria-hidden="true">←</span>}
-						className="order-3 lg:order-none"
-						fullWidthOnMobile
+						className="shrink-0 max-sm:min-h-7 max-sm:px-2 max-sm:py-1 max-sm:text-[9px]"
 					>
-						Return to queue
+						Queue
 					</EmployeeActionButton>
-				) : pipeline.length === 0 ? (
-					<span
-						className="order-3 w-full shrink-0 text-center font-[family-name:var(--font-archivo)] italic lg:order-none lg:w-auto lg:text-start"
-						style={{
-							fontSize: '11px',
-							color: 'var(--color-text-subtle)',
-						}}
-					>
-						queue is empty
-					</span>
-				) : (
-					<div className="relative order-3 w-full shrink-0 overflow-hidden lg:order-none lg:w-[320px]">
-						{/* Leading gradient — quiet start to the running log */}
-						<div
-							aria-hidden="true"
-							className="pointer-events-none absolute inset-y-0 start-0 z-10 w-6"
-							style={{
-								background:
-									'linear-gradient(to left, transparent, var(--color-surface) 80%)',
-							}}
-						/>
-						{/* Trailing gradient — fades entries past the viewport */}
-						<div
-							aria-hidden="true"
-							className="pointer-events-none absolute inset-y-0 end-0 z-10 w-16"
-							style={{
-								background:
-									'linear-gradient(to right, transparent, var(--color-surface) 80%)',
-							}}
-						/>
-						<ol className="flex items-stretch">
-							{[...pipeline]
-								.sort((a, b) =>
-									a.id === editingRfqId ? -1 : b.id === editingRfqId ? 1 : 0,
-								)
-								.map((rfq) => {
-									const isActive = rfq.id === editingRfqId
-									const age = Math.floor(
-										(Date.now() - new Date(rfq.createdAt).getTime()) /
-											3_600_000,
-									)
-									const timeLabel =
-										age < 1
-											? 'now'
-											: age < 24
-												? `${age}h`
-												: `${Math.floor(age / 24)}d`
-									return (
-										<li
-											key={rfq.id}
-											className="relative shrink-0 px-4 py-1 text-start"
-											style={{ width: '160px' }}
-										>
-											{/* Ledger tick — a brand-blue dot on the leading
-											    edge of today's current entry. Only one ever lit. */}
-											{isActive && (
-												<span
-													aria-hidden="true"
-													className="absolute start-1 top-[11px] h-[5px] w-[5px] rounded-full"
-													style={{ background: 'var(--color-primary)' }}
-												/>
-											)}
-											<div
-												className="truncate font-[family-name:var(--font-archivo)] transition-colors"
-												style={{
-													fontSize: '12.5px',
-													fontWeight: isActive ? 600 : 400,
-													fontStyle: isActive ? 'normal' : 'italic',
-													color: isActive
-														? 'var(--color-text)'
-														: 'var(--color-text-muted)',
-													letterSpacing: '-0.005em',
-												}}
-											>
-												{rfq.customerName}
-											</div>
-											<div className="mt-0.5 flex items-baseline gap-1.5">
-												<span
-													className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-													style={{
-														fontSize: '10px',
-														color: 'var(--color-text-subtle)',
-														letterSpacing: '0.04em',
-													}}
-												>
-													{timeLabel}
-												</span>
-												<span
-													aria-hidden="true"
-													style={{
-														fontSize: '8px',
-														color: 'var(--color-text-subtle)',
-													}}
-												>
-													·
-												</span>
-												<span
-													className="font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '10.5px',
-														color: rfq.hasOutdatedPrices
-															? 'var(--color-signal-amber)'
-															: 'var(--color-text-subtle)',
-													}}
-												>
-													{rfq.hasOutdatedPrices ? 'outdated' : 'updated'}
-												</span>
-											</div>
-											{/* Active underline — a ledger stroke beneath
-											    today's row. */}
-											{isActive && (
-												<span
-													aria-hidden="true"
-													className="absolute inset-x-4 -bottom-[11px] h-[2px] rounded-[1px]"
-													style={{ background: 'var(--color-primary)' }}
-												/>
-											)}
-										</li>
-									)
-								})}
-						</ol>
-					</div>
-				)}
-			</div>
+				</div>
+			)}
 
 			{/* ── Quote builder ────────────────────────────────────── */}
 			<div
@@ -657,7 +283,7 @@ export function SalesModule() {
 									style={{
 										fontSize: '26px',
 										fontWeight: 500,
-										letterSpacing: '-0.018em',
+										letterSpacing: '0',
 										color: 'var(--color-text)',
 									}}
 								>
@@ -679,6 +305,113 @@ export function SalesModule() {
 					)}
 				</AnimatePresence>
 			</div>
+
+			<SearchMenu
+				isOpen={statusDialogOpen}
+				onClose={() => setStatusDialogOpen(false)}
+				placeholder="Search status..."
+				resultStatus={`${statusTotal} order${statusTotal === 1 ? '' : 's'}`}
+			>
+				{(search) => {
+					const query = search.toLowerCase().trim()
+					return (
+						<div className="divide-y divide-[var(--color-border)]">
+							{statusGroups.map(({ key, label, items }) => {
+								const filtered = query
+									? items.filter((rfq) =>
+											`${rfq.customerName} ${rfq.id}`
+												.toLowerCase()
+												.includes(query),
+										)
+									: items
+								if (filtered.length === 0) return null
+								return (
+									<section key={key} aria-labelledby={`sales-status-${key}`}>
+										<div className="sticky top-0 z-10 flex items-baseline justify-between bg-[var(--color-surface)] px-4 py-2">
+											<h3
+												id={`sales-status-${key}`}
+												className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
+											>
+												{label}
+											</h3>
+											<span className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+												{filtered.length}
+											</span>
+										</div>
+										<div>
+											{filtered.map((rfq) => {
+												const age = Math.floor(
+													(Date.now() - new Date(rfq.createdAt).getTime()) /
+														3_600_000,
+												)
+												const timeLabel =
+													age < 1
+														? 'now'
+														: age < 24
+															? `${age}h`
+															: `${Math.floor(age / 24)}d`
+												const action =
+													key === 'submitted'
+														? 'open'
+														: key === 'saved'
+															? 'resume'
+															: 'report'
+												return (
+													<button
+														key={rfq.id}
+														type="button"
+														data-searchmenu-row="true"
+														onClick={() => {
+															if (key === 'submitted') {
+																setStatusDialogOpen(false)
+																setWorkingSavedOrder(false)
+																setEditingRfqId(rfq.id)
+															} else if (key === 'saved') {
+																handleOpenSavedOrder(rfq.id)
+															} else {
+																setStatusDialogOpen(false)
+																setReportRfqId(rfq.id)
+															}
+														}}
+														className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-start outline-none transition-colors hover:bg-[var(--color-primary)]/[0.04] focus-visible:bg-[var(--color-primary)]/[0.06] data-[active=true]:bg-[var(--color-primary)]/[0.06]"
+													>
+														<span className="min-w-0">
+															<span className="block truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+																{rfq.customerName}
+															</span>
+															<span className="mt-0.5 flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
+																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+																	{rfq.lineItemCount}{' '}
+																	{rfq.lineItemCount === 1 ? 'item' : 'items'}
+																</span>
+																<span aria-hidden="true">·</span>
+																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+																	{timeLabel}
+																</span>
+																{rfq.hasOutdatedPrices && (
+																	<>
+																		<span aria-hidden="true">·</span>
+																		<span className="text-[var(--color-signal-amber)]">
+																			outdated
+																		</span>
+																	</>
+																)}
+															</span>
+														</span>
+														<span className="shrink-0 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-primary)]">
+															{action}
+														</span>
+													</button>
+												)
+											})}
+										</div>
+									</section>
+								)
+							})}
+						</div>
+					)
+				}}
+			</SearchMenu>
 
 			{/* ── Save timer dialog ────────────────────────────────── */}
 			<DispatchDialog
@@ -785,7 +518,7 @@ export function SalesModule() {
 												fontSize: '14.5px',
 												fontWeight: 500,
 												color: 'var(--color-text)',
-												letterSpacing: '-0.01em',
+												letterSpacing: '0',
 											}}
 										>
 											{customer.name}
@@ -837,7 +570,7 @@ export function SalesModule() {
 														fontSize: '14.5px',
 														fontWeight: 500,
 														color: 'var(--color-primary)',
-														letterSpacing: '-0.01em',
+														letterSpacing: '0',
 													}}
 												>
 													open a new ledger for {search.trim()}

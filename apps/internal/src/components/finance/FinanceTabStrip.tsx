@@ -1,5 +1,4 @@
 import { BookOpen, History, type LucideIcon } from 'lucide-react'
-import { motion } from 'motion/react'
 import { Button } from 'react-aria-components'
 import { type FinanceTab, useFinanceStore } from '../../stores/finance'
 
@@ -52,8 +51,8 @@ export function FinanceTabStrip() {
 								aria-current={isActive ? 'page' : undefined}
 								className={`group relative flex min-h-[64px] w-full items-start gap-2 rounded-md border px-3 py-3 text-start outline-none transition-colors data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 ${
 									isActive
-										? 'border-[var(--color-primary)]/55 bg-[var(--color-primary)]/[0.06]'
-										: 'border-black/[0.08] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.04] dark:border-white/[0.12]'
+										? 'border-[var(--color-border)] bg-black/[0.035] dark:bg-white/[0.06]'
+										: 'border-black/[0.08] bg-[var(--color-surface)] hover:border-black/[0.18] hover:bg-black/[0.025] dark:border-white/[0.12] dark:hover:border-white/[0.2] dark:hover:bg-white/[0.04]'
 								}`}
 							>
 								<Icon
@@ -62,16 +61,16 @@ export function FinanceTabStrip() {
 									strokeWidth={2}
 									className={`mt-0.5 shrink-0 ${
 										isActive
-											? 'text-[var(--color-primary)]'
+											? 'text-[var(--color-text)]'
 											: 'text-[var(--color-text-subtle)]'
 									}`}
 								/>
 								<span
-									className="mt-1 hidden font-[family-name:var(--font-jetbrains-mono)] leading-none tabular-nums transition-colors sm:inline"
+									className="mt-1 hidden font-[family-name:var(--font-geist-mono)] leading-none tabular-nums transition-colors sm:inline"
 									style={{
 										fontSize: '10px',
 										color: isActive
-											? 'var(--color-primary)'
+											? 'var(--color-text)'
 											: 'var(--color-text-subtle)',
 										letterSpacing: '0.14em',
 									}}
@@ -80,7 +79,7 @@ export function FinanceTabStrip() {
 								</span>
 								<div className="flex min-w-0 flex-col">
 									<span
-										className="break-words font-[family-name:var(--font-bricolage)] leading-tight transition-colors"
+										className="break-words font-[family-name:var(--font-archivo)] leading-tight transition-colors"
 										style={{
 											fontSize: '14px',
 											fontWeight: isActive ? 600 : 400,
@@ -92,7 +91,7 @@ export function FinanceTabStrip() {
 										{register.title}
 									</span>
 									<span
-										className="mt-1 break-words font-[family-name:var(--font-bricolage)] transition-colors"
+										className="mt-1 break-words font-[family-name:var(--font-archivo)] transition-colors"
 										style={{
 											fontSize: '11px',
 											color: isActive
@@ -104,19 +103,6 @@ export function FinanceTabStrip() {
 									</span>
 								</div>
 							</Button>
-
-							{isActive && (
-								<motion.span
-									layoutId="ledger-tab-rule"
-									aria-hidden="true"
-									className="absolute inset-x-2 -bottom-[1px] h-[2px] rounded-[1px] bg-[var(--color-primary)]"
-									transition={{
-										type: 'spring',
-										stiffness: 400,
-										damping: 32,
-									}}
-								/>
-							)}
 						</li>
 					)
 				})}

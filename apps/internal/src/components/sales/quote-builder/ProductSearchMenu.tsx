@@ -1,16 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, ChevronDown, Flame } from 'lucide-react'
+import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { normalizeIntegerInput } from '../../../lib/inputs'
 import { getProductCatalog } from '../../../lib/server/sales-quotes'
-import { getPriceUrgency } from '../../../types/sales'
 import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../../shared/EmployeeControls'
 import { SearchMenu } from './SearchMenu'
 
-interface CatalogProduct {
+export interface CatalogProduct {
 	id: string
+	slug: string
 	name: string
 	specification: string
 	unit: string
@@ -22,20 +23,28 @@ interface CatalogProduct {
 	supplierName: string
 }
 
+export interface ProductCatalogSelection {
+	productId: string
+	quantity: number
+	product?: CatalogProduct
+}
+
 interface ProductSearchMenuProps {
 	isOpen: boolean
 	onClose: () => void
-	onAddProduct: (product: CatalogProduct, quantity: number) => void
-	mode?: 'append' | 'replace'
-	existingIds?: string[]
+	initialSelections?: {
+		productId: string
+		quantity: number
+		productName?: string
+	}[]
+	onFinishSelection: (selection: ProductCatalogSelection[]) => void
 }
 
 export function ProductSearchMenu({
 	isOpen,
 	onClose,
-	onAddProduct,
-	mode = 'append',
-	existingIds = [],
+	initialSelections = [],
+	onFinishSelection,
 }: ProductSearchMenuProps) {
 	const { data, isLoading } = useQuery({
 		queryKey: ['product-catalog'],
@@ -50,7 +59,9 @@ export function ProductSearchMenu({
 		{},
 	)
 	const [editingProductId, setEditingProductId] = useState<string | null>(null)
-	const [draftQty, setDraftQty] = useState('1')
+	const [draftQty, setDraftQty] = useState('0')
+	const wasOpenRef = useRef(false)
+	const seededWithProductsRef = useRef(false)
 
 	const categoryCounts = useMemo(() => {
 		const counts = new Map<string, number>()
@@ -65,22 +76,22 @@ export function ProductSearchMenu({
 		[categoryCounts],
 	)
 
-	const existingSet = useMemo(() => new Set(existingIds), [existingIds])
 	const productById = useMemo(
-		() => new Map(products.map((product) => [product.id, product])),
+		() => new Map(products.map((product) => [product.slug, product])),
 		[products],
 	)
 	const selectedEntries = useMemo(
 		() =>
 			Object.entries(selectedQtyMap)
-				.map(([id, quantity]) => {
-					const product = productById.get(id)
-					return product ? { product, quantity } : null
-				})
 				.filter(
-					(entry): entry is { product: CatalogProduct; quantity: number } =>
-						entry !== null,
-				),
+					(entry): entry is [string, number] =>
+						Number.isFinite(entry[1]) && entry[1] > 0,
+				)
+				.map(([productId, quantity]) => ({
+					productId,
+					product: productById.get(productId),
+					quantity,
+				})),
 		[selectedQtyMap, productById],
 	)
 	const selectedCount = selectedEntries.length
@@ -91,35 +102,63 @@ export function ProductSearchMenu({
 
 	useEffect(() => {
 		if (!isOpen) {
-			setSelectedQtyMap({})
+			wasOpenRef.current = false
+			seededWithProductsRef.current = false
 			setEditingProductId(null)
-			setDraftQty('1')
+			setDraftQty('0')
 			setActiveCategory(null)
+			return
 		}
-	}, [isOpen])
+		const shouldSeed =
+			!wasOpenRef.current ||
+			(!seededWithProductsRef.current && products.length > 0)
+		if (!shouldSeed) return
+		wasOpenRef.current = true
+		seededWithProductsRef.current = products.length > 0
+		const nextSelection: Record<string, number> = {}
+		for (const selection of initialSelections) {
+			if (selection.quantity > 0) {
+				const product = products.find(
+					(p) =>
+						p.slug === selection.productId ||
+						p.id === selection.productId ||
+						p.name === selection.productName,
+				)
+				nextSelection[product?.slug ?? selection.productId] = Math.round(
+					selection.quantity,
+				)
+			}
+		}
+		setSelectedQtyMap(nextSelection)
+		setEditingProductId(null)
+		setDraftQty('0')
+		setActiveCategory(null)
+	}, [isOpen, initialSelections, products])
 
 	function beginQuantityEdit(product: CatalogProduct) {
-		if (mode === 'append' && existingSet.has(product.id)) return
-		if (product.supplierCost <= 0) return
-		setEditingProductId(product.id)
-		setDraftQty(String(selectedQtyMap[product.id] ?? 1))
+		const selectedQuantity = selectedQtyMap[product.slug] ?? 0
+		if (product.supplierCost <= 0 && !selectedQuantity) return
+		const nextQuantity = selectedQuantity > 0 ? selectedQuantity : 0
+		setEditingProductId(product.slug)
+		setDraftQty(String(nextQuantity))
 	}
 
-	function applyQuantity(product: CatalogProduct) {
-		const parsed = Number(draftQty)
-		const nextQty = Number.isFinite(parsed)
-			? Math.max(0, Math.round(parsed))
-			: 1
-
+	function updateDraftQuantity(product: CatalogProduct, value: string) {
+		setDraftQty(value)
+		const parsed = Number(value)
+		if (!Number.isFinite(parsed)) return
+		const nextQty = Math.max(0, Math.round(parsed))
 		setSelectedQtyMap((prev) => {
 			if (nextQty <= 0) {
 				const next = { ...prev }
-				delete next[product.id]
+				delete next[product.slug]
 				return next
 			}
-			if (mode === 'replace') return { [product.id]: nextQty }
-			return { ...prev, [product.id]: nextQty }
+			return { ...prev, [product.slug]: nextQty }
 		})
+	}
+
+	function closeQuantityEdit() {
 		setEditingProductId(null)
 	}
 
@@ -130,13 +169,11 @@ export function ProductSearchMenu({
 			return next
 		})
 		setEditingProductId(null)
-		setDraftQty('1')
+		setDraftQty('0')
 	}
 
-	function handleFinish() {
-		for (const { product, quantity } of selectedEntries) {
-			onAddProduct(product, quantity)
-		}
+	function handleApply() {
+		onFinishSelection(selectedEntries)
 		onClose()
 	}
 
@@ -145,7 +182,7 @@ export function ProductSearchMenu({
 			isOpen={isOpen}
 			onClose={onClose}
 			placeholder="search catalog..."
-			sidebar={
+			searchTools={
 				<CategoryFilter
 					categories={categories}
 					counts={categoryCounts}
@@ -195,16 +232,15 @@ export function ProductSearchMenu({
 										<ProductPickerRow
 											key={product.id}
 											product={product}
-											selectedQuantity={selectedQtyMap[product.id] ?? 0}
-											isEditing={editingProductId === product.id}
+											selectedQuantity={selectedQtyMap[product.slug] ?? 0}
+											isEditing={editingProductId === product.slug}
 											draftQty={draftQty}
-											alreadyAdded={
-												mode === 'append' && existingSet.has(product.id)
-											}
 											onBeginEdit={() => beginQuantityEdit(product)}
-											onDraftQtyChange={setDraftQty}
-											onApply={() => applyQuantity(product)}
-											onClear={() => clearQuantity(product.id)}
+											onDraftQtyChange={(value) =>
+												updateDraftQuantity(product, value)
+											}
+											onCloseEdit={closeQuantityEdit}
+											onClear={() => clearQuantity(product.slug)}
 										/>
 									))}
 								</div>
@@ -212,10 +248,9 @@ export function ProductSearchMenu({
 						</div>
 
 						<PickerFooter
-							mode={mode}
 							selectedCount={selectedCount}
 							selectedUnits={selectedUnits}
-							onFinish={handleFinish}
+							onApply={handleApply}
 						/>
 					</div>
 				)
@@ -229,38 +264,23 @@ function ProductPickerRow({
 	selectedQuantity,
 	isEditing,
 	draftQty,
-	alreadyAdded,
 	onBeginEdit,
 	onDraftQtyChange,
-	onApply,
+	onCloseEdit,
 	onClear,
 }: {
 	product: CatalogProduct
 	selectedQuantity: number
 	isEditing: boolean
 	draftQty: string
-	alreadyAdded: boolean
 	onBeginEdit: () => void
 	onDraftQtyChange: (value: string) => void
-	onApply: () => void
+	onCloseEdit: () => void
 	onClear: () => void
 }) {
 	const hasPrice = product.supplierCost > 0
-	const canPick = hasPrice && !alreadyAdded
-	const urgency = getPriceUrgency(product.priceStatus, product.recentlyOrdered)
-	const urgencyTone =
-		urgency === 'urgent'
-			? 'var(--color-signal-red)'
-			: urgency === 'stale'
-				? 'var(--color-signal-amber)'
-				: null
-	const statusLabel = alreadyAdded
-		? 'in quote'
-		: !hasPrice
-			? 'missing price'
-			: selectedQuantity > 0
-				? `${selectedQuantity} selected`
-				: null
+	const canPick = hasPrice || selectedQuantity > 0
+	const statusLabel = hasPrice ? null : 'missing price'
 	const inputId = `catalog-qty-${product.id}`
 	const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -272,25 +292,23 @@ function ProductPickerRow({
 
 	return (
 		<div
-			className={`px-4 py-3 transition-colors lg:px-5 ${
-				selectedQuantity > 0
-					? 'bg-emerald-500/[0.045]'
-					: 'hover:bg-black/[0.015] dark:hover:bg-white/[0.02]'
+			className={`border-x border-x-transparent px-4 py-3 transition-colors hover:border-x-black/[0.16] dark:hover:border-x-white/[0.16] lg:px-5 ${
+				selectedQuantity > 0 ? 'bg-emerald-500/[0.045]' : ''
 			}`}
 		>
-			<button
-				type="button"
-				data-searchmenu-row="true"
-				onClick={onBeginEdit}
-				disabled={!canPick}
-				className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-4 text-start outline-none disabled:cursor-not-allowed disabled:opacity-55"
-				aria-label={
-					canPick
-						? `Set quantity for ${product.name}`
-						: `${product.name}, ${statusLabel ?? 'not available'}`
-				}
-			>
-				<div className="min-w-0">
+			<div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+				<button
+					type="button"
+					data-searchmenu-row="true"
+					onClick={onBeginEdit}
+					disabled={!canPick}
+					className="min-w-0 text-start outline-none disabled:cursor-not-allowed disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+					aria-label={
+						canPick
+							? `Set quantity for ${product.name}`
+							: `${product.name}, ${statusLabel ?? 'not available'}`
+					}
+				>
 					<div className="flex min-w-0 items-start gap-2">
 						<h3
 							className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
@@ -303,17 +321,7 @@ function ProductPickerRow({
 						>
 							{product.name}
 						</h3>
-						{product.recentlyOrdered && (
-							<Flame
-								size={13}
-								strokeWidth={1.8}
-								className="mt-0.5 shrink-0"
-								style={{
-									color: urgencyTone ?? 'var(--color-text-subtle)',
-								}}
-								aria-label="recently ordered"
-							/>
-						)}
+						{product.priceStatus === 'outdated' && <OutdatedPriceIcon />}
 					</div>
 					<p
 						className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[var(--color-text-subtle)]"
@@ -323,109 +331,94 @@ function ProductPickerRow({
 							letterSpacing: '0',
 						}}
 					>
-						{product.specification}
-						<span aria-hidden="true"> · </span>
-						{product.supplierName}
-						<span aria-hidden="true"> · </span>
 						<span className="font-[family-name:var(--font-plex-mono)] tabular-nums">
 							{hasPrice
 								? `${product.supplierCost.toLocaleString('en-EG', {
 										minimumFractionDigits: 2,
-									})}/${product.unit}`
+									})}LE`
 								: 'price missing'}
 						</span>
 					</p>
 					{statusLabel && (
 						<p
 							className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold"
-							style={{
-								color:
-									selectedQuantity > 0
-										? 'var(--color-primary)'
-										: 'var(--color-text-subtle)',
-							}}
+							style={{ color: 'var(--color-text-subtle)' }}
 						>
 							{statusLabel}
 						</p>
 					)}
-				</div>
-				<span
-					className={`inline-flex min-h-10 min-w-12 items-center justify-center rounded-md border px-3 font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums ${
-						selectedQuantity > 0
-							? 'border-emerald-600 bg-emerald-600 text-white'
-							: 'border-black/[0.1] text-[var(--color-text-muted)] dark:border-white/[0.12]'
-					}`}
-				>
-					{alreadyAdded ? 'in' : selectedQuantity > 0 ? selectedQuantity : '+'}
-				</span>
-			</button>
-
-			{isEditing && canPick && (
-				<div className="mt-3 rounded-md border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.025]">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-						<label className="min-w-0 flex-1" htmlFor={inputId}>
-							<span className="mb-1 block font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
-								Quantity
-							</span>
+				</button>
+				<div className="shrink-0">
+					{isEditing && canPick ? (
+						<label className="block" htmlFor={inputId}>
+							<span className="sr-only">Quantity for {product.name}</span>
 							<input
 								ref={inputRef}
 								id={inputId}
-								type="number"
+								type="text"
+								inputMode="numeric"
+								pattern="[0-9]*"
 								min={0}
-								step={1}
 								value={draftQty}
-								onChange={(event) => onDraftQtyChange(event.target.value)}
+								onChange={(event) =>
+									onDraftQtyChange(normalizeIntegerInput(event.target.value))
+								}
 								onFocus={(event) => event.currentTarget.select()}
+								onBlur={onCloseEdit}
 								onKeyDown={(event) => {
 									if (event.key === 'Enter') {
 										event.preventDefault()
-										onApply()
+										onCloseEdit()
 									}
 									if (event.key === 'Escape') {
 										event.preventDefault()
-										onClear()
+										onCloseEdit()
 									}
 								}}
-								className="h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 text-center font-[family-name:var(--font-plex-mono)] text-[16px] font-semibold tabular-nums text-[var(--color-text)] outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/18 dark:border-white/[0.12] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+								className="h-10 w-20 rounded-md border border-[var(--color-primary)]/40 bg-[var(--color-surface)] px-2 text-center font-[family-name:var(--font-plex-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)] outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/18 dark:border-[var(--color-primary)]/45 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 							/>
 						</label>
-						<div className="flex gap-2">
-							<EmployeeActionButton
-								type="button"
-								onClick={onApply}
-								tone="primary"
-								size="sm"
-							>
-								Apply
-							</EmployeeActionButton>
-							{selectedQuantity > 0 && (
-								<EmployeeActionButton
-									type="button"
-									onClick={onClear}
-									tone="neutral"
-									size="sm"
-								>
-									Clear
-								</EmployeeActionButton>
-							)}
-						</div>
-					</div>
+					) : (
+						<button
+							type="button"
+							onClick={onBeginEdit}
+							onDoubleClick={
+								selectedQuantity > 0
+									? (event) => {
+											event.preventDefault()
+											onClear()
+										}
+									: undefined
+							}
+							disabled={!canPick}
+							className={`inline-flex min-h-10 min-w-12 items-center justify-center rounded-md border px-3 font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-55 ${
+								selectedQuantity > 0
+									? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
+									: 'border-black/[0.1] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] dark:border-white/[0.12]'
+							}`}
+							aria-label={
+								selectedQuantity > 0
+									? `Edit ${selectedQuantity} units for ${product.name}`
+									: `Add ${product.name}`
+							}
+						>
+							{selectedQuantity > 0 ? selectedQuantity : '+'}
+						</button>
+					)}
 				</div>
-			)}
+			</div>
 		</div>
 	)
 }
 
 function PickerFooter({
-	mode,
 	selectedCount,
 	selectedUnits,
-	onFinish,
+	onApply,
 }: {
-	mode: 'append' | 'replace'
 	selectedCount: number
 	selectedUnits: number
-	onFinish: () => void
+	onApply: () => void
 }) {
 	return (
 		<div className="sticky bottom-0 flex flex-col gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between lg:px-5">
@@ -444,14 +437,49 @@ function PickerFooter({
 			)}
 			<EmployeeActionButton
 				type="button"
-				onClick={onFinish}
-				disabled={selectedCount === 0}
+				onClick={onApply}
 				tone={selectedCount > 0 ? 'success' : 'neutral'}
 				fullWidthOnMobile
 			>
-				{mode === 'replace' ? 'Replace item' : 'Finish selection'}
+				Apply
 			</EmployeeActionButton>
 		</div>
+	)
+}
+
+function OutdatedPriceIcon() {
+	return (
+		<svg
+			role="img"
+			aria-label="Outdated price"
+			viewBox="0 0 16 16"
+			fill="none"
+			className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-signal-amber)]"
+		>
+			<path
+				d="M8 2.25 14.25 13.25H1.75L8 2.25Z"
+				fill="currentColor"
+				opacity="0.13"
+			/>
+			<path
+				d="M8 2.25 14.25 13.25H1.75L8 2.25Z"
+				stroke="currentColor"
+				strokeWidth="1.45"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M8 5.75V9"
+				stroke="currentColor"
+				strokeWidth="1.45"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M8 11.35H8.01"
+				stroke="currentColor"
+				strokeWidth="1.9"
+				strokeLinecap="round"
+			/>
+		</svg>
 	)
 }
 
@@ -481,76 +509,57 @@ function CategoryFilter({
 	}
 
 	return (
-		<nav aria-label="Product categories" className="px-4 py-3 lg:px-3">
-			<div className="lg:hidden">
-				<button
-					type="button"
-					aria-expanded={isMenuOpen}
-					aria-controls={menuId}
-					onClick={() => setMenuOpen((open) => !open)}
-					className="flex w-full items-center gap-3 rounded-md border border-black/[0.1] bg-black/[0.015] px-3 py-2.5 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 dark:border-white/[0.12] dark:bg-white/[0.025]"
-				>
-					<span className="min-w-0 flex-1">
-						<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
-							Category
-						</span>
-						<span className="mt-0.5 block break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]">
-							{activeLabel}
-						</span>
-					</span>
-					<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-muted)]">
-						{activeCount}
-					</span>
-					<ChevronDown
-						size={16}
-						strokeWidth={1.8}
-						className={`shrink-0 text-[var(--color-text-subtle)] transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
-						aria-hidden="true"
-					/>
-				</button>
-
-				{isMenuOpen && (
-					<div
-						id={menuId}
-						className="mt-2 max-h-[38dvh] overflow-y-auto rounded-md border border-black/[0.08] bg-[var(--color-surface)] p-1 dark:border-white/[0.1]"
-					>
-						<CategoryOption
-							label="all"
-							count={totalCount}
-							isActive={activeCategory === null}
-							onClick={() => selectCategory(null)}
-						/>
-						{categories.map((category) => (
-							<CategoryOption
-								key={category}
-								label={formatCategory(category)}
-								count={counts.get(category) ?? 0}
-								isActive={activeCategory === category}
-								onClick={() => selectCategory(category)}
-							/>
-						))}
-					</div>
-				)}
-			</div>
-
-			<div className="hidden lg:flex lg:flex-col lg:gap-1">
-				<CategoryOption
-					label="all"
-					count={totalCount}
-					isActive={activeCategory === null}
-					onClick={() => onSelect(null)}
+		<div className="contents">
+			<button
+				type="button"
+				aria-expanded={isMenuOpen}
+				aria-controls={menuId}
+				aria-label={`Filter category: ${activeLabel}`}
+				onClick={() => setMenuOpen((open) => !open)}
+				className="inline-flex h-9 max-w-[176px] shrink-0 items-center gap-2 rounded-md border border-black/[0.1] bg-black/[0.015] px-3 font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)] outline-none transition-colors hover:border-[var(--color-primary)]/35 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 dark:border-white/[0.12] dark:bg-white/[0.025] lg:h-8"
+			>
+				<SlidersHorizontal
+					size={14}
+					strokeWidth={1.9}
+					className="shrink-0 text-[var(--color-text-subtle)]"
+					aria-hidden="true"
 				/>
-				{categories.map((category) => (
+				<span className="min-w-0 truncate">{activeLabel}</span>
+				<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[10px] font-medium tabular-nums text-[var(--color-text-subtle)]">
+					{activeCount}
+				</span>
+				<ChevronDown
+					size={14}
+					strokeWidth={1.8}
+					className={`shrink-0 text-[var(--color-text-subtle)] transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
+					aria-hidden="true"
+				/>
+			</button>
+
+			{isMenuOpen && (
+				<fieldset
+					id={menuId}
+					className="order-last m-0 flex w-full min-w-0 gap-2 overflow-x-auto border-0 p-0 pt-1"
+				>
+					<legend className="sr-only">Product category filters</legend>
 					<CategoryOption
-						key={category}
-						label={formatCategory(category)}
-						count={counts.get(category) ?? 0}
-						isActive={activeCategory === category}
-						onClick={() => onSelect(category)}
+						label="all"
+						count={totalCount}
+						isActive={activeCategory === null}
+						onClick={() => selectCategory(null)}
 					/>
-				))}
-			</div>
-		</nav>
+					{categories.map((category) => (
+						<CategoryOption
+							key={category}
+							label={formatCategory(category)}
+							count={counts.get(category) ?? 0}
+							isActive={activeCategory === category}
+							onClick={() => selectCategory(category)}
+						/>
+					))}
+				</fieldset>
+			)}
+		</div>
 	)
 }
 
@@ -570,13 +579,13 @@ function CategoryOption({
 			type="button"
 			onClick={onClick}
 			aria-current={isActive ? 'true' : undefined}
-			className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
+			className={`inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border px-3 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
 				isActive
-					? 'bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
-					: 'text-[var(--color-text-muted)] hover:bg-black/[0.035] dark:hover:bg-white/[0.04]'
+					? 'border-[var(--color-primary)]/40 bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+					: 'border-black/[0.1] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/35 hover:bg-black/[0.035] dark:border-white/[0.12] dark:hover:bg-white/[0.04]'
 			}`}
 		>
-			<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[12px] font-medium">
+			<span className="min-w-0 whitespace-nowrap font-[family-name:var(--font-archivo)] text-[12px] font-medium">
 				{label}
 			</span>
 			<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">

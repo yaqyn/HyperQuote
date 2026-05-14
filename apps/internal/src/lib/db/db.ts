@@ -959,11 +959,16 @@ export const db = {
 		getById(id: string): SupplierPriceRow | undefined {
 			return supplierPrices.find((p) => p.id === id)
 		},
-		updateCost(id: string, rawCost: number): SupplierPriceRow | undefined {
+		updateCost(
+			id: string,
+			rawCost: number,
+			notes?: string | null,
+		): SupplierPriceRow | undefined {
 			const row = supplierPrices.find((p) => p.id === id)
 			if (!row) return undefined
 			row.rawCost = rawCost
 			row.lastQuotedAt = new Date().toISOString()
+			if (notes !== undefined) row.notes = notes
 			return row
 		},
 		insert(row: {

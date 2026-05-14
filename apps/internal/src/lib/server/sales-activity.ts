@@ -241,7 +241,7 @@ export const addInternalNote = createServerFn({ method: 'POST' })
 		return { noteId: `note-${Date.now()}` }
 	})
 
-const getSalesAnalytics = createServerFn({ method: 'GET' })
+export const getSalesAnalytics = createServerFn({ method: 'GET' })
 	.inputValidator(
 		z.object({
 			period: z.enum(['week', 'month', 'quarter', 'year']),

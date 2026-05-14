@@ -1,5 +1,11 @@
-import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
-import { useEffect, useMemo } from 'react'
+import {
+	type CalendarDate,
+	getLocalTimeZone,
+	parseDate,
+	today,
+} from '@internationalized/date'
+import { X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import {
 	Button as AriaButton,
 	Calendar,
@@ -8,16 +14,12 @@ import {
 	CalendarGridBody,
 	CalendarGridHeader,
 	CalendarHeaderCell,
-	Dialog,
-	DialogTrigger,
 	Heading,
-	Popover,
 } from 'react-aria-components'
+import { createPortal } from 'react-dom'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { QuoteFormValues } from './types'
-
-// ─── Cairo Truck Ban Logic ────────────────────────────────
 
 const CAIRO_PATTERNS = [
 	'cairo',
@@ -43,49 +45,34 @@ const CAIRO_PATTERNS = [
 const HEAVY_WEIGHT_TONS = 5
 const HEAVY_CATEGORIES = ['cement', 'steel', 'rebar', 'concrete'] as const
 
-function isGreaterCairoAddress(address: string): boolean {
-	const lower = address.toLowerCase()
-	return CAIRO_PATTERNS.some((p) => lower.includes(p))
-}
-
-function hasHeavyMaterials(lineItems: { productName: string }[]): boolean {
-	return lineItems.some((item) => {
-		const lower = item.productName.toLowerCase()
-		return HEAVY_CATEGORIES.some((cat) => lower.includes(cat))
-	})
-}
-
-interface DeliveryTermsProps {
-	deliveryAddress: string
-	highlightDate?: boolean
-	/** Total shipment weight in tonnes — may be derived by a future commit
-	 *  from line items × unit weight. For now the parent supplies an
-	 *  estimate. Drives the truck count and the heavy-order detection for
-	 *  Cairo truck-ban rules. */
-	totalWeightTons: number
-	leadTimeDays?: number
-}
-
-const TRUCK_CAPACITY_TONS = 5
-
 const WINDOWS = [
-	{ id: '08:00-13:00', label: 'morning', range: '08:00–13:00' },
-	{ id: '13:00-17:00', label: 'midday', range: '13:00–17:00' },
-	{ id: '17:00-20:00', label: 'evening', range: '17:00–20:00' },
+	{ id: '08:00-13:00', label: 'morning', range: '08:00-13:00' },
+	{ id: '13:00-17:00', label: 'midday', range: '13:00-17:00' },
+	{ id: '17:00-20:00', label: 'evening', range: '17:00-20:00' },
 ] as const
 const NIGHT_WINDOW = {
 	id: '00:00-06:00',
 	label: 'night',
-	range: '00:00–06:00',
+	range: '00:00-06:00',
 } as const
+const ALL_WINDOWS = [...WINDOWS, NIGHT_WINDOW] as const
 
-type WindowId = (typeof WINDOWS)[number]['id'] | typeof NIGHT_WINDOW.id
+type WindowId = (typeof ALL_WINDOWS)[number]['id']
 
-// ─── Component ────────────────────────────────────────────
+interface DeliveryTermsProps {
+	deliveryAddress: string
+	highlightDate?: boolean
+	datePickerOpenSignal?: number
+	onAddressPress: () => void
+	totalWeightTons: number
+	leadTimeDays?: number
+}
 
 export function DeliveryTerms({
 	deliveryAddress,
 	highlightDate = false,
+	datePickerOpenSignal = 0,
+	onAddressPress,
 	totalWeightTons,
 	leadTimeDays = 3,
 }: DeliveryTermsProps) {
@@ -94,32 +81,23 @@ export function DeliveryTerms({
 	const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-EG'
 
 	const lineItems = useWatch({ control, name: 'lineItems' })
+	const deliveryDate = useWatch({ control, name: 'deliveryDate' })
 	const deliveryWindow = useWatch({ control, name: 'deliveryWindow' })
-	const itemCount = lineItems?.length ?? 0
-	const truckCount = Math.max(
-		1,
-		Math.ceil(totalWeightTons / TRUCK_CAPACITY_TONS),
-	)
 
-	const isCairoDelivery = isGreaterCairoAddress(deliveryAddress)
-	const isHeavyByWeight = totalWeightTons > HEAVY_WEIGHT_TONS
-	const isHeavyByCategory = hasHeavyMaterials(lineItems ?? [])
-	const isHeavyOrder = isHeavyByWeight || isHeavyByCategory
-	const truckBanActive = isCairoDelivery && isHeavyOrder
+	const truckBanActive =
+		isGreaterCairoAddress(deliveryAddress) &&
+		(totalWeightTons > HEAVY_WEIGHT_TONS || hasHeavyMaterials(lineItems ?? []))
 
-	// Truck ban forces night-delivery window. Only wire once when the
-	// condition flips — the rep can still override afterward for the
-	// rare exemption.
 	useEffect(() => {
 		if (truckBanActive) {
-			setFormValue('deliveryWindow', '00:00-06:00')
+			setFormValue('deliveryWindow', NIGHT_WINDOW.id, { shouldDirty: true })
 		}
 	}, [truckBanActive, setFormValue])
 
 	useEffect(() => {
 		if (truckBanActive) return
 		if (!deliveryWindow || deliveryWindow === '08:00-17:00') {
-			setFormValue('deliveryWindow', '08:00-13:00')
+			setFormValue('deliveryWindow', WINDOWS[0].id)
 		}
 	}, [deliveryWindow, truckBanActive, setFormValue])
 
@@ -132,482 +110,396 @@ export function DeliveryTerms({
 		[],
 	)
 
-	const earliestFormatted = useMemo(
-		() =>
-			earliestDate
-				.toDate(getLocalTimeZone())
-				.toLocaleDateString(locale, {
-					weekday: 'short',
-					day: 'numeric',
-					month: 'short',
-				})
-				.toLowerCase(),
-		[earliestDate, locale],
-	)
+	const addressLabel = formatAddressSummary(deliveryAddress)
 
 	return (
-		<dl className="mt-5 flex flex-col gap-0">
-			{/* Row — date + earliest context */}
-			<StratumRow label="date" highlight={highlightDate}>
-				<Controller
-					control={control}
-					name="deliveryDate"
-					render={({ field }) => {
-						const parsed = field.value ? parseDate(field.value) : null
-						const formatted = parsed
-							? parsed
-									.toDate(getLocalTimeZone())
-									.toLocaleDateString(locale, {
-										weekday: 'short',
-										day: 'numeric',
-										month: 'short',
-										year: 'numeric',
-									})
-									.toLowerCase()
-							: null
-						return (
-							<div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:gap-4">
-								<DialogTrigger>
-									<AriaButton
-										aria-label={
-											highlightDate
-												? 'Pick delivery date, required'
-												: 'Pick delivery date'
-										}
-										aria-invalid={highlightDate || undefined}
-										className={`group relative inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
-											highlightDate
-												? 'border-[var(--color-signal-red)] bg-[var(--color-signal-red)]/[0.04]'
-												: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
-										}`}
-									>
-										<svg
-											width="12"
-											height="12"
-											viewBox="0 0 14 14"
-											fill="none"
-											aria-hidden="true"
-											className="shrink-0 self-center"
-											style={{
-												color: highlightDate
-													? 'var(--color-signal-red)'
-													: 'var(--color-text-subtle)',
-											}}
-										>
-											<rect
-												x="1.5"
-												y="2.5"
-												width="11"
-												height="10"
-												rx="0"
-												stroke="currentColor"
-												strokeWidth="1"
-											/>
-											<path
-												d="M1.5 5.5h11M4.5 1v2.5M9.5 1v2.5"
-												stroke="currentColor"
-												strokeWidth="1"
-												strokeLinecap="round"
-											/>
-										</svg>
-										{formatted ? (
-											<span className="relative">
-												<span
-													className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-													style={{
-														fontSize: '13px',
-														color: 'var(--color-text)',
-														fontWeight: 500,
-														letterSpacing: '0.01em',
-													}}
-												>
-													{formatted}
-												</span>
-												<span
-													aria-hidden="true"
-													className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-												/>
-											</span>
-										) : (
-											<span className="relative">
-												<span
-													className="font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '13px',
-														color: highlightDate
-															? 'var(--color-signal-red)'
-															: 'var(--color-text-subtle)',
-													}}
-												>
-													pick a date
-												</span>
-												<span
-													aria-hidden="true"
-													className={`absolute inset-x-0 -bottom-0.5 h-px origin-left transition-transform duration-200 ${
-														highlightDate
-															? 'scale-x-100 bg-[var(--color-signal-red)]'
-															: 'scale-x-0 bg-[var(--color-primary)] group-hover:scale-x-100 group-focus-visible:scale-x-100'
-													}`}
-												/>
-											</span>
-										)}
-									</AriaButton>
-									<Popover
-										placement="bottom start"
-										className="max-w-[calc(100vw-24px)]"
-									>
-										<Dialog
-											aria-label="Delivery date picker"
-											className="cursor-default select-none p-4 outline-none"
-											style={{
-												backgroundColor: 'var(--color-surface)',
-												border: '1px solid var(--color-border)',
-												boxShadow:
-													'0 4px 12px -4px rgba(0,0,0,0.12), 0 16px 40px -8px rgba(0,0,0,0.18)',
-											}}
-										>
-											{({ close }) => (
-												<Calendar
-													aria-label="Delivery date"
-													minValue={earliestDate}
-													maxValue={latestDate}
-													value={parsed}
-													onChange={(date) => {
-														field.onChange(date?.toString() ?? '')
-														close()
-													}}
-												>
-													<header className="mb-3 flex items-center justify-between">
-														<AriaButton
-															slot="previous"
-															aria-label="Previous month"
-															className="rounded-sm p-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors data-[hovered]:text-[var(--color-primary)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
-															style={{
-																fontSize: '13px',
-																color: 'var(--color-text-muted)',
-															}}
-														>
-															←
-														</AriaButton>
-														<Heading
-															className="font-[family-name:var(--font-archivo)]"
-															style={{
-																fontSize: '13px',
-																fontWeight: 500,
-																color: 'var(--color-text)',
-																letterSpacing: '-0.005em',
-															}}
-														/>
-														<AriaButton
-															slot="next"
-															aria-label="Next month"
-															className="rounded-sm p-1 font-[family-name:var(--font-archivo)] italic outline-none transition-colors data-[hovered]:text-[var(--color-primary)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40"
-															style={{
-																fontSize: '13px',
-																color: 'var(--color-text-muted)',
-															}}
-														>
-															→
-														</AriaButton>
-													</header>
-													<CalendarGrid>
-														<CalendarGridHeader>
-															{(day) => (
-																<CalendarHeaderCell
-																	className="pb-2 font-[family-name:var(--font-archivo)] italic"
-																	style={{
-																		fontSize: '10px',
-																		color: 'var(--color-text-subtle)',
-																		letterSpacing: '0.04em',
-																	}}
-																>
-																	{day}
-																</CalendarHeaderCell>
-															)}
-														</CalendarGridHeader>
-														<CalendarGridBody>
-															{(date) => (
-																<CalendarCell
-																	date={date}
-																	className="flex h-8 w-8 items-center justify-center font-[family-name:var(--font-plex-mono)] tabular-nums outline-none transition-colors data-[hovered]:bg-[var(--color-primary)]/10 data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:opacity-25 data-[outside-month]:invisible data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/40 rounded-sm"
-																	style={{
-																		fontSize: '12px',
-																		color: 'var(--color-text)',
-																	}}
-																/>
-															)}
-														</CalendarGridBody>
-													</CalendarGrid>
-												</Calendar>
-											)}
-										</Dialog>
-									</Popover>
-								</DialogTrigger>
-								<span
-									className="font-[family-name:var(--font-archivo)] italic"
-									style={{
-										fontSize: '11px',
-										color: 'var(--color-text-subtle)',
-									}}
-								>
-									earliest{' '}
-									<span
-										className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
-										style={{
-											color: 'var(--color-text-muted)',
-											letterSpacing: '0.02em',
-										}}
-									>
-										{earliestFormatted}
-									</span>{' '}
-									·{' '}
-									<span
-										className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
-										style={{
-											color: 'var(--color-text-muted)',
-										}}
-									>
-										{leadTimeDays}d
-									</span>{' '}
-									lead
-								</span>
-							</div>
-						)
-					}}
-				/>
-			</StratumRow>
-
-			{/* Row — window picker as a radio group */}
-			<StratumRow label="window">
-				<Controller
-					control={control}
-					name="deliveryWindow"
-					render={({ field }) => {
-						const value = (
-							field.value === '08:00-17:00'
-								? '08:00-13:00'
-								: (field.value ?? '08:00-13:00')
-						) as WindowId
-						const windows =
-							truckBanActive || value === NIGHT_WINDOW.id
-								? [NIGHT_WINDOW, ...WINDOWS]
-								: WINDOWS
-						return (
-							<fieldset className="m-0 grid grid-cols-1 gap-2 border-0 p-0 sm:grid-cols-3">
-								<legend className="sr-only">Delivery window</legend>
-								{windows.map((w) => {
-									const selected = value === w.id
-									const inputId = `window-${w.id}`
-									return (
-										<label
-											key={w.id}
-											htmlFor={inputId}
-											className={`group relative flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] transition-colors ${
-												selected
-													? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.06]'
-													: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
-											}`}
-										>
-											<input
-												id={inputId}
-												type="radio"
-												name="deliveryWindow"
-												value={w.id}
-												checked={selected}
-												onChange={() => field.onChange(w.id)}
-												className="sr-only peer"
-											/>
-											<span className="min-w-0">
-												<span
-													className="block"
-													style={{
-														fontSize: '13px',
-														fontWeight: selected ? 600 : 500,
-														color: selected
-															? 'var(--color-text)'
-															: 'var(--color-text-muted)',
-														letterSpacing: '-0.005em',
-													}}
-												>
-													{w.label}
-												</span>
-												<span
-													className="mt-0.5 block font-[family-name:var(--font-plex-mono)] tabular-nums"
-													style={{
-														fontSize: '10px',
-														color: 'var(--color-text-subtle)',
-														letterSpacing: '0.04em',
-													}}
-												>
-													{w.range}
-												</span>
-											</span>
-											<span
-												aria-hidden="true"
-												className="shrink-0 rounded-full transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-primary)]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
-												style={{
-													width: 8,
-													height: 8,
-													backgroundColor: selected
-														? 'var(--color-primary)'
-														: 'transparent',
-													border: selected
-														? 'none'
-														: '1px solid var(--color-text-subtle)',
-												}}
-											/>
-										</label>
-									)
-								})}
-								{truckBanActive && (
-									<span
-										role="note"
-										className="sm:col-span-3 font-[family-name:var(--font-archivo)] italic"
-										style={{
-											fontSize: '11px',
-											color: 'var(--color-signal-amber)',
-										}}
-									>
-										· cairo truck ban — night delivery only
-									</span>
-								)}
-							</fieldset>
-						)
-					}}
-				/>
-			</StratumRow>
-
-			{/* Row — shipment summary */}
-			<StratumRow label="shipment">
-				<div
-					className="flex flex-wrap items-baseline gap-x-4 gap-y-2 font-[family-name:var(--font-plex-mono)] tabular-nums"
-					style={{
-						fontSize: '12px',
-						color: 'var(--color-text)',
-					}}
+		<div className="py-3">
+			<div className="grid grid-cols-2 gap-2">
+				<button
+					type="button"
+					onClick={onAddressPress}
+					className="group flex min-h-14 min-w-0 items-center rounded-md border border-[var(--color-border)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.035] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+					aria-label={`Open delivery map, current address ${deliveryAddress || 'not set'}`}
 				>
-					<span>
-						{totalWeightTons}
+					<span className="min-w-0">
+						<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+							Address
+						</span>
 						<span
-							className="font-[family-name:var(--font-archivo)] italic"
-							style={{
-								fontSize: '11px',
-								color: 'var(--color-text-subtle)',
-								marginInlineStart: '2px',
-							}}
+							className={`mt-0.5 block truncate font-[family-name:var(--font-archivo)] text-[14px] ${
+								deliveryAddress
+									? 'text-[var(--color-text)]'
+									: 'italic text-[var(--color-text-subtle)]'
+							}`}
+							style={{ letterSpacing: '0' }}
 						>
-							t
+							{addressLabel}
 						</span>
 					</span>
-					<span
-						aria-hidden="true"
-						style={{ color: 'var(--color-text-subtle)' }}
-					>
-						·
-					</span>
-					<span>
-						{truckCount}
-						<span
-							className="font-[family-name:var(--font-archivo)] italic"
-							style={{
-								fontSize: '11px',
-								color: 'var(--color-text-subtle)',
-								marginInlineStart: '4px',
-							}}
-						>
-							{truckCount === 1 ? 'truck' : 'trucks'}
-						</span>
-					</span>
-					<span
-						aria-hidden="true"
-						style={{ color: 'var(--color-text-subtle)' }}
-					>
-						·
-					</span>
-					<span>
-						{itemCount}
-						<span
-							className="font-[family-name:var(--font-archivo)] italic"
-							style={{
-								fontSize: '11px',
-								color: 'var(--color-text-subtle)',
-								marginInlineStart: '4px',
-							}}
-						>
-							{itemCount === 1 ? 'item' : 'items'}
-						</span>
-					</span>
-				</div>
-			</StratumRow>
+				</button>
 
-			{/* Row — notes */}
-			<StratumRow label="notes" align="start">
+				<DateTimePicker
+					dateValue={deliveryDate}
+					windowValue={deliveryWindow}
+					earliestDate={earliestDate}
+					latestDate={latestDate}
+					highlightDate={highlightDate}
+					openSignal={datePickerOpenSignal}
+					locale={locale}
+					truckBanActive={truckBanActive}
+					onDateChange={(value) =>
+						setFormValue('deliveryDate', value, {
+							shouldDirty: true,
+							shouldValidate: true,
+						})
+					}
+					onWindowChange={(value) =>
+						setFormValue('deliveryWindow', value, { shouldDirty: true })
+					}
+				/>
+			</div>
+
+			<div className="mt-3 border-t border-[var(--color-border)] pt-3">
 				<Controller
 					control={control}
 					name="specialInstructions"
 					render={({ field }) => (
-						<label htmlFor="delivery-notes" className="block w-full">
+						<label htmlFor="delivery-notes" className="block">
 							<span className="sr-only">Delivery notes</span>
 							<textarea
 								id="delivery-notes"
 								value={field.value ?? ''}
-								onChange={(e) => field.onChange(e.target.value)}
-								placeholder="time windows, contact on-site, loading bay notes…"
-								rows={2}
-								className="w-full resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/60"
+								onChange={(event) => field.onChange(event.target.value)}
+								placeholder="notes"
+								rows={3}
+								wrap="soft"
+								className="block min-h-20 w-full resize-none overflow-hidden rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/65 focus:border-[var(--color-primary)]/45 focus:ring-2 focus:ring-[var(--color-primary)]/20"
 								style={{
 									fontSize: '13px',
-									lineHeight: 1.5,
-									letterSpacing: '-0.005em',
+									lineHeight: 1.45,
+									letterSpacing: '0',
+									overflowWrap: 'anywhere',
+									wordBreak: 'break-word',
 								}}
 							/>
 						</label>
 					)}
 				/>
-			</StratumRow>
-		</dl>
+			</div>
+		</div>
 	)
 }
 
-// ─── Stratum row primitive ───────────────────────────────
-
-function StratumRow({
-	label,
-	children,
-	align = 'baseline',
-	highlight = false,
+function DateTimePicker({
+	dateValue,
+	windowValue,
+	earliestDate,
+	latestDate,
+	highlightDate,
+	openSignal,
+	locale,
+	truckBanActive,
+	onDateChange,
+	onWindowChange,
 }: {
-	label: string
-	children: React.ReactNode
-	align?: 'baseline' | 'start'
-	highlight?: boolean
+	dateValue: string
+	windowValue: string
+	earliestDate: CalendarDate
+	latestDate: CalendarDate
+	highlightDate: boolean
+	openSignal: number
+	locale: string
+	truckBanActive: boolean
+	onDateChange: (value: string) => void
+	onWindowChange: (value: WindowId) => void
 }) {
+	const [isOpen, setOpen] = useState(false)
+	const selectedDate = parseDeliveryDate(dateValue)
+	const selectedWindow = getWindowOption(windowValue)
+	const summaryLabel = selectedDate
+		? `${formatPickerDate(selectedDate, locale)} at ${capitalize(selectedWindow.label)}`
+		: 'Pick date & time'
+
+	useEffect(() => {
+		if (!isOpen) return
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false)
+		}
+		window.addEventListener('keydown', onKeyDown)
+		return () => window.removeEventListener('keydown', onKeyDown)
+	}, [isOpen])
+
+	useEffect(() => {
+		if (openSignal > 0) setOpen(true)
+	}, [openSignal])
+
 	return (
-		<div
-			className={`flex flex-col gap-2 py-3 sm:grid sm:grid-cols-[80px_1fr] sm:gap-x-6 ${
-				align === 'start' ? 'sm:items-start' : 'sm:items-baseline'
-			}`}
-			style={{
-				borderBottom: `1px solid ${
-					highlight ? 'var(--color-signal-red)' : 'var(--color-border)'
-				}`,
-				borderBottomStyle: 'solid',
-				opacity: 1,
-			}}
-		>
-			<dt
-				className="font-[family-name:var(--font-archivo)] italic"
-				style={{
-					fontSize: '11px',
-					color: highlight
-						? 'var(--color-signal-red)'
-						: 'var(--color-text-subtle)',
-					paddingTop: align === 'start' ? '3px' : undefined,
-				}}
+		<>
+			<button
+				type="button"
+				onClick={() => setOpen((open) => !open)}
+				aria-expanded={isOpen}
+				aria-invalid={highlightDate || undefined}
+				className={`group flex min-h-14 min-w-0 items-center rounded-md border px-3 py-2 text-start outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.035] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+					highlightDate
+						? 'border-[var(--color-signal-red)] bg-[var(--color-signal-red)]/[0.035]'
+						: 'border-[var(--color-border)]'
+				}`}
+				aria-label={`Open delivery date and time picker, current ${summaryLabel}`}
 			>
-				{label}
-			</dt>
-			<dd>{children}</dd>
-		</div>
+				<span className="min-w-0">
+					<span
+						className={`block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.08em] ${
+							highlightDate
+								? 'text-[var(--color-signal-red)]'
+								: 'text-[var(--color-text-subtle)]'
+						}`}
+					>
+						Date & Time
+					</span>
+					<span
+						className={`mt-0.5 block truncate font-[family-name:var(--font-archivo)] text-[14px] ${
+							selectedDate
+								? 'text-[var(--color-text)]'
+								: 'italic text-[var(--color-text-subtle)]'
+						}`}
+						style={{ letterSpacing: '0' }}
+					>
+						{summaryLabel}
+					</span>
+				</span>
+			</button>
+
+			<DateTimeOverlay
+				isOpen={isOpen}
+				selectedDate={selectedDate}
+				selectedWindowId={selectedWindow.id}
+				earliestDate={earliestDate}
+				latestDate={latestDate}
+				locale={locale}
+				truckBanActive={truckBanActive}
+				onClose={() => setOpen(false)}
+				onDateChange={onDateChange}
+				onWindowChange={onWindowChange}
+			/>
+		</>
 	)
+}
+
+function DateTimeOverlay({
+	isOpen,
+	selectedDate,
+	selectedWindowId,
+	earliestDate,
+	latestDate,
+	locale,
+	truckBanActive,
+	onClose,
+	onDateChange,
+	onWindowChange,
+}: {
+	isOpen: boolean
+	selectedDate: CalendarDate | null
+	selectedWindowId: WindowId
+	earliestDate: CalendarDate
+	latestDate: CalendarDate
+	locale: string
+	truckBanActive: boolean
+	onClose: () => void
+	onDateChange: (value: string) => void
+	onWindowChange: (value: WindowId) => void
+}) {
+	if (!isOpen || typeof document === 'undefined') return null
+
+	const content = (
+		<>
+			<div
+				className="fixed inset-0 z-[80] bg-black/35 backdrop-blur-[2px]"
+				onClick={onClose}
+				aria-hidden="true"
+			/>
+			<section
+				role="dialog"
+				aria-modal
+				aria-label="Delivery date and time"
+				className="fixed left-1/2 top-1/2 z-[81] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[380px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)] outline-none dark:border-white/[0.1]"
+			>
+				<header className="flex items-start justify-between gap-3 border-b border-black/[0.08] px-4 py-3 dark:border-white/[0.1]">
+					<div className="min-w-0">
+						<div className="flex items-center gap-2">
+							<h3 className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text)]">
+								Date & Time
+							</h3>
+							{truckBanActive && (
+								<span
+									role="img"
+									title="Heavy Greater Cairo delivery. Night is recommended."
+									aria-label="Delivery timing notice"
+									className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--color-signal-amber)]/45 font-[family-name:var(--font-plex-mono)] text-[var(--color-signal-amber)]"
+									style={{ fontSize: '9px', fontWeight: 700 }}
+								>
+									!
+								</span>
+							)}
+						</div>
+						<p className="mt-1 font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-subtle)]">
+							{selectedDate
+								? formatPickerDate(selectedDate, locale)
+								: 'Select a delivery day'}
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={onClose}
+						aria-label="Close delivery picker"
+						className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--color-text-subtle)] outline-none transition-colors hover:bg-black/[0.04] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:bg-white/[0.05]"
+					>
+						<X size={15} strokeWidth={1.8} aria-hidden="true" />
+					</button>
+				</header>
+
+				<Calendar
+					aria-label="Delivery date"
+					minValue={earliestDate}
+					maxValue={latestDate}
+					value={selectedDate}
+					onChange={(date) => onDateChange(date?.toString() ?? '')}
+				>
+					<header className="flex items-center justify-between px-4 pt-3">
+						<AriaButton
+							slot="previous"
+							aria-label="Previous month"
+							className="inline-flex h-8 w-8 items-center justify-center rounded-md font-[family-name:var(--font-archivo)] text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] data-[hovered]:text-[var(--color-text)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35"
+						>
+							←
+						</AriaButton>
+						<Heading
+							className="font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]"
+							style={{ letterSpacing: '0' }}
+						/>
+						<AriaButton
+							slot="next"
+							aria-label="Next month"
+							className="inline-flex h-8 w-8 items-center justify-center rounded-md font-[family-name:var(--font-archivo)] text-[var(--color-text-muted)] outline-none transition-colors data-[hovered]:bg-black/[0.04] data-[hovered]:text-[var(--color-text)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35"
+						>
+							→
+						</AriaButton>
+					</header>
+					<CalendarGrid className="mx-4 w-[calc(100%-2rem)] table-fixed border-separate border-spacing-1">
+						<CalendarGridHeader>
+							{(day) => (
+								<CalendarHeaderCell className="h-6 text-center font-[family-name:var(--font-archivo)] text-[10px] font-medium text-[var(--color-text-subtle)]">
+									{day}
+								</CalendarHeaderCell>
+							)}
+						</CalendarGridHeader>
+						<CalendarGridBody>
+							{(date) => (
+								<CalendarCell
+									date={date}
+									className="h-9 w-9 rounded-md text-center align-middle font-[family-name:var(--font-plex-mono)] text-[12px] tabular-nums text-[var(--color-text)] outline-none transition-colors data-[disabled]:opacity-25 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 data-[hovered]:bg-[var(--color-primary)]/[0.08] data-[outside-month]:invisible data-[selected]:bg-[var(--color-primary)] data-[selected]:text-white data-[unavailable]:opacity-25"
+								/>
+							)}
+						</CalendarGridBody>
+					</CalendarGrid>
+				</Calendar>
+
+				<div className="grid grid-cols-2 gap-2 px-4 pt-3">
+					{ALL_WINDOWS.map((windowOption) => {
+						const selected = selectedWindowId === windowOption.id
+						return (
+							<button
+								key={windowOption.id}
+								type="button"
+								onClick={() => onWindowChange(windowOption.id)}
+								aria-pressed={selected}
+								className={`min-h-11 rounded-md border px-3 py-2 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+									selected
+										? 'border-[var(--color-primary)]/50 bg-[var(--color-primary)]/[0.08]'
+										: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/35 hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
+								}`}
+							>
+								<span className="block font-[family-name:var(--font-archivo)] text-[12px] font-semibold capitalize text-[var(--color-text)]">
+									{windowOption.label}
+								</span>
+								<span className="mt-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+									{windowOption.range}
+								</span>
+							</button>
+						)
+					})}
+				</div>
+
+				<button
+					type="button"
+					onClick={onClose}
+					className="mx-4 mb-4 mt-3 inline-flex h-9 w-[calc(100%-2rem)] items-center justify-center rounded-md bg-[var(--color-primary)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+				>
+					Done
+				</button>
+			</section>
+		</>
+	)
+
+	return createPortal(content, document.body)
+}
+
+function parseDeliveryDate(value: string | null | undefined) {
+	if (!value) return null
+	try {
+		return parseDate(value)
+	} catch {
+		return null
+	}
+}
+
+function getWindowOption(value: string | null | undefined) {
+	return (
+		ALL_WINDOWS.find((windowOption) => windowOption.id === value) ?? WINDOWS[0]
+	)
+}
+
+function formatAddressSummary(address: string) {
+	const parts = address
+		.split(',')
+		.map((part) => part.trim())
+		.filter(Boolean)
+	if (parts.length >= 2) return parts.slice(-2).join(', ')
+	return address.trim() || 'Choose address'
+}
+
+function formatPickerDate(date: CalendarDate, locale: string) {
+	const nativeDate = date.toDate(getLocalTimeZone())
+	const month = nativeDate.toLocaleDateString(locale, { month: 'long' })
+	if (locale.startsWith('en'))
+		return `${ordinal(nativeDate.getDate())} ${month}`
+	return nativeDate.toLocaleDateString(locale, {
+		day: 'numeric',
+		month: 'long',
+	})
+}
+
+function ordinal(day: number) {
+	const rem10 = day % 10
+	const rem100 = day % 100
+	if (rem10 === 1 && rem100 !== 11) return `${day}st`
+	if (rem10 === 2 && rem100 !== 12) return `${day}nd`
+	if (rem10 === 3 && rem100 !== 13) return `${day}rd`
+	return `${day}th`
+}
+
+function capitalize(value: string) {
+	return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function isGreaterCairoAddress(address: string): boolean {
+	const lower = address.toLowerCase()
+	return CAIRO_PATTERNS.some((pattern) => lower.includes(pattern))
+}
+
+function hasHeavyMaterials(lineItems: { productName: string }[]): boolean {
+	return lineItems.some((item) => {
+		const lower = item.productName.toLowerCase()
+		return HEAVY_CATEGORIES.some((category) => lower.includes(category))
+	})
 }

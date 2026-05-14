@@ -3,6 +3,7 @@ import type { FreshnessIndicator, PriceStatus } from '../../../types/sales'
 /** Shape of a single line item inside the quote builder react-hook-form tree. */
 export interface LineItemFormValues {
 	id: string
+	productSlug: string
 	productName: string
 	specification: string
 	quantity: number

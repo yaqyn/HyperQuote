@@ -15,11 +15,90 @@ import { db, hoursSince } from '../db/db'
 
 // Re-exported so every sales UI that already imports from here keeps working
 // while the canonical definitions live in inventory.ts.
-export { requestInventoryPriceUpdate } from './inventory'
+export {
+	getOutdatedPricesSummary,
+	requestInventoryPriceUpdate,
+} from './inventory'
 
 // ─── Config ───────────────────────────────────────────────
 
 const PROCUREMENT_BUFFER = 0.025
+type QuoteBuilderCurrency = 'EGP' | 'USD' | 'EUR' | 'SAR'
+const QUOTE_BUILDER_FOREIGN_CURRENCIES: Array<
+	Exclude<QuoteBuilderCurrency, 'EGP'>
+> = ['USD', 'EUR', 'SAR']
+const EXCHANGE_RATE_SOURCE_URL = 'https://open.er-api.com/v6/latest/EGP'
+const EXCHANGE_RATE_SOURCE_NAME = ''
+
+interface QuoteBuilderExchangeRates {
+	baseCurrency: 'EGP'
+	rates: Record<QuoteBuilderCurrency, number | null>
+	updatedAt: string | null
+	source: string
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates> {
+	const rates: Record<QuoteBuilderCurrency, number | null> = {
+		EGP: 1,
+		USD: null,
+		EUR: null,
+		SAR: null,
+	}
+
+	try {
+		const response = await fetch(EXCHANGE_RATE_SOURCE_URL)
+		if (!response.ok) {
+			return {
+				baseCurrency: 'EGP',
+				rates,
+				updatedAt: null,
+				source: EXCHANGE_RATE_SOURCE_NAME,
+			}
+		}
+
+		const payload: unknown = await response.json()
+		if (!isUnknownRecord(payload) || !isUnknownRecord(payload.rates)) {
+			return {
+				baseCurrency: 'EGP',
+				rates,
+				updatedAt: null,
+				source: EXCHANGE_RATE_SOURCE_NAME,
+			}
+		}
+
+		for (const currency of QUOTE_BUILDER_FOREIGN_CURRENCIES) {
+			const apiRate = payload.rates[currency]
+			if (
+				typeof apiRate === 'number' &&
+				Number.isFinite(apiRate) &&
+				apiRate > 0
+			) {
+				rates[currency] = Math.round((1 / apiRate) * 10_000) / 10_000
+			}
+		}
+
+		return {
+			baseCurrency: 'EGP',
+			rates,
+			updatedAt:
+				typeof payload.time_last_update_utc === 'string'
+					? payload.time_last_update_utc
+					: null,
+			source: EXCHANGE_RATE_SOURCE_NAME,
+		}
+	} catch {
+		return {
+			baseCurrency: 'EGP',
+			rates,
+			updatedAt: null,
+			source: EXCHANGE_RATE_SOURCE_NAME,
+		}
+	}
+}
 
 function bufferCost(rawCost: number): number {
 	return Math.round(rawCost * (1 + PROCUREMENT_BUFFER) * 100) / 100
@@ -88,6 +167,7 @@ function buildSuggestedProduct(
 	const priceStatus = freshness === 'fresh' ? 'updated' : 'outdated'
 	return {
 		id: `sp-${rfqId}-${index + 1}`,
+		productSlug: product.slug,
 		productName: product.name,
 		specification: product.subcategory.replace(/_/g, ' '),
 		supplierName: primary?.supplierName ?? '',
@@ -102,9 +182,10 @@ function buildSuggestedProduct(
 	}
 }
 
-function buildQuoteBuilderData(rfqId: string) {
+async function buildQuoteBuilderData(rfqId: string) {
 	const rfq = db.rfqs.get(rfqId)
 	const customer = rfq ? db.customers.findByName(rfq.customerName) : undefined
+	const exchangeRates = await getQuoteBuilderExchangeRates()
 
 	// If a draft quote already exists for this rfq, hydrate from it so
 	// saved margins/quantities aren't silently overwritten by the RFQ rebuild.
@@ -243,6 +324,7 @@ function buildQuoteBuilderData(rfqId: string) {
 		stockByName,
 		suppliers,
 		marginThresholds: MARGIN_THRESHOLDS,
+		exchangeRates,
 	}
 }
 
@@ -305,7 +387,7 @@ function getMockQuote(quoteId: string): Quote {
 
 // ─── Server Functions ─────────────────────────────────────
 
-const createQuote = createServerFn({ method: 'POST' })
+export const createQuote = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			rfqId: z.string(),
@@ -497,7 +579,18 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 export const getQuoteBuilderData = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
-		return buildQuoteBuilderData(data.rfqId)
+		return await buildQuoteBuilderData(data.rfqId)
+	})
+
+export const getSalesApprovers = createServerFn({ method: 'GET' })
+	.inputValidator(z.object({}))
+	.handler(async () => {
+		return {
+			approvers: db.employees.list().map((e) => ({
+				id: e.id,
+				name: e.name,
+			})),
+		}
 	})
 
 export const requestApproval = createServerFn({ method: 'POST' })
@@ -515,7 +608,7 @@ export const requestApproval = createServerFn({ method: 'POST' })
 		return { approvalId: `appr-${Date.now()}` }
 	})
 
-const approveQuote = createServerFn({ method: 'POST' })
+export const approveQuote = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			approvalId: z.string(),
@@ -532,7 +625,7 @@ const approveQuote = createServerFn({ method: 'POST' })
 		return { success: true }
 	})
 
-const previewQuotePDF = createServerFn({ method: 'GET' })
+export const previewQuotePDF = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
 		return { quote: getMockQuote(data.quoteId), pdfUrl: null as string | null }
@@ -552,6 +645,7 @@ export const getProductCatalog = createServerFn({ method: 'GET' })
 					: ('missing' as FreshnessIndicator)
 				return {
 					id: product.id,
+					slug: product.slug,
 					name: product.name,
 					specification: product.subcategory.replace(/_/g, ' '),
 					unit: product.unit_of_measure,

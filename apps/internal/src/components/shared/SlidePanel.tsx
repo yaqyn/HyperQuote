@@ -1,3 +1,4 @@
+import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
 	type CSSProperties,
@@ -90,13 +91,14 @@ export function PanelHostProvider({
  *   • Spring slide-in from the trailing edge, spring slide-out
  *   • Transparent click-outside backdrop (no dimming, no blur)
  *   • Escape-key dismissal
+ *   • Visible mobile/tablet back control, plus backdrop/Escape dismissal
  *   • Opaque surface background (no bleed-through)
  *   • Shared border, shadow, and positioning
  *   • Optional registration with the module's overlay-close handler so the
  *     outer panel X closes the side panel first instead of the whole module.
  *
  * If the design language ever shifts — wider default, different spring,
- * right-side X, whatever — changing it here updates every panel at once.
+ * edge behavior, whatever — changing it here updates every panel at once.
  */
 
 type SlidePanelScope =
@@ -138,6 +140,9 @@ interface SlidePanelProps {
 	 * drill-down states inside one panel).
 	 */
 	panelKey?: string
+	mobileTitle?: ReactNode
+	mobileSubtitle?: ReactNode
+	mobileAction?: ReactNode
 	children: ReactNode
 }
 
@@ -149,6 +154,9 @@ export function SlidePanel({
 	scope,
 	side = 'end',
 	panelKey = 'slide-panel',
+	mobileTitle,
+	mobileSubtitle,
+	mobileAction,
 	children,
 }: SlidePanelProps) {
 	const { host, registerClose, unregisterClose, closeAll } =
@@ -264,7 +272,7 @@ export function SlidePanel({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.15 }}
-						className="fixed inset-0 z-20 cursor-default bg-transparent lg:absolute"
+						className="slide-panel-backdrop fixed inset-0 z-20 cursor-default bg-transparent lg:absolute"
 					/>
 
 					<motion.div
@@ -275,10 +283,40 @@ export function SlidePanel({
 						animate={{ x: 0 }}
 						exit={{ x: enterOffset }}
 						transition={{ type: 'spring', stiffness: 300, damping: 34 }}
-						className={`fixed inset-y-0 ${edgeClass} ${shadowClass} z-30 flex w-full flex-col border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] lg:absolute lg:max-w-[var(--slide-panel-max-width)]`}
+						className={`slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] lg:absolute lg:inset-y-0 lg:max-w-[var(--slide-panel-max-width)]`}
 						style={panelStyle}
 					>
-						{children}
+						<div className="slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 dark:border-white/[0.08] lg:hidden">
+							<button
+								type="button"
+								onClick={onClose}
+								aria-label="Back from side panel"
+								className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+							>
+								<ChevronLeft
+									aria-hidden="true"
+									size={19}
+									strokeWidth={1.9}
+									className="rtl:rotate-180"
+								/>
+							</button>
+							{mobileTitle && (
+								<div className="min-w-0 flex-1">
+									<div className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+										{mobileTitle}
+									</div>
+									{mobileSubtitle && (
+										<div className="mt-0.5 truncate font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
+											{mobileSubtitle}
+										</div>
+									)}
+								</div>
+							)}
+							{mobileAction && (
+								<div className="flex shrink-0 items-center">{mobileAction}</div>
+							)}
+						</div>
+						<div className="min-h-0 flex-1">{children}</div>
 					</motion.div>
 				</>
 			)}

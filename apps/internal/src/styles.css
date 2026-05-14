@@ -18,6 +18,7 @@
 	--font-archivo-black:
 		"Archivo Black", "Archivo", "Inter", system-ui, sans-serif;
 	--font-plex-mono: "IBM Plex Mono", "JetBrains Mono", "Geist Mono", monospace;
+	--color-signal-green: #047857;
 	--color-signal-amber: #d97706;
 	--color-signal-red: #b91c1c;
 }
@@ -59,6 +60,48 @@
 		transparent 31px,
 		rgba(28, 24, 20, 0.06) 32px
 	);
+}
+
+@keyframes panel-menu-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px) scale(0.985);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes panel-menu-out {
+	from {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(6px) scale(0.99);
+	}
+}
+
+.panel-menu-popover {
+	transform-origin: bottom center;
+	will-change: opacity, transform;
+}
+
+.panel-menu-popover[data-entering] {
+	animation: panel-menu-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.panel-menu-popover[data-exiting] {
+	animation: panel-menu-out 120ms ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.panel-menu-popover[data-entering],
+	.panel-menu-popover[data-exiting] {
+		animation: none;
+	}
 }
 
 /* Live-dot pulse for the switchboard inbox — inbound unread signal. */
@@ -349,6 +392,7 @@
 	--compendium-brand: #2563eb;
 	--compendium-brand-wash: rgba(37, 99, 235, 0.08);
 	--compendium-fresh: #047857;
+	--compendium-attention: #d97706;
 	--compendium-aging: #b45309;
 	--compendium-stale: #b91c1c;
 }
@@ -367,6 +411,7 @@
 	--compendium-brand: #5c1a1a;
 	--compendium-brand-wash: rgba(92, 26, 26, 0.1);
 	--compendium-fresh: #036141;
+	--compendium-attention: #d97706;
 	--compendium-aging: #9a5718;
 	--compendium-stale: #8d1e1e;
 }
@@ -436,7 +481,7 @@
    with a trailing hairline rule as the spine. The contrast is
    barely visible but reads as "different paper" when you scan. */
 .compendium-index {
-	background-color: var(--folio-index);
+	background-color: var(--folio);
 	background-image: linear-gradient(
 		90deg,
 		transparent 0,
@@ -507,6 +552,29 @@
 }
 .animate-compendium-settle {
 	animation: compendium-settle 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes price-proof-step-in {
+	0% {
+		opacity: 0;
+		transform: translateY(10px);
+		filter: blur(0.35px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+		filter: blur(0);
+	}
+}
+
+.animate-price-proof-step-in {
+	animation: price-proof-step-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-price-proof-step-in {
+		animation: none;
+	}
 }
 
 /* ── Sales · The Daybook ───────────────────────────────────────
@@ -582,6 +650,61 @@
 	background-color: var(--sales-rule-soft);
 }
 
+@media print {
+	body[data-print-target="quote-report"] * {
+		visibility: hidden !important;
+	}
+
+	body[data-print-target="quote-report"] #quote-report-print,
+	body[data-print-target="quote-report"] #quote-report-print * {
+		visibility: visible !important;
+	}
+
+	body[data-print-target="quote-report"] #quote-report-print {
+		position: absolute !important;
+		inset: 0 auto auto 0 !important;
+		width: 100% !important;
+		max-width: none !important;
+		margin: 0 !important;
+		background: #ffffff !important;
+		color: #111111 !important;
+	}
+
+	body[data-print-target="quote-report"] [data-print-hidden="true"] {
+		display: none !important;
+	}
+
+	body[data-print-target="quote-report"] [data-print-title="true"] {
+		min-height: 88vh !important;
+		display: flex !important;
+		flex-direction: column !important;
+		justify-content: center !important;
+		padding: 18mm 14mm !important;
+	}
+
+	body[data-print-target="quote-report"] [data-print-sheet="true"] {
+		margin-top: 0 !important;
+		box-shadow: none !important;
+		break-before: page;
+		page-break-before: always;
+		break-inside: auto;
+	}
+
+	body[data-print-target="quote-report"] [data-print-report-page="true"] {
+		min-height: 92vh !important;
+		display: flex !important;
+		flex-direction: column !important;
+		break-before: page;
+		page-break-before: always;
+	}
+
+	body[data-print-target="quote-report"] [data-print-signatures="true"] {
+		margin-top: auto !important;
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+}
+
 /* ── Finance · The Ledger ──────────────────────────────────────
    The accountant's register. Pristine white stays; identity is
    carried by typography (Bricolage display, JetBrains Mono
@@ -621,28 +744,6 @@
 }
 .ledger-row:hover {
 	background-color: var(--ledger-rule-soft);
-}
-
-/* Thumb-index tab — an ink mark protruding just past the row's
-   trailing edge on the active entry. Fully outside the text box so
-   it never overlaps the numeric counters. No alert variant: the
-   red count next to the row is signal enough. */
-.compendium-thumb {
-	position: relative;
-	isolation: isolate;
-}
-.compendium-thumb::after {
-	content: "";
-	position: absolute;
-	top: 8px;
-	bottom: 8px;
-	right: -6px;
-	width: 2px;
-	background: transparent;
-	transition: background-color 180ms ease;
-}
-.compendium-thumb[data-active="true"]::after {
-	background: var(--compendium-brand);
 }
 
 /* Strata bar — the fullness gauge used in The Atlas. Unlike the
@@ -691,6 +792,31 @@
 	box-shadow: 16px 0 48px -16px rgba(28, 24, 20, 0.3);
 }
 
+@media (hover: none) and (pointer: coarse) and (min-width: 1024px) and (
+		max-width: 1279px
+	) {
+	.slide-panel-backdrop {
+		position: fixed !important;
+	}
+
+	.slide-panel-shell {
+		position: fixed !important;
+		inset: 0 !important;
+		width: 100% !important;
+		max-width: none !important;
+		border-inline: 0 !important;
+		box-shadow: none !important;
+	}
+
+	.slide-panel-desktop-close {
+		display: none !important;
+	}
+
+	.slide-panel-mobile-bar {
+		display: flex !important;
+	}
+}
+
 /* Dark variant is intentionally orphaned — the app's second mode is
    now Paper, not Dark. The custom-variant points at a selector that
    no one sets (data-theme="dark" never ships) so legacy `dark:`
@@ -713,6 +839,7 @@
 	--color-text-subtle: #928a77;
 	--color-border: #d6ccb3;
 	--color-surface: #ebdeba;
+	--color-signal-green: #036141;
 }
 
 /* Paper mode surface — realism comes from the light, not the noise.

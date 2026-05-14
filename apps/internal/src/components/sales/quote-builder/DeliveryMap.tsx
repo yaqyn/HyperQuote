@@ -61,10 +61,16 @@ const CAIRO = { lat: 30.0444, lng: 31.2357 }
 interface DeliveryMapProps {
 	address: string
 	onAddressChange: (address: string) => void
+	onDeliveryConfirmed?: () => void
 }
 
-export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
+export function DeliveryMap({
+	address,
+	onAddressChange,
+	onDeliveryConfirmed,
+}: DeliveryMapProps) {
 	const mapRef = useRef<MapRef>(null)
+	const searchInputRef = useRef<HTMLInputElement | null>(null)
 	const [markerPos, setMarkerPos] = useState(CAIRO)
 	const [clickedPoint, setClickedPoint] = useState<{
 		lat: number
@@ -72,10 +78,18 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 	} | null>(null)
 	const [reverseResult, setReverseResult] = useState<string | null>(null)
 	const [isReversing, setIsReversing] = useState(false)
-	const [searchInput, setSearchInput] = useState('')
+	const [searchInput, setSearchInput] = useState(() => address)
 	const [mapLoaded, setMapLoaded] = useState(false)
 	const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const committedFromClickRef = useRef<Set<string>>(new Set())
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			searchInputRef.current?.focus()
+			searchInputRef.current?.select()
+		}, 180)
+		return () => clearTimeout(timer)
+	}, [])
 
 	// Forward geocode: address text → map position (debounced)
 	useEffect(() => {
@@ -118,7 +132,8 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 		onAddressChange(reverseResult)
 		setClickedPoint(null)
 		setReverseResult(null)
-	}, [clickedPoint, reverseResult, onAddressChange])
+		onDeliveryConfirmed?.()
+	}, [clickedPoint, reverseResult, onAddressChange, onDeliveryConfirmed])
 
 	// Search form: fire a forward geocode immediately on Enter.
 	const handleSearchSubmit = useCallback(
@@ -189,6 +204,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 						Search for an address
 					</label>
 					<input
+						ref={searchInputRef}
 						id="delivery-map-search"
 						type="text"
 						value={searchInput}
@@ -197,7 +213,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 						className="flex-1 bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/60"
 						style={{
 							fontSize: '13px',
-							letterSpacing: '-0.005em',
+							letterSpacing: '0',
 						}}
 					/>
 					{searchInput && (
@@ -289,7 +305,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 									fontStyle: 'italic',
 									fontSize: '9.5px',
 									color: '#111111',
-									letterSpacing: '-0.005em',
+									letterSpacing: '0',
 								}}
 							>
 								warehouse
@@ -409,7 +425,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 										fontSize: '13px',
 										fontWeight: 500,
 										color: 'var(--color-text)',
-										letterSpacing: '-0.005em',
+										letterSpacing: '0',
 									}}
 								>
 									{reverseResult.split(',').slice(0, 2).join(',')}
@@ -436,7 +452,7 @@ export function DeliveryMap({ address, onAddressChange }: DeliveryMapProps) {
 									color: address
 										? 'var(--color-text)'
 										: 'var(--color-text-muted)',
-									letterSpacing: '-0.005em',
+									letterSpacing: '0',
 								}}
 							>
 								{address

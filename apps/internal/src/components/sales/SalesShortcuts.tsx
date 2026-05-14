@@ -1,9 +1,14 @@
 import { useState } from 'react'
-import { Button } from 'react-aria-components'
 import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import { useShortcut } from '../../hooks/useShortcut'
 import { useInternalStore } from '../../stores/internal'
 import { useSalesStore } from '../../stores/sales'
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchFooter,
+} from '../shared/DispatchDialog'
 
 /**
  * Sales-specific keyboard shortcuts (CONTEXT.md Section 1.10).
@@ -118,41 +123,43 @@ export function SalesShortcuts() {
 
 	if (!showHelp) return null
 
+	const shortcuts = [
+		{ keys: 'N', action: 'New RFQ / New Quote' },
+		{ keys: 'G then I', action: 'Go to RFQ Inbox' },
+		{ keys: 'G then B', action: 'Toggle Board/List view' },
+		{ keys: 'G then C', action: 'Go to Customer 360' },
+		{ keys: '/', action: 'Focus search' },
+		{ keys: '?', action: 'Toggle this help' },
+	]
+
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/90 p-6 shadow-2xl dark:bg-black/90">
-				<div className="mb-4 flex items-center justify-between">
-					<h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
-					<Button
-						onPress={() => setShowHelp(false)}
-						className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
+		<DispatchDialog
+			isOpen={showHelp}
+			onClose={() => setShowHelp(false)}
+			size="sm"
+			eyebrow="Sales"
+			title="Shortcuts"
+		>
+			<DispatchBody className="space-y-2">
+				{shortcuts.map((shortcut) => (
+					<div
+						key={shortcut.keys}
+						className="flex items-center justify-between gap-4 rounded-md px-1 py-1.5"
 					>
-						Close
-					</Button>
-				</div>
-				<div className="flex flex-col gap-2">
-					{[
-						{ keys: 'N', action: 'New RFQ / New Quote' },
-						{ keys: 'G then I', action: 'Go to RFQ Inbox' },
-						{ keys: 'G then B', action: 'Toggle Board/List view' },
-						{ keys: 'G then C', action: 'Go to Customer 360' },
-						{ keys: '/', action: 'Focus search' },
-						{ keys: '?', action: 'Toggle this help' },
-					].map((shortcut) => (
-						<div
-							key={shortcut.keys}
-							className="flex items-center justify-between"
-						>
-							<span className="text-sm text-black/60 dark:text-white/60">
-								{shortcut.action}
-							</span>
-							<kbd className="rounded border border-black/10 bg-black/5 px-2 py-0.5 font-[family-name:var(--font-geist-mono)] text-xs dark:border-white/10 dark:bg-white/5">
-								{shortcut.keys}
-							</kbd>
-						</div>
-					))}
-				</div>
-			</div>
-		</div>
+						<span className="text-[13px] text-[var(--color-text-muted)]">
+							{shortcut.action}
+						</span>
+						<kbd className="rounded border border-black/[0.08] bg-black/[0.03] px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums dark:border-white/[0.1] dark:bg-white/[0.04]">
+							{shortcut.keys}
+						</kbd>
+					</div>
+				))}
+			</DispatchBody>
+			<DispatchFooter>
+				<DispatchAction tone="ghost" onPress={() => setShowHelp(false)}>
+					Close
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
 	)
 }

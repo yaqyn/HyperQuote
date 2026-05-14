@@ -8,7 +8,14 @@ import type {
 	PipelineStage,
 	PipelineStageId,
 } from '../../../types/sales'
-import { Button } from '../../ui'
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchField,
+	DispatchFooter,
+	DispatchInputClass,
+} from '../../shared/DispatchDialog'
 import { KanbanCard } from './KanbanCard'
 
 interface KanbanColumnProps {
@@ -178,78 +185,73 @@ export function KanbanColumn({
 
 			{/* Confirmation dialog for critical transitions */}
 			{confirmDeal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label={
-							confirmDeal.toStage === 'won'
-								? t('sales.pipeline.confirmWon', 'Confirm Won')
-								: t('sales.pipeline.confirmLost', 'Confirm Lost')
-						}
-						className="w-full max-w-sm rounded-xl bg-white/95 p-5 shadow-2xl dark:bg-black/95"
-						onKeyDown={(e) => {
-							// isKeyboardDismissDisabled -- do NOT close on Escape
-							if (e.key === 'Escape') e.stopPropagation()
-						}}
-					>
-						<h3 className="mb-3 text-[15px] font-semibold text-black dark:text-white">
-							{confirmDeal.toStage === 'won'
-								? t('sales.pipeline.markAsWon', 'Mark as Won?')
-								: t('sales.pipeline.markAsLost', 'Mark as Lost?')}
-						</h3>
-
-						<p className="mb-4 text-[13px] text-black/45 dark:text-white/45">
-							{confirmDeal.toStage === 'won'
-								? t(
-										'sales.pipeline.wonDescription',
-										'This will convert the quote to an order and trigger downstream creation.',
-									)
-								: t(
-										'sales.pipeline.lostDescription',
-										'This will close the deal. Please provide a reason.',
-									)}
-						</p>
-
+				<DispatchDialog
+					isOpen={!!confirmDeal}
+					onClose={() => {
+						setConfirmDeal(null)
+						setLossReason('')
+					}}
+					size="sm"
+					eyebrow={stage.name}
+					title={
+						confirmDeal.toStage === 'won'
+							? t('sales.pipeline.markAsWon', 'Mark as Won?')
+							: t('sales.pipeline.markAsLost', 'Mark as Lost?')
+					}
+					caption={
+						confirmDeal.toStage === 'won'
+							? t(
+									'sales.pipeline.wonDescription',
+									'This will convert the quote to an order and trigger downstream creation.',
+								)
+							: t(
+									'sales.pipeline.lostDescription',
+									'This will close the deal. Please provide a reason.',
+								)
+					}
+					dismissDisabled={wonMutation.isPending || lostMutation.isPending}
+				>
+					<DispatchBody>
 						{confirmDeal.toStage === 'lost_expired' && (
-							<div className="mb-4">
-								<span className="mb-1 block text-[10px] uppercase tracking-wider text-black/30 dark:text-white/30">
-									{t('sales.pipeline.lossReason', 'Loss Reason')}
-								</span>
+							<DispatchField
+								label={t('sales.pipeline.lossReason', 'Loss Reason')}
+							>
 								<input
 									type="text"
 									value={lossReason}
 									onChange={(e) => setLossReason(e.target.value)}
-									className="w-full rounded-lg bg-black/[0.04] px-3 py-2 text-[13px] text-black outline-none focus:ring-1 focus:ring-[#2563EB] dark:bg-white/[0.04] dark:text-white"
+									className={DispatchInputClass()}
 									placeholder={t(
 										'sales.pipeline.lossReasonPlaceholder',
 										'e.g., Lost to competitor',
 									)}
 								/>
-							</div>
+							</DispatchField>
 						)}
+					</DispatchBody>
 
-						<div className="flex justify-end gap-2">
-							<Button
-								variant="ghost"
-								onPress={() => {
-									setConfirmDeal(null)
-									setLossReason('')
-								}}
-							>
-								{t('common.cancel', 'Cancel')}
-							</Button>
-							<button
-								type="button"
-								onClick={confirmTransition}
-								disabled={wonMutation.isPending || lostMutation.isPending}
-								className="rounded-full bg-black px-4 py-1.5 text-[13px] font-medium text-white hover:bg-black/80 disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-white/80"
-							>
-								{t('common.confirm', 'Confirm')}
-							</button>
-						</div>
-					</div>
-				</div>
+					<DispatchFooter>
+						<DispatchAction
+							tone="ghost"
+							onPress={() => {
+								setConfirmDeal(null)
+								setLossReason('')
+							}}
+							isDisabled={wonMutation.isPending || lostMutation.isPending}
+						>
+							{t('common.cancel', 'Cancel')}
+						</DispatchAction>
+						<DispatchAction
+							tone={
+								confirmDeal.toStage === 'lost_expired' ? 'danger' : 'primary'
+							}
+							onPress={confirmTransition}
+							isDisabled={wonMutation.isPending || lostMutation.isPending}
+						>
+							{t('common.confirm', 'Confirm')}
+						</DispatchAction>
+					</DispatchFooter>
+				</DispatchDialog>
 			)}
 		</div>
 	)

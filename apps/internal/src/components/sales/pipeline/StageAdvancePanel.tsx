@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -6,6 +7,14 @@ import {
 	markAsLost,
 } from '../../../lib/server/sales-pipeline'
 import type { PipelineDeal, PipelineStageId } from '../../../types/sales'
+import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchField,
+	DispatchFooter,
+	DispatchInputClass,
+} from '../../shared/DispatchDialog'
 import { TierBadge } from '../shared/TierBadge'
 
 interface StageAdvancePanelProps {
@@ -126,7 +135,7 @@ export function StageAdvancePanel({
 	}
 
 	return (
-		<div className="flex h-full w-80 shrink-0 flex-col border-s border-black/10 bg-white/95 dark:border-white/10 dark:bg-black/95">
+		<div className="fixed inset-0 z-20 flex w-full flex-col bg-white/95 dark:bg-black/95 lg:static lg:z-auto lg:h-full lg:w-80 lg:shrink-0 lg:border-s lg:border-black/10 lg:dark:border-white/10">
 			{/* Header */}
 			<div className="flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
 				<h3 className="text-sm font-semibold">
@@ -135,22 +144,10 @@ export function StageAdvancePanel({
 				<button
 					type="button"
 					onClick={onClose}
+					aria-label={t('common.close', 'Close')}
 					className="rounded-md p-1 text-black/40 hover:bg-black/5 hover:text-black/70 dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white/70"
 				>
-					<svg
-						aria-hidden="true"
-						width="16"
-						height="16"
-						viewBox="0 0 16 16"
-						fill="none"
-					>
-						<path
-							d="M12 4L4 12M4 4l8 8"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-						/>
-					</svg>
+					<X aria-hidden="true" size={16} strokeWidth={1.8} />
 				</button>
 			</div>
 
@@ -270,124 +267,100 @@ export function StageAdvancePanel({
 			</div>
 
 			{/* Convert to Order Dialog (Won) */}
-			{showConvertDialog && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label={t('sales.pipeline.convertToOrder', 'Convert to Order')}
-						className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl dark:border-white/10 dark:bg-black/90"
-						onKeyDown={(e) => {
-							if (e.key === 'Escape') e.stopPropagation()
-						}}
+			<DispatchDialog
+				isOpen={showConvertDialog}
+				onClose={() => setShowConvertDialog(false)}
+				size="sm"
+				eyebrow={deal.customerName}
+				title={t('sales.pipeline.convertToOrder', 'Convert to Order')}
+				caption={t(
+					'sales.pipeline.convertDescription',
+					'This will create a Sales Order, auto-generate POs to suppliers, create delivery schedule, and generate proforma invoice.',
+				)}
+				dismissDisabled={wonMutation.isPending}
+			>
+				<DispatchBody>
+					<DispatchField
+						label={t('sales.pipeline.customerPO', 'Customer PO Number')}
 					>
-						<h3 className="mb-2 text-lg font-semibold">
-							{t('sales.pipeline.convertToOrder', 'Convert to Order')}
-						</h3>
-						<p className="mb-4 text-sm text-black/60 dark:text-white/60">
-							{t(
-								'sales.pipeline.convertDescription',
-								'This will create a Sales Order, auto-generate POs to suppliers, create delivery schedule, and generate proforma invoice.',
-							)}
-						</p>
+						<input
+							type="text"
+							value={poNumber}
+							onChange={(e) => setPoNumber(e.target.value)}
+							className={DispatchInputClass()}
+							placeholder="Optional"
+						/>
+					</DispatchField>
+				</DispatchBody>
 
-						<div className="mb-4">
-							<span className="mb-1 block text-xs text-black/50 dark:text-white/50">
-								{t(
-									'sales.pipeline.customerPO',
-									'Customer PO Number (optional)',
-								)}
-							</span>
-							<input
-								type="text"
-								value={poNumber}
-								onChange={(e) => setPoNumber(e.target.value)}
-								className="w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#2563EB] dark:border-white/10"
-							/>
-						</div>
-
-						<div className="flex justify-end gap-2">
-							<button
-								type="button"
-								onClick={() => setShowConvertDialog(false)}
-								className="rounded-lg px-4 py-2 text-sm text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
-							>
-								{t('common.cancel', 'Cancel')}
-							</button>
-							<button
-								type="button"
-								onClick={() => wonMutation.mutate()}
-								disabled={wonMutation.isPending}
-								className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-50"
-							>
-								{t('sales.pipeline.convertNow', 'Convert Now')}
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
+				<DispatchFooter>
+					<DispatchAction
+						tone="ghost"
+						onPress={() => setShowConvertDialog(false)}
+						isDisabled={wonMutation.isPending}
+					>
+						{t('common.cancel', 'Cancel')}
+					</DispatchAction>
+					<DispatchAction
+						onPress={() => wonMutation.mutate()}
+						isDisabled={wonMutation.isPending}
+					>
+						{t('sales.pipeline.convertNow', 'Convert Now')}
+					</DispatchAction>
+				</DispatchFooter>
+			</DispatchDialog>
 
 			{/* Loss Reason Dialog */}
-			{showLossDialog && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label={t('sales.pipeline.markAsLostTitle', 'Mark as Lost')}
-						className="w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-6 shadow-xl dark:border-white/10 dark:bg-black/90"
-						onKeyDown={(e) => {
-							if (e.key === 'Escape') e.stopPropagation()
-						}}
-					>
-						<h3 className="mb-2 text-lg font-semibold">
-							{t('sales.pipeline.markAsLostTitle', 'Mark as Lost')}
-						</h3>
-						<p className="mb-4 text-sm text-black/60 dark:text-white/60">
-							{t(
-								'sales.pipeline.lostDescription',
-								'This will close the deal. Please provide a reason.',
+			<DispatchDialog
+				isOpen={showLossDialog}
+				onClose={() => {
+					setShowLossDialog(false)
+					setLossReason('')
+				}}
+				size="sm"
+				eyebrow={deal.customerName}
+				title={t('sales.pipeline.markAsLostTitle', 'Mark as Lost')}
+				caption={t(
+					'sales.pipeline.lostDescription',
+					'This will close the deal. Please provide a reason.',
+				)}
+				dismissDisabled={lostMutation.isPending}
+			>
+				<DispatchBody>
+					<DispatchField label={t('sales.pipeline.lossReason', 'Loss Reason')}>
+						<input
+							type="text"
+							value={lossReason}
+							onChange={(e) => setLossReason(e.target.value)}
+							className={DispatchInputClass()}
+							placeholder={t(
+								'sales.pipeline.lossReasonPlaceholder',
+								'e.g., Lost to competitor',
 							)}
-						</p>
+						/>
+					</DispatchField>
+				</DispatchBody>
 
-						<div className="mb-4">
-							<span className="mb-1 block text-xs text-black/50 dark:text-white/50">
-								{t('sales.pipeline.lossReason', 'Loss Reason')}
-							</span>
-							<input
-								type="text"
-								value={lossReason}
-								onChange={(e) => setLossReason(e.target.value)}
-								className="w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#2563EB] dark:border-white/10"
-								placeholder={t(
-									'sales.pipeline.lossReasonPlaceholder',
-									'e.g., Lost to competitor',
-								)}
-							/>
-						</div>
-
-						<div className="flex justify-end gap-2">
-							<button
-								type="button"
-								onClick={() => {
-									setShowLossDialog(false)
-									setLossReason('')
-								}}
-								className="rounded-lg px-4 py-2 text-sm text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
-							>
-								{t('common.cancel', 'Cancel')}
-							</button>
-							<button
-								type="button"
-								onClick={() => lostMutation.mutate()}
-								disabled={lostMutation.isPending || !lossReason.trim()}
-								className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-50"
-							>
-								{t('common.confirm', 'Confirm')}
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
+				<DispatchFooter>
+					<DispatchAction
+						tone="ghost"
+						onPress={() => {
+							setShowLossDialog(false)
+							setLossReason('')
+						}}
+						isDisabled={lostMutation.isPending}
+					>
+						{t('common.cancel', 'Cancel')}
+					</DispatchAction>
+					<DispatchAction
+						tone="danger"
+						onPress={() => lostMutation.mutate()}
+						isDisabled={lostMutation.isPending || !lossReason.trim()}
+					>
+						{t('common.confirm', 'Confirm')}
+					</DispatchAction>
+				</DispatchFooter>
+			</DispatchDialog>
 		</div>
 	)
 }

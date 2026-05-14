@@ -7,9 +7,6 @@
  * up, it gets added here once and the whole app benefits.
  */
 
-/** The smallest relative change we'll still ask the user to confirm. */
-const MIN_CONFIRM_DELTA_RATIO = 0.01 // 1%
-
 /** Above this relative change in either direction, proof is required. */
 const LARGE_CHANGE_THRESHOLD = 0.25 // 25%
 
@@ -19,6 +16,39 @@ const MAX_RAW_COST = 100_000_000
 /** Upper safety cap for margin percent. */
 export const MAX_MARGIN_PCT = 80
 
+/** Minimum written proof length for supplier price changes. */
+export const PRICE_PROOF_ESSAY_MIN = 80
+
+function normalizeDigitGlyphs(raw: string): string {
+	return String(raw)
+		.replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x660))
+		.replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x6f0))
+}
+
+/** Keep only base-10 digits. Use for quantities, counts, and unit fields. */
+export function normalizeIntegerInput(raw: string): string {
+	return normalizeDigitGlyphs(raw).replace(/\D/g, '')
+}
+
+/**
+ * Keep only digits plus one decimal point. Use for money, margin, weight,
+ * and other decimal number fields. Browsers allow `e`, `+`, and `-` in
+ * type="number"; text+inputMode+this helper gives stricter operational input.
+ */
+export function normalizeDecimalInput(raw: string): string {
+	const cleaned = normalizeDigitGlyphs(raw).replace(/[^\d.]/g, '')
+	const firstDot = cleaned.indexOf('.')
+	if (firstDot === -1) return cleaned
+	return `${cleaned.slice(0, firstDot + 1)}${cleaned
+		.slice(firstDot + 1)
+		.replace(/\./g, '')}`
+}
+
+/** Keep only numbers and arithmetic operators for calculator fields. */
+export function normalizeArithmeticInput(raw: string): string {
+	return normalizeDigitGlyphs(raw).replace(/[^0-9+\-*/().\s]/g, '')
+}
+
 /**
  * Parse a free-form money string (accepts commas, spaces, dots) into a
  * non-negative float rounded to 2 decimals. Returns `null` on invalid
@@ -26,7 +56,7 @@ export const MAX_MARGIN_PCT = 80
  */
 export function sanitizeCost(raw: string): number | null {
 	if (raw == null) return null
-	const cleaned = String(raw).replace(/[,\s]/g, '').trim()
+	const cleaned = normalizeDecimalInput(raw)
 	if (!cleaned) return null
 	const n = parseFloat(cleaned)
 	if (!Number.isFinite(n)) return null
@@ -38,20 +68,13 @@ export function sanitizeCost(raw: string): number | null {
 /** Same as sanitizeCost but for integer quantities (units, boxes, bags). */
 export function sanitizeIntQty(raw: string): number | null {
 	if (raw == null) return null
-	const cleaned = String(raw).replace(/[,\s]/g, '').trim()
+	const cleaned = normalizeIntegerInput(raw)
 	if (!cleaned) return null
 	const n = parseInt(cleaned, 10)
 	if (!Number.isFinite(n)) return null
 	if (n <= 0) return null
 	if (n > 10_000_000) return null
 	return n
-}
-
-/** Same, but lets decimal quantities through (tons, m³, etc.) */
-function sanitizeQty(raw: string): number | null {
-	const cost = sanitizeCost(raw)
-	if (cost == null || cost <= 0) return null
-	return cost
 }
 
 /** Clamp a margin percentage into the system-safe band. */

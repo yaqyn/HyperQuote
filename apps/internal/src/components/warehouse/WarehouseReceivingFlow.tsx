@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
 	getReceivingDealDetail,
 	getWarehouseEmployees,
@@ -9,8 +9,15 @@ import {
 	type SecurityMethod,
 } from '../../lib/server/warehouse'
 import { useWarehouseStore } from '../../stores/warehouse'
+import {
+	MobileAdvisorMenu,
+	MobileStepControls,
+	MobileStepMeter,
+	mobilePanelClass,
+} from './WarehouseMobileStepper'
 
 type Decision = 'receive' | 'reject' | null
+type ReceivingMobileStep = 'inspect' | 'reason' | 'signoff'
 
 /**
  * Receiving wizard — per-item binary decisions. Accepted items flip
@@ -74,6 +81,7 @@ function EmptyPanel() {
 
 function FlowInner({ dealId }: { dealId: string }) {
 	const qc = useQueryClient()
+	const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 	const { data: deal, isLoading } = useQuery({
 		queryKey: ['warehouse-receiving-deal', dealId],
 		queryFn: () => getReceivingDealDetail({ data: { dealId } }),
@@ -98,6 +106,9 @@ function FlowInner({ dealId }: { dealId: string }) {
 	const [rejectionReason, setRejectionReason] = useState('')
 	const [proofUrl, setProofUrl] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const scrollToTop = () => {
+		scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+	}
 
 	useEffect(() => {
 		setDecisions({})
@@ -173,16 +184,16 @@ function FlowInner({ dealId }: { dealId: string }) {
 	return (
 		<aside className="flex h-full w-full flex-col border-[var(--color-text)] bg-[var(--color-surface)] lg:border-s-[3px]">
 			{/* Header */}
-			<header className="shrink-0 border-b-[3px] border-[var(--color-text)] px-4 pt-5 pb-5 sm:px-6 lg:px-8 lg:pt-6">
-				<div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:gap-6">
+			<header className="shrink-0 border-b-2 border-[var(--color-text)] px-4 pt-4 pb-4 sm:px-6 lg:border-b-[3px] lg:px-8 lg:pt-6 lg:pb-5">
+				<div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:justify-between lg:gap-6">
 					<div className="min-w-0">
-						<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.3em] text-black/50">
+						<p className="truncate font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.18em] text-black/50 lg:text-[10px] lg:tracking-[0.3em]">
 							Receiving · {deal.dealId}
 						</p>
-						<h2 className="mt-2 truncate text-[34px] font-bold leading-none">
+						<h2 className="mt-1 truncate text-[22px] font-bold leading-none lg:mt-2 lg:text-[34px]">
 							{deal.supplierName}
 						</h2>
-						<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.14em] text-black/55">
+						<p className="mt-1 truncate font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.1em] text-black/55 lg:mt-2 lg:text-[11px] lg:tracking-[0.14em]">
 							{deal.itemCount} items ·{' '}
 							{Math.round(deal.totalDue).toLocaleString('en-EG')} EGP
 						</p>
@@ -191,14 +202,17 @@ function FlowInner({ dealId }: { dealId: string }) {
 						type="button"
 						onClick={() => setSelectedDealId(null)}
 						whileTap={{ scale: 0.96 }}
-						className="shrink-0 border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--color-text)] hover:bg-[var(--color-text)] hover:text-[#FFFFFF]"
+						className="hidden shrink-0 border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-text)] hover:bg-[var(--color-text)] hover:text-[#FFFFFF] lg:block lg:border-[3px] lg:px-4 lg:py-2 lg:text-[12px] lg:tracking-[0.18em]"
 					>
-						Close
+						Back
 					</motion.button>
 				</div>
 			</header>
 
-			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+			<div
+				ref={scrollAreaRef}
+				className="flex-1 min-h-0 overflow-y-auto px-4 pt-5 pb-28 sm:px-6 lg:px-8 lg:py-6"
+			>
 				<ReceivingBody
 					deal={deal}
 					decisions={decisions}
@@ -218,6 +232,8 @@ function FlowInner({ dealId }: { dealId: string }) {
 					error={error}
 					ready={ready}
 					pending={mutation.isPending}
+					onExit={() => setSelectedDealId(null)}
+					onMobileStepChange={scrollToTop}
 					onSubmit={() => {
 						setError(null)
 						mutation.mutate()
@@ -249,13 +265,15 @@ function ReceivingBody({
 	error,
 	ready,
 	pending,
+	onExit,
+	onMobileStepChange,
 	onSubmit,
 }: {
 	deal: ReceivingDealDetailView
 	decisions: Record<string, Decision>
 	setDecisions: React.Dispatch<React.SetStateAction<Record<string, Decision>>>
 	advisorId: string | null
-	setAdvisorId: (id: string) => void
+	setAdvisorId: (id: string | null) => void
 	employees: { id: string; name: string }[]
 	securityMethod: SecurityMethod
 	setSecurityMethod: (m: SecurityMethod) => void
@@ -269,12 +287,84 @@ function ReceivingBody({
 	error: string | null
 	ready: boolean
 	pending: boolean
+	onExit: () => void
+	onMobileStepChange: () => void
 	onSubmit: () => void
 }) {
+	const [mobileStep, setMobileStep] = useState<ReceivingMobileStep>('inspect')
+	const [mobileAdvisorOpen, setMobileAdvisorOpen] = useState(false)
+	const previousMobileStepRef = useRef<ReceivingMobileStep>('inspect')
+	const previousPendingItemsRef = useRef<string | null>(null)
+	const pendingItems = deal.items.filter((i) => !i.received)
+	const pendingItemsSignature = pendingItems
+		.map((item) => item.productSlug)
+		.join('|')
+	const allDecided = pendingItems.every((i) => decisions[i.productSlug] != null)
+	const reasonOk = !anyRejected || rejectionReason.trim().length >= 3
+	const tokenOk = securityToken.trim().length >= 4
+	const proofOk = proofUrl.trim().length > 0
+	const mobileSteps: ReceivingMobileStep[] = anyRejected
+		? ['inspect', 'reason', 'signoff']
+		: ['inspect', 'signoff']
+	const activeMobileStep = mobileSteps.includes(mobileStep)
+		? mobileStep
+		: 'signoff'
+	const mobileStepIndex = mobileSteps.indexOf(activeMobileStep)
+	const mobileStepTitle: Record<ReceivingMobileStep, string> = {
+		inspect: 'Inspect items',
+		reason: 'Reject reason',
+		signoff: 'Receipt signoff',
+	}
+	const isMobileLast = mobileStepIndex === mobileSteps.length - 1
+	const mobileCanAdvance =
+		activeMobileStep === 'inspect'
+			? allDecided
+			: activeMobileStep === 'reason'
+				? reasonOk
+				: ready
+	const selectedAdvisor =
+		employees.find((employee) => employee.id === advisorId) ?? null
+
+	useEffect(() => {
+		if (!anyRejected && mobileStep === 'reason') setMobileStep('signoff')
+	}, [anyRejected, mobileStep])
+
+	useEffect(() => {
+		const nextPendingItems = `${deal.dealId}:${pendingItemsSignature}`
+		if (previousPendingItemsRef.current === nextPendingItems) return
+		previousPendingItemsRef.current = nextPendingItems
+		setMobileStep('inspect')
+		setMobileAdvisorOpen(false)
+		previousMobileStepRef.current = 'inspect'
+	}, [deal.dealId, pendingItemsSignature])
+
+	useLayoutEffect(() => {
+		if (previousMobileStepRef.current !== activeMobileStep) {
+			onMobileStepChange()
+			previousMobileStepRef.current = activeMobileStep
+		}
+	}, [activeMobileStep, onMobileStepChange])
+
+	const goToMobileStep = (step: ReceivingMobileStep) => {
+		onMobileStepChange()
+		setMobileStep(step)
+	}
+
+	const resetMobileReceipt = () => {
+		setMobileAdvisorOpen(false)
+		goToMobileStep('inspect')
+	}
+
 	return (
-		<div className="flex flex-col gap-8">
+		<div className="flex min-h-full flex-col gap-8">
+			<MobileStepMeter title={mobileStepTitle[activeMobileStep]} />
+
 			{deal.previousAttempts.length > 0 && (
-				<div className="border-[3px] border-[#CC3300] bg-[#FFF4F0] px-5 py-3">
+				<div
+					className={`border-[3px] border-[#CC3300] bg-[#FFF4F0] px-5 py-3 ${mobilePanelClass(
+						activeMobileStep === 'inspect',
+					)}`}
+				>
 					<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[#CC3300]">
 						Prior attempts · {deal.previousAttempts.length}
 					</p>
@@ -287,19 +377,19 @@ function ReceivingBody({
 			)}
 
 			{/* Item inspection checklist */}
-			<section>
+			<section className={mobilePanelClass(activeMobileStep === 'inspect')}>
 				<SectionHeading index="01" title="Inspect every item" />
 				<p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
 					Walk the dock. Receive what's good, reject what's damaged or missing.
 					Rejected items stay on the deal for the next truck.
 				</p>
-				<div className="mt-4 flex flex-col gap-3">
+				<div className="-mx-4 mt-4 flex flex-col sm:-mx-6 lg:mx-0 lg:gap-3">
 					{deal.items.map((item) => {
 						if (item.received) {
 							return (
 								<div
 									key={item.productSlug}
-									className="flex flex-col items-start gap-3 border-[3px] border-[#0A5C2E] bg-[#F0F7F0] px-4 py-4 sm:flex-row sm:items-center sm:px-5"
+									className="flex flex-col items-start gap-3 border-y-2 border-x-0 border-[#0A5C2E] bg-[#F0F7F0] px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:border-[3px] lg:px-5"
 								>
 									<div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#0A5C2E]">
 										<svg
@@ -333,7 +423,7 @@ function ReceivingBody({
 						return (
 							<div
 								key={item.productSlug}
-								className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-5 py-4"
+								className="border-y-2 border-x-0 border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-4 sm:px-6 lg:border-[3px] lg:px-5"
 							>
 								<div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
 									<div className="min-w-0">
@@ -348,7 +438,7 @@ function ReceivingBody({
 										{Math.round(item.lineTotal).toLocaleString('en-EG')} EGP
 									</p>
 								</div>
-								<div className="mt-3 flex flex-col gap-2 sm:grid sm:grid-cols-2">
+								<div className="mt-3 grid grid-cols-2 gap-2">
 									<DecisionButton
 										active={decision === 'receive'}
 										color="#0A5C2E"
@@ -386,7 +476,9 @@ function ReceivingBody({
 						animate={{ opacity: 1, height: 'auto' }}
 						exit={{ opacity: 0, height: 0 }}
 						transition={{ duration: 0.24 }}
-						className="overflow-hidden"
+						className={`overflow-hidden ${mobilePanelClass(
+							activeMobileStep === 'reason',
+						)}`}
 					>
 						<SectionHeading index="02" title="Why rejected?" />
 						<p className="mt-2 text-[12px] text-black/55 max-w-[480px]">
@@ -405,8 +497,80 @@ function ReceivingBody({
 				)}
 			</AnimatePresence>
 
+			{/* Mobile signoff */}
+			<section
+				className={
+					activeMobileStep === 'signoff' ? 'block lg:hidden' : 'hidden'
+				}
+			>
+				<div className="flex flex-col gap-4">
+					<MobileAdvisorMenu
+						employees={employees}
+						selectedAdvisor={selectedAdvisor}
+						isOpen={mobileAdvisorOpen}
+						onToggle={() => setMobileAdvisorOpen((open) => !open)}
+						onSelect={(employeeId) => {
+							setAdvisorId(employeeId)
+							setMobileAdvisorOpen(false)
+						}}
+					/>
+
+					<AnimatePresence initial={false}>
+						{advisorId && (
+							<motion.label
+								key="receiving-mobile-password"
+								initial={{ opacity: 0, y: 8 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -6 }}
+								transition={{ duration: 0.2 }}
+								className="flex flex-col gap-2"
+							>
+								<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
+									Password
+								</span>
+								<input
+									type="password"
+									value={securityToken}
+									onChange={(event) => {
+										setSecurityMethod('password')
+										setSecurityToken(event.target.value)
+									}}
+									placeholder="Employee password"
+									autoComplete="off"
+									className="h-12 w-full border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 text-[16px] outline-none placeholder:text-black/30"
+								/>
+							</motion.label>
+						)}
+					</AnimatePresence>
+
+					<AnimatePresence initial={false}>
+						{tokenOk && (
+							<motion.label
+								key="receiving-mobile-proof"
+								initial={{ opacity: 0, y: 8 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -6 }}
+								transition={{ duration: 0.2 }}
+								className="flex flex-col gap-2"
+							>
+								<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
+									Proof
+								</span>
+								<input
+									type="text"
+									value={proofUrl}
+									onChange={(event) => setProofUrl(event.target.value)}
+									placeholder="Photo, receipt, or note reference"
+									className="h-12 w-full border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 text-[16px] outline-none placeholder:text-black/30"
+								/>
+							</motion.label>
+						)}
+					</AnimatePresence>
+				</div>
+			</section>
+
 			{/* Advisor picker */}
-			<section>
+			<section className="hidden lg:block">
 				<SectionHeading index="03" title="Advisor" />
 				<p className="mt-2 text-[12px] text-black/55 max-w-[480px]">
 					Who inspected the delivery. Name comes from the employee directory.
@@ -442,7 +606,7 @@ function ReceivingBody({
 			</section>
 
 			{/* Security pass */}
-			<section>
+			<section className="hidden lg:block">
 				<SectionHeading index="04" title="Your credential" />
 				<p className="mt-2 text-[11px] text-black/55 max-w-[480px]">
 					Type <strong>your own</strong> password or scan{' '}
@@ -478,13 +642,10 @@ function ReceivingBody({
 					className="mt-3 w-full border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 text-[16px] outline-none placeholder:text-black/30"
 					style={{ minHeight: '56px' }}
 				/>
-				<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45">
-					Dev mock · type 1234 to authenticate
-				</p>
 			</section>
 
 			{/* Proof */}
-			<section>
+			<section className="hidden lg:block">
 				<SectionHeading index="05" title="Proof of receipt" />
 				<input
 					type="text"
@@ -519,7 +680,7 @@ function ReceivingBody({
 					color: ready ? '#FFFFFF' : 'rgba(0,0,0,0.3)',
 				}}
 				transition={{ duration: 0.25 }}
-				className="w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed"
+				className="hidden w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed lg:block"
 			>
 				{pending
 					? 'Recording…'
@@ -527,6 +688,35 @@ function ReceivingBody({
 						? 'Commit receipt'
 						: 'Decide every item first'}
 			</motion.button>
+
+			<MobileStepControls
+				backLabel={mobileStepIndex > 0 ? 'Reset' : 'Exit'}
+				secondaryKind={mobileStepIndex > 0 ? 'reset' : 'exit'}
+				onBack={mobileStepIndex > 0 ? resetMobileReceipt : onExit}
+				primaryLabel={isMobileLast ? 'Finish receipt' : 'Next'}
+				onPrimary={
+					isMobileLast
+						? onSubmit
+						: () => goToMobileStep(mobileSteps[mobileStepIndex + 1])
+				}
+				primaryDisabled={!mobileCanAdvance || pending}
+				isPending={isMobileLast ? pending : false}
+				tone={isMobileLast ? 'green' : 'dark'}
+			>
+				<p className="mb-2 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45">
+					{activeMobileStep === 'inspect'
+						? `${Object.values(decisions).filter(Boolean).length}/${pendingItems.length} decided`
+						: activeMobileStep === 'reason'
+							? 'Reason required before signoff'
+							: !advisorId
+								? 'Select advisor'
+								: !tokenOk
+									? 'Password required'
+									: !proofOk
+										? 'Proof required before receipt'
+										: 'Ready to record receipt'}
+				</p>
+			</MobileStepControls>
 		</div>
 	)
 }
@@ -565,7 +755,7 @@ function DecisionButton({
 				color: active ? '#FFFFFF' : 'var(--color-text)',
 			}}
 			transition={{ duration: 0.2 }}
-			className="border-[3px] border-[var(--color-text)] py-3 text-center font-[family-name:var(--font-geist-mono)] text-[13px] font-bold uppercase tracking-[0.16em]"
+			className="border-2 border-[var(--color-text)] py-3 text-center font-[family-name:var(--font-geist-mono)] text-[12px] font-bold uppercase tracking-[0.14em] lg:border-[3px] lg:text-[13px] lg:tracking-[0.16em]"
 			style={{ minHeight: '52px' }}
 		>
 			{label}

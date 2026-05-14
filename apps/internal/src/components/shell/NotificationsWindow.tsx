@@ -124,7 +124,7 @@ export function NotificationsWindow({
 		<GlassWindow
 			isOpen={isOpen}
 			onClose={handleClose}
-			className="shell-plate max-w-md w-full max-h-[80vh]"
+			className="shell-plate max-h-[80vh] w-full max-w-md max-lg:!fixed max-lg:!inset-0 max-lg:!h-dvh max-lg:!max-h-dvh max-lg:!w-screen max-lg:!max-w-none max-lg:!rounded-none"
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
@@ -142,7 +142,7 @@ export function NotificationsWindow({
 			</div>
 
 			{/* Content */}
-			<div className="overflow-auto max-h-[calc(80vh-56px)]">
+			<div className="min-h-0 flex-1 overflow-auto">
 				{notifications.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-12 gap-3">
 						<Bell size={48} className="text-[var(--color-text-muted)]" />
@@ -167,10 +167,6 @@ export function NotificationsWindow({
 											type="button"
 											onClick={() => {
 												handleMarkRead(notif.id)
-												if (notif.actionUrl) {
-													// Navigation will be wired when router is available in context
-													console.log('Navigate to:', notif.actionUrl)
-												}
 											}}
 											className="flex items-start gap-3 w-full px-4 py-3 text-start hover:bg-[var(--color-primary)]/5 transition-colors cursor-pointer"
 										>

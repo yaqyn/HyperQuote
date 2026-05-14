@@ -50,7 +50,7 @@ export function ConfigurableLineItemsTable<TItem, TForm extends FieldValues>({
 					<tr
 						key={getRowKey ? getRowKey(item, index) : `row-${index}`}
 						onClick={onRowClick ? () => onRowClick(item, index) : undefined}
-						className={`transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01] ${onRowClick ? 'cursor-pointer' : ''}`}
+						className={`-outline-offset-1 outline outline-1 outline-transparent transition-colors hover:outline-black/[0.14] dark:hover:outline-white/[0.16] ${onRowClick ? 'cursor-pointer' : ''}`}
 					>
 						{columns.map((col) => (
 							<td

@@ -37,12 +37,16 @@ interface SalesStore {
 	selectedRfqId: string | null
 	editingRfqId: string | null
 	newQuoteCustomer: { id: string; name: string } | null
+	newQuoteRequestId: number
+	statusDialogRequestId: number
 	setRfqStageFilter: (stage: RfqStageFilter) => void
 	setRfqInboxTab: (tab: RfqInboxTab) => void
 	setRfqViewMode: (mode: RfqViewMode) => void
 	setSelectedRfqId: (id: string | null) => void
 	setEditingRfqId: (id: string | null) => void
 	setNewQuoteCustomer: (c: { id: string; name: string } | null) => void
+	requestNewQuote: () => void
+	requestStatusDialog: () => void
 	// True when the quote builder is showing (either editing an RFQ or creating a new quote).
 	// Used by ModuleWindow so clicking the X / backdrop closes the builder first, then the panel.
 	isQuoteBuilderOpen: () => boolean
@@ -90,12 +94,18 @@ export const useSalesStore = create<SalesStore>()(
 		selectedRfqId: null,
 		editingRfqId: null,
 		newQuoteCustomer: null,
+		newQuoteRequestId: 0,
+		statusDialogRequestId: 0,
 		setRfqStageFilter: (stage) => set({ rfqStageFilter: stage }),
 		setRfqInboxTab: (tab) => set({ rfqInboxTab: tab }),
 		setRfqViewMode: (mode) => set({ rfqViewMode: mode }),
 		setSelectedRfqId: (id) => set({ selectedRfqId: id }),
 		setEditingRfqId: (id) => set({ editingRfqId: id }),
 		setNewQuoteCustomer: (c) => set({ newQuoteCustomer: c }),
+		requestNewQuote: () =>
+			set((s) => ({ newQuoteRequestId: s.newQuoteRequestId + 1 })),
+		requestStatusDialog: () =>
+			set((s) => ({ statusDialogRequestId: s.statusDialogRequestId + 1 })),
 		isQuoteBuilderOpen: () => {
 			const s = (
 				useSalesStore as unknown as { getState: () => SalesStore }

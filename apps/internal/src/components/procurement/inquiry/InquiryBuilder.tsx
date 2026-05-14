@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { normalizeIntegerInput } from '../../../lib/inputs'
 import { sendSupplierInquiry } from '../../../lib/server/procurement-inquiries'
 import { getSupplierDirectory } from '../../../lib/server/procurement-suppliers'
 import { useProcurementStore } from '../../../stores/procurement'
@@ -244,11 +245,16 @@ export function InquiryBuilder() {
 											name={`items.${index}.quantity`}
 											render={({ field: qtyField }) => (
 												<input
-													type="number"
+													type="text"
+													inputMode="numeric"
+													pattern="[0-9]*"
 													min={1}
 													value={qtyField.value}
 													onChange={(e) =>
-														qtyField.onChange(Number(e.target.value) || 0)
+														qtyField.onChange(
+															Number(normalizeIntegerInput(e.target.value)) ||
+																0,
+														)
 													}
 													className="w-20 border-b border-transparent bg-transparent py-0.5 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none transition-colors focus:border-black/[0.12] dark:focus:border-white/[0.12]"
 												/>
@@ -294,11 +300,16 @@ export function InquiryBuilder() {
 							className="min-w-0 flex-1 border-b border-black/[0.04] bg-transparent py-1 text-[13px] outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"
 						/>
 						<input
-							type="number"
+							type="text"
+							inputMode="numeric"
+							pattern="[0-9]*"
 							min={1}
 							value={newItem.quantity}
 							onChange={(e) =>
-								setNewItem((p) => ({ ...p, quantity: e.target.value }))
+								setNewItem((p) => ({
+									...p,
+									quantity: normalizeIntegerInput(e.target.value),
+								}))
 							}
 							placeholder={t('procurement.inquiry.quantity')}
 							className="w-20 border-b border-black/[0.04] bg-transparent py-1 text-end font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums outline-none transition-colors placeholder:text-black/25 focus:border-black/[0.12] dark:border-white/[0.04] dark:placeholder:text-white/25 dark:focus:border-white/[0.12]"

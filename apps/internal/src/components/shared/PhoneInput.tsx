@@ -23,6 +23,7 @@ interface PhoneInputProps {
 	ariaDescribedBy?: string
 	/** Called when the field blurs — parents use this to fire validation. */
 	onBlur?: () => void
+	readOnly?: boolean
 }
 
 /** Strip to digits and drop leading 0/20/+20 so we always hold 10 national digits. */
@@ -48,12 +49,6 @@ function formatEGPhone(digits: string): string {
 	return parts.join(' ')
 }
 
-/** Returns the full E.164-ish string the server stores. */
-function toFullPhone(digits: string): string {
-	const n = normalizeEGPhone(digits)
-	return n.length === 0 ? '' : `+20 ${formatEGPhone(n)}`
-}
-
 export function isValidEGPhone(digits: string): boolean {
 	const n = normalizeEGPhone(digits)
 	// Egyptian mobiles are 10 digits starting with 1 (010, 011, 012, 015 after 0-strip → 10/11/12/15)
@@ -70,6 +65,7 @@ export function PhoneInput({
 	ariaInvalid,
 	ariaDescribedBy,
 	onBlur,
+	readOnly = false,
 }: PhoneInputProps) {
 	const display = useMemo(() => formatEGPhone(value), [value])
 
@@ -89,6 +85,7 @@ export function PhoneInput({
 				value={display}
 				onChange={(e) => onChange(normalizeEGPhone(e.target.value))}
 				onBlur={onBlur}
+				readOnly={readOnly}
 				placeholder={placeholder}
 				aria-invalid={ariaInvalid}
 				aria-describedby={ariaDescribedBy}

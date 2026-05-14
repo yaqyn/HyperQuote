@@ -36,6 +36,11 @@ import {
 import type { SecurityMethod } from '../../lib/server/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
 import {
+	DispatchBody,
+	DispatchDialog,
+	DispatchFooter,
+} from '../shared/DispatchDialog'
+import {
 	EmployeeActionButton,
 	EmployeeFilterChip,
 	EmployeeStatusPill,
@@ -1181,7 +1186,6 @@ function ConfirmDialog({
 	onClose: () => void
 	onSuccess: () => void
 }) {
-	const reduce = useReducedMotion()
 	const qc = useQueryClient()
 	const isDelivered = type === 'delivered'
 
@@ -1199,7 +1203,6 @@ function ConfirmDialog({
 	const [securityToken, setSecurityToken] = useState('')
 	const [proofUrl, setProofUrl] = useState('')
 	const [error, setError] = useState<string | null>(null)
-	const [pressed, setPressed] = useState(false)
 
 	const ready =
 		advisorId !== null &&
@@ -1275,208 +1278,142 @@ function ConfirmDialog({
 
 	const confirm = () => {
 		setError(null)
-		setPressed(true)
-		setTimeout(() => setPressed(false), 280)
 		if (isDelivered) deliveredMut.mutate()
 		else returnedMut.mutate()
 	}
 
 	return (
-		<motion.div
-			initial={reduce ? false : { opacity: 0 }}
-			animate={{ opacity: 1 }}
-			exit={reduce ? undefined : { opacity: 0 }}
-			className="fixed inset-0 z-50 flex items-stretch justify-center sm:items-center"
-			style={{
-				backgroundColor: 'rgba(20, 18, 15, 0.28)',
-				backdropFilter: 'blur(8px)',
-			}}
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose()
-			}}
+		<DispatchDialog
+			isOpen
+			onClose={onClose}
+			size="sm"
+			eyebrow={isDelivered ? 'Confirm delivery' : 'Return to warehouse'}
+			title={route.customerName}
+			caption={route.quoteNumber}
+			dismissDisabled={isPending}
 		>
-			<motion.div
-				initial={reduce ? false : { scale: 0.96, opacity: 0 }}
-				animate={{ scale: 1, opacity: 1 }}
-				exit={reduce ? undefined : { scale: 0.96, opacity: 0 }}
-				transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-				className="dispatch-theme dispatch-paper flex h-full w-full flex-col overflow-hidden shadow-[0_40px_90px_-20px_rgba(20,15,10,0.4)] sm:mx-4 sm:h-auto sm:max-h-[92vh] sm:max-w-[520px]"
-				style={{ color: 'var(--ink)' }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{/* Header */}
-				<div className="shrink-0 px-5 pt-7 pb-6 sm:px-10 sm:pt-9 sm:pb-7">
-					<p
-						className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
-						style={{
-							fontSize: '11px',
-							color: isDelivered ? 'var(--motion)' : 'var(--returned)',
-							letterSpacing: '0.1em',
-						}}
-					>
-						{isDelivered ? 'Confirm delivery' : 'Return to warehouse'}
-					</p>
-					<h3
-						className="mt-2 break-words font-[family-name:var(--font-literata)]"
-						style={{
-							fontSize: '26px',
-							fontWeight: 500,
-							color: 'var(--ink)',
-							lineHeight: 1.05,
-						}}
-					>
-						{route.customerName}
-					</h3>
-					<p
-						className="mt-2 font-[family-name:var(--font-plex-mono)] tabular-nums"
-						style={{
-							fontSize: '11px',
-							color: 'var(--ink-mid)',
-							letterSpacing: '0.08em',
-						}}
-					>
-						{route.quoteNumber}
-					</p>
+			<DispatchBody className="dispatch-theme flex flex-col gap-5">
+				<EmployeeStatusPill
+					tone={isDelivered ? 'success' : 'danger'}
+					leading={
+						isDelivered ? (
+							<CheckCircle2 aria-hidden="true" size={14} />
+						) : (
+							<Ban aria-hidden="true" size={14} />
+						)
+					}
+				>
+					{isDelivered
+						? 'Stock will be consumed and trucks become available.'
+						: 'Order returns to warehouse for review.'}
+				</EmployeeStatusPill>
+
+				{!isDelivered && (
+					<DialogField label="Reason for return">
+						<HairlineInput
+							value={reason}
+							onChange={setReason}
+							placeholder="customer refused, wrong quantities"
+						/>
+					</DialogField>
+				)}
+
+				<DialogField label="Signed off by">
+					<div className="grid grid-cols-1 gap-2">
+						{employees.map((e) => (
+							<button
+								key={e.id}
+								type="button"
+								onClick={() => setAdvisorId(e.id)}
+								aria-pressed={advisorId === e.id}
+								className={`min-h-10 rounded-md border px-3 text-start font-[family-name:var(--font-archivo)] transition-colors ${
+									advisorId === e.id
+										? 'border-[var(--motion)] bg-[var(--motion)]/[0.08] text-[var(--ink)]'
+										: 'border-black/[0.1] text-[var(--ink-mid)] hover:border-[var(--motion)]/40 dark:border-white/[0.12]'
+								}`}
+								style={{ fontSize: '14px', fontWeight: 600 }}
+							>
+								{e.name}
+							</button>
+						))}
+					</div>
+				</DialogField>
+
+				<DialogField label="Credential">
+					<div className="mb-3 grid grid-cols-2 gap-2">
+						{(['password', 'qr'] as const).map((m) => (
+							<EmployeeFilterChip
+								key={m}
+								active={securityMethod === m}
+								tone="primary"
+								onClick={() => {
+									setSecurityMethod(m)
+									setSecurityToken('')
+								}}
+							>
+								{m === 'password' ? 'Password' : 'QR scan'}
+							</EmployeeFilterChip>
+						))}
+					</div>
+					<HairlineInput
+						type={securityMethod === 'password' ? 'password' : 'text'}
+						value={securityToken}
+						onChange={setSecurityToken}
+						placeholder={
+							securityMethod === 'password' ? 'your password' : 'scan badge'
+						}
+						autoComplete="off"
+					/>
+				</DialogField>
+
+				<DialogField label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}>
+					<HairlineInput
+						value={proofUrl}
+						onChange={setProofUrl}
+						placeholder="pod-photo.jpg"
+					/>
+				</DialogField>
+
+				{error && (
 					<EmployeeStatusPill
-						tone={isDelivered ? 'success' : 'danger'}
-						leading={
-							isDelivered ? (
-								<CheckCircle2 aria-hidden="true" size={14} />
-							) : (
-								<Ban aria-hidden="true" size={14} />
-							)
-						}
-						className="mt-4"
+						tone="danger"
+						leading={<AlertTriangle aria-hidden="true" size={14} />}
 					>
-						{isDelivered
-							? 'Stock will be consumed and trucks become available.'
-							: 'Order returns to warehouse for review.'}
+						{error}
 					</EmployeeStatusPill>
-				</div>
+				)}
+			</DispatchBody>
 
-				<HorizonRule />
-
-				{/* Fields */}
-				<div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-6 sm:px-10 sm:py-7">
-					{!isDelivered && (
-						<DialogField label="Reason for return">
-							<HairlineInput
-								value={reason}
-								onChange={setReason}
-								placeholder="customer refused, wrong quantities"
-							/>
-						</DialogField>
-					)}
-
-					<DialogField label="Signed off by">
-						<div className="grid grid-cols-1 gap-2">
-							{employees.map((e) => (
-								<button
-									key={e.id}
-									type="button"
-									onClick={() => setAdvisorId(e.id)}
-									aria-pressed={advisorId === e.id}
-									className={`min-h-10 rounded-md border px-3 text-start font-[family-name:var(--font-archivo)] transition-colors ${
-										advisorId === e.id
-											? 'border-[var(--motion)] bg-[var(--motion)]/[0.08] text-[var(--ink)]'
-											: 'border-black/[0.1] text-[var(--ink-mid)] hover:border-[var(--motion)]/40 dark:border-white/[0.12]'
-									}`}
-									style={{ fontSize: '14px', fontWeight: 600 }}
-								>
-									{e.name}
-								</button>
-							))}
-						</div>
-					</DialogField>
-
-					<DialogField label="Credential">
-						<div className="mb-3 grid grid-cols-2 gap-2">
-							{(['password', 'qr'] as const).map((m) => (
-								<EmployeeFilterChip
-									key={m}
-									active={securityMethod === m}
-									tone="primary"
-									onClick={() => {
-										setSecurityMethod(m)
-										setSecurityToken('')
-									}}
-								>
-									{m === 'password' ? 'Password' : 'QR scan'}
-								</EmployeeFilterChip>
-							))}
-						</div>
-						<HairlineInput
-							type={securityMethod === 'password' ? 'password' : 'text'}
-							value={securityToken}
-							onChange={setSecurityToken}
-							placeholder={
-								securityMethod === 'password' ? 'your password' : 'scan badge'
-							}
-							autoComplete="off"
-						/>
-						<p
-							className="mt-2 font-[family-name:var(--font-archivo)]"
-							style={{ fontSize: '10px', color: 'var(--ink-ghost)' }}
-						>
-							dev mock · 1234
-						</p>
-					</DialogField>
-
-					<DialogField
-						label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}
-					>
-						<HairlineInput
-							value={proofUrl}
-							onChange={setProofUrl}
-							placeholder="pod-photo.jpg"
-						/>
-					</DialogField>
-
-					{error && (
-						<EmployeeStatusPill
-							tone="danger"
-							leading={<AlertTriangle aria-hidden="true" size={14} />}
-						>
-							{error}
-						</EmployeeStatusPill>
-					)}
-				</div>
-
-				<HorizonRule />
-
-				{/* Actions */}
-				<div className="shrink-0 grid grid-cols-1 gap-2 px-5 py-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:px-10 sm:py-6">
-					<EmployeeActionButton
-						tone="neutral"
-						leading={<X aria-hidden="true" size={14} />}
-						fullWidthOnMobile
-						onClick={onClose}
-					>
-						Cancel
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						tone={isDelivered ? 'success' : 'danger'}
-						leading={
-							isDelivered ? (
-								<CheckCircle2 aria-hidden="true" size={14} />
-							) : (
-								<Ban aria-hidden="true" size={14} />
-							)
-						}
-						fullWidthOnMobile
-						disabled={!ready || isPending}
-						onClick={confirm}
-						className={`sm:justify-self-end ${pressed ? 'animate-stamp-press' : ''}`}
-					>
-						{isPending
-							? 'Confirming...'
-							: isDelivered
-								? 'Confirm delivery'
-								: 'Confirm return'}
-					</EmployeeActionButton>
-				</div>
-			</motion.div>
-		</motion.div>
+			<DispatchFooter>
+				<EmployeeActionButton
+					tone="neutral"
+					leading={<X aria-hidden="true" size={14} />}
+					fullWidthOnMobile
+					onClick={onClose}
+				>
+					Cancel
+				</EmployeeActionButton>
+				<EmployeeActionButton
+					tone={isDelivered ? 'success' : 'danger'}
+					leading={
+						isDelivered ? (
+							<CheckCircle2 aria-hidden="true" size={14} />
+						) : (
+							<Ban aria-hidden="true" size={14} />
+						)
+					}
+					fullWidthOnMobile
+					disabled={!ready || isPending}
+					onClick={confirm}
+				>
+					{isPending
+						? 'Confirming...'
+						: isDelivered
+							? 'Confirm delivery'
+							: 'Confirm return'}
+				</EmployeeActionButton>
+			</DispatchFooter>
+		</DispatchDialog>
 	)
 }
 

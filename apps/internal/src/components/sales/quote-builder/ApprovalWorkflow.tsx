@@ -1,26 +1,24 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { requestApproval } from '../../../lib/server/sales-quotes'
-import type { CustomerTier, MarginThresholds } from '../../../types/sales'
-import {
-	EmployeeActionButton,
-	EmployeeStatusPill,
-} from '../../shared/EmployeeControls'
-import { UnderlineTextArea } from '../../ui'
+import { getSalesApprovers } from '../../../lib/server/sales-quotes'
+import type { MarginThresholds } from '../../../types/sales'
 
 interface ApprovalWorkflowProps {
-	quoteId: string
 	marginPercent: number
 	totalValue: number
-	/** Reserved — tier-specific approval rules will read this once wired. */
-	customerTier?: CustomerTier
 	thresholds: MarginThresholds[]
 	status: 'draft' | 'pending_approval' | 'approved' | 'rejected'
-	isApprover?: boolean
-	layout?: 'inline' | 'footer'
-	showRequestAction?: boolean
+	className?: string
 	onStatusChange?: (status: string) => void
 	/** Called whenever send-blocking state changes. Parent uses this to disable/enable Send button. */
 	onSendBlockedChange?: (blocked: boolean, reason: string | null) => void
+	onSignatureChange?: (state: ApprovalSignatureState) => void
+}
+
+export interface ApprovalSignatureState {
+	needsApproval: boolean
+	managerName?: string
+	managerSigned: boolean
 }
 
 type ApproverRole = 'none' | 'sales_manager' | 'vp_sales' | 'director' | 'ceo'
@@ -31,6 +29,8 @@ interface ApprovalChainEntry {
 	required: boolean
 	reason: string
 }
+
+type SecurityMethod = 'password' | 'qr'
 
 function determineApprovalChain(
 	marginPercent: number,
@@ -137,29 +137,132 @@ function determineApprovalChain(
 	return { chain, highestRole, summaryLabel }
 }
 
+function SignatureSlot({
+	label,
+	name,
+	helper,
+	signed,
+	side,
+}: {
+	label: string
+	name?: string
+	helper: string
+	signed: boolean
+	side: 'left' | 'right'
+}) {
+	const isRight = side === 'right'
+	return (
+		<div
+			className={`min-w-0 ${isRight ? 'md:ms-auto md:text-right' : 'md:me-auto'}`}
+		>
+			<div
+				className={`flex min-h-24 items-end border-b border-[var(--color-text-muted)] pb-3 ${
+					isRight ? 'justify-start md:justify-end' : 'justify-start'
+				}`}
+			>
+				{signed && name ? (
+					<span className="break-words font-[family-name:var(--font-literata)] text-[24px] italic leading-tight text-[var(--color-text)]">
+						{name}
+					</span>
+				) : (
+					<span className="font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+						pending signature
+					</span>
+				)}
+			</div>
+			<p className="mt-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase text-[var(--color-text)]">
+				{label}
+			</p>
+			<p className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[11px] italic leading-5 text-[var(--color-text-subtle)]">
+				{helper}
+			</p>
+		</div>
+	)
+}
+
+export function QuoteSignatureSection({
+	preparedByName,
+	needsApproval,
+	managerName,
+	managerSigned,
+}: {
+	preparedByName: string
+	needsApproval: boolean
+	managerName?: string
+	managerSigned: boolean
+}) {
+	return (
+		<section
+			aria-label="Report signatures"
+			className="px-4 pb-2 pt-8 sm:px-6 lg:px-8"
+		>
+			<div className="border-t border-[var(--color-border)] pt-7">
+				<p className="font-[family-name:var(--font-literata)] text-[18px] font-medium text-[var(--color-text)]">
+					Final Signatures
+				</p>
+			</div>
+			<div className="mt-10 grid gap-12 md:grid-cols-2">
+				<SignatureSlot
+					label="Prepared by"
+					name={preparedByName}
+					helper="Signed by the employee preparing this HyperQuote sheet."
+					signed
+					side="left"
+				/>
+				{needsApproval && (
+					<SignatureSlot
+						label="Manager approval"
+						name={managerName}
+						helper={
+							managerName
+								? `Approving manager: ${managerName}`
+								: 'The approving manager signs here before finance receives the quote.'
+						}
+						signed={managerSigned}
+						side="right"
+					/>
+				)}
+			</div>
+		</section>
+	)
+}
+
 export function ApprovalWorkflow({
-	quoteId,
 	marginPercent,
 	totalValue,
 	thresholds,
 	status,
-	isApprover = false,
-	layout = 'inline',
-	showRequestAction = true,
+	className = '',
 	onStatusChange,
 	onSendBlockedChange,
+	onSignatureChange,
 }: ApprovalWorkflowProps) {
-	const [justification, setJustification] = useState('')
-	const [isSubmitting, setSubmitting] = useState(false)
+	const [selectedApproverId, setSelectedApproverId] = useState('')
+	const [securityMethod, setSecurityMethod] =
+		useState<SecurityMethod>('password')
+	const [credentialToken, setCredentialToken] = useState('')
 
-	const { chain, highestRole, summaryLabel } = determineApprovalChain(
+	const { chain, summaryLabel } = determineApprovalChain(
 		marginPercent,
 		totalValue,
 		thresholds,
 	)
 	const needsApproval = chain.length > 0
 	const sendBlocked = needsApproval && status !== 'approved'
-	const isFooter = layout === 'footer'
+	const { data: approversData, isPending: approversPending } = useQuery({
+		queryKey: ['sales-approvers'],
+		queryFn: () => getSalesApprovers({ data: {} }),
+		staleTime: 5 * 60_000,
+		enabled: needsApproval,
+	})
+	const approvers = approversData?.approvers ?? []
+	const selectedApprover = approvers.find((a) => a.id === selectedApproverId)
+	const showApproverScrollCue = approvers.length > 4
+	const hasCredential =
+		securityMethod === 'password'
+			? credentialToken.trim().length > 0
+			: credentialToken === 'qr-placeholder'
+	const canApprove = !!selectedApprover && hasCredential
 
 	// Notify parent of send-blocked state
 	useEffect(() => {
@@ -169,179 +272,179 @@ export function ApprovalWorkflow({
 		)
 	}, [sendBlocked, summaryLabel, onSendBlockedChange])
 
-	const handleRequestApproval = async () => {
-		if (!highestRole || highestRole === 'none' || isSubmitting) return
-		setSubmitting(true)
-		try {
-			const approverRole =
-				highestRole === 'director'
-					? 'sales_manager'
-					: (highestRole as string) === 'none'
-						? 'sales_manager'
-						: highestRole
-			await requestApproval({
-				data: {
-					quoteId,
-					approverRole: approverRole as 'sales_manager' | 'vp_sales' | 'ceo',
-					justification: justification || undefined,
-				},
-			})
-			onStatusChange?.('pending_approval')
-		} catch (err) {
-			console.error('Failed to request approval:', err)
-		} finally {
-			setSubmitting(false)
-		}
-	}
+	const managerName = selectedApprover?.name
+	const managerSigned = needsApproval && status === 'approved'
+	const approvalRoleLabel = chain[chain.length - 1]?.label ?? 'Manager'
 
-	// Auto-approved
-	if (!needsApproval) {
-		if (isFooter) return null
+	useEffect(() => {
+		onSignatureChange?.({
+			needsApproval,
+			managerName,
+			managerSigned,
+		})
+	}, [managerName, managerSigned, needsApproval, onSignatureChange])
 
-		return (
-			<EmployeeStatusPill tone="success" leading={<ApprovalCheckIcon />}>
-				Auto-approved
-			</EmployeeStatusPill>
-		)
-	}
+	if (!needsApproval) return null
 
-	// Approved
-	if (status === 'approved') {
-		if (isFooter) return null
-
-		return (
-			<EmployeeStatusPill tone="success" leading={<ApprovalCheckIcon />}>
-				Approved
-			</EmployeeStatusPill>
-		)
-	}
-
-	// Pending
-	if (status === 'pending_approval') {
-		return (
-			<div
-				className={
-					isFooter
-						? 'flex flex-col gap-2 sm:flex-row sm:items-center'
-						: 'flex flex-col gap-3 lg:flex-row lg:items-center'
-				}
-			>
-				<EmployeeStatusPill tone="warning">
-					Pending {chain[chain.length - 1]?.label ?? 'approver'} · escalates in
-					2h
-				</EmployeeStatusPill>
-
-				{isApprover && (
-					<div className="flex flex-wrap gap-2">
-						<EmployeeActionButton
-							size="sm"
-							tone="success"
-							onClick={() => onStatusChange?.('approved')}
-						>
-							Approve
-						</EmployeeActionButton>
-						<EmployeeActionButton
-							size="sm"
-							tone="danger"
-							onClick={() => onStatusChange?.('rejected')}
-						>
-							Reject
-						</EmployeeActionButton>
-						<EmployeeActionButton
-							size="sm"
-							tone="neutral"
-							onClick={() => onStatusChange?.('changes_requested')}
-						>
-							Changes
-						</EmployeeActionButton>
-					</div>
-				)}
-			</div>
-		)
-	}
-
-	// Needs approval -- approver + reason, justification, submit.
 	return (
-		<div
-			className={
-				isFooter ? 'flex flex-col gap-2 lg:flex-row lg:items-end' : 'space-y-3'
-			}
-		>
-			<EmployeeStatusPill tone="warning">{summaryLabel}</EmployeeStatusPill>
-			{!isFooter && (
-				<div className="flex flex-wrap items-center gap-2">
-					{chain.map((entry, i) => (
-						<span key={entry.role} className="flex items-center gap-1">
-							<span className="text-[13px] font-medium">{entry.label}</span>
-							<span className="text-[12px] text-[var(--color-text-subtle)]">
-								({entry.reason})
-							</span>
-							{i < chain.length - 1 && (
-								<svg
-									width="10"
-									height="10"
-									viewBox="0 0 10 10"
-									fill="none"
-									className="text-[var(--color-text-subtle)]"
-									aria-hidden="true"
-								>
-									<path
-										d="M3.5 2l3.5 3-3.5 3"
-										stroke="currentColor"
-										strokeWidth="1.25"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-								</svg>
-							)}
-						</span>
-					))}
+		<div className={className}>
+			<section aria-label="Manager approval">
+				<div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-literata)] text-[18px] font-medium text-[var(--color-text)]">
+							Manager Sign-off
+						</p>
+						<p className="mt-2 break-words font-[family-name:var(--font-archivo)] text-[12px] leading-6 text-[var(--color-text-muted)]">
+							{status === 'approved'
+								? `Approved${managerName ? ` by ${managerName}` : ''}.`
+								: status === 'rejected'
+									? 'Approval was rejected.'
+									: `${approvalRoleLabel} review is required before this sheet can be sent to finance.`}
+						</p>
+						<p className="mt-2 break-words font-[family-name:var(--font-archivo)] text-[11px] italic leading-5 text-[var(--color-text-subtle)]">
+							{summaryLabel}
+							{chain.length > 0
+								? ` · ${chain.map((entry) => entry.reason).join(' · ')}`
+								: ''}
+						</p>
+					</div>
+
+					{status === 'approved' || status === 'rejected' ? (
+						<div className="rounded-md border border-[var(--color-border)] px-4 py-4">
+							<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-text)]">
+								{status === 'approved'
+									? 'Approval recorded'
+									: 'Approval closed'}
+							</p>
+							<p className="mt-2 font-[family-name:var(--font-literata)] text-[18px] italic text-[var(--color-text)]">
+								{managerName ?? 'No manager selected'}
+							</p>
+						</div>
+					) : (
+						<div className="grid min-w-0 gap-4">
+							<fieldset className="min-w-0">
+								<legend className="mb-2 font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]">
+									Approving manager
+								</legend>
+								<div className="relative overflow-hidden rounded-md">
+									<div className="grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+										{approversPending && (
+											<p className="rounded-md border border-[var(--color-border)] px-3 py-3 font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-subtle)] sm:col-span-2">
+												Loading managers...
+											</p>
+										)}
+										{!approversPending && approvers.length === 0 && (
+											<p className="rounded-md border border-[var(--color-border)] px-3 py-3 font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-subtle)] sm:col-span-2">
+												No managers available.
+											</p>
+										)}
+										{approvers.map((approver) => {
+											const selected = selectedApproverId === approver.id
+											return (
+												<button
+													key={approver.id}
+													type="button"
+													onClick={() => setSelectedApproverId(approver.id)}
+													className={`min-w-0 rounded-md border px-3 py-3 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+														selected
+															? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.07]'
+															: 'border-[var(--color-border)] hover:bg-black/[0.018] dark:hover:bg-white/[0.025]'
+													}`}
+													aria-pressed={selected}
+												>
+													<span className="block break-words font-[family-name:var(--font-literata)] text-[15px] font-medium leading-5 text-[var(--color-text)]">
+														{approver.name}
+													</span>
+													<span className="mt-1 block font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
+														{selected
+															? 'selected signatory'
+															: approvalRoleLabel}
+													</span>
+												</button>
+											)
+										})}
+									</div>
+									{showApproverScrollCue && (
+										<>
+											<div
+												aria-hidden="true"
+												className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-[var(--color-surface)] to-transparent shadow-[inset_0_12px_16px_-18px_rgba(0,0,0,0.95)]"
+											/>
+											<div
+												aria-hidden="true"
+												className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[var(--color-surface)] to-transparent shadow-[inset_0_-14px_18px_-18px_rgba(0,0,0,0.95)]"
+											/>
+										</>
+									)}
+								</div>
+							</fieldset>
+
+							<div className="rounded-md border border-[var(--color-border)] p-3">
+								<div className="grid grid-cols-2 gap-1 border-b border-[var(--color-border)] pb-3">
+									{(['password', 'qr'] as const).map((method) => (
+										<button
+											key={method}
+											type="button"
+											onClick={() => {
+												setSecurityMethod(method)
+												setCredentialToken('')
+											}}
+											className={`h-9 rounded-sm px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+												securityMethod === method
+													? 'bg-[var(--color-text)] text-[var(--color-surface)]'
+													: 'text-[var(--color-text-muted)] hover:bg-black/[0.035] hover:text-[var(--color-text)] dark:hover:bg-white/[0.04]'
+											}`}
+										>
+											{method === 'password' ? 'Password seal' : 'QR scan'}
+										</button>
+									))}
+								</div>
+
+								{securityMethod === 'password' ? (
+									<label className="mt-3 block">
+										<span className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]">
+											Manager password
+										</span>
+										<input
+											type="password"
+											value={credentialToken}
+											onChange={(event) =>
+												setCredentialToken(event.target.value)
+											}
+											placeholder="Type password to sign"
+											autoComplete="off"
+											className="mt-2 h-11 w-full min-w-0 border-0 border-b border-[var(--color-border)] bg-transparent px-0 font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus-visible:border-[var(--color-primary)]"
+										/>
+									</label>
+								) : (
+									<button
+										type="button"
+										onClick={() => setCredentialToken('qr-placeholder')}
+										className={`mt-3 flex min-h-20 w-full items-center justify-center rounded-md border border-dashed px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+											credentialToken === 'qr-placeholder'
+												? 'border-emerald-500/50 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-400'
+												: 'border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/[0.05]'
+										}`}
+									>
+										{credentialToken === 'qr-placeholder'
+											? 'QR signature captured'
+											: 'Scan manager QR'}
+									</button>
+								)}
+							</div>
+
+							<button
+								type="button"
+								disabled={!canApprove}
+								onClick={() => onStatusChange?.('approved')}
+								className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-[var(--color-text)] px-4 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-surface)] outline-none transition-colors hover:bg-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:bg-transparent disabled:text-[var(--color-text-subtle)]"
+							>
+								Sign manager approval
+							</button>
+						</div>
+					)}
 				</div>
-			)}
-
-			{showRequestAction && (
-				<>
-					<div className={isFooter ? 'min-w-[220px] flex-1' : undefined}>
-						<UnderlineTextArea
-							label="Justification"
-							placeholder="Strategic account, competitor priced at..."
-							value={justification}
-							onChange={setJustification}
-							rows={1}
-						/>
-					</div>
-					<EmployeeActionButton
-						onClick={handleRequestApproval}
-						disabled={isSubmitting}
-						aria-busy={isSubmitting}
-						tone="primary"
-						size="sm"
-						fullWidthOnMobile={isFooter}
-					>
-						{isSubmitting ? 'Requesting approval' : 'Request approval'}
-					</EmployeeActionButton>
-				</>
-			)}
+			</section>
 		</div>
-	)
-}
-
-function ApprovalCheckIcon() {
-	return (
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 14 14"
-			fill="none"
-			aria-hidden="true"
-		>
-			<path
-				d="M3.5 7l2.5 2.5L10.5 5"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-		</svg>
 	)
 }

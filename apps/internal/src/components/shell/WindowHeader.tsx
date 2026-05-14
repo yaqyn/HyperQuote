@@ -3,6 +3,7 @@ import { Button, Tooltip, TooltipTrigger } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { useAIChatStore } from '../../stores/ai-chat'
+import { useSalesStore } from '../../stores/sales'
 
 interface WindowHeaderProps {
 	moduleId: string
@@ -20,6 +21,8 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 	const { t } = useTranslation('internal')
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
 	const isAIOpen = useAIChatStore((s) => s.isOpen)
+	const requestNewQuote = useSalesStore((s) => s.requestNewQuote)
+	const requestStatusDialog = useSalesStore((s) => s.requestStatusDialog)
 
 	const mod = MODULES.find((m) => m.id === moduleId)
 	if (!mod) return null
@@ -29,15 +32,15 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 	return (
 		<div
 			data-window-header="true"
-			className="flex items-center justify-between h-12 px-5 shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]"
+			className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-3 dark:border-white/[0.06] sm:px-5"
 		>
-			<div className="flex items-center gap-5">
+			<div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
 				{/* Ask Lyon — italic with dot indicator, no rounded pill */}
 				<TooltipTrigger delay={3000}>
 					<Button
 						onPress={toggleAIChat}
 						aria-label="Ask Lyon AI"
-						className={`group inline-flex items-center gap-2 font-[family-name:var(--font-archivo)] italic transition-colors cursor-pointer ${
+						className={`group inline-flex shrink-0 items-center gap-2 font-[family-name:var(--font-archivo)] italic transition-colors cursor-pointer ${
 							isAIOpen
 								? 'text-[var(--color-primary)]'
 								: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
@@ -65,26 +68,44 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 				<Rule />
 
 				{/* Module identity — icon + Archivo label */}
-				<div className="flex items-center gap-2">
+				<div className="flex min-w-0 items-center gap-2">
 					<Icon
 						size={14}
 						strokeWidth={1.5}
-						className="text-[var(--color-text-muted)]"
+						className="shrink-0 text-[var(--color-text-muted)]"
 					/>
 					<span
-						className="font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+						className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
 						style={{
 							fontSize: '13px',
 							fontWeight: 500,
-							letterSpacing: '-0.005em',
+							letterSpacing: '0',
 						}}
 					>
 						{t(mod.labelKey)}
 					</span>
+					{moduleId === 'sales' && (
+						<>
+							<Button
+								onPress={requestStatusDialog}
+								aria-label="Open sales status"
+								className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md border border-black/[0.08] px-2.5 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:border-white/[0.1]"
+							>
+								Status
+							</Button>
+							<Button
+								onPress={requestNewQuote}
+								aria-label="Start a new quote"
+								className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-black/[0.08] bg-[var(--color-primary)] font-[family-name:var(--font-archivo)] text-[16px] font-semibold leading-none text-white outline-none transition-colors hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:border-white/[0.1]"
+							>
+								+
+							</Button>
+						</>
+					)}
 				</div>
 
 				{moduleId === 'dispatch' && (
-					<>
+					<div className="hidden items-center gap-5 sm:flex">
 						<Rule />
 						<HeaderLink
 							href="tel:+20235551234"
@@ -92,14 +113,14 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 							label="warehouse"
 						/>
 						<HeaderLink href="tel:991" tone="signal" label="emergency" />
-					</>
+					</div>
 				)}
 			</div>
 
 			<Button
 				onPress={onClose}
 				aria-label="Close"
-				className="flex items-center justify-center w-7 h-7 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors duration-150 cursor-pointer"
+				className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--color-text-subtle)] transition-colors duration-150 hover:text-[var(--color-text)] sm:h-7 sm:w-7 cursor-pointer"
 			>
 				<X size={16} strokeWidth={1.5} />
 			</Button>

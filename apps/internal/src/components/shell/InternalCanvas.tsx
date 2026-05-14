@@ -8,7 +8,6 @@ import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { getUrgentItems } from '../../lib/server/urgent-items'
 import { useInternalStore } from '../../stores/internal'
-import { useNotificationStore } from '../../stores/notifications'
 
 /**
  * InternalCanvas — the Front Page.
@@ -29,6 +28,18 @@ function useCurrentTime() {
 	return now
 }
 
+function useMediaQuery(query: string) {
+	const [matches, setMatches] = useState(false)
+	useEffect(() => {
+		const media = window.matchMedia(query)
+		const handleChange = () => setMatches(media.matches)
+		handleChange()
+		media.addEventListener('change', handleChange)
+		return () => media.removeEventListener('change', handleChange)
+	}, [query])
+	return matches
+}
+
 function getGreeting(hour: number): string {
 	if (hour >= 5 && hour < 12) return 'good morning'
 	if (hour >= 12 && hour < 17) return 'good afternoon'
@@ -36,11 +47,10 @@ function getGreeting(hour: number): string {
 	return 'good night'
 }
 
-function formatTime(date: Date): { hm: string; s: string } {
+function formatTime(date: Date): string {
 	const h = date.getHours().toString().padStart(2, '0')
 	const m = date.getMinutes().toString().padStart(2, '0')
-	const s = date.getSeconds().toString().padStart(2, '0')
-	return { hm: `${h}:${m}`, s }
+	return `${h}:${m}`
 }
 
 function formatMastheadDate(date: Date): string {
@@ -146,8 +156,7 @@ function buildAttentionFeed(breakdown?: {
 }
 
 function attentionHeadline(count: number): string {
-	if (count === 0) return 'all clear · nothing needs attention'
-	if (count === 1) return 'one thing needs your attention'
+	if (count <= 1) return 'one thing needs your attention'
 	if (count === 2) return 'two things need your attention'
 	if (count === 3) return 'three things need your attention'
 	return `${count} things need your attention`
@@ -164,9 +173,8 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const now = useCurrentTime()
 	const time = formatTime(now)
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
-	const unreadCount = useNotificationStore((s) => s.unreadCount)
-	const toggleNotifications = useNotificationStore((s) => s.toggleWindow)
 	const [awayActive, setAwayActive] = useState(false)
+	const canLockFromClock = useMediaQuery('(min-width: 640px)')
 
 	const name = auth.user?.user_metadata?.name ?? ''
 	const firstName = (name.split(' ')[0] || 'there').toLowerCase()
@@ -195,25 +203,25 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 	return (
 		<div className="relative flex h-full w-full flex-col overflow-hidden select-none bg-dot-grid">
-			<Masthead
-				now={now}
-				firstName={firstName}
-				fullName={name}
-				roles={auth.roles ?? []}
-				unreadCount={unreadCount}
-				onOpenNotifications={toggleNotifications}
-			/>
+			<Masthead now={now} />
 
 			{/* Centerpiece — clock + greeting. Clicking the clock pulls
 			    the away screen down over the entire canvas. */}
 			<div className="relative z-10 flex flex-1 min-h-0 flex-col items-center justify-center px-4 sm:px-8 lg:px-12">
 				<button
 					type="button"
-					onClick={() => setAwayActive(true)}
-					aria-label="Mark myself as away"
-					className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+					onClick={() => {
+						if (canLockFromClock) setAwayActive(true)
+					}}
+					aria-label={
+						canLockFromClock ? 'Mark myself as away' : 'Clock display'
+					}
+					aria-disabled={!canLockFromClock}
+					className={`rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 ${
+						canLockFromClock ? '' : 'cursor-default'
+					}`}
 				>
-					<Clock hm={time.hm} s={time.s} />
+					<Clock time={time} />
 				</button>
 				<motion.p
 					initial={{ opacity: 0, y: 8 }}
@@ -228,22 +236,26 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 			{/* Bottom stack — attention feed + module roll */}
 			<div className="relative z-10 shrink-0 px-4 pb-5 sm:px-8 sm:pb-8 lg:px-12 lg:pb-10">
-				<SectionRule label={attentionHeadline(urgentCount)} />
 				{attention.length > 0 && (
-					<div className="mt-5 flex flex-col gap-2.5 max-w-[640px] mx-auto">
-						{attention.map((row, i) => (
-							<AttentionRow
-								key={`${row.moduleId}-${row.label}`}
-								row={row}
-								index={i}
-								onJump={() => setActiveModule(row.moduleId)}
-							/>
-						))}
-					</div>
+					<>
+						<SectionRule label={attentionHeadline(urgentCount)} />
+						<div className="mt-5 flex flex-col gap-2.5 max-w-[640px] mx-auto">
+							{attention.map((row, i) => (
+								<AttentionRow
+									key={`${row.moduleId}-${row.label}`}
+									row={row}
+									index={i}
+									onJump={() => setActiveModule(row.moduleId)}
+								/>
+							))}
+						</div>
+					</>
 				)}
 
 				<div className="mt-10">
-					<SectionRule label="modules" />
+					<div className="hidden lg:block">
+						<SectionRule label="modules" />
+					</div>
 					<div className="mt-5 hidden flex-wrap items-center justify-center gap-x-7 gap-y-3 lg:flex">
 						{panelOptions.map((mod, i) => (
 							<ModuleLink
@@ -279,27 +291,13 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 // ─── Masthead ────────────────────────────────────────────
 
-function Masthead({
-	now,
-	firstName,
-	fullName,
-	roles,
-	unreadCount,
-	onOpenNotifications,
-}: {
-	now: Date
-	firstName: string
-	fullName: string
-	roles: string[]
-	unreadCount: number
-	onOpenNotifications: () => void
-}) {
+function Masthead({ now }: { now: Date }) {
 	return (
 		<div className="relative z-10 shrink-0 px-4 pt-4 pb-3 sm:px-8 lg:px-12 lg:pt-5">
-			<div className="flex items-start justify-between gap-6">
+			<div className="flex items-baseline justify-between gap-6">
 				{/* Left — organizational identity. Clicking the wordmark
 				    toggles paper mode; that's the only entry point now. */}
-				<div className="flex items-baseline gap-2">
+				<div className="flex items-baseline gap-2 leading-none">
 					<button
 						type="button"
 						onClick={() => {
@@ -318,52 +316,41 @@ function Masthead({
 						style={{
 							fontSize: '15px',
 							fontWeight: 500,
-							letterSpacing: '-0.01em',
+							letterSpacing: '0',
 						}}
 					>
 						HyperQuote
 					</button>
 					<span
 						className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-						style={{ fontSize: '11px' }}
+						style={{ fontSize: '11px', lineHeight: 1 }}
 					>
 						· internal ops
 					</span>
 				</div>
 
-				{/* Right — dateline + subscriber byline */}
-				<div className="flex flex-col items-end gap-1.5">
-					<div className="flex items-baseline gap-2">
-						<span
-							className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-							style={{ fontSize: '11px', letterSpacing: '0.06em' }}
-						>
-							{formatMastheadDate(now)}
-						</span>
-						<span
-							className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-							style={{ fontSize: '11px', letterSpacing: '0.06em' }}
-						>
-							· {formatWeekNumber(now)}
-						</span>
-					</div>
-					<div className="flex items-baseline gap-2">
-						<span
-							className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-							style={{ fontSize: '11px' }}
-						>
-							signed
-						</span>
-						<ProfileTrigger
-							firstName={firstName}
-							fullName={fullName}
-							roles={roles}
-						/>
-						<NotificationsTrigger
-							unreadCount={unreadCount}
-							onOpen={onOpenNotifications}
-						/>
-					</div>
+				{/* Right — dateline */}
+				<div className="flex items-baseline gap-2 leading-none">
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
+						style={{
+							fontSize: '11px',
+							letterSpacing: '0.06em',
+							lineHeight: 1,
+						}}
+					>
+						{formatMastheadDate(now)}
+					</span>
+					<span
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
+						style={{
+							fontSize: '11px',
+							letterSpacing: '0.06em',
+							lineHeight: 1,
+						}}
+					>
+						· {formatWeekNumber(now)}
+					</span>
 				</div>
 			</div>
 			<div
@@ -374,63 +361,26 @@ function Masthead({
 	)
 }
 
-function NotificationsTrigger({
-	unreadCount,
-	onOpen,
-}: {
-	unreadCount: number
-	onOpen: () => void
-}) {
-	const label = unreadCount === 0 ? 'no new' : `${unreadCount} new`
-	const isBrand = unreadCount > 0
-	return (
-		<button
-			type="button"
-			onClick={onOpen}
-			aria-label={unreadCount === 0 ? 'No new notifications' : 'Notifications'}
-			className="group inline-flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] italic transition-colors"
-			style={{
-				fontSize: '11px',
-				color: isBrand ? 'var(--color-primary)' : 'var(--color-text-subtle)',
-			}}
-		>
-			<span aria-hidden="true" style={{ color: 'var(--color-text-subtle)' }}>
-				·
-			</span>
-			{isBrand && (
-				<span
-					aria-hidden="true"
-					className="h-[5px] w-[5px] rounded-full bg-[var(--color-primary)] animate-pulse"
-				/>
-			)}
-			<span className="group-hover:text-[var(--color-primary)] transition-colors">
-				{label}
-			</span>
-		</button>
-	)
-}
-
 // ─── Clock ───────────────────────────────────────────────
 
-function Clock({ hm, s }: { hm: string; s: string }) {
+function Clock({ time }: { time: string }) {
 	return (
 		<motion.div
 			initial={{ opacity: 0, scale: 0.98 }}
 			animate={{ opacity: 1, scale: 1 }}
 			transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-			className="flex items-baseline gap-3"
+			className="flex items-center justify-center"
 		>
 			<span
 				suppressHydrationWarning
-				className="font-[family-name:var(--font-literata)] tabular-nums text-[var(--color-text)]"
+				className="font-[family-name:var(--font-literata)] text-[72px] tabular-nums text-[var(--color-text)] sm:text-[96px] lg:text-[clamp(110px,16vw,170px)]"
 				style={{
-					fontSize: 'clamp(110px, 16vw, 170px)',
 					fontWeight: 500,
-					letterSpacing: '-0.04em',
+					letterSpacing: '0',
 					lineHeight: 0.85,
 				}}
 			>
-				{hm.split(':').map((part, i, arr) => (
+				{time.split(':').map((part, i, arr) => (
 					<span key={part + String(i)}>
 						{part}
 						{i < arr.length - 1 && (
@@ -447,17 +397,6 @@ function Clock({ hm, s }: { hm: string; s: string }) {
 						)}
 					</span>
 				))}
-			</span>
-			<span
-				suppressHydrationWarning
-				className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)] self-end mb-3"
-				style={{
-					fontSize: 'clamp(28px, 3.2vw, 40px)',
-					letterSpacing: '0.02em',
-					lineHeight: 1,
-				}}
-			>
-				·{s}
 			</span>
 		</motion.div>
 	)
@@ -514,7 +453,7 @@ function AttentionRow({
 			</span>
 			<span
 				className="font-[family-name:var(--font-archivo)] italic flex-1 text-[var(--color-text)]"
-				style={{ fontSize: '13px', letterSpacing: '-0.005em' }}
+				style={{ fontSize: '13px', letterSpacing: '0' }}
 			>
 				{row.label}
 			</span>
@@ -549,7 +488,7 @@ function ModuleLink({
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ delay: 0.4 + index * 0.03, duration: 0.3 }}
 			className="group inline-flex items-baseline gap-1.5 font-[family-name:var(--font-literata)] italic transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
-			style={{ fontSize: '15px', letterSpacing: '-0.005em' }}
+			style={{ fontSize: '15px', letterSpacing: '0' }}
 		>
 			{hasAttention && (
 				<span
@@ -572,33 +511,46 @@ function PanelMenu({
 	onJump: (id: string) => void
 }) {
 	const [isOpen, setIsOpen] = useState(false)
+	const activeModule = useInternalStore((s) => s.activeModule)
+
+	useEffect(() => {
+		if (activeModule) setIsOpen(false)
+	}, [activeModule])
 
 	return (
 		<DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
 			<Button
 				aria-label="Open panels"
-				className="inline-flex h-12 min-w-[176px] items-center justify-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-colors hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+				className={`inline-flex h-12 min-w-[176px] items-center justify-center gap-3 rounded-lg border bg-[var(--color-surface)] px-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+					isOpen
+						? '-translate-y-0.5 border-[var(--color-primary)] shadow-md shadow-[var(--color-primary)]/10'
+						: 'border-[var(--color-border)] shadow-sm shadow-black/5'
+				}`}
 				style={{ fontSize: '14px', fontWeight: 600, letterSpacing: 0 }}
 			>
 				<PanelsTopLeft
 					aria-hidden="true"
 					size={18}
 					strokeWidth={1.75}
-					className="text-[var(--color-primary)]"
+					className={`text-[var(--color-primary)] transition-transform duration-200 ${
+						isOpen ? 'scale-95' : 'scale-100'
+					}`}
 				/>
 				<span>Panels</span>
 				<ChevronDown
 					aria-hidden="true"
 					size={16}
 					strokeWidth={1.75}
-					className="text-[var(--color-text-muted)]"
+					className={`text-[var(--color-text-muted)] transition-transform duration-200 ${
+						isOpen ? 'rotate-180' : 'rotate-0'
+					}`}
 				/>
 			</Button>
 			<Popover
 				placement="top"
 				offset={10}
 				aria-label="Panels"
-				className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl shadow-black/10 outline-none"
+				className="panel-menu-popover rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl shadow-black/10 outline-none"
 				style={{ width: 'min(360px, calc(100vw - 32px))' }}
 			>
 				<div className="flex flex-col">
@@ -606,8 +558,8 @@ function PanelMenu({
 						<Button
 							key={mod.id}
 							onPress={() => {
-								onJump(mod.id)
 								setIsOpen(false)
+								onJump(mod.id)
 							}}
 							className="group flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-start outline-none transition-colors hover:bg-[var(--color-primary)]/8 focus-visible:bg-[var(--color-primary)]/8"
 						>
@@ -640,56 +592,6 @@ function PanelMenu({
 							</span>
 						</Button>
 					))}
-				</div>
-			</Popover>
-		</DialogTrigger>
-	)
-}
-
-// ─── Profile trigger ─────────────────────────────────────
-
-function ProfileTrigger({
-	firstName,
-	fullName,
-	roles,
-}: {
-	firstName: string
-	fullName: string
-	roles: string[]
-}) {
-	return (
-		<DialogTrigger>
-			<Button
-				aria-label={`Profile — signed in as ${fullName}`}
-				className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text)] hover:text-[var(--color-primary)] cursor-pointer outline-none transition-colors"
-				style={{ fontSize: '11px' }}
-			>
-				· {firstName}
-			</Button>
-			<Popover
-				placement="bottom end"
-				offset={8}
-				aria-label="Profile menu"
-				className="min-w-[220px] rounded-xl bg-[var(--color-surface)] p-2 outline-none shadow-xl shadow-black/10"
-			>
-				<div className="mb-1 px-3 py-2.5">
-					<p
-						className="font-[family-name:var(--font-literata)]"
-						style={{
-							fontSize: '15px',
-							fontWeight: 500,
-							color: 'var(--color-text)',
-							letterSpacing: '-0.01em',
-						}}
-					>
-						{fullName}
-					</p>
-					<p
-						className="mt-0.5 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-						style={{ fontSize: '11px' }}
-					>
-						{roles[0] ?? 'employee'}
-					</p>
 				</div>
 			</Popover>
 		</DialogTrigger>
@@ -768,7 +670,7 @@ function AwayScreen({
 		}
 	}
 
-	const hm = formatTime(now).hm
+	const hm = formatTime(now)
 	const elapsedMinutes = Math.floor(
 		(now.getTime() - awaySince.getTime()) / 60_000,
 	)
@@ -805,7 +707,7 @@ function AwayScreen({
 						fontSize: 'clamp(54px, 7vw, 96px)',
 						fontWeight: 500,
 						fontStyle: 'italic',
-						letterSpacing: '-0.022em',
+						letterSpacing: '0',
 						lineHeight: 1.02,
 						color: '#F5F5F5',
 						fontFeatureSettings: '"ss01" on, "ss02" on, "liga" on',

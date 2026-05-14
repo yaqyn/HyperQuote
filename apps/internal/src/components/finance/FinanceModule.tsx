@@ -21,10 +21,6 @@ export function FinanceModule() {
 
 	return (
 		<div className="ledger-theme flex h-full flex-col bg-[var(--color-surface)]">
-			<div className="shrink-0">
-				<FinanceTabStrip />
-			</div>
-
 			<div
 				className="relative flex-1 min-h-0 overflow-hidden"
 				data-module-content
@@ -38,6 +34,7 @@ export function FinanceModule() {
 						transition={{ duration: 0.14, ease: 'easeOut' }}
 						className="absolute inset-0 overflow-y-auto overflow-x-hidden"
 					>
+						<FinanceTabStrip />
 						{tabContent[activeTab] ?? null}
 					</motion.div>
 				</AnimatePresence>

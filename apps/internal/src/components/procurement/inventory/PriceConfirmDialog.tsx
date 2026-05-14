@@ -1,17 +1,13 @@
-import { CheckCircle2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { FileText, Upload } from 'lucide-react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { PRICE_PROOF_ESSAY_MIN } from '../../../lib/inputs'
+import type { PriceProofInput } from '../../../lib/server/inventory'
 import {
-	isValidProof,
-	MIN_PROOF_LENGTH,
-	type ProofReason,
-	proofNeededFor,
-} from '../../../lib/inputs'
-import {
+	DispatchAction,
 	DispatchBody,
 	DispatchDialog,
 	DispatchFooter,
 } from '../../shared/DispatchDialog'
-import { EmployeeActionButton } from '../../shared/EmployeeControls'
 
 interface PriceConfirmDialogProps {
 	isOpen: boolean
@@ -20,24 +16,11 @@ interface PriceConfirmDialogProps {
 	unit: string
 	oldCost: number
 	newCost: number
-	/** Called with the user-supplied proof text when the guard required one. */
-	onConfirm: (proof?: string) => void
+	onConfirm: (proof: PriceProofInput) => void
 	onCancel: () => void
 }
 
-const PROOF_COPY: Record<
-	NonNullable<ProofReason>,
-	{ title: string; hint: string }
-> = {
-	decrease: {
-		title: 'a lower price needs a paper trail',
-		hint: 'dropping a cost without evidence is the #1 way the ledger drifts. name the rep, paste the message, or describe the negotiation.',
-	},
-	'large-change': {
-		title: 'a big jump needs a paper trail',
-		hint: 'this change is more than 25% in one go. record the negotiation or catch the typo before you commit.',
-	},
-}
+type ProofMethod = 'pdf' | 'essay'
 
 export function PriceConfirmDialog({
 	isOpen,
@@ -49,14 +32,17 @@ export function PriceConfirmDialog({
 	onConfirm,
 	onCancel,
 }: PriceConfirmDialogProps) {
-	const proofReason = proofNeededFor(oldCost, newCost)
-	const [proof, setProof] = useState('')
+	const [proofMethod, setProofMethod] = useState<ProofMethod>('pdf')
+	const [proofPdfName, setProofPdfName] = useState('')
+	const [proofEssay, setProofEssay] = useState('')
+	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
 	useEffect(() => {
-		if (isOpen) setProof('')
+		if (!isOpen) return
+		setProofMethod('pdf')
+		setProofPdfName('')
+		setProofEssay('')
 	}, [isOpen])
-
-	const proofOk = proofReason === null || isValidProof(proof)
 
 	const [armed, setArmed] = useState(false)
 	useEffect(() => {
@@ -68,9 +54,18 @@ export function PriceConfirmDialog({
 		return () => clearTimeout(timer)
 	}, [isOpen])
 
+	const proofEssayLength = proofEssay.trim().length
+	const pdfOk = proofPdfName.trim().toLowerCase().endsWith('.pdf')
+	const essayOk = proofEssayLength >= PRICE_PROOF_ESSAY_MIN
+	const proofOk = proofMethod === 'pdf' ? pdfOk : essayOk
+
 	const handleConfirm = () => {
 		if (!proofOk) return
-		onConfirm(proofReason ? proof.trim() : undefined)
+		const proof: PriceProofInput =
+			proofMethod === 'pdf'
+				? { kind: 'pdf', fileName: proofPdfName.trim() }
+				: { kind: 'essay', text: proofEssay.trim() }
+		onConfirm(proof)
 	}
 
 	const delta = newCost - oldCost
@@ -82,16 +77,15 @@ export function PriceConfirmDialog({
 			isOpen={isOpen}
 			onClose={onCancel}
 			size="sm"
-			eyebrow="Compendium · Price change"
+			eyebrow="Compendium · Price proof"
 			title={productName}
 			caption={supplierName ? `via ${supplierName}` : undefined}
 		>
-			<div className="compendium-theme bg-[var(--folio)] text-[var(--ink)]">
+			<div className="bg-[var(--color-surface)] text-[var(--color-text)]">
 				<DispatchBody>
-					{/* Was / will be / delta — editorial baseline, no cells. */}
-					<div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-4 border-y border-[var(--rule-soft)] py-5">
+					<div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3 rounded-md border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.025]">
 						<PriceColumn
-							label="was"
+							label="Current"
 							value={
 								oldCost > 0
 									? oldCost.toLocaleString('en-EG', {
@@ -103,23 +97,21 @@ export function PriceConfirmDialog({
 						/>
 						<span
 							aria-hidden="true"
-							className="pb-3 font-[family-name:var(--font-fraunces)] italic"
-							style={{
-								fontSize: '20px',
-								color: 'var(--compendium-brand)',
-							}}
+							className="pb-1 font-[family-name:var(--font-plex-mono)] text-[14px] text-[var(--color-text-muted)]"
 						>
 							→
 						</span>
 						<PriceColumn
-							label="will be"
+							label="New"
 							value={newCost.toLocaleString('en-EG', {
 								minimumFractionDigits: 2,
 							})}
 						/>
-						<div aria-hidden="true" className="h-10 w-px bg-[var(--rule)]" />
+					</div>
+
+					<div className="mt-3 rounded-md border border-black/[0.08] px-3 py-2 dark:border-white/[0.1]">
 						<PriceColumn
-							label="delta"
+							label="Change"
 							value={
 								oldCost === 0
 									? 'new'
@@ -129,94 +121,130 @@ export function PriceConfirmDialog({
 						/>
 					</div>
 
-					<p
-						className="mt-4 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-						style={{
-							fontSize: '12px',
-							letterSpacing: '0.002em',
-						}}
-					>
-						sales will see the updated cost on any quote drafted after this
-						moment. EGP / {unit}.
+					<p className="mt-3 font-[family-name:var(--font-archivo)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+						This price can only be saved after proof is attached. Use a supplier
+						PDF or write a full note for finance and sales. EGP / {unit}.
 					</p>
 
-					{proofReason && (
-						<div className="mt-5 border-y-2 border-[var(--compendium-aging)] py-4">
-							<p
-								className="font-[family-name:var(--font-geist-mono)] text-[9.5px] font-semibold uppercase tracking-[0.22em]"
-								style={{ color: 'var(--compendium-aging)' }}
+					<div className="mt-4 grid grid-cols-2 overflow-hidden rounded-md border border-black/[0.08] dark:border-white/[0.1]">
+						<ProofModeButton
+							active={proofMethod === 'pdf'}
+							onClick={() => setProofMethod('pdf')}
+							icon={<Upload size={14} strokeWidth={2.1} aria-hidden="true" />}
+						>
+							PDF
+						</ProofModeButton>
+						<ProofModeButton
+							active={proofMethod === 'essay'}
+							onClick={() => setProofMethod('essay')}
+							icon={<FileText size={14} strokeWidth={2.1} aria-hidden="true" />}
+							borderless
+						>
+							Essay
+						</ProofModeButton>
+					</div>
+
+					{proofMethod === 'pdf' ? (
+						<div className="mt-3 rounded-md border border-black/[0.08] p-3 dark:border-white/[0.1]">
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								className="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-black/[0.18] px-3 text-center font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:border-white/[0.16]"
 							>
-								{PROOF_COPY[proofReason].title}
-							</p>
-							<p
-								className="mt-1.5 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-								style={{
-									fontSize: '12.5px',
-									lineHeight: 1.5,
-									letterSpacing: '0.001em',
-								}}
-							>
-								{PROOF_COPY[proofReason].hint}
-							</p>
-							<textarea
-								value={proof}
-								onChange={(e) => setProof(e.target.value)}
-								placeholder="e.g. Ahmed @ Suez Cement confirmed by phone 11:45 — bulk discount applied"
-								rows={3}
-								className="mt-3 w-full resize-none bg-transparent font-[family-name:var(--font-fraunces)] text-[var(--ink)] outline-none"
-								style={{
-									fontSize: '13px',
-									borderBottom: `1px solid ${
-										proofOk ? 'var(--rule)' : 'var(--compendium-aging)'
-									}`,
-									paddingBottom: '6px',
+								<Upload size={18} strokeWidth={2.1} aria-hidden="true" />
+								<span className="font-semibold">
+									{proofPdfName || 'Upload supplier PDF proof'}
+								</span>
+								<span className="text-[11px] text-[var(--color-text-subtle)]">
+									PDF only. The selected filename is recorded with this update.
+								</span>
+							</button>
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept="application/pdf,.pdf"
+								className="hidden"
+								onChange={(event) => {
+									const file = event.currentTarget.files?.[0]
+									setProofPdfName(file?.name ?? '')
+									event.currentTarget.value = ''
 								}}
 							/>
-							<div className="mt-2 flex items-baseline justify-between">
-								<span
-									className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-									style={{ fontSize: '10.5px' }}
-								>
-									minimum {MIN_PROOF_LENGTH} characters
+						</div>
+					) : (
+						<div className="mt-3 rounded-md border border-black/[0.08] p-3 dark:border-white/[0.1]">
+							<div className="mb-2 flex items-baseline justify-between gap-3">
+								<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+									Written proof
 								</span>
 								<span
 									className="font-[family-name:var(--font-geist-mono)] tabular-nums"
 									style={{
 										fontSize: '10.5px',
-										color: proofOk
-											? 'var(--compendium-fresh)'
-											: 'var(--ink-mid)',
+										color: essayOk
+											? 'var(--color-primary)'
+											: 'var(--color-text-subtle)',
 									}}
 								>
-									{proof.trim().length} / {MIN_PROOF_LENGTH}
+									{proofEssayLength} / {PRICE_PROOF_ESSAY_MIN}
 								</span>
 							</div>
+							<textarea
+								value={proofEssay}
+								onChange={(event) => setProofEssay(event.target.value)}
+								placeholder="Record the supplier contact, source of the price, commercial reason for the change, and anything finance should know before this reaches sales quotes."
+								rows={5}
+								className="w-full resize-none rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+							/>
 						</div>
 					)}
 				</DispatchBody>
 
 				<DispatchFooter>
-					<EmployeeActionButton
-						size="sm"
-						tone="neutral"
-						leading={<X size={13} strokeWidth={2.4} />}
-						onClick={onCancel}
-						fullWidthOnMobile
-					>
+					<DispatchAction tone="ghost" onPress={onCancel}>
 						Cancel
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						size="sm"
-						leading={<CheckCircle2 size={13} strokeWidth={2.4} />}
-						onClick={handleConfirm}
-						disabled={!proofOk || !armed}
-						fullWidthOnMobile
+					</DispatchAction>
+					<DispatchAction
+						onPress={handleConfirm}
+						isDisabled={!proofOk || !armed}
 					>
-						Confirm update
-					</EmployeeActionButton>
+						Submit proof
+					</DispatchAction>
 				</DispatchFooter>
 			</div>
 		</DispatchDialog>
+	)
+}
+
+function ProofModeButton({
+	active,
+	icon,
+	children,
+	borderless,
+	onClick,
+}: {
+	active: boolean
+	icon: ReactNode
+	children: ReactNode
+	borderless?: boolean
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-pressed={active}
+			className={`inline-flex min-h-11 items-center justify-center gap-2 px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+				borderless ? '' : 'border-e border-black/[0.08] dark:border-white/[0.1]'
+			} ${
+				active
+					? 'bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+					: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+			}`}
+		>
+			{icon}
+			{children}
+		</button>
 	)
 }
 
@@ -233,28 +261,20 @@ function PriceColumn({
 }) {
 	const color =
 		tone === 'aging'
-			? 'var(--compendium-aging)'
+			? '#D97706'
 			: tone === 'fresh'
-				? 'var(--compendium-fresh)'
+				? '#047857'
 				: muted || tone === 'muted'
-					? 'var(--ink-mid)'
-					: 'var(--ink)'
+					? 'var(--color-text-muted)'
+					: 'var(--color-text)'
 	return (
 		<div className="flex flex-col items-start">
-			<span
-				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
-			>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
 				{label}
 			</span>
 			<span
-				className="mt-1 compendium-numeral font-[family-name:var(--font-fraunces)] leading-none"
-				style={{
-					fontSize: '22px',
-					fontWeight: 500,
-					letterSpacing: '-0.02em',
-					color,
-				}}
+				className="mt-1 font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold leading-none tabular-nums"
+				style={{ color }}
 			>
 				{value}
 			</span>

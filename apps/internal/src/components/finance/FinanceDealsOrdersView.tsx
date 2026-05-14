@@ -6,14 +6,14 @@ import {
 	CircleDollarSign,
 	ReceiptText,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useMemo } from 'react'
+import type { ReactNode, Ref } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
 	type FinanceDealView,
 	type FinanceOrderView,
 	getFinanceInbox,
 } from '../../lib/server/finance'
-import { type FinanceInboxFilter, useFinanceStore } from '../../stores/finance'
+import { useFinanceStore } from '../../stores/finance'
 import {
 	EmployeeActionButton,
 	EmployeeFilterChip,
@@ -54,10 +54,13 @@ function toRoman(n: number): string {
 	return out
 }
 
-const FILTER_COPY: Record<FinanceInboxFilter, string> = {
-	unpaid: 'Need payment',
-	partial: 'Balance due',
-	paid: 'Settled',
+type FinanceDirection = 'all' | 'in' | 'out'
+type LedgerPaymentTone = 'neutral' | 'chase' | 'in' | 'out'
+const LEDGER_STATUS_TONE: Record<LedgerPaymentTone, 'success' | 'warning'> = {
+	neutral: 'warning',
+	chase: 'warning',
+	in: 'success',
+	out: 'success',
 }
 
 // ─── View ────────────────────────────────────────────────
@@ -69,28 +72,46 @@ export function FinanceDealsOrdersView() {
 		staleTime: 30_000,
 	})
 
-	const inboxFilter = useFinanceStore((s) => s.inboxFilter)
-	const setInboxFilter = useFinanceStore((s) => s.setInboxFilter)
+	const [ledgerDirection, setLedgerDirection] =
+		useState<FinanceDirection>('all')
+	const ledgerInSectionRef = useRef<HTMLElement | null>(null)
+	const ledgerOutSectionRef = useRef<HTMLElement | null>(null)
 	const selectedOrderId = useFinanceStore((s) => s.selectedOrderId)
 	const setSelectedOrderId = useFinanceStore((s) => s.setSelectedOrderId)
 	const selectedDealId = useFinanceStore((s) => s.selectedDealId)
 	const setSelectedDealId = useFinanceStore((s) => s.setSelectedDealId)
 
-	const { filteredOrders, filteredDeals } = useMemo(() => {
-		if (!data) return { filteredOrders: [], filteredDeals: [] }
-		const orders = data.customerOrders
-			.filter((o) => o.paymentStatus === inboxFilter)
+	const { liveOrders, liveDeals } = useMemo(() => {
+		if (!data) {
+			return {
+				liveOrders: [],
+				liveDeals: [],
+			}
+		}
+		const unsettledOrders = data.customerOrders
+			.filter((o) => o.paymentStatus !== 'paid')
 			.sort((a, b) => {
-				if (inboxFilter === 'partial') {
+				const aWeight = a.paymentStatus === 'partial' ? 0 : 1
+				const bWeight = b.paymentStatus === 'partial' ? 0 : 1
+				if (aWeight !== bWeight) return aWeight - bWeight
+				if (a.paymentStatus === 'partial' && b.paymentStatus === 'partial') {
 					if (a.isDelivered !== b.isDelivered) return a.isDelivered ? -1 : 1
 				}
 				return a.acceptedHoursAgo - b.acceptedHoursAgo
 			})
-		const deals = data.supplierDeals
-			.filter((d) => d.paymentStatus === inboxFilter)
-			.sort((a, b) => a.createdHoursAgo - b.createdHoursAgo)
-		return { filteredOrders: orders, filteredDeals: deals }
-	}, [data, inboxFilter])
+		const unsettledDeals = data.supplierDeals
+			.filter((d) => d.paymentStatus !== 'paid')
+			.sort((a, b) => {
+				const aWeight = a.paymentStatus === 'partial' ? 0 : 1
+				const bWeight = b.paymentStatus === 'partial' ? 0 : 1
+				if (aWeight !== bWeight) return aWeight - bWeight
+				return a.createdHoursAgo - b.createdHoursAgo
+			})
+		return {
+			liveOrders: unsettledOrders,
+			liveDeals: unsettledDeals,
+		}
+	}, [data])
 
 	if (isError) {
 		return (
@@ -110,82 +131,101 @@ export function FinanceDealsOrdersView() {
 		)
 	}
 
-	const totalFiltered = filteredOrders.length + filteredDeals.length
+	const ledgerTotal =
+		ledgerDirection === 'all'
+			? liveOrders.length + liveDeals.length
+			: ledgerDirection === 'in'
+				? liveOrders.length
+				: liveDeals.length
 
-	const receivable = filteredOrders.reduce((s, o) => s + o.totalDue, 0)
-	const payable = filteredDeals.reduce((s, d) => s + d.totalDue, 0)
-	const netBalance = receivable - payable
+	const liveReceivable = liveOrders.reduce((s, o) => s + o.totalDue, 0)
+	const livePayable = liveDeals.reduce((s, d) => s + d.totalDue, 0)
+	const handleDirectionSelect = (direction: FinanceDirection) => {
+		setLedgerDirection(direction)
+		window.requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => {
+				const target =
+					direction === 'out'
+						? ledgerOutSectionRef.current
+						: direction === 'in'
+							? ledgerInSectionRef.current
+							: (ledgerInSectionRef.current ?? ledgerOutSectionRef.current)
+				const behavior = window.matchMedia('(prefers-reduced-motion: reduce)')
+					.matches
+					? 'auto'
+					: 'smooth'
+				target?.scrollIntoView({ behavior, block: 'start' })
+			})
+		})
+	}
 
 	return (
-		<div className="relative h-full overflow-y-auto">
+		<div className="relative">
 			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-12 lg:pt-10">
 				<LedgerMasthead
 					totalOutstanding={data.totals.totalOutstanding}
 					chaseCount={data.totals.deliveredPartialCount}
 				/>
 
-				<FilterStrip
-					active={inboxFilter}
-					onSelect={setInboxFilter}
-					unpaid={data.totals.customerUnpaid + data.totals.supplierUnpaid}
-					partial={data.totals.customerPartial + data.totals.supplierPartial}
-					paid={data.totals.customerPaid + data.totals.supplierPaid}
-					chase={data.totals.deliveredPartialCount}
+				<DirectionStrip
+					active={ledgerDirection}
+					onSelect={handleDirectionSelect}
+					inCount={liveOrders.length}
+					outCount={liveDeals.length}
 				/>
 
-				{totalFiltered === 0 ? (
-					<LedgerEmpty filter={inboxFilter} />
+				{ledgerTotal === 0 ? (
+					<DirectionEmpty direction={ledgerDirection} />
 				) : (
 					<>
-						<LedgerSection
-							heading="Money in"
-							dek="customer orders"
-							count={filteredOrders.length}
-							emptyCopy="no customer orders in this state."
-						>
-							{filteredOrders.map((order, idx) => (
-								<OrderEntry
-									key={order.quoteId}
-									index={idx}
-									order={order}
-									onOpen={setSelectedOrderId}
-								/>
-							))}
-							{filteredOrders.length > 0 && (
-								<SectionTotal
-									label={inboxFilter === 'paid' ? 'settled in' : 'receivable'}
-									value={receivable}
-									tone="in"
-								/>
+						{(ledgerDirection === 'all' || ledgerDirection === 'in') &&
+							liveOrders.length > 0 && (
+								<LedgerSection
+									sectionRef={ledgerInSectionRef}
+									heading="Money in"
+									dek="customer orders"
+									count={liveOrders.length}
+									emptyCopy="no customer receipts waiting."
+								>
+									{liveOrders.map((order, idx) => (
+										<OrderEntry
+											key={order.quoteId}
+											index={idx}
+											order={order}
+											onOpen={setSelectedOrderId}
+										/>
+									))}
+									<SectionTotal
+										label="receivable"
+										value={liveReceivable}
+										tone="in"
+									/>
+								</LedgerSection>
 							)}
-						</LedgerSection>
-
-						<LedgerSection
-							heading="Money out"
-							dek="supplier deals"
-							count={filteredDeals.length}
-							emptyCopy="no supplier deals in this state."
-						>
-							{filteredDeals.map((deal, idx) => (
-								<DealEntry
-									key={deal.dealId}
-									index={idx}
-									deal={deal}
-									onOpen={setSelectedDealId}
-								/>
-							))}
-							{filteredDeals.length > 0 && (
-								<SectionTotal
-									label={inboxFilter === 'paid' ? 'settled out' : 'payable'}
-									value={payable}
-									tone="out"
-								/>
+						{(ledgerDirection === 'all' || ledgerDirection === 'out') &&
+							liveDeals.length > 0 && (
+								<LedgerSection
+									sectionRef={ledgerOutSectionRef}
+									heading="Money out"
+									dek="supplier deals"
+									count={liveDeals.length}
+									emptyCopy="no supplier payments waiting."
+								>
+									{liveDeals.map((deal, idx) => (
+										<DealEntry
+											key={deal.dealId}
+											index={idx}
+											deal={deal}
+											onOpen={setSelectedDealId}
+										/>
+									))}
+									<SectionTotal
+										label="payable"
+										value={livePayable}
+										tone="out"
+									/>
+								</LedgerSection>
 							)}
-						</LedgerSection>
-
-						{filteredOrders.length > 0 && filteredDeals.length > 0 && (
-							<NetBalance value={netBalance} filter={inboxFilter} />
-						)}
 					</>
 				)}
 			</div>
@@ -233,72 +273,25 @@ function LedgerMasthead({
 	totalOutstanding: number
 	chaseCount: number
 }) {
-	const today = new Date()
-	const date = today
-		.toLocaleDateString('en-GB', {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric',
-		})
-		.toLowerCase()
-
 	return (
-		<header className="flex flex-col border-b border-[var(--color-border)] pb-7 sm:pb-10">
-			<div className="flex flex-col items-start gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-				<span
-					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-					style={{
-						fontSize: '10.5px',
-						color: 'var(--color-text-subtle)',
-						letterSpacing: '0.22em',
-					}}
-				>
-					Finance · live ledger
-				</span>
-				<span
-					className="font-[family-name:var(--font-bricolage)] italic"
-					style={{
-						fontSize: '11px',
-						color: 'var(--color-text-subtle)',
-					}}
-					suppressHydrationWarning
-				>
-					{date}
-				</span>
-			</div>
-
-			<div className="mt-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-				<div className="flex min-w-0 flex-col">
-					<span
-						className="font-[family-name:var(--font-bricolage)] font-semibold text-[var(--color-text)]"
-						style={{ fontSize: '16px' }}
-					>
-						Total waiting for finance
+		<header className="border-b border-[var(--color-border)] pb-4">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+				<div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+					<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
+						Waiting for finance
 					</span>
-					<span
-						className="mt-2 max-w-full break-words font-[family-name:var(--font-archivo-black)] text-[42px] leading-none text-[var(--color-text)] tabular-nums sm:text-[68px] lg:text-[96px]"
-						style={{
-							fontFeatureSettings: '"tnum" on, "lnum" on',
-						}}
-					>
+					<strong className="break-words font-[family-name:var(--font-geist-mono)] text-[26px] font-semibold leading-none text-[var(--color-text)] tabular-nums sm:text-[34px]">
 						{formatEgp(totalOutstanding)}
+					</strong>
+					<span className="font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+						EGP
 					</span>
-					<div className="mt-2 flex items-baseline gap-2">
-						<span
-							className="font-[family-name:var(--font-bricolage)] text-[var(--color-text-muted)]"
-							style={{ fontSize: '13px' }}
-						>
-							EGP across customer receipts and supplier payments
-						</span>
-					</div>
 				</div>
-
 				{chaseCount > 0 && (
 					<EmployeeStatusPill
 						tone="warning"
 						leading={<AlertTriangle aria-hidden="true" size={15} />}
-						className="lg:max-w-[260px]"
+						className="w-fit"
 					>
 						{chaseCount} delivered order{chaseCount === 1 ? '' : 's'} still need
 						balance collection
@@ -309,63 +302,51 @@ function LedgerMasthead({
 	)
 }
 
-// ─── Filter strip ────────────────────────────────────────
-
-function FilterStrip({
+function DirectionStrip({
 	active,
 	onSelect,
-	unpaid,
-	partial,
-	paid,
-	chase,
+	inCount,
+	outCount,
 }: {
-	active: FinanceInboxFilter
-	onSelect: (f: FinanceInboxFilter) => void
-	unpaid: number
-	partial: number
-	paid: number
-	chase: number
+	active: FinanceDirection
+	onSelect: (direction: FinanceDirection) => void
+	inCount: number
+	outCount: number
 }) {
 	const entries: {
-		id: FinanceInboxFilter
+		id: FinanceDirection
+		label: string
 		count: number
-		tone: 'primary' | 'warning' | 'success'
 	}[] = [
-		{ id: 'unpaid', count: unpaid, tone: 'primary' },
-		{
-			id: 'partial',
-			count: partial,
-			tone: chase > 0 ? 'warning' : 'primary',
-		},
-		{ id: 'paid', count: paid, tone: 'success' },
+		{ id: 'all', label: 'All', count: inCount + outCount },
+		{ id: 'in', label: 'In', count: inCount },
+		{ id: 'out', label: 'Out', count: outCount },
 	]
 
 	return (
-		<fieldset className="mt-5 flex min-w-0 flex-col gap-3 border-b border-[var(--color-border)] pb-4">
-			<legend className="sr-only">Payment state</legend>
-			<div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-				{entries.map((entry) => (
-					<EmployeeFilterChip
-						key={entry.id}
-						active={entry.id === active}
-						count={entry.count}
-						tone={entry.tone}
-						onClick={() => onSelect(entry.id)}
-						className="w-full justify-between"
-					>
-						{FILTER_COPY[entry.id]}
-					</EmployeeFilterChip>
-				))}
+		<fieldset className="sticky top-0 z-10 -mx-4 mt-5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 pt-3 pb-4 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:backdrop-blur-none">
+			<legend className="sr-only">Ledger direction</legend>
+			<div className="grid grid-cols-3 gap-2">
+				{entries.map((entry) => {
+					const isAllActive = entry.id === 'all' && active === 'all'
+					return (
+						<EmployeeFilterChip
+							key={entry.id}
+							active={entry.id === active}
+							count={entry.count}
+							tone={isAllActive ? 'primary' : 'neutral'}
+							onClick={() => onSelect(entry.id)}
+							className={`w-full justify-center ${
+								isAllActive
+									? 'bg-[var(--color-primary)]/[0.07] text-[var(--color-primary)]'
+									: ''
+							}`}
+						>
+							{entry.label}
+						</EmployeeFilterChip>
+					)
+				})}
 			</div>
-			{chase > 0 && active === 'partial' && (
-				<EmployeeStatusPill
-					tone="warning"
-					leading={<AlertTriangle aria-hidden="true" size={14} />}
-				>
-					{chase} delivered balance{chase === 1 ? '' : 's'} should be collected
-					first
-				</EmployeeStatusPill>
-			)}
 		</fieldset>
 	)
 }
@@ -373,12 +354,14 @@ function FilterStrip({
 // ─── Section ─────────────────────────────────────────────
 
 function LedgerSection({
+	sectionRef,
 	heading,
 	dek,
 	count,
 	emptyCopy,
 	children,
 }: {
+	sectionRef?: Ref<HTMLElement>
 	heading: string
 	dek: string
 	count: number
@@ -386,7 +369,7 @@ function LedgerSection({
 	children: ReactNode
 }) {
 	return (
-		<section className="mt-10">
+		<section ref={sectionRef} className="mt-10 scroll-mt-24">
 			<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-[var(--color-border)] pb-2">
 				<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 					<h3
@@ -426,7 +409,7 @@ function LedgerSection({
 					{emptyCopy}
 				</p>
 			) : (
-				<ul className="flex flex-col">{children}</ul>
+				<ul className="-mx-4 flex flex-col sm:-mx-6 lg:mx-0">{children}</ul>
 			)}
 		</section>
 	)
@@ -442,7 +425,7 @@ function SectionTotal({
 	tone: 'in' | 'out'
 }) {
 	return (
-		<li className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-3 sm:justify-end">
+		<li className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-3 sm:justify-end sm:px-6 lg:px-0">
 			<span
 				className="font-[family-name:var(--font-bricolage)] italic"
 				style={{
@@ -478,73 +461,6 @@ function SectionTotal({
 	)
 }
 
-// ─── Net balance ─────────────────────────────────────────
-
-function NetBalance({
-	value,
-	filter,
-}: {
-	value: number
-	filter: FinanceInboxFilter
-}) {
-	const noun =
-		filter === 'paid'
-			? 'net settled'
-			: value >= 0
-				? 'net receivable'
-				: 'net payable'
-	const displayValue = Math.abs(value)
-
-	return (
-		<section className="mt-14 flex flex-col items-start sm:items-end">
-			<div
-				aria-hidden="true"
-				className="mb-4 h-[2px] w-48"
-				style={{
-					background: `linear-gradient(to right, transparent, var(--color-border))`,
-				}}
-			/>
-			<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-				<span
-					className="font-[family-name:var(--font-bricolage)] italic"
-					style={{
-						fontSize: '13px',
-						color: 'var(--color-text-muted)',
-						letterSpacing: '0.002em',
-					}}
-				>
-					{noun}
-				</span>
-				<span
-					className="font-[family-name:var(--font-archivo-black)] tabular-nums leading-none"
-					style={{
-						fontSize: '34px',
-						color:
-							filter === 'paid'
-								? 'var(--color-text)'
-								: value >= 0
-									? 'var(--ledger-in)'
-									: 'var(--ledger-out)',
-						letterSpacing: '-0.028em',
-					}}
-				>
-					{formatEgp(displayValue)}
-				</span>
-				<span
-					className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
-					style={{
-						fontSize: '11px',
-						color: 'var(--color-text-subtle)',
-						letterSpacing: '0.14em',
-					}}
-				>
-					EGP
-				</span>
-			</div>
-		</section>
-	)
-}
-
 // ─── Entries ─────────────────────────────────────────────
 
 function LedgerEntry({
@@ -564,22 +480,17 @@ function LedgerEntry({
 	index: number
 	counterparty: string
 	reference: string
-	context: string
+	context?: string
 	ageLabel: string
 	amount: number
 	paymentLabel: string
-	paymentTone: 'neutral' | 'chase' | 'in' | 'out'
+	paymentTone: LedgerPaymentTone
 	actionLabel: string
 	actionTone: 'primary' | 'neutral'
 	actionKind: 'record' | 'open'
 	onPress: () => void
 }) {
-	const statusTone: 'success' | 'warning' = {
-		neutral: 'warning',
-		chase: 'warning',
-		in: 'success',
-		out: 'success',
-	}[paymentTone]
+	const statusTone = LEDGER_STATUS_TONE[paymentTone]
 	const ActionIcon = actionKind === 'record' ? ReceiptText : BookOpen
 
 	return (
@@ -632,14 +543,18 @@ function LedgerEntry({
 						>
 							{reference}
 						</span>
+						{context && (
+							<>
+								<span aria-hidden="true" className="opacity-60">
+									-
+								</span>
+								<span className="break-words font-[family-name:var(--font-bricolage)] italic">
+									{context}
+								</span>
+							</>
+						)}
 						<span aria-hidden="true" className="opacity-60">
-							·
-						</span>
-						<span className="break-words font-[family-name:var(--font-bricolage)] italic">
-							{context}
-						</span>
-						<span aria-hidden="true" className="opacity-60">
-							·
+							-
 						</span>
 						<span
 							className="font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
@@ -737,7 +652,6 @@ function OrderEntry({
 			index={index}
 			counterparty={order.customerName}
 			reference={reference}
-			context={order.deliveryCity || 'no city'}
 			ageLabel={`accepted ${formatHoursAgo(order.acceptedHoursAgo)}`}
 			amount={order.totalDue}
 			paymentLabel={paymentLabel}
@@ -766,7 +680,7 @@ function DealEntry({
 			? 'Paid in full'
 			: deal.paymentStatus === 'partial'
 				? `${formatEgp(deal.remainingDue)} EGP supplier balance`
-				: 'Pay 50% to release deal'
+				: 'Payment needed'
 	const paymentTone: 'neutral' | 'out' =
 		deal.paymentStatus === 'paid' ? 'out' : 'neutral'
 
@@ -797,14 +711,7 @@ function DealEntry({
 
 // ─── Empty ──────────────────────────────────────────────
 
-function LedgerEmpty({ filter }: { filter: FinanceInboxFilter }) {
-	const copy =
-		filter === 'unpaid'
-			? 'New accepted quotes and supplier deals will appear here when payment is needed.'
-			: filter === 'partial'
-				? 'Partial payments stay here until the remaining balance is recorded.'
-				: 'Settled customer receipts and supplier payments will collect here.'
-
+function DirectionEmpty({ direction }: { direction: FinanceDirection }) {
 	return (
 		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--color-border)] py-14">
 			<span
@@ -817,7 +724,11 @@ function LedgerEmpty({ filter }: { filter: FinanceInboxFilter }) {
 				className="max-w-[420px] text-center font-[family-name:var(--font-bricolage)] text-[var(--color-text-subtle)]"
 				style={{ fontSize: '12.5px', lineHeight: 1.5 }}
 			>
-				{copy}
+				{direction === 'in'
+					? 'Customer receipts waiting for finance will appear here.'
+					: direction === 'out'
+						? 'Supplier payments waiting for finance will appear here.'
+						: 'Customer receipts and supplier payments waiting for finance will appear here.'}
 			</span>
 		</div>
 	)

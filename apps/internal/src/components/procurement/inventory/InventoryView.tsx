@@ -1,33 +1,12 @@
-import type { BroadCategory } from '@hyperquote/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { sanitizeCost } from '../../../lib/inputs'
 import {
 	getInventoryOverview,
-	getTopSuppliers,
 	type InventoryProductView,
-	type TopSupplier,
-	updateInventoryPrice,
 } from '../../../lib/server/inventory'
 import { useProcurementStore } from '../../../stores/procurement'
-import {
-	EmployeeActionButton,
-	EmployeeFilterChip,
-	EmployeeSearchField,
-} from '../../shared/EmployeeControls'
-import { PriceConfirmDialog } from './PriceConfirmDialog'
+import { EmployeeSearchField } from '../../shared/EmployeeControls'
 import { ProductDetailModal } from './ProductDetailModal'
-import { SupplierProfileModal } from './SupplierProfileModal'
-
-const CATEGORY_LABELS: Record<BroadCategory, string> = {
-	cement: 'Cement',
-	steel: 'Steel',
-	aggregates: 'Aggregates',
-	bricks: 'Masonry',
-	timber: 'Timber',
-	finishing: 'Finishing',
-}
 
 function formatHoursAgo(hours: number): string {
 	if (hours < 1) return `${Math.round(hours * 60)}m`
@@ -50,15 +29,7 @@ function toneFor(
 
 // ─── View ────────────────────────────────────────────────
 
-/**
- * The Desk — chapter II of the Compendium. This is the price desk, the
- * telephone, the hand-work of keeping supplier quotes current. The layout
- * is editorial: a standing "at the telephone" spread for the top
- * suppliers who have the most to refresh, then the full roll of prices
- * ranked by pending requests → urgency → age.
- */
 export function InventoryView() {
-	const qc = useQueryClient()
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 
 	const { data, isLoading, isError } = useQuery({
@@ -67,67 +38,8 @@ export function InventoryView() {
 		staleTime: 30_000,
 	})
 
-	const { data: topSuppliersData } = useQuery({
-		queryKey: ['inventory-top-suppliers'],
-		queryFn: () => getTopSuppliers({ data: { limit: 5 } }),
-		staleTime: 30_000,
-	})
-
-	const mutation = useMutation({
-		mutationFn: updateInventoryPrice,
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ['inventory-overview'] })
-			qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
-			qc.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
-		},
-	})
-
 	const [search, setSearch] = useState('')
-	const [onlyUrgent, setOnlyUrgent] = useState(false)
-	const [justSavedSlug, setJustSavedSlug] = useState<string | null>(null)
 	const [detailSlug, setDetailSlug] = useState<string | null>(null)
-	const [supplierProfileName, setSupplierProfileName] = useState<string | null>(
-		null,
-	)
-	const [pendingPriceEdit, setPendingPriceEdit] = useState<{
-		slug: string
-		productName: string
-		supplierName: string
-		unit: string
-		oldCost: number
-		newCost: number
-	} | null>(null)
-
-	const handleSave = (slug: string, rawCost: number) => {
-		const product = data?.products.find((p) => p.slug === slug)
-		if (!product) return
-		setPendingPriceEdit({
-			slug,
-			productName: product.name,
-			supplierName: product.supplierName,
-			unit: product.unit,
-			oldCost: product.rawCost,
-			newCost: rawCost,
-		})
-	}
-
-	const commitPendingEdit = (_proof?: string) => {
-		if (!pendingPriceEdit) return
-		const { slug, newCost } = pendingPriceEdit
-		mutation.mutate(
-			{ data: { slug, rawCost: newCost } },
-			{
-				onSuccess: () => {
-					setJustSavedSlug(slug)
-					setTimeout(
-						() => setJustSavedSlug((prev) => (prev === slug ? null : prev)),
-						1800,
-					)
-				},
-			},
-		)
-		setPendingPriceEdit(null)
-	}
 
 	const filtered = useMemo(() => {
 		if (!data) return []
@@ -135,7 +47,6 @@ export function InventoryView() {
 		if (activeCategory !== 'all') {
 			list = list.filter((p) => p.broadCategory === activeCategory)
 		}
-		if (onlyUrgent) list = list.filter((p) => p.isUrgent)
 		if (search.trim()) {
 			const q = search.trim().toLowerCase()
 			list = list.filter(
@@ -147,6 +58,13 @@ export function InventoryView() {
 			)
 		}
 		return [...list].sort((a, b) => {
+			const aNeedsAttention =
+				a.priceStatus === 'outdated' || a.isUrgent || a.pendingRequestCount > 0
+			const bNeedsAttention =
+				b.priceStatus === 'outdated' || b.isUrgent || b.pendingRequestCount > 0
+			if (aNeedsAttention !== bNeedsAttention) {
+				return aNeedsAttention ? -1 : 1
+			}
 			const aRequested = a.pendingRequestCount > 0 ? 1 : 0
 			const bRequested = b.pendingRequestCount > 0 ? 1 : 0
 			if (aRequested !== bRequested) return bRequested - aRequested
@@ -154,16 +72,19 @@ export function InventoryView() {
 				return b.pendingRequestCount - a.pendingRequestCount
 			}
 			if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1
+			if (a.priceStatus !== b.priceStatus) {
+				return a.priceStatus === 'outdated' ? -1 : 1
+			}
 			return b.hoursSinceUpdate - a.hoursSinceUpdate
 		})
-	}, [data, activeCategory, onlyUrgent, search])
+	}, [data, activeCategory, search])
 
 	if (isError) {
 		return (
 			<div className="flex h-full items-center justify-center px-6 text-center">
 				<div className="max-w-sm rounded-md border border-red-600/20 bg-red-600/[0.04] px-4 py-3">
 					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
-						Price desk could not load.
+						Prices could not load.
 					</p>
 					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
 						Refresh before confirming supplier prices.
@@ -176,11 +97,8 @@ export function InventoryView() {
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full items-center justify-center">
-				<p
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '13px' }}
-				>
-					laying out the desk…
+				<p className="font-[family-name:var(--font-archivo)] text-[13px] text-[var(--ink-mid)]">
+					Loading prices...
 				</p>
 			</div>
 		)
@@ -188,46 +106,25 @@ export function InventoryView() {
 
 	return (
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
-			<div className="mx-auto flex max-w-[920px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-8">
-				<DeskMasthead
-					totals={data.totals}
-					activeCategory={activeCategory}
-					visibleCount={filtered.length}
-				/>
-
-				<TelephoneSpread
-					suppliers={topSuppliersData?.suppliers ?? []}
-					onOpen={setSupplierProfileName}
-				/>
-
-				<DeskToolbar
-					search={search}
-					setSearch={setSearch}
-					onlyUrgent={onlyUrgent}
-					setOnlyUrgent={setOnlyUrgent}
-					totalCount={data.totals.total}
-					urgentCount={data.totals.urgent}
-				/>
+			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-4 pb-16 sm:px-6 lg:px-8">
+				<DeskToolbar search={search} setSearch={setSearch} />
 
 				{filtered.length > 0 ? (
-					<ol className="mt-5 flex flex-col">
-						{filtered.map((product, idx) => (
-							<PriceEntry
-								key={product.slug}
-								index={idx}
-								product={product}
-								isSaving={
-									mutation.isPending &&
-									mutation.variables?.data.slug === product.slug
-								}
-								justSaved={justSavedSlug === product.slug}
-								onOpenDetail={setDetailSlug}
-								onSave={handleSave}
-							/>
-						))}
-					</ol>
+					<div className="-mx-4 mt-4 overflow-hidden border-y border-[var(--rule-soft)] bg-[var(--folio)] sm:mx-0 sm:rounded-md sm:border">
+						<PriceListHeader />
+						<ol>
+							{filtered.map((product, idx) => (
+								<PriceEntry
+									key={product.slug}
+									index={idx}
+									product={product}
+									onOpenDetail={setDetailSlug}
+								/>
+							))}
+						</ol>
+					</div>
 				) : (
-					<DeskEmpty onlyUrgent={onlyUrgent} />
+					<DeskEmpty />
 				)}
 			</div>
 
@@ -235,215 +132,7 @@ export function InventoryView() {
 				slug={detailSlug}
 				onClose={() => setDetailSlug(null)}
 			/>
-			<SupplierProfileModal
-				name={supplierProfileName}
-				onClose={() => setSupplierProfileName(null)}
-			/>
-			<PriceConfirmDialog
-				isOpen={pendingPriceEdit !== null}
-				productName={pendingPriceEdit?.productName ?? ''}
-				supplierName={pendingPriceEdit?.supplierName}
-				unit={pendingPriceEdit?.unit ?? ''}
-				oldCost={pendingPriceEdit?.oldCost ?? 0}
-				newCost={pendingPriceEdit?.newCost ?? 0}
-				onConfirm={commitPendingEdit}
-				onCancel={() => setPendingPriceEdit(null)}
-			/>
 		</div>
-	)
-}
-
-// ─── Masthead ────────────────────────────────────────────
-
-function DeskMasthead({
-	totals,
-	activeCategory,
-	visibleCount,
-}: {
-	totals: {
-		total: number
-		fresh: number
-		outdated: number
-		urgent: number
-		pendingRequests: number
-	}
-	activeCategory: ReturnType<
-		typeof useProcurementStore.getState
-	>['activeCategory']
-	visibleCount: number
-}) {
-	const needsWork = totals.urgent + totals.pendingRequests
-	const primaryNumber = needsWork > 0 ? needsWork : totals.fresh
-	const primaryNoun =
-		needsWork > 0
-			? needsWork === 1
-				? 'matter for the phone'
-				: 'matters for the phone'
-			: 'fresh quotes on file'
-
-	return (
-		<header className="flex flex-col border-b border-[var(--rule)] pb-8">
-			<div className="flex items-baseline gap-2">
-				<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--ink-mid)]">
-					The Compendium · The Desk
-				</span>
-				{activeCategory !== 'all' && (
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-						style={{ fontSize: '11.5px' }}
-					>
-						· filtered to {CATEGORY_LABELS[activeCategory]}
-						{visibleCount > 0 ? ` · ${visibleCount} shown` : ''}
-					</span>
-				)}
-			</div>
-
-			<div className="mt-5 flex flex-wrap items-end justify-between gap-6">
-				<div className="flex items-baseline gap-4">
-					<span
-						className="animate-compendium-settle compendium-numeral font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)]"
-						style={{
-							fontSize: 'clamp(72px, 10vw, 120px)',
-							fontWeight: 500,
-							letterSpacing: '-0.045em',
-						}}
-					>
-						{primaryNumber}
-					</span>
-					<span
-						className="pb-3 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-						style={{
-							fontSize: '16px',
-							maxWidth: '220px',
-							lineHeight: 1.15,
-							letterSpacing: '-0.003em',
-						}}
-					>
-						{primaryNoun}
-					</span>
-				</div>
-
-				<dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-					<DeskStat label="fresh" value={totals.fresh} tone="fresh" />
-					<DeskStat label="outdated" value={totals.outdated} tone="aging" />
-					<DeskStat label="urgent" value={totals.urgent} tone="stale" />
-					<DeskStat
-						label="requests"
-						value={totals.pendingRequests}
-						tone="brand"
-					/>
-				</dl>
-			</div>
-		</header>
-	)
-}
-
-function DeskStat({
-	label,
-	value,
-	tone,
-}: {
-	label: string
-	value: number
-	tone: 'fresh' | 'aging' | 'stale' | 'brand'
-}) {
-	const color = {
-		fresh: 'var(--compendium-fresh)',
-		aging: 'var(--compendium-aging)',
-		stale: 'var(--compendium-stale)',
-		brand: 'var(--compendium-brand)',
-	}[tone]
-	return (
-		<div className="flex flex-col items-end">
-			<dt
-				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-				style={{ fontSize: '10.5px', letterSpacing: '0.02em' }}
-			>
-				{label}
-			</dt>
-			<dd
-				className="font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold tabular-nums leading-none"
-				style={{ color: value > 0 ? color : 'var(--ink-ghost)' }}
-			>
-				{value.toString().padStart(2, '0')}
-			</dd>
-		</div>
-	)
-}
-
-// ─── Telephone spread ────────────────────────────────────
-
-function TelephoneSpread({
-	suppliers,
-	onOpen,
-}: {
-	suppliers: TopSupplier[]
-	onOpen: (name: string) => void
-}) {
-	if (suppliers.length === 0) return null
-	const totalOutdated = suppliers.reduce((s, x) => s + x.outdatedQuotes, 0)
-	const totalUrgent = suppliers.reduce((s, x) => s + x.urgentQuotes, 0)
-
-	return (
-		<section
-			aria-labelledby="telephone-heading"
-			className="mt-7 border-y border-[var(--rule-soft)] py-5"
-		>
-			<div className="flex flex-col items-start gap-1 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-				<h2
-					id="telephone-heading"
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink)]"
-					style={{
-						fontSize: '15px',
-						fontWeight: 500,
-						letterSpacing: '-0.008em',
-					}}
-				>
-					at the telephone
-				</h2>
-				<p
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '11.5px' }}
-				>
-					{suppliers.length} call{suppliers.length === 1 ? '' : 's'} would
-					refresh {totalOutdated} price
-					{totalOutdated === 1 ? '' : 's'}
-					{totalUrgent > 0 && (
-						<span style={{ color: 'var(--compendium-stale)' }}>
-							{' '}
-							· {totalUrgent} urgent
-						</span>
-					)}
-				</p>
-			</div>
-
-			<ul className="grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-				{suppliers.map((supplier) => (
-					<li key={supplier.name}>
-						<button
-							type="button"
-							onClick={() => onOpen(supplier.name)}
-							className="group flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-[var(--rule-soft)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--compendium-brand)]/35 hover:bg-[var(--compendium-brand)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--compendium-brand)]/25"
-						>
-							<div className="min-w-0">
-								<span className="block truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--ink)]">
-									{supplier.name}
-								</span>
-								<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--ink-mid)]">
-									{supplier.outdatedQuotes} outdated
-									{supplier.urgentQuotes > 0
-										? ` · ${supplier.urgentQuotes} urgent`
-										: ''}
-								</span>
-							</div>
-							<span className="shrink-0 rounded-md bg-[var(--color-primary)] px-2 py-1 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
-								Open
-							</span>
-						</button>
-					</li>
-				))}
-			</ul>
-		</section>
 	)
 }
 
@@ -452,275 +141,134 @@ function TelephoneSpread({
 function DeskToolbar({
 	search,
 	setSearch,
-	onlyUrgent,
-	setOnlyUrgent,
-	totalCount,
-	urgentCount,
 }: {
 	search: string
 	setSearch: (s: string) => void
-	onlyUrgent: boolean
-	setOnlyUrgent: (v: boolean | ((prev: boolean) => boolean)) => void
-	totalCount: number
-	urgentCount: number
 }) {
 	return (
-		<div className="mt-6 flex flex-col gap-3 border-b border-[var(--rule-soft)] pb-4 lg:flex-row lg:items-center lg:gap-4">
+		<div className="pb-2">
 			<EmployeeSearchField
 				value={search}
 				onChange={setSearch}
 				label="Search prices"
 				placeholder="Search product, SKU, or supplier"
-				className="lg:flex-1"
+				className="max-w-3xl"
 			/>
-			<div className="flex flex-wrap gap-2">
-				<EmployeeFilterChip
-					active={!onlyUrgent}
-					count={totalCount}
-					onClick={() => setOnlyUrgent(false)}
-				>
-					All prices
-				</EmployeeFilterChip>
-				<EmployeeFilterChip
-					active={onlyUrgent}
-					count={urgentCount}
-					tone="primary"
-					onClick={() => setOnlyUrgent((v) => !v)}
-				>
-					Needs update
-				</EmployeeFilterChip>
-			</div>
 		</div>
 	)
 }
 
 // ─── Price entry ────────────────────────────────────────
 
+function PriceListHeader() {
+	return (
+		<div className="hidden grid-cols-[2rem_minmax(0,1fr)_9rem_10rem] gap-4 border-b border-[var(--rule-soft)] px-4 py-2 md:grid">
+			<span aria-hidden="true" />
+			<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+				Title
+			</span>
+			<span className="text-end font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+				Last quoted
+			</span>
+			<span className="text-end font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+				Price
+			</span>
+		</div>
+	)
+}
+
 function PriceEntry({
 	index,
 	product,
-	isSaving,
-	justSaved,
 	onOpenDetail,
-	onSave,
 }: {
 	index: number
 	product: InventoryProductView
-	isSaving: boolean
-	justSaved: boolean
 	onOpenDetail: (slug: string) => void
-	onSave: (slug: string, rawCost: number) => void
 }) {
-	const [editing, setEditing] = useState(false)
-	const [draft, setDraft] = useState('')
 	const tone = toneFor(product.hoursSinceUpdate, product.isUrgent)
-	const toneColor = product.isUrgent
-		? 'var(--compendium-brand)'
-		: {
-				fresh: 'var(--compendium-fresh)',
-				aging: 'var(--compendium-aging)',
-				stale: 'var(--compendium-stale)',
-			}[tone]
-
-	const beginEdit = () => {
-		setDraft(String(product.rawCost))
-		setEditing(true)
-	}
-	const commit = () => {
-		const v = sanitizeCost(draft)
-		if (v !== null && v !== product.rawCost) {
-			onSave(product.slug, v)
-		}
-		setEditing(false)
-	}
-	const cancel = () => {
-		setEditing(false)
-		setDraft('')
-	}
+	const toneColor =
+		tone === 'fresh' ? 'var(--compendium-fresh)' : 'var(--compendium-attention)'
+	const hasAttention = tone !== 'fresh' || product.pendingRequestCount > 0
+	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
 
 	return (
-		<li className="relative flex flex-col gap-4 border-t border-[var(--rule-soft)] py-5 pl-8 md:grid md:grid-cols-[22px_minmax(0,1fr)_auto_132px] md:items-start md:gap-x-6 md:gap-y-0 md:pl-0">
-			{/* Left margin: index number + alert mark. */}
-			<div className="absolute left-0 top-5 md:relative md:left-auto md:top-auto md:pt-1">
-				{tone === 'stale' && (
+		<li
+			className={`border-b border-b-[var(--rule-soft)] last:border-b-0 ${rowTone}`}
+		>
+			<div className="grid w-full gap-3 border-x border-x-transparent p-4 transition-colors hover:border-x-[var(--ink-ghost)] md:grid-cols-[2rem_minmax(0,1fr)_9rem_10rem] md:items-center">
+				<button
+					type="button"
+					onClick={() => onOpenDetail(product.slug)}
+					className="flex items-center gap-2 text-start outline-none md:block"
+				>
+					<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--ink-mid)]">
+						{(index + 1).toString().padStart(2, '0')}
+					</span>
+					{hasAttention && (
+						<span
+							aria-hidden="true"
+							className="h-2 w-2 rounded-full md:mt-2 md:block"
+							style={{ background: toneColor }}
+						/>
+					)}
+				</button>
+
+				<button
+					type="button"
+					onClick={() => onOpenDetail(product.slug)}
+					className="min-w-0 text-start outline-none"
+				>
+					<span className="md:hidden font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+						Title
+					</span>
+					<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-5 text-[var(--ink)]">
+						{product.name}
+					</h3>
+				</button>
+
+				<button
+					type="button"
+					onClick={() => onOpenDetail(product.slug)}
+					className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-start outline-none md:flex-col md:items-end md:gap-1"
+				>
+					<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+						last quoted
+					</span>
 					<span
-						aria-hidden="true"
-						className="absolute left-1 top-2 bottom-2 w-[2px]"
-						style={{ background: toneColor }}
-					/>
-				)}
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-ghost)]"
-					style={{ fontSize: '11px' }}
-				>
-					{(index + 1).toString().padStart(2, '0')}
-				</span>
-			</div>
-
-			{/* Body: name + meta */}
-			<button
-				type="button"
-				onClick={() => onOpenDetail(product.slug)}
-				className="group/body min-w-0 text-start outline-none"
-			>
-				<p
-					className="font-[family-name:var(--font-fraunces)] leading-[1.12] text-[var(--ink)] transition-colors group-hover/body:text-[var(--compendium-brand)]"
-					style={{
-						fontSize: '19px',
-						fontWeight: 500,
-						letterSpacing: '-0.015em',
-					}}
-				>
-					{product.name}
-				</p>
-				<p
-					className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[var(--ink-mid)]"
-					style={{ fontSize: '11px' }}
-				>
-					<span className="font-[family-name:var(--font-geist-mono)] uppercase tracking-[0.1em]">
-						{product.sku}
-					</span>
-					<span className="opacity-60">·</span>
-					<span className="font-[family-name:var(--font-fraunces)] italic">
-						{product.subcategory.replace(/_/g, ' ')}
-					</span>
-					<span className="opacity-60">·</span>
-					<span className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]">
-						{product.supplierName}
-					</span>
-					{product.recentlyOrdered && (
-						<span
-							className="font-[family-name:var(--font-fraunces)] italic"
-							style={{
-								color: product.isUrgent
-									? 'var(--compendium-stale)'
-									: 'var(--compendium-aging)',
-							}}
-						>
-							· asked for this week
-						</span>
-					)}
-					{product.pendingRequestCount > 0 && (
-						<>
-							<span className="opacity-60">·</span>
-							<span
-								className="font-[family-name:var(--font-fraunces)] italic"
-								style={{ color: 'var(--compendium-brand)' }}
-							>
-								sales waiting × {product.pendingRequestCount}
-							</span>
-						</>
-					)}
-				</p>
-			</button>
-
-			{/* Cost — inline editable */}
-			<div className="flex flex-col items-start pt-1 md:col-auto md:items-end">
-				{editing ? (
-					<input
-						value={draft}
-						onChange={(e) => setDraft(e.target.value)}
-						onBlur={commit}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter') {
-								e.preventDefault()
-								e.stopPropagation()
-								commit()
-							}
-							if (e.key === 'Escape') cancel()
-						}}
-						// biome-ignore lint/a11y/noAutofocus: intentional focus when user clicks the editable price
-						autoFocus
-						className="w-28 bg-transparent text-end font-[family-name:var(--font-fraunces)] text-[24px] font-medium tabular-nums text-[var(--ink)] outline-none border-b border-[var(--compendium-brand)]/50 pb-0.5"
-					/>
-				) : (
-					<button
-						type="button"
-						onClick={beginEdit}
-						className="group/price inline-flex items-baseline gap-1 outline-none"
+						className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums"
+						style={{ color: toneColor }}
 					>
-						<span
-							className="compendium-numeral font-[family-name:var(--font-fraunces)] text-[var(--ink)]"
-							style={{
-								fontSize: '26px',
-								fontWeight: 500,
-								letterSpacing: '-0.028em',
-								lineHeight: 1,
-							}}
-						>
+						{formatHoursAgo(product.hoursSinceUpdate)} ago
+					</span>
+				</button>
+
+				<div className="flex flex-col items-start md:items-end">
+					<span className="md:hidden font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
+						Price
+					</span>
+					<div className="flex w-full items-center justify-between gap-3 md:justify-end">
+						<span className="font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold leading-none tabular-nums text-[var(--ink)]">
 							{product.rawCost > 0
 								? product.rawCost.toLocaleString('en-EG', {
 										minimumFractionDigits: 2,
 									})
 								: '—'}
 						</span>
-						<span
-							aria-hidden="true"
-							className="text-[10px] opacity-0 transition-opacity group-hover/price:opacity-100"
-							style={{ color: 'var(--ink-mid)' }}
+						<button
+							type="button"
+							onClick={() => onOpenDetail(product.slug)}
+							aria-label={`Change price for ${product.name}`}
+							title="Change price"
+							className="shrink-0 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] outline-none transition-colors hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
 						>
-							✎
-						</span>
-					</button>
-				)}
-				<span
-					className="mt-1 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '10.5px' }}
-				>
-					per {product.unit}
-				</span>
-			</div>
-
-			{/* Right gutter: age + status */}
-			<div className="flex flex-col items-start gap-2 pt-1 md:col-auto md:items-end">
-				<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:flex-col md:items-end md:gap-0">
-					<span
-						className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-						style={{ fontSize: '11.5px' }}
-					>
-						last quoted
-					</span>
-					<span
-						className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[13px] font-medium tabular-nums"
-						style={{ color: toneColor }}
-					>
-						{formatHoursAgo(product.hoursSinceUpdate)} ago
-					</span>
-					<span
-						className="mt-1 font-[family-name:var(--font-fraunces)] italic"
-						style={{
-							fontSize: '10.5px',
-							color: isSaving
-								? 'var(--compendium-brand)'
-								: justSaved
-									? 'var(--compendium-fresh)'
-									: toneColor,
-						}}
-					>
-						{isSaving
-							? 'saving…'
-							: justSaved
-								? 'saved'
-								: product.isUrgent
-									? 'needs update'
-									: product.priceStatus === 'outdated'
-										? tone === 'aging'
-											? 'aging'
-											: 'stale'
-										: 'fresh'}
+							Update
+						</button>
+					</div>
+					<span className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+						EGP / {product.unit}
 					</span>
 				</div>
-				<EmployeeActionButton
-					size="sm"
-					tone={product.isUrgent ? 'primary' : 'neutral'}
-					leading={<Pencil size={13} strokeWidth={2.4} />}
-					onClick={beginEdit}
-					disabled={isSaving || editing}
-					fullWidthOnMobile
-					className="md:w-auto"
-				>
-					{editing ? 'Editing price' : 'Update price'}
-				</EmployeeActionButton>
 			</div>
 		</li>
 	)
@@ -728,24 +276,14 @@ function PriceEntry({
 
 // ─── Empty ──────────────────────────────────────────────
 
-function DeskEmpty({ onlyUrgent }: { onlyUrgent: boolean }) {
+function DeskEmpty() {
 	return (
 		<div className="mt-16 flex flex-col items-center gap-2 border-y border-dashed border-[var(--rule-soft)] py-14">
-			<span
-				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink)]"
-				style={{ fontSize: '22px', letterSpacing: '-0.01em' }}
-			>
-				{onlyUrgent
-					? 'no urgent prices — the desk is quiet.'
-					: 'the desk is clear.'}
+			<span className="font-[family-name:var(--font-archivo)] text-[18px] font-semibold text-[var(--ink)]">
+				No prices found
 			</span>
-			<span
-				className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-				style={{ fontSize: '12px' }}
-			>
-				{onlyUrgent
-					? 'nothing demands the phone right now.'
-					: 'adjust the index or clear the search to see more.'}
+			<span className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-soft)]">
+				Adjust the category or clear the search.
 			</span>
 		</div>
 	)

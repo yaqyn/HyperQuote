@@ -7,7 +7,13 @@ import {
 	SliderTrack,
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { normalizeDecimalInput } from '../../../lib/inputs'
 import type { QuoteItem } from '../../../types/sales'
+import {
+	clampSalesMargin,
+	getSalesMarginColor,
+	SALES_MARGIN_CAP_PERCENT,
+} from '../marginPalette'
 
 // ─── Mock Data ──────────────────────────────────────────────
 
@@ -139,7 +145,10 @@ export function WhatIfCalculator({ onApplyMargins }: WhatIfCalculatorProps) {
 						<span className="text-[11px] font-medium text-[var(--color-text-muted)]">
 							{t('sales.negotiation.blanketMargin', 'Blanket Margin')}
 						</span>
-						<span className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums text-[var(--color-text)]">
+						<span
+							className="font-[family-name:var(--font-geist-mono)] text-[15px] font-bold tabular-nums"
+							style={{ color: getSalesMarginColor(blanketMargin) }}
+						>
 							{blanketMargin}%
 						</span>
 					</div>
@@ -147,37 +156,47 @@ export function WhatIfCalculator({ onApplyMargins }: WhatIfCalculatorProps) {
 					<Slider
 						value={blanketMargin}
 						onChange={(val: number) => {
-							setBlanketMargin(val)
+							setBlanketMargin(clampSalesMargin(val))
 							setPerItemMargins({})
 						}}
 						minValue={0}
-						maxValue={50}
+						maxValue={SALES_MARGIN_CAP_PERCENT}
 						step={0.5}
 						className="w-full"
 					>
 						<SliderOutput className="sr-only" />
 						<SliderTrack className="relative h-1 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.06]">
 							<div
-								className="absolute h-full rounded-full bg-[var(--color-primary)]"
-								style={{ width: `${(blanketMargin / 50) * 100}%` }}
+								className="absolute h-full rounded-full"
+								style={{
+									width: `${(blanketMargin / SALES_MARGIN_CAP_PERCENT) * 100}%`,
+									backgroundColor: getSalesMarginColor(blanketMargin),
+								}}
 							/>
-							<SliderThumb className="top-1/2 size-4 cursor-grab rounded-full border-2 border-[var(--color-primary)] bg-white shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 dark:bg-[var(--color-surface)]" />
+							<SliderThumb
+								className="top-1/2 size-4 cursor-grab rounded-full border-2 bg-white shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 dark:bg-[var(--color-surface)]"
+								style={{ borderColor: getSalesMarginColor(blanketMargin) }}
+							/>
 						</SliderTrack>
 					</Slider>
 
 					<input
-						type="number"
+						type="text"
+						inputMode="decimal"
 						value={blanketMargin}
 						onChange={(e) => {
-							const val = Number.parseFloat(e.target.value)
-							if (!Number.isNaN(val) && val >= 0 && val <= 50) {
-								setBlanketMargin(val)
+							const val = Number.parseFloat(
+								normalizeDecimalInput(e.target.value),
+							)
+							if (!Number.isNaN(val) && val >= 0) {
+								setBlanketMargin(clampSalesMargin(val))
 								setPerItemMargins({})
 							}
 						}}
 						min={0}
-						max={50}
+						max={SALES_MARGIN_CAP_PERCENT}
 						step={0.5}
+						style={{ color: getSalesMarginColor(blanketMargin) }}
 						className="w-full rounded-lg border border-black/[0.06] bg-transparent px-3 py-1.5 text-center font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] dark:border-white/[0.06]"
 					/>
 				</div>
@@ -265,18 +284,29 @@ export function WhatIfCalculator({ onApplyMargins }: WhatIfCalculatorProps) {
 											</div>
 											<div className="flex items-center gap-2">
 												<input
-													type="number"
+													type="text"
+													inputMode="decimal"
 													value={perItemMargins[item.id] ?? blanketMargin}
 													onChange={(e) => {
-														const val = Number.parseFloat(e.target.value)
-														if (!Number.isNaN(val) && val >= 0 && val <= 50) {
-															handlePerItemMarginChange(item.id, val)
+														const val = Number.parseFloat(
+															normalizeDecimalInput(e.target.value),
+														)
+														if (!Number.isNaN(val) && val >= 0) {
+															handlePerItemMarginChange(
+																item.id,
+																clampSalesMargin(val),
+															)
 														}
 													}}
 													min={0}
-													max={50}
+													max={SALES_MARGIN_CAP_PERCENT}
 													step={0.5}
 													className="w-16 rounded-md border border-black/[0.06] bg-transparent px-2 py-1 text-center font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] dark:border-white/[0.06]"
+													style={{
+														color: getSalesMarginColor(
+															perItemMargins[item.id] ?? blanketMargin,
+														),
+													}}
 												/>
 												<span className="text-[11px] text-[var(--color-text-subtle)]">
 													%

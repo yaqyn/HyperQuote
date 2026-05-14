@@ -20,20 +20,6 @@ const CATEGORY_LABELS: Record<BroadCategory, string> = {
 	finishing: 'Finishing',
 }
 
-/**
- * The compendium's index — a persistent left-column reference rail that
- * frames the inventory employee's home. Its role is three-fold:
- *
- *  1. A masthead that names the volume (The Compendium) and dates it.
- *  2. A live category thumb-index that drives a shared filter across
- *     all three tabs (Atlas · Desk · Commitments).
- *  3. A "today's desk" tally that folds the three overviews into one
- *     scannable personal ledger, so the employee always knows what's
- *     already waiting on them without changing tabs.
- *
- *  The rail is purposefully dense and typographic — it does more work
- *  than a decorative aside. Read like a book's thumb-tabbed fore-edge.
- */
 export function CompendiumIndex() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 	const setActiveCategory = useProcurementStore((s) => s.setActiveCategory)
@@ -68,16 +54,13 @@ export function CompendiumIndex() {
 
 	return (
 		<aside
-			aria-label="Compendium index"
+			aria-label="Inventory index"
 			className="compendium-theme compendium-index compendium-foreedge relative hidden h-full min-h-0 w-[240px] shrink-0 flex-col overflow-hidden lg:flex"
 		>
-			{/* Masthead — small type title. The "sigil" dot is the only
-			    permanent brand-blue mark in the sidebar. */}
 			<Masthead />
 
-			{/* Scrollable middle: category index + today's desk */}
 			<div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 sm:px-5">
-				<SectionRule label="Index" />
+				<SectionRule label="Materials" />
 				<CategoryIndex
 					activeCategory={activeCategory}
 					setActiveCategory={setActiveCategory}
@@ -90,7 +73,7 @@ export function CompendiumIndex() {
 					inventoryCategories={inventoryQuery.data?.categories ?? []}
 				/>
 
-				<SectionRule label="Today's desk" />
+				<SectionRule label="Attention" />
 				<TodaysDesk
 					urgentPrices={urgentPrices}
 					outdatedPrices={outdatedPrices}
@@ -103,7 +86,6 @@ export function CompendiumIndex() {
 				/>
 			</div>
 
-			{/* Dock — keyboard + help */}
 			<div className="border-t border-[var(--rule-soft)] px-4 py-3 sm:px-5">
 				<EmployeeActionButton
 					size="sm"
@@ -141,85 +123,30 @@ function useCurrentDate() {
 function formatDate(date: Date): string {
 	return date
 		.toLocaleDateString('en-GB', {
-			weekday: 'short',
 			day: 'numeric',
 			month: 'short',
 		})
 		.toLowerCase()
 }
 
-function formatVolume(date: Date): string {
-	const d = new Date(
-		Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-	)
-	d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-	const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-	const week = Math.ceil(
-		((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
-	)
-	// Volume = year index, issue = week. Editorial, not mechanical.
-	const volume = date.getFullYear() - 2020
-	return `vol. ${toRoman(volume)} · no. ${week.toString().padStart(2, '0')}`
-}
-
-function toRoman(n: number): string {
-	const map: [number, string][] = [
-		[10, 'x'],
-		[9, 'ix'],
-		[5, 'v'],
-		[4, 'iv'],
-		[1, 'i'],
-	]
-	let out = ''
-	let rest = n
-	for (const [val, letters] of map) {
-		while (rest >= val) {
-			out += letters
-			rest -= val
-		}
-	}
-	return out
-}
-
 function Masthead() {
 	const now = useCurrentDate()
 	return (
-		<header className="border-b border-[var(--rule-soft)] px-4 pt-5 pb-4 sm:px-5 sm:pt-6">
-			<div className="flex items-baseline gap-1.5">
+		<header className="border-b border-[var(--rule-soft)] px-4 py-5 sm:px-5">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<h2 className="truncate font-[family-name:var(--font-archivo)] text-[18px] font-semibold leading-none text-[var(--ink)]">
+						Inventory
+					</h2>
+					<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+						Materials, prices, orders
+					</p>
+				</div>
 				<span
-					aria-hidden="true"
-					className="h-[5px] w-[5px] translate-y-[-2px] rounded-full bg-[var(--compendium-brand)]"
-				/>
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic leading-none text-[var(--ink)]"
-					style={{
-						fontSize: '22px',
-						fontWeight: 500,
-						letterSpacing: '-0.01em',
-					}}
-				>
-					Compendium
-				</span>
-			</div>
-			<p
-				className="mt-2 font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-				style={{ fontSize: '11.5px', letterSpacing: '0.005em' }}
-			>
-				of building materials — a working folio
-			</p>
-			<div className="mt-3 flex items-baseline justify-between">
-				<span
-					className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums uppercase tracking-[0.14em] text-[var(--ink-mid)]"
+					className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]"
 					suppressHydrationWarning
 				>
 					{formatDate(now)}
-				</span>
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-mid)]"
-					style={{ fontSize: '10.5px' }}
-					suppressHydrationWarning
-				>
-					{formatVolume(now)}
 				</span>
 			</div>
 		</header>
@@ -230,8 +157,8 @@ function Masthead() {
 
 function SectionRule({ label }: { label: string }) {
 	return (
-		<div className="mt-5 mb-3 flex items-baseline gap-2">
-			<span className="font-[family-name:var(--font-geist-mono)] text-[9px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-mid)]">
+		<div className="mt-5 mb-2 flex items-baseline gap-2">
+			<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-mid)]">
 				{label}
 			</span>
 			<span aria-hidden="true" className="h-px flex-1 bg-[var(--rule-soft)]" />
@@ -320,37 +247,29 @@ function IndexRow({
 				type="button"
 				onClick={onPress}
 				data-active={active ? 'true' : 'false'}
-				className="compendium-thumb group flex w-full min-w-0 items-baseline gap-2 overflow-hidden py-1.5 text-start outline-none"
+				className={`group flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-2 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--compendium-brand)]/35 ${
+					active ? 'bg-black/[0.035]' : 'hover:bg-black/[0.025]'
+				}`}
 			>
 				<span
-					className="min-w-0 truncate font-[family-name:var(--font-fraunces)] leading-none text-[var(--ink)] transition-all"
+					className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[13px] leading-none text-[var(--ink)] transition-colors"
 					style={{
-						fontSize: isAll ? '15px' : '13.5px',
-						fontWeight: active ? 600 : 400,
-						fontStyle: active ? 'normal' : 'italic',
-						letterSpacing: active ? '-0.012em' : '-0.004em',
+						fontWeight: active || isAll ? 600 : 500,
+						letterSpacing: '0',
 					}}
 				>
 					{label}
 				</span>
+				<span aria-hidden="true" className="h-px min-w-0 flex-1" />
 				<span
-					aria-hidden="true"
-					className="h-px min-w-0 flex-1 translate-y-[-3px]"
-					style={{
-						background: active
-							? 'linear-gradient(90deg, var(--rule) 0%, transparent 85%)'
-							: 'var(--rule-soft)',
-					}}
-				/>
-				<span
-					className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10.5px] tabular-nums"
+					className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums"
 					style={{ color: active ? 'var(--ink)' : 'var(--ink-mid)' }}
 				>
 					{count.toString().padStart(2, '0')}
 				</span>
 				{hasAlert && (
 					<span
-						className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums leading-none text-[var(--compendium-stale)]"
+						className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums leading-none text-[var(--compendium-attention)]"
 						title={`${attention} items need attention`}
 					>
 						{attention}
@@ -388,14 +307,19 @@ function TodaysDesk({
 
 	if (combinedAlerts === 0) {
 		return (
-			<div className="mt-1 rounded-sm border border-dashed border-[var(--rule-soft)] px-3 py-4 text-center">
-				<p
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)]"
-					style={{ fontSize: '12px', letterSpacing: '0.003em' }}
-				>
-					the desk is clear — {readyOrders} order
-					{readyOrders === 1 ? '' : 's'} ready for warehouse.
+			<div className="mt-1 rounded-md border border-[var(--rule-soft)] px-3 py-3">
+				<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-soft)]">
+					No active attention.
 				</p>
+				{readyOrders > 0 && (
+					<button
+						type="button"
+						onClick={() => setActiveTab('orders')}
+						className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--compendium-brand)] outline-none hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--compendium-brand)]/35"
+					>
+						{readyOrders} order{readyOrders === 1 ? '' : 's'} ready
+					</button>
+				)}
 			</div>
 		)
 	}
@@ -410,18 +334,16 @@ function TodaysDesk({
 							? `critical stock level${criticalItems === 1 ? '' : 's'}`
 							: criticalItems === 0
 								? `item${outItems === 1 ? '' : 's'} out of stock`
-								: 'stock running out'
+								: 'stock needs work'
 					}
 					onPress={() => setActiveTab('stock')}
-					tone="stale"
 				/>
 			)}
 			{urgentPrices > 0 && (
 				<DeskRow
 					number={urgentPrices}
-					label={`urgent price${urgentPrices === 1 ? '' : 's'} to refresh`}
+					label={`urgent price${urgentPrices === 1 ? '' : 's'}`}
 					onPress={() => setActiveTab('procurement')}
-					tone="stale"
 				/>
 			)}
 			{outdatedPrices - urgentPrices > 0 && (
@@ -429,7 +351,6 @@ function TodaysDesk({
 					number={outdatedPrices - urgentPrices}
 					label={`other outdated price${outdatedPrices - urgentPrices === 1 ? '' : 's'}`}
 					onPress={() => setActiveTab('procurement')}
-					tone="aging"
 				/>
 			)}
 			{pendingRequests > 0 && (
@@ -437,7 +358,6 @@ function TodaysDesk({
 					number={pendingRequests}
 					label={`sales request${pendingRequests === 1 ? '' : 's'} waiting`}
 					onPress={() => setActiveTab('procurement')}
-					tone="brand"
 				/>
 			)}
 			{blockedOrders > 0 && (
@@ -445,15 +365,13 @@ function TodaysDesk({
 					number={blockedOrders}
 					label={`order${blockedOrders === 1 ? '' : 's'} blocked on stock`}
 					onPress={() => setActiveTab('orders')}
-					tone="aging"
 				/>
 			)}
 			{readyOrders > 0 && (
 				<DeskRow
 					number={readyOrders}
-					label={`order${readyOrders === 1 ? '' : 's'} ready to approve`}
+					label={`order${readyOrders === 1 ? '' : 's'} ready`}
 					onPress={() => setActiveTab('orders')}
-					tone="fresh"
 				/>
 			)}
 		</ul>
@@ -464,40 +382,25 @@ function DeskRow({
 	number,
 	label,
 	onPress,
-	tone,
 }: {
 	number: number
 	label: string
 	onPress: () => void
-	tone: 'stale' | 'aging' | 'fresh' | 'brand'
 }) {
-	const toneClass = {
-		stale: 'text-[var(--compendium-stale)]',
-		aging: 'text-[var(--compendium-aging)]',
-		fresh: 'text-[var(--compendium-fresh)]',
-		brand: 'text-[var(--compendium-brand)]',
-	}[tone]
 	return (
 		<li>
 			<button
 				type="button"
 				onClick={onPress}
-				className="group flex w-full items-baseline gap-2 py-1 text-start outline-none"
+				className="group flex min-h-7 w-full items-center gap-3 rounded-md px-2 text-start outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--compendium-brand)]/35"
 			>
 				<span
-					className={`font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums leading-none ${toneClass}`}
+					className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums leading-none text-[var(--compendium-attention)]"
 					style={{ minWidth: '20px' }}
 				>
 					{number}
 				</span>
-				<span
-					className="font-[family-name:var(--font-fraunces)] italic text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]"
-					style={{
-						fontSize: '12px',
-						letterSpacing: '0.002em',
-						lineHeight: 1.25,
-					}}
-				>
+				<span className="font-[family-name:var(--font-archivo)] text-[12px] leading-5 text-[var(--ink-soft)] transition-colors group-hover:text-[var(--ink)]">
 					{label}
 				</span>
 			</button>

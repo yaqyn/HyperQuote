@@ -43,20 +43,20 @@ export function WarehouseReceivingQueue() {
 				initial={reduce ? false : { opacity: 0, y: -8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-				className="shrink-0 border-b-[3px] border-[var(--color-text)] px-4 pt-6 pb-5 sm:px-6 lg:px-8 lg:pt-8"
+				className="shrink-0 border-b-2 border-[var(--color-text)] px-4 pt-4 pb-4 sm:px-6 lg:border-b-[3px] lg:px-8 lg:pt-8 lg:pb-5"
 			>
-				<div className="flex flex-col items-start gap-5 sm:flex-row sm:justify-between sm:gap-8">
-					<div>
-						<p className="font-[family-name:var(--font-geist-mono)] text-[11px] font-bold uppercase tracking-[0.32em] text-black/60">
+				<div className="hidden flex-col items-start gap-3 lg:flex lg:flex-row lg:justify-between lg:gap-8">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.24em] text-black/60 lg:text-[11px] lg:tracking-[0.32em]">
 							Dock · Bay 01
 						</p>
-						<h1 className="mt-2 font-[family-name:var(--font-geist-mono)] text-[36px] font-bold uppercase leading-[0.9] tracking-[-0.02em] sm:text-[44px]">
-							Receiving
-							<br />
-							queue
+						<h1 className="mt-1 truncate font-[family-name:var(--font-geist-mono)] text-[22px] font-bold uppercase leading-none tracking-[-0.01em] sm:text-[28px] lg:mt-2 lg:text-[44px] lg:leading-[0.9] lg:tracking-[-0.02em]">
+							<span className="lg:block">Receiving</span>
+							<span className="lg:hidden"> queue</span>
+							<span className="hidden lg:block">queue</span>
 						</h1>
 					</div>
-					<div className="flex flex-wrap gap-x-6 gap-y-3 sm:justify-end sm:text-end">
+					<div className="grid w-full grid-cols-3 gap-2 lg:w-auto lg:flex lg:flex-wrap lg:gap-x-6 lg:gap-y-3 lg:text-end">
 						<StatBlock label="Open" value={data.totals.total} />
 						<StatBlock label="Retry" value={data.totals.retrying} accent />
 						<StatBlock label="Fresh" value={data.totals.fresh} />
@@ -65,12 +65,12 @@ export function WarehouseReceivingQueue() {
 				<WarehouseTabSwitch />
 			</motion.header>
 
-			<div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+			<div className="flex-1 min-h-0 overflow-y-auto px-0 py-0 lg:px-8 lg:py-6">
 				{data.deals.length === 0 ? (
 					<EmptyState />
 				) : (
 					<motion.div
-						className="flex flex-col gap-4"
+						className="flex flex-col lg:gap-4"
 						initial="hidden"
 						animate="visible"
 						variants={{
@@ -106,15 +106,15 @@ function StatBlock({
 	accent?: boolean
 }) {
 	return (
-		<div className="flex flex-col items-start sm:items-end">
+		<div className="min-w-0 border border-black/10 px-2 py-2 lg:border-0 lg:px-0 lg:py-0 lg:text-end">
 			<span
-				className={`font-[family-name:var(--font-geist-mono)] text-[44px] font-bold leading-none tabular-nums ${
+				className={`font-[family-name:var(--font-geist-mono)] text-[21px] font-bold leading-none tabular-nums lg:text-[44px] ${
 					accent ? 'text-[#CC3300]' : 'text-[var(--color-text)]'
 				}`}
 			>
 				{String(value).padStart(2, '0')}
 			</span>
-			<span className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/50">
+			<span className="mt-1 block truncate font-[family-name:var(--font-geist-mono)] text-[8px] font-bold uppercase tracking-[0.14em] text-black/50 lg:text-[10px] lg:tracking-[0.22em]">
 				{label}
 			</span>
 		</div>
@@ -177,16 +177,16 @@ function DealCard({
 			whileHover={reduce ? undefined : { y: -2 }}
 			whileTap={reduce ? undefined : { scale: 0.995 }}
 			transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-			className={`group relative w-full border-[3px] bg-[var(--color-surface)] text-start ${
+			className={`group relative w-full border-y-2 border-x-0 bg-[var(--color-surface)] text-start lg:border-[3px] ${
 				isSelected
-					? 'border-[var(--color-text)] shadow-[8px_8px_0_0_var(--color-text)]'
-					: 'border-[var(--color-text)]/20 hover:border-[var(--color-text)]/60 hover:shadow-[4px_4px_0_0_var(--color-text)]'
+					? 'border-[var(--color-text)] lg:shadow-[8px_8px_0_0_var(--color-text)]'
+					: 'border-[var(--color-text)]/15 lg:hover:border-[var(--color-text)]/60 lg:hover:shadow-[4px_4px_0_0_var(--color-text)]'
 			}`}
-			style={{ minHeight: '128px' }}
+			style={{ minHeight: '112px' }}
 		>
 			<div className="flex flex-wrap items-center justify-between gap-y-1">
 				<span
-					className="inline-flex h-9 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em]"
+					className="inline-flex h-8 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.16em] lg:h-9 lg:text-[10px] lg:tracking-[0.22em]"
 					style={{
 						backgroundColor: stageColor,
 						color: '#FFFFFF',
@@ -194,18 +194,18 @@ function DealCard({
 				>
 					{stageLabel}
 				</span>
-				<span className="inline-flex h-9 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.18em] text-black/50">
+				<span className="inline-flex h-8 items-center px-3 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.14em] text-black/50 lg:h-9 lg:text-[10px] lg:tracking-[0.18em]">
 					{deal.paymentStatus.toUpperCase()}
 				</span>
 			</div>
 
-			<div className="px-4 pb-5 pt-3 sm:px-6">
-				<div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto] sm:items-end sm:gap-x-8">
+			<div className="px-4 pb-4 pt-3 sm:px-6 lg:pb-5">
+				<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 lg:gap-x-8">
 					<div className="min-w-0">
-						<p className="truncate text-[22px] font-bold leading-tight text-[var(--color-text)]">
+						<p className="truncate text-[17px] font-bold leading-tight text-[var(--color-text)] lg:text-[22px]">
 							{deal.supplierName}
 						</p>
-						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-black/55">
+						<p className="mt-1 truncate font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-black/55 lg:text-[11px]">
 							{deal.dealId} ·{' '}
 							{deal.itemCount === 1
 								? deal.headlineProductName
@@ -213,16 +213,16 @@ function DealCard({
 						</p>
 					</div>
 
-					<div className="sm:text-end">
-						<div className="flex items-baseline gap-1 sm:justify-end">
-							<span className="font-[family-name:var(--font-geist-mono)] text-[26px] font-bold leading-none tabular-nums">
+					<div className="text-end">
+						<div className="flex items-baseline justify-end gap-1">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[21px] font-bold leading-none tabular-nums lg:text-[26px]">
 								{deal.receivedCount}
 							</span>
-							<span className="font-[family-name:var(--font-geist-mono)] text-[16px] font-bold text-black/35">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-bold text-black/35 lg:text-[16px]">
 								/{deal.itemCount}
 							</span>
 						</div>
-						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[8px] font-bold uppercase tracking-[0.16em] text-black/50 lg:text-[9px] lg:tracking-[0.2em]">
 							received
 						</p>
 					</div>

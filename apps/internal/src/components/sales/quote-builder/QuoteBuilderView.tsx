@@ -1,17 +1,28 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CheckCircle2, CircleAlert } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
-	Fragment,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from 'react'
+	ArrowRight,
+	CheckCircle2,
+	CircleAlert,
+	Loader2,
+	MoreHorizontal,
+	Phone,
+	RefreshCw,
+	Save,
+	Undo2,
+	X,
+} from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { ClientOnly } from '../../../lib/client-only'
-import { isValidEmail, isValidText } from '../../../lib/inputs'
+import {
+	isValidEmail,
+	isValidText,
+	normalizeArithmeticInput,
+	normalizeDecimalInput,
+	normalizeIntegerInput,
+} from '../../../lib/inputs'
+import { useInternalAuth } from '../../../lib/internal-auth'
 import { addCustomer } from '../../../lib/server/sales-customers'
 import { markAsWon } from '../../../lib/server/sales-pipeline'
 import {
@@ -25,22 +36,30 @@ import type {
 	PriceStatus,
 	QuoteStatus,
 } from '../../../types/sales'
-import { getMarginLevel } from '../../../types/sales'
-import {
-	EmployeeActionButton,
-	EmployeeStatusPill,
-} from '../../shared/EmployeeControls'
+import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { isValidEGPhone, PhoneInput } from '../../shared/PhoneInput'
 import { SlidePanel } from '../../shared/SlidePanel'
+import {
+	clampSalesMargin,
+	getSalesMarginCap,
+	getSalesMarginColor,
+	SALES_MARGIN_BONUS_COLOR,
+	SALES_MARGIN_CAP_PERCENT,
+	SALES_MARGIN_FLOOR_COLOR,
+	SALES_MARGIN_TARGET_COLOR,
+} from '../marginPalette'
 import { DeclineRFQDialog } from '../rfq/DeclineRFQDialog'
-import { ApprovalWorkflow } from './ApprovalWorkflow'
+import {
+	type ApprovalSignatureState,
+	ApprovalWorkflow,
+	QuoteSignatureSection,
+} from './ApprovalWorkflow'
 import { DeliveryMap } from './DeliveryMap'
 import { DeliveryTerms } from './DeliveryTerms'
-import { LineMarginPanel } from './LineMarginPopover'
-import { OutdatedPricesBanner } from './OutdatedPricesBanner'
-import { PriceStatusBadge } from './PriceStatusBadge'
-import { ProductSearchMenu } from './ProductSearchMenu'
-import { SourceSearchMenu } from './SourceSearchMenu'
+import {
+	type ProductCatalogSelection,
+	ProductSearchMenu,
+} from './ProductSearchMenu'
 import type { LineItemFormValues, QuoteFormValues } from './types'
 
 interface QuoteBuilderViewProps {
@@ -52,339 +71,145 @@ interface QuoteBuilderViewProps {
 	onSave?: () => void
 }
 
-// --- Supplier directory type (populated live from getQuoteBuilderData) ---
-
-interface SupplierRecord {
-	id: string
-	name: string
-	tier: string
-	score: number
-	categories: string[]
-}
-
-/**
- * Build a search function bound to the supplier list returned by the
- * server. This replaces the old hardcoded ALL_SUPPLIERS constant — every
- * supplier, tier, score, and category now comes from db.suppliers /
- * db.supplierPrices via getQuoteBuilderData.
- */
-function makeSearchSuppliers(pool: SupplierRecord[]) {
-	return function searchSuppliers(
-		query: string,
-		itemName?: string,
-	): SupplierRecord[] {
-		const q = query.toLowerCase().trim()
-		const itemLower = (itemName ?? '').toLowerCase()
-
-		// Pull category keywords from the product name so the search ranks
-		// suppliers who actually carry the item being sourced.
-		const keywords = itemLower.split(/[^a-z0-9]+/).filter((w) => w.length >= 3)
-
-		let results = pool
-		if (q) {
-			results = results.filter(
-				(s) =>
-					s.name.toLowerCase().includes(q) ||
-					s.categories.some((c) => c.toLowerCase().includes(q)),
-			)
-		}
-		return [...results].sort((a, b) => {
-			const aRelevant = keywords.some((k) =>
-				a.categories.some((c) => c.includes(k)),
-			)
-				? 1
-				: 0
-			const bRelevant = keywords.some((k) =>
-				b.categories.some((c) => c.includes(k)),
-			)
-				? 1
-				: 0
-			if (aRelevant !== bRelevant) return bRelevant - aRelevant
-			return b.score - a.score
-		})
-	}
-}
-
 // Customer phone number is NEVER exposed to the frontend.
 // Calls are initiated via server-side endpoint: /api/call/:rfqId
 // The server resolves the number, initiates VoIP/SIP, and connects the employee.
 
-// --- Step indicator ─────────────────────────────────────
-
-const STEP_LABELS = ['customer', 'build quote', 'review & submit'] as const
 const DELIVERY_DATE_REQUIRED_MESSAGE = 'Please select a delivery date'
 const DELIVERY_ATTENTION_DURATION_MS = 1400
-
-function StepIndicator({
-	currentStep,
-	completedSteps,
-	onStepClick,
-}: {
-	currentStep: number
-	completedSteps: Set<number>
-	onStepClick: (step: number) => void
-}) {
-	return (
-		<nav aria-label="Quote builder progress" className="min-w-0">
-			<ol className="flex flex-wrap items-center gap-x-0 gap-y-2">
-				{STEP_LABELS.map((label, i) => {
-					const step = i + 1
-					const isCompleted = completedSteps.has(step)
-					const isCurrent = currentStep === step
-					const isLocked = step === 3 && !completedSteps.has(2) && !isCurrent
-					const isClickable = (isCompleted || step < currentStep) && !isCurrent
-					const barFilled = completedSteps.has(i) || currentStep > i
-					// Build an accessible name that carries state without relying on
-					// just the step number — screen readers hear the phase.
-					const statusWord = isCurrent
-						? 'current step'
-						: isCompleted
-							? 'completed, click to revisit'
-							: isLocked
-								? 'locked'
-								: 'upcoming'
-					const accessibleLabel = `Step ${step} of ${STEP_LABELS.length}: ${label}, ${statusWord}`
-					return (
-						<Fragment key={step}>
-							{i > 0 && (
-								<li aria-hidden="true" className="mx-3">
-									<span
-										className="block h-px w-10 transition-[background-color,opacity] duration-300"
-										style={{
-											backgroundColor: barFilled
-												? 'var(--color-primary)'
-												: 'var(--color-border)',
-											opacity: barFilled ? 0.9 : 0.45,
-										}}
-									/>
-								</li>
-							)}
-							<li>
-								<button
-									type="button"
-									aria-label={accessibleLabel}
-									aria-current={isCurrent ? 'step' : undefined}
-									aria-disabled={isLocked || (!isClickable && !isCurrent)}
-									disabled={isLocked || (!isClickable && !isCurrent)}
-									onClick={() => isClickable && onStepClick(step)}
-									className={`group relative inline-flex items-baseline gap-2 rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] ${
-										isClickable
-											? 'cursor-pointer'
-											: isLocked
-												? 'cursor-not-allowed'
-												: 'cursor-default'
-									}`}
-								>
-									<span
-										className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums transition-colors"
-										style={{
-											fontSize: '11px',
-											letterSpacing: '0.08em',
-											fontWeight: 500,
-											color: isCurrent
-												? 'var(--color-primary)'
-												: isCompleted
-													? 'var(--color-text-muted)'
-													: 'var(--color-text-subtle)',
-										}}
-									>
-										0{step}
-									</span>
-									<span
-										className="hidden transition-colors sm:inline"
-										style={{
-											fontSize: '13px',
-											fontFamily: 'var(--font-archivo)',
-											fontStyle: isCurrent ? 'normal' : 'italic',
-											fontWeight: isCurrent ? 500 : 400,
-											letterSpacing: '-0.005em',
-											color: isCurrent
-												? 'var(--color-text)'
-												: isCompleted
-													? 'var(--color-text-muted)'
-													: 'var(--color-text-subtle)',
-										}}
-									>
-										{label}
-									</span>
-									{isCompleted && !isCurrent && (
-										<svg
-											width="10"
-											height="10"
-											viewBox="0 0 10 10"
-											aria-hidden="true"
-											className="shrink-0"
-										>
-											<path
-												d="M2 5 L4 7 L8 3"
-												stroke="var(--color-primary)"
-												strokeWidth="1.3"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												fill="none"
-											/>
-										</svg>
-									)}
-									{/* Underline affordance on hover / focus-visible — only for
-									    clickable milestones; no decoration on the current step. */}
-									{isClickable && (
-										<span
-											aria-hidden="true"
-											className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-										/>
-									)}
-								</button>
-							</li>
-						</Fragment>
-					)
-				})}
-			</ol>
-		</nav>
-	)
+const MINIMUM_MARGIN_PERCENT = 15
+type PanelCurrency = 'EGP' | 'USD' | 'EUR' | 'SAR'
+const PANEL_CURRENCIES: PanelCurrency[] = ['EGP', 'USD', 'EUR', 'SAR']
+interface AutomaticExchangeRates {
+	baseCurrency: 'EGP'
+	rates: Record<PanelCurrency, number | null>
+	updatedAt: string | null
+	source: string
 }
-
-// --- Status label lookup ─────────────────────────────────
-
-const STATUS_LABEL: Record<QuoteStatus, string> = {
-	draft: 'draft',
-	internal_review: 'internal review',
-	pending_approval: 'pending approval',
-	approved: 'approved',
-	sent: 'sent',
-	viewed: 'viewed',
-	negotiating: 'negotiating',
-	revised: 'revised',
-	accepted: 'accepted',
-	declined: 'declined',
-	expired: 'expired',
+const EMPTY_EXCHANGE_RATES: AutomaticExchangeRates = {
+	baseCurrency: 'EGP',
+	rates: {
+		EGP: 1,
+		USD: null,
+		EUR: null,
+		SAR: null,
+	},
+	updatedAt: null,
+	source: '',
 }
+type ItemEditMobileTool =
+	| 'quantity'
+	| 'budget'
+	| 'exchange'
+	| 'calculator'
+	| 'inventory'
 
-// --- Autosaved indicator ─────────────────────────────────
-
-function AutoSavedLine({ lastSavedAt }: { lastSavedAt: Date | null }) {
-	const [, setTick] = useState(0)
-	useEffect(() => {
-		if (!lastSavedAt) return
-		const id = setInterval(() => setTick((t) => t + 1), 1000)
-		return () => clearInterval(id)
-	}, [lastSavedAt])
-	if (!lastSavedAt) return null
-	const seconds = Math.floor((Date.now() - lastSavedAt.getTime()) / 1000)
-	const display =
-		seconds < 60
-			? `saved ${seconds}s ago`
-			: `saved ${Math.floor(seconds / 60)}m ago`
-	// Not an aria-live region — it re-renders every second, which would spam
-	// screen readers. Pure visual affordance; save announcements are the
-	// caller's concern.
-	return (
-		<span
-			className="min-w-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-			style={{ fontSize: '11px' }}
-			aria-hidden="true"
-		>
-			· {display}
-		</span>
-	)
-}
-
-// --- Hairline field primitives ───────────────────────────
-
-function FieldGroup({
+function CustomerFlowField({
+	id,
 	label,
-	children,
-}: {
-	label: string
-	children: React.ReactNode
-}) {
-	return (
-		<div className="flex flex-col gap-4 sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-x-10 sm:gap-y-5">
-			<span
-				className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)] sm:pt-2"
-				style={{ fontSize: '12px' }}
-			>
-				{label}
-			</span>
-			<div className="flex flex-col gap-5">{children}</div>
-		</div>
-	)
-}
-
-function HairlineField({
-	label,
-	htmlFor,
 	error,
 	children,
+	className = '',
 }: {
+	id: string
 	label: string
-	htmlFor?: string
-	/** Full error message. When present the field renders an inline error row
-	 *  with id `${htmlFor}-error` so the input can point to it via
-	 *  aria-describedby. */
 	error?: string
 	children: React.ReactNode
+	className?: string
 }) {
-	const errorId = error && htmlFor ? `${htmlFor}-error` : undefined
+	const errorId = error ? `${id}-error` : undefined
 	return (
-		<div className="group">
+		<div
+			className={`grid min-w-0 gap-2 border-b border-[var(--color-border)] py-3 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-5 ${className}`}
+		>
 			<label
-				htmlFor={htmlFor}
-				className="mb-1.5 block font-[family-name:var(--font-archivo)] italic transition-colors"
-				style={{
-					fontSize: '11px',
-					color: error ? 'var(--color-signal-red)' : 'var(--color-text-subtle)',
-				}}
+				htmlFor={id}
+				className="pt-1 font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]"
+				style={{ letterSpacing: 0 }}
 			>
 				{label}
 			</label>
-			<div
-				className="pb-1.5 transition-colors"
-				style={{
-					borderBottom: `1px solid ${error ? 'var(--color-signal-red)' : 'var(--color-border)'}`,
-				}}
-			>
+			<div className="min-w-0">
 				{children}
+				{error && (
+					<p
+						id={errorId}
+						className="mt-2 font-[family-name:var(--font-archivo)] text-[11px] italic leading-5 text-[var(--color-signal-red)]"
+					>
+						{error}
+					</p>
+				)}
 			</div>
-			{error && errorId && (
-				<p
-					id={errorId}
-					className="mt-1.5 font-[family-name:var(--font-archivo)] italic"
-					style={{
-						fontSize: '11px',
-						color: 'var(--color-signal-red)',
-						letterSpacing: '-0.005em',
-					}}
-				>
-					{error}
-				</p>
-			)}
 		</div>
 	)
 }
 
-/** Chrome header action — compact command button. Kept local so the
- *  builder header can map reject/save language without repeating styles. */
-function HeaderAction({
-	label,
+function QuoteChromeAction({
+	ariaLabel,
+	children,
 	onClick,
 	tone = 'neutral',
-	trailing,
 }: {
-	label: string
+	ariaLabel: string
+	children: React.ReactNode
 	onClick: () => void
-	tone?: 'neutral' | 'warn'
-	trailing?: React.ReactNode
+	tone?: 'neutral' | 'danger'
 }) {
 	return (
-		<EmployeeActionButton
+		<button
 			type="button"
+			aria-label={ariaLabel}
 			onClick={onClick}
-			size="sm"
-			tone={tone === 'warn' ? 'danger' : 'neutral'}
-			trailing={trailing}
+			className={`inline-flex h-7 w-7 items-center justify-center rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+				tone === 'danger'
+					? 'text-red-700 hover:bg-red-600/[0.07] dark:text-red-300'
+					: 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]'
+			}`}
 		>
-			{label}
-		</EmployeeActionButton>
+			{children}
+		</button>
+	)
+}
+
+function WorkSection({
+	label,
+	meta,
+	actions,
+	children,
+	className = '',
+}: {
+	label: string
+	meta?: React.ReactNode
+	actions?: React.ReactNode
+	children: React.ReactNode
+	className?: string
+}) {
+	return (
+		<section className={className} aria-labelledby={`quote-work-${label}`}>
+			<header className="flex min-h-10 items-center justify-between gap-3 py-2">
+				<div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+					<h3
+						id={`quote-work-${label}`}
+						className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-text)]"
+						style={{ letterSpacing: '0.1em' }}
+					>
+						{label}
+					</h3>
+					{meta && (
+						<span
+							className="min-w-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+							style={{ fontSize: '11px' }}
+						>
+							{meta}
+						</span>
+					)}
+				</div>
+				{actions && (
+					<div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+				)}
+			</header>
+			<div>{children}</div>
+		</section>
 	)
 }
 
@@ -412,252 +237,2582 @@ function FooterAmount({
 	)
 }
 
-/** Ledger stratum — italic Archivo eyebrow on the left, content on the
- *  right, hairline rule between rows. Page-scale variant of the
- *  StratumRow primitive used inside slide panels. */
-function ReviewStratum({
-	label,
+function useCompactPanelLayout() {
+	const [isCompact, setIsCompact] = useState(() => {
+		if (typeof window === 'undefined' || !window.matchMedia) return false
+		return window.matchMedia(
+			'(max-width: 1023px), (hover: none) and (pointer: coarse) and (max-width: 1279px)',
+		).matches
+	})
+
+	useEffect(() => {
+		if (typeof window === 'undefined' || !window.matchMedia) return
+		const query = window.matchMedia(
+			'(max-width: 1023px), (hover: none) and (pointer: coarse) and (max-width: 1279px)',
+		)
+		const update = () => setIsCompact(query.matches)
+		update()
+		query.addEventListener('change', update)
+		return () => query.removeEventListener('change', update)
+	}, [])
+
+	return isCompact
+}
+
+function ReportEditAction({
 	children,
-	align = 'baseline',
+	onClick,
+}: {
+	children: React.ReactNode
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			data-print-hidden="true"
+			className="inline-flex h-8 shrink-0 items-center justify-center px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase text-[var(--color-primary)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+			style={{ letterSpacing: 0 }}
+		>
+			{children}
+		</button>
+	)
+}
+
+function ReportSectionBar({
+	id,
+	title,
+	meta,
+	onEdit,
+}: {
+	id?: string
+	title: string
+	meta?: React.ReactNode
+	onEdit?: () => void
+}) {
+	return (
+		<header className="flex min-h-12 items-end justify-between gap-3 border-b border-[var(--color-border)] px-4 pb-3 pt-5 sm:px-6">
+			<div className="min-w-0">
+				<h3
+					id={id}
+					className="font-[family-name:var(--font-literata)] text-[18px] font-medium leading-none text-[var(--color-text)]"
+					style={{ letterSpacing: 0 }}
+				>
+					{title}
+				</h3>
+				{meta && (
+					<p className="mt-1 min-w-0 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+						{meta}
+					</p>
+				)}
+			</div>
+			{onEdit && <ReportEditAction onClick={onEdit}>Edit</ReportEditAction>}
+		</header>
+	)
+}
+
+function ReportInfoCell({
+	label,
+	value,
+	placeholder = false,
+	onPress,
 }: {
 	label: string
-	children: React.ReactNode
-	align?: 'baseline' | 'start'
+	value: React.ReactNode
+	placeholder?: boolean
+	onPress?: () => void
+}) {
+	const content = (
+		<>
+			<span
+				className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]"
+				style={{ letterSpacing: 0 }}
+			>
+				{label}
+			</span>
+			<span
+				className={`mt-2 block min-w-0 break-words font-[family-name:var(--font-literata)] text-[15px] leading-7 ${
+					placeholder
+						? 'italic text-[var(--color-text-subtle)]'
+						: 'text-[var(--color-text)]'
+				}`}
+				style={{ letterSpacing: 0 }}
+			>
+				{value}
+			</span>
+		</>
+	)
+
+	const className =
+		'min-w-0 px-4 py-4 text-start outline-none transition-colors sm:px-6'
+
+	if (onPress) {
+		return (
+			<button
+				type="button"
+				onClick={onPress}
+				className={`${className} hover:bg-black/[0.018] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:bg-white/[0.025]`}
+			>
+				{content}
+			</button>
+		)
+	}
+
+	return <div className={className}>{content}</div>
+}
+
+function ReviewReportTitle({
+	customerName,
+	orderNumber,
+}: {
+	customerName: string
+	orderNumber: string
+}) {
+	return (
+		<header
+			data-print-title="true"
+			className="px-5 py-8 sm:px-8 sm:py-10 lg:px-12"
+		>
+			<div className="max-w-[780px] border-b border-[var(--color-border)] pb-5">
+				<h2
+					className="font-[family-name:var(--font-literata)] text-[30px] font-medium leading-tight text-[var(--color-text)] sm:text-[38px]"
+					style={{ letterSpacing: 0 }}
+				>
+					{customerName}
+				</h2>
+				<p className="mt-2 font-[family-name:var(--font-plex-mono)] text-[11px] uppercase text-[var(--color-text-subtle)]">
+					{orderNumber}
+				</p>
+			</div>
+		</header>
+	)
+}
+
+function ReviewReportParagraph({
+	customerName,
+	itemCount,
+	items,
+	address,
+	dateTime,
+	subtotal,
+	vat,
+	total,
+	margin,
+}: {
+	customerName: string
+	itemCount: number
+	items: LineItemFormValues[]
+	address: string
+	dateTime: string
+	subtotal: string
+	vat: string
+	total: string
+	margin: string
+}) {
+	const visibleItems = items.slice(0, 4)
+	const hiddenItemCount = Math.max(0, items.length - visibleItems.length)
+	return (
+		<section
+			aria-label="Quote report paragraph"
+			data-print-report-copy="true"
+			className="px-5 py-8 sm:px-8 sm:py-10 lg:px-12"
+		>
+			<div className="max-w-[780px] space-y-5 font-[family-name:var(--font-literata)] text-[16px] leading-8 text-[var(--color-text)]">
+				<p>
+					HyperQuote submits this note as the commercial reading of the customer
+					request before release to leadership. It records the buyer, the
+					selected material lines, the delivery commitment, and the financial
+					position that will travel with the quote into the next review.
+				</p>
+
+				<p>
+					The quote for <strong>{customerName}</strong> contains{' '}
+					<strong>
+						{itemCount} {itemCount === 1 ? 'line' : 'lines'}
+					</strong>
+					{visibleItems.length > 0 && (
+						<>
+							{' '}
+							covering{' '}
+							{visibleItems.map((item, index) => {
+								const quantity = item.quantity ?? 0
+								const separator =
+									index === 0
+										? ''
+										: index === visibleItems.length - 1
+											? ' and '
+											: ', '
+								return (
+									<span key={lineProductKey(item)}>
+										{separator}
+										<em>{item.productName}</em>{' '}
+										<span className="font-[family-name:var(--font-plex-mono)] text-[13px] tabular-nums text-[var(--color-text-muted)]">
+											({quantity} {quantity === 1 ? 'Unit' : 'Units'})
+										</span>
+									</span>
+								)
+							})}
+							{hiddenItemCount > 0 && (
+								<span> and {hiddenItemCount} additional line(s)</span>
+							)}
+						</>
+					)}
+					. These lines are ready for final commercial inspection against price,
+					margin, and delivery timing.
+				</p>
+
+				<div>
+					<div className="mx-auto max-w-[620px] text-center">
+						<p className="font-[family-name:var(--font-literata)] text-[18px] italic leading-8 text-[var(--color-text)]">
+							{address}
+						</p>
+						<div className="mx-auto mt-3 h-px w-24 bg-[var(--color-border)]" />
+						<p className="mt-3 font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-muted)]">
+							{dateTime}
+						</p>
+					</div>
+				</div>
+
+				<p>
+					Financially, the quote stands at <strong>{subtotal}</strong> before
+					tax, adds <strong>{vat}</strong> in VAT, and reaches{' '}
+					<strong>{total}</strong> as the customer-facing total. The retained
+					margin is <strong>{margin}</strong>, which is the key figure to read
+					before the quote is sent onward.
+				</p>
+
+				<div className="font-[family-name:var(--font-archivo)] text-[12px] leading-6 text-[var(--color-text-muted)]">
+					<p>
+						Calculation summary:{' '}
+						{items.length === 0
+							? 'no material lines have been selected.'
+							: items.map((item, index) => {
+									const quantity = item.quantity ?? 0
+									const separator =
+										index === 0
+											? ''
+											: index === items.length - 1
+												? '; and '
+												: '; '
+									return (
+										<span key={lineProductKey(item)}>
+											{separator}
+											<em>{item.productName}</em> carries{' '}
+											<span className="font-[family-name:var(--font-plex-mono)] tabular-nums">
+												{quantity} {quantity === 1 ? 'Unit' : 'Units'}
+											</span>{' '}
+											at{' '}
+											<span className="font-[family-name:var(--font-plex-mono)] tabular-nums">
+												{formatLineMoney(item.sellPrice)}
+											</span>{' '}
+											each, producing{' '}
+											<span className="font-[family-name:var(--font-plex-mono)] tabular-nums">
+												{formatLineMoney(item.lineTotal, 2)}
+											</span>
+										</span>
+									)
+								})}
+					</p>
+					<p className="mt-2">
+						Together, those lines form <strong>{subtotal}</strong> before tax,{' '}
+						<strong>{vat}</strong> in VAT, <strong>{total}</strong> due from the
+						customer, and <strong>{margin}</strong> retained margin.
+					</p>
+				</div>
+
+				<p>
+					This report presents the quote as a decision-ready commercial record:
+					what the customer will receive, what HyperQuote is committing to
+					deliver, and where the margin, tax, and final value stand before
+					finance release.
+				</p>
+			</div>
+		</section>
+	)
+}
+
+function ReportLineRow({
+	item,
+	index,
+	marginColor,
+}: {
+	item: LineItemFormValues
+	index: number
+	marginColor: string
+}) {
+	const quantityLabel = `${item.quantity ?? 0} ${
+		item.quantity === 1 ? 'Unit' : 'Units'
+	}`
+
+	return (
+		<li className="grid gap-3 border-b border-[var(--color-border)] px-4 py-4 last:border-b-0 sm:grid-cols-[2.5rem_minmax(0,1fr)_minmax(8rem,auto)] sm:items-start sm:px-6">
+			<div className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)] sm:pt-1">
+				{(index + 1).toString().padStart(2, '0')}
+			</div>
+			<div className="min-w-0">
+				<p className="break-words font-[family-name:var(--font-literata)] text-[16px] font-medium leading-6 text-[var(--color-text)]">
+					{item.productName}
+					<LineStatusMark priceStatus={item.priceStatus ?? 'updated'} />
+				</p>
+				<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+					<span>
+						<span className="text-[var(--color-text-subtle)]">Quantity</span>{' '}
+						<span className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]">
+							{quantityLabel}
+						</span>
+					</span>
+					<span>
+						<span className="text-[var(--color-text-subtle)]">Unit price</span>{' '}
+						<span className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]">
+							{formatLineMoney(item.sellPrice)}
+						</span>
+					</span>
+					<span>
+						<span className="text-[var(--color-text-subtle)]">Margin</span>{' '}
+						<span
+							className="font-[family-name:var(--font-plex-mono)] font-semibold tabular-nums"
+							style={{ color: marginColor }}
+						>
+							{item.marginPercent || 0}%
+						</span>
+					</span>
+				</div>
+			</div>
+			<div className="text-start sm:text-end">
+				<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]">
+					Line total
+				</span>
+				<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums text-[var(--color-text)]">
+					{formatLineMoney(item.lineTotal, 2)}
+				</span>
+			</div>
+		</li>
+	)
+}
+
+function ReportSummaryRow({
+	label,
+	value,
+	tone,
+	emphasis = false,
+}: {
+	label: string
+	value: React.ReactNode
+	tone?: string
+	emphasis?: boolean
 }) {
 	return (
 		<div
-			className={`flex flex-col gap-2 py-5 sm:grid sm:grid-cols-[110px_1fr] sm:gap-x-8 ${
-				align === 'start' ? 'sm:items-start' : 'sm:items-baseline'
+			className={`grid min-h-11 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] border-b border-[var(--color-border)] last:border-b-0 ${
+				emphasis ? 'border-t border-[var(--color-border)]' : ''
 			}`}
-			style={{
-				borderBottom: '1px solid var(--color-border)',
-			}}
 		>
-			<dt
-				className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-				style={{
-					fontSize: '11px',
-					paddingTop: align === 'start' ? '3px' : undefined,
-				}}
+			<div
+				className="px-4 py-3 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase text-[var(--color-text-subtle)] sm:px-6"
+				style={{ letterSpacing: 0 }}
 			>
 				{label}
-			</dt>
-			<dd>{children}</dd>
+			</div>
+			<div
+				className={`px-4 py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums sm:px-6 ${
+					emphasis
+						? 'text-[18px] font-semibold text-[var(--color-text)]'
+						: 'text-[12px] font-medium text-[var(--color-text)]'
+				}`}
+				style={{ color: tone }}
+			>
+				{value}
+			</div>
 		</div>
 	)
 }
 
-function LineMetric({
+function ReportTextBlock({
 	label,
-	children,
+	value,
+	placeholder = false,
 }: {
 	label: string
-	children: React.ReactNode
+	value: React.ReactNode
+	placeholder?: boolean
 }) {
 	return (
-		<div className="min-w-0">
+		<div className="px-4 py-4 sm:px-6">
 			<span
-				className="block font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-				style={{ fontSize: '10.5px' }}
+				className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]"
+				style={{ letterSpacing: 0 }}
 			>
 				{label}
 			</span>
-			<div className="mt-1 min-w-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]">
-				{children}
-			</div>
+			<p
+				className={`mt-3 max-w-[62ch] break-words font-[family-name:var(--font-literata)] text-[15px] leading-7 ${
+					placeholder
+						? 'italic text-[var(--color-text-subtle)]'
+						: 'text-[var(--color-text)]'
+				}`}
+				style={{ letterSpacing: 0 }}
+			>
+				{value}
+			</p>
 		</div>
 	)
+}
+
+function formatDeliveryWindow(value?: string) {
+	const labels: Record<string, string> = {
+		'08:00-13:00': 'Morning',
+		'13:00-17:00': 'Midday',
+		'17:00-20:00': 'Evening',
+		'00:00-06:00': 'Night',
+	}
+	return labels[value ?? ''] ?? value ?? 'Pick time'
+}
+
+function formatReviewDate(value?: string) {
+	if (!value) return ''
+	const [year, month, day] = value.split('-').map(Number)
+	if (!year || !month || !day) return value
+	return new Date(year, month - 1, day).toLocaleDateString('en-EG', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+	})
 }
 
 function QuoteLineCard({
 	item,
 	index,
+	isLast,
 	marginColor,
-	sourceLabel,
-	onReplace,
-	onSelectSource,
-	onQuantityChange,
 	onEditMargin,
 	onRemove,
 }: {
 	item: LineItemFormValues
 	index: number
+	isLast: boolean
 	marginColor: string
-	sourceLabel: string
-	onReplace: () => void
-	onSelectSource: () => void
-	onQuantityChange: (quantity: number) => void
 	onEditMargin: () => void
 	onRemove: () => void
 }) {
+	const priceLabel = formatLineMoney(item.sellPrice)
+	const totalLabel = formatLineMoney(item.lineTotal, 2)
+	const rowBackground =
+		index % 2 === 1
+			? 'bg-black/[0.018] dark:bg-white/[0.025]'
+			: 'bg-transparent'
+
 	return (
-		<article
-			className="border-b border-[var(--color-border)] py-4"
+		<li
+			className={`group/line relative -mx-3 border-x border-x-transparent px-3 py-3.5 transition-colors hover:border-x-black/[0.16] focus-within:border-x-black/[0.16] dark:hover:border-x-white/[0.16] dark:focus-within:border-x-white/[0.16] sm:-mx-5 sm:px-5 lg:-mx-8 lg:px-8 lg:py-4 ${rowBackground} ${isLast ? '' : 'border-b border-b-[var(--color-border)]'}`}
 			aria-label={`Line ${index + 1}: ${item.productName}`}
 		>
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-						style={{ fontSize: '10.5px', letterSpacing: '0.04em' }}
-					>
-						{(index + 1).toString().padStart(2, '0')}
-					</p>
-					<button
-						type="button"
-						onClick={onReplace}
-						className="mt-1 text-start font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none transition-colors hover:text-[var(--color-primary)] focus-visible:text-[var(--color-primary)]"
-						style={{
-							fontSize: '15px',
-							fontWeight: 500,
-							letterSpacing: '-0.005em',
-							lineHeight: 1.25,
-						}}
-					>
-						{item.productName}
-					</button>
-				</div>
-				<div className="flex shrink-0 flex-col items-end gap-2">
-					<PriceStatusBadge
-						priceStatus={item.priceStatus ?? 'updated'}
-						recentlyOrdered={item.recentlyOrdered ?? false}
-					/>
-					<EmployeeActionButton
-						type="button"
-						onClick={onReplace}
-						tone="neutral"
-						size="sm"
-					>
-						Replace
-					</EmployeeActionButton>
-				</div>
-			</div>
-
-			{item.specification && (
-				<p
-					className="mt-1 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-					style={{ fontSize: '11.5px', lineHeight: 1.45 }}
+			<div className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+				<button
+					type="button"
+					onClick={onEditMargin}
+					aria-label={`Edit ${item.productName}, quantity ${item.quantity ?? 0}, margin ${item.marginPercent || 0}%`}
+					className="block w-full min-w-0 rounded-md border-0 bg-transparent p-0 text-start outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
 				>
-					{item.specification}
-				</p>
-			)}
+					<span className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+						<span className="min-w-0">
+							<span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+								<span
+									className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
+									style={{ fontSize: '10px', letterSpacing: '0.04em' }}
+								>
+									{(index + 1).toString().padStart(2, '0')}
+								</span>
+							</span>
+							<span
+								className="mt-0.5 block break-words font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+								style={{
+									fontSize: '15px',
+									fontWeight: 500,
+									letterSpacing: '0',
+									lineHeight: 1.25,
+								}}
+							>
+								{item.productName}
+								<LineStatusMark priceStatus={item.priceStatus ?? 'updated'} />
+							</span>
+						</span>
+						<span className="min-w-[92px] text-end">
+							<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+								total
+							</span>
+							<span className="mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums text-[var(--color-text)]">
+								{totalLabel}
+							</span>
+						</span>
+					</span>
 
-			<div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
-				<LineMetric label="qty">
-					<input
-						type="number"
-						min={1}
-						step={1}
-						value={item.quantity ?? ''}
-						onChange={(e) => {
-							const raw = Number(e.target.value)
-							onQuantityChange(Number.isFinite(raw) && raw > 0 ? raw : 1)
-						}}
-						onFocus={(e) => e.currentTarget.select()}
-						aria-label={`Quantity for ${item.productName}`}
-						className="h-10 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-						style={{ fontSize: '14px', fontWeight: 500 }}
-					/>
-				</LineMetric>
-				<LineMetric label="cost">
-					<span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-						{item.supplierCost
-							? item.supplierCost.toLocaleString('en-EG')
-							: '—'}
+					<span className="mt-3 flex flex-wrap items-center gap-2">
+						<span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5">
+							<span className="font-[family-name:var(--font-plex-mono)] text-[12px] font-semibold tabular-nums text-[var(--color-text)]">
+								{item.quantity ?? 0}
+							</span>
+							<span
+								className="font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-muted)]"
+								style={{ letterSpacing: '0' }}
+							>
+								{item.quantity === 1 ? 'Unit' : 'Units'}
+							</span>
+						</span>
+						<span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5">
+							<span className="font-[family-name:var(--font-plex-mono)] text-[12px] font-medium tabular-nums text-[var(--color-text)]">
+								{priceLabel}
+							</span>
+						</span>
+						<span className="inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 text-start">
+							<span
+								className="font-[family-name:var(--font-plex-mono)] text-[12px] font-semibold tabular-nums"
+								style={{ color: marginColor }}
+							>
+								{item.marginPercent || 0}%
+							</span>
+						</span>
 					</span>
-				</LineMetric>
-				<LineMetric label="source">
-					<EmployeeActionButton
-						type="button"
-						onClick={onSelectSource}
-						tone="neutral"
-						size="sm"
-					>
-						{sourceLabel}
-					</EmployeeActionButton>
-				</LineMetric>
-				<LineMetric label="margin">
-					<button
-						type="button"
-						onClick={onEditMargin}
-						aria-label={`Edit margin for ${item.productName}, currently ${item.marginPercent || 0}%`}
-						className="inline-flex items-baseline gap-1.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
-						style={{ fontSize: '13px', fontWeight: 500 }}
-					>
-						<span
-							aria-hidden="true"
-							className="shrink-0 self-center rounded-full"
-							style={{ width: 6, height: 6, backgroundColor: marginColor }}
-						/>
-						{item.marginPercent || 0}%
-					</button>
-				</LineMetric>
-				<LineMetric label="price">
-					<span style={{ fontSize: '13px', fontWeight: 500 }}>
-						{item.sellPrice ? item.sellPrice.toLocaleString('en-EG') : '—'}
-					</span>
-				</LineMetric>
-				<LineMetric label="line total">
-					<span style={{ fontSize: '15px', fontWeight: 600 }}>
-						{(item.lineTotal || 0).toLocaleString('en-EG', {
-							minimumFractionDigits: 2,
-						})}
-					</span>
-				</LineMetric>
-				<div className="flex items-end justify-end">
-					<EmployeeActionButton
-						type="button"
-						onClick={onRemove}
-						tone="danger"
-						size="sm"
-					>
-						Remove
-					</EmployeeActionButton>
-				</div>
+				</button>
+				<button
+					type="button"
+					onClick={onRemove}
+					aria-label={`Remove ${item.productName} from quote`}
+					className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-black/[0.08] text-[var(--color-text-subtle)] outline-none transition-colors hover:border-red-600/35 hover:bg-red-600/[0.05] hover:text-red-700 focus-visible:ring-2 focus-visible:ring-red-600/25 dark:border-white/[0.1] dark:hover:text-red-300"
+				>
+					<X size={14} strokeWidth={2} aria-hidden="true" />
+				</button>
 			</div>
-		</article>
+		</li>
 	)
 }
 
-function ReviewLineCard({ item }: { item: LineItemFormValues }) {
+function AddQuoteLineCard({ onAdd }: { onAdd: () => void }) {
 	return (
-		<article className="border-b border-[var(--color-border)] py-4">
-			<p
-				className="font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
-				style={{ fontSize: '14px', fontWeight: 500, letterSpacing: '-0.005em' }}
+		<li className="py-3.5">
+			<button
+				type="button"
+				onClick={onAdd}
+				className="flex min-h-14 w-full items-center justify-center rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
 			>
-				{item.productName}
-			</p>
-			<div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
-				<LineMetric label="qty">
-					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-						{item.quantity}
-					</span>
-				</LineMetric>
-				<LineMetric label="cost">
-					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-						{item.supplierCost?.toLocaleString('en-EG') ?? '—'}
-					</span>
-				</LineMetric>
-				<LineMetric label="margin">
-					<span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-						{item.marginPercent}%
-					</span>
-				</LineMetric>
-				<LineMetric label="price">
-					<span style={{ fontSize: '12px' }}>
-						{item.sellPrice?.toLocaleString('en-EG')}
-					</span>
-				</LineMetric>
-				<LineMetric label="total">
-					<span style={{ fontSize: '13px', fontWeight: 500 }}>
-						{(item.lineTotal || 0).toLocaleString('en-EG', {
-							minimumFractionDigits: 2,
-						})}
-					</span>
-				</LineMetric>
+				+ADD
+			</button>
+		</li>
+	)
+}
+
+function PanelMetric({
+	label,
+	value,
+	emphasis = false,
+}: {
+	label: string
+	value: string
+	emphasis?: boolean
+}) {
+	return (
+		<div className="min-w-0 px-3 py-2">
+			<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+				{label}
+			</span>
+			<span
+				className={`mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)] ${
+					emphasis ? 'text-[15px] font-semibold' : 'text-[13px] font-medium'
+				}`}
+			>
+				{value}
+			</span>
+		</div>
+	)
+}
+
+function AutomaticFxLine({
+	summary,
+	updatedLabel,
+	className = '',
+}: {
+	summary: string
+	updatedLabel: string
+	className?: string
+}) {
+	return (
+		<p
+			className={`font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)] ${className}`}
+		>
+			<span>{summary}</span>
+			<span aria-hidden="true"> · </span>
+			<span>{updatedLabel}</span>
+		</p>
+	)
+}
+
+function LineStatusMark({ priceStatus }: { priceStatus: PriceStatus }) {
+	const isOutdated = priceStatus === 'outdated'
+	if (!isOutdated) return null
+
+	return <OutdatedPriceIcon />
+}
+
+function OutdatedPriceIcon() {
+	return (
+		<svg
+			role="img"
+			aria-label="Outdated price"
+			viewBox="0 0 16 16"
+			fill="none"
+			className="ml-1.5 inline-block h-[0.92em] w-[0.92em] align-[-0.08em] text-[var(--color-signal-amber)]"
+		>
+			<path
+				d="M8 2.25 14.25 13.25H1.75L8 2.25Z"
+				fill="currentColor"
+				opacity="0.13"
+			/>
+			<path
+				d="M8 2.25 14.25 13.25H1.75L8 2.25Z"
+				stroke="currentColor"
+				strokeWidth="1.45"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M8 5.75V9"
+				stroke="currentColor"
+				strokeWidth="1.45"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M8 11.35H8.01"
+				stroke="currentColor"
+				strokeWidth="1.9"
+				strokeLinecap="round"
+			/>
+		</svg>
+	)
+}
+
+function formatLineMoney(value?: number, minimumFractionDigits = 2) {
+	if (!value || value <= 0) return '—'
+	return `${value.toLocaleString('en-EG', { minimumFractionDigits })}LE`
+}
+
+function formatMoneyAmount(value: number | null, minimumFractionDigits = 2) {
+	if (value == null || !Number.isFinite(value) || value < 0) return '—'
+	return `${value.toLocaleString('en-EG', { minimumFractionDigits })}LE`
+}
+
+function formatPlainNumber(value: number, maximumFractionDigits = 4) {
+	return value.toLocaleString('en-EG', {
+		maximumFractionDigits,
+		minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+	})
+}
+
+function formatUnitCount(value: number | null) {
+	if (value == null || !Number.isFinite(value) || value < 0) return '—'
+	return `${value.toLocaleString('en-EG')} Units`
+}
+
+function computeSellPriceFromMargin(cost: number, margin: number): number {
+	if (cost <= 0 || margin >= 100) return 0
+	return Math.round((cost / (1 - margin / 100)) * 100) / 100
+}
+
+function getEffectiveQuoteMarginCap(floor: number) {
+	return getSalesMarginCap(floor)
+}
+
+function clampQuoteMargin(raw: number, min: number): number {
+	return clampSalesMargin(raw, min, getEffectiveQuoteMarginCap(min))
+}
+
+function getMarginProgress(value: number, floor: number, cap: number) {
+	const span = Math.max(1, cap - floor)
+	return Math.max(0, Math.min(100, ((value - floor) / span) * 100))
+}
+
+function getItemEditorMarginColor(
+	margin: number,
+	floorMargin: number,
+	targetMargin: number,
+	bonusMargin: number,
+) {
+	if (margin < floorMargin) return SALES_MARGIN_FLOOR_COLOR
+	return getSalesMarginColor(margin, targetMargin, bonusMargin)
+}
+
+function getItemEditorMarginTrack(
+	targetProgress: number,
+	bonusProgress: number,
+) {
+	const low = SALES_MARGIN_FLOOR_COLOR
+	const target = SALES_MARGIN_TARGET_COLOR
+	const bonus = SALES_MARGIN_BONUS_COLOR
+	return `linear-gradient(90deg, ${low} 0%, ${low} ${targetProgress}%, ${target} ${targetProgress}%, ${target} ${bonusProgress}%, ${bonus} ${bonusProgress}%, ${bonus} 100%)`
+}
+
+function parseMoneyInput(raw: string): {
+	amount: number | null
+	currency?: PanelCurrency
+} {
+	const normalized = raw.trim().toLowerCase()
+	if (!normalized) return { amount: null }
+
+	let currency: PanelCurrency | undefined
+	if (normalized.includes('$') || normalized.includes('usd')) currency = 'USD'
+	else if (normalized.includes('€') || normalized.includes('eur'))
+		currency = 'EUR'
+	else if (normalized.includes('sar') || normalized.includes('riyal'))
+		currency = 'SAR'
+	else if (
+		normalized.includes('egp') ||
+		normalized.includes('le') ||
+		normalized.includes('جنيه')
+	)
+		currency = 'EGP'
+
+	const amountText = normalized.replace(/,/g, '').replace(/[^\d.-]/g, '')
+	const amount = Number(amountText)
+	return {
+		amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+		currency,
+	}
+}
+
+type ArithmeticToken =
+	| { kind: 'number'; value: number }
+	| { kind: 'operator'; value: '+' | '-' | '*' | '/' }
+	| { kind: 'paren'; value: '(' | ')' }
+
+function tokenizeArithmeticExpression(expression: string) {
+	const tokens: ArithmeticToken[] = []
+	let index = 0
+
+	while (index < expression.length) {
+		const character = expression[index]
+		if (!character) break
+		if (/\s/.test(character) || character === ',') {
+			index += 1
+			continue
+		}
+
+		if ((character >= '0' && character <= '9') || character === '.') {
+			let numberText = ''
+			let decimalCount = 0
+			while (index < expression.length) {
+				const next = expression[index]
+				if (!next) break
+				if (next === '.') {
+					decimalCount += 1
+					if (decimalCount > 1) return null
+					numberText += next
+					index += 1
+					continue
+				}
+				if (next < '0' || next > '9') break
+				numberText += next
+				index += 1
+			}
+			if (numberText === '.') return null
+			const value = Number(numberText)
+			if (!Number.isFinite(value)) return null
+			tokens.push({ kind: 'number', value })
+			continue
+		}
+
+		switch (character) {
+			case '+':
+			case '-':
+			case '*':
+			case '/':
+				tokens.push({ kind: 'operator', value: character })
+				index += 1
+				break
+			case '(':
+			case ')':
+				tokens.push({ kind: 'paren', value: character })
+				index += 1
+				break
+			default:
+				return null
+		}
+	}
+
+	return tokens
+}
+
+function evaluateArithmeticExpression(expression: string) {
+	const tokens = tokenizeArithmeticExpression(expression)
+	if (!tokens || tokens.length === 0) return null
+	let position = 0
+
+	const peek = () => tokens[position]
+	const consume = () => {
+		const token = tokens[position]
+		position += 1
+		return token
+	}
+
+	const parseFactor = (): number | null => {
+		const token = peek()
+		if (!token) return null
+
+		if (
+			token.kind === 'operator' &&
+			(token.value === '-' || token.value === '+')
+		) {
+			consume()
+			const value = parseFactor()
+			if (value == null) return null
+			return token.value === '-' ? -value : value
+		}
+
+		if (token.kind === 'number') {
+			consume()
+			return token.value
+		}
+
+		if (token.kind === 'paren' && token.value === '(') {
+			consume()
+			const value = parseExpression()
+			const closing = consume()
+			if (!closing || closing.kind !== 'paren' || closing.value !== ')') {
+				return null
+			}
+			return value
+		}
+
+		return null
+	}
+
+	const parseTerm = (): number | null => {
+		let value = parseFactor()
+		if (value == null) return null
+
+		while (true) {
+			const token = peek()
+			if (
+				!token ||
+				token.kind !== 'operator' ||
+				(token.value !== '*' && token.value !== '/')
+			) {
+				break
+			}
+			consume()
+			const next = parseFactor()
+			if (next == null) return null
+			if (token.value === '*') value *= next
+			else {
+				if (next === 0) return null
+				value /= next
+			}
+		}
+
+		return value
+	}
+
+	function parseExpression(): number | null {
+		let value = parseTerm()
+		if (value == null) return null
+
+		while (true) {
+			const token = peek()
+			if (
+				!token ||
+				token.kind !== 'operator' ||
+				(token.value !== '+' && token.value !== '-')
+			) {
+				break
+			}
+			consume()
+			const next = parseTerm()
+			if (next == null) return null
+			value = token.value === '+' ? value + next : value - next
+		}
+
+		return value
+	}
+
+	const result = parseExpression()
+	if (
+		result == null ||
+		position !== tokens.length ||
+		!Number.isFinite(result)
+	) {
+		return null
+	}
+	return Math.round(result * 10000) / 10000
+}
+
+function getLineMarginColor(
+	marginPercent: number,
+	thresholds: MarginThresholds | null,
+) {
+	if (!thresholds) return getSalesMarginColor(marginPercent)
+	return getSalesMarginColor(
+		marginPercent,
+		thresholds.target,
+		SALES_MARGIN_CAP_PERCENT,
+	)
+}
+
+function ItemEditPanel({
+	item,
+	index,
+	marginFloor,
+	thresholds,
+	exchangeRates,
+	isRequestingPrice,
+	isPriceRequested,
+	onQuantityChange,
+	onMarginChange,
+	onRequestPriceUpdate,
+	onClose,
+}: {
+	item: LineItemFormValues
+	index: number
+	marginFloor: number
+	thresholds: MarginThresholds | null
+	exchangeRates: AutomaticExchangeRates
+	isRequestingPrice: boolean
+	isPriceRequested: boolean
+	onQuantityChange: (quantity: number) => void
+	onMarginChange: (margin: number) => void
+	onRequestPriceUpdate: () => void
+	onClose: () => void
+}) {
+	const reduceMotion = useReducedMotion()
+	const isCompactPanel = useCompactPanelLayout()
+	const priceStatus = item.priceStatus ?? 'updated'
+	const isOutdated = priceStatus === 'outdated'
+	const quantity = item.quantity || 0
+	const supplierCost = item.supplierCost || 0
+	const margin = item.marginPercent || 0
+	const sellPrice = item.sellPrice || 0
+	const lineTotal =
+		item.lineTotal || Math.round(sellPrice * quantity * 100) / 100
+	const lineCost = Math.round(supplierCost * quantity * 100) / 100
+	const lineProfit = lineTotal - lineCost
+	const fieldBaseId = `quote-line-${index}`
+	const [calculatorExpression, setCalculatorExpression] = useState('')
+	const [calculatorResult, setCalculatorResult] = useState<number | null>(null)
+	const [calculatorError, setCalculatorError] = useState('')
+	const [budgetAmount, setBudgetAmount] = useState('')
+	const [budgetCurrency, setBudgetCurrency] = useState<PanelCurrency>('EGP')
+	const [exchangeCurrency, setExchangeCurrency] = useState<PanelCurrency>('EGP')
+	const [activeMobileTool, setActiveMobileTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const [isMobileToolMenuOpen, setIsMobileToolMenuOpen] = useState(false)
+	const [highlightedMobileTool, setHighlightedMobileTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const [dimmedMobileTool, setDimmedMobileTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const [activeDesktopTool, setActiveDesktopTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const [isDesktopToolMenuOpen, setIsDesktopToolMenuOpen] = useState(false)
+	const [highlightedDesktopTool, setHighlightedDesktopTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const [dimmedDesktopTool, setDimmedDesktopTool] =
+		useState<ItemEditMobileTool | null>(null)
+	const mobileScrollRef = useRef<HTMLDivElement | null>(null)
+	const desktopScrollRef = useRef<HTMLDivElement | null>(null)
+	const mobileHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	)
+	const mobileDimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const desktopHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	)
+	const desktopDimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const mobileToolRefs = useRef<Record<ItemEditMobileTool, HTMLElement | null>>(
+		{
+			quantity: null,
+			budget: null,
+			exchange: null,
+			calculator: null,
+			inventory: null,
+		},
+	)
+	const desktopToolRefs = useRef<
+		Record<ItemEditMobileTool, HTMLElement | null>
+	>({
+		quantity: null,
+		budget: null,
+		exchange: null,
+		calculator: null,
+		inventory: null,
+	})
+	const marginCap = getEffectiveQuoteMarginCap(marginFloor)
+	const targetMargin = thresholds
+		? Math.min(marginCap, Math.max(marginFloor, thresholds.target))
+		: Math.min(marginCap, marginFloor + 5)
+	const bonusMargin = marginCap
+	const targetProgress = getMarginProgress(targetMargin, marginFloor, marginCap)
+	const bonusProgress = getMarginProgress(bonusMargin, marginFloor, marginCap)
+	const currentMarginColor = getItemEditorMarginColor(
+		margin,
+		marginFloor,
+		targetMargin,
+		bonusMargin,
+	)
+	const marginTrackBackground = getItemEditorMarginTrack(
+		targetProgress,
+		bonusProgress,
+	)
+	const canUseCurrencyRate = (currency: PanelCurrency) => {
+		if (currency === 'EGP') return true
+		const rate = exchangeRates.rates[currency]
+		return rate != null && Number.isFinite(rate) && rate > 0
+	}
+	const normalizeMoneyToEgp = (value: number, currency: PanelCurrency) => {
+		if (currency === 'EGP') return value
+		return value * (exchangeRates.rates[currency] ?? 0)
+	}
+	const parsedBudget = parseMoneyInput(budgetAmount)
+	const effectiveBudgetCurrency = parsedBudget.currency ?? budgetCurrency
+	const budgetUsesForeignRate = effectiveBudgetCurrency !== 'EGP'
+	const budgetRate = exchangeRates.rates[effectiveBudgetCurrency]
+	const exchangeNeedsRate = exchangeCurrency !== 'EGP'
+	const budgetEgp =
+		parsedBudget.amount != null && canUseCurrencyRate(effectiveBudgetCurrency)
+			? normalizeMoneyToEgp(parsedBudget.amount, effectiveBudgetCurrency)
+			: null
+	const unitPriceAtMargin =
+		computeSellPriceFromMargin(supplierCost, margin) || sellPrice
+	const budgetUnits =
+		budgetEgp != null && unitPriceAtMargin > 0
+			? Math.floor(budgetEgp / unitPriceAtMargin)
+			: null
+	const budgetUsed =
+		budgetUnits != null
+			? Math.round(budgetUnits * unitPriceAtMargin * 100) / 100
+			: null
+	const budgetRemaining =
+		budgetEgp != null && budgetUsed != null
+			? Math.max(0, Math.round((budgetEgp - budgetUsed) * 100) / 100)
+			: null
+	const parsedExchangeRate = exchangeRates.rates[exchangeCurrency]
+	const canConvertExchange =
+		exchangeCurrency === 'EGP' ||
+		(parsedExchangeRate != null &&
+			Number.isFinite(parsedExchangeRate) &&
+			parsedExchangeRate > 0)
+	const exchangeUnitValue =
+		exchangeCurrency === 'EGP'
+			? sellPrice
+			: parsedExchangeRate != null && parsedExchangeRate > 0
+				? sellPrice / parsedExchangeRate
+				: null
+	const exchangeLineValue =
+		exchangeCurrency === 'EGP'
+			? lineTotal
+			: parsedExchangeRate != null && parsedExchangeRate > 0
+				? lineTotal / parsedExchangeRate
+				: null
+	const exchangeRateSummary =
+		exchangeCurrency === 'EGP'
+			? 'Base currency'
+			: parsedExchangeRate != null && parsedExchangeRate > 0
+				? `1 ${exchangeCurrency} = ${formatMoneyAmount(parsedExchangeRate)}`
+				: 'Automatic rate unavailable'
+	const budgetRateSummary =
+		effectiveBudgetCurrency === 'EGP'
+			? 'Base currency'
+			: budgetRate != null && budgetRate > 0
+				? `1 ${effectiveBudgetCurrency} = ${formatMoneyAmount(budgetRate)}`
+				: 'Automatic rate unavailable'
+	const exchangeUpdatedAt = exchangeRates.updatedAt
+		? new Date(exchangeRates.updatedAt)
+		: null
+	const exchangeUpdatedLabel =
+		exchangeUpdatedAt && !Number.isNaN(exchangeUpdatedAt.getTime())
+			? exchangeUpdatedAt.toLocaleDateString('en-EG', {
+					month: 'short',
+					day: 'numeric',
+				})
+			: 'latest available'
+	const appendCalculatorToken = (token: string) => {
+		setCalculatorExpression((current) => {
+			const trimmed = current.trimEnd()
+			const needsLeadingSpace = trimmed.length > 0
+			return `${trimmed}${needsLeadingSpace ? ' ' : ''}${token} `
+		})
+		setCalculatorError('')
+	}
+	const requestLabel = isRequestingPrice
+		? 'Requesting price'
+		: isPriceRequested
+			? 'Inventory notified'
+			: isOutdated
+				? 'Request inventory price'
+				: 'Price current'
+	const inputClassName =
+		'h-11 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums text-[var(--color-text)] outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+	const runCalculator = () => {
+		const result = evaluateArithmeticExpression(calculatorExpression)
+		if (result == null) {
+			setCalculatorError('Enter a valid calculation')
+			setCalculatorResult(null)
+			return
+		}
+		setCalculatorError('')
+		setCalculatorResult(result)
+	}
+	const mobileTools: Array<{
+		id: ItemEditMobileTool
+		label: string
+		detail: string
+	}> = [
+		{
+			id: 'quantity',
+			label: 'Quantity',
+			detail: quantity.toLocaleString('en-EG'),
+		},
+		{
+			id: 'budget',
+			label: 'Budget',
+			detail:
+				budgetUnits == null ? 'plan' : budgetUnits.toLocaleString('en-EG'),
+		},
+		{
+			id: 'exchange',
+			label: 'Exchange',
+			detail: exchangeCurrency,
+		},
+		{
+			id: 'calculator',
+			label: 'Calculator',
+			detail:
+				calculatorResult == null ? '+-*/' : formatPlainNumber(calculatorResult),
+		},
+		{
+			id: 'inventory',
+			label: 'Inventory',
+			detail: isOutdated ? 'outdated' : 'current',
+		},
+	]
+	const mobileToolHeadingClassName = (tool: ItemEditMobileTool) =>
+		`font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-300 ${
+			highlightedMobileTool === tool
+				? 'text-[var(--color-primary)]'
+				: 'text-[var(--color-text)]'
+		}`
+	const mobileToolSectionClassName = (tool: ItemEditMobileTool) =>
+		`-mx-2 scroll-mt-4 space-y-3 rounded-md px-2 py-5 transition-colors duration-300 first:pt-2 last:pb-2 ${
+			dimmedMobileTool === tool
+				? 'bg-black/[0.035] dark:bg-white/[0.055]'
+				: 'bg-transparent'
+		}`
+	const desktopToolHeadingClassName = (tool: ItemEditMobileTool) =>
+		`font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-300 ${
+			highlightedDesktopTool === tool
+				? 'text-[var(--color-primary)]'
+				: 'text-[var(--color-text)]'
+		}`
+	const desktopToolSectionClassName = (
+		tool: ItemEditMobileTool,
+		baseClassName = '',
+	) =>
+		`${baseClassName} scroll-mt-4 transition-colors duration-300 ${
+			dimmedDesktopTool === tool ? 'bg-black/[0.035] dark:bg-white/[0.055]' : ''
+		}`
+	const setMobileToolRef =
+		(tool: ItemEditMobileTool) => (node: HTMLElement | null) => {
+			mobileToolRefs.current[tool] = node
+		}
+	const setDesktopToolRef =
+		(tool: ItemEditMobileTool) => (node: HTMLElement | null) => {
+			desktopToolRefs.current[tool] = node
+		}
+	const selectMobileTool = (tool: ItemEditMobileTool | null) => {
+		setActiveMobileTool(tool)
+		setIsMobileToolMenuOpen(false)
+
+		if (mobileHighlightTimerRef.current) {
+			clearTimeout(mobileHighlightTimerRef.current)
+			mobileHighlightTimerRef.current = null
+		}
+		if (mobileDimTimerRef.current) {
+			clearTimeout(mobileDimTimerRef.current)
+			mobileDimTimerRef.current = null
+		}
+
+		if (!tool) {
+			setHighlightedMobileTool(null)
+			setDimmedMobileTool(null)
+			window.requestAnimationFrame(() => {
+				mobileScrollRef.current?.scrollTo({
+					top: 0,
+					behavior: reduceMotion ? 'auto' : 'smooth',
+				})
+			})
+			return
+		}
+
+		setHighlightedMobileTool(tool)
+		setDimmedMobileTool(tool)
+		mobileHighlightTimerRef.current = setTimeout(() => {
+			setHighlightedMobileTool(null)
+			mobileHighlightTimerRef.current = null
+		}, 3000)
+		mobileDimTimerRef.current = setTimeout(() => {
+			setDimmedMobileTool(null)
+			mobileDimTimerRef.current = null
+		}, 1000)
+		window.requestAnimationFrame(() => {
+			mobileToolRefs.current[tool]?.scrollIntoView({
+				behavior: reduceMotion ? 'auto' : 'smooth',
+				block: 'start',
+			})
+		})
+	}
+	const selectDesktopTool = (tool: ItemEditMobileTool | null) => {
+		setActiveDesktopTool(tool)
+		setIsDesktopToolMenuOpen(false)
+
+		if (desktopHighlightTimerRef.current) {
+			clearTimeout(desktopHighlightTimerRef.current)
+			desktopHighlightTimerRef.current = null
+		}
+		if (desktopDimTimerRef.current) {
+			clearTimeout(desktopDimTimerRef.current)
+			desktopDimTimerRef.current = null
+		}
+
+		if (!tool) {
+			setHighlightedDesktopTool(null)
+			setDimmedDesktopTool(null)
+			window.requestAnimationFrame(() => {
+				desktopScrollRef.current?.scrollTo({
+					top: 0,
+					behavior: reduceMotion ? 'auto' : 'smooth',
+				})
+			})
+			return
+		}
+
+		setHighlightedDesktopTool(tool)
+		setDimmedDesktopTool(tool)
+		desktopHighlightTimerRef.current = setTimeout(() => {
+			setHighlightedDesktopTool(null)
+			desktopHighlightTimerRef.current = null
+		}, 3000)
+		desktopDimTimerRef.current = setTimeout(() => {
+			setDimmedDesktopTool(null)
+			desktopDimTimerRef.current = null
+		}, 1000)
+		window.requestAnimationFrame(() => {
+			desktopToolRefs.current[tool]?.scrollIntoView({
+				behavior: reduceMotion ? 'auto' : 'smooth',
+				block: 'start',
+			})
+		})
+	}
+
+	useEffect(() => {
+		return () => {
+			if (mobileHighlightTimerRef.current) {
+				clearTimeout(mobileHighlightTimerRef.current)
+			}
+			if (mobileDimTimerRef.current) {
+				clearTimeout(mobileDimTimerRef.current)
+			}
+			if (desktopHighlightTimerRef.current) {
+				clearTimeout(desktopHighlightTimerRef.current)
+			}
+			if (desktopDimTimerRef.current) {
+				clearTimeout(desktopDimTimerRef.current)
+			}
+		}
+	}, [])
+
+	if (isCompactPanel) {
+		return (
+			<div className="flex h-full flex-col bg-[var(--color-surface)]">
+				<div ref={mobileScrollRef} className="min-h-0 flex-1 overflow-auto">
+					<header className="border-b border-[var(--color-border)] px-4 py-4">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+									item {(index + 1).toString().padStart(2, '0')} /{' '}
+									{quantity.toLocaleString('en-EG')}{' '}
+									{quantity === 1 ? 'Unit' : 'Units'}
+								</p>
+								<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+									{isOutdated ? 'price needs refresh' : 'price is current'}
+								</p>
+							</div>
+							<div className="shrink-0 text-end">
+								<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+									line
+								</span>
+								<span className="mt-1 block max-w-[118px] break-words font-[family-name:var(--font-plex-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+									{formatLineMoney(lineTotal, 2)}
+								</span>
+							</div>
+						</div>
+
+						<div className="mt-4 border-y border-[var(--color-border)] py-5">
+							<div className="flex items-end justify-between gap-3">
+								<div className="min-w-0">
+									<p className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--color-text-subtle)]">
+										margin
+									</p>
+									<p
+										className="mt-1 font-[family-name:var(--font-plex-mono)] text-[44px] font-semibold leading-none tabular-nums"
+										style={{ color: currentMarginColor, letterSpacing: '0' }}
+									>
+										{formatMarginPercent(margin)}
+									</p>
+								</div>
+								<div className="shrink-0 text-end">
+									<p className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+										unit
+									</p>
+									<p className="mt-1 max-w-[120px] break-words font-[family-name:var(--font-plex-mono)] text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
+										{formatLineMoney(sellPrice)}
+									</p>
+								</div>
+							</div>
+
+							<div className="mt-4">
+								<input
+									id={`${fieldBaseId}-mobile-margin`}
+									type="range"
+									min={marginFloor}
+									max={marginCap}
+									step="0.1"
+									value={margin}
+									onChange={(e) => {
+										const raw = Number(e.target.value)
+										if (Number.isFinite(raw)) onMarginChange(raw)
+									}}
+									className="h-2 w-full cursor-pointer appearance-none rounded-full border-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-current [&::-moz-range-thumb]:shadow-[0_6px_14px_-8px_rgba(0,0,0,0.55)] [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-current [&::-webkit-slider-thumb]:shadow-[0_6px_14px_-8px_rgba(0,0,0,0.55)]"
+									style={{
+										background: marginTrackBackground,
+										color: currentMarginColor,
+									}}
+									aria-label={`Margin for ${item.productName}`}
+								/>
+							</div>
+							<div className="mt-3 flex items-center justify-between font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+								<span>{formatMarginPercent(marginFloor)}</span>
+								<span>{formatMarginPercent(targetMargin)}</span>
+								<span>{formatMarginPercent(marginCap)}</span>
+							</div>
+
+							<div className="mt-5 grid grid-cols-4 gap-2.5">
+								<MarginStepButton
+									label="-1"
+									onClick={() => onMarginChange(margin - 1)}
+								/>
+								<MarginStepButton
+									label="-0.1"
+									onClick={() => onMarginChange(margin - 0.1)}
+								/>
+								<MarginStepButton
+									label="+0.1"
+									onClick={() => onMarginChange(margin + 0.1)}
+								/>
+								<MarginStepButton
+									label="+1"
+									onClick={() => onMarginChange(margin + 1)}
+								/>
+							</div>
+							<div className="mt-3 grid grid-cols-3 gap-2.5">
+								<CompactMarginPresetButton
+									label="floor"
+									value={marginFloor}
+									tone="floor"
+									onClick={onMarginChange}
+								/>
+								<CompactMarginPresetButton
+									label="target"
+									value={targetMargin}
+									tone="target"
+									onClick={onMarginChange}
+								/>
+								<CompactMarginPresetButton
+									label="bonus"
+									value={bonusMargin}
+									tone="bonus"
+									onClick={onMarginChange}
+								/>
+							</div>
+						</div>
+					</header>
+
+					<div className="divide-y-2 divide-[var(--color-border)] px-3 py-4">
+						{
+							<section
+								ref={setMobileToolRef('quantity')}
+								aria-labelledby={`${fieldBaseId}-mobile-quantity`}
+								className={mobileToolSectionClassName('quantity')}
+							>
+								<h3
+									id={`${fieldBaseId}-mobile-quantity`}
+									className={mobileToolHeadingClassName('quantity')}
+								>
+									quantity
+								</h3>
+								<ItemEditField
+									id={`${fieldBaseId}-mobile-quantity-input`}
+									label="units"
+								>
+									<input
+										id={`${fieldBaseId}-mobile-quantity-input`}
+										type="text"
+										inputMode="numeric"
+										pattern="[0-9]*"
+										min={1}
+										value={item.quantity ?? ''}
+										onChange={(e) => {
+											const raw = Number(normalizeIntegerInput(e.target.value))
+											onQuantityChange(
+												Number.isFinite(raw) && raw > 0 ? raw : 1,
+											)
+										}}
+										onFocus={(e) => e.currentTarget.select()}
+										className="h-14 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 font-[family-name:var(--font-plex-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)] outline-none [appearance:textfield] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+										aria-label={`Quantity for ${item.productName}`}
+									/>
+								</ItemEditField>
+								<div className="grid grid-cols-3 gap-2">
+									<QuantityButton
+										label="-1"
+										onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
+									/>
+									<QuantityButton
+										label="+1"
+										onClick={() => onQuantityChange(quantity + 1)}
+									/>
+									<QuantityButton
+										label="+10"
+										onClick={() => onQuantityChange(quantity + 10)}
+									/>
+								</div>
+								<div className="grid divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)] bg-black/[0.012] dark:bg-white/[0.025]">
+									<PanelMetric
+										label="cost basis"
+										value={formatLineMoney(supplierCost)}
+									/>
+									<PanelMetric
+										label="line cost"
+										value={formatLineMoney(lineCost)}
+									/>
+									<PanelMetric
+										label="profit"
+										value={formatLineMoney(lineProfit)}
+										emphasis
+									/>
+								</div>
+							</section>
+						}
+
+						{
+							<section
+								ref={setMobileToolRef('budget')}
+								aria-labelledby={`${fieldBaseId}-mobile-budget`}
+								className={mobileToolSectionClassName('budget')}
+							>
+								<h3
+									id={`${fieldBaseId}-mobile-budget`}
+									className={mobileToolHeadingClassName('budget')}
+								>
+									budget planner
+								</h3>
+								<ItemEditField
+									id={`${fieldBaseId}-mobile-budget-input`}
+									label="approved budget"
+								>
+									<input
+										id={`${fieldBaseId}-mobile-budget-input`}
+										type="text"
+										inputMode="decimal"
+										value={budgetAmount}
+										onChange={(e) =>
+											setBudgetAmount(normalizeDecimalInput(e.target.value))
+										}
+										onFocus={(e) => e.currentTarget.select()}
+										className={inputClassName}
+										placeholder="Approved customer budget"
+									/>
+								</ItemEditField>
+								<div className="grid grid-cols-4 gap-2">
+									{PANEL_CURRENCIES.map((currency) => (
+										<button
+											key={currency}
+											type="button"
+											onClick={() => setBudgetCurrency(currency)}
+											aria-pressed={effectiveBudgetCurrency === currency}
+											className={`h-10 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+												effectiveBudgetCurrency === currency
+													? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+													: 'border-[var(--color-border)] text-[var(--color-text-muted)]'
+											}`}
+										>
+											{currency}
+										</button>
+									))}
+								</div>
+								<AutomaticFxLine
+									summary={budgetRateSummary}
+									updatedLabel={exchangeUpdatedLabel}
+								/>
+								<div className="grid grid-cols-2 gap-2">
+									<PanelMetric
+										label="available"
+										value={formatUnitCount(budgetUnits)}
+										emphasis={budgetUnits != null}
+									/>
+									<PanelMetric
+										label="unit"
+										value={formatLineMoney(unitPriceAtMargin)}
+									/>
+									<PanelMetric
+										label="used"
+										value={formatMoneyAmount(budgetUsed)}
+									/>
+									<PanelMetric
+										label="left"
+										value={formatMoneyAmount(budgetRemaining)}
+									/>
+								</div>
+								{budgetUsesForeignRate &&
+									!canUseCurrencyRate(effectiveBudgetCurrency) && (
+										<p className="font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+											Automatic FX is unavailable for {effectiveBudgetCurrency}.
+											Use an EGP budget or try again later.
+										</p>
+									)}
+							</section>
+						}
+
+						{
+							<section
+								ref={setMobileToolRef('exchange')}
+								aria-labelledby={`${fieldBaseId}-mobile-exchange`}
+								className={mobileToolSectionClassName('exchange')}
+							>
+								<h3
+									id={`${fieldBaseId}-mobile-exchange`}
+									className={mobileToolHeadingClassName('exchange')}
+								>
+									exchange desk
+								</h3>
+								<div className="grid grid-cols-4 gap-2">
+									{PANEL_CURRENCIES.map((currency) => (
+										<button
+											key={currency}
+											type="button"
+											onClick={() => setExchangeCurrency(currency)}
+											aria-pressed={exchangeCurrency === currency}
+											className={`h-10 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+												exchangeCurrency === currency
+													? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+													: 'border-[var(--color-border)] text-[var(--color-text-muted)]'
+											}`}
+										>
+											{currency}
+										</button>
+									))}
+								</div>
+								<AutomaticFxLine
+									summary={exchangeRateSummary}
+									updatedLabel={exchangeUpdatedLabel}
+								/>
+								<div className="grid grid-cols-2 gap-2">
+									<PanelMetric
+										label="unit egp"
+										value={formatLineMoney(sellPrice)}
+									/>
+									<PanelMetric
+										label="line egp"
+										value={formatLineMoney(lineTotal, 2)}
+										emphasis
+									/>
+									<PanelMetric
+										label={`unit ${exchangeCurrency}`}
+										value={formatExchangeValue(
+											exchangeUnitValue,
+											exchangeCurrency,
+										)}
+										emphasis={canConvertExchange}
+									/>
+									<PanelMetric
+										label={`line ${exchangeCurrency}`}
+										value={formatExchangeValue(
+											exchangeLineValue,
+											exchangeCurrency,
+										)}
+										emphasis={canConvertExchange}
+									/>
+								</div>
+								{exchangeNeedsRate && !canConvertExchange && (
+									<p className="font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+										Automatic FX is unavailable for {exchangeCurrency}. Try
+										again later.
+									</p>
+								)}
+							</section>
+						}
+
+						{
+							<section
+								ref={setMobileToolRef('calculator')}
+								aria-labelledby={`${fieldBaseId}-mobile-calculator`}
+								className={mobileToolSectionClassName('calculator')}
+							>
+								<div className="flex items-center justify-between gap-3">
+									<h3
+										id={`${fieldBaseId}-mobile-calculator`}
+										className={mobileToolHeadingClassName('calculator')}
+									>
+										calculator
+									</h3>
+									<button
+										type="button"
+										onClick={() => {
+											setCalculatorExpression(String(lineTotal || ''))
+											setCalculatorError('')
+										}}
+										className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)]"
+									>
+										use current
+									</button>
+								</div>
+								<ItemEditField
+									id={`${fieldBaseId}-mobile-calculator-input`}
+									label="calculation"
+								>
+									<input
+										id={`${fieldBaseId}-mobile-calculator-input`}
+										type="text"
+										inputMode="decimal"
+										value={calculatorExpression}
+										onChange={(e) => {
+											setCalculatorExpression(
+												normalizeArithmeticInput(e.target.value),
+											)
+											setCalculatorError('')
+										}}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') {
+												e.preventDefault()
+												runCalculator()
+											}
+										}}
+										onFocus={(e) => e.currentTarget.select()}
+										className={inputClassName}
+										placeholder="Arithmetic expression"
+									/>
+								</ItemEditField>
+								<div className="grid grid-cols-4 gap-2">
+									{['+', '-', '*', '/'].map((operator) => (
+										<button
+											key={operator}
+											type="button"
+											onClick={() => appendCalculatorToken(operator)}
+											className="h-12 rounded-md border border-[var(--color-border)] font-[family-name:var(--font-plex-mono)] text-[16px] font-semibold text-[var(--color-text-muted)]"
+										>
+											{operator}
+										</button>
+									))}
+								</div>
+								<button
+									type="button"
+									onClick={runCalculator}
+									className="inline-flex h-12 w-full items-center justify-center rounded-md border border-[var(--color-border)] px-3 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text)]"
+								>
+									calculate
+								</button>
+								<div className="grid grid-cols-2 gap-2">
+									<PanelMetric
+										label="result"
+										value={
+											calculatorResult == null
+												? '—'
+												: formatPlainNumber(calculatorResult)
+										}
+										emphasis={calculatorResult != null}
+									/>
+									<PanelMetric
+										label="current line"
+										value={formatLineMoney(lineTotal, 2)}
+									/>
+								</div>
+								{calculatorError && (
+									<p
+										role="alert"
+										className="font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-signal-red)]"
+									>
+										{calculatorError}
+									</p>
+								)}
+							</section>
+						}
+
+						{
+							<section
+								ref={setMobileToolRef('inventory')}
+								aria-labelledby={`${fieldBaseId}-mobile-inventory`}
+								className={mobileToolSectionClassName('inventory')}
+							>
+								<h3
+									id={`${fieldBaseId}-mobile-inventory`}
+									className={mobileToolHeadingClassName('inventory')}
+								>
+									inventory handoff
+								</h3>
+								<div className="grid divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)]">
+									<PanelMetric
+										label="source cost"
+										value={formatLineMoney(supplierCost)}
+									/>
+									<PanelMetric
+										label="status"
+										value={isOutdated ? 'outdated' : 'updated'}
+									/>
+									<PanelMetric
+										label="line total"
+										value={formatLineMoney(lineTotal, 2)}
+										emphasis
+									/>
+								</div>
+								<EmployeeActionButton
+									type="button"
+									tone={isOutdated && !isPriceRequested ? 'primary' : 'neutral'}
+									onClick={onRequestPriceUpdate}
+									disabled={
+										!isOutdated || isPriceRequested || isRequestingPrice
+									}
+									aria-disabled={
+										!isOutdated || isPriceRequested || isRequestingPrice
+									}
+									leading={
+										isRequestingPrice ? (
+											<Loader2
+												size={13}
+												strokeWidth={2.25}
+												className="animate-spin"
+												aria-hidden="true"
+											/>
+										) : (
+											<RefreshCw
+												size={14}
+												strokeWidth={2.2}
+												aria-hidden="true"
+											/>
+										)
+									}
+									fullWidthOnMobile
+								>
+									{requestLabel}
+								</EmployeeActionButton>
+							</section>
+						}
+					</div>
+				</div>
+
+				<footer className="relative shrink-0 border-t border-[var(--color-border)] px-3 py-3">
+					{isMobileToolMenuOpen && (
+						<div
+							role="menu"
+							className="absolute bottom-[calc(100%+8px)] left-3 z-20 w-[min(320px,calc(100vw-24px))] overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_-28px_rgba(0,0,0,0.65)]"
+						>
+							<button
+								type="button"
+								role="menuitem"
+								onClick={() => {
+									selectMobileTool(null)
+								}}
+								className={`flex min-h-12 w-full items-center justify-between gap-4 border-x border-b border-x-transparent border-b-[var(--color-border)] px-3 text-start outline-none transition-colors hover:border-x-black/[0.16] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:border-x-white/[0.16] ${
+									activeMobileTool === null
+										? 'bg-[var(--color-primary)]/[0.055]'
+										: ''
+								}`}
+							>
+								<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+									Margin only
+								</span>
+								<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+									{formatMarginPercent(margin)}
+								</span>
+							</button>
+							{mobileTools.map((tool) => (
+								<button
+									key={tool.id}
+									type="button"
+									role="menuitem"
+									onClick={() => {
+										selectMobileTool(tool.id)
+									}}
+									className={`flex min-h-12 w-full items-center justify-between gap-4 border-x border-b border-x-transparent border-b-[var(--color-border)] px-3 text-start outline-none transition-colors hover:border-x-black/[0.16] last:border-b-0 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:border-x-white/[0.16] ${
+										activeMobileTool === tool.id
+											? 'bg-[var(--color-primary)]/[0.055]'
+											: ''
+									}`}
+								>
+									<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+										{tool.label}
+									</span>
+									<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+										{tool.detail}
+									</span>
+								</button>
+							))}
+						</div>
+					)}
+					<div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2">
+						<button
+							type="button"
+							onClick={() => setIsMobileToolMenuOpen((open) => !open)}
+							aria-label="Choose item tools"
+							aria-haspopup="menu"
+							aria-expanded={isMobileToolMenuOpen}
+							className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+						>
+							<MoreHorizontal size={18} strokeWidth={2.2} aria-hidden="true" />
+						</button>
+						<EmployeeActionButton
+							type="button"
+							onClick={onClose}
+							tone="primary"
+							leading={<Save size={14} strokeWidth={2.2} aria-hidden="true" />}
+							fullWidthOnMobile
+							className="w-full"
+						>
+							Apply changes
+						</EmployeeActionButton>
+					</div>
+				</footer>
 			</div>
-		</article>
+		)
+	}
+
+	return (
+		<div className="flex h-full flex-col">
+			<header className="shrink-0 border-b border-[var(--color-border)] px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+							<span>item {(index + 1).toString().padStart(2, '0')}</span>
+							<span aria-hidden="true">/</span>
+							<span className="truncate">
+								{quantity.toLocaleString('en-EG')}{' '}
+								{quantity === 1 ? 'Unit' : 'Units'}
+							</span>
+						</div>
+						<h2 className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[20px] font-semibold leading-tight text-[var(--color-text)]">
+							{item.productName}
+							<LineStatusMark priceStatus={priceStatus} />
+						</h2>
+					</div>
+				</div>
+
+				<div className="mt-4 border-y border-[var(--color-border)] bg-black/[0.012] px-1 py-4 dark:bg-white/[0.025] sm:px-2">
+					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+						<div className="min-w-0">
+							<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+								margin command
+							</p>
+							<p
+								className="mt-1 font-[family-name:var(--font-plex-mono)] text-[42px] font-semibold leading-none tabular-nums sm:text-[54px]"
+								style={{ color: currentMarginColor, letterSpacing: '0' }}
+							>
+								{formatMarginPercent(margin)}
+							</p>
+						</div>
+						<div className="min-w-0 sm:min-w-[116px] sm:text-end">
+							<p className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+								customer price
+							</p>
+							<p className="mt-1 break-words font-[family-name:var(--font-plex-mono)] text-[16px] font-semibold tabular-nums text-[var(--color-text)]">
+								{formatLineMoney(sellPrice)}
+							</p>
+							<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+								{formatLineMoney(lineTotal, 2)} line
+							</p>
+						</div>
+					</div>
+
+					<div className="mt-5">
+						<input
+							id={`${fieldBaseId}-margin`}
+							type="range"
+							min={marginFloor}
+							max={marginCap}
+							step="0.1"
+							value={margin}
+							onChange={(e) => {
+								const raw = Number(e.target.value)
+								if (Number.isFinite(raw)) onMarginChange(raw)
+							}}
+							className="h-2 w-full cursor-pointer appearance-none rounded-full border-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-current [&::-moz-range-thumb]:shadow-[0_6px_14px_-8px_rgba(0,0,0,0.55)] [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-current [&::-webkit-slider-thumb]:shadow-[0_6px_14px_-8px_rgba(0,0,0,0.55)]"
+							style={{
+								background: marginTrackBackground,
+								color: currentMarginColor,
+							}}
+							aria-label={`Margin for ${item.productName}`}
+						/>
+					</div>
+					<div className="mt-2 flex items-center justify-between font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+						<span>{formatMarginPercent(marginFloor)} floor</span>
+						<span>{formatMarginPercent(targetMargin)} target</span>
+						<span>{formatMarginPercent(marginCap)} cap</span>
+					</div>
+
+					<div className="mt-4 grid grid-cols-4 gap-2">
+						<MarginStepButton
+							label="-1"
+							onClick={() => onMarginChange(margin - 1)}
+						/>
+						<MarginStepButton
+							label="-0.1"
+							onClick={() => onMarginChange(margin - 0.1)}
+						/>
+						<MarginStepButton
+							label="+0.1"
+							onClick={() => onMarginChange(margin + 0.1)}
+						/>
+						<MarginStepButton
+							label="+1"
+							onClick={() => onMarginChange(margin + 1)}
+						/>
+					</div>
+
+					<div className="mt-3 grid grid-cols-3 gap-2">
+						<MarginPresetButton
+							label="floor"
+							value={marginFloor}
+							tone="floor"
+							onClick={onMarginChange}
+						/>
+						<MarginPresetButton
+							label="target"
+							value={targetMargin}
+							tone="target"
+							onClick={onMarginChange}
+						/>
+						<MarginPresetButton
+							label="bonus"
+							value={bonusMargin}
+							tone="bonus"
+							onClick={onMarginChange}
+						/>
+					</div>
+				</div>
+			</header>
+
+			<div
+				ref={desktopScrollRef}
+				className="min-h-0 flex-1 space-y-5 overflow-auto px-3 py-4 sm:px-4 lg:px-6"
+			>
+				<section
+					ref={setDesktopToolRef('quantity')}
+					aria-labelledby={`${fieldBaseId}-workspace-title`}
+					className={desktopToolSectionClassName('quantity')}
+				>
+					<div className="mb-3 flex items-center justify-between gap-3">
+						<h3
+							id={`${fieldBaseId}-workspace-title`}
+							className={desktopToolHeadingClassName('quantity')}
+						>
+							line workspace
+						</h3>
+						<span
+							aria-hidden="true"
+							className="h-px min-w-8 flex-1 bg-[var(--color-border)]"
+						/>
+					</div>
+					<div className="grid gap-3">
+						<div className="grid divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)] bg-black/[0.012] dark:bg-white/[0.025] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+							<PanelMetric
+								label="cost basis"
+								value={formatLineMoney(supplierCost)}
+							/>
+							<PanelMetric
+								label="line cost"
+								value={formatLineMoney(lineCost)}
+							/>
+							<PanelMetric
+								label="profit"
+								value={formatLineMoney(lineProfit)}
+								emphasis
+							/>
+						</div>
+
+						<div className="rounded-md border border-[var(--color-border)] px-3 py-3">
+							<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+								<ItemEditField id={`${fieldBaseId}-quantity`} label="quantity">
+									<input
+										id={`${fieldBaseId}-quantity`}
+										type="text"
+										inputMode="numeric"
+										pattern="[0-9]*"
+										min={1}
+										value={item.quantity ?? ''}
+										onChange={(e) => {
+											const raw = Number(normalizeIntegerInput(e.target.value))
+											onQuantityChange(
+												Number.isFinite(raw) && raw > 0 ? raw : 1,
+											)
+										}}
+										onFocus={(e) => e.currentTarget.select()}
+										className={inputClassName}
+										aria-label={`Quantity for ${item.productName}`}
+									/>
+								</ItemEditField>
+								<div className="grid grid-cols-3 gap-2 sm:w-[150px]">
+									<QuantityButton
+										label="-1"
+										onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
+									/>
+									<QuantityButton
+										label="+1"
+										onClick={() => onQuantityChange(quantity + 1)}
+									/>
+									<QuantityButton
+										label="+10"
+										onClick={() => onQuantityChange(quantity + 10)}
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section
+					ref={setDesktopToolRef('calculator')}
+					aria-labelledby={`${fieldBaseId}-calculator-title`}
+					className={desktopToolSectionClassName(
+						'calculator',
+						'rounded-md border border-[var(--color-border)] px-3 py-3',
+					)}
+				>
+					<div className="flex items-center justify-between gap-3">
+						<h3
+							id={`${fieldBaseId}-calculator-title`}
+							className={desktopToolHeadingClassName('calculator')}
+						>
+							calculator
+						</h3>
+						<button
+							type="button"
+							onClick={() => {
+								setCalculatorExpression(String(lineTotal || ''))
+								setCalculatorError('')
+							}}
+							className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+						>
+							use current
+						</button>
+					</div>
+					<div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+						<ItemEditField
+							id={`${fieldBaseId}-calculator-expression`}
+							label="calculation"
+						>
+							<input
+								id={`${fieldBaseId}-calculator-expression`}
+								type="text"
+								inputMode="decimal"
+								value={calculatorExpression}
+								onChange={(e) => {
+									setCalculatorExpression(
+										normalizeArithmeticInput(e.target.value),
+									)
+									setCalculatorError('')
+								}}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault()
+										runCalculator()
+									}
+								}}
+								onFocus={(e) => e.currentTarget.select()}
+								className={inputClassName}
+								placeholder="Arithmetic expression"
+								aria-label={`Calculator for ${item.productName}`}
+							/>
+						</ItemEditField>
+						<button
+							type="button"
+							onClick={runCalculator}
+							className="inline-flex h-11 min-w-[120px] items-center justify-center rounded-md border border-[var(--color-border)] px-3 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:text-[var(--color-text-subtle)]"
+						>
+							calculate
+						</button>
+					</div>
+					<div className="mt-2 grid grid-cols-4 gap-2">
+						{['+', '-', '*', '/'].map((operator) => (
+							<button
+								key={operator}
+								type="button"
+								onClick={() => appendCalculatorToken(operator)}
+								className="h-9 rounded-md border border-[var(--color-border)] font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+							>
+								{operator}
+							</button>
+						))}
+					</div>
+					<div className="mt-3 grid gap-2 sm:grid-cols-2">
+						<PanelMetric
+							label="result"
+							value={
+								calculatorResult == null
+									? '—'
+									: formatPlainNumber(calculatorResult)
+							}
+							emphasis={calculatorResult != null}
+						/>
+						<PanelMetric
+							label="current line"
+							value={formatLineMoney(lineTotal, 2)}
+						/>
+					</div>
+					{calculatorError && (
+						<p
+							role="alert"
+							className="mt-2 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-signal-red)]"
+						>
+							{calculatorError}
+						</p>
+					)}
+				</section>
+
+				<section
+					ref={setDesktopToolRef('budget')}
+					aria-labelledby={`${fieldBaseId}-budget-title`}
+					className={desktopToolSectionClassName(
+						'budget',
+						'rounded-md border border-[var(--color-border)] px-3 py-3',
+					)}
+				>
+					<div className="flex items-center justify-between gap-3">
+						<h3
+							id={`${fieldBaseId}-budget-title`}
+							className={desktopToolHeadingClassName('budget')}
+						>
+							budget planner
+						</h3>
+						<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+							{formatMarginPercent(margin)}
+						</span>
+					</div>
+					<div className="mt-3 grid gap-3">
+						<ItemEditField id={`${fieldBaseId}-budget`} label="approved budget">
+							<input
+								id={`${fieldBaseId}-budget`}
+								type="text"
+								inputMode="decimal"
+								value={budgetAmount}
+								onChange={(e) =>
+									setBudgetAmount(normalizeDecimalInput(e.target.value))
+								}
+								onFocus={(e) => e.currentTarget.select()}
+								className={inputClassName}
+								placeholder="Approved customer budget"
+								aria-label={`Budget planner for ${item.productName}`}
+							/>
+						</ItemEditField>
+						<div className="grid grid-cols-4 gap-2">
+							{PANEL_CURRENCIES.map((currency) => (
+								<button
+									key={currency}
+									type="button"
+									onClick={() => setBudgetCurrency(currency)}
+									aria-pressed={effectiveBudgetCurrency === currency}
+									className={`h-9 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+										effectiveBudgetCurrency === currency
+											? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+											: 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+									}`}
+								>
+									{currency}
+								</button>
+							))}
+						</div>
+						<AutomaticFxLine
+							summary={budgetRateSummary}
+							updatedLabel={exchangeUpdatedLabel}
+						/>
+					</div>
+					<div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+						<PanelMetric
+							label="available"
+							value={formatUnitCount(budgetUnits)}
+							emphasis={budgetUnits != null}
+						/>
+						<PanelMetric
+							label="unit at margin"
+							value={formatLineMoney(unitPriceAtMargin)}
+						/>
+						<PanelMetric
+							label="budget used"
+							value={formatMoneyAmount(budgetUsed)}
+						/>
+						<PanelMetric
+							label="left over"
+							value={formatMoneyAmount(budgetRemaining)}
+						/>
+					</div>
+					{budgetUsesForeignRate &&
+						!canUseCurrencyRate(effectiveBudgetCurrency) && (
+							<p className="mt-2 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+								Automatic FX is unavailable for {effectiveBudgetCurrency}. Use
+								an EGP budget or try again later.
+							</p>
+						)}
+				</section>
+
+				<section
+					ref={setDesktopToolRef('exchange')}
+					aria-labelledby={`${fieldBaseId}-exchange-title`}
+					className={desktopToolSectionClassName(
+						'exchange',
+						'rounded-md border border-[var(--color-border)] px-3 py-3',
+					)}
+				>
+					<div className="flex items-center justify-between gap-3">
+						<h3
+							id={`${fieldBaseId}-exchange-title`}
+							className={desktopToolHeadingClassName('exchange')}
+						>
+							exchange desk
+						</h3>
+						<span className="font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
+							automatic rate
+						</span>
+					</div>
+					<div className="mt-3 grid grid-cols-4 gap-2">
+						{PANEL_CURRENCIES.map((currency) => (
+							<button
+								key={currency}
+								type="button"
+								onClick={() => setExchangeCurrency(currency)}
+								aria-pressed={exchangeCurrency === currency}
+								className={`h-9 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+									exchangeCurrency === currency
+										? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+										: 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+								}`}
+							>
+								{currency}
+							</button>
+						))}
+					</div>
+					<AutomaticFxLine
+						summary={exchangeRateSummary}
+						updatedLabel={exchangeUpdatedLabel}
+						className="mt-3"
+					/>
+					<div className="mt-3 grid gap-2 sm:grid-cols-2">
+						<PanelMetric
+							label="unit in egp"
+							value={formatLineMoney(sellPrice)}
+						/>
+						<PanelMetric
+							label="line in egp"
+							value={formatLineMoney(lineTotal, 2)}
+							emphasis
+						/>
+						<PanelMetric
+							label={`unit in ${exchangeCurrency}`}
+							value={formatExchangeValue(exchangeUnitValue, exchangeCurrency)}
+							emphasis={canConvertExchange}
+						/>
+						<PanelMetric
+							label={`line in ${exchangeCurrency}`}
+							value={formatExchangeValue(exchangeLineValue, exchangeCurrency)}
+							emphasis={canConvertExchange}
+						/>
+					</div>
+					{exchangeNeedsRate && !canConvertExchange && (
+						<p className="mt-2 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+							Automatic FX is unavailable for {exchangeCurrency}. Try again
+							later.
+						</p>
+					)}
+				</section>
+
+				<section
+					ref={setDesktopToolRef('inventory')}
+					aria-labelledby={`${fieldBaseId}-actions-title`}
+					className={desktopToolSectionClassName(
+						'inventory',
+						'border-t border-[var(--color-border)] pt-4',
+					)}
+				>
+					<h3
+						id={`${fieldBaseId}-actions-title`}
+						className={desktopToolHeadingClassName('inventory')}
+					>
+						inventory handoff
+					</h3>
+					<div className="mt-2 grid gap-2">
+						<div className="grid divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+							<PanelMetric
+								label="source cost"
+								value={formatLineMoney(supplierCost)}
+							/>
+							<PanelMetric
+								label="status"
+								value={isOutdated ? 'outdated' : 'updated'}
+							/>
+							<PanelMetric
+								label="line total"
+								value={formatLineMoney(lineTotal, 2)}
+								emphasis
+							/>
+						</div>
+					</div>
+					<div className="mt-3 grid gap-2 sm:grid-cols-2">
+						<EmployeeActionButton
+							type="button"
+							tone={isOutdated && !isPriceRequested ? 'primary' : 'neutral'}
+							onClick={onRequestPriceUpdate}
+							disabled={!isOutdated || isPriceRequested || isRequestingPrice}
+							aria-disabled={
+								!isOutdated || isPriceRequested || isRequestingPrice
+							}
+							leading={
+								isRequestingPrice ? (
+									<Loader2
+										size={13}
+										strokeWidth={2.25}
+										className="animate-spin"
+										aria-hidden="true"
+									/>
+								) : (
+									<RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
+								)
+							}
+							fullWidthOnMobile
+						>
+							{requestLabel}
+						</EmployeeActionButton>
+					</div>
+				</section>
+			</div>
+
+			<footer className="relative shrink-0 border-t border-[var(--color-border)] px-4 py-2.5 lg:px-6">
+				{isDesktopToolMenuOpen && (
+					<div
+						role="menu"
+						className="absolute bottom-[calc(100%+8px)] left-4 z-20 w-[320px] overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_-28px_rgba(0,0,0,0.65)] lg:left-6"
+					>
+						<button
+							type="button"
+							role="menuitem"
+							onClick={() => {
+								selectDesktopTool(null)
+							}}
+							className={`flex min-h-11 w-full items-center justify-between gap-4 border-x border-b border-x-transparent border-b-[var(--color-border)] px-3 text-start outline-none transition-colors hover:border-x-black/[0.16] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:border-x-white/[0.16] ${
+								activeDesktopTool === null
+									? 'bg-[var(--color-primary)]/[0.055]'
+									: ''
+							}`}
+						>
+							<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+								Margin only
+							</span>
+							<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+								{formatMarginPercent(margin)}
+							</span>
+						</button>
+						{mobileTools.map((tool) => (
+							<button
+								key={tool.id}
+								type="button"
+								role="menuitem"
+								onClick={() => {
+									selectDesktopTool(tool.id)
+								}}
+								className={`flex min-h-11 w-full items-center justify-between gap-4 border-x border-b border-x-transparent border-b-[var(--color-border)] px-3 text-start outline-none transition-colors hover:border-x-black/[0.16] last:border-b-0 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:border-x-white/[0.16] ${
+									activeDesktopTool === tool.id
+										? 'bg-[var(--color-primary)]/[0.055]'
+										: ''
+								}`}
+							>
+								<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+									{tool.label}
+								</span>
+								<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+									{tool.detail}
+								</span>
+							</button>
+						))}
+					</div>
+				)}
+				<div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2">
+					<button
+						type="button"
+						onClick={() => setIsDesktopToolMenuOpen((open) => !open)}
+						aria-label="Choose item tools"
+						aria-haspopup="menu"
+						aria-expanded={isDesktopToolMenuOpen}
+						className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+					>
+						<MoreHorizontal size={18} strokeWidth={2.2} aria-hidden="true" />
+					</button>
+					<EmployeeActionButton
+						type="button"
+						onClick={onClose}
+						tone="primary"
+						leading={<Save size={14} strokeWidth={2.2} aria-hidden="true" />}
+						fullWidthOnMobile
+						className="w-full"
+					>
+						Apply changes
+					</EmployeeActionButton>
+				</div>
+			</footer>
+		</div>
+	)
+}
+
+function ItemEditField({
+	id,
+	label,
+	children,
+	className = '',
+}: {
+	id: string
+	label: string
+	children: React.ReactNode
+	className?: string
+}) {
+	return (
+		<div className={`min-w-0 ${className}`}>
+			<label
+				htmlFor={id}
+				className="mb-1.5 block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]"
+			>
+				{label}
+			</label>
+			{children}
+		</div>
+	)
+}
+
+function formatMarginPercent(value: number) {
+	return `${value.toLocaleString('en-EG', {
+		maximumFractionDigits: 1,
+		minimumFractionDigits: Number.isInteger(value) ? 0 : 1,
+	})}%`
+}
+
+function formatExchangeValue(value: number | null, currency: string) {
+	if (value == null || !Number.isFinite(value) || value <= 0) return '—'
+	if (currency === 'EGP') return formatLineMoney(value, 2)
+	return `${value.toLocaleString('en-EG', {
+		maximumFractionDigits: 2,
+		minimumFractionDigits: 2,
+	})} ${currency}`
+}
+
+function MarginStepButton({
+	label,
+	onClick,
+}: {
+	label: string
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="h-11 rounded-md border border-[var(--color-border)] px-2 font-[family-name:var(--font-plex-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+		>
+			{label}
+		</button>
+	)
+}
+
+function CompactMarginPresetButton({
+	label,
+	value,
+	tone,
+	onClick,
+}: {
+	label: string
+	value: number
+	tone: 'floor' | 'target' | 'bonus'
+	onClick: (value: number) => void
+}) {
+	const toneClassName = {
+		floor:
+			'border-orange-500/30 bg-orange-500/[0.07] text-orange-600 dark:text-orange-300',
+		target:
+			'border-[var(--color-primary)]/25 bg-[var(--color-primary)]/[0.055] text-[var(--color-primary)]',
+		bonus:
+			'border-[#090909]/20 bg-[#090909]/[0.045] text-[#090909] dark:border-white/20 dark:bg-white/[0.045] dark:text-white',
+	}[tone]
+
+	return (
+		<button
+			type="button"
+			onClick={() => onClick(value)}
+			className={`flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-1 font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:bg-white/[0.035] ${toneClassName}`}
+			style={{ letterSpacing: 0 }}
+		>
+			<span className="truncate">{label}</span>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums">
+				{formatMarginPercent(value)}
+			</span>
+		</button>
+	)
+}
+
+function MarginPresetButton({
+	label,
+	value,
+	tone,
+	onClick,
+}: {
+	label: string
+	value: number
+	tone: 'floor' | 'target' | 'bonus'
+	onClick: (value: number) => void
+}) {
+	const toneClassName = {
+		floor:
+			'border-orange-500/30 bg-orange-500/[0.07] text-orange-600 dark:text-orange-300',
+		target:
+			'border-[var(--color-primary)]/25 bg-[var(--color-primary)]/[0.065] text-[var(--color-primary)]',
+		bonus:
+			'border-[#090909]/20 bg-[#090909]/[0.05] text-[#090909] dark:border-white/20 dark:bg-white/[0.05] dark:text-white',
+	}[tone]
+
+	return (
+		<button
+			type="button"
+			onClick={() => onClick(value)}
+			className={`min-h-11 rounded-md border px-2 py-2 text-start outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:bg-white/[0.035] ${toneClassName}`}
+		>
+			<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.1em]">
+				{label}
+			</span>
+			<span className="mt-0.5 block font-[family-name:var(--font-plex-mono)] text-[12px] font-semibold tabular-nums">
+				{formatMarginPercent(value)}
+			</span>
+		</button>
+	)
+}
+
+function QuantityButton({
+	label,
+	onClick,
+}: {
+	label: string
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="h-11 rounded-md border border-[var(--color-border)] px-2 font-[family-name:var(--font-plex-mono)] text-[11px] font-semibold tabular-nums text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+		>
+			{label}
+		</button>
 	)
 }
 
@@ -671,21 +2826,13 @@ function errorForField(field: string, errors: string[]): string | undefined {
 		if (field === 'cust-phone') return l.includes('phone')
 		if (field === 'cust-email') return l.includes('email')
 		if (field === 'cust-company') return l.includes('company')
-		if (field === 'cust-address') return l.includes('address')
 		return false
 	})
 	return match
 }
 
-// --- Step 2: Source Items (Inventory + Suppliers) ---
-
-interface ItemSourcingState {
-	productName: string
-	quantity: number
-	unit: string
-	sourceId: string // 'warehouse' or supplier ID like 'sup-001'
-	stockAvailable: number
-	stockWac: number
+function lineProductKey(item: LineItemFormValues): string {
+	return item.productSlug || item.id
 }
 
 // --- Main view ---
@@ -699,19 +2846,25 @@ export function QuoteBuilderView({
 	onSave,
 }: QuoteBuilderViewProps) {
 	const reduceMotion = useReducedMotion()
+	const auth = useInternalAuth()
+	const authName = auth?.user?.user_metadata?.name
+	const preparedByName =
+		typeof authName === 'string' && authName.trim()
+			? authName.trim()
+			: 'Signed-in user'
 	const custNameRef = useRef<HTMLInputElement | null>(null)
 	const [isPersistingCustomer, setIsPersistingCustomer] = useState(false)
 	const [quoteId, setQuoteId] = useState<string | undefined>(initialQuoteId)
-	const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
 	const [status, setStatus] = useState<QuoteStatus>('draft')
 	const [quoteNumber] = useState(
 		() =>
 			`QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
 	)
-	const [version] = useState(1)
 	const [marginThresholds, setMarginThresholds] = useState<MarginThresholds[]>(
 		[],
 	)
+	const [exchangeRates, setExchangeRates] =
+		useState<AutomaticExchangeRates>(EMPTY_EXCHANGE_RATES)
 	const [_customerCredit, setCustomerCredit] = useState<{
 		creditLimit: number
 		currentExposure: number
@@ -728,11 +2881,14 @@ export function QuoteBuilderView({
 	)
 	const [deliveryAddress, setDeliveryAddress] = useState('')
 	const deliverySectionRef = useRef<HTMLDivElement | null>(null)
+	const approvalSectionRef = useRef<HTMLDivElement | null>(null)
 	const deliveryAttentionTimerRef = useRef<ReturnType<
 		typeof setTimeout
 	> | null>(null)
 	const [isDeliveryDateAttentionVisible, setDeliveryDateAttentionVisible] =
 		useState(false)
+	const [deliveryDatePickerOpenSignal, setDeliveryDatePickerOpenSignal] =
+		useState(0)
 	const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
 	// Customer form fields (Step 1)
@@ -742,13 +2898,10 @@ export function QuoteBuilderView({
 
 	// Wizard state — start at Step 1 (Customer) for new, Step 2 (Build) for existing RFQ
 	const isFromRfq = !isNewCustomer && !rfqId.startsWith('new-')
+	const canEditCustomerFields = !isFromRfq
 	const [currentStep, setCurrentStep] = useState(isFromRfq ? 2 : 1)
-	const [completedSteps, setCompletedSteps] = useState<Set<number>>(
-		isFromRfq ? new Set([1]) : new Set(),
-	)
-	const [tableSourceOpen, setTableSourceOpen] = useState<number | null>(null)
 	const [declineOpen, setDeclineOpen] = useState(false)
-	const [marginIndex, setMarginIndex] = useState<number | null>(null)
+	const [itemEditIndex, setItemEditIndex] = useState<number | null>(null)
 	const [mapOpen, setMapOpen] = useState(false)
 
 	// Shared SlidePanel handles escape-key + outer-X dismissal via its
@@ -770,31 +2923,6 @@ export function QuoteBuilderView({
 		}
 	}, [])
 
-	// Sourcing state — built from line items + inventory
-	const [sourcingState, setSourcingState] = useState<ItemSourcingState[]>([])
-	// Live reference data loaded from getQuoteBuilderData — no hardcoded
-	// inventory, supplier directory, or source ID rotations.
-	const [stockByName, setStockByName] = useState<
-		Record<string, { available: number; physical: number; reserved: number }>
-	>({})
-	const [suppliersPool, setSuppliersPool] = useState<SupplierRecord[]>([])
-	const searchSuppliers = useMemo(
-		() => makeSearchSuppliers(suppliersPool),
-		[suppliersPool],
-	)
-	const getSourceLabel = useCallback(
-		(sourceId: string, stockAvailable = 0) => {
-			if (sourceId === 'warehouse') return `Warehouse · ${stockAvailable} avail`
-			if (!sourceId)
-				return stockAvailable > 0 ? 'Choose source' : 'Choose supplier'
-			return (
-				suppliersPool.find((supplier) => supplier.id === sourceId)?.name ??
-				'Selected source'
-			)
-		},
-		[suppliersPool],
-	)
-
 	const methods = useForm<QuoteFormValues>({
 		defaultValues: {
 			lineItems: [],
@@ -810,16 +2938,35 @@ export function QuoteBuilderView({
 			sendVia: null,
 		},
 	})
-	const { append: appendItem, remove: removeItem } = useFieldArray({
+	const { remove: removeItem, replace: replaceItems } = useFieldArray({
 		control: methods.control,
 		name: 'lineItems',
 	})
 	const [searchOpen, setSearchOpen] = useState(false)
-	/** Index of the line item being replaced via the search menu, or null for "append". */
-	const replaceItemIndexRef = useRef<number | null>(null)
 
 	// Compute totals from watched items (useWatch, NOT watch)
 	const watchedItems = useWatch({ control: methods.control, name: 'lineItems' })
+	const watchedDeliveryDate = useWatch({
+		control: methods.control,
+		name: 'deliveryDate',
+	})
+	const watchedDeliveryWindow = useWatch({
+		control: methods.control,
+		name: 'deliveryWindow',
+	})
+	const watchedSpecialInstructions = useWatch({
+		control: methods.control,
+		name: 'specialInstructions',
+	})
+	const catalogSelections = useMemo(
+		() =>
+			(watchedItems ?? []).map((item) => ({
+				productId: lineProductKey(item),
+				productName: item.productName,
+				quantity: item.quantity,
+			})),
+		[watchedItems],
+	)
 	const subtotal =
 		watchedItems?.reduce((sum, item) => sum + (item.lineTotal || 0), 0) ?? 0
 	const vatAmount = Math.round(subtotal * 14) / 100
@@ -839,10 +2986,27 @@ export function QuoteBuilderView({
 	const [approvalBlockReason, setApprovalBlockReason] = useState<string | null>(
 		null,
 	)
+	const [approvalSignature, setApprovalSignature] =
+		useState<ApprovalSignatureState>({
+			needsApproval: false,
+			managerSigned: false,
+		})
 	const handleApprovalBlockedChange = useCallback(
 		(blocked: boolean, reason: string | null) => {
 			setApprovalBlocked(blocked)
 			setApprovalBlockReason(reason)
+		},
+		[],
+	)
+	const handleApprovalSignatureChange = useCallback(
+		(next: ApprovalSignatureState) => {
+			setApprovalSignature((prev) =>
+				prev.needsApproval === next.needsApproval &&
+				prev.managerName === next.managerName &&
+				prev.managerSigned === next.managerSigned
+					? prev
+					: next,
+			)
 		},
 		[],
 	)
@@ -915,7 +3079,7 @@ export function QuoteBuilderView({
 				data: {
 					rfqId,
 					items: items.map((i) => ({
-						productId: i.id,
+						productId: lineProductKey(i),
 						productName: i.productName,
 						supplierName: i.supplierName,
 					})),
@@ -923,65 +3087,19 @@ export function QuoteBuilderView({
 			})
 			setRequestedPriceIds((prev) => {
 				const next = new Set(prev)
-				for (const it of items) next.add(it.id)
+				for (const it of items) next.add(lineProductKey(it))
 				return next
 			})
 		},
 		[requestUpdateMutation, rfqId],
 	)
 	const unrequestedOutdatedItems = outdatedItems.filter(
-		(i) => !requestedPriceIds.has(i.id),
+		(i) => !requestedPriceIds.has(lineProductKey(i)),
 	)
-
-	// Build sourcing state when items load/change — availability sourced
-	// from the live stockByName map returned by getQuoteBuilderData.
-	const itemCount = watchedItems?.length ?? 0
-	useEffect(() => {
-		if (itemCount === 0) return
-		// Rebuild if item count changed (items loaded or added/removed)
-		if (sourcingState.length !== itemCount) {
-			const items = watchedItems ?? []
-			setSourcingState(
-				items.map((item) => {
-					const stock = stockByName[item.productName]
-					// Preserve existing sourceId if available
-					const existing = sourcingState.find(
-						(s) => s.productName === item.productName,
-					)
-					return {
-						productName: item.productName,
-						quantity: item.quantity,
-						unit: item.unit || 'unit',
-						sourceId: existing?.sourceId ?? '',
-						stockAvailable: stock?.available ?? 0,
-						stockWac: item.supplierCost || 0,
-					}
-				}),
-			)
-		}
-	}, [
-		itemCount,
-		stockByName,
-		sourcingState.length,
-		sourcingState.find,
-		watchedItems,
-	]) // eslint-disable-line react-hooks/exhaustive-deps
-
-	// Assign item to a specific source
-	const assignItemSource = (itemIndex: number, sourceId: string) => {
-		setSourcingState((prev) =>
-			prev.map((s, i) => (i === itemIndex ? { ...s, sourceId } : s)),
-		)
-	}
 
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-	const markStepCompleted = (step: number) => {
-		setCompletedSteps((prev) => new Set([...prev, step]))
-	}
-
 	const goToStep = (step: number) => {
-		markStepCompleted(currentStep)
 		setValidationErrors([])
 		setCurrentStep(step)
 	}
@@ -1105,15 +3223,13 @@ export function QuoteBuilderView({
 				if (cancelled) return
 
 				setMarginThresholds(data.marginThresholds)
+				setExchangeRates(data.exchangeRates ?? EMPTY_EXCHANGE_RATES)
 				setCustomerCredit(data.customerCredit)
 				if (data.rfqStatus) setRfqStatus(data.rfqStatus)
 				// Hydrate the quote status from the existing draft (if any) so
 				// the Evaluate button knows whether the order has already been
 				// committed to Finance.
 				if (data.quoteStatus) setStatus(data.quoteStatus as QuoteStatus)
-				// Live reference payloads — no hardcoded mock constants here.
-				setStockByName(data.stockByName ?? {})
-				setSuppliersPool((data.suppliers ?? []) as SupplierRecord[])
 
 				if (!isNewCustomer && data.customer) {
 					setCustomerName(data.customer.name)
@@ -1160,14 +3276,22 @@ export function QuoteBuilderView({
 						// server), respect it; otherwise fall back to the category target.
 						const savedMargin = (p as { marginPercent?: number }).marginPercent
 						const savedSellPrice = (p as { sellPrice?: number }).sellPrice
-						const margin = savedMargin ?? getTargetMargin(p.category)
-						const sellPrice =
-							savedSellPrice ??
-							(p.supplierCost > 0
+						const margin = clampQuoteMargin(
+							savedMargin ?? getTargetMargin(p.category),
+							MINIMUM_MARGIN_PERCENT,
+						)
+						const canReuseSavedSellPrice =
+							savedMargin != null &&
+							Math.abs(savedMargin - margin) < 0.05 &&
+							savedSellPrice != null
+						const sellPrice = canReuseSavedSellPrice
+							? savedSellPrice
+							: p.supplierCost > 0
 								? Math.round((p.supplierCost / (1 - margin / 100)) * 100) / 100
-								: 0)
+								: 0
 						return {
-							id: p.id ?? `item-${i}`,
+							id: p.productSlug ?? p.id ?? `item-${i}`,
+							productSlug: p.productSlug ?? p.id ?? `item-${i}`,
 							productName: p.productName,
 							specification: p.specification,
 							quantity: p.quantity,
@@ -1208,6 +3332,7 @@ export function QuoteBuilderView({
 					customerId: persistedCustomerId ?? undefined,
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
+						productSlug: item.productSlug,
 						productName: item.productName,
 						specification: item.specification,
 						quantity: item.quantity,
@@ -1228,7 +3353,6 @@ export function QuoteBuilderView({
 			if (result.quoteId && result.quoteId !== quoteId) {
 				setQuoteId(result.quoteId)
 			}
-			setLastSavedAt(new Date())
 			return result.quoteId ?? quoteId ?? null
 		} catch (err) {
 			console.error('Save failed:', err)
@@ -1248,6 +3372,7 @@ export function QuoteBuilderView({
 					customerId: persistedCustomerId ?? undefined,
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
+						productSlug: item.productSlug,
 						productName: item.productName,
 						specification: item.specification,
 						quantity: item.quantity,
@@ -1271,7 +3396,6 @@ export function QuoteBuilderView({
 			if (result.quoteId && result.quoteId !== quoteId) {
 				setQuoteId(result.quoteId)
 			}
-			setLastSavedAt(new Date())
 			// Pipeline ribbon's outdated badge derives from the saved draft's
 			// line items. Removing or re-adding items here changes that set, so
 			// nudge rfq-queue to re-project.
@@ -1297,8 +3421,105 @@ export function QuoteBuilderView({
 
 	const marginFloor =
 		marginThresholds.length > 0
-			? Math.min(...marginThresholds.map((t) => t.absoluteMin))
-			: 0
+			? Math.max(
+					MINIMUM_MARGIN_PERCENT,
+					Math.min(...marginThresholds.map((t) => t.absoluteMin)),
+				)
+			: MINIMUM_MARGIN_PERCENT
+	const primaryMarginThreshold = marginThresholds[0] ?? null
+	const updateLineQuantity = (index: number, quantity: number) => {
+		const item = (watchedItems ?? [])[index]
+		if (!item) return
+		methods.setValue(`lineItems.${index}.quantity`, quantity, {
+			shouldDirty: true,
+		})
+		const sellPrice = item.sellPrice || 0
+		methods.setValue(
+			`lineItems.${index}.lineTotal`,
+			Math.round(sellPrice * quantity * 100) / 100,
+			{ shouldDirty: true },
+		)
+	}
+	const updateLineMargin = (index: number, margin: number) => {
+		const item = (watchedItems ?? [])[index]
+		if (!item) return
+		const nextMargin = clampQuoteMargin(margin, marginFloor)
+		const price = computeSellPriceFromMargin(item.supplierCost || 0, nextMargin)
+		methods.setValue(`lineItems.${index}.marginPercent`, nextMargin, {
+			shouldDirty: true,
+		})
+		methods.setValue(`lineItems.${index}.sellPrice`, price, {
+			shouldDirty: true,
+		})
+		methods.setValue(
+			`lineItems.${index}.lineTotal`,
+			Math.round(price * item.quantity * 100) / 100,
+			{ shouldDirty: true },
+		)
+	}
+	const handleFinishQuoteEdit = (selections: ProductCatalogSelection[]) => {
+		const currentItems = methods.getValues('lineItems')
+		const currentById = new Map(
+			currentItems.map((item) => [lineProductKey(item), item]),
+		)
+		const selectedById = new Map(
+			selections
+				.filter((selection) => selection.quantity > 0)
+				.map((selection) => [selection.productId, selection]),
+		)
+		const orderedSelectedIds = [
+			...currentItems
+				.map((item) => lineProductKey(item))
+				.filter((productId) => selectedById.has(productId)),
+			...selections
+				.map((selection) => selection.productId)
+				.filter((productId) => !currentById.has(productId)),
+		]
+		const nextItems = orderedSelectedIds.flatMap((productId) => {
+			const selection = selectedById.get(productId)
+			if (!selection) return []
+			const quantity = Math.max(1, Math.round(selection.quantity))
+			const existing = currentById.get(productId)
+			if (existing) {
+				return [
+					{
+						...existing,
+						quantity,
+						lineTotal:
+							Math.round((existing.sellPrice || 0) * quantity * 100) / 100,
+					},
+				]
+			}
+			if (!selection.product) return []
+			const margin = clampQuoteMargin(
+				Math.max(MINIMUM_MARGIN_PERCENT, primaryMarginThreshold?.target ?? 18),
+				MINIMUM_MARGIN_PERCENT,
+			)
+			const sellPrice = computeSellPriceFromMargin(
+				selection.product.supplierCost,
+				margin,
+			)
+			return [
+				{
+					id: selection.product.slug,
+					productSlug: selection.product.slug,
+					productName: selection.product.name,
+					specification: selection.product.specification,
+					quantity,
+					unit: selection.product.unit,
+					supplierCost: selection.product.supplierCost,
+					marginPercent: margin,
+					sellPrice,
+					lineTotal: Math.round(sellPrice * quantity * 100) / 100,
+					freshnessIndicator: selection.product.freshness,
+					priceStatus: selection.product.priceStatus,
+					recentlyOrdered: selection.product.recentlyOrdered,
+					supplierName: selection.product.supplierName,
+				},
+			]
+		})
+		replaceItems(nextItems)
+	}
 
 	const blendedMargin =
 		subtotal > 0
@@ -1324,62 +3545,145 @@ export function QuoteBuilderView({
 		delay: 0.05,
 	}
 	const stepExit = { opacity: 0, transition: { duration: 0 } }
+	const canRequestPriceUpdate =
+		outdatedItems.length > 0 &&
+		unrequestedOutdatedItems.length > 0 &&
+		!requestUpdateMutation.isPending
+	const outdatedPriceLabel = requestUpdateMutation.isPending
+		? 'Requesting prices'
+		: unrequestedOutdatedItems.length > 0
+			? `Request prices (${unrequestedOutdatedItems.length})`
+			: 'Inventory notified'
+	const totalLabel = `EGP ${total.toLocaleString('en-EG', {
+		minimumFractionDigits: 2,
+	})}`
+	const reviewItemCount = watchedItems?.length ?? 0
+	const reviewDeliveryDate = formatReviewDate(watchedDeliveryDate)
+	const reviewDeliveryWindow = formatDeliveryWindow(watchedDeliveryWindow)
+	const reviewDateTime = reviewDeliveryDate
+		? `${reviewDeliveryDate} at ${reviewDeliveryWindow}`
+		: reviewDeliveryWindow
+	const reviewNotes = (watchedSpecialInstructions ?? '').trim()
+	const reviewCustomerName = customerName || 'Customer'
+	const reviewDeliveryAddress = deliveryAddress || 'No address'
+	const hasQuoteItems = reviewItemCount > 0
+	const hasDeliveryAddress = isValidText(deliveryAddress, 4, 300)
+	const hasDeliveryDateTime = Boolean(watchedDeliveryDate)
+	const step2PrimaryAction:
+		| 'add_items'
+		| 'set_address'
+		| 'set_datetime'
+		| 'request_prices'
+		| 'review' = !hasQuoteItems
+		? 'add_items'
+		: !hasDeliveryAddress
+			? 'set_address'
+			: !hasDeliveryDateTime
+				? 'set_datetime'
+				: outdatedItems.length > 0
+					? 'request_prices'
+					: 'review'
+	const step2PrimaryLabel =
+		step2PrimaryAction === 'add_items'
+			? 'Add items'
+			: step2PrimaryAction === 'set_address'
+				? 'Set address'
+				: step2PrimaryAction === 'set_datetime'
+					? 'Set date & time'
+					: step2PrimaryAction === 'request_prices'
+						? outdatedPriceLabel
+						: 'Review & submit'
+	const handleStep2PrimaryPress = () => {
+		if (step2PrimaryAction === 'add_items') {
+			setSearchOpen(true)
+			return
+		}
+		if (step2PrimaryAction === 'set_address') {
+			setItemEditIndex(null)
+			setMapOpen(true)
+			return
+		}
+		if (step2PrimaryAction === 'set_datetime') {
+			showDeliveryDateAttention()
+			setDeliveryDatePickerOpenSignal((signal) => signal + 1)
+			return
+		}
+		if (step2PrimaryAction === 'request_prices') {
+			handleRequestPriceUpdate(unrequestedOutdatedItems)
+			return
+		}
+		tryGoToStep(3)
+	}
+	const isStep2PrimaryDisabled =
+		step2PrimaryAction === 'request_prices' && !canRequestPriceUpdate
+	const reviewPrimaryNeedsApproval = approvalBlocked && canEvaluateByStatus
+	const canUseReviewPrimary = canEvaluate || reviewPrimaryNeedsApproval
+	const handleReviewPrimaryPress = () => {
+		if (reviewPrimaryNeedsApproval) {
+			approvalSectionRef.current?.scrollIntoView({
+				block: 'center',
+				behavior: reduceMotion ? 'auto' : 'smooth',
+			})
+			return
+		}
+		void handleEvaluate()
+	}
+	const handlePrintReport = useCallback(
+		(event: React.MouseEvent<HTMLAnchorElement>) => {
+			event.preventDefault()
+			document.body.dataset.printTarget = 'quote-report'
+			const cleanup = () => {
+				delete document.body.dataset.printTarget
+				window.removeEventListener('afterprint', cleanup)
+			}
+			window.addEventListener('afterprint', cleanup)
+			window.print()
+			window.setTimeout(cleanup, 1000)
+		},
+		[],
+	)
+
+	const handleSaveForLater = async () => {
+		await handleAutoSave()
+		if (onSave) {
+			onSave()
+		} else {
+			onBack?.()
+		}
+	}
 
 	return (
 		<div className="flex h-full flex-col">
-			{/* Chrome — quote meta · step indicator · actions */}
-			<header className="flex flex-col items-stretch gap-3 border-b border-black/[0.06] px-4 py-3 dark:border-white/[0.06] sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-				{/* Left: quote meta */}
-				<div className="flex min-w-0 items-baseline gap-3">
-					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums shrink-0 text-[var(--color-text)]"
-						style={{
-							fontSize: '12px',
-							fontWeight: 500,
-							letterSpacing: '0.04em',
-						}}
-					>
-						{quoteNumber}
-					</span>
-					<span
-						className="font-[family-name:var(--font-archivo)] italic shrink-0 text-[var(--color-text-subtle)]"
-						style={{ fontSize: '11px' }}
-					>
-						v{version} · {STATUS_LABEL[status]}
-					</span>
-					<AutoSavedLine lastSavedAt={lastSavedAt} />
-				</div>
-
-				{/* Center: step indicator */}
-				<StepIndicator
-					currentStep={currentStep}
-					completedSteps={completedSteps}
-					onStepClick={(s) => goToStep(s)}
-				/>
-
-				{/* Right: durable quote commands */}
-				<div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-					<HeaderAction
-						label="Reject"
-						onClick={() => setDeclineOpen(true)}
-						tone="warn"
-					/>
-					<HeaderAction
-						label="Save for later"
-						trailing={
-							<span aria-hidden="true" style={{ fontSize: '10px' }}>
-								✓
-							</span>
-						}
-						onClick={async () => {
-							await handleAutoSave()
-							if (onSave) {
-								onSave()
-							} else {
-								onBack?.()
-							}
-						}}
-					/>
+			<header className="border-b border-[var(--color-border)] px-3 py-2.5 sm:px-5 lg:px-8">
+				<div className="flex min-w-0 items-center justify-between gap-3">
+					<div className="flex min-w-0 flex-1 items-center gap-1.5">
+						<h1 className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[17px] font-semibold text-[var(--color-text)]">
+							{customerName || 'Customer'}
+						</h1>
+						<button
+							type="button"
+							onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
+							aria-label={`Call ${customerName || 'customer'}`}
+							className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-[var(--color-primary)] outline-none transition-colors hover:bg-[var(--color-primary)]/[0.06] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+						>
+							<Phone size={15} strokeWidth={2} aria-hidden="true" />
+						</button>
+					</div>
+					<div className="flex shrink-0 items-center gap-1">
+						<QuoteChromeAction
+							ariaLabel="Reject quote"
+							onClick={() => setDeclineOpen(true)}
+							tone="danger"
+						>
+							<Undo2 size={15} strokeWidth={2.2} aria-hidden="true" />
+						</QuoteChromeAction>
+						<QuoteChromeAction
+							ariaLabel="Save for later"
+							onClick={handleSaveForLater}
+						>
+							<Save size={15} strokeWidth={2.2} aria-hidden="true" />
+						</QuoteChromeAction>
+					</div>
 				</div>
 			</header>
 
@@ -1387,7 +3691,7 @@ export function QuoteBuilderView({
 			<div className="flex flex-1 overflow-hidden">
 				{/* Main content — scrollable */}
 				<div
-					className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-16 sm:px-6 lg:px-8"
+					className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-28 sm:px-5 sm:pb-32 lg:px-8 lg:pb-16"
 					data-module-content
 				>
 					<FormProvider {...methods}>
@@ -1400,18 +3704,18 @@ export function QuoteBuilderView({
 									animate={{ opacity: 1 }}
 									exit={reduceMotion ? undefined : stepExit}
 									transition={reduceMotion ? { duration: 0 } : stepTransition}
-									className="flex items-start justify-center pt-8 sm:pt-16"
+									className="pb-6 pt-3 sm:pt-5 lg:pt-8"
 								>
 									<section
 										aria-label="Customer confirmation"
 										aria-busy={isPersistingCustomer}
-										className="w-full max-w-2xl"
+										className="mx-auto w-full max-w-[980px]"
 										onKeyDown={(e) => {
-											// Enter on any field jumps to Step 2 (unless a shift/meta
-											// modifier or textarea is involved — we never have textareas
-											// on Step 1, but the guard keeps future-proofing cheap).
+											const target = e.target as HTMLElement
+											const isTextArea = target.tagName === 'TEXTAREA'
 											if (
 												e.key === 'Enter' &&
+												!isTextArea &&
 												!e.shiftKey &&
 												!e.metaKey &&
 												!e.ctrlKey
@@ -1427,144 +3731,136 @@ export function QuoteBuilderView({
 											}
 										}}
 									>
-										{/* Section rule — mono step index · italic phase · rfq imprint */}
-										<div className="mb-8 flex items-center gap-4">
-											<span
-												className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.08em',
-												}}
-											>
-												01
-											</span>
-											<span
-												className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-												style={{ fontSize: '12px' }}
-											>
-												{isFromRfq ? 'confirm customer' : 'new customer'}
-											</span>
-											<div
-												aria-hidden="true"
-												className="h-px flex-1"
-												style={{
-													backgroundColor: 'var(--color-border)',
-													opacity: 0.6,
-												}}
-											/>
-											<span
-												className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.08em',
-												}}
-											>
-												{rfqReference}
-											</span>
-										</div>
+										<header className="grid gap-3 border-b border-[var(--color-border)] pb-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+											<div className="min-w-0">
+												<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+													<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tabular-nums text-[var(--color-text-subtle)]">
+														01
+													</span>
+													<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase text-[var(--color-text)]">
+														Customer contract
+													</span>
+													<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tabular-nums text-[var(--color-text-subtle)]">
+														{rfqReference}
+													</span>
+												</div>
+											</div>
+											<div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+												<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">
+													{canEditCustomerFields
+														? 'Editable new order'
+														: 'Locked RFQ record'}
+												</span>
+												{customerTier && (
+													<>
+														<span
+															aria-hidden="true"
+															className="h-1 w-1 rounded-full bg-[var(--color-border)]"
+														/>
+														<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase text-[var(--color-primary)]">
+															tier {customerTier.toLowerCase()}
+														</span>
+													</>
+												)}
+											</div>
+										</header>
 
-										{/* Tier annotation — only when the customer carries one */}
-										{isFromRfq && customerTier && (
-											<p
-												className="mb-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-primary)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.005em',
-												}}
-											>
-												<span className="sr-only">Customer tier: </span>
-												tier {customerTier.toLowerCase()}
-											</p>
-										)}
-
-										{/* Editable headline — Literata display, auto-focus on mount */}
-										<label htmlFor="cust-name" className="sr-only">
-											Customer name
-										</label>
-										<input
-											ref={custNameRef}
-											id="cust-name"
-											type="text"
-											value={customerName}
-											onChange={(e) => setCustomerName(e.target.value)}
-											onFocus={() => {
-												if (validationErrors.length > 0) setValidationErrors([])
-											}}
-											placeholder="Customer name"
-											autoComplete="name"
-											aria-invalid={
-												!!errorForField('cust-name', validationErrors)
-											}
-											aria-describedby={
-												errorForField('cust-name', validationErrors)
-													? 'cust-name-error'
-													: 'cust-name-hint'
-											}
-											className="w-full bg-transparent py-1 font-[family-name:var(--font-literata)] text-[30px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 focus-visible:placeholder:text-[var(--color-text-subtle)]/60 sm:text-[38px]"
-											style={{
-												fontWeight: 500,
-												letterSpacing: '-0.022em',
-												lineHeight: 1.2,
-											}}
-										/>
-										{errorForField('cust-name', validationErrors) && (
-											<p
-												id="cust-name-error"
-												className="mt-2 font-[family-name:var(--font-archivo)] italic"
-												style={{
-													fontSize: '12px',
-													color: 'var(--color-signal-red)',
-												}}
-											>
-												{errorForField('cust-name', validationErrors)}
-											</p>
-										)}
-										<p
-											id="cust-name-hint"
-											className="mt-3 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-											style={{ fontSize: '13px', lineHeight: 1.55 }}
-										>
-											{isFromRfq
-												? 'Review the details below. Any edits here only apply to this quote.'
-												: 'Start with a name. Everything else is optional until you send.'}
-										</p>
-
-										{/* Horizon rule */}
-										<div
-											aria-hidden="true"
-											className="my-10 h-px"
-											style={{
-												backgroundColor: 'var(--color-border)',
-												opacity: 0.6,
-											}}
-										/>
-
-										{/* Field strata */}
-										<div className="flex flex-col gap-10">
-											<FieldGroup label="contact">
-												<HairlineField
-													label="phone"
-													htmlFor="cust-phone"
-													error={errorForField('cust-phone', validationErrors)}
+										<div className="mt-4">
+											<div className="min-w-0 border-t border-[var(--color-border)]">
+												<CustomerFlowField
+													id="cust-name"
+													label="Contracting party"
+													error={errorForField('cust-name', validationErrors)}
+													className="py-4"
 												>
-													<PhoneInput
-														id="cust-phone"
-														value={custPhone}
-														onChange={setCustPhone}
-														ariaInvalid={
-															!!errorForField('cust-phone', validationErrors)
+													<input
+														ref={custNameRef}
+														id="cust-name"
+														type="text"
+														value={customerName}
+														onChange={(e) => setCustomerName(e.target.value)}
+														readOnly={!canEditCustomerFields}
+														onFocus={() => {
+															if (validationErrors.length > 0)
+																setValidationErrors([])
+														}}
+														placeholder="Customer name"
+														autoComplete="name"
+														aria-invalid={
+															!!errorForField('cust-name', validationErrors)
 														}
-														ariaDescribedBy={
-															errorForField('cust-phone', validationErrors)
-																? 'cust-phone-error'
+														aria-describedby={
+															errorForField('cust-name', validationErrors)
+																? 'cust-name-error'
 																: undefined
 														}
+														className={`w-full bg-transparent font-[family-name:var(--font-archivo)] text-[24px] font-semibold leading-tight text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 sm:text-[30px] ${
+															canEditCustomerFields
+																? ''
+																: 'cursor-default focus-visible:ring-0'
+														}`}
+														style={{ letterSpacing: 0 }}
 													/>
-												</HairlineField>
-												<div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
-													<HairlineField
-														label="email"
-														htmlFor="cust-email"
+												</CustomerFlowField>
+												<CustomerFlowField
+													id="cust-company"
+													label="Company"
+													error={errorForField(
+														'cust-company',
+														validationErrors,
+													)}
+												>
+													<input
+														id="cust-company"
+														type="text"
+														value={custCompany}
+														onChange={(e) => setCustCompany(e.target.value)}
+														readOnly={!canEditCustomerFields}
+														placeholder="—"
+														autoComplete="organization"
+														aria-invalid={
+															!!errorForField('cust-company', validationErrors)
+														}
+														aria-describedby={
+															errorForField('cust-company', validationErrors)
+																? 'cust-company-error'
+																: undefined
+														}
+														className={`w-full bg-transparent font-[family-name:var(--font-archivo)] text-[15px] font-medium text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 ${
+															canEditCustomerFields ? '' : 'cursor-default'
+														}`}
+													/>
+												</CustomerFlowField>
+												<div className="grid gap-0 md:grid-cols-2 md:gap-x-8">
+													<CustomerFlowField
+														id="cust-phone"
+														label="Direct phone"
+														error={errorForField(
+															'cust-phone',
+															validationErrors,
+														)}
+													>
+														<PhoneInput
+															id="cust-phone"
+															value={custPhone}
+															onChange={setCustPhone}
+															readOnly={!canEditCustomerFields}
+															inputClassName={`font-[family-name:var(--font-plex-mono)] text-[15px] font-medium ${
+																canEditCustomerFields ? '' : 'cursor-default'
+															}`}
+															ariaInvalid={
+																!!errorForField('cust-phone', validationErrors)
+															}
+															ariaDescribedBy={
+																errorForField('cust-phone', validationErrors)
+																	? 'cust-phone-error'
+																	: undefined
+															}
+														/>
+													</CustomerFlowField>
+													<CustomerFlowField
+														id="cust-email"
+														label="Email"
 														error={errorForField(
 															'cust-email',
 															validationErrors,
@@ -1575,6 +3871,7 @@ export function QuoteBuilderView({
 															type="email"
 															value={custEmail}
 															onChange={(e) => setCustEmail(e.target.value)}
+															readOnly={!canEditCustomerFields}
 															placeholder="—"
 															autoComplete="email"
 															inputMode="email"
@@ -1586,118 +3883,31 @@ export function QuoteBuilderView({
 																	? 'cust-email-error'
 																	: undefined
 															}
-															className="w-full bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40"
-															style={{
-																fontSize: '14px',
-																letterSpacing: '-0.005em',
-															}}
+															className={`w-full bg-transparent font-[family-name:var(--font-archivo)] text-[15px] font-medium text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40 ${
+																canEditCustomerFields ? '' : 'cursor-default'
+															}`}
 														/>
-													</HairlineField>
-													<HairlineField
-														label="company"
-														htmlFor="cust-company"
-														error={errorForField(
-															'cust-company',
-															validationErrors,
-														)}
-													>
-														<input
-															id="cust-company"
-															type="text"
-															value={custCompany}
-															onChange={(e) => setCustCompany(e.target.value)}
-															placeholder="—"
-															autoComplete="organization"
-															aria-invalid={
-																!!errorForField(
-																	'cust-company',
-																	validationErrors,
-																)
-															}
-															aria-describedby={
-																errorForField('cust-company', validationErrors)
-																	? 'cust-company-error'
-																	: undefined
-															}
-															className="w-full bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40"
-															style={{
-																fontSize: '14px',
-																letterSpacing: '-0.005em',
-															}}
-														/>
-													</HairlineField>
+													</CustomerFlowField>
 												</div>
-											</FieldGroup>
-
-											<FieldGroup label="delivery">
-												<HairlineField
-													label="site address"
-													htmlFor="cust-address"
-													error={errorForField(
-														'cust-address',
-														validationErrors,
-													)}
-												>
-													<input
-														id="cust-address"
-														type="text"
-														value={deliveryAddress}
-														onChange={(e) => setDeliveryAddress(e.target.value)}
-														placeholder="Where the order ships to"
-														autoComplete="street-address"
-														aria-invalid={
-															!!errorForField('cust-address', validationErrors)
-														}
-														aria-describedby={
-															errorForField('cust-address', validationErrors)
-																? 'cust-address-error'
-																: undefined
-														}
-														className="w-full bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/40"
-														style={{
-															fontSize: '14px',
-															letterSpacing: '-0.005em',
-														}}
-													/>
-												</HairlineField>
-											</FieldGroup>
+											</div>
 										</div>
 
-										{/* Summary of unresolved errors — inline errors still show next
-										    to each field; this block gives an overview + screen-reader
-										    announcement when validation fires. */}
 										{validationErrors.length > 0 && (
 											<div
 												role="alert"
 												aria-live="polite"
-												className="mt-8 ps-4"
-												style={{
-													borderInlineStart:
-														'1px solid var(--color-signal-red)',
-												}}
+												className="mt-3 rounded-md border border-red-600/20 bg-red-600/[0.045] px-4 py-3"
 											>
-												<p
-													className="mb-1 font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '11px',
-														color: 'var(--color-signal-red)',
-														letterSpacing: '0.005em',
-													}}
-												>
+												<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-signal-red)]">
 													{validationErrors.length === 1
 														? '1 field needs attention'
 														: `${validationErrors.length} fields need attention`}
 												</p>
-												<ul className="space-y-0.5">
+												<ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
 													{validationErrors.map((err) => (
 														<li
 															key={err}
-															className="font-[family-name:var(--font-archivo)] italic"
-															style={{
-																fontSize: '13px',
-																lineHeight: 1.55,
-																color: 'var(--color-signal-red)',
-															}}
+															className="font-[family-name:var(--font-archivo)] text-[12px] italic leading-5 text-[var(--color-signal-red)]"
 														>
 															{err}
 														</li>
@@ -1705,57 +3915,6 @@ export function QuoteBuilderView({
 												</ul>
 											</div>
 										)}
-
-										{/* Action bar */}
-										<div
-											className="mt-12 flex flex-col-reverse items-stretch gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between"
-											style={{ borderTop: '1px solid var(--color-border)' }}
-										>
-											<p
-												aria-hidden="true"
-												className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-												style={{ fontSize: '11px' }}
-											>
-												press{' '}
-												<kbd
-													className="font-[family-name:var(--font-plex-mono)] text-[var(--color-text-muted)]"
-													style={{ fontSize: '10px' }}
-												>
-													Enter
-												</kbd>{' '}
-												to continue
-												{onBack && (
-													<>
-														{' · '}
-														<kbd
-															className="font-[family-name:var(--font-plex-mono)] text-[var(--color-text-muted)]"
-															style={{ fontSize: '10px' }}
-														>
-															Esc
-														</kbd>{' '}
-														to cancel
-													</>
-												)}
-											</p>
-											<EmployeeActionButton
-												type="button"
-												onClick={() => tryGoToStep(2)}
-												disabled={isPersistingCustomer}
-												aria-disabled={isPersistingCustomer}
-												fullWidthOnMobile
-												trailing={
-													<ArrowRight
-														size={14}
-														strokeWidth={2.25}
-														aria-hidden="true"
-													/>
-												}
-											>
-												{isPersistingCustomer
-													? 'Saving customer'
-													: 'Build quote'}
-											</EmployeeActionButton>
-										</div>
 									</section>
 								</motion.div>
 							)}
@@ -1769,728 +3928,79 @@ export function QuoteBuilderView({
 									exit={reduceMotion ? undefined : stepExit}
 									transition={reduceMotion ? { duration: 0 } : stepTransition}
 								>
-									{/* Section rule — matches Step 1's eyebrow vocabulary */}
-									<div className="mt-6 flex items-center gap-4">
-										<span
-											className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-											style={{
-												fontSize: '11px',
-												letterSpacing: '0.08em',
-											}}
+									<WorkSection
+										label="items"
+										className="mt-3"
+										meta={
+											<>
+												{(watchedItems ?? []).length}{' '}
+												{(watchedItems ?? []).length === 1 ? 'line' : 'lines'}
+												{subtotal > 0 && (
+													<>
+														{' '}
+														·{' '}
+														<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+															{Math.round(subtotal).toLocaleString('en-EG')} EGP
+														</span>
+													</>
+												)}{' '}
+												·{' '}
+												<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+													{quoteNumber}
+												</span>
+											</>
+										}
+									>
+										<ul
+											aria-label={`Line items (${(watchedItems ?? []).length})`}
 										>
-											02
-										</span>
-										<span
-											className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-											style={{ fontSize: '12px' }}
-										>
-											build quote
-										</span>
-										<div
-											aria-hidden="true"
-											className="h-px flex-1"
-											style={{
-												backgroundColor: 'var(--color-border)',
-												opacity: 0.6,
-											}}
-										/>
-										<span
-											className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-											style={{
-												fontSize: '11px',
-												letterSpacing: '0.08em',
-											}}
-										>
-											{rfqReference}
-										</span>
-									</div>
-
-									{/* Customer dedication — proper running head with a
-									    subhead that counts the entry as it's being built. */}
-									<header className="mt-6 mb-5">
-										<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-4">
-											<div className="min-w-0 flex-1">
-												<h2
-													className="break-words font-[family-name:var(--font-literata)] text-[var(--color-text)]"
-													style={{
-														fontSize: '30px',
-														fontWeight: 500,
-														letterSpacing: '-0.02em',
-														lineHeight: 1.08,
-													}}
-												>
-													{customerName || 'customer'}
-												</h2>
-												<p
-													className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-[family-name:var(--font-archivo)] italic"
-													style={{
-														fontSize: '11.5px',
-														color: 'var(--color-text-muted)',
-														letterSpacing: '0.003em',
-													}}
-												>
-													{customerTier && (
-														<>
-															<span>tier {customerTier.toLowerCase()}</span>
-															<span aria-hidden="true" className="opacity-60">
-																·
-															</span>
-														</>
-													)}
-													<span
-														className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
-														style={{ letterSpacing: '0.04em' }}
-													>
-														{(watchedItems ?? []).length}{' '}
-														{(watchedItems ?? []).length === 1
-															? 'line'
-															: 'lines'}
-													</span>
-													<span aria-hidden="true" className="opacity-60">
-														·
-													</span>
-													<span
-														className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums"
-														style={{ letterSpacing: '0.04em' }}
-													>
-														{subtotal > 0
-															? `${Math.round(subtotal).toLocaleString('en-EG')} EGP subtotal`
-															: 'still building the entry'}
-													</span>
-												</p>
-											</div>
-											<EmployeeActionButton
-												type="button"
-												onClick={() =>
-													window.open(`/api/call/${rfqId}`, '_blank')
-												}
-												aria-label={`Call ${customerName || 'customer'}`}
-												size="sm"
-												trailing={<span aria-hidden="true">→</span>}
-											>
-												Call customer
-											</EmployeeActionButton>
-										</div>
-									</header>
-
-									{outdatedItems.length > 0 && (
-										<OutdatedPricesBanner
-											outdatedCount={outdatedItems.length}
-											urgentCount={
-												outdatedItems.filter((it) => it.recentlyOrdered).length
-											}
-											pendingRequest={unrequestedOutdatedItems.length}
-											isRequesting={requestUpdateMutation.isPending}
-											allRequested={unrequestedOutdatedItems.length === 0}
-											onRequestAll={() =>
-												handleRequestPriceUpdate(unrequestedOutdatedItems)
-											}
-										/>
-									)}
-
-									{/* Line items */}
-									<div className="mt-6">
-										<div className="lg:hidden">
 											{(watchedItems ?? []).map((item, i) => {
-												const level =
-													marginThresholds.length > 0
-														? getMarginLevel(
-																item.marginPercent || 0,
-																marginThresholds[0],
-															)
-														: 'green'
-												const marginColor = {
-													green: 'var(--color-primary)',
-													yellow: 'var(--color-signal-amber)',
-													red: 'var(--color-signal-red)',
-													blocked: 'var(--color-signal-red)',
-												}[level]
-												const sourceState = sourcingState[i]
+												const items = watchedItems ?? []
+												const marginColor = getLineMarginColor(
+													item.marginPercent || 0,
+													primaryMarginThreshold,
+												)
 												return (
 													<QuoteLineCard
 														key={item.id || i}
 														item={item}
 														index={i}
+														isLast={i === items.length - 1}
 														marginColor={marginColor}
-														sourceLabel={getSourceLabel(
-															sourceState?.sourceId ?? '',
-															sourceState?.stockAvailable ?? 0,
-														)}
-														onReplace={() => {
-															setSearchOpen(true)
-															replaceItemIndexRef.current = i
-														}}
-														onSelectSource={() => setTableSourceOpen(i)}
-														onQuantityChange={(next) => {
-															methods.setValue(
-																`lineItems.${i}.quantity`,
-																next,
-																{ shouldDirty: true },
-															)
-															const sellPrice = item.sellPrice || 0
-															methods.setValue(
-																`lineItems.${i}.lineTotal`,
-																Math.round(sellPrice * next * 100) / 100,
-																{ shouldDirty: true },
-															)
-														}}
 														onEditMargin={() => {
 															setMapOpen(false)
-															setMarginIndex(i)
+															setItemEditIndex(i)
 														}}
 														onRemove={() => removeItem(i)}
 													/>
 												)
 											})}
-										</div>
-										<table
-											className="hidden w-full lg:table"
-											aria-label={`Line items (${(watchedItems ?? []).length})`}
-										>
-											<caption className="sr-only">
-												Quote line items. Each row shows the product, quantity,
-												source, supplier cost, margin, sell price, and line
-												total.
-											</caption>
-											<thead>
-												<tr
-													style={{
-														borderBottom: '1px solid var(--color-border)',
-													}}
-												>
-													<th
-														scope="col"
-														className="ps-2 pe-1 py-2.5 text-start font-[family-name:var(--font-plex-mono)] uppercase"
-														style={{
-															fontSize: '9.5px',
-															color: 'var(--color-text-subtle)',
-															letterSpacing: '0.22em',
-															fontWeight: 500,
-															width: '32px',
-														}}
-													>
-														№
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-start font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														item
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														source
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														qty
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														cost
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														margin
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														price
-													</th>
-													<th
-														scope="col"
-														className="px-3 py-2.5 text-end font-[family-name:var(--font-archivo)] italic"
-														style={{
-															fontSize: '11px',
-															color: 'var(--color-text-subtle)',
-															fontWeight: 400,
-														}}
-													>
-														total
-													</th>
-													<th scope="col" className="w-8 py-2.5">
-														<span className="sr-only">Remove item</span>
-													</th>
-												</tr>
-											</thead>
-											<tbody>
-												{(watchedItems ?? []).map((item, i) => {
-													const level =
-														marginThresholds.length > 0
-															? getMarginLevel(
-																	item.marginPercent || 0,
-																	marginThresholds[0],
-																)
-															: 'green'
-													const marginColor = {
-														green: 'var(--color-primary)',
-														yellow: 'var(--color-signal-amber)',
-														red: 'var(--color-signal-red)',
-														blocked: 'var(--color-signal-red)',
-													}[level]
-													const sourceState = sourcingState[i]
-													return (
-														<tr
-															key={item.id || i}
-															className="daybook-row group/row"
-															style={{
-																opacity:
-																	item.priceStatus === 'outdated' ? 0.88 : 1,
-															}}
-														>
-															{/* Ledger number — running count of entries. */}
-															<td className="ps-2 pe-1 py-4 align-top">
-																<span
-																	className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-																	style={{
-																		fontSize: '10.5px',
-																		color: 'var(--color-text-subtle)',
-																		letterSpacing: '0.04em',
-																	}}
-																>
-																	{(i + 1).toString().padStart(2, '0')}
-																</span>
-															</td>
-															{/* Item — product name + price status */}
-															<td className="px-3 py-4 align-top">
-																<div className="flex items-baseline gap-2">
-																	<button
-																		type="button"
-																		onClick={() => {
-																			setSearchOpen(true)
-																			replaceItemIndexRef.current = i
-																		}}
-																		className="group relative text-start font-[family-name:var(--font-archivo)] outline-none transition-colors hover:text-[var(--color-primary)] focus-visible:text-[var(--color-primary)]"
-																		style={{
-																			fontSize: '14px',
-																			fontWeight: 500,
-																			color: 'var(--color-text)',
-																			letterSpacing: '-0.005em',
-																		}}
-																		aria-label={`Replace ${item.productName}`}
-																	>
-																		<span className="relative">
-																			{item.productName}
-																			<span
-																				aria-hidden="true"
-																				className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-current transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-																			/>
-																		</span>
-																	</button>
-																	<PriceStatusBadge
-																		priceStatus={item.priceStatus ?? 'updated'}
-																		recentlyOrdered={
-																			item.recentlyOrdered ?? false
-																		}
-																	/>
-																</div>
-																{item.specification && (
-																	<p
-																		className="mt-0.5 font-[family-name:var(--font-archivo)] italic"
-																		style={{
-																			fontSize: '11px',
-																			color: 'var(--color-text-subtle)',
-																		}}
-																	>
-																		{item.specification}
-																	</p>
-																)}
-															</td>
-															{/* Source */}
-															<td className="px-3 py-4 text-end align-top">
-																<button
-																	type="button"
-																	onClick={() => setTableSourceOpen(i)}
-																	className="inline-flex max-w-[150px] items-center justify-end rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-end font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-[var(--color-text)] outline-none transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
-																	aria-label={`Choose source for ${item.productName}`}
-																>
-																	<span className="truncate">
-																		{getSourceLabel(
-																			sourceState?.sourceId ?? '',
-																			sourceState?.stockAvailable ?? 0,
-																		)}
-																	</span>
-																</button>
-															</td>
-															{/* Qty — editable inline */}
-															<td className="px-3 py-4 text-end align-top">
-																<input
-																	type="number"
-																	min={1}
-																	step={1}
-																	value={item.quantity ?? ''}
-																	onChange={(e) => {
-																		const raw = Number(e.target.value)
-																		const next =
-																			Number.isFinite(raw) && raw > 0 ? raw : 1
-																		methods.setValue(
-																			`lineItems.${i}.quantity`,
-																			next,
-																			{ shouldDirty: true },
-																		)
-																		const sellPrice = item.sellPrice || 0
-																		methods.setValue(
-																			`lineItems.${i}.lineTotal`,
-																			Math.round(sellPrice * next * 100) / 100,
-																			{ shouldDirty: true },
-																		)
-																	}}
-																	onFocus={(e) => e.currentTarget.select()}
-																	onKeyDown={(e) => {
-																		if (e.key === 'Enter') {
-																			e.preventDefault()
-																			;(
-																				e.currentTarget as HTMLInputElement
-																			).blur()
-																		}
-																	}}
-																	aria-label={`Quantity for ${item.productName}`}
-																	className="w-20 bg-transparent text-end font-[family-name:var(--font-plex-mono)] tabular-nums outline-none transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none border-b border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-primary)]"
-																	style={{
-																		fontSize: '13px',
-																		color: 'var(--color-text)',
-																		fontWeight: 500,
-																	}}
-																/>
-															</td>
-															{/* Cost */}
-															<td
-																className="px-3 py-4 text-end align-top font-[family-name:var(--font-plex-mono)] tabular-nums"
-																style={{
-																	fontSize: '13px',
-																	color: 'var(--color-text-muted)',
-																}}
-															>
-																{item.supplierCost
-																	? item.supplierCost.toLocaleString('en-EG')
-																	: '—'}
-															</td>
-															{/* Margin — opens editor */}
-															<td className="px-3 py-4 text-end align-top">
-																<button
-																	type="button"
-																	onClick={() => {
-																		setMapOpen(false)
-																		setMarginIndex(i)
-																	}}
-																	aria-label={`Edit margin for ${item.productName}, currently ${item.marginPercent || 0}%`}
-																	className="group inline-flex items-baseline gap-1.5 font-[family-name:var(--font-plex-mono)] tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 rounded-sm"
-																	style={{
-																		fontSize: '13px',
-																		fontWeight: 500,
-																		color: 'var(--color-text)',
-																	}}
-																>
-																	<span
-																		aria-hidden="true"
-																		className="shrink-0 self-center rounded-full"
-																		style={{
-																			width: 6,
-																			height: 6,
-																			backgroundColor: marginColor,
-																		}}
-																	/>
-																	<span className="relative">
-																		{item.marginPercent || 0}%
-																		<span
-																			aria-hidden="true"
-																			className="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-[var(--color-primary)] transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
-																		/>
-																	</span>
-																</button>
-															</td>
-															{/* Price */}
-															<td
-																className="px-3 py-4 text-end align-top font-[family-name:var(--font-plex-mono)] tabular-nums"
-																style={{
-																	fontSize: '14px',
-																	color: 'var(--color-text)',
-																	fontWeight: 500,
-																}}
-															>
-																{item.sellPrice
-																	? item.sellPrice.toLocaleString('en-EG')
-																	: '—'}
-															</td>
-															{/* Total */}
-															<td
-																className="px-3 py-4 text-end align-top font-[family-name:var(--font-plex-mono)] tabular-nums"
-																style={{
-																	fontSize: '15px',
-																	color: 'var(--color-text)',
-																	fontWeight: 600,
-																}}
-															>
-																{(item.lineTotal || 0).toLocaleString('en-EG', {
-																	minimumFractionDigits: 2,
-																})}
-															</td>
-															{/* Strike — remove this entry. Typographic × fades
-															    in on row hover so it never competes with data. */}
-															<td className="py-4 text-center align-top">
-																<button
-																	type="button"
-																	onClick={() => removeItem(i)}
-																	aria-label={`Remove ${item.productName}`}
-																	className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent opacity-70 outline-none transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-signal-red)]/40 hover:border-[var(--color-signal-red)]/30 hover:bg-[var(--color-signal-red)]/[0.08] hover:text-[var(--color-signal-red)] group-hover/row:opacity-100"
-																	style={{
-																		color: 'var(--color-text-subtle)',
-																	}}
-																>
-																	<span
-																		aria-hidden="true"
-																		style={{
-																			fontFamily: 'var(--font-literata)',
-																			fontStyle: 'italic',
-																			fontSize: '16px',
-																			lineHeight: 1,
-																		}}
-																	>
-																		×
-																	</span>
-																</button>
-															</td>
-														</tr>
-													)
-												})}
-											</tbody>
-										</table>
 
-										{(watchedItems ?? []).length === 0 && (
-											<div className="mt-4 flex justify-center border-t border-[var(--color-border)] pt-10">
-												<EmployeeActionButton
-													type="button"
-													onClick={() => setSearchOpen(true)}
-													tone="success"
-													trailing={<span aria-hidden="true">→</span>}
-												>
-													Add first line
-												</EmployeeActionButton>
-											</div>
-										)}
-									</div>
-
-									{/* Add another — secondary word-action when the ledger
-									    already has entries. The empty-state invitation above
-									    handles the first add, so this one stays quiet. */}
-									{(watchedItems ?? []).length > 0 && (
-										<EmployeeActionButton
-											type="button"
-											onClick={() => setSearchOpen(true)}
-											tone="neutral"
-											size="sm"
-											className="mt-4"
-										>
-											Add another line
-										</EmployeeActionButton>
-									)}
+											<AddQuoteLineCard onAdd={() => setSearchOpen(true)} />
+										</ul>
+									</WorkSection>
 
 									<ProductSearchMenu
 										isOpen={searchOpen}
-										onClose={() => {
-											setSearchOpen(false)
-											replaceItemIndexRef.current = null
-										}}
-										mode={
-											replaceItemIndexRef.current !== null
-												? 'replace'
-												: 'append'
-										}
-										onAddProduct={(product, quantity) => {
-											const margin = 18
-											const sellPrice =
-												Math.round(
-													(product.supplierCost / (1 - margin / 100)) * 100,
-												) / 100
-											const newItem = {
-												id: product.id,
-												productName: product.name,
-												specification: product.specification,
-												quantity,
-												unit: product.unit,
-												supplierCost: product.supplierCost,
-												marginPercent: margin,
-												sellPrice,
-												lineTotal: Math.round(sellPrice * quantity * 100) / 100,
-												freshnessIndicator: product.freshness,
-												priceStatus: product.priceStatus,
-												recentlyOrdered: product.recentlyOrdered,
-												supplierName: product.supplierName,
-											}
-											const replaceIdx = replaceItemIndexRef.current
-											if (replaceIdx !== null) {
-												// Replace existing item
-												const keys = Object.keys(
-													newItem,
-												) as (keyof typeof newItem)[]
-												for (const key of keys) {
-													methods.setValue(
-														`lineItems.${replaceIdx}.${key}`,
-														newItem[key] as never,
-													)
-												}
-												replaceItemIndexRef.current = null
-											} else {
-												appendItem(newItem)
-											}
-										}}
+										onClose={() => setSearchOpen(false)}
+										initialSelections={catalogSelections}
+										onFinishSelection={handleFinishQuoteEdit}
 									/>
 
-									<SourceSearchMenu
-										isOpen={tableSourceOpen !== null}
-										onClose={() => setTableSourceOpen(null)}
-										itemName={
-											tableSourceOpen !== null
-												? (watchedItems?.[tableSourceOpen]?.productName ?? '')
-												: ''
-										}
-										stockAvailable={
-											tableSourceOpen !== null
-												? (sourcingState[tableSourceOpen]?.stockAvailable ?? 0)
-												: 0
-										}
-										currentSourceId={
-											tableSourceOpen !== null
-												? (sourcingState[tableSourceOpen]?.sourceId ?? '')
-												: ''
-										}
-										searchSuppliers={searchSuppliers}
-										onSelect={(sourceId) => {
-											if (tableSourceOpen !== null)
-												assignItemSource(tableSourceOpen, sourceId)
-										}}
-									/>
-
-									{/* Delivery section — own rule eyebrow + hairline input */}
-									<div ref={deliverySectionRef} className="mt-12">
-										<div className="flex items-center gap-4 mb-4">
-											<span
-												className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-												style={{ fontSize: '12px' }}
-											>
-												delivery
-											</span>
-											<div
-												aria-hidden="true"
-												className="h-px flex-1"
-												style={{
-													backgroundColor: isDeliveryDateAttentionVisible
-														? 'var(--color-signal-red)'
-														: 'var(--color-border)',
-													opacity: isDeliveryDateAttentionVisible ? 1 : 0.6,
+									<div ref={deliverySectionRef}>
+										<div className="mt-4 border-t-2 border-[var(--color-border)]">
+											<DeliveryTerms
+												deliveryAddress={deliveryAddress}
+												highlightDate={isDeliveryDateAttentionVisible}
+												datePickerOpenSignal={deliveryDatePickerOpenSignal}
+												onAddressPress={() => {
+													setItemEditIndex(null)
+													setMapOpen(true)
 												}}
+												totalWeightTons={12}
+												leadTimeDays={2}
 											/>
 										</div>
-
-										<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-baseline">
-											<label htmlFor="delivery-address" className="sr-only">
-												Delivery address
-											</label>
-											<svg
-												aria-hidden="true"
-												width="12"
-												height="12"
-												viewBox="0 0 14 14"
-												fill="none"
-												className="shrink-0 self-center text-[var(--color-text-subtle)]"
-											>
-												<path
-													d="M7 1.75C4.65 1.75 2.75 3.65 2.75 6c0 3.25 4.25 6.25 4.25 6.25s4.25-3 4.25-6.25c0-2.35-1.9-4.25-4.25-4.25Z"
-													stroke="currentColor"
-													strokeWidth="1"
-												/>
-												<circle
-													cx="7"
-													cy="6"
-													r="1.25"
-													stroke="currentColor"
-													strokeWidth="1"
-												/>
-											</svg>
-											<div
-												className="w-full min-w-0 flex-1 pb-1.5 transition-colors"
-												style={{
-													borderBottom: '1px solid var(--color-border)',
-												}}
-											>
-												<input
-													id="delivery-address"
-													type="text"
-													value={deliveryAddress}
-													onChange={(e) => setDeliveryAddress(e.target.value)}
-													onFocus={() => {
-														setMarginIndex(null)
-														setMapOpen(true)
-													}}
-													placeholder="Click to pick on map"
-													autoComplete="street-address"
-													className="w-full bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/50"
-													style={{
-														fontSize: '13px',
-														letterSpacing: '-0.005em',
-													}}
-												/>
-											</div>
-											<EmployeeActionButton
-												type="button"
-												onClick={() => {
-													setMarginIndex(null)
-													setMapOpen((open) => !open)
-												}}
-												aria-expanded={mapOpen}
-												aria-controls="delivery-map-panel"
-												tone="neutral"
-												size="sm"
-											>
-												{mapOpen ? 'Hide map' : 'Pick on map'}
-											</EmployeeActionButton>
-										</div>
-										<DeliveryTerms
-											deliveryAddress={deliveryAddress}
-											highlightDate={isDeliveryDateAttentionVisible}
-											totalWeightTons={12}
-											leadTimeDays={2}
-										/>
 									</div>
 
 									{/* Validation errors — inline style matches Step 1 */}
@@ -2543,397 +4053,127 @@ export function QuoteBuilderView({
 									animate={{ opacity: 1 }}
 									exit={reduceMotion ? undefined : stepExit}
 									transition={reduceMotion ? { duration: 0 } : stepTransition}
-									className="flex items-start justify-center pt-8 sm:pt-16"
+									className="pb-6 sm:pt-4 lg:pt-5"
 								>
 									<section
-										aria-label="Final review"
-										className="w-full max-w-3xl"
+										aria-label="Quote review"
+										id="quote-report-print"
+										className="mx-auto w-full max-w-[980px]"
 									>
-										{/* Section rule — mono step · italic phase · rfq imprint */}
-										<div className="mb-8 flex items-center gap-4">
-											<span
-												className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.08em',
-												}}
+										<div
+											data-print-hidden="true"
+											className="flex justify-end px-5 pt-2 sm:px-8 lg:px-12"
+										>
+											{/* biome-ignore lint/a11y/useValidAnchor: This is intentionally a real report anchor that opens browser print for the linked report section. */}
+											<a
+												href="#quote-report-print"
+												onClick={handlePrintReport}
+												className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-primary)] underline decoration-[var(--color-primary)]/30 underline-offset-4 outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
 											>
-												03
-											</span>
-											<span
-												className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-												style={{ fontSize: '12px' }}
-											>
-												final read
-											</span>
-											<div
-												aria-hidden="true"
-												className="h-px flex-1"
-												style={{
-													backgroundColor: 'var(--color-border)',
-													opacity: 0.6,
-												}}
+												Print full report
+											</a>
+										</div>
+										<ReviewReportTitle
+											customerName={reviewCustomerName}
+											orderNumber={quoteNumber}
+										/>
+
+										<div
+											data-print-sheet="true"
+											className="mt-2 overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_22px_70px_-54px_rgba(0,0,0,0.72)]"
+										>
+											<ReportSectionBar
+												title="Commercial Sheet"
+												meta={quoteNumber}
 											/>
-											<span
-												className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.08em',
-												}}
-											>
-												{rfqReference}
-											</span>
-										</div>
-
-										{/* Tier annotation */}
-										{customerTier && (
-											<p
-												className="mb-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-primary)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.005em',
-												}}
-											>
-												<span className="sr-only">Customer tier: </span>
-												tier {customerTier.toLowerCase()}
-											</p>
-										)}
-
-										{/* Headline — Literata, parallel to Step 1 */}
-										<h2
-											className="break-words py-1 font-[family-name:var(--font-literata)] text-[30px] text-[var(--color-text)] sm:text-[38px]"
-											style={{
-												fontWeight: 500,
-												letterSpacing: '-0.022em',
-												lineHeight: 1.2,
-											}}
-										>
-											{customerName}
-										</h2>
-
-										{/* Lede */}
-										<p
-											className="mt-3 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-											style={{ fontSize: '13px', lineHeight: 1.55 }}
-										>
-											The customer sees these numbers verbatim. Read once, then
-											commit.
-										</p>
-
-										{/* Horizon rule */}
-										<div
-											aria-hidden="true"
-											className="my-10 h-px"
-											style={{
-												backgroundColor: 'var(--color-border)',
-												opacity: 0.6,
-											}}
-										/>
-
-										{/* Ledger eyebrow */}
-										<div className="mb-3 flex items-baseline gap-3">
-											<span
-												className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-												style={{ fontSize: '11px' }}
-											>
-												ledger
-											</span>
-											<span
-												className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-												style={{
-													fontSize: '11px',
-													letterSpacing: '0.04em',
-												}}
-											>
-												· {watchedItems?.length ?? 0} item
-												{(watchedItems?.length ?? 0) === 1 ? '' : 's'}
-											</span>
-										</div>
-
-										{/* Items ledger */}
-										<div>
-											<div className="lg:hidden">
-												{(watchedItems ?? []).map((item, idx) => (
-													<ReviewLineCard key={item.id || idx} item={item} />
-												))}
+											<div className="grid border-b border-[var(--color-border)] md:grid-cols-2 md:divide-x md:divide-[var(--color-border)]">
+												<ReportInfoCell
+													label="Destination"
+													value={reviewDeliveryAddress}
+													placeholder={!deliveryAddress}
+													onPress={() => goToStep(2)}
+												/>
+												<ReportInfoCell
+													label="Delivery Time"
+													value={
+														reviewDeliveryDate
+															? reviewDateTime
+															: 'Pick date & time'
+													}
+													placeholder={!reviewDeliveryDate}
+													onPress={() => goToStep(2)}
+												/>
 											</div>
-											<table className="hidden w-full lg:table">
-												<thead>
-													<tr
-														style={{
-															borderBottom: '1px solid var(--color-border)',
-														}}
-													>
-														<th
-															scope="col"
-															className="py-2 text-start font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															item
-														</th>
-														<th
-															scope="col"
-															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															qty
-														</th>
-														<th
-															scope="col"
-															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															cost
-														</th>
-														<th
-															scope="col"
-															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															margin
-														</th>
-														<th
-															scope="col"
-															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															price
-														</th>
-														<th
-															scope="col"
-															className="py-2 text-end font-[family-name:var(--font-archivo)] italic font-normal text-[var(--color-text-subtle)]"
-															style={{ fontSize: '11px' }}
-														>
-															total
-														</th>
-													</tr>
-												</thead>
-												<tbody>
+
+											<section aria-labelledby="review-items-title">
+												<ReportSectionBar
+													id="review-items-title"
+													title="Material Lines"
+													meta={`${reviewItemCount} ${reviewItemCount === 1 ? 'line' : 'lines'}`}
+													onEdit={() => goToStep(2)}
+												/>
+												<ul>
 													{(watchedItems ?? []).map((item, idx) => (
-														<tr
-															key={item.id || idx}
-															style={{
-																borderBottom: '1px solid var(--color-border)',
-																opacity: 0.95,
-															}}
-														>
-															<td
-																className="py-3 pe-4 font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
-																style={{
-																	fontSize: '14px',
-																	letterSpacing: '-0.005em',
-																}}
-															>
-																{item.productName}
-															</td>
-															<td
-																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-																style={{ fontSize: '12px' }}
-															>
-																{item.quantity}
-															</td>
-															<td
-																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-																style={{ fontSize: '12px' }}
-															>
-																{item.supplierCost?.toLocaleString('en-EG') ??
-																	'—'}
-															</td>
-															<td
-																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
-																style={{ fontSize: '12px' }}
-															>
-																{item.marginPercent}%
-															</td>
-															<td
-																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
-																style={{ fontSize: '12px' }}
-															>
-																{item.sellPrice?.toLocaleString('en-EG')}
-															</td>
-															<td
-																className="py-3 text-end font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text)]"
-																style={{
-																	fontSize: '13px',
-																	fontWeight: 500,
-																}}
-															>
-																{(item.lineTotal || 0).toLocaleString('en-EG', {
-																	minimumFractionDigits: 2,
-																})}
-															</td>
-														</tr>
+														<ReportLineRow
+															key={lineProductKey(item) || idx}
+															item={item}
+															index={idx}
+															marginColor={getLineMarginColor(
+																item.marginPercent || 0,
+																primaryMarginThreshold,
+															)}
+														/>
 													))}
-												</tbody>
-											</table>
-										</div>
+												</ul>
+											</section>
 
-										{/* Totals lockup — page anchor */}
-										<div className="mt-8 flex flex-col items-stretch gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-											<div
-												className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-												style={{
-													fontSize: '12px',
-													lineHeight: 1.6,
-												}}
-											>
-												<span>
-													blended margin{' '}
-													<span
-														className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums text-[var(--color-text)]"
-														style={{ letterSpacing: '0.01em' }}
-													>
-														{blendedMargin}%
-													</span>
-												</span>
-												<br />
-												<span>
-													vat{' '}
-													<span
-														className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums text-[var(--color-text)]"
-														style={{ letterSpacing: '0.01em' }}
-													>
-														{vatAmount.toLocaleString('en-EG', {
-															minimumFractionDigits: 2,
-														})}
-													</span>
-												</span>
+											<div className="grid border-t border-[var(--color-border)] lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+												<section
+													aria-labelledby="review-notes-title"
+													className="min-w-0"
+												>
+													<ReportSectionBar
+														id="review-notes-title"
+														title="Notes"
+														onEdit={() => goToStep(2)}
+													/>
+													<ReportTextBlock
+														label="Customer / delivery notes"
+														value={reviewNotes || 'No notes recorded.'}
+														placeholder={!reviewNotes}
+													/>
+												</section>
+
+												<aside className="min-w-0 border-t border-[var(--color-border)] lg:border-l lg:border-t-0">
+													<ReportSectionBar title="Ledger" />
+													<ReportSummaryRow
+														label="subtotal"
+														value={formatLineMoney(subtotal, 2)}
+													/>
+													<ReportSummaryRow
+														label="vat 14%"
+														value={formatLineMoney(vatAmount, 2)}
+													/>
+													<ReportSummaryRow
+														label="margin"
+														value={`${blendedMargin}%`}
+														tone={getLineMarginColor(
+															blendedMargin,
+															primaryMarginThreshold,
+														)}
+													/>
+													<ReportSummaryRow
+														label="total"
+														value={formatLineMoney(total, 2)}
+														emphasis
+													/>
+												</aside>
 											</div>
-											<div className="min-w-0 text-end">
-												<p
-													className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-													style={{
-														fontSize: '11px',
-														letterSpacing: '0.005em',
-													}}
-												>
-													total
-												</p>
-												<p
-													className="mt-1 break-words py-1 font-[family-name:var(--font-literata)] text-[34px] tabular-nums text-[var(--color-text)] sm:text-[44px] lg:text-[52px]"
-													style={{
-														fontWeight: 500,
-														letterSpacing: '-0.035em',
-														lineHeight: 1.1,
-													}}
-												>
-													{total.toLocaleString('en-EG', {
-														minimumFractionDigits: 2,
-													})}
-													<span
-														className="ms-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
-														style={{
-															fontSize: '15px',
-															fontWeight: 400,
-															letterSpacing: '0.005em',
-														}}
-													>
-														egp
-													</span>
-												</p>
-											</div>
-										</div>
 
-										{/* Horizon rule */}
-										<div
-											aria-hidden="true"
-											className="my-10 h-px"
-											style={{
-												backgroundColor: 'var(--color-border)',
-												opacity: 0.6,
-											}}
-										/>
-
-										{/* Strata — delivery / terms / evaluation */}
-										<dl className="flex flex-col gap-0">
-											<ReviewStratum label="delivery">
-												<p
-													className="font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
-													style={{
-														fontSize: '14px',
-														letterSpacing: '-0.005em',
-													}}
-												>
-													{deliveryAddress || (
-														<span className="italic text-[var(--color-text-subtle)]">
-															no address yet
-														</span>
-													)}
-												</p>
-												<div
-													className="mt-2 flex flex-wrap items-baseline gap-x-5 gap-y-1 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-													style={{ fontSize: '11px' }}
-												>
-													{methods.getValues('deliveryDate') && (
-														<span>
-															date{' '}
-															<span
-																className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums text-[var(--color-text)]"
-																style={{ letterSpacing: '0.01em' }}
-															>
-																{methods.getValues('deliveryDate')}
-															</span>
-														</span>
-													)}
-													{(() => {
-														const WINDOW_LABELS: Record<string, string> = {
-															'08:00-13:00': 'morning · 08:00–13:00',
-															'13:00-17:00': 'midday · 13:00–17:00',
-															'17:00-20:00': 'evening · 17:00–20:00',
-															'00:00-06:00': 'night · 00:00–06:00',
-														}
-														const win =
-															methods.getValues('deliveryWindow') ??
-															'08:00-13:00'
-														return (
-															<span>
-																window{' '}
-																<span className="not-italic text-[var(--color-text)]">
-																	{WINDOW_LABELS[win] ?? win}
-																</span>
-															</span>
-														)
-													})()}
-													{methods.getValues('specialInstructions') && (
-														<span>
-															notes{' '}
-															<span className="not-italic text-[var(--color-text)]">
-																{methods.getValues('specialInstructions')}
-															</span>
-														</span>
-													)}
-												</div>
-											</ReviewStratum>
-
-											<ReviewStratum label="terms">
-												<div
-													className="flex flex-wrap items-baseline gap-x-6 gap-y-1 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-													style={{ fontSize: '12px' }}
-												>
-													<span>
-														payment{' '}
-														<span className="not-italic text-[var(--color-text)]">
-															bank transfer / cash
-														</span>
-													</span>
-													<span>
-														valid{' '}
-														<span
-															className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums text-[var(--color-text)]"
-															style={{ letterSpacing: '0.01em' }}
-														>
-															{methods.getValues('validityDays') ?? 14}d
-														</span>
-													</span>
-												</div>
-											</ReviewStratum>
-
-											<ReviewStratum label="evaluation" align="start">
+											<div ref={approvalSectionRef}>
 												<ApprovalWorkflow
-													quoteId={quoteId ?? 'new'}
 													marginPercent={blendedMargin}
 													totalValue={total}
-													customerTier="A"
 													thresholds={marginThresholds}
 													status={
 														status === 'pending_approval'
@@ -2942,25 +4182,40 @@ export function QuoteBuilderView({
 																? 'approved'
 																: 'draft'
 													}
+													className="border-t border-[var(--color-border)] px-4 py-4 sm:px-6"
 													onStatusChange={(newStatus) =>
 														setStatus(newStatus as QuoteStatus)
 													}
-													showRequestAction={false}
+													onSendBlockedChange={handleApprovalBlockedChange}
+													onSignatureChange={handleApprovalSignatureChange}
 												/>
-												{status === 'pending_approval' && (
-													<p
-														className="mt-3 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
-														style={{
-															fontSize: '12px',
-															lineHeight: 1.55,
-														}}
-													>
-														submitted for evaluation. your manager will review
-														and send to the customer.
-													</p>
-												)}
-											</ReviewStratum>
-										</dl>
+											</div>
+										</div>
+										<div data-print-report-page="true">
+											<ReviewReportParagraph
+												customerName={reviewCustomerName}
+												itemCount={reviewItemCount}
+												items={watchedItems ?? []}
+												address={reviewDeliveryAddress}
+												dateTime={
+													reviewDeliveryDate
+														? reviewDateTime
+														: 'no date selected'
+												}
+												subtotal={formatLineMoney(subtotal, 2)}
+												vat={formatLineMoney(vatAmount, 2)}
+												total={formatLineMoney(total, 2)}
+												margin={`${blendedMargin}%`}
+											/>
+											<div data-print-signatures="true">
+												<QuoteSignatureSection
+													preparedByName={preparedByName}
+													needsApproval={approvalSignature.needsApproval}
+													managerName={approvalSignature.managerName}
+													managerSigned={approvalSignature.managerSigned}
+												/>
+											</div>
+										</div>
 									</section>
 								</motion.div>
 							)}
@@ -2969,10 +4224,30 @@ export function QuoteBuilderView({
 				</div>
 			</div>
 
+			{currentStep === 1 && (
+				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8 lg:py-3">
+					<div className="flex justify-end">
+						<EmployeeActionButton
+							type="button"
+							onClick={() => tryGoToStep(2)}
+							disabled={isPersistingCustomer}
+							aria-disabled={isPersistingCustomer}
+							fullWidthOnMobile
+							className="sm:min-w-[180px]"
+							trailing={
+								<ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+							}
+						>
+							{isPersistingCustomer ? 'Saving customer' : 'Build quote'}
+						</EmployeeActionButton>
+					</div>
+				</footer>
+			)}
+
 			{currentStep === 2 && (
-				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
+				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8 lg:py-3">
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-						<div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+						<div className="hidden grid-cols-3 gap-3 lg:grid lg:flex-wrap lg:items-baseline lg:gap-x-6 lg:gap-y-2">
 							<FooterAmount label="subtotal" value={subtotal} />
 							<FooterAmount label="vat 14%" value={vatAmount} />
 							<div className="min-w-0">
@@ -2988,153 +4263,137 @@ export function QuoteBuilderView({
 							</div>
 						</div>
 
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+						<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 lg:flex lg:items-center lg:justify-end">
 							<EmployeeActionButton
 								type="button"
 								onClick={() => goToStep(1)}
 								tone="neutral"
 								size="sm"
 								leading={<span aria-hidden="true">←</span>}
+								className="h-full max-lg:min-h-11 max-lg:px-3"
 							>
-								Customer
+								<span className="sr-only lg:not-sr-only">Customer</span>
 							</EmployeeActionButton>
-							<EmployeeStatusPill
-								tone={outdatedItems.length > 0 ? 'warning' : 'success'}
-								leading={
-									outdatedItems.length > 0 ? (
-										<CircleAlert
-											size={14}
-											strokeWidth={2.25}
-											aria-hidden="true"
-										/>
-									) : (
-										<CheckCircle2
-											size={14}
-											strokeWidth={2.5}
-											aria-hidden="true"
-										/>
-									)
-								}
-							>
-								{outdatedItems.length > 0
-									? `${outdatedItems.length} price${outdatedItems.length === 1 ? '' : 's'} need update`
-									: 'Ready to review'}
-							</EmployeeStatusPill>
-							<EmployeeActionButton
+							<button
 								type="button"
-								onClick={() => tryGoToStep(3)}
-								disabled={outdatedItems.length > 0}
-								aria-disabled={outdatedItems.length > 0}
-								trailing={
-									<ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
-								}
-								fullWidthOnMobile
+								onClick={handleStep2PrimaryPress}
+								disabled={isStep2PrimaryDisabled}
+								aria-disabled={isStep2PrimaryDisabled}
+								className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 ${
+									step2PrimaryAction === 'request_prices'
+										? 'border-amber-500/20 bg-amber-500/[0.12] text-amber-700 focus-visible:ring-amber-500/25 disabled:cursor-not-allowed disabled:opacity-70 dark:text-amber-300'
+										: 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700 focus-visible:ring-[var(--color-primary)]/40'
+								}`}
 							>
-								Review & submit
-							</EmployeeActionButton>
-						</div>
-					</div>
-				</footer>
-			)}
-
-			{currentStep === 3 && (
-				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
-					<div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-						<div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
-							<FooterAmount label="margin" value={blendedMargin} suffix="%" />
-							<FooterAmount label="vat 14%" value={vatAmount} />
-							<div className="min-w-0">
-								<span className="block font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-subtle)]">
-									total
-								</span>
-								<span className="mt-0.5 block break-words font-[family-name:var(--font-plex-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-									EGP{' '}
-									{total.toLocaleString('en-EG', {
-										minimumFractionDigits: 2,
-									})}
-								</span>
-							</div>
-						</div>
-
-						<div className="flex min-w-0 flex-col gap-2 xl:items-end">
-							<ApprovalWorkflow
-								layout="footer"
-								quoteId={quoteId ?? 'new'}
-								marginPercent={blendedMargin}
-								totalValue={total}
-								customerTier="A"
-								thresholds={marginThresholds}
-								status={
-									status === 'pending_approval'
-										? 'pending_approval'
-										: status === 'approved'
-											? 'approved'
-											: 'draft'
-								}
-								onStatusChange={(newStatus) =>
-									setStatus(newStatus as QuoteStatus)
-								}
-								onSendBlockedChange={handleApprovalBlockedChange}
-							/>
-							<div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
-								<EmployeeActionButton
-									type="button"
-									onClick={() => goToStep(2)}
-									tone="neutral"
-									size="sm"
-									leading={
-										<span aria-hidden="true" className="rtl:rotate-180">
-											←
-										</span>
-									}
-								>
-									Back to quote
-								</EmployeeActionButton>
-								<EmployeeStatusPill
-									tone={canEvaluate ? 'success' : 'warning'}
-									leading={
-										canEvaluate ? (
-											<CheckCircle2
+								{step2PrimaryAction === 'request_prices' ? (
+									<>
+										{requestUpdateMutation.isPending ? (
+											<Loader2
 												size={14}
-												strokeWidth={2.5}
+												strokeWidth={2.25}
 												aria-hidden="true"
+												className="shrink-0 animate-spin"
 											/>
 										) : (
 											<CircleAlert
 												size={14}
 												strokeWidth={2.25}
 												aria-hidden="true"
+												className="shrink-0"
 											/>
-										)
-									}
-								>
-									{canEvaluate
-										? 'Ready to evaluate · finance receives this order'
-										: (approvalBlockReason ??
-											'Evaluation blocked · quote is closed')}
-								</EmployeeStatusPill>
-								<EmployeeActionButton
-									type="button"
-									onClick={handleEvaluate}
-									disabled={!canEvaluate || isEvaluating}
-									aria-busy={isEvaluating}
-									tone="success"
-									fullWidthOnMobile
-									trailing={
-										!isEvaluating && (
-											<ArrowRight
-												size={14}
-												strokeWidth={2.25}
-												aria-hidden="true"
-												className="rtl:rotate-180"
-											/>
-										)
-									}
-								>
-									{isEvaluating ? 'Evaluating' : 'Evaluate & send to finance'}
-								</EmployeeActionButton>
-							</div>
+										)}
+										<span className="min-w-0 break-words leading-tight">
+											{step2PrimaryLabel}
+										</span>
+									</>
+								) : (
+									<>
+										<span className="min-w-0 break-words leading-tight">
+											{step2PrimaryLabel}
+										</span>
+										{step2PrimaryAction === 'review' && (
+											<span className="hidden min-w-0 break-words leading-tight normal-case tracking-normal opacity-85 sm:inline">
+												· {totalLabel}
+											</span>
+										)}
+										<ArrowRight
+											size={14}
+											strokeWidth={2.25}
+											aria-hidden="true"
+											className="shrink-0"
+										/>
+									</>
+								)}
+							</button>
 						</div>
+					</div>
+				</footer>
+			)}
+
+			{currentStep === 3 && (
+				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
+					<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 xl:flex xl:items-center xl:justify-end">
+						<button
+							type="button"
+							onClick={() => goToStep(2)}
+							aria-label="Back to quote"
+							className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--color-border)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+						>
+							<span aria-hidden="true">←</span>
+							<span className="sr-only xl:not-sr-only xl:ms-2">Quote</span>
+						</button>
+						<button
+							type="button"
+							onClick={handleReviewPrimaryPress}
+							disabled={!canUseReviewPrimary || isEvaluating}
+							aria-busy={isEvaluating}
+							aria-disabled={!canUseReviewPrimary || isEvaluating}
+							className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 xl:min-w-[280px] ${
+								canEvaluate
+									? 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700 focus-visible:ring-[var(--color-primary)]/40'
+									: 'border-amber-500/20 bg-amber-500/[0.12] text-amber-700 disabled:cursor-not-allowed disabled:opacity-80 dark:text-amber-300'
+							}`}
+						>
+							{isEvaluating ? (
+								<Loader2
+									size={14}
+									strokeWidth={2.25}
+									aria-hidden="true"
+									className="shrink-0 animate-spin"
+								/>
+							) : canEvaluate ? (
+								<CheckCircle2
+									size={14}
+									strokeWidth={2.4}
+									aria-hidden="true"
+									className="shrink-0"
+								/>
+							) : (
+								<CircleAlert
+									size={14}
+									strokeWidth={2.25}
+									aria-hidden="true"
+									className="shrink-0"
+								/>
+							)}
+							<span className="min-w-0 break-words leading-tight">
+								{canEvaluate
+									? isEvaluating
+										? 'Sending to finance'
+										: `Send to finance · ${totalLabel}`
+									: reviewPrimaryNeedsApproval
+										? `Approve manager · ${totalLabel}`
+										: (approvalBlockReason ?? 'Evaluation blocked')}
+							</span>
+							{canEvaluate && !isEvaluating && (
+								<ArrowRight
+									size={14}
+									strokeWidth={2.25}
+									aria-hidden="true"
+									className="hidden shrink-0 sm:block"
+								/>
+							)}
+						</button>
 					</div>
 				</footer>
 			)}
@@ -3170,63 +4429,50 @@ export function QuoteBuilderView({
 						<DeliveryMap
 							address={deliveryAddress}
 							onAddressChange={setDeliveryAddress}
+							onDeliveryConfirmed={() => setMapOpen(false)}
 						/>
 					</ClientOnly>
 				</div>
 			</SlidePanel>
 
-			{/* Line margin side panel. */}
+			{/* Line item side panel. */}
 			<SlidePanel
-				isOpen={marginIndex !== null && !!(watchedItems ?? [])[marginIndex]}
-				onClose={() => setMarginIndex(null)}
-				maxWidth={460}
-				panelKey="margin-overlay"
-				ariaLabel="Adjust line margin"
+				isOpen={itemEditIndex !== null && !!(watchedItems ?? [])[itemEditIndex]}
+				onClose={() => setItemEditIndex(null)}
+				maxWidth={540}
+				panelKey="line-item-editor"
+				ariaLabel="Edit quote item"
 				scope="sales"
+				mobileTitle={
+					itemEditIndex !== null
+						? (watchedItems ?? [])[itemEditIndex]?.productName
+						: undefined
+				}
+				mobileSubtitle={
+					itemEditIndex !== null && (watchedItems ?? [])[itemEditIndex]
+						? `${((watchedItems ?? [])[itemEditIndex].quantity || 0).toLocaleString('en-EG')} Units`
+						: undefined
+				}
 			>
-				{marginIndex !== null && (
-					<LineMarginPanel
-						items={(watchedItems ?? []).map((it) => ({
-							productName: it.productName,
-							supplierCost: it.supplierCost || 0,
-							quantity: it.quantity || 0,
-							marginPercent: it.marginPercent || 0,
-						}))}
-						currentIndex={marginIndex}
-						onSelectIndex={setMarginIndex}
+				{itemEditIndex !== null && (watchedItems ?? [])[itemEditIndex] && (
+					<ItemEditPanel
+						item={(watchedItems ?? [])[itemEditIndex]}
+						index={itemEditIndex}
 						marginFloor={marginFloor}
-						thresholds={marginThresholds[0] ?? null}
-						onChange={(index, margin) => {
-							const it = (watchedItems ?? [])[index]
-							if (!it) return
-							const cost = it.supplierCost || 0
-							const price =
-								cost > 0
-									? Math.round((cost / (1 - margin / 100)) * 100) / 100
-									: 0
-							methods.setValue(`lineItems.${index}.marginPercent`, margin)
-							methods.setValue(`lineItems.${index}.sellPrice`, price)
-							methods.setValue(
-								`lineItems.${index}.lineTotal`,
-								Math.round(price * it.quantity * 100) / 100,
-							)
-						}}
-						onApplyToAll={(margin) => {
-							;(watchedItems ?? []).forEach((it, idx) => {
-								const cost = it.supplierCost || 0
-								const price =
-									cost > 0
-										? Math.round((cost / (1 - margin / 100)) * 100) / 100
-										: 0
-								methods.setValue(`lineItems.${idx}.marginPercent`, margin)
-								methods.setValue(`lineItems.${idx}.sellPrice`, price)
-								methods.setValue(
-									`lineItems.${idx}.lineTotal`,
-									Math.round(price * it.quantity * 100) / 100,
-								)
-							})
-						}}
-						onClose={() => setMarginIndex(null)}
+						thresholds={primaryMarginThreshold}
+						exchangeRates={exchangeRates}
+						isRequestingPrice={requestUpdateMutation.isPending}
+						isPriceRequested={requestedPriceIds.has(
+							lineProductKey((watchedItems ?? [])[itemEditIndex]),
+						)}
+						onQuantityChange={(quantity) =>
+							updateLineQuantity(itemEditIndex, quantity)
+						}
+						onMarginChange={(margin) => updateLineMargin(itemEditIndex, margin)}
+						onRequestPriceUpdate={() =>
+							handleRequestPriceUpdate([(watchedItems ?? [])[itemEditIndex]])
+						}
+						onClose={() => setItemEditIndex(null)}
 					/>
 				)}
 			</SlidePanel>

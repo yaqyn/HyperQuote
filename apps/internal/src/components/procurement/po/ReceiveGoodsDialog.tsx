@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { normalizeIntegerInput } from '../../../lib/inputs'
 import { receivePOGoods } from '../../../lib/server/procurement-po'
 import type { POItem } from '../../../types/procurement'
 import {
@@ -131,7 +132,9 @@ export function ReceiveGoodsDialog({
 										<NumCell value={remaining} />
 										<td className="py-3 text-end">
 											<input
-												type="number"
+												type="text"
+												inputMode="numeric"
+												pattern="[0-9]*"
 												min={0}
 												max={remaining}
 												value={entry?.receivedQuantity ?? 0}
@@ -139,7 +142,7 @@ export function ReceiveGoodsDialog({
 													updateEntry(
 														item.id,
 														'receivedQuantity',
-														Number(e.target.value),
+														Number(normalizeIntegerInput(e.target.value)),
 													)
 												}
 												className="w-20 ms-auto px-2 py-1 text-end bg-transparent outline-none border-b border-black/[0.14] dark:border-white/[0.16] focus:border-[var(--color-primary)] font-[family-name:var(--font-plex-mono)] text-[13px] tabular-nums text-[var(--color-text)]"
@@ -147,14 +150,16 @@ export function ReceiveGoodsDialog({
 										</td>
 										<td className="py-3 text-end">
 											<input
-												type="number"
+												type="text"
+												inputMode="numeric"
+												pattern="[0-9]*"
 												min={0}
 												value={entry?.rejectedQuantity ?? 0}
 												onChange={(e) =>
 													updateEntry(
 														item.id,
 														'rejectedQuantity',
-														Number(e.target.value),
+														Number(normalizeIntegerInput(e.target.value)),
 													)
 												}
 												className="w-20 ms-auto px-2 py-1 text-end bg-transparent outline-none border-b border-black/[0.14] dark:border-white/[0.16] focus:border-[var(--color-primary)] font-[family-name:var(--font-plex-mono)] text-[13px] tabular-nums text-[var(--color-text)]"

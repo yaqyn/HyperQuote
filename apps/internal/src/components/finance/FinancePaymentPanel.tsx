@@ -7,7 +7,7 @@ import {
 	ReceiptText,
 	X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
 	cancelDealFromFinance,
 	cancelOrderFromFinance,
@@ -93,6 +93,7 @@ export function FinancePaymentPanel({
 	const [cancelReason, setCancelReason] = useState('')
 	const [cancelNote, setCancelNote] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const paymentNextStepRef = useRef<HTMLDivElement | null>(null)
 
 	useEffect(() => {
 		if (!isOpen) return
@@ -182,6 +183,16 @@ export function FinancePaymentPanel({
 
 	const proofOk = proofFilename.trim().length > 0
 	const cancelReasonOk = cancelReason.trim().length >= 3
+	const panelName =
+		mode === 'order' ? (order?.customerName ?? '') : (deal?.supplierName ?? '')
+	const panelReference =
+		mode === 'order'
+			? `${order?.quoteNumber}${order?.customerPoNumber ? ` · ${order.customerPoNumber}` : ''}`
+			: `${deal?.dealId} · ${deal?.itemCount ?? 0} item${
+					(deal?.itemCount ?? 0) !== 1 ? 's' : ''
+				}`
+	const panelContext =
+		mode === 'order' ? 'Money in · customer' : 'Money out · supplier'
 
 	const handleAdvance = () => {
 		if (stage === 'preview') {
@@ -193,6 +204,20 @@ export function FinancePaymentPanel({
 			mutation.mutate()
 		}
 	}
+	const handlePayModeChange = (nextPayMode: 'partial' | 'full') => {
+		setPayMode(nextPayMode)
+		if (!window.matchMedia('(max-width: 1023px)').matches) return
+		window.requestAnimationFrame(() => {
+			const behavior = window.matchMedia('(prefers-reduced-motion: reduce)')
+				.matches
+				? 'auto'
+				: 'smooth'
+			paymentNextStepRef.current?.scrollIntoView({
+				behavior,
+				block: 'start',
+			})
+		})
+	}
 
 	return (
 		<SlidePanel
@@ -202,24 +227,16 @@ export function FinancePaymentPanel({
 			maxWidth={560}
 			panelKey="finance-payment-panel"
 			ariaLabel="Finance payment recorder"
+			mobileTitle={row ? panelName : undefined}
+			mobileSubtitle={row ? `${panelContext} · ${panelReference}` : undefined}
 		>
 			<div className="ledger-theme flex h-full flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
 				{row ? (
 					<>
 						<PanelMasthead
 							mode={mode}
-							name={
-								mode === 'order'
-									? (order?.customerName ?? '')
-									: (deal?.supplierName ?? '')
-							}
-							reference={
-								mode === 'order'
-									? `${order?.quoteNumber}${order?.customerPoNumber ? ` · ${order.customerPoNumber}` : ''}`
-									: `${deal?.dealId} · ${deal?.itemCount ?? 0} item${
-											(deal?.itemCount ?? 0) !== 1 ? 's' : ''
-										}`
-							}
+							name={panelName}
+							reference={panelReference}
 						/>
 
 						<div className="flex-1 overflow-y-auto px-4 pb-6 sm:px-6 lg:px-8">
@@ -228,10 +245,6 @@ export function FinancePaymentPanel({
 								paid={row.amountPaid}
 								remaining={remainingDue}
 							/>
-
-							{mode === 'deal' && deal && deal.items.length > 0 && (
-								<DealItemList items={deal.items} />
-							)}
 
 							{isTerminal ? (
 								<SettledBanner
@@ -243,11 +256,12 @@ export function FinancePaymentPanel({
 									{paymentStatus === 'unpaid' && stage === 'preview' && (
 										<PayModePicker
 											payMode={payMode}
-											onChange={setPayMode}
+											onChange={handlePayModeChange}
 											totalDue={totalDue}
 										/>
 									)}
 
+									<div ref={paymentNextStepRef} />
 									{stage === 'preview' && (
 										<AmountDisplay
 											amount={amountThisStep}
@@ -355,7 +369,7 @@ function PanelMasthead({
 	reference: string
 }) {
 	return (
-		<header className="shrink-0 border-b border-[var(--color-border)] px-4 pt-6 pb-5 sm:px-6 lg:px-8 lg:pt-7">
+		<header className="hidden shrink-0 border-b border-[var(--color-border)] px-4 pt-6 pb-5 sm:px-6 lg:block lg:px-8 lg:pt-7">
 			<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 				<span
 					className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
@@ -469,90 +483,6 @@ function TotalCell({
 	)
 }
 
-// ─── Deal items ──────────────────────────────────────────
-
-function DealItemList({
-	items,
-}: {
-	items: Array<{
-		productSlug: string
-		productName: string
-		sku: string
-		unit: string
-		agreedQty: number
-		agreedRawCost: number
-		lineTotal: number
-	}>
-}) {
-	return (
-		<section className="mt-6 border-b border-[var(--color-border)] pb-5">
-			<span
-				className="font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase"
-				style={{
-					fontSize: '9.5px',
-					letterSpacing: '0.22em',
-					color: 'var(--color-text-subtle)',
-				}}
-			>
-				Order lines · {items.length}
-			</span>
-			<ul className="mt-3 flex flex-col">
-				{items.map((it, i) => (
-					<li
-						key={it.productSlug}
-						className="flex flex-col items-start gap-1 border-t border-[var(--color-border)] py-2 first:border-t-0 first:pt-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-					>
-						<div className="min-w-0 flex-1">
-							<p
-								className="break-words font-[family-name:var(--font-bricolage)]"
-								style={{
-									fontSize: '13px',
-									fontWeight: 500,
-									color: 'var(--color-text)',
-									letterSpacing: '-0.008em',
-								}}
-							>
-								<span
-									className="me-2 font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
-									style={{
-										fontSize: '10.5px',
-										color: 'var(--color-text-subtle)',
-										letterSpacing: '0.04em',
-									}}
-								>
-									{(i + 1).toString().padStart(2, '0')}
-								</span>
-								{it.productName}
-							</p>
-							<p
-								className="mt-0.5 break-words font-[family-name:var(--font-jetbrains-mono)] tabular-nums"
-								style={{
-									fontSize: '10px',
-									color: 'var(--color-text-subtle)',
-									letterSpacing: '0.04em',
-								}}
-							>
-								{it.sku} · {it.agreedQty} {it.unit} ×{' '}
-								{formatEgp(it.agreedRawCost)}
-							</p>
-						</div>
-						<span
-							className="shrink-0 font-[family-name:var(--font-jetbrains-mono)] font-semibold tabular-nums sm:text-end"
-							style={{
-								fontSize: '13px',
-								color: 'var(--color-text)',
-								letterSpacing: '-0.012em',
-							}}
-						>
-							{formatEgp(it.lineTotal)}
-						</span>
-					</li>
-				))}
-			</ul>
-		</section>
-	)
-}
-
 // ─── Settled banner ──────────────────────────────────────
 
 function SettledBanner({
@@ -643,7 +573,7 @@ function PayModePicker({
 			>
 				Payment amount
 			</span>
-			<div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+			<div className="mt-2 grid grid-cols-2 gap-2">
 				{entries.map((entry) => {
 					const isActive = payMode === entry.id
 					return (

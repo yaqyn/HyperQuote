@@ -5,6 +5,7 @@ import { ToggleButton } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { getSalesAnalytics } from '../../../lib/server/sales-activity'
 import type { SalesAnalytics } from '../../../types/sales'
+import { getSalesMarginColor, SALES_MARGIN_CAP_PERCENT } from '../marginPalette'
 
 type Period = 'week' | 'month' | 'quarter' | 'year'
 
@@ -73,10 +74,16 @@ function MarginByCustomer({
 						<div className="flex-1">
 							<div
 								className="h-4 rounded bg-[var(--color-text)]/8 dark:bg-white/[0.08]"
-								style={{ width: `${margin * 4}%` }}
+								style={{
+									width: `${Math.min(100, (margin / SALES_MARGIN_CAP_PERCENT) * 100)}%`,
+									backgroundColor: getSalesMarginColor(margin),
+								}}
 							/>
 						</div>
-						<span className="w-14 shrink-0 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+						<span
+							className="w-14 shrink-0 text-end font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums"
+							style={{ color: getSalesMarginColor(margin) }}
+						>
 							{margin.toFixed(1)}%
 						</span>
 					</div>

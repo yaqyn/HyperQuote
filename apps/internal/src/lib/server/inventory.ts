@@ -11,6 +11,7 @@ import {
 	type SupplierPriceRow,
 	type SupplierTier,
 } from '../db/db'
+import { PRICE_PROOF_ESSAY_MIN } from '../inputs'
 
 export type { SupplierTier }
 
@@ -62,6 +63,43 @@ const PROCUREMENT_BUFFER = 0.025
 
 function bufferCost(raw: number): number {
 	return Math.round(raw * (1 + PROCUREMENT_BUFFER) * 100) / 100
+}
+
+const priceProofSchema = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('pdf'),
+		fileName: z
+			.string()
+			.trim()
+			.min(1)
+			.regex(/\.pdf$/i),
+	}),
+	z.object({
+		kind: z.literal('essay'),
+		text: z.string().trim().min(PRICE_PROOF_ESSAY_MIN),
+	}),
+])
+
+export type PriceProofInput = z.infer<typeof priceProofSchema>
+
+function formatPriceProofNote({
+	proof,
+	oldCost,
+	newCost,
+}: {
+	proof: PriceProofInput
+	oldCost: number
+	newCost: number
+}): string {
+	const delta =
+		oldCost > 0
+			? `${(((newCost - oldCost) / oldCost) * 100).toFixed(1)}%`
+			: 'new'
+	const evidence =
+		proof.kind === 'pdf'
+			? `PDF: ${proof.fileName.trim()}`
+			: `Essay: ${proof.text.trim()}`
+	return `Price proof · ${oldCost.toFixed(2)} -> ${newCost.toFixed(2)} EGP · ${delta} · ${evidence}`
 }
 
 // ─── Derived types the UI speaks ──────────────────────────
@@ -308,13 +346,26 @@ export const getInventoryProductDetail = createServerFn({ method: 'GET' })
  */
 export const updateInventoryPrice = createServerFn({ method: 'POST' })
 	.inputValidator(
-		z.object({ slug: z.string(), rawCost: z.number().nonnegative() }),
+		z.object({
+			slug: z.string(),
+			rawCost: z.number().nonnegative(),
+			proof: priceProofSchema,
+		}),
 	)
 	.handler(async ({ data }) => {
 		const primary = db.supplierPrices.primaryForProduct(data.slug)
 		if (!primary)
 			return { success: false, error: 'No primary supplier' as const }
-		const updated = db.supplierPrices.updateCost(primary.id, data.rawCost)
+		const proofNote = formatPriceProofNote({
+			proof: data.proof,
+			oldCost: primary.rawCost,
+			newCost: data.rawCost,
+		})
+		const updated = db.supplierPrices.updateCost(
+			primary.id,
+			data.rawCost,
+			proofNote,
+		)
 		db.priceUpdateRequests.resolveFor(data.slug)
 		return {
 			success: true,
@@ -332,12 +383,22 @@ export const updateSupplierQuote = createServerFn({ method: 'POST' })
 			slug: z.string(),
 			supplierId: z.string(),
 			rawCost: z.number().nonnegative(),
+			proof: priceProofSchema,
 		}),
 	)
 	.handler(async ({ data }) => {
 		const row = db.supplierPrices.getById(data.supplierId)
 		if (!row) return { success: false, error: 'Unknown supplier row' as const }
-		const updated = db.supplierPrices.updateCost(row.id, data.rawCost)
+		const proofNote = formatPriceProofNote({
+			proof: data.proof,
+			oldCost: row.rawCost,
+			newCost: data.rawCost,
+		})
+		const updated = db.supplierPrices.updateCost(
+			row.id,
+			data.rawCost,
+			proofNote,
+		)
 		if (updated?.isPrimary) {
 			db.priceUpdateRequests.resolveFor(updated.productSlug)
 		}
@@ -354,12 +415,22 @@ export const updateSupplierQuoteByRow = createServerFn({ method: 'POST' })
 			slug: z.string(),
 			supplierRowId: z.string(),
 			rawCost: z.number().nonnegative(),
+			proof: priceProofSchema,
 		}),
 	)
 	.handler(async ({ data }) => {
 		const row = db.supplierPrices.getById(data.supplierRowId)
 		if (!row) return { success: false, error: 'Unknown supplier row' as const }
-		const updated = db.supplierPrices.updateCost(row.id, data.rawCost)
+		const proofNote = formatPriceProofNote({
+			proof: data.proof,
+			oldCost: row.rawCost,
+			newCost: data.rawCost,
+		})
+		const updated = db.supplierPrices.updateCost(
+			row.id,
+			data.rawCost,
+			proofNote,
+		)
 		if (updated?.isPrimary) {
 			db.priceUpdateRequests.resolveFor(updated.productSlug)
 		}
@@ -428,7 +499,7 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
 
 // ─── Outdated price summary (used by sales home card) ────
 
-const getOutdatedPricesSummary = createServerFn({ method: 'GET' })
+export const getOutdatedPricesSummary = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		type Aggregate = {

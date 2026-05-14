@@ -12,12 +12,9 @@ import {
 /**
  * DispatchDialog — the single shared frame for every modal in the app.
  *
- * Aesthetic reference: a printed dispatch form. Sharp corners, dashed
- * perforated edges at top and bottom (tear-off strip), an "Archivo
- * Black" title that lands like a stamp, a mono eyebrow with the
- * station / form number, and bracketed text-actions in place of filled
- * buttons. The backdrop is dense to force focus; entry animation
- * snaps down instead of floating in.
+ * The shell is intentionally quiet: compact chrome, clear title hierarchy,
+ * consistent scroll behavior, and action buttons that feel like the same app
+ * across sales, procurement, warehouse, finance, and dispatch.
  *
  * Consumers compose:
  *   <DispatchDialog isOpen onClose title eyebrow size="md">
@@ -35,20 +32,20 @@ import {
 type DispatchSize = 'sm' | 'md' | 'lg' | 'xl'
 
 const SIZE_MAX: Record<DispatchSize, string> = {
-	sm: 'lg:max-w-md',
-	md: 'lg:max-w-xl',
-	lg: 'lg:max-w-3xl',
-	xl: 'lg:max-w-5xl',
+	sm: 'sm:max-w-md',
+	md: 'sm:max-w-xl',
+	lg: 'sm:max-w-3xl',
+	xl: 'sm:max-w-5xl',
 }
 
 interface DispatchDialogProps {
 	isOpen: boolean
 	onClose: () => void
-	/** Main dispatch title — rendered in Archivo Black */
+	/** Main dialog title. */
 	title: string
-	/** Small mono eyebrow above the title — e.g. "FORM No. 007" or "RFQ · ACME" */
+	/** Small mono eyebrow above the title, e.g. a module name or record id. */
 	eyebrow?: ReactNode
-	/** Optional sub-caption below the title (italic, muted) */
+	/** Optional sub-caption below the title. */
 	caption?: ReactNode
 	size?: DispatchSize
 	/** Pass to disable the close button — e.g. during a submit */
@@ -80,47 +77,35 @@ export function DispatchDialog({
 			}}
 			isDismissable={!dismissDisabled}
 			isKeyboardDismissDisabled={dismissDisabled}
-			className="fixed inset-0 z-50 flex items-stretch justify-center p-0 lg:items-center lg:p-6
-        bg-black/55 dark:bg-black/70 backdrop-blur-[2px]
+			className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5
+        bg-black/35 dark:bg-black/55 backdrop-blur-[2px]
         entering:animate-in entering:fade-in entering:duration-150
         exiting:animate-out exiting:fade-out exiting:duration-100"
 		>
 			<Modal
-				className={`${SIZE_MAX[size]} h-[100dvh] w-full max-w-none outline-none animate-dispatch-stamp lg:h-auto`}
+				className={`${SIZE_MAX[size]} w-full max-w-[calc(100vw-1.5rem)] outline-none animate-dispatch-stamp`}
 			>
 				<Dialog
 					aria-label={ariaLabel ?? title}
-					className="relative flex h-full max-h-none flex-col overflow-hidden bg-[var(--color-surface)] text-[var(--color-text)]
-            border-0 shadow-none outline-none lg:h-auto lg:max-h-[85vh] lg:border lg:border-black/80 lg:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)] lg:dark:border-white/85"
+					className="relative flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text)]
+            shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)] outline-none dark:border-white/[0.1]"
 				>
-					{/* Top perforation */}
-					<div aria-hidden className="h-2 edge-perforated-t" />
-
-					{/* Header — reads like a dispatch form banner */}
-					<header className="relative px-4 pt-5 pb-4 lg:px-8 lg:pt-7 lg:pb-6">
-						{/* Rubber-stamp glyph anchor — decorative only */}
-						<span
-							aria-hidden
-							className="pointer-events-none absolute top-5 end-16 hidden select-none font-[family-name:var(--font-plex-mono)] text-[22px] text-[var(--color-text-subtle)]/30 rotate-[-6deg] lg:block"
-						>
-							⊚
-						</span>
-
-						<div className="flex items-start justify-between gap-4 lg:gap-6">
+					<header className="relative shrink-0 border-b border-black/[0.08] px-4 py-3 sm:px-5 sm:py-4 dark:border-white/[0.1]">
+						<div className="flex items-start justify-between gap-4">
 							<div className="flex-1 min-w-0">
 								{eyebrow && (
-									<p className="mb-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-muted)] lg:mb-3 lg:tracking-[0.22em]">
+									<p className="mb-1.5 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
 										{eyebrow}
 									</p>
 								)}
 								<Heading
 									slot="title"
-									className="font-[family-name:var(--font-archivo-black)] text-[22px] leading-[1.06] uppercase text-[var(--color-text)] lg:text-[28px] lg:leading-[1.02]"
+									className="font-[family-name:var(--font-archivo)] text-[18px] font-semibold leading-tight text-[var(--color-text)] sm:text-[20px]"
 								>
 									{title}
 								</Heading>
 								{caption && (
-									<p className="mt-2 font-[family-name:var(--font-archivo)] italic text-[13px] leading-snug text-[var(--color-text-muted)] lg:text-[13.5px]">
+									<p className="mt-1.5 font-[family-name:var(--font-archivo)] text-[12.5px] leading-snug text-[var(--color-text-muted)]">
 										{caption}
 									</p>
 								)}
@@ -130,13 +115,12 @@ export function DispatchDialog({
 								<AriaButton
 									onPress={onClose}
 									aria-label="Close"
-									className="mt-0.5 inline-flex h-10 w-10 items-center justify-center lg:h-8 lg:w-8
-                    border border-black/80 dark:border-white/85
-                    text-[var(--color-text)] hover:bg-black/90 dark:hover:bg-white/90
-                    hover:text-[var(--color-surface)] transition-colors outline-none
-                    focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/50 focus-visible:ring-offset-1"
+									className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md
+                    text-[var(--color-text-muted)] transition-colors outline-none
+                    hover:bg-black/[0.05] hover:text-[var(--color-text)] dark:hover:bg-white/[0.06]
+                    focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
 								>
-									<X size={14} strokeWidth={1.75} />
+									<X size={15} strokeWidth={1.8} />
 								</AriaButton>
 							)}
 						</div>
@@ -146,9 +130,6 @@ export function DispatchDialog({
 					<div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 						{children}
 					</div>
-
-					{/* Bottom perforation */}
-					<div aria-hidden className="h-2 edge-perforated-b" />
 				</Dialog>
 			</Modal>
 		</ModalOverlay>
@@ -166,14 +147,14 @@ export function DispatchBody({
 }) {
 	return (
 		<div
-			className={`flex-1 min-h-0 overflow-y-auto px-4 py-5 lg:px-8 lg:py-6 ${className}`}
+			className={`flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 ${className}`}
 		>
 			{children}
 		</div>
 	)
 }
 
-// ─── Footer — bracketed actions + optional leading note ────
+// ─── Footer — actions + optional leading note ─────────────
 
 export function DispatchFooter({
 	children,
@@ -183,20 +164,20 @@ export function DispatchFooter({
 	leading?: ReactNode
 }) {
 	return (
-		<footer className="shrink-0 flex flex-col gap-3 px-4 py-4 border-t border-black/[0.12] dark:border-white/[0.12] lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8">
+		<footer className="shrink-0 flex flex-col gap-3 border-t border-black/[0.08] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 dark:border-white/[0.1]">
 			{leading && (
-				<div className="min-w-0 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)] lg:tracking-[0.2em]">
+				<div className="min-w-0 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
 					{leading}
 				</div>
 			)}
-			<div className="flex shrink-0 flex-col-reverse gap-3 lg:flex-row lg:items-center lg:gap-5">
+			<div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2">
 				{children}
 			</div>
 		</footer>
 	)
 }
 
-// ─── Bracketed action — [ Confirm ] / [ Cancel ] ───────────
+// ─── Dialog action ────────────────────────────────────────
 
 type DispatchTone = 'primary' | 'danger' | 'ghost'
 
@@ -213,33 +194,21 @@ export function DispatchAction({
 }: DispatchActionProps) {
 	const toneClass =
 		tone === 'primary'
-			? 'text-[var(--color-text)] hover:text-[var(--color-primary)]'
+			? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white hover:opacity-90'
 			: tone === 'danger'
-				? 'text-[#B3261E] dark:text-[#E46B63] hover:text-[#8A1912]'
-				: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+				? 'border-[#B91C1C] bg-[#B91C1C] text-white hover:bg-[#991B1B]'
+				: 'border-transparent text-[var(--color-text-muted)] hover:bg-black/[0.04] hover:text-[var(--color-text)] dark:hover:bg-white/[0.05]'
 
 	return (
 		<AriaButton
 			{...props}
-			className={`group inline-flex w-full items-center justify-center gap-1 py-2 lg:w-auto lg:py-0
-        font-[family-name:var(--font-archivo)] text-[12.5px] font-semibold uppercase tracking-[0.14em]
-        outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/50 rounded-sm
-        data-[disabled]:opacity-40 transition-colors
+			className={`inline-flex min-h-9 w-full items-center justify-center rounded-md border px-3
+        font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase tracking-[0.1em]
+        outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30
+        data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 sm:w-auto
         ${toneClass}`}
 		>
-			<span
-				aria-hidden
-				className="font-[family-name:var(--font-plex-mono)] text-[14px] leading-none opacity-60 group-hover:opacity-100 transition-opacity"
-			>
-				[
-			</span>
 			<span>{children}</span>
-			<span
-				aria-hidden
-				className="font-[family-name:var(--font-plex-mono)] text-[14px] leading-none opacity-60 group-hover:opacity-100 transition-opacity"
-			>
-				]
-			</span>
 		</AriaButton>
 	)
 }
@@ -280,7 +249,7 @@ export function DispatchField({
  * that thickens on focus. Use inside DispatchField for form modals.
  */
 export function DispatchInputClass() {
-	return 'w-full bg-transparent font-[family-name:var(--font-archivo)] text-[16px] text-[var(--color-text)] outline-none py-1.5 border-b border-black/[0.14] dark:border-white/[0.14] placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-text)]/80 transition-colors lg:text-[14px]'
+	return 'min-h-10 w-full rounded-md border border-black/[0.1] bg-black/[0.015] px-3 py-2 font-[family-name:var(--font-archivo)] text-[16px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] transition-colors focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12] dark:bg-white/[0.025] sm:text-[14px]'
 }
 
 /**
