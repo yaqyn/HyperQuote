@@ -1,7 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { PaymentStatus } from '../db/db'
-import { db, hoursSince } from '../db/db'
+import { db } from '../db/db'
+import {
+	getQuoteContext,
+	quoteOrderIdentity,
+	roundedHoursSince,
+	roundMoney,
+} from './order-context'
 
 /**
  * Finance inbox — the dual-pipeline view.
@@ -89,31 +95,18 @@ interface FinanceInboxTotals {
 // ─── Builders ─────────────────────────────────────────────
 
 function buildFinanceOrder(quoteId: string): FinanceOrderView | null {
-	const quote = db.quotes.get(quoteId)
-	if (!quote) return null
+	const context = getQuoteContext(quoteId)
+	if (!context) return null
+	const { quote, report } = context
 	if (quote.status !== 'accepted') return null
-	const rfq = db.rfqs.get(quote.rfqId)
-	const customer = db.customers.get(quote.customerId)
-	const report = db.orderReports.forRfq(quote.rfqId)
 	const stage = report?.currentStage ?? 'evaluated'
-	const acceptedAt = quote.sentAt ?? new Date().toISOString()
 	const remaining = Math.max(0, quote.totalDue - quote.amountPaid)
+	const identity = quoteOrderIdentity(context, 'Unknown customer')
 	return {
-		quoteId: quote.id,
-		quoteNumber: quote.quoteNumber,
-		rfqId: quote.rfqId,
-		customerId: quote.customerId,
-		customerName:
-			rfq?.customerName ?? customer?.companyName ?? 'Unknown customer',
-		customerTier: rfq?.customerTier ?? customer?.tier ?? 'new',
-		customerPoNumber: quote.customerPoNumber,
-		acceptedAt,
-		acceptedHoursAgo: Math.round(hoursSince(acceptedAt)),
-		deliveryAddress: rfq?.deliveryAddress ?? customer?.address ?? '',
-		deliveryCity: rfq?.deliveryCity ?? '',
-		totalDue: Math.round(quote.totalDue * 100) / 100,
-		amountPaid: Math.round(quote.amountPaid * 100) / 100,
-		remainingDue: Math.round(remaining * 100) / 100,
+		...identity,
+		totalDue: roundMoney(quote.totalDue),
+		amountPaid: roundMoney(quote.amountPaid),
+		remainingDue: roundMoney(remaining),
 		paymentStatus: quote.paymentStatus,
 		partialPaidAt: quote.partialPaidAt,
 		fullPaidAt: quote.fullPaidAt,
@@ -138,7 +131,7 @@ function buildFinanceDeal(dealId: string): FinanceDealView | null {
 			unit: product?.unit_of_measure ?? '',
 			agreedQty: i.agreedQty,
 			agreedRawCost: i.agreedRawCost,
-			lineTotal: Math.round(i.agreedQty * i.agreedRawCost * 100) / 100,
+			lineTotal: roundMoney(i.agreedQty * i.agreedRawCost),
 		}
 	})
 	return {
@@ -147,16 +140,16 @@ function buildFinanceDeal(dealId: string): FinanceDealView | null {
 		items,
 		itemCount: items.length,
 		headlineProductName: items[0]?.productName ?? '—',
-		totalDue: Math.round(deal.totalDue * 100) / 100,
-		amountPaid: Math.round(deal.amountPaid * 100) / 100,
-		remainingDue: Math.round(remaining * 100) / 100,
+		totalDue: roundMoney(deal.totalDue),
+		amountPaid: roundMoney(deal.amountPaid),
+		remainingDue: roundMoney(remaining),
 		paymentStatus: deal.paymentStatus,
 		partialPaidAt: deal.partialPaidAt,
 		fullPaidAt: deal.fullPaidAt,
 		partialProofUrl: deal.partialProofUrl,
 		fullProofUrl: deal.fullProofUrl,
 		createdAt: deal.createdAt,
-		createdHoursAgo: Math.round(hoursSince(deal.createdAt)),
+		createdHoursAgo: roundedHoursSince(deal.createdAt),
 	}
 }
 
@@ -191,12 +184,10 @@ export const getFinanceInbox = createServerFn({ method: 'GET' })
 			).length,
 			supplierPaid: supplierDeals.filter((d) => d.paymentStatus === 'paid')
 				.length,
-			totalOutstanding:
-				Math.round(
-					(customerOrders.reduce((s, o) => s + o.remainingDue, 0) +
-						supplierDeals.reduce((s, d) => s + d.remainingDue, 0)) *
-						100,
-				) / 100,
+			totalOutstanding: roundMoney(
+				customerOrders.reduce((s, o) => s + o.remainingDue, 0) +
+					supplierDeals.reduce((s, d) => s + d.remainingDue, 0),
+			),
 			deliveredPartialCount: customerOrders.filter(
 				(o) => o.paymentStatus === 'partial' && o.isDelivered,
 			).length,
@@ -238,8 +229,7 @@ export const recordOrderPartialPayment = createServerFn({ method: 'POST' })
 				error: `Cannot move ${quote.paymentStatus} → partial`,
 			}
 		}
-		const partialAmount =
-			Math.round(quote.totalDue * PARTIAL_FRACTION * 100) / 100
+		const partialAmount = roundMoney(quote.totalDue * PARTIAL_FRACTION)
 		const updated = db.quotes.update(quote.id, {
 			paymentStatus: 'partial',
 			amountPaid: partialAmount,
@@ -281,7 +271,7 @@ export const recordOrderFullPayment = createServerFn({ method: 'POST' })
 		}
 		const updated = db.quotes.update(quote.id, {
 			paymentStatus: 'paid',
-			amountPaid: Math.round(quote.totalDue * 100) / 100,
+			amountPaid: roundMoney(quote.totalDue),
 			fullPaidAt: new Date().toISOString(),
 			fullProofUrl: data.proofUrl.trim(),
 		})
@@ -413,8 +403,7 @@ export const recordDealPartialPayment = createServerFn({ method: 'POST' })
 				error: `Cannot move ${deal.paymentStatus} → partial`,
 			}
 		}
-		const partialAmount =
-			Math.round(deal.totalDue * PARTIAL_FRACTION * 100) / 100
+		const partialAmount = roundMoney(deal.totalDue * PARTIAL_FRACTION)
 		updateDeal(deal.id, {
 			paymentStatus: 'partial',
 			amountPaid: partialAmount,
@@ -450,7 +439,7 @@ export const recordDealFullPayment = createServerFn({ method: 'POST' })
 		}
 		updateDeal(deal.id, {
 			paymentStatus: 'paid',
-			amountPaid: Math.round(deal.totalDue * 100) / 100,
+			amountPaid: roundMoney(deal.totalDue),
 			fullPaidAt: new Date().toISOString(),
 			fullProofUrl: data.proofUrl.trim(),
 		})

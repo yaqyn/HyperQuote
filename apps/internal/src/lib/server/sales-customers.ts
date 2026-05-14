@@ -1,11 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type {
-	Customer,
-	Customer360Data,
-	CustomerContact,
-} from '../../types/sales'
-import { type CustomerRow, db } from '../db/db'
+import type { Customer } from '../../types/sales'
+import { db } from '../db/db'
 
 // ─── Projections ──────────────────────────────────────────
 
@@ -55,34 +51,6 @@ export const getCustomerList = createServerFn({ method: 'GET' })
 		return {
 			customers: rows.slice(start, start + data.limit),
 			total: rows.length,
-		}
-	})
-
-const getCustomerCreditInfo = createServerFn({ method: 'GET' })
-	.inputValidator(z.object({ customerId: z.string() }))
-	.handler(async ({ data }) => {
-		const row = db.customers.get(data.customerId)
-		if (!row) {
-			return {
-				creditLimit: 0,
-				currentExposure: 0,
-				paymentHistory: 'fair' as const,
-				riskScore: 50,
-			}
-		}
-		const riskScore =
-			row.paymentHistory === 'excellent'
-				? 10
-				: row.paymentHistory === 'good'
-					? 25
-					: row.paymentHistory === 'fair'
-						? 55
-						: 80
-		return {
-			creditLimit: row.creditLimit,
-			currentExposure: row.currentExposure,
-			paymentHistory: row.paymentHistory,
-			riskScore,
 		}
 	})
 
@@ -139,69 +107,4 @@ export const addCustomer = createServerFn({ method: 'POST' })
 			status: row.status,
 			warning: 'new_customer_no_credit' as const,
 		}
-	})
-
-const getCustomer360 = createServerFn({ method: 'GET' })
-	.inputValidator(z.object({ customerId: z.string() }))
-	.handler(async ({ data }) => {
-		const row: CustomerRow | undefined = db.customers.get(data.customerId)
-		const fallback = row ?? db.customers.list()[0]
-		const customer: Customer = projectCustomer(fallback)
-
-		// Customer contacts, projects, communications, notes, and documents do
-		// not yet have DB tables — they come online in later sessions. For now
-		// return empty arrays so the UI renders stable zero-state rather than
-		// fake strings. The shape is locked in so callers don't break later.
-		const contacts: CustomerContact[] = []
-
-		const quoteRows = db.quotes.forCustomer(fallback.id)
-		const quotes = quoteRows.map((q) => {
-			const total = q.items.reduce((s, i) => s + i.sellPrice * i.quantity, 0)
-			return {
-				id: q.id,
-				quoteNumber: q.quoteNumber,
-				status: q.status,
-				total,
-				createdAt: q.sentAt ?? q.validUntil,
-				outcome:
-					q.status === 'accepted'
-						? ('won' as const)
-						: q.status === 'declined'
-							? ('lost' as const)
-							: ('pending' as const),
-			}
-		})
-
-		const data360: Customer360Data = {
-			customer,
-			contacts,
-			quotes,
-			orders: [], // orders table not yet modeled
-			financials: {
-				creditLimit: fallback.creditLimit,
-				creditLimitHistory: [],
-				arAging: {
-					current: 0,
-					days1to30: 0,
-					days31to60: 0,
-					days61to90: 0,
-					days90plus: 0,
-				},
-				paymentHistory: [],
-				avgDaysToPay: 0,
-			},
-			projects: [],
-			communications: [],
-			documents: [],
-			notes: [],
-			healthScore:
-				fallback.paymentHistory === 'excellent'
-					? 85
-					: fallback.paymentHistory === 'good'
-						? 70
-						: fallback.paymentHistory === 'fair'
-							? 50
-							: 30,
-		}
-		return data360
 	})

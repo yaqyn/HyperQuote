@@ -9,11 +9,9 @@ import {
 	adminListProducts,
 	adminUpdateProduct,
 } from '../../../lib/server/admin'
-import { useAdminStore } from '../../../stores/admin'
 import { getVolume } from '../../../types/admin'
 import { Toggle } from '../../ui/Toggle'
 import {
-	LinkAction,
 	NumberControl,
 	SelectControl,
 	StatusTag,
@@ -23,6 +21,7 @@ import {
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
+import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
 type ProductDraft = Omit<CatalogProduct, 'id'> & { id?: string }
 
@@ -60,10 +59,6 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	const qc = useQueryClient()
 	const volume = getVolume('products')
 
-	const mode = useAdminStore((s) => s.editorMode)
-	const openEditor = useAdminStore((s) => s.openEditor)
-	const closeEditor = useAdminStore((s) => s.closeEditor)
-
 	const {
 		data: products = [],
 		isError: productsError,
@@ -73,37 +68,24 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 		queryFn: () => adminListProducts(),
 	})
 
-	const [draft, setDraft] = useState<ProductDraft | null>(null)
-
-	function handleRowSelect(row: CatalogProduct) {
-		setDraft({ ...row })
-		openEditor('view', row.id)
-	}
-
-	function handleNew() {
-		setDraft(blankProduct())
-		openEditor('create', null)
-	}
-
-	function handleClose() {
-		closeEditor()
-		setDraft(null)
-	}
-
-	function handleEdit() {
-		if (!draft?.id) return
-		openEditor('edit', draft.id)
-	}
-
-	function handleCancel() {
-		if (mode === 'create') {
-			handleClose()
-		} else if (draft?.id) {
-			const original = products.find((p) => p.id === draft.id)
-			if (original) setDraft({ ...original })
-			openEditor('view', draft.id)
-		}
-	}
+	const {
+		mode,
+		draft,
+		setDraft,
+		readOnly,
+		handleRowSelect,
+		handleNew,
+		handleClose,
+		handleEdit,
+		handleCancel,
+		showSavedDraft,
+	} = useVolumeEditor({
+		rows: products,
+		blankDraft: blankProduct,
+		rowToDraft: (row) => ({ ...row }),
+		rowId: (row) => row.id,
+		draftId: (row) => row.id,
+	})
 
 	const createMutation = useMutation({
 		mutationFn: (payload: Omit<CatalogProduct, 'id'>) =>
@@ -116,8 +98,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			}),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'products'] })
-			setDraft({ ...created })
-			openEditor('view', created.id)
+			showSavedDraft({ ...created }, created.id)
 		},
 	})
 
@@ -135,8 +116,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			}),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'products'] })
-			setDraft({ ...updated })
-			openEditor('view', updated.id)
+			showSavedDraft({ ...updated }, updated.id)
 		},
 	})
 
@@ -190,8 +170,6 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			return
 		deleteMutation.mutate(draft.id)
 	}
-
-	const readOnly = mode === 'view'
 
 	const priceTierOptions: Array<{
 		value: CatalogProduct['price_tier']
@@ -306,40 +284,16 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 				idLabel={draft?.id ?? null}
 				footer={
 					draft ? (
-						<>
-							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
-								{mode === 'view' && (
-									<LinkAction tone="primary" onClick={handleEdit}>
-										{t('actions.edit')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction
-										tone="primary"
-										onClick={handleSave}
-										disabled={
-											createMutation.isPending || updateMutation.isPending
-										}
-									>
-										{t('actions.save')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction onClick={handleCancel}>
-										{t('actions.cancel')}
-									</LinkAction>
-								)}
-							</div>
-							{mode === 'view' && draft.id && (
-								<LinkAction
-									tone="danger"
-									onClick={handleDelete}
-									disabled={deleteMutation.isPending}
-								>
-									{t('actions.delete')}
-								</LinkAction>
-							)}
-						</>
+						<VolumeEditorFooter
+							mode={mode}
+							id={draft.id}
+							isSaving={createMutation.isPending || updateMutation.isPending}
+							isDeleting={deleteMutation.isPending}
+							onEdit={handleEdit}
+							onSave={handleSave}
+							onCancel={handleCancel}
+							onDelete={handleDelete}
+						/>
 					) : null
 				}
 			>

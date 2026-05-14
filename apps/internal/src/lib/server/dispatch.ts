@@ -1,6 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { db, hoursSince } from '../db/db'
+import { db } from '../db/db'
+import {
+	getQuoteContext,
+	quoteCustomerSnapshot,
+	quoteDeliverySnapshot,
+} from './order-context'
 import type { WarehouseSection } from './warehouse'
 
 const MOCK_ADVISOR_TOKEN = '1234' as const
@@ -119,19 +124,16 @@ function isToday(iso: string): boolean {
 }
 
 function buildRoute(quoteId: string): DispatchRouteView | null {
-	const quote = db.quotes.get(quoteId)
-	if (!quote || quote.status !== 'accepted') return null
-
-	const report = db.orderReports.forRfq(quote.rfqId)
+	const context = getQuoteContext(quoteId)
+	if (!context) return null
+	const { quote, report } = context
+	if (quote.status !== 'accepted') return null
 	if (!report) return null
 
 	const whSection = report.sections.warehouse as WarehouseSection | undefined
 	if (!whSection?.passedAt) return null
 	if (report.sections.delivered) return null
 	if (report.sections.returned) return null
-
-	const rfq = db.rfqs.get(quote.rfqId)
-	const customer = db.customers.get(quote.customerId)
 
 	const items: DispatchRouteItemView[] = quote.items
 		.map((i) => {
@@ -161,8 +163,13 @@ function buildRoute(quoteId: string): DispatchRouteView | null {
 		})
 		.filter((x): x is DispatchTruckView => x !== null)
 
-	const passedAtHoursAgo = Math.round(hoursSince(whSection.passedAt) * 10) / 10
-	const city = quote.deliveryCity ?? rfq?.deliveryCity ?? ''
+	const passedAtHoursAgo =
+		Math.round(
+			((Date.now() - new Date(whSection.passedAt).getTime()) / 3_600_000) * 10,
+		) / 10
+	const customer = quoteCustomerSnapshot(context, '')
+	const delivery = quoteDeliverySnapshot(context, { preferQuote: true })
+	const city = delivery.deliveryCity
 	const dest = deliveryCoords(city)
 	const driver = driverPosition(
 		WAREHOUSE_COORDS.lat,
@@ -175,12 +182,12 @@ function buildRoute(quoteId: string): DispatchRouteView | null {
 	return {
 		quoteId: quote.id,
 		quoteNumber: quote.quoteNumber,
-		customerName: rfq?.customerName ?? customer?.companyName ?? '',
-		customerPhone: customer?.phone ?? '',
-		customerContactName: rfq?.contactName ?? customer?.contactName ?? '',
-		deliveryAddress: quote.deliveryAddress ?? rfq?.deliveryAddress ?? '',
+		customerName: customer.customerName,
+		customerPhone: customer.customerPhone,
+		customerContactName: customer.customerContactName,
+		deliveryAddress: delivery.deliveryAddress,
 		deliveryCity: city,
-		deliveryUrgencyDays: rfq?.deliveryUrgency ?? 0,
+		deliveryUrgencyDays: delivery.deliveryUrgencyDays,
 		items,
 		trucks,
 		passedAt: whSection.passedAt,
@@ -191,6 +198,32 @@ function buildRoute(quoteId: string): DispatchRouteView | null {
 		driverLat: driver.lat,
 		driverLng: driver.lng,
 	}
+}
+
+function getDispatchedOrderMutationContext(data: {
+	quoteId: string
+	advisorId: string
+	securityToken: string
+}) {
+	if (data.securityToken !== MOCK_ADVISOR_TOKEN) {
+		return { success: false as const, error: 'Invalid credential' }
+	}
+
+	const advisor = db.employees.get(data.advisorId)
+	if (!advisor) return { success: false as const, error: 'Advisor not found' }
+
+	const quote = db.quotes.get(data.quoteId)
+	if (!quote) return { success: false as const, error: 'Order not found' }
+
+	const report = db.orderReports.forRfq(quote.rfqId)
+	if (!report) return { success: false as const, error: 'No report' }
+
+	const whSection = report.sections.warehouse as WarehouseSection | undefined
+	if (!whSection?.passedAt) {
+		return { success: false as const, error: 'Order not dispatched yet' }
+	}
+
+	return { success: true as const, advisor, quote, report, whSection }
 }
 
 // ─── Server functions ────────────────────────────────────
@@ -269,8 +302,10 @@ export const getDispatchDrivers = createServerFn({ method: 'GET' })
 					if (assigned) {
 						assignedQuoteId = q.id
 						assignedQuoteNumber = q.quoteNumber
-						const rfq = db.rfqs.get(q.rfqId)
-						assignedCustomerName = rfq?.customerName ?? null
+						const context = getQuoteContext(q.id)
+						assignedCustomerName = context
+							? quoteCustomerSnapshot(context, '').customerName
+							: null
 						break
 					}
 				}
@@ -304,40 +339,25 @@ export const markOrderDelivered = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		if (data.securityToken !== MOCK_ADVISOR_TOKEN) {
-			return { success: false, error: 'Invalid credential' }
-		}
-
-		const advisor = db.employees.get(data.advisorId)
-		if (!advisor) return { success: false, error: 'Advisor not found' }
-
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false, error: 'Order not found' }
-
-		const report = db.orderReports.forRfq(quote.rfqId)
-		if (!report) return { success: false, error: 'No report' }
-
-		const whSection = report.sections.warehouse as WarehouseSection | undefined
-		if (!whSection?.passedAt) {
-			return { success: false, error: 'Order not dispatched yet' }
-		}
-		if (report.sections.delivered) {
+		const context = getDispatchedOrderMutationContext(data)
+		if (!context.success) return context
+		if (context.report.sections.delivered) {
 			return { success: false, error: 'Already delivered' }
 		}
 
-		db.orderReports.appendSection(quote.rfqId, 'delivered', {
+		db.orderReports.appendSection(context.quote.rfqId, 'delivered', {
 			deliveredAt: new Date().toISOString(),
-			advisorName: advisor.name,
+			advisorName: context.advisor.name,
 			advisorId: data.advisorId,
 			proofUrl: data.proofUrl,
 			securityMethod: data.securityMethod,
 		})
 
-		for (const item of quote.items) {
+		for (const item of context.quote.items) {
 			db.stock.consume(item.productSlug, item.quantity)
 		}
 
-		for (const a of whSection.truckAssignments ?? []) {
+		for (const a of context.whSection.truckAssignments ?? []) {
 			db.trucks.setStatus(a.truckId, 'available')
 		}
 
@@ -356,28 +376,13 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		if (data.securityToken !== MOCK_ADVISOR_TOKEN) {
-			return { success: false, error: 'Invalid credential' }
-		}
+		const context = getDispatchedOrderMutationContext(data)
+		if (!context.success) return context
 
-		const advisor = db.employees.get(data.advisorId)
-		if (!advisor) return { success: false, error: 'Advisor not found' }
-
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false, error: 'Order not found' }
-
-		const report = db.orderReports.forRfq(quote.rfqId)
-		if (!report) return { success: false, error: 'No report' }
-
-		const whSection = report.sections.warehouse as WarehouseSection | undefined
-		if (!whSection?.passedAt) {
-			return { success: false, error: 'Order not dispatched yet' }
-		}
-
-		db.orderReports.appendSection(quote.rfqId, 'returned', {
+		db.orderReports.appendSection(context.quote.rfqId, 'returned', {
 			returnedAt: new Date().toISOString(),
 			reason: data.reason,
-			advisorName: advisor.name,
+			advisorName: context.advisor.name,
 			advisorId: data.advisorId,
 			proofUrl: data.proofUrl,
 			securityMethod: data.securityMethod,
@@ -386,17 +391,17 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 		const resetSection: WarehouseSection = {
 			truckAssignments: [],
 			advisorMarkedReady: false,
-			failedInspections: whSection.failedInspections ?? [],
+			failedInspections: context.whSection.failedInspections ?? [],
 			signoff: null,
 			passedAt: null,
 		}
-		report.sections.warehouse = resetSection as unknown as Record<
+		context.report.sections.warehouse = resetSection as unknown as Record<
 			string,
 			unknown
 		>
-		report.currentStage = 'warehouse'
+		context.report.currentStage = 'warehouse'
 
-		for (const a of whSection.truckAssignments ?? []) {
+		for (const a of context.whSection.truckAssignments ?? []) {
 			db.trucks.setStatus(a.truckId, 'available')
 		}
 

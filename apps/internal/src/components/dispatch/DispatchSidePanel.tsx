@@ -19,7 +19,12 @@ import {
 	Truck,
 	X,
 } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import {
@@ -435,7 +440,7 @@ function OrderBand({
 			transition={{
 				delay: 0.08 + index * 0.035,
 				duration: 0.26,
-				ease: [0.16, 1, 0.3, 1],
+				ease: cubicBezier(0.16, 1, 0.3, 1),
 			}}
 			className="relative grid w-full cursor-pointer gap-2 px-4 py-3 transition-colors hover:bg-[var(--rule-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--motion)]/25 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:px-6 lg:grid-cols-[34px_minmax(0,1fr)_auto] lg:gap-3 lg:px-0 lg:py-0"
 			style={{

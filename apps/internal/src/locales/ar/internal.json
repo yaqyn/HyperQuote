@@ -9,15 +9,11 @@
 	"modules": {
 		"sales": "المبيعات",
 		"procurement": "المخزون",
-		"orders": "الطلبات",
 		"warehouse": "المخزن",
 		"finance": "المالية",
 		"dispatch": "التوصيل",
 		"customerService": "خدمة العملاء",
-		"hr": "الموارد البشرية",
-		"admin": "الإدارة",
-		"reports": "التقارير",
-		"ai": "المساعد الذكي"
+		"admin": "الإدارة"
 	},
 	"quickActions": {
 		"viewRfqInbox": "عرض طلبات الأسعار",
@@ -27,16 +23,6 @@
 	"window": {
 		"close": "إغلاق",
 		"comingSoon": "قريباً"
-	},
-	"commandPalette": {
-		"placeholder": "ابحث عن أوامر، كيانات، إجراءات...",
-		"noResults": "لا توجد نتائج",
-		"categories": {
-			"modules": "الأقسام",
-			"entities": "الكيانات",
-			"actions": "الإجراءات",
-			"recent": "الأخيرة"
-		}
 	},
 	"notifications": {
 		"title": "الإشعارات",

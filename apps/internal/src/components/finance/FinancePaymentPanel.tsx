@@ -23,6 +23,7 @@ import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
+import { formatRoundedEgp } from '../shared/formatters'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface FinancePaymentPanelProps {
@@ -30,10 +31,6 @@ interface FinancePaymentPanelProps {
 	orderId: string | null
 	dealId: string | null
 	onClose: () => void
-}
-
-function formatEgp(n: number): string {
-	return Math.round(n).toLocaleString('en-EG')
 }
 
 type Mode = 'order' | 'deal'
@@ -466,7 +463,7 @@ function TotalCell({
 					letterSpacing: '-0.015em',
 				}}
 			>
-				{formatEgp(value)}
+				{formatRoundedEgp(value)}
 				<span
 					className="ms-1 font-[family-name:var(--font-jetbrains-mono)] uppercase"
 					style={{
@@ -610,7 +607,7 @@ function PayModePicker({
 											: 'var(--color-text)',
 									}}
 								>
-									{formatEgp(entry.amount)}
+									{formatRoundedEgp(entry.amount)}
 								</span>
 							</div>
 							<span
@@ -658,7 +655,7 @@ function AmountDisplay({
 						fontFeatureSettings: '"tnum" on, "lnum" on',
 					}}
 				>
-					{formatEgp(amount)}
+					{formatRoundedEgp(amount)}
 				</span>
 				<span
 					className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -716,7 +713,7 @@ function PreviousPartial({
 					letterSpacing: '-0.004em',
 				}}
 			>
-				{formatEgp(amountPaid)} EGP ·{' '}
+				{formatRoundedEgp(amountPaid)} EGP ·{' '}
 				{partialPaidAt
 					? new Date(partialPaidAt).toLocaleDateString('en-EG')
 					: '—'}
@@ -910,7 +907,7 @@ function ConfirmReview({
 						letterSpacing: '-0.012em',
 					}}
 				>
-					{formatEgp(amount)} EGP
+					{formatRoundedEgp(amount)} EGP
 				</dd>
 				<dt
 					className="font-[family-name:var(--font-bricolage)]"
@@ -1015,7 +1012,7 @@ function PanelFooter({
 	const actionLabel =
 		stage === 'preview'
 			? 'Review payment'
-			: `Record ${formatEgp(amountThisStep)} EGP`
+			: `Record ${formatRoundedEgp(amountThisStep)} EGP`
 
 	return (
 		<footer className="shrink-0 border-t border-[var(--color-border)] px-4 py-4 sm:px-6 lg:px-8">

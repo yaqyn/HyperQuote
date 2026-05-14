@@ -29,6 +29,7 @@ import {
 	updateSupplierQuote,
 } from '../../../lib/server/inventory'
 import { EmployeeActionButton } from '../../shared/EmployeeControls'
+import { formatDecimalEgp } from '../../shared/formatters'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface ProductDetailModalProps {
@@ -65,10 +66,6 @@ function formatRelative(iso: string | null): string {
 	if (hours < 1) return `${Math.round(hours * 60)}m ago`
 	if (hours < 24) return `${Math.round(hours)}h ago`
 	return `${Math.floor(hours / 24)}d ago`
-}
-
-function formatMoney(value: number): string {
-	return value.toLocaleString('en-EG', { minimumFractionDigits: 2 })
 }
 
 function colorForTone(tone: SupplierTone): string {
@@ -414,13 +411,15 @@ function PricePanelHeader({
 				<PriceMetric
 					label="Current cost"
 					value={
-						data.currentRawCost > 0 ? formatMoney(data.currentRawCost) : '—'
+						data.currentRawCost > 0
+							? formatDecimalEgp(data.currentRawCost)
+							: '—'
 					}
 					caption={`EGP / ${data.unit}`}
 				/>
 				<PriceMetric
 					label="Sell-ready"
-					value={formatMoney(data.currentSupplierCost)}
+					value={formatDecimalEgp(data.currentSupplierCost)}
 					caption={`Updated ${formatRelative(data.lastUpdatedAt)}`}
 				/>
 			</div>
@@ -536,7 +535,7 @@ function SupplierMenuButton({
 					</span>
 					{selectedSupplier && (
 						<span className="mt-1 block truncate font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--ink-mid)]">
-							{formatMoney(selectedSupplier.rawCost)} EGP/{unit} · MOQ{' '}
+							{formatDecimalEgp(selectedSupplier.rawCost)} EGP/{unit} · MOQ{' '}
 							{selectedSupplier.minOrderQty.toLocaleString('en-EG')} ·{' '}
 							{selectedSupplier.leadTimeDays}d
 						</span>
@@ -627,7 +626,7 @@ function SupplierMenuOption({
 				</div>
 				<div className="text-end">
 					<span className="block font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--ink)]">
-						{formatMoney(supplier.rawCost)}
+						{formatDecimalEgp(supplier.rawCost)}
 					</span>
 					<span
 						className="mt-1 block font-[family-name:var(--font-archivo)] text-[10px] font-semibold"
@@ -764,7 +763,7 @@ function ProofSubmissionStep({
 				<div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-3">
 					<ProofPriceColumn
 						label="Current"
-						value={formatMoney(oldCost)}
+						value={formatDecimalEgp(oldCost)}
 						muted
 					/>
 					<span
@@ -773,7 +772,7 @@ function ProofSubmissionStep({
 					>
 						→
 					</span>
-					<ProofPriceColumn label="New" value={formatMoney(newCost)} />
+					<ProofPriceColumn label="New" value={formatDecimalEgp(newCost)} />
 				</div>
 				<div className="mt-3 border-t border-[var(--rule-soft)] pt-3">
 					<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
@@ -984,7 +983,7 @@ function PricePanelFooter({
 						</span>
 					</div>
 					<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--ink)]">
-						{newCost === null ? 'Invalid' : `${formatMoney(newCost)} EGP`}
+						{newCost === null ? 'Invalid' : `${formatDecimalEgp(newCost)} EGP`}
 					</span>
 				</div>
 				{errorMessage ? (

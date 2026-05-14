@@ -1,7 +1,12 @@
 import { type AuthSession, hasPermission } from '@hyperquote/auth'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, DialogTrigger, Popover } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -205,7 +210,6 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	return (
 		<motion.div
 			className="relative flex h-full w-full flex-col overflow-hidden select-none bg-dot-grid"
-			style={{ '--dot-wave-x': '132%' }}
 			animate={
 				reduceMotion
 					? undefined
@@ -701,7 +705,7 @@ function AwayScreen({
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
-			transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+			transition={{ duration: 0.35, ease: cubicBezier(0.16, 1, 0.3, 1) }}
 			className="absolute inset-0 z-[100] flex flex-col items-center justify-center"
 			data-away-lock="true"
 			style={{ backgroundColor: '#030303' }}
@@ -712,7 +716,11 @@ function AwayScreen({
 			<motion.div
 				initial={{ y: 16, opacity: 0 }}
 				animate={{ y: 0, opacity: 1 }}
-				transition={{ delay: 0.1, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+				transition={{
+					delay: 0.1,
+					duration: 0.45,
+					ease: cubicBezier(0.16, 1, 0.3, 1),
+				}}
 				className="flex flex-col items-center text-center"
 			>
 				{/* Friendly headline in Sherlock-era Fraunces italic —

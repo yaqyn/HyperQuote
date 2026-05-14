@@ -1,10 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { Button } from 'react-aria-components'
-import { getInventoryOverview } from '../../lib/server/inventory'
-import { getCustomerOrdersList } from '../../lib/server/orders'
-import { getStockOverview } from '../../lib/server/stock'
 import { useProcurementStore } from '../../stores/procurement'
+import { useProcurementOverview } from './useProcurementOverview'
 
 /**
  * The compendium's three chapters. The id values match the existing store
@@ -34,35 +30,7 @@ const CHAPTERS: Chapter[] = [
 export function ProcurementTabStrip() {
 	const activeTab = useProcurementStore((s) => s.activeTab)
 	const setActiveTab = useProcurementStore((s) => s.setActiveTab)
-
-	const stockQuery = useQuery({
-		queryKey: ['stock-overview'],
-		queryFn: () => getStockOverview({ data: {} }),
-		staleTime: 30_000,
-	})
-	const inventoryQuery = useQuery({
-		queryKey: ['inventory-overview'],
-		queryFn: () => getInventoryOverview({ data: {} }),
-		staleTime: 30_000,
-	})
-	const ordersQuery = useQuery({
-		queryKey: ['customer-orders'],
-		queryFn: () => getCustomerOrdersList({ data: {} }),
-		staleTime: 30_000,
-	})
-
-	const attention = useMemo(() => {
-		const out = stockQuery.data?.totals.out ?? 0
-		const critical = stockQuery.data?.totals.critical ?? 0
-		const urgentPrices = inventoryQuery.data?.totals.urgent ?? 0
-		const pendingReq = inventoryQuery.data?.totals.pendingRequests ?? 0
-		const blocked = ordersQuery.data?.totals.blocked ?? 0
-		return {
-			stock: out + critical,
-			procurement: urgentPrices + pendingReq,
-			orders: blocked,
-		}
-	}, [stockQuery.data, inventoryQuery.data, ordersQuery.data])
+	const { totals } = useProcurementOverview()
 
 	return (
 		<nav
@@ -72,7 +40,7 @@ export function ProcurementTabStrip() {
 			<ul className="flex min-w-0 gap-1">
 				{CHAPTERS.map((chapter) => {
 					const isActive = chapter.id === activeTab
-					const alert = attention[chapter.id]
+					const alert = totals.attention[chapter.id]
 					return (
 						<li key={chapter.id} className="relative min-w-0 flex-1">
 							<Button

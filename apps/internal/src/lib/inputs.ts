@@ -7,14 +7,8 @@
  * up, it gets added here once and the whole app benefits.
  */
 
-/** Above this relative change in either direction, proof is required. */
-const LARGE_CHANGE_THRESHOLD = 0.25 // 25%
-
 /** Upper safety cap for raw costs — above this we assume fat-finger. */
 const MAX_RAW_COST = 100_000_000
-
-/** Upper safety cap for margin percent. */
-export const MAX_MARGIN_PCT = 80
 
 /** Minimum written proof length for supplier price changes. */
 export const PRICE_PROOF_ESSAY_MIN = 80
@@ -75,30 +69,6 @@ export function sanitizeIntQty(raw: string): number | null {
 	if (n <= 0) return null
 	if (n > 10_000_000) return null
 	return n
-}
-
-/** Clamp a margin percentage into the system-safe band. */
-export function clampMargin(raw: number, min: number): number {
-	if (!Number.isFinite(raw)) return min
-	return Math.max(min, Math.min(MAX_MARGIN_PCT, Math.round(raw * 10) / 10))
-}
-
-export type ProofReason = 'decrease' | 'large-change' | null
-
-/**
- * Decide whether a cost change needs a written justification before it
- * can be committed. Decreases always do — that's procurement's favorite
- * disaster vector (typo, wrong product, forgotten VAT). Large jumps in
- * either direction also do, because they tend to be either a big real
- * negotiation (worth recording) or a fat-finger (worth catching).
- */
-export function proofNeededFor(oldCost: number, newCost: number): ProofReason {
-	if (oldCost <= 0) return null // first-time price, nothing to compare against
-	if (!Number.isFinite(newCost) || newCost <= 0) return null
-	if (newCost < oldCost) return 'decrease'
-	const deltaPct = Math.abs((newCost - oldCost) / oldCost)
-	if (deltaPct > LARGE_CHANGE_THRESHOLD) return 'large-change'
-	return null
 }
 
 /** Minimum proof length — short enough to be fast, long enough to be real. */

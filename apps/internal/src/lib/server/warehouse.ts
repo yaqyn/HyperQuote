@@ -1,7 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { TruckRow } from '../db/db'
-import { db, hoursSince } from '../db/db'
+import { db } from '../db/db'
+import {
+	getQuoteContext,
+	quoteCustomerSnapshot,
+	quoteDeliverySnapshot,
+	quoteSellTotal,
+	roundedHoursSince,
+	roundMoney,
+} from './order-context'
 
 /**
  * Warehouse dock flow — resumable 4-stage wizard per order.
@@ -126,6 +134,7 @@ export interface WarehouseOrderDetailView extends WarehouseOrderRowView {
  * `1234` (password) or scans a badge encoded as `1234`.
  */
 const MOCK_ADVISOR_TOKEN = '1234' as const
+type QuoteRow = NonNullable<ReturnType<typeof db.quotes.get>>
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -173,42 +182,65 @@ function isWarehouseEligible(quoteId: string): boolean {
 	return true
 }
 
+function allQuoteItemsLoaded(
+	quote: QuoteRow,
+	section: WarehouseSection,
+): boolean {
+	const loaded = new Set(section.truckAssignments.flatMap((a) => a.itemsLoaded))
+	return quote.items.every((i) => loaded.has(i.productSlug))
+}
+
+function getWarehouseAdvisor(advisorId: string, securityToken: string) {
+	const advisor = db.employees.get(advisorId)
+	if (!advisor) {
+		return {
+			success: false as const,
+			error: 'Advisor not found in directory',
+		}
+	}
+	if (securityToken.trim() !== MOCK_ADVISOR_TOKEN) {
+		return {
+			success: false as const,
+			error: 'Wrong credential — check your password or badge',
+		}
+	}
+	return { success: true as const, advisor }
+}
+
 function buildOrderRow(quoteId: string): WarehouseOrderRowView | null {
-	const quote = db.quotes.get(quoteId)
-	if (!quote) return null
+	const context = getQuoteContext(quoteId)
+	if (!context) return null
+	const { quote, report } = context
 	if (!isWarehouseEligible(quoteId)) return null
 
 	const section = readWarehouseSection(quote.rfqId)
 	// Once the order has been passed to dispatch, it drops off the warehouse queue.
 	if (section.passedAt) return null
 
-	const rfq = db.rfqs.get(quote.rfqId)
-	const customer = db.customers.get(quote.customerId)
-	const totalValue = quote.items.reduce(
-		(s, i) => s + i.sellPrice * i.quantity,
-		0,
-	)
 	const loadedCount = new Set(
 		section.truckAssignments.flatMap((a) => a.itemsLoaded),
 	).size
 
 	// Use the inventory_orders.approvedAt if available, otherwise the quote sentAt.
-	const invSection = db.orderReports.forRfq(quote.rfqId)?.sections
-		.inventory_orders as { approvedAt?: string } | undefined
+	const invSection = report?.sections.inventory_orders as
+		| { approvedAt?: string }
+		| undefined
 	const approvedAt =
 		invSection?.approvedAt ?? quote.sentAt ?? new Date().toISOString()
+	const customer = quoteCustomerSnapshot(context, '')
+	const delivery = quoteDeliverySnapshot(context, { preferQuote: true })
 
 	return {
 		quoteId: quote.id,
 		quoteNumber: quote.quoteNumber,
-		customerName: rfq?.customerName ?? customer?.companyName ?? '',
-		customerTier: rfq?.customerTier ?? customer?.tier ?? 'new',
-		deliveryAddress: quote.deliveryAddress ?? rfq?.deliveryAddress ?? '',
-		deliveryCity: quote.deliveryCity ?? rfq?.deliveryCity ?? '',
-		deliveryUrgencyDays: rfq?.deliveryUrgency ?? 0,
+		customerName: customer.customerName,
+		customerTier: customer.customerTier,
+		deliveryAddress: delivery.deliveryAddress,
+		deliveryCity: delivery.deliveryCity,
+		deliveryUrgencyDays: delivery.deliveryUrgencyDays,
 		itemCount: quote.items.length,
-		totalValue: Math.round(totalValue * 100) / 100,
-		approvedHoursAgo: Math.round(hoursSince(approvedAt)),
+		totalValue: quoteSellTotal(quote),
+		approvedHoursAgo: roundedHoursSince(approvedAt),
 		stage: deriveStage(section, quote.items.length),
 		loadedCount,
 		truckCount: section.truckAssignments.length,
@@ -447,11 +479,7 @@ export const markReadyForSignoff = createServerFn({ method: 'POST' })
 			return { success: false as const, error: 'Order already signed off' }
 		}
 		// Gate 1: every line item must be on some truck.
-		const loaded = new Set(
-			section.truckAssignments.flatMap((a) => a.itemsLoaded),
-		)
-		const allLoaded = quote.items.every((i) => loaded.has(i.productSlug))
-		if (!allLoaded) {
+		if (!allQuoteItemsLoaded(quote, section)) {
 			return { success: false as const, error: 'Not every item is loaded yet' }
 		}
 		// Gate 2: every assigned truck must carry at least one item. An empty
@@ -533,29 +561,15 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		const quote = db.quotes.get(data.quoteId)
 		if (!quote) return { success: false as const, error: 'Order not found' }
-		const advisor = db.employees.get(data.advisorId)
-		if (!advisor)
-			return {
-				success: false as const,
-				error: 'Advisor not found in directory',
-			}
 		const section = readWarehouseSection(quote.rfqId)
 		if (section.signoff) {
 			return { success: false as const, error: 'Already signed off' }
 		}
 		// Mock credential check — real system queries the employees table.
-		if (data.securityToken.trim() !== MOCK_ADVISOR_TOKEN) {
-			return {
-				success: false as const,
-				error: 'Wrong credential — check your password or badge',
-			}
-		}
+		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
+		if (!advisorCheck.success) return advisorCheck
 		// Gate: every line item must be loaded onto some truck before signoff.
-		const loaded = new Set(
-			section.truckAssignments.flatMap((a) => a.itemsLoaded),
-		)
-		const allLoaded = quote.items.every((i) => loaded.has(i.productSlug))
-		if (!allLoaded) {
+		if (!allQuoteItemsLoaded(quote, section)) {
 			return { success: false as const, error: 'Not every item is loaded yet' }
 		}
 
@@ -564,7 +578,7 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 			signoff: {
 				// Name is derived from the employee row, not trusted from the
 				// client — the client only sends the id.
-				advisorName: advisor.name,
+				advisorName: advisorCheck.advisor.name,
 				qualityPass: true,
 				proofUrl: data.proofUrl.trim(),
 				securityMethod: data.securityMethod,
@@ -605,31 +619,21 @@ export const logFailedInspection = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		const quote = db.quotes.get(data.quoteId)
 		if (!quote) return { success: false as const, error: 'Order not found' }
-		const advisor = db.employees.get(data.advisorId)
-		if (!advisor)
-			return {
-				success: false as const,
-				error: 'Advisor not found in directory',
-			}
 		const section = readWarehouseSection(quote.rfqId)
 		if (section.signoff) {
 			return { success: false as const, error: 'Already signed off' }
 		}
 		// Same mock credential gate as the happy path — a failed inspection
 		// is still an audit record that has to be attributable to a person.
-		if (data.securityToken.trim() !== MOCK_ADVISOR_TOKEN) {
-			return {
-				success: false as const,
-				error: 'Wrong credential — check your password or badge',
-			}
-		}
+		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
+		if (!advisorCheck.success) return advisorCheck
 		const next: WarehouseSection = {
 			...section,
 			// Append — never mutate prior rows.
 			failedInspections: [
 				...section.failedInspections,
 				{
-					advisorName: advisor.name,
+					advisorName: advisorCheck.advisor.name,
 					reason: data.reason.trim(),
 					proofUrl: data.proofUrl.trim(),
 					securityMethod: data.securityMethod,
@@ -788,9 +792,9 @@ function buildReceivingRow(dealId: string): ReceivingDealRowView | null {
 		itemCount: deal.items.length,
 		receivedCount: deal.items.filter((i) => i.received).length,
 		pendingCount: pending.length,
-		totalDue: Math.round(deal.totalDue * 100) / 100,
+		totalDue: roundMoney(deal.totalDue),
 		paymentStatus: deal.paymentStatus,
-		createdHoursAgo: Math.round(hoursSince(deal.createdAt)),
+		createdHoursAgo: roundedHoursSince(deal.createdAt),
 		headlineProductName: headline?.name ?? deal.items[0]?.productSlug ?? '—',
 		previousAttemptCount: deal.receivingAttempts.length,
 	}
@@ -810,7 +814,7 @@ function buildReceivingDetail(dealId: string): ReceivingDealDetailView | null {
 			unit: product?.unit_of_measure ?? '',
 			agreedQty: i.agreedQty,
 			agreedRawCost: i.agreedRawCost,
-			lineTotal: Math.round(i.agreedQty * i.agreedRawCost * 100) / 100,
+			lineTotal: roundMoney(i.agreedQty * i.agreedRawCost),
 			received: i.received,
 			receivedAt: i.receivedAt,
 		}
@@ -892,18 +896,8 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 		if (deal.status === 'delivered' || deal.status === 'closed') {
 			return { success: false as const, error: 'Deal already closed' }
 		}
-		const advisor = db.employees.get(data.advisorId)
-		if (!advisor)
-			return {
-				success: false as const,
-				error: 'Advisor not found in directory',
-			}
-		if (data.securityToken.trim() !== MOCK_ADVISOR_TOKEN) {
-			return {
-				success: false as const,
-				error: 'Wrong credential — check your password or badge',
-			}
-		}
+		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
+		if (!advisorCheck.success) return advisorCheck
 
 		// Decisions are only allowed for items that are still pending.
 		const pendingSlugs = new Set(
@@ -943,7 +937,7 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 			{
 				attemptedAt: nowIso,
 				advisorId: data.advisorId,
-				advisorName: advisor.name,
+				advisorName: advisorCheck.advisor.name,
 				acceptedSlugs,
 				rejectedSlugs,
 				rejectionReason: data.rejectionReason?.trim() || null,

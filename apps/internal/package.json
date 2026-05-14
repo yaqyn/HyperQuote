@@ -6,6 +6,8 @@
 	"scripts": {
 		"dev": "vite dev --port 3002",
 		"build": "vite build",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy --config dist/server/wrangler.json",
 		"cf-typegen": "wrangler types"

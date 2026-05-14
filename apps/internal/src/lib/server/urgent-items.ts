@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { db, hoursSince } from '../db/db'
 
 interface UrgentItemsBreakdown {
 	unassignedRfqs: number
@@ -14,42 +15,56 @@ interface UrgentItemsResult {
 	breakdown: UrgentItemsBreakdown
 }
 
-// Each helper will query real DB tables when Supabase is connected:
-// - quote_requests (unassigned > 30 min)
-// - quotes (expiring within 24h)
-// - approvals (pending for this user)
-// - deliveries (red status)
-// - invoices (> 60 days overdue, finance role only)
-// - sla_tracking (active breaches)
-
 async function countUnassignedRfqs(): Promise<number> {
-	// TODO: query quote_requests WHERE assigned_to IS NULL AND created_at < NOW() - INTERVAL '30 minutes'
-	return 0
+	return db.rfqs
+		.list()
+		.filter(
+			(rfq) => rfq.status === 'submitted' && hoursSince(rfq.createdAt) > 0.5,
+		).length
 }
 
 async function countExpiringQuotes(): Promise<number> {
-	// TODO: query quotes WHERE expires_at < NOW() + INTERVAL '24 hours' AND status = 'active'
-	return 0
+	const oneDayFromNow = Date.now() + 24 * 60 * 60 * 1000
+	const activeStatuses = new Set(['sent', 'viewed', 'negotiating', 'revised'])
+	return db.quotes
+		.list()
+		.filter(
+			(quote) =>
+				activeStatuses.has(quote.status) &&
+				new Date(quote.validUntil).getTime() <= oneDayFromNow,
+		).length
 }
 
 async function countPendingApprovals(): Promise<number> {
-	// TODO: query approvals WHERE status = 'pending' AND approver_id = current_user
-	return 0
+	return db.quotes.list().filter((quote) => quote.status === 'pending_approval')
+		.length
 }
 
 async function countProblemDeliveries(): Promise<number> {
-	// TODO: query deliveries WHERE status = 'problem' OR status = 'delayed'
-	return 0
+	return db.deals
+		.list()
+		.filter((deal) =>
+			deal.receivingAttempts.some(
+				(attempt) => attempt.rejectedSlugs.length > 0,
+			),
+		).length
 }
 
 async function countOverdueInvoices(): Promise<number> {
-	// TODO: query invoices WHERE due_date < NOW() - INTERVAL '60 days' AND status != 'paid' (finance role only)
-	return 0
+	return db.quotes
+		.list()
+		.filter(
+			(quote) =>
+				quote.paymentStatus !== 'paid' &&
+				quote.sentAt !== null &&
+				hoursSince(quote.sentAt) > 60 * 24,
+		).length
 }
 
 async function countSlaBreaches(): Promise<number> {
-	// TODO: query sla_tracking WHERE breached = true AND resolved_at IS NULL
-	return 0
+	return db.conversations
+		.list()
+		.filter((conversation) => conversation.slaBreached).length
 }
 
 export const getUrgentItems = createServerFn({ method: 'GET' }).handler(

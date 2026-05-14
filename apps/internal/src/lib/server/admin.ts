@@ -15,42 +15,12 @@ import {
 	type CustomerRow,
 	db,
 	type EmployeeRow,
+	type JsonObject,
 	type SupplierPriceRow,
 	type SupplierRow,
 	type TruckRow,
 } from '../db/db'
-
-type JsonValue =
-	| string
-	| number
-	| boolean
-	| null
-	| JsonValue[]
-	| { [key: string]: JsonValue }
-
-type JsonObject = { [key: string]: JsonValue }
-
-function isJsonValue(v: unknown): v is JsonValue {
-	if (v === null) return true
-	const t = typeof v
-	if (t === 'string' || t === 'number' || t === 'boolean') return true
-	if (Array.isArray(v)) return v.every(isJsonValue)
-	if (t === 'object') {
-		return Object.values(v as object).every(isJsonValue)
-	}
-	return false
-}
-
-function toJsonObject(
-	value: Record<string, unknown> | null | undefined,
-): JsonObject {
-	const out: JsonObject = {}
-	if (!value) return out
-	for (const [k, v] of Object.entries(value)) {
-		if (isJsonValue(v)) out[k] = v
-	}
-	return out
-}
+import { toJsonObject } from './json'
 
 /**
  * Admin returns products with specifications narrowed to a JSON-safe

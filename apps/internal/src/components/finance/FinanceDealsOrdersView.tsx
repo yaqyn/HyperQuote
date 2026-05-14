@@ -19,21 +19,10 @@ import {
 	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
+import { formatRelativeHoursAgo, formatRoundedEgp } from '../shared/formatters'
 import { FinancePaymentPanel } from './FinancePaymentPanel'
 
 // ─── Helpers ──────────────────────────────────────────────
-
-function formatHoursAgo(hours: number): string {
-	if (hours < 1) return 'just now'
-	if (hours < 24) return `${hours}h ago`
-	const days = Math.round(hours / 24)
-	if (days < 30) return `${days}d ago`
-	return `${Math.round(days / 30)}mo ago`
-}
-
-function formatEgp(n: number): string {
-	return Math.round(n).toLocaleString('en-EG')
-}
 
 function toRoman(n: number): string {
 	const map: [number, string][] = [
@@ -281,7 +270,7 @@ function LedgerMasthead({
 						Waiting for finance
 					</span>
 					<strong className="break-words font-[family-name:var(--font-geist-mono)] text-[26px] font-semibold leading-none text-[var(--color-text)] tabular-nums sm:text-[34px]">
-						{formatEgp(totalOutstanding)}
+						{formatRoundedEgp(totalOutstanding)}
 					</strong>
 					<span className="font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 						EGP
@@ -445,7 +434,7 @@ function SectionTotal({
 					letterSpacing: '-0.02em',
 				}}
 			>
-				{formatEgp(value)}
+				{formatRoundedEgp(value)}
 			</span>
 			<span
 				className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -590,7 +579,7 @@ function LedgerEntry({
 							letterSpacing: '-0.018em',
 						}}
 					>
-						{formatEgp(amount)}
+						{formatRoundedEgp(amount)}
 					</span>
 					<span
 						className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -634,8 +623,8 @@ function OrderEntry({
 			? 'Paid in full'
 			: order.paymentStatus === 'partial'
 				? urgent
-					? `Collect ${formatEgp(order.remainingDue)} EGP balance`
-					: `${formatEgp(order.remainingDue)} EGP balance due`
+					? `Collect ${formatRoundedEgp(order.remainingDue)} EGP balance`
+					: `${formatRoundedEgp(order.remainingDue)} EGP balance due`
 				: 'Collect 50% to release order'
 	const paymentTone: 'neutral' | 'chase' | 'in' = urgent
 		? 'chase'
@@ -652,7 +641,7 @@ function OrderEntry({
 			index={index}
 			counterparty={order.customerName}
 			reference={reference}
-			ageLabel={`accepted ${formatHoursAgo(order.acceptedHoursAgo)}`}
+			ageLabel={`accepted ${formatRelativeHoursAgo(order.acceptedHoursAgo)}`}
 			amount={order.totalDue}
 			paymentLabel={paymentLabel}
 			paymentTone={paymentTone}
@@ -679,7 +668,7 @@ function DealEntry({
 		deal.paymentStatus === 'paid'
 			? 'Paid in full'
 			: deal.paymentStatus === 'partial'
-				? `${formatEgp(deal.remainingDue)} EGP supplier balance`
+				? `${formatRoundedEgp(deal.remainingDue)} EGP supplier balance`
 				: 'Payment needed'
 	const paymentTone: 'neutral' | 'out' =
 		deal.paymentStatus === 'paid' ? 'out' : 'neutral'
@@ -695,7 +684,7 @@ function DealEntry({
 			counterparty={deal.supplierName}
 			reference={deal.dealId}
 			context={context}
-			ageLabel={`called ${formatHoursAgo(deal.createdHoursAgo)}`}
+			ageLabel={`called ${formatRelativeHoursAgo(deal.createdHoursAgo)}`}
 			amount={deal.totalDue}
 			paymentLabel={paymentLabel}
 			paymentTone={paymentTone}

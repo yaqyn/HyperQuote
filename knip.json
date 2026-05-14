@@ -16,8 +16,15 @@
 			"project": ["src/**/*.{ts,tsx}"]
 		},
 		"apps/internal": {
-			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],
-			"project": ["src/**/*.{ts,tsx}"]
+			"entry": [
+				"vite.config.ts",
+				"vitest.config.ts",
+				"src/router.tsx",
+				"src/routes/**/*.{ts,tsx}",
+				"src/styles.css"
+			],
+			"project": ["vite.config.ts", "vitest.config.ts", "src/**/*.{ts,tsx,css}"],
+			"ignore": ["src/shims/*.ts"]
 		},
 		"apps/ceo": {
 			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],

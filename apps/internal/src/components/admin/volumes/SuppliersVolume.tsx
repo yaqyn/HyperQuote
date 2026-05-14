@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SupplierRow } from '../../../lib/db/db'
 import {
@@ -8,10 +7,8 @@ import {
 	adminListSuppliers,
 	adminUpdateSupplier,
 } from '../../../lib/server/admin'
-import { useAdminStore } from '../../../stores/admin'
 import { getVolume } from '../../../types/admin'
 import {
-	LinkAction,
 	NumberControl,
 	SelectControl,
 	StatusTag,
@@ -21,6 +18,7 @@ import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
 import { SupplierItems, useSupplierItemCount } from '../SupplierItems'
+import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
 type SupplierDraft = Omit<SupplierRow, 'joinedAt'> & {
 	joinedAt?: string
@@ -48,10 +46,6 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	const qc = useQueryClient()
 	const volume = getVolume('suppliers')
 
-	const mode = useAdminStore((s) => s.editorMode)
-	const openEditor = useAdminStore((s) => s.openEditor)
-	const closeEditor = useAdminStore((s) => s.closeEditor)
-
 	const {
 		data: suppliers = [],
 		isError: suppliersError,
@@ -61,45 +55,31 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 		queryFn: () => adminListSuppliers(),
 	})
 
-	const [draft, setDraft] = useState<SupplierDraft | null>(null)
-
-	function handleRowSelect(row: SupplierRow) {
-		setDraft({ ...row, originalName: row.name })
-		openEditor('view', row.name)
-	}
-
-	function handleNew() {
-		setDraft(blankSupplier())
-		openEditor('create', null)
-	}
-
-	function handleClose() {
-		closeEditor()
-		setDraft(null)
-	}
-
-	function handleEdit() {
-		if (!draft?.originalName) return
-		openEditor('edit', draft.originalName)
-	}
-
-	function handleCancel() {
-		if (mode === 'create') {
-			handleClose()
-		} else if (draft?.originalName) {
-			const original = suppliers.find((s) => s.name === draft.originalName)
-			if (original) setDraft({ ...original, originalName: original.name })
-			openEditor('view', draft.originalName)
-		}
-	}
+	const {
+		mode,
+		draft,
+		setDraft,
+		readOnly,
+		handleRowSelect,
+		handleNew,
+		handleClose,
+		handleEdit,
+		handleCancel,
+		showSavedDraft,
+	} = useVolumeEditor({
+		rows: suppliers,
+		blankDraft: blankSupplier,
+		rowToDraft: (row) => ({ ...row, originalName: row.name }),
+		rowId: (row) => row.name,
+		draftId: (row) => row.originalName,
+	})
 
 	const createMutation = useMutation({
 		mutationFn: (payload: Omit<SupplierRow, 'joinedAt'>) =>
 			adminCreateSupplier({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'suppliers'] })
-			setDraft({ ...created, originalName: created.name })
-			openEditor('view', created.name)
+			showSavedDraft({ ...created, originalName: created.name }, created.name)
 		},
 	})
 
@@ -111,8 +91,7 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 		) => adminUpdateSupplier({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'suppliers'] })
-			setDraft({ ...updated, originalName: updated.name })
-			openEditor('view', updated.name)
+			showSavedDraft({ ...updated, originalName: updated.name }, updated.name)
 		},
 	})
 
@@ -144,8 +123,6 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 			return
 		deleteMutation.mutate(draft.originalName)
 	}
-
-	const readOnly = mode === 'view'
 
 	const tierOptions: Array<{ value: SupplierRow['tier']; label: string }> = [
 		{ value: 'preferred', label: t('editor.enums.supplierTier.preferred') },
@@ -255,40 +232,16 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 				idLabel={draft?.originalName ?? null}
 				footer={
 					draft ? (
-						<>
-							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
-								{mode === 'view' && (
-									<LinkAction tone="primary" onClick={handleEdit}>
-										{t('actions.edit')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction
-										tone="primary"
-										onClick={handleSave}
-										disabled={
-											createMutation.isPending || updateMutation.isPending
-										}
-									>
-										{t('actions.save')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction onClick={handleCancel}>
-										{t('actions.cancel')}
-									</LinkAction>
-								)}
-							</div>
-							{mode === 'view' && draft.originalName && (
-								<LinkAction
-									tone="danger"
-									onClick={handleDelete}
-									disabled={deleteMutation.isPending}
-								>
-									{t('actions.delete')}
-								</LinkAction>
-							)}
-						</>
+						<VolumeEditorFooter
+							mode={mode}
+							id={draft.originalName}
+							isSaving={createMutation.isPending || updateMutation.isPending}
+							isDeleting={deleteMutation.isPending}
+							onEdit={handleEdit}
+							onSave={handleSave}
+							onCancel={handleCancel}
+							onDelete={handleDelete}
+						/>
 					) : null
 				}
 			>

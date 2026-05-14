@@ -5,16 +5,9 @@ import {
 	getCustomerOrdersList,
 } from '../../../lib/server/orders'
 import { EmployeeSearchField } from '../../shared/EmployeeControls'
+import { formatRelativeHoursAgo } from '../../shared/formatters'
 import { SlidePanel } from '../../shared/SlidePanel'
 import { OrderPrepView } from './OrderPrepView'
-
-function formatHoursAgo(hours: number): string {
-	if (hours < 1) return 'just now'
-	if (hours < 24) return `${hours}h ago`
-	const days = Math.round(hours / 24)
-	if (days < 30) return `${days}d ago`
-	return `${Math.round(days / 30)}mo ago`
-}
 
 function formatUrgency(days: number): string {
 	if (days <= 0) return 'Today'
@@ -225,7 +218,7 @@ function OrderRow({
 						<span aria-hidden="true" className="opacity-60">
 							·
 						</span>
-						<span>{formatHoursAgo(order.acceptedHoursAgo)} old</span>
+						<span>{formatRelativeHoursAgo(order.acceptedHoursAgo)} old</span>
 					</p>
 				</button>
 

@@ -5,20 +5,12 @@ import {
 } from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type {
-	FreshnessIndicator,
-	MarginThresholds,
-	Quote,
-	QuoteItem,
-} from '../../types/sales'
+import type { FreshnessIndicator, MarginThresholds } from '../../types/sales'
 import { db, hoursSince } from '../db/db'
 
 // Re-exported so every sales UI that already imports from here keeps working
 // while the canonical definitions live in inventory.ts.
-export {
-	getOutdatedPricesSummary,
-	requestInventoryPriceUpdate,
-} from './inventory'
+export { requestInventoryPriceUpdate } from './inventory'
 
 // ─── Config ───────────────────────────────────────────────
 
@@ -328,114 +320,7 @@ async function buildQuoteBuilderData(rfqId: string) {
 	}
 }
 
-// ─── Persisted quote read (for PDF preview etc.) ──────────
-
-function getMockQuote(quoteId: string): Quote {
-	const row = db.quotes.get(quoteId) ?? db.quotes.list()[0]
-	const _customer = db.customers.get(row.customerId)
-	const items: QuoteItem[] = row.items
-		.map((i): QuoteItem | null => {
-			const product = db.products.findBySlug(i.productSlug)
-			const primary = db.supplierPrices.primaryForProduct(i.productSlug)
-			if (!product) return null
-			const supplierCost = bufferCost(primary?.rawCost ?? 0)
-			const lineTotal = Math.round(i.sellPrice * i.quantity * 100) / 100
-			const freshness = primary
-				? freshnessFor(primary.lastQuotedAt)
-				: ('missing' as FreshnessIndicator)
-			return {
-				id: `qi-${i.productSlug}`,
-				productName: product.name,
-				specification: product.subcategory.replace(/_/g, ' '),
-				quantity: i.quantity,
-				unit: product.unit_of_measure,
-				supplierCost,
-				marginPercent: i.marginPercent,
-				sellPrice: i.sellPrice,
-				lineTotal,
-				freshnessIndicator: freshness,
-				priceStatus: freshness === 'fresh' ? 'updated' : 'outdated',
-				recentlyOrdered: isRecentlyOrderedSlug(i.productSlug),
-				supplierName: primary?.supplierName ?? '',
-				customerCounterPrice: null,
-			}
-		})
-		.filter((x): x is QuoteItem => x !== null)
-
-	const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0)
-	const vatAmount = Math.round(subtotal * 14) / 100
-
-	return {
-		id: row.id,
-		rfqId: row.rfqId,
-		quoteNumber: row.quoteNumber,
-		version: row.version,
-		status: row.status,
-		items,
-		subtotal,
-		vatAmount,
-		total: subtotal + vatAmount,
-		validUntil: row.validUntil,
-		marginPercent: row.marginPercent,
-		sentAt: row.sentAt,
-		sentVia: row.sentVia,
-		scheduledSendAt: null,
-		previousVersionId: row.previousVersionId,
-		customerPoNumber: row.customerPoNumber,
-	}
-}
-
 // ─── Server Functions ─────────────────────────────────────
-
-export const createQuote = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			rfqId: z.string(),
-			customerId: z.string().optional(),
-			lines: z.array(
-				z.object({
-					productSlug: z.string(),
-					quantity: z.number().positive(),
-					marginPercent: z.number(),
-					sellPrice: z.number().nonnegative(),
-				}),
-			),
-			validUntil: z.string(),
-			terms: z.string().optional(),
-		}),
-	)
-	.handler(async ({ data }) => {
-		const rfq = db.rfqs.get(data.rfqId)
-		const customer = data.customerId
-			? db.customers.get(data.customerId)
-			: rfq
-				? db.customers.findByName(rfq.customerName)
-				: undefined
-		const avgMargin =
-			data.lines.reduce((sum, l) => sum + l.marginPercent, 0) /
-			Math.max(1, data.lines.length)
-
-		const row = db.quotes.insert({
-			quoteNumber: `QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-			rfqId: data.rfqId,
-			customerId: customer?.id ?? 'cust-unknown',
-			version: 1,
-			status: 'draft',
-			marginPercent: Math.round(avgMargin * 10) / 10,
-			sentAt: null,
-			validUntil: data.validUntil,
-			sentVia: null,
-			customerPoNumber: null,
-			previousVersionId: null,
-			items: data.lines.map((l) => ({
-				productSlug: l.productSlug,
-				quantity: l.quantity,
-				marginPercent: l.marginPercent,
-				sellPrice: l.sellPrice,
-			})),
-		})
-		return { quoteId: row.id }
-	})
 
 export const saveQuoteDraft = createServerFn({ method: 'POST' })
 	.inputValidator(
@@ -494,19 +379,7 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 
 		// Build a patch from only the fields the caller actually sent, so the
 		// caller can autosave incrementally without clobbering existing values.
-		const overridesPatch: Partial<
-			Pick<
-				import('../db/db').QuoteRow,
-				| 'deliveryAddress'
-				| 'deliveryCity'
-				| 'deliveryDate'
-				| 'deliveryWindow'
-				| 'specialInstructions'
-				| 'paymentTerms'
-				| 'earlyPaymentDiscount'
-				| 'coverNote'
-			>
-		> = {}
+		const overridesPatch: Parameters<typeof db.quotes.update>[1] = {}
 		if (data.deliveryAddress !== undefined)
 			overridesPatch.deliveryAddress = data.deliveryAddress
 		if (data.deliveryCity !== undefined)
@@ -591,44 +464,6 @@ export const getSalesApprovers = createServerFn({ method: 'GET' })
 				name: e.name,
 			})),
 		}
-	})
-
-export const requestApproval = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			quoteId: z.string(),
-			approverRole: z.enum(['sales_manager', 'vp_sales', 'ceo']),
-			justification: z.string().optional(),
-			urgencyNote: z.string().optional(),
-		}),
-	)
-	.handler(async ({ data }) => {
-		// Flip quote into pending_approval; approver info tracked separately later.
-		db.quotes.updateStatus(data.quoteId, 'pending_approval')
-		return { approvalId: `appr-${Date.now()}` }
-	})
-
-export const approveQuote = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			approvalId: z.string(),
-			quoteId: z.string().optional(),
-			notes: z.string().optional(),
-		}),
-	)
-	.handler(async ({ data }) => {
-		// If a quoteId is provided, flip it into approved status so sending
-		// downstream is unblocked.
-		if (data.quoteId) {
-			db.quotes.updateStatus(data.quoteId, 'approved')
-		}
-		return { success: true }
-	})
-
-export const previewQuotePDF = createServerFn({ method: 'GET' })
-	.inputValidator(z.object({ quoteId: z.string() }))
-	.handler(async ({ data }) => {
-		return { quote: getMockQuote(data.quoteId), pdfUrl: null as string | null }
 	})
 
 // ─── Product Catalog (consumed by the quote builder search menu) ──

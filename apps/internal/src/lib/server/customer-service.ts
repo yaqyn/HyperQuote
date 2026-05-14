@@ -121,14 +121,6 @@ export const getConversations = createServerFn({ method: 'GET' }).handler(
 	},
 )
 
-const getConversation = createServerFn({ method: 'GET' })
-	.inputValidator((d: { conversationId: string }) => d)
-	.handler(async ({ data }): Promise<Conversation | null> => {
-		const row = db.conversations.get(data.conversationId)
-		if (!row) return null
-		return rowToConversation(row)
-	})
-
 export const sendReply = createServerFn({ method: 'POST' })
 	.inputValidator(
 		(d: {
@@ -171,18 +163,3 @@ export const updateConversationStatus = createServerFn({ method: 'POST' })
 		)
 		return { success: !!row }
 	})
-
-const assignConversation = createServerFn({ method: 'POST' })
-	.inputValidator(
-		(d: { conversationId: string; agentId: string; agentName?: string }) => d,
-	)
-	.handler(
-		async ({ data }): Promise<{ success: boolean; assignedTo: string }> => {
-			db.conversations.assign(
-				data.conversationId,
-				data.agentId,
-				data.agentName ?? data.agentId,
-			)
-			return { success: true, assignedTo: data.agentId }
-		},
-	)

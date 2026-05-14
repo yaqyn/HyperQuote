@@ -213,46 +213,6 @@ export const getRefillProductDetail = createServerFn({ method: 'GET' })
 		} satisfies RefillProductDetail
 	})
 
-/**
- * Catalog of products a given supplier carries, used by the RefillPanel
- * "+ Add item" picker to let the rep pile more products onto the same
- * phone call. Returns the supplier's listed cost + stock status for
- * each product so the rep can see what's worth adding.
- */
-export const getSupplierCatalog = createServerFn({ method: 'GET' })
-	.inputValidator(z.object({ supplierName: z.string() }))
-	.handler(async ({ data }) => {
-		const offers = db.supplierPrices.forSupplier(data.supplierName)
-		const items = offers
-			.map((o) => {
-				const product = db.products.findBySlug(o.productSlug)
-				if (!product) return null
-				const stock = db.stock.forProduct(o.productSlug)
-				const stockLevel = stock?.stockLevel ?? 0
-				const threshold = stock?.lowStockThreshold ?? 0
-				const needsRefill = stockLevel < threshold
-				return {
-					productSlug: o.productSlug,
-					productName: product.name,
-					sku: product.sku,
-					unit: product.unit_of_measure,
-					rawCost: o.rawCost,
-					leadTimeDays: o.leadTimeDays,
-					minOrderQty: o.minOrderQty,
-					stockLevel,
-					threshold,
-					needsRefill,
-				}
-			})
-			.filter((x): x is NonNullable<typeof x> => x !== null)
-			// Products that need refill first, then alphabetical
-			.sort((a, b) => {
-				if (a.needsRefill !== b.needsRefill) return a.needsRefill ? -1 : 1
-				return a.productName.localeCompare(b.productName)
-			})
-		return { items }
-	})
-
 export const createDeal = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({

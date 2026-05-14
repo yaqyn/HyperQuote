@@ -79,20 +79,6 @@ export interface RouteStop {
 	status: RouteStopStatus
 }
 
-// ─── GPS ─────────────────────────────────────────────────
-
-type GPSStatus = 'active' | 'idle' | 'stopped' | 'offline'
-
-interface GPSPosition {
-	driverId: string
-	lat: number
-	lng: number
-	speed: number
-	heading: number
-	timestamp: string
-	status: GPSStatus | string
-}
-
 // ─── Prayer Times ────────────────────────────────────────
 
 export interface PrayerTime {

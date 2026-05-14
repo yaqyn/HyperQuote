@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type FinanceTab = 'deals-orders' | 'history'
 
-export type FinanceInboxFilter = 'unpaid' | 'partial' | 'paid'
+type FinanceInboxFilter = 'unpaid' | 'partial' | 'paid'
 
 interface FinanceStore {
 	activeTab: FinanceTab

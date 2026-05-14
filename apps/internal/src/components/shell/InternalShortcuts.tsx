@@ -6,17 +6,9 @@ import { useInternalStore } from '../../stores/internal'
 
 interface InternalShortcutsProps {
 	auth: AuthSession
-	commandPaletteOpen: boolean
-	onToggleCommandPalette: () => void
-	onCloseCommandPalette: () => void
 }
 
-export function InternalShortcuts({
-	auth,
-	commandPaletteOpen,
-	onToggleCommandPalette,
-	onCloseCommandPalette,
-}: InternalShortcutsProps) {
+export function InternalShortcuts({ auth }: InternalShortcutsProps) {
 	const { scope } = useKeyboardScope()
 	const activeModule = useInternalStore((s) => s.activeModule)
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
@@ -35,13 +27,7 @@ export function InternalShortcuts({
 		})
 	}
 
-	// Ctrl+K toggles command palette (works in canvas and panel scope, not input)
-	useShortcut('ctrl+k', () => onToggleCommandPalette(), {
-		enabled: scope !== 'input',
-	})
-
-	// Escape: close command palette first; otherwise close the whole
-	// module window. We no longer try to close the sales quote builder
+	// Escape: close the whole module window. We no longer try to close the sales quote builder
 	// as a first step — sales auto-loads the head of the pipeline into
 	// `editingRfqId` the moment it's cleared, so closing the quote
 	// builder on Escape just re-opened it on the next render, trapping
@@ -50,17 +36,12 @@ export function InternalShortcuts({
 	useShortcut(
 		'Escape',
 		() => {
-			if (commandPaletteOpen) {
-				onCloseCommandPalette()
-				return
-			}
 			if (activeModule) {
 				setActiveModule(null)
 			}
 		},
 		{
-			enabled:
-				scope !== 'input' && (commandPaletteOpen || activeModule !== null),
+			enabled: scope !== 'input' && activeModule !== null,
 		},
 	)
 

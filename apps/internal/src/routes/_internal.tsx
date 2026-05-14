@@ -121,12 +121,7 @@ function InternalLayout() {
 	return (
 		<InternalAuthProvider auth={auth}>
 			<div id="main" className="relative h-dvh w-full overflow-hidden">
-				<InternalShortcuts
-					auth={auth}
-					commandPaletteOpen={false}
-					onToggleCommandPalette={() => {}}
-					onCloseCommandPalette={() => {}}
-				/>
+				<InternalShortcuts auth={auth} />
 
 				{/* Notifications window */}
 				<NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />

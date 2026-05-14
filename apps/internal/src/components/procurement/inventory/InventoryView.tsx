@@ -6,15 +6,8 @@ import {
 } from '../../../lib/server/inventory'
 import { useProcurementStore } from '../../../stores/procurement'
 import { EmployeeSearchField } from '../../shared/EmployeeControls'
+import { formatCompactHours } from '../../shared/formatters'
 import { ProductDetailModal } from './ProductDetailModal'
-
-function formatHoursAgo(hours: number): string {
-	if (hours < 1) return `${Math.round(hours * 60)}m`
-	if (hours < 24) return `${Math.round(hours)}h`
-	const d = Math.floor(hours / 24)
-	if (d < 30) return `${d}d`
-	return `${Math.round(d / 30)}mo`
-}
 
 // Freshness tone drives the right-gutter mark on each entry.
 function toneFor(
@@ -239,7 +232,7 @@ function PriceEntry({
 						className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums"
 						style={{ color: toneColor }}
 					>
-						{formatHoursAgo(product.hoursSinceUpdate)} ago
+						{formatCompactHours(product.hoursSinceUpdate)} ago
 					</span>
 				</button>
 

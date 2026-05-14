@@ -136,33 +136,18 @@ export function SupportInbox({
 			<div className="shrink-0 border-b border-black/[0.06] px-3 py-3 dark:border-white/[0.08] sm:px-4 lg:px-6 lg:py-4">
 				<div className="flex flex-col gap-3 lg:hidden">
 					<div className="grid grid-cols-3 gap-2">
-						<MobileQueueButton
-							active={activeTab === 'live' && !showResolved}
-							label="Live chats"
-							count={counts.live}
-							onClick={() => handleTabChange('live')}
-						>
-							<MessageCircle size={16} strokeWidth={2.2} />
-						</MobileQueueButton>
-						<MobileQueueButton
-							active={activeTab === 'email'}
-							label="Email"
-							count={counts.email}
-							onClick={() => handleTabChange('email')}
-						>
-							<Mail size={16} strokeWidth={2.2} />
-						</MobileQueueButton>
-						<MobileQueueButton
-							active={activeTab === 'live' && showResolved}
-							label="Resolved chats"
-							count={counts.liveResolved}
-							onClick={() => {
+						<QueueButtonGrid
+							counts={counts}
+							activeTab={activeTab}
+							showResolved={showResolved}
+							iconSize={16}
+							onLive={() => handleTabChange('live')}
+							onEmail={() => handleTabChange('email')}
+							onResolved={() => {
 								setActiveTab('live')
 								setShowResolved(true)
 							}}
-						>
-							<CheckCircle2 size={16} strokeWidth={2.2} />
-						</MobileQueueButton>
+						/>
 					</div>
 
 					<EmployeeSearchField
@@ -207,33 +192,18 @@ export function SupportInbox({
 					</div>
 
 					<div className="grid grid-cols-3 gap-2">
-						<MobileQueueButton
-							active={activeTab === 'live' && !showResolved}
-							label="Live chats"
-							count={counts.live}
-							onClick={() => handleTabChange('live')}
-						>
-							<MessageCircle size={15} strokeWidth={2.2} />
-						</MobileQueueButton>
-						<MobileQueueButton
-							active={activeTab === 'email'}
-							label="Email"
-							count={counts.email}
-							onClick={() => handleTabChange('email')}
-						>
-							<Mail size={15} strokeWidth={2.2} />
-						</MobileQueueButton>
-						<MobileQueueButton
-							active={activeTab === 'live' && showResolved}
-							label="Resolved chats"
-							count={counts.liveResolved}
-							onClick={() => {
+						<QueueButtonGrid
+							counts={counts}
+							activeTab={activeTab}
+							showResolved={showResolved}
+							iconSize={15}
+							onLive={() => handleTabChange('live')}
+							onEmail={() => handleTabChange('email')}
+							onResolved={() => {
 								setActiveTab('live')
 								setShowResolved(true)
 							}}
-						>
-							<CheckCircle2 size={15} strokeWidth={2.2} />
-						</MobileQueueButton>
+						/>
 					</div>
 
 					<EmployeeSearchField
@@ -282,6 +252,53 @@ export function SupportInbox({
 					</div>
 				)}
 			</div>
+		</>
+	)
+}
+
+function QueueButtonGrid({
+	counts,
+	activeTab,
+	showResolved,
+	iconSize,
+	onLive,
+	onEmail,
+	onResolved,
+}: {
+	counts: { live: number; liveResolved: number; email: number }
+	activeTab: ChannelTab
+	showResolved: boolean
+	iconSize: number
+	onLive: () => void
+	onEmail: () => void
+	onResolved: () => void
+}) {
+	return (
+		<>
+			<MobileQueueButton
+				active={activeTab === 'live' && !showResolved}
+				label="Live chats"
+				count={counts.live}
+				onClick={onLive}
+			>
+				<MessageCircle size={iconSize} strokeWidth={2.2} />
+			</MobileQueueButton>
+			<MobileQueueButton
+				active={activeTab === 'email'}
+				label="Email"
+				count={counts.email}
+				onClick={onEmail}
+			>
+				<Mail size={iconSize} strokeWidth={2.2} />
+			</MobileQueueButton>
+			<MobileQueueButton
+				active={activeTab === 'live' && showResolved}
+				label="Resolved chats"
+				count={counts.liveResolved}
+				onClick={onResolved}
+			>
+				<CheckCircle2 size={iconSize} strokeWidth={2.2} />
+			</MobileQueueButton>
 		</>
 	)
 }

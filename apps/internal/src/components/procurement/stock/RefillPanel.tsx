@@ -16,6 +16,10 @@ import {
 	type StockSupplierOffer,
 } from '../../../lib/server/stock'
 import { EmployeeActionButton } from '../../shared/EmployeeControls'
+import {
+	formatDecimalEgp,
+	formatRelativeHoursAgo,
+} from '../../shared/formatters'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface RefillPanelProps {
@@ -52,17 +56,6 @@ const TIER_LABELS: Record<string, string> = {
 	conditional: 'Conditional',
 	new: 'New',
 	blocked: 'Blocked',
-}
-
-function formatHours(hours: number): string {
-	if (hours < 24) return `${hours}h ago`
-	const days = Math.round(hours / 24)
-	if (days < 30) return `${days}d ago`
-	return `${Math.round(days / 30)}mo ago`
-}
-
-function formatMoney(value: number): string {
-	return value.toLocaleString('en-EG', { minimumFractionDigits: 2 })
 }
 
 export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
@@ -396,7 +389,7 @@ function SupplierMenuButton({
 					</span>
 					{selectedSupplier && (
 						<span className="mt-1 block truncate font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--ink-mid)]">
-							{formatMoney(selectedSupplier.rawCost)} EGP/{unit} · MOQ{' '}
+							{formatDecimalEgp(selectedSupplier.rawCost)} EGP/{unit} · MOQ{' '}
 							{selectedSupplier.minOrderQty.toLocaleString('en-EG')} ·{' '}
 							{selectedSupplier.leadTimeDays}d lead
 						</span>
@@ -470,12 +463,14 @@ function SupplierMenuOption({
 					</div>
 					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
 						{TIER_LABELS[supplier.tier] ?? supplier.tier} ·{' '}
-						{formatHours(supplier.lastQuotedAtHoursAgo)}
+						{formatRelativeHoursAgo(supplier.lastQuotedAtHoursAgo, {
+							underOne: 'zeroHours',
+						})}
 					</span>
 				</div>
 				<div className="text-end">
 					<span className="block font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--ink)]">
-						{formatMoney(supplier.rawCost)}
+						{formatDecimalEgp(supplier.rawCost)}
 					</span>
 					<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums text-[var(--ink-mid)]">
 						MOQ {supplier.minOrderQty.toLocaleString('en-EG')} {unit}
@@ -535,7 +530,7 @@ function DealEditor({
 					MOQ {draft.minOrderQty.toLocaleString('en-EG')} {draft.unit}
 					{priceDropped && (
 						<span className="ms-2 text-[var(--compendium-fresh)]">
-							below listed {formatMoney(draft.listedCost)}
+							below listed {formatDecimalEgp(draft.listedCost)}
 						</span>
 					)}
 					{moqOverride && (
@@ -549,7 +544,7 @@ function DealEditor({
 						Total
 					</span>
 					<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold tabular-nums text-[var(--ink)]">
-						{formatMoney(lineTotal)}
+						{formatDecimalEgp(lineTotal)}
 					</span>
 				</div>
 			</div>
@@ -662,7 +657,7 @@ function RefillFooter({
 							Deal total
 						</span>
 						<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold leading-none tabular-nums text-[var(--ink)]">
-							{formatMoney(total)} EGP
+							{formatDecimalEgp(total)} EGP
 						</span>
 					</div>
 					<span className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-mid)]">

@@ -9,16 +9,11 @@
 	"modules": {
 		"sales": "Sales",
 		"procurement": "Inventory",
-		"orders": "Orders",
-		"operations": "Operations",
 		"warehouse": "Warehouse",
 		"finance": "Finance",
 		"dispatch": "Dispatch",
 		"customerService": "Customer Service",
-		"hr": "HR",
-		"admin": "Admin",
-		"reports": "Reports",
-		"ai": "AI Assistant"
+		"admin": "Admin"
 	},
 	"quickActions": {
 		"viewRfqInbox": "View RFQ Inbox",
@@ -28,22 +23,6 @@
 	"window": {
 		"close": "Close",
 		"comingSoon": "Coming soon"
-	},
-	"commandPalette": {
-		"placeholder": "Search commands, entities, actions...",
-		"noResults": "No results found",
-		"label": "Command Palette",
-		"modules": "Modules",
-		"entities": "Entities",
-		"actions": "Actions",
-		"recent": "Recent",
-		"results": "Results",
-		"categories": {
-			"modules": "Modules",
-			"entities": "Entities",
-			"actions": "Actions",
-			"recent": "Recent"
-		}
 	},
 	"actions": {
 		"createQuote": "Create Quote",

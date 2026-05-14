@@ -132,28 +132,3 @@ export function PriorityMark({ priority }: { priority: string }) {
 		</span>
 	)
 }
-
-// ─── Live dot — pulsing for active inbound, solid muted otherwise ───
-
-export function LiveDot({
-	active,
-	tone = 'primary',
-}: {
-	active: boolean
-	tone?: 'primary' | 'amber' | 'red' | 'muted'
-}) {
-	const colors: Record<string, string> = {
-		primary: 'bg-[var(--color-primary)]',
-		amber: 'bg-[var(--color-signal-amber)]',
-		red: 'bg-[var(--color-signal-red)]',
-		muted: 'bg-[var(--color-text-subtle)]/60',
-	}
-	return (
-		<span
-			aria-hidden
-			className={`inline-block w-[6px] h-[6px] rounded-full ${colors[tone]} ${
-				active ? 'animate-switchboard-pulse' : ''
-			}`}
-		/>
-	)
-}

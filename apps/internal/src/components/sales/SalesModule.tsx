@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCustomerList } from '../../lib/server/sales-customers'
 import { getRFQQueue, saveRFQForLater } from '../../lib/server/sales-rfq'
@@ -16,7 +16,10 @@ import { NegotiationView } from './negotiation/NegotiationView'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { SearchMenu } from './quote-builder/SearchMenu'
 
-const QUOTE_ENTER = { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const }
+const QUOTE_ENTER = {
+	duration: 0.18,
+	ease: cubicBezier(0.22, 1, 0.36, 1),
+}
 
 const SAVE_DURATIONS = [
 	{ label: '30 min', minutes: 30 },
@@ -34,7 +37,6 @@ export function SalesModule() {
 	const setNewQuoteCustomer = useSalesStore((s) => s.setNewQuoteCustomer)
 	const newQuoteRequestId = useSalesStore((s) => s.newQuoteRequestId)
 	const statusDialogRequestId = useSalesStore((s) => s.statusDialogRequestId)
-	const setActiveTab = useSalesStore((s) => s.setActiveTab)
 	const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(
 		null,
 	)
@@ -188,11 +190,9 @@ export function SalesModule() {
 					onBack={() => setNegotiatingQuoteId(null)}
 					onReviseQuote={() => {
 						setNegotiatingQuoteId(null)
-						setActiveTab('rfq-inbox')
 					}}
 					onMarkAsWon={() => {
 						setNegotiatingQuoteId(null)
-						setActiveTab('rfq-inbox')
 					}}
 				/>
 			</div>

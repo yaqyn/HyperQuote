@@ -14,10 +14,9 @@ import {
  * Procurement-specific keyboard shortcuts (CONTEXT.md Section 2.7).
  * Only active when procurement module is open.
  *
- * N        - New Supplier Inquiry
- * G then I - Go to Inquiries
- * G then P - Go to PO List
- * G then S - Go to Supplier Directory
+ * G then S - Go to Stock
+ * G then P - Go to Prices
+ * G then O - Go to Orders
  * /        - Focus search within Procurement
  * ?        - Show shortcuts help
  */
@@ -30,19 +29,6 @@ export function ProcurementShortcuts() {
 
 	const isActive = activeModule === 'procurement' && scope === 'panel'
 
-	// N - New Supplier Inquiry (navigate to sourcing tab)
-	useShortcut(
-		'n',
-		() => {
-			if (gPrefix) {
-				setGPrefix(false)
-				return
-			}
-			setActiveTab('sourcing')
-		},
-		{ enabled: isActive },
-	)
-
 	// G prefix - start sequence
 	useShortcut(
 		'g',
@@ -54,36 +40,36 @@ export function ProcurementShortcuts() {
 		{ enabled: isActive && !gPrefix },
 	)
 
-	// G then I - Go to Sourcing
-	useShortcut(
-		'i',
-		() => {
-			if (gPrefix) {
-				setActiveTab('sourcing')
-				setGPrefix(false)
-			}
-		},
-		{ enabled: isActive && gPrefix },
-	)
-
-	// G then P - Go to PO List
-	useShortcut(
-		'p',
-		() => {
-			if (gPrefix) {
-				setActiveTab('po-management')
-				setGPrefix(false)
-			}
-		},
-		{ enabled: isActive && gPrefix },
-	)
-
-	// G then S - Go to Supplier Directory
+	// G then S - Go to Stock
 	useShortcut(
 		's',
 		() => {
 			if (gPrefix) {
-				setActiveTab('suppliers')
+				setActiveTab('stock')
+				setGPrefix(false)
+			}
+		},
+		{ enabled: isActive && gPrefix },
+	)
+
+	// G then P - Go to Prices
+	useShortcut(
+		'p',
+		() => {
+			if (gPrefix) {
+				setActiveTab('procurement')
+				setGPrefix(false)
+			}
+		},
+		{ enabled: isActive && gPrefix },
+	)
+
+	// G then O - Go to Orders
+	useShortcut(
+		'o',
+		() => {
+			if (gPrefix) {
+				setActiveTab('orders')
 				setGPrefix(false)
 			}
 		},
@@ -122,10 +108,9 @@ export function ProcurementShortcuts() {
 	if (!showHelp) return null
 
 	const shortcuts = [
-		{ keys: 'N', action: 'New Supplier Inquiry' },
-		{ keys: 'G I', action: 'Go to Sourcing' },
-		{ keys: 'G P', action: 'Go to PO Management' },
-		{ keys: 'G S', action: 'Go to Supplier Directory' },
+		{ keys: 'G S', action: 'Go to Stock' },
+		{ keys: 'G P', action: 'Go to Prices' },
+		{ keys: 'G O', action: 'Go to Orders' },
 		{ keys: '/', action: 'Focus search' },
 		{ keys: '?', action: 'Toggle this help' },
 	]

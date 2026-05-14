@@ -80,12 +80,12 @@ export interface SupplierPriceRow {
 	notes: string | null
 }
 
-export interface RfqItemRow {
+interface RfqItemRow {
 	productSlug: string
 	quantity: number
 }
 
-export interface RfqRow {
+interface RfqRow {
 	id: string
 	customerName: string
 	customerTier: 'A' | 'B' | 'C' | 'new'
@@ -134,7 +134,7 @@ export interface CustomerRow {
 	joinedAt: string
 }
 
-export interface QuoteItemRow {
+interface QuoteItemRow {
 	productSlug: string
 	quantity: number
 	marginPercent: number
@@ -143,7 +143,7 @@ export interface QuoteItemRow {
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 
-export interface QuoteRow {
+interface QuoteRow {
 	id: string
 	quoteNumber: string
 	rfqId: string

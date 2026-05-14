@@ -1,15 +1,12 @@
 import { BROAD_CATEGORIES, type BroadCategory } from '@hyperquote/types'
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { getInventoryOverview } from '../../lib/server/inventory'
-import { getCustomerOrdersList } from '../../lib/server/orders'
-import { getStockOverview } from '../../lib/server/stock'
 import { useAIChatStore } from '../../stores/ai-chat'
 import {
 	type CompendiumCategory,
 	useProcurementStore,
 } from '../../stores/procurement'
 import { EmployeeActionButton } from '../shared/EmployeeControls'
+import { useProcurementOverview } from './useProcurementOverview'
 
 const CATEGORY_LABELS: Record<BroadCategory, string> = {
 	cement: 'Cement',
@@ -24,33 +21,7 @@ export function CompendiumIndex() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 	const setActiveCategory = useProcurementStore((s) => s.setActiveCategory)
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
-
-	const stockQuery = useQuery({
-		queryKey: ['stock-overview'],
-		queryFn: () => getStockOverview({ data: {} }),
-		staleTime: 30_000,
-	})
-	const inventoryQuery = useQuery({
-		queryKey: ['inventory-overview'],
-		queryFn: () => getInventoryOverview({ data: {} }),
-		staleTime: 30_000,
-	})
-	const ordersQuery = useQuery({
-		queryKey: ['customer-orders'],
-		queryFn: () => getCustomerOrdersList({ data: {} }),
-		staleTime: 30_000,
-	})
-
-	const totalMaterials = stockQuery.data?.totals.total ?? 0
-	const urgentPrices = inventoryQuery.data?.totals.urgent ?? 0
-	const outdatedPrices = inventoryQuery.data?.totals.outdated ?? 0
-	const pendingRequests = inventoryQuery.data?.totals.pendingRequests ?? 0
-	const outItems = stockQuery.data?.totals.out ?? 0
-	const criticalItems = stockQuery.data?.totals.critical ?? 0
-	const blockedOrders = ordersQuery.data?.totals.blocked ?? 0
-	const readyOrders = ordersQuery.data?.totals.ready ?? 0
-
-	const combinedAlerts = outItems + criticalItems + urgentPrices + blockedOrders
+	const { stockQuery, inventoryQuery, totals } = useProcurementOverview()
 
 	return (
 		<aside
@@ -65,9 +36,9 @@ export function CompendiumIndex() {
 					activeCategory={activeCategory}
 					setActiveCategory={setActiveCategory}
 					totals={{
-						total: totalMaterials,
-						outCritical: outItems + criticalItems,
-						urgent: urgentPrices,
+						total: totals.totalMaterials,
+						outCritical: totals.outItems + totals.criticalItems,
+						urgent: totals.urgentPrices,
 					}}
 					stockCategories={stockQuery.data?.categories ?? []}
 					inventoryCategories={inventoryQuery.data?.categories ?? []}
@@ -75,14 +46,14 @@ export function CompendiumIndex() {
 
 				<SectionRule label="Attention" />
 				<TodaysDesk
-					urgentPrices={urgentPrices}
-					outdatedPrices={outdatedPrices}
-					pendingRequests={pendingRequests}
-					outItems={outItems}
-					criticalItems={criticalItems}
-					blockedOrders={blockedOrders}
-					readyOrders={readyOrders}
-					combinedAlerts={combinedAlerts}
+					urgentPrices={totals.urgentPrices}
+					outdatedPrices={totals.outdatedPrices}
+					pendingRequests={totals.pendingRequests}
+					outItems={totals.outItems}
+					criticalItems={totals.criticalItems}
+					blockedOrders={totals.blockedOrders}
+					readyOrders={totals.readyOrders}
+					combinedAlerts={totals.combinedAlerts}
 				/>
 			</div>
 

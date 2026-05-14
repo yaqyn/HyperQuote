@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useProcurementStore } from '../../stores/procurement'
 import { CompendiumIndex } from './CompendiumIndex'
 import { InventoryView } from './inventory/InventoryView'
@@ -45,7 +45,10 @@ export function ProcurementModule() {
 							initial={{ opacity: 0, y: 4 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -2 }}
-							transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+							transition={{
+								duration: 0.22,
+								ease: cubicBezier(0.16, 1, 0.3, 1),
+							}}
 							className="absolute inset-0"
 						>
 							{chapter[activeTab] ?? (

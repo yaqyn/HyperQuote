@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TruckRow } from '../../../lib/db/db'
 import {
@@ -8,10 +7,8 @@ import {
 	adminListTrucks,
 	adminUpdateTruck,
 } from '../../../lib/server/admin'
-import { useAdminStore } from '../../../stores/admin'
 import { getVolume } from '../../../types/admin'
 import {
-	LinkAction,
 	NumberControl,
 	SelectControl,
 	StatusTag,
@@ -20,6 +17,7 @@ import {
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
+import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
 type TruckDraft = Omit<TruckRow, 'id'> & { id?: string }
 
@@ -43,10 +41,6 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 	const qc = useQueryClient()
 	const volume = getVolume('drivers')
 
-	const mode = useAdminStore((s) => s.editorMode)
-	const openEditor = useAdminStore((s) => s.openEditor)
-	const closeEditor = useAdminStore((s) => s.closeEditor)
-
 	const {
 		data: trucks = [],
 		isError: trucksError,
@@ -56,45 +50,31 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 		queryFn: () => adminListTrucks(),
 	})
 
-	const [draft, setDraft] = useState<TruckDraft | null>(null)
-
-	function handleRowSelect(row: TruckRow) {
-		setDraft({ ...row })
-		openEditor('view', row.id)
-	}
-
-	function handleNew() {
-		setDraft(blankTruck())
-		openEditor('create', null)
-	}
-
-	function handleClose() {
-		closeEditor()
-		setDraft(null)
-	}
-
-	function handleEdit() {
-		if (!draft?.id) return
-		openEditor('edit', draft.id)
-	}
-
-	function handleCancel() {
-		if (mode === 'create') {
-			handleClose()
-		} else if (draft?.id) {
-			const original = trucks.find((t) => t.id === draft.id)
-			if (original) setDraft({ ...original })
-			openEditor('view', draft.id)
-		}
-	}
+	const {
+		mode,
+		draft,
+		setDraft,
+		readOnly,
+		handleRowSelect,
+		handleNew,
+		handleClose,
+		handleEdit,
+		handleCancel,
+		showSavedDraft,
+	} = useVolumeEditor({
+		rows: trucks,
+		blankDraft: blankTruck,
+		rowToDraft: (row) => ({ ...row }),
+		rowId: (row) => row.id,
+		draftId: (row) => row.id,
+	})
 
 	const createMutation = useMutation({
 		mutationFn: (payload: Omit<TruckRow, 'id'>) =>
 			adminCreateTruck({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'drivers'] })
-			setDraft({ ...created })
-			openEditor('view', created.id)
+			showSavedDraft({ ...created }, created.id)
 		},
 	})
 
@@ -103,8 +83,7 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 			adminUpdateTruck({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'drivers'] })
-			setDraft({ ...updated })
-			openEditor('view', updated.id)
+			showSavedDraft({ ...updated }, updated.id)
 		},
 	})
 
@@ -136,8 +115,6 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 			return
 		deleteMutation.mutate(draft.id)
 	}
-
-	const readOnly = mode === 'view'
 
 	const bodyOptions: Array<{ value: TruckRow['bodyType']; label: string }> = [
 		{ value: 'flatbed', label: t('editor.enums.bodyType.flatbed') },
@@ -263,40 +240,16 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 				idLabel={draft?.id ?? null}
 				footer={
 					draft ? (
-						<>
-							<div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
-								{mode === 'view' && (
-									<LinkAction tone="primary" onClick={handleEdit}>
-										{t('actions.edit')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction
-										tone="primary"
-										onClick={handleSave}
-										disabled={
-											createMutation.isPending || updateMutation.isPending
-										}
-									>
-										{t('actions.save')}
-									</LinkAction>
-								)}
-								{(mode === 'edit' || mode === 'create') && (
-									<LinkAction onClick={handleCancel}>
-										{t('actions.cancel')}
-									</LinkAction>
-								)}
-							</div>
-							{mode === 'view' && draft.id && (
-								<LinkAction
-									tone="danger"
-									onClick={handleDelete}
-									disabled={deleteMutation.isPending}
-								>
-									{t('actions.delete')}
-								</LinkAction>
-							)}
-						</>
+						<VolumeEditorFooter
+							mode={mode}
+							id={draft.id}
+							isSaving={createMutation.isPending || updateMutation.isPending}
+							isDeleting={deleteMutation.isPending}
+							onEdit={handleEdit}
+							onSave={handleSave}
+							onCancel={handleCancel}
+							onDelete={handleDelete}
+						/>
 					) : null
 				}
 			>

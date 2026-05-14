@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
 	assignTruckToOrder,
@@ -265,7 +270,7 @@ function StageTick({
 		<motion.div
 			layout
 			animate={{ backgroundColor: bg, color: textColor }}
-			transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+			transition={{ duration: 0.24, ease: cubicBezier(0.2, 0.8, 0.2, 1) }}
 			className="flex h-8 min-w-0 items-center justify-center border-2 border-[var(--color-text)] font-[family-name:var(--font-geist-mono)] text-[8px] font-bold uppercase tracking-[0.08em] lg:h-9 lg:border-[3px] lg:text-[10px] lg:tracking-[0.2em]"
 		>
 			{label}
@@ -449,7 +454,7 @@ function LoadStage({
 									exit={{ opacity: 0, y: -8 }}
 									transition={{
 										duration: 0.28,
-										ease: [0.2, 0.8, 0.2, 1],
+										ease: cubicBezier(0.2, 0.8, 0.2, 1),
 										delay: idx * 0.04,
 									}}
 									className="border-y-2 border-x-0 px-4 py-3 sm:px-6 lg:border-[3px] lg:px-5 lg:py-4"
@@ -692,7 +697,10 @@ function TruckPicker({
 							hidden: { opacity: 0, y: 10 },
 							visible: { opacity: 1, y: 0 },
 						}}
-						transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+						transition={{
+							duration: 0.28,
+							ease: cubicBezier(0.2, 0.8, 0.2, 1),
+						}}
 						whileHover={{ y: -2 }}
 						whileTap={{ scale: 0.98 }}
 						className="group min-h-[74px] border-y-2 border-x-0 border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 text-start transition-shadow disabled:opacity-40 md:min-h-[100px] md:border-[3px] md:px-5 md:py-4 md:hover:shadow-[4px_4px_0_0_var(--color-text)]"

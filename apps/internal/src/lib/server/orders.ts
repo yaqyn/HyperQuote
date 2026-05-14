@@ -1,6 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { db, hoursSince } from '../db/db'
+import { db } from '../db/db'
+import {
+	getQuoteContext,
+	quoteDeliverySnapshot,
+	quoteOrderIdentity,
+	roundMoney,
+} from './order-context'
 
 /**
  * Customer orders arriving at inventory prep. Each row represents a won
@@ -78,19 +84,17 @@ function buildLineItem(
 		shortage,
 		status: shortage > 0 ? 'shortage' : 'ready',
 		sellPrice,
-		lineTotal: Math.round(sellPrice * requiredQty * 100) / 100,
+		lineTotal: roundMoney(sellPrice * requiredQty),
 	}
 }
 
 function buildOrder(quoteId: string): CustomerOrderView | null {
-	const quote = db.quotes.get(quoteId)
-	if (!quote) return null
-	const rfq = db.rfqs.get(quote.rfqId)
-	const customer = db.customers.get(quote.customerId)
+	const context = getQuoteContext(quoteId)
+	if (!context) return null
+	const { quote, report } = context
 
 	// Skip orders inventory has already approved. Their existence on the
 	// living-document side means they've moved on to warehouse prep.
-	const report = db.orderReports.forRfq(quote.rfqId)
 	if (report?.sections.inventory_orders) return null
 
 	const items = quote.items
@@ -100,24 +104,14 @@ function buildOrder(quoteId: string): CustomerOrderView | null {
 	const totalValue = items.reduce((s, i) => s + i.lineTotal, 0)
 	const readyCount = items.filter((i) => i.status === 'ready').length
 	const shortageCount = items.filter((i) => i.status === 'shortage').length
-	const acceptedAt = quote.sentAt ?? new Date().toISOString()
+	const identity = quoteOrderIdentity(context, 'Unknown customer')
+	const delivery = quoteDeliverySnapshot(context)
 
 	return {
-		quoteId: quote.id,
-		quoteNumber: quote.quoteNumber,
-		rfqId: quote.rfqId,
-		customerId: quote.customerId,
-		customerName:
-			rfq?.customerName ?? customer?.companyName ?? 'Unknown customer',
-		customerTier: rfq?.customerTier ?? customer?.tier ?? 'new',
-		customerPoNumber: quote.customerPoNumber,
-		acceptedAt,
-		acceptedHoursAgo: Math.round(hoursSince(acceptedAt)),
-		deliveryAddress: rfq?.deliveryAddress ?? customer?.address ?? '',
-		deliveryCity: rfq?.deliveryCity ?? '',
-		deliveryUrgencyDays: rfq?.deliveryUrgency ?? 0,
+		...identity,
+		deliveryUrgencyDays: delivery.deliveryUrgencyDays,
 		items,
-		totalValue: Math.round(totalValue * 100) / 100,
+		totalValue: roundMoney(totalValue),
 		itemCount: items.length,
 		readyCount,
 		shortageCount,

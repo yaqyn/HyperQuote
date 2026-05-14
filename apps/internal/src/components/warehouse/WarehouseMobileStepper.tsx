@@ -2,7 +2,7 @@ import { ChevronDown, RotateCcw, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ReactNode } from 'react'
 
-export type MobileStepTone = 'dark' | 'yellow' | 'green' | 'red'
+type MobileStepTone = 'dark' | 'yellow' | 'green' | 'red'
 
 export function mobilePanelClass(active: boolean) {
 	return active ? 'block' : 'hidden lg:block'

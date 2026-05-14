@@ -1,7 +1,7 @@
 export const SALES_MARGIN_FLOOR_COLOR = '#F97316'
 export const SALES_MARGIN_TARGET_COLOR = '#2563EB'
 export const SALES_MARGIN_BONUS_COLOR = '#090909'
-export const SALES_MARGIN_TARGET_PERCENT = 20
+const SALES_MARGIN_TARGET_PERCENT = 20
 export const SALES_MARGIN_CAP_PERCENT = 25
 
 export function getSalesMarginColor(
