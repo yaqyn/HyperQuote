@@ -27,6 +27,10 @@ type CustomerDraft = Omit<CustomerRow, 'id' | 'joinedAt'> & {
 	joinedAt?: string
 }
 
+interface CustomersVolumeProps {
+	onOpenVolumes: () => void
+}
+
 function blankCustomer(): CustomerDraft {
 	return {
 		companyName: '',
@@ -47,7 +51,7 @@ function blankCustomer(): CustomerDraft {
 	}
 }
 
-export function CustomersVolume() {
+export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('customers')
@@ -261,7 +265,12 @@ export function CustomersVolume() {
 
 	return (
 		<>
-			<RegistryMasthead volume={volume} entryCount={customers.length} />
+			<RegistryMasthead
+				volume={volume}
+				entryCount={customers.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={handleNew}
+			/>
 			<EntityIndex
 				volume="customers"
 				rows={customers}

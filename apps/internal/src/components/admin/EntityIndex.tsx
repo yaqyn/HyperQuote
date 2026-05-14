@@ -84,31 +84,30 @@ export function EntityIndex<T>({
 	return (
 		<div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 			{/* Toolbar ────────────────────────────────────────── */}
-			<div className="flex flex-col gap-3 border-b border-black/[0.06] px-4 pb-4 pt-5 dark:border-white/[0.08] sm:px-6 lg:flex-row lg:items-center lg:gap-4 lg:px-12 lg:pb-5 lg:pt-6">
-				<EmployeeSearchField
-					value={searchQuery}
-					onChange={(value) => setSearch(volume, value)}
-					placeholder={t('search.placeholder')}
-					label={t('search.placeholder')}
-					className="lg:flex-1"
-				/>
+			<div className="hidden border-b border-black/[0.06] dark:border-white/[0.08] lg:flex lg:items-center lg:gap-4 lg:px-12 lg:pb-5 lg:pt-6">
+				<div className="hidden min-w-0 flex-1 items-center gap-4 lg:flex">
+					<EmployeeSearchField
+						value={searchQuery}
+						onChange={(value) => setSearch(volume, value)}
+						placeholder={t('search.placeholder')}
+						label={t('search.placeholder')}
+						className="flex-1"
+					/>
 
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
-					<EmployeeStatusPill className="w-full justify-center sm:w-auto">
-						{resultLabel}
-					</EmployeeStatusPill>
+					<div className="flex shrink-0 items-center justify-end gap-2">
+						<EmployeeStatusPill>{resultLabel}</EmployeeStatusPill>
 
-					{onNewEntry && (
-						<EmployeeActionButton
-							onClick={onNewEntry}
-							tone="primary"
-							size="sm"
-							leading={<Plus size={14} strokeWidth={2.2} />}
-							fullWidthOnMobile
-						>
-							{t('actions.new')}
-						</EmployeeActionButton>
-					)}
+						{onNewEntry && (
+							<EmployeeActionButton
+								onClick={onNewEntry}
+								tone="primary"
+								size="sm"
+								leading={<Plus size={14} strokeWidth={2.2} />}
+							>
+								{t('actions.new')}
+							</EmployeeActionButton>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -183,41 +182,24 @@ export function EntityIndex<T>({
 													<div className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-snug text-[var(--color-text)]">
 														{primaryColumn?.render(row)}
 													</div>
-													<span
-														className={`shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums transition-colors
-                              ${
-																isSelected
-																	? 'text-[var(--color-primary)]'
-																	: 'text-[var(--color-text-subtle)] group-hover:text-[var(--color-text-muted)]'
-															}`}
-													>
-														№ {String(i + 1).padStart(3, '0')}
-													</span>
 												</div>
 
 												{mobileDetailColumns.length > 0 && (
-													<div className="mt-3 flex flex-wrap gap-2">
-														{mobileDetailColumns.map((c) => {
-															const label = t(c.labelKey).trim()
-															if (!label) return null
-															return (
-																<div
-																	key={c.key}
-																	className={`inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.06] bg-black/[0.02] px-2.5 py-1.5 text-[12px] dark:border-white/[0.08] dark:bg-white/[0.04] ${
-																		c.mono
-																			? 'font-[family-name:var(--font-geist-mono)] tabular-nums'
-																			: 'font-[family-name:var(--font-archivo)]'
-																	}`}
-																>
-																	<span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-																		{label}
-																	</span>
-																	<div className="min-w-0 break-words leading-snug text-[var(--color-text)]">
-																		{c.render(row)}
-																	</div>
+													<div className="mt-3 flex flex-wrap gap-1.5">
+														{mobileDetailColumns.map((c) => (
+															<div
+																key={c.key}
+																className={`inline-flex max-w-full items-center rounded-md bg-black/[0.035] px-2.5 py-1.5 text-[12px] leading-snug text-[var(--color-text)] dark:bg-white/[0.045] ${
+																	c.mono
+																		? 'font-[family-name:var(--font-geist-mono)] tabular-nums'
+																		: 'font-[family-name:var(--font-archivo)]'
+																}`}
+															>
+																<div className="min-w-0 break-words">
+																	{c.render(row)}
 																</div>
-															)
-														})}
+															</div>
+														))}
 													</div>
 												)}
 											</div>

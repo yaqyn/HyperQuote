@@ -1,7 +1,7 @@
 import { type AuthSession, hasPermission } from '@hyperquote/auth'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, DialogTrigger, Popover } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -175,6 +175,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
 	const [awayActive, setAwayActive] = useState(false)
 	const canLockFromClock = useMediaQuery('(min-width: 640px)')
+	const reduceMotion = useReducedMotion()
 
 	const name = auth.user?.user_metadata?.name ?? ''
 	const firstName = (name.split(' ')[0] || 'there').toLowerCase()
@@ -202,7 +203,22 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	}))
 
 	return (
-		<div className="relative flex h-full w-full flex-col overflow-hidden select-none bg-dot-grid">
+		<motion.div
+			className="relative flex h-full w-full flex-col overflow-hidden select-none bg-dot-grid"
+			style={{ '--dot-wave-x': '132%' }}
+			animate={
+				reduceMotion
+					? undefined
+					: {
+							'--dot-wave-x': ['132%', '-32%'],
+						}
+			}
+			transition={{
+				duration: 12,
+				repeat: Number.POSITIVE_INFINITY,
+				ease: 'linear',
+			}}
+		>
 			<Masthead now={now} />
 
 			{/* Centerpiece — clock + greeting. Clicking the clock pulls
@@ -285,7 +301,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 					/>
 				)}
 			</AnimatePresence>
-		</div>
+		</motion.div>
 	)
 }
 
@@ -295,23 +311,24 @@ function Masthead({ now }: { now: Date }) {
 	return (
 		<div className="relative z-10 shrink-0 px-4 pt-4 pb-3 sm:px-8 lg:px-12 lg:pt-5">
 			<div className="flex items-baseline justify-between gap-6">
-				{/* Left — organizational identity. Clicking the wordmark
-				    toggles paper mode; that's the only entry point now. */}
+				{/* Left — organizational identity. Clicking the wordmark toggles
+				    the quiet night-light surface. */}
 				<div className="flex items-baseline gap-2 leading-none">
 					<button
 						type="button"
 						onClick={() => {
 							const html = document.documentElement
-							const isPaper = html.getAttribute('data-theme') === 'paper'
-							if (isPaper) {
+							const isNightLight =
+								html.getAttribute('data-theme') === 'night-light'
+							if (isNightLight) {
 								html.removeAttribute('data-theme')
 								localStorage.setItem('hq-theme', 'light')
 							} else {
-								html.setAttribute('data-theme', 'paper')
-								localStorage.setItem('hq-theme', 'paper')
+								html.setAttribute('data-theme', 'night-light')
+								localStorage.setItem('hq-theme', 'night-light')
 							}
 						}}
-						aria-label="Toggle paper mode"
+						aria-label="Toggle night light"
 						className="font-[family-name:var(--font-literata)] italic text-[var(--color-text)] outline-none transition-colors hover:text-[var(--color-primary)] focus-visible:text-[var(--color-primary)]"
 						style={{
 							fontSize: '15px',

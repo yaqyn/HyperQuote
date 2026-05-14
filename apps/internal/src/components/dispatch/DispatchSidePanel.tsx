@@ -90,6 +90,15 @@ export function DispatchSidePanel({
 		setSelectedQuoteId,
 	])
 
+	const hideModeTabs = selectedQuoteId !== null
+	const handleMobileBack = () => {
+		if (selectedQuoteId) {
+			setSelectedQuoteId(null)
+			return
+		}
+		onToggle()
+	}
+
 	return (
 		<>
 			{!isOpen && <EdgeHandle onToggle={onToggle} />}
@@ -101,36 +110,44 @@ export function DispatchSidePanel({
 						animate={{ x: 0 }}
 						exit={reduce ? undefined : { x: '100%' }}
 						transition={{ type: 'spring', stiffness: 280, damping: 34 }}
-						className="dispatch-theme dispatch-paper absolute inset-0 z-10 flex w-full flex-col shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)] lg:inset-y-0 lg:start-auto lg:end-0 lg:w-[440px] lg:border-s lg:border-[var(--rule-soft)]"
+						className="dispatch-theme dispatch-paper absolute inset-0 z-10 flex w-full flex-col lg:inset-y-0 lg:start-auto lg:end-0 lg:w-[440px] lg:border-s lg:border-[var(--rule-soft)] lg:shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)]"
 						style={{ color: 'var(--ink)' }}
 					>
-						<div className="flex-1 min-h-0 flex flex-col">
-							<AnimatePresence mode="wait">
-								{mode === 'orders' ? (
-									selectedQuoteId ? (
-										<OrderDetail
-											key={`detail-${selectedQuoteId}`}
-											quoteId={selectedQuoteId}
-											onBack={() => setSelectedQuoteId(null)}
-											reduce={reduce}
-										/>
-									) : (
-										<OrdersView key="orders" reduce={reduce} />
-									)
-								) : (
-									<FleetView key="fleet" reduce={reduce} />
-								)}
-							</AnimatePresence>
-						</div>
-
+						<DispatchMobileBar
+							mode={mode}
+							hasDetail={selectedQuoteId !== null}
+							quoteId={selectedQuoteId}
+							onBack={handleMobileBack}
+							onChange={(m) => {
+								setMode(m)
+								setSelectedQuoteId(null)
+							}}
+						/>
 						<ModeToggle
 							mode={mode}
 							onChange={(m) => {
 								setMode(m)
 								setSelectedQuoteId(null)
 							}}
-							onClose={onToggle}
+							hideTabs={hideModeTabs}
+							className="hidden shrink-0 lg:grid"
 						/>
+						<div className="flex-1 min-h-0 flex flex-col">
+							<AnimatePresence mode="wait">
+								{selectedQuoteId ? (
+									<OrderDetail
+										key={`detail-${selectedQuoteId}`}
+										quoteId={selectedQuoteId}
+										onBack={() => setSelectedQuoteId(null)}
+										reduce={reduce}
+									/>
+								) : mode === 'orders' ? (
+									<OrdersView key="orders" reduce={reduce} />
+								) : (
+									<FleetView key="fleet" reduce={reduce} />
+								)}
+							</AnimatePresence>
+						</div>
 					</motion.aside>
 				)}
 			</AnimatePresence>
@@ -150,8 +167,80 @@ function EdgeHandle({ onToggle }: { onToggle: () => void }) {
 			onClick={onToggle}
 			className="dispatch-theme absolute end-4 bottom-4 z-20 shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)] lg:end-3 lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
 		>
-			Open dispatch
+			Dispatch
 		</EmployeeActionButton>
+	)
+}
+
+function DispatchMobileBar({
+	mode,
+	hasDetail,
+	quoteId,
+	onBack,
+	onChange,
+}: {
+	mode: Mode
+	hasDetail: boolean
+	quoteId: string | null
+	onBack: () => void
+	onChange: (m: Mode) => void
+}) {
+	const { data: route } = useQuery({
+		queryKey: ['dispatch-route', quoteId],
+		queryFn: () => {
+			if (!quoteId) throw new Error('Missing quote id')
+			return getDispatchRouteDetail({ data: { quoteId } })
+		},
+		enabled: hasDetail && quoteId !== null,
+		staleTime: 5_000,
+	})
+
+	return (
+		<div className="flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 lg:hidden">
+			<button
+				type="button"
+				aria-label={
+					hasDetail ? 'Back to dispatch list' : 'Close dispatch panel'
+				}
+				onClick={onBack}
+				className="flex h-9 w-9 items-center justify-center text-[var(--ink-mid)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--motion)]/30"
+			>
+				<ArrowLeft aria-hidden="true" size={19} strokeWidth={1.9} />
+			</button>
+			{hasDetail ? (
+				<div className="flex min-w-0 flex-1 items-center gap-2">
+					<span className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--ink)]">
+						{route?.customerName ?? 'Delivery'}
+					</span>
+					{route?.isOverdue && (
+						<span
+							role="img"
+							aria-label="Needs attention"
+							className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--overdue)]/35 font-[family-name:var(--font-archivo)] text-[12px] font-bold text-[var(--overdue)]"
+						>
+							!
+						</span>
+					)}
+				</div>
+			) : (
+				<div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+					<EmployeeFilterChip
+						active={mode === 'orders'}
+						tone="primary"
+						onClick={() => onChange('orders')}
+					>
+						Deliveries
+					</EmployeeFilterChip>
+					<EmployeeFilterChip
+						active={mode === 'fleet'}
+						tone="primary"
+						onClick={() => onChange('fleet')}
+					>
+						Fleet
+					</EmployeeFilterChip>
+				</div>
+			)}
+		</div>
 	)
 }
 
@@ -176,8 +265,14 @@ function OrdersView({ reduce }: { reduce: boolean | null }) {
 			transition={{ duration: 0.24 }}
 			className="flex-1 min-h-0 flex flex-col"
 		>
-			{/* Sovereign header — compact, left-aligned */}
-			<div className="shrink-0 px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8">
+			{/* Sovereign header — desktop only. Mobile starts directly at the work. */}
+			<div
+				className={
+					isError
+						? 'shrink-0 px-4 pt-4 pb-3 sm:px-6'
+						: 'hidden shrink-0 px-8 pt-6 pb-5 lg:block'
+				}
+			>
 				{isLoading ? (
 					<SovereignSkeleton />
 				) : isError ? (
@@ -190,7 +285,7 @@ function OrdersView({ reduce }: { reduce: boolean | null }) {
 				)}
 			</div>
 
-			<HorizonRule />
+			<HorizonRule className="hidden lg:block" />
 
 			{/* Strata */}
 			<div className="flex-1 min-h-0 overflow-y-auto">
@@ -326,6 +421,15 @@ function OrderBand({
 	const progressPct = Math.max(0, Math.min(1, 1 - remaining / 0.8)) * 100
 	return (
 		<motion.article
+			role="button"
+			tabIndex={0}
+			onClick={onSelect}
+			onKeyDown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault()
+					onSelect()
+				}
+			}}
 			initial={reduce ? false : { opacity: 0, y: 4 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{
@@ -333,9 +437,9 @@ function OrderBand({
 				duration: 0.26,
 				ease: [0.16, 1, 0.3, 1],
 			}}
-			className="relative grid w-full gap-3 px-3 py-4 transition-colors hover:bg-[var(--rule-soft)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start lg:grid-cols-[34px_minmax(0,1fr)_auto] lg:px-0 lg:py-0"
+			className="relative grid w-full cursor-pointer gap-2 px-4 py-3 transition-colors hover:bg-[var(--rule-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--motion)]/25 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:px-6 lg:grid-cols-[34px_minmax(0,1fr)_auto] lg:gap-3 lg:px-0 lg:py-0"
 			style={{
-				minHeight: '84px',
+				minHeight: '76px',
 				borderBottom: '1px solid var(--rule-soft)',
 			}}
 		>
@@ -371,7 +475,7 @@ function OrderBand({
 
 			{/* Center */}
 			<div className="min-w-0 lg:px-4 lg:py-3">
-				<div className="mb-2 flex flex-wrap items-center gap-2 lg:hidden">
+				<div className="mb-1.5 flex flex-wrap items-center gap-2 lg:hidden">
 					<span
 						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
 						style={{
@@ -391,6 +495,19 @@ function OrderBand({
 						}}
 					>
 						{route.quoteNumber}
+					</span>
+					<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>·</span>
+					<span
+						className="font-[family-name:var(--font-archivo)] italic"
+						style={{
+							fontSize: '10px',
+							color:
+								route.deliveryUrgencyDays <= 0
+									? 'var(--overdue)'
+									: 'var(--ink-mid)',
+						}}
+					>
+						{urgency}
 					</span>
 				</div>
 				<p
@@ -431,9 +548,14 @@ function OrderBand({
 					>
 						{route.passedAtHoursAgo.toFixed(1)}h
 					</span>
-					<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>·</span>
 					<span
-						className="font-[family-name:var(--font-archivo)] italic shrink-0"
+						className="hidden lg:inline"
+						style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}
+					>
+						·
+					</span>
+					<span
+						className="hidden shrink-0 font-[family-name:var(--font-archivo)] italic lg:inline"
 						style={{
 							fontSize: '10px',
 							color:
@@ -489,7 +611,7 @@ function OrderBand({
 			</div>
 
 			{/* Right gutter — status glyph + plate */}
-			<div className="flex flex-col items-stretch gap-2 sm:w-[170px] lg:w-[152px] lg:justify-center lg:pe-4">
+			<div className="flex flex-wrap items-center gap-2 sm:w-[170px] sm:flex-col sm:items-stretch lg:w-[152px] lg:justify-center lg:pe-4">
 				<EmployeeStatusPill
 					tone={route.isOverdue ? 'warning' : 'neutral'}
 					leading={
@@ -499,13 +621,13 @@ function OrderBand({
 							<Truck aria-hidden="true" size={14} />
 						)
 					}
-					className="w-full"
+					className="max-lg:px-2 max-lg:py-1 max-lg:text-[11px] sm:w-full"
 				>
 					{route.isOverdue ? 'Needs attention' : 'On route'}
 				</EmployeeStatusPill>
 				{leadTruck?.plateNumber && (
 					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+						className="font-[family-name:var(--font-plex-mono)] tabular-nums max-lg:rounded-md max-lg:bg-black/[0.035] max-lg:px-2 max-lg:py-1"
 						style={{
 							fontSize: '10px',
 							color: 'var(--ink-mid)',
@@ -515,15 +637,10 @@ function OrderBand({
 						{leadTruck.plateNumber}
 					</span>
 				)}
-				<EmployeeActionButton
-					tone="primary"
-					size="sm"
-					leading={<MapPinned aria-hidden="true" size={14} />}
-					fullWidthOnMobile
-					onClick={onSelect}
-				>
+				<span className="hidden min-h-9 items-center justify-center gap-2 rounded-md bg-[var(--color-primary)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.11em] text-white lg:inline-flex">
+					<MapPinned aria-hidden="true" size={14} />
 					Open delivery
-				</EmployeeActionButton>
+				</span>
 			</div>
 		</motion.article>
 	)
@@ -572,7 +689,7 @@ function OrderDetail({
 			className="flex-1 min-h-0 flex flex-col"
 		>
 			{/* Back */}
-			<div className="px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+			<div className="hidden px-4 pt-3 sm:px-6 lg:block lg:px-8 lg:pt-5">
 				<EmployeeActionButton
 					tone="neutral"
 					size="sm"
@@ -583,80 +700,29 @@ function OrderDetail({
 				</EmployeeActionButton>
 			</div>
 
-			{/* Hero — customer heading */}
-			<div className="px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:px-8">
-				<h2
-					className="break-words font-[family-name:var(--font-literata)] animate-sovereign-rise"
-					style={{
-						fontSize: '24px',
-						fontWeight: 500,
-						color: 'var(--ink)',
-						lineHeight: 1.1,
-					}}
-				>
-					{route.customerName}
-				</h2>
-				<p
-					className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 animate-sovereign-rise"
-					style={{ animationDelay: '100ms' }}
-				>
-					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
+			{/* Desktop title. Mobile carries the title in the back bar. */}
+			<div className="hidden px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:block lg:px-8">
+				<div className="flex min-w-0 items-center gap-2">
+					<h2
+						className="min-w-0 break-words font-[family-name:var(--font-literata)] animate-sovereign-rise"
 						style={{
-							fontSize: '11px',
-							color: 'var(--ink-mid)',
-							letterSpacing: '0.08em',
+							fontSize: '24px',
+							fontWeight: 500,
+							color: 'var(--ink)',
+							lineHeight: 1.1,
 						}}
 					>
-						{route.quoteNumber}
-					</span>
-					<span style={{ color: 'var(--ink-ghost)' }}>·</span>
-					<span
-						className="font-[family-name:var(--font-archivo)] italic"
-						style={{ fontSize: '12px', color: 'var(--ink-soft)' }}
-					>
-						{route.deliveryCity.toLowerCase()}
-					</span>
-					<span style={{ color: 'var(--ink-ghost)' }}>·</span>
-					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums"
-						style={{
-							fontSize: '11px',
-							color: route.isOverdue ? 'var(--overdue)' : 'var(--ink-mid)',
-							letterSpacing: '0.04em',
-						}}
-					>
-						{route.passedAtHoursAgo.toFixed(1)}h in transit
-					</span>
-					{route.deliveryUrgencyDays > 0 && (
-						<>
-							<span style={{ color: 'var(--ink-ghost)' }}>·</span>
-							<span
-								className="font-[family-name:var(--font-archivo)] italic"
-								style={{ fontSize: '12px', color: 'var(--overdue)' }}
-							>
-								{route.deliveryUrgencyDays}d urgent
-							</span>
-						</>
+						{route.customerName}
+					</h2>
+					{route.isOverdue && (
+						<span
+							role="img"
+							aria-label="Needs attention"
+							className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--overdue)]/35 font-[family-name:var(--font-archivo)] text-[13px] font-bold text-[var(--overdue)]"
+						>
+							!
+						</span>
 					)}
-				</p>
-				<div className="mt-3 flex flex-wrap gap-2">
-					<EmployeeStatusPill
-						tone={route.isOverdue ? 'warning' : 'neutral'}
-						leading={
-							route.isOverdue ? (
-								<AlertTriangle aria-hidden="true" size={14} />
-							) : (
-								<Truck aria-hidden="true" size={14} />
-							)
-						}
-					>
-						{route.isOverdue ? 'Needs dispatcher attention' : 'On route'}
-					</EmployeeStatusPill>
-					<EmployeeStatusPill tone="neutral">
-						{route.trucks.length} truck{route.trucks.length === 1 ? '' : 's'} ·{' '}
-						{route.items.length} item{route.items.length === 1 ? '' : 's'}
-					</EmployeeStatusPill>
 				</div>
 			</div>
 
@@ -751,24 +817,26 @@ function OrderDetail({
 
 			{/* Actions */}
 			<div
-				className="flex-shrink-0 grid grid-cols-1 gap-2 px-4 py-4 sm:px-6 lg:grid-cols-2 lg:px-8"
+				className="flex-shrink-0 grid grid-cols-2 gap-2 px-4 py-3 sm:px-6 lg:px-8 lg:py-4"
 				style={{ borderTop: '1px solid var(--rule)' }}
 			>
 				<EmployeeActionButton
 					tone="success"
 					leading={<CheckCircle2 aria-hidden="true" size={15} />}
-					fullWidthOnMobile
 					onClick={() => setShowDelivered(true)}
+					className="w-full max-lg:min-h-11 max-lg:px-2"
 				>
-					Confirm delivered
+					<span className="lg:hidden">Delivered</span>
+					<span className="hidden lg:inline">Confirm delivered</span>
 				</EmployeeActionButton>
 				<EmployeeActionButton
 					tone="danger"
 					leading={<Ban aria-hidden="true" size={15} />}
-					fullWidthOnMobile
 					onClick={() => setShowReturned(true)}
+					className="w-full max-lg:min-h-11 max-lg:px-2"
 				>
-					Return to warehouse
+					<span className="lg:hidden">Return</span>
+					<span className="hidden lg:inline">Return to warehouse</span>
 				</EmployeeActionButton>
 			</div>
 
@@ -869,10 +937,10 @@ function FleetView({ reduce }: { reduce: boolean | null }) {
 				)}
 			</div>
 
-			<HorizonRule />
+			<HorizonRule className="hidden lg:block" />
 
 			{/* Sovereign — utilization as foundation, compact */}
-			<div className="shrink-0 px-4 pt-5 pb-5 sm:px-6 sm:pb-6 lg:px-8">
+			<div className="hidden shrink-0 px-4 pt-5 pb-5 sm:px-6 sm:pb-6 lg:block lg:px-8">
 				{isLoading ? (
 					<SovereignSkeleton />
 				) : isError ? (
@@ -1031,7 +1099,7 @@ function DriverBand({
 			initial={reduce ? false : { opacity: 0, y: 4 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ delay: 0.06 + index * 0.025, duration: 0.22 }}
-			className="grid min-h-[72px] grid-cols-[34px_minmax(0,1fr)] gap-2 px-3 py-3 sm:grid-cols-[42px_minmax(0,1fr)_150px] sm:items-center sm:px-0 sm:py-0"
+			className="grid min-h-[72px] grid-cols-[34px_minmax(0,1fr)] gap-2 px-4 py-3 sm:grid-cols-[42px_minmax(0,1fr)_150px] sm:items-center sm:px-0 sm:py-0"
 			style={{
 				borderTop: '1px solid var(--rule-soft)',
 			}}
@@ -1102,7 +1170,7 @@ function DriverBand({
 				<EmployeeStatusPill
 					tone={isDispatched ? 'neutral' : isAvailable ? 'success' : 'warning'}
 					leading={<Truck aria-hidden="true" size={14} />}
-					className="w-full"
+					className="w-full max-lg:px-2 max-lg:py-1 max-lg:text-[11px]"
 				>
 					{driverStatusLabel(driver.status)}
 				</EmployeeStatusPill>
@@ -1128,47 +1196,40 @@ function driverStatusLabel(status: string): string {
 	return 'Unavailable'
 }
 
-// ─── Mode toggle (bottom rail) ──────────────────────────
+// ─── Mode toggle ────────────────────────────────────────
 
 function ModeToggle({
 	mode,
 	onChange,
-	onClose,
+	hideTabs = false,
+	className = '',
 }: {
 	mode: Mode
 	onChange: (m: Mode) => void
-	onClose: () => void
+	hideTabs?: boolean
+	className?: string
 }) {
+	if (hideTabs) return null
+
 	return (
 		<div
-			className="flex-shrink-0 grid grid-cols-1 gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:px-10 lg:py-5"
-			style={{ borderTop: '1px solid var(--rule)' }}
+			className={`grid grid-cols-2 gap-2 px-3 py-3 sm:px-6 lg:px-10 ${className}`}
+			style={{ borderBottom: '1px solid var(--rule-soft)' }}
 		>
-			<div className="grid grid-cols-2 gap-2">
-				<EmployeeFilterChip
-					active={mode === 'orders'}
-					tone="primary"
-					onClick={() => onChange('orders')}
-				>
-					Deliveries
-				</EmployeeFilterChip>
-				<EmployeeFilterChip
-					active={mode === 'fleet'}
-					tone="primary"
-					onClick={() => onChange('fleet')}
-				>
-					Fleet
-				</EmployeeFilterChip>
-			</div>
-			<EmployeeActionButton
-				tone="neutral"
-				size="sm"
-				leading={<X aria-hidden="true" size={14} />}
-				fullWidthOnMobile
-				onClick={onClose}
+			<EmployeeFilterChip
+				active={mode === 'orders'}
+				tone="primary"
+				onClick={() => onChange('orders')}
 			>
-				Close dispatch
-			</EmployeeActionButton>
+				Deliveries
+			</EmployeeFilterChip>
+			<EmployeeFilterChip
+				active={mode === 'fleet'}
+				tone="primary"
+				onClick={() => onChange('fleet')}
+			>
+				Fleet
+			</EmployeeFilterChip>
 		</div>
 	)
 }
@@ -1203,11 +1264,12 @@ function ConfirmDialog({
 	const [securityToken, setSecurityToken] = useState('')
 	const [proofUrl, setProofUrl] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const tokenOk = securityToken.trim().length >= 4
 
 	const ready =
 		advisorId !== null &&
 		(isDelivered || reason.trim().length >= 3) &&
-		securityToken.trim().length >= 4 &&
+		tokenOk &&
 		proofUrl.trim().length > 0
 
 	const invalidateAll = () => {
@@ -1319,60 +1381,66 @@ function ConfirmDialog({
 				)}
 
 				<DialogField label="Signed off by">
-					<div className="grid grid-cols-1 gap-2">
-						{employees.map((e) => (
-							<button
-								key={e.id}
-								type="button"
-								onClick={() => setAdvisorId(e.id)}
-								aria-pressed={advisorId === e.id}
-								className={`min-h-10 rounded-md border px-3 text-start font-[family-name:var(--font-archivo)] transition-colors ${
-									advisorId === e.id
-										? 'border-[var(--motion)] bg-[var(--motion)]/[0.08] text-[var(--ink)]'
-										: 'border-black/[0.1] text-[var(--ink-mid)] hover:border-[var(--motion)]/40 dark:border-white/[0.12]'
-								}`}
-								style={{ fontSize: '14px', fontWeight: 600 }}
-							>
-								{e.name}
-							</button>
-						))}
-					</div>
-				</DialogField>
-
-				<DialogField label="Credential">
-					<div className="mb-3 grid grid-cols-2 gap-2">
-						{(['password', 'qr'] as const).map((m) => (
-							<EmployeeFilterChip
-								key={m}
-								active={securityMethod === m}
-								tone="primary"
-								onClick={() => {
-									setSecurityMethod(m)
-									setSecurityToken('')
-								}}
-							>
-								{m === 'password' ? 'Password' : 'QR scan'}
-							</EmployeeFilterChip>
-						))}
-					</div>
-					<HairlineInput
-						type={securityMethod === 'password' ? 'password' : 'text'}
-						value={securityToken}
-						onChange={setSecurityToken}
-						placeholder={
-							securityMethod === 'password' ? 'your password' : 'scan badge'
-						}
-						autoComplete="off"
+					<HairlineSelect
+						value={advisorId ?? ''}
+						onChange={(value) => {
+							setAdvisorId(value || null)
+							setSecurityToken('')
+							setProofUrl('')
+						}}
+						placeholder="Select advisor"
+						disabled={employees.length === 0}
+						options={employees.map((employee) => ({
+							value: employee.id,
+							label: employee.name,
+						}))}
 					/>
 				</DialogField>
 
-				<DialogField label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}>
-					<HairlineInput
-						value={proofUrl}
-						onChange={setProofUrl}
-						placeholder="pod-photo.jpg"
-					/>
-				</DialogField>
+				{advisorId && (
+					<DialogField label="Credential">
+						<div className="mb-3 grid grid-cols-2 gap-2">
+							{(['password', 'qr'] as const).map((m) => (
+								<EmployeeFilterChip
+									key={m}
+									active={securityMethod === m}
+									tone="primary"
+									onClick={() => {
+										setSecurityMethod(m)
+										setSecurityToken('')
+										setProofUrl('')
+									}}
+								>
+									{m === 'password' ? 'Password' : 'QR scan'}
+								</EmployeeFilterChip>
+							))}
+						</div>
+						<HairlineInput
+							type={securityMethod === 'password' ? 'password' : 'text'}
+							value={securityToken}
+							onChange={(value) => {
+								setSecurityToken(value)
+								setProofUrl('')
+							}}
+							placeholder={
+								securityMethod === 'password' ? 'your password' : 'scan badge'
+							}
+							autoComplete="off"
+						/>
+					</DialogField>
+				)}
+
+				{tokenOk && (
+					<DialogField
+						label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}
+					>
+						<HairlineInput
+							value={proofUrl}
+							onChange={setProofUrl}
+							placeholder="pod-photo.jpg"
+						/>
+					</DialogField>
+				)}
 
 				{error && (
 					<EmployeeStatusPill
@@ -1438,9 +1506,9 @@ function PanelStateMessage({ title, copy }: { title: string; copy: string }) {
 	)
 }
 
-function HorizonRule() {
+function HorizonRule({ className = '' }: { className?: string }) {
 	return (
-		<div className="px-0 shrink-0" aria-hidden="true">
+		<div className={`px-0 shrink-0 ${className}`} aria-hidden="true">
 			<div
 				className="h-px w-full animate-horizon-draw"
 				style={{ backgroundColor: 'var(--rule)' }}
@@ -1542,6 +1610,40 @@ function HairlineInput({
 				color: 'var(--ink)',
 			}}
 		/>
+	)
+}
+
+function HairlineSelect({
+	value,
+	onChange,
+	placeholder,
+	options,
+	disabled,
+}: {
+	value: string
+	onChange: (v: string) => void
+	placeholder: string
+	options: Array<{ value: string; label: string }>
+	disabled?: boolean
+}) {
+	return (
+		<select
+			value={value}
+			disabled={disabled}
+			onChange={(event) => onChange(event.target.value)}
+			className="min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--paper)] px-3 font-[family-name:var(--font-archivo)] outline-none transition-colors focus:border-[var(--motion)]/50 focus:ring-2 focus:ring-[var(--motion)]/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.12]"
+			style={{
+				fontSize: '15px',
+				color: value ? 'var(--ink)' : 'var(--ink-mid)',
+			}}
+		>
+			<option value="">{disabled ? 'Loading advisors' : placeholder}</option>
+			{options.map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
 	)
 }
 

@@ -1,8 +1,5 @@
-import { BookOpen } from 'lucide-react'
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAdminStore } from '../../stores/admin'
-import { EmployeeActionButton } from '../shared/EmployeeControls'
 import { VolumeRail } from './VolumeRail'
 import { CustomersVolume } from './volumes/CustomersVolume'
 import { DriversVolume } from './volumes/DriversVolume'
@@ -16,9 +13,9 @@ import { SuppliersVolume } from './volumes/SuppliersVolume'
  * volume menu so the working record always has the available space.
  */
 export function AdminModule() {
-	const { t } = useTranslation('admin')
 	const activeVolume = useAdminStore((s) => s.activeVolume)
 	const [volumeListOpen, setVolumeListOpen] = useState(false)
+	const openVolumes = () => setVolumeListOpen(true)
 
 	return (
 		<div className="relative flex h-full min-h-0 overflow-hidden bg-dot-grid">
@@ -33,23 +30,22 @@ export function AdminModule() {
 					/>
 				</div>
 			)}
-			{!volumeListOpen && (
-				<EmployeeActionButton
-					onClick={() => setVolumeListOpen(true)}
-					tone="neutral"
-					size="sm"
-					leading={<BookOpen size={14} strokeWidth={2.2} />}
-					className="absolute end-4 top-4 z-20 lg:hidden"
-				>
-					{t('rail.title')}
-				</EmployeeActionButton>
-			)}
 			<main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-				{activeVolume === 'customers' && <CustomersVolume />}
-				{activeVolume === 'products' && <ProductsVolume />}
-				{activeVolume === 'employees' && <EmployeesVolume />}
-				{activeVolume === 'drivers' && <DriversVolume />}
-				{activeVolume === 'suppliers' && <SuppliersVolume />}
+				{activeVolume === 'customers' && (
+					<CustomersVolume onOpenVolumes={openVolumes} />
+				)}
+				{activeVolume === 'products' && (
+					<ProductsVolume onOpenVolumes={openVolumes} />
+				)}
+				{activeVolume === 'employees' && (
+					<EmployeesVolume onOpenVolumes={openVolumes} />
+				)}
+				{activeVolume === 'drivers' && (
+					<DriversVolume onOpenVolumes={openVolumes} />
+				)}
+				{activeVolume === 'suppliers' && (
+					<SuppliersVolume onOpenVolumes={openVolumes} />
+				)}
 			</main>
 		</div>
 	)

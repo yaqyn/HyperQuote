@@ -84,9 +84,11 @@ export function CustomerProfilePanel({
 				panelKey="customer-profile"
 				ariaLabel={`${name} — ${t('profile.title')}`}
 				scope="customer-service"
+				mobileTitle={name}
+				mobileSubtitle={company}
 			>
 				<div className="flex h-full min-h-0 flex-col">
-					<header className="shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:px-7">
+					<header className="hidden shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:block lg:px-7">
 						<div className="flex items-start justify-between gap-3">
 							<div className="min-w-0">
 								<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
@@ -127,7 +129,7 @@ export function CustomerProfilePanel({
 						</div>
 					</header>
 
-					<div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-7">
+					<div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 lg:px-7 lg:py-5">
 						<CustomerActions customer={customer} />
 
 						<section className="mt-6">
@@ -191,8 +193,34 @@ export function CustomerProfilePanel({
 function CustomerActions({ customer }: { customer: Customer }) {
 	return (
 		<section>
-			<SectionHeader label="Contact" />
-			<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+			<div className="hidden lg:block">
+				<SectionHeader label="Contact" />
+			</div>
+			<div className="grid grid-cols-3 gap-2 lg:hidden">
+				{customer.email && (
+					<ContactIconLink
+						href={`mailto:${customer.email}`}
+						label="Email customer"
+						icon={<Mail size={16} strokeWidth={2.2} />}
+					/>
+				)}
+				{customer.phone && (
+					<ContactIconLink
+						href={`tel:${customer.phone.replace(/\s/g, '')}`}
+						label="Call customer"
+						icon={<Phone size={16} strokeWidth={2.2} />}
+					/>
+				)}
+				{customer.phone && (
+					<ContactIconLink
+						href={whatsappHref(customer.phone)}
+						label="Open WhatsApp"
+						icon={<MessageCircle size={16} strokeWidth={2.2} />}
+						external
+					/>
+				)}
+			</div>
+			<div className="hidden grid-cols-1 gap-2 sm:grid-cols-2 lg:grid">
 				{customer.email && (
 					<ContactLink
 						href={`mailto:${customer.email}`}
@@ -220,6 +248,30 @@ function CustomerActions({ customer }: { customer: Customer }) {
 				)}
 			</div>
 		</section>
+	)
+}
+
+function ContactIconLink({
+	href,
+	icon,
+	label,
+	external,
+}: {
+	href: string
+	icon: ReactNode
+	label: string
+	external?: boolean
+}) {
+	return (
+		<a
+			href={href}
+			target={external ? '_blank' : undefined}
+			rel={external ? 'noopener noreferrer' : undefined}
+			aria-label={label}
+			className="flex h-10 min-w-0 items-center justify-center rounded-md border border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 dark:border-white/[0.1]"
+		>
+			{icon}
+		</a>
 	)
 }
 

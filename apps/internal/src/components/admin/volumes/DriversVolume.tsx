@@ -23,6 +23,10 @@ import { RegistryMasthead } from '../RegistryMasthead'
 
 type TruckDraft = Omit<TruckRow, 'id'> & { id?: string }
 
+interface DriversVolumeProps {
+	onOpenVolumes: () => void
+}
+
 function blankTruck(): TruckDraft {
 	return {
 		plateNumber: '',
@@ -34,7 +38,7 @@ function blankTruck(): TruckDraft {
 	}
 }
 
-export function DriversVolume() {
+export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('drivers')
@@ -234,7 +238,12 @@ export function DriversVolume() {
 
 	return (
 		<>
-			<RegistryMasthead volume={volume} entryCount={trucks.length} />
+			<RegistryMasthead
+				volume={volume}
+				entryCount={trucks.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={handleNew}
+			/>
 			<EntityIndex
 				volume="drivers"
 				rows={trucks}

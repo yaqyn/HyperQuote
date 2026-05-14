@@ -26,6 +26,10 @@ import { RegistryMasthead } from '../RegistryMasthead'
 
 type ProductDraft = Omit<CatalogProduct, 'id'> & { id?: string }
 
+interface ProductsVolumeProps {
+	onOpenVolumes: () => void
+}
+
 function blankProduct(): ProductDraft {
 	return {
 		slug: '',
@@ -51,7 +55,7 @@ function blankProduct(): ProductDraft {
 	}
 }
 
-export function ProductsVolume() {
+export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('products')
@@ -277,7 +281,12 @@ export function ProductsVolume() {
 
 	return (
 		<>
-			<RegistryMasthead volume={volume} entryCount={products.length} />
+			<RegistryMasthead
+				volume={volume}
+				entryCount={products.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={handleNew}
+			/>
 			<EntityIndex
 				volume="products"
 				rows={products}

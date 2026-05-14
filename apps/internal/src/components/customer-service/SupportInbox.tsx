@@ -1,13 +1,9 @@
 import { CheckCircle2, Inbox, Mail, MessageCircle, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSupportStore } from '../../stores/customer-service'
-import type {
-	Conversation,
-	ConversationStatus,
-} from '../../types/customer-service'
+import type { Conversation } from '../../types/customer-service'
 import {
-	EmployeeFilterChip,
 	EmployeeSearchField,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
@@ -23,25 +19,8 @@ interface SupportInboxProps {
 	onConversationSelect?: () => void
 }
 
-const EMAIL_STATUS_FILTERS: Array<{
-	key: ConversationStatus | 'all'
-	label: string
-}> = [
-	{ key: 'all', label: 'All email' },
-	{ key: 'open', label: 'Open' },
-	{ key: 'pending', label: 'Pending' },
-	{ key: 'resolved', label: 'Resolved' },
-]
-
 function isResolved(conversation: Conversation): boolean {
 	return conversation.status === 'resolved' || conversation.status === 'closed'
-}
-
-function statusTone(status: ConversationStatus) {
-	if (status === 'open') return 'primary' as const
-	if (status === 'pending') return 'warning' as const
-	if (status === 'resolved' || status === 'closed') return 'success' as const
-	return 'neutral' as const
 }
 
 export function SupportInbox({
@@ -51,9 +30,7 @@ export function SupportInbox({
 	onConversationSelect,
 }: SupportInboxProps) {
 	const { t } = useTranslation('customer-service')
-	const statusFilter = useSupportStore((s) => s.statusFilter)
 	const searchQuery = useSupportStore((s) => s.searchQuery)
-	const setStatusFilter = useSupportStore((s) => s.setStatusFilter)
 	const setSearchQuery = useSupportStore((s) => s.setSearchQuery)
 	const setSelectedConversation = useSupportStore(
 		(s) => s.setSelectedConversation,
@@ -72,13 +49,6 @@ export function SupportInbox({
 			liveResolved: 0,
 			email: 0,
 			urgent: 0,
-			status: {
-				all: 0,
-				open: 0,
-				pending: 0,
-				resolved: 0,
-				closed: 0,
-			} satisfies Record<ConversationStatus | 'all', number>,
 		}
 
 		for (const conv of conversations) {
@@ -89,8 +59,6 @@ export function SupportInbox({
 				continue
 			}
 			next.email++
-			next.status.all++
-			next.status[conv.status]++
 		}
 
 		return next
@@ -105,10 +73,6 @@ export function SupportInbox({
 				: result.filter((c) => !isResolved(c))
 		}
 
-		if (statusFilter !== 'all' && activeTab === 'email') {
-			result = result.filter((c) => c.status === statusFilter)
-		}
-
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase()
 			result = result.filter(
@@ -121,10 +85,17 @@ export function SupportInbox({
 		}
 
 		const sortKey = activeTab === 'live' ? 'createdAt' : 'lastMessageAt'
-		return [...result].sort(
-			(a, b) => new Date(a[sortKey]).getTime() - new Date(b[sortKey]).getTime(),
-		)
-	}, [conversations, activeTab, showResolved, statusFilter, searchQuery])
+		return [...result].sort((a, b) => {
+			if (activeTab === 'email') {
+				const aNeedsAttention = a.priority === 'urgent' || a.slaBreached
+				const bNeedsAttention = b.priority === 'urgent' || b.slaBreached
+				if (aNeedsAttention !== bNeedsAttention) {
+					return aNeedsAttention ? -1 : 1
+				}
+			}
+			return new Date(a[sortKey]).getTime() - new Date(b[sortKey]).getTime()
+		})
+	}, [conversations, activeTab, showResolved, searchQuery])
 
 	const isLiveActive = activeTab === 'live' && !showResolved
 
@@ -162,8 +133,49 @@ export function SupportInbox({
 
 	return (
 		<>
-			<div className="shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-5 lg:px-6">
-				<div className="flex flex-col gap-4">
+			<div className="shrink-0 border-b border-black/[0.06] px-3 py-3 dark:border-white/[0.08] sm:px-4 lg:px-6 lg:py-4">
+				<div className="flex flex-col gap-3 lg:hidden">
+					<div className="grid grid-cols-3 gap-2">
+						<MobileQueueButton
+							active={activeTab === 'live' && !showResolved}
+							label="Live chats"
+							count={counts.live}
+							onClick={() => handleTabChange('live')}
+						>
+							<MessageCircle size={16} strokeWidth={2.2} />
+						</MobileQueueButton>
+						<MobileQueueButton
+							active={activeTab === 'email'}
+							label="Email"
+							count={counts.email}
+							onClick={() => handleTabChange('email')}
+						>
+							<Mail size={16} strokeWidth={2.2} />
+						</MobileQueueButton>
+						<MobileQueueButton
+							active={activeTab === 'live' && showResolved}
+							label="Resolved chats"
+							count={counts.liveResolved}
+							onClick={() => {
+								setActiveTab('live')
+								setShowResolved(true)
+							}}
+						>
+							<CheckCircle2 size={16} strokeWidth={2.2} />
+						</MobileQueueButton>
+					</div>
+
+					<EmployeeSearchField
+						value={searchQuery}
+						onChange={setSearchQuery}
+						placeholder={t('inbox.searchPlaceholder')}
+						label={t('inbox.search')}
+						clearLabel="Clear customer search"
+						className="bg-[var(--color-surface)]"
+					/>
+				</div>
+
+				<div className="hidden flex-col gap-4 lg:flex">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 						<div className="min-w-0">
 							<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
@@ -194,63 +206,35 @@ export function SupportInbox({
 						</div>
 					</div>
 
-					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-						<EmployeeFilterChip
+					<div className="grid grid-cols-3 gap-2">
+						<MobileQueueButton
 							active={activeTab === 'live' && !showResolved}
+							label="Live chats"
 							count={counts.live}
-							tone="primary"
 							onClick={() => handleTabChange('live')}
-							className="justify-center"
 						>
-							<span className="inline-flex items-center gap-2">
-								<MessageCircle size={13} strokeWidth={2.2} />
-								Live chat
-							</span>
-						</EmployeeFilterChip>
-						<EmployeeFilterChip
+							<MessageCircle size={15} strokeWidth={2.2} />
+						</MobileQueueButton>
+						<MobileQueueButton
 							active={activeTab === 'email'}
+							label="Email"
 							count={counts.email}
-							tone="primary"
 							onClick={() => handleTabChange('email')}
-							className="justify-center"
 						>
-							<span className="inline-flex items-center gap-2">
-								<Mail size={13} strokeWidth={2.2} />
-								Email
-							</span>
-						</EmployeeFilterChip>
+							<Mail size={15} strokeWidth={2.2} />
+						</MobileQueueButton>
+						<MobileQueueButton
+							active={activeTab === 'live' && showResolved}
+							label="Resolved chats"
+							count={counts.liveResolved}
+							onClick={() => {
+								setActiveTab('live')
+								setShowResolved(true)
+							}}
+						>
+							<CheckCircle2 size={15} strokeWidth={2.2} />
+						</MobileQueueButton>
 					</div>
-
-					{activeTab === 'live' && counts.liveResolved > 0 && (
-						<div className="flex flex-wrap gap-2">
-							<EmployeeFilterChip
-								active={showResolved}
-								count={counts.liveResolved}
-								tone="success"
-								onClick={() => setShowResolved((value) => !value)}
-							>
-								Resolved chats
-							</EmployeeFilterChip>
-						</div>
-					)}
-
-					{activeTab === 'email' && (
-						<div className="flex flex-wrap gap-2">
-							{EMAIL_STATUS_FILTERS.map((filter) => (
-								<EmployeeFilterChip
-									key={filter.key}
-									active={statusFilter === filter.key}
-									count={counts.status[filter.key]}
-									tone={
-										filter.key === 'all' ? 'neutral' : statusTone(filter.key)
-									}
-									onClick={() => setStatusFilter(filter.key)}
-								>
-									{filter.label}
-								</EmployeeFilterChip>
-							))}
-						</div>
-					)}
 
 					<EmployeeSearchField
 						value={searchQuery}
@@ -299,5 +283,40 @@ export function SupportInbox({
 				)}
 			</div>
 		</>
+	)
+}
+
+function MobileQueueButton({
+	active,
+	label,
+	count,
+	onClick,
+	children,
+}: {
+	active: boolean
+	label: string
+	count: number
+	onClick: () => void
+	children: ReactNode
+}) {
+	return (
+		<button
+			type="button"
+			aria-pressed={active}
+			aria-label={`${label}: ${count}`}
+			onClick={onClick}
+			className={`inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border font-[family-name:var(--font-archivo)] text-[12px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+				active
+					? 'border-transparent bg-[var(--color-primary)] text-white'
+					: 'border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] dark:border-white/[0.1]'
+			}`}
+		>
+			<span aria-hidden="true" className="shrink-0">
+				{children}
+			</span>
+			<span className="min-w-0 font-[family-name:var(--font-geist-mono)] text-[11px]">
+				{count.toString().padStart(2, '0')}
+			</span>
+		</button>
 	)
 }

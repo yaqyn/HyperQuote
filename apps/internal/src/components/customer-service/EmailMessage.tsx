@@ -1,12 +1,9 @@
 import { ChevronDown, ChevronUp, Forward, Reply, ReplyAll } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import type { Message } from '../../types/customer-service'
-import {
-	EmployeeActionButton,
-	EmployeeStatusPill,
-} from '../shared/EmployeeControls'
+import { EmployeeStatusPill } from '../shared/EmployeeControls'
 
 export type EmailAction = 'reply' | 'reply-all' | 'forward'
 
@@ -181,37 +178,62 @@ export function EmailMessage({
 			)}
 
 			{/* Actions — text links that sit beneath the letter */}
-			<div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-				<EmployeeActionButton
+			<div className="mt-4 flex flex-wrap gap-2">
+				<EmailActionControl
 					onClick={() => onAction('reply', message)}
-					aria-label={t('email.reply')}
-					tone="primary"
-					size="sm"
-					leading={<Reply size={14} strokeWidth={2.2} />}
+					ariaLabel={t('email.reply')}
+					active
+					icon={<Reply size={13} strokeWidth={2.2} />}
 				>
 					{t('email.reply')}
-				</EmployeeActionButton>
+				</EmailActionControl>
 				{cc && (
-					<EmployeeActionButton
+					<EmailActionControl
 						onClick={() => onAction('reply-all', message)}
-						aria-label={t('email.replyAll')}
-						tone="neutral"
-						size="sm"
-						leading={<ReplyAll size={14} strokeWidth={2.2} />}
+						ariaLabel={t('email.replyAll')}
+						icon={<ReplyAll size={13} strokeWidth={2.2} />}
 					>
 						{t('email.replyAll')}
-					</EmployeeActionButton>
+					</EmailActionControl>
 				)}
-				<EmployeeActionButton
+				<EmailActionControl
 					onClick={() => onAction('forward', message)}
-					aria-label={t('email.forward')}
-					tone="neutral"
-					size="sm"
-					leading={<Forward size={14} strokeWidth={2.2} />}
+					ariaLabel={t('email.forward')}
+					icon={<Forward size={13} strokeWidth={2.2} />}
 				>
 					{t('email.forward')}
-				</EmployeeActionButton>
+				</EmailActionControl>
 			</div>
 		</article>
+	)
+}
+
+function EmailActionControl({
+	onClick,
+	ariaLabel,
+	icon,
+	active = false,
+	children,
+}: {
+	onClick: () => void
+	ariaLabel: string
+	icon: ReactNode
+	active?: boolean
+	children: ReactNode
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-label={ariaLabel}
+			className={`inline-flex min-h-8 items-center justify-center gap-2 rounded-md border px-3 font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.1em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+				active
+					? 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700'
+					: 'border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] dark:border-white/[0.1]'
+			}`}
+		>
+			<span className="shrink-0">{icon}</span>
+			<span className="leading-none">{children}</span>
+		</button>
 	)
 }

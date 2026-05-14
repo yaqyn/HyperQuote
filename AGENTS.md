@@ -215,6 +215,10 @@ Things you'd otherwise hunt for:
 
 Stop and ask before implementing if:
 - A word in my request maps to a business concept you haven't confirmed ("evaluate", "send", "review", "approve", etc.).
+- A requested name can refer to more than one surface: app UI, product feature,
+  repo config, OS/desktop behavior, CLI tooling, or an external service. Keep
+  the active product context as the default, and ask before touching anything
+  outside it.
 - You're about to put a control somewhere because that's where the data model happens to know about the entity, not because that's where the user will be standing when they press it.
 - You're about to add an implicit side effect instead of a visible user action.
 - You just deleted something and are about to re-add it in the next turn.

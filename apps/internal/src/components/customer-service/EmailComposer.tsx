@@ -24,6 +24,7 @@ interface EmailComposerProps {
 	replyTo: Message | null
 	action: EmailAction | null
 	onDiscard: () => void
+	variant?: 'dock' | 'screen'
 }
 
 function stringMetadata(message: Message, key: string): string {
@@ -132,6 +133,7 @@ export function EmailComposer({
 	replyTo,
 	action,
 	onDiscard,
+	variant = 'dock',
 }: EmailComposerProps) {
 	const { t } = useTranslation('customer-service')
 	const defaults = deriveFields(conversation, replyTo, action)
@@ -246,9 +248,13 @@ export function EmailComposer({
 			: action === 'reply-all'
 				? t('email.replyAll')
 				: t('email.reply')
+	const rootClass =
+		variant === 'screen'
+			? 'flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-surface)]'
+			: 'flex max-h-[44dvh] shrink-0 flex-col overflow-hidden border-t border-black/[0.06] bg-[var(--color-surface)] dark:border-white/[0.08] lg:max-h-none'
 
 	return (
-		<div className="flex max-h-[44dvh] shrink-0 flex-col overflow-hidden border-t border-black/[0.06] bg-[var(--color-surface)] dark:border-white/[0.08] lg:max-h-none">
+		<div className={rootClass}>
 			<div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-6 lg:px-8">
 				<div className="min-w-0">
 					<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">

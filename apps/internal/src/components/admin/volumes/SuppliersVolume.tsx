@@ -28,6 +28,10 @@ type SupplierDraft = Omit<SupplierRow, 'joinedAt'> & {
 	originalName?: string
 }
 
+interface SuppliersVolumeProps {
+	onOpenVolumes: () => void
+}
+
 function blankSupplier(): SupplierDraft {
 	return {
 		name: '',
@@ -39,7 +43,7 @@ function blankSupplier(): SupplierDraft {
 	}
 }
 
-export function SuppliersVolume() {
+export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('suppliers')
@@ -226,7 +230,12 @@ export function SuppliersVolume() {
 
 	return (
 		<>
-			<RegistryMasthead volume={volume} entryCount={suppliers.length} />
+			<RegistryMasthead
+				volume={volume}
+				entryCount={suppliers.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={handleNew}
+			/>
 			<EntityIndex
 				volume="suppliers"
 				rows={suppliers}

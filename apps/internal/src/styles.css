@@ -23,21 +23,58 @@
 	--color-signal-red: #b91c1c;
 }
 
-/* Dot-grid backdrop — archival/technical texture for the admin registry */
+/* Dot-grid backdrop — archival/technical texture for the admin registry. */
 .bg-dot-grid {
+	--dot-wave-x: 132%;
 	background-image: radial-gradient(
 		circle,
-		rgba(17, 17, 17, 0.08) 1px,
+		rgba(17, 17, 17, 0.045) 1px,
 		transparent 1px
 	);
 	background-size: 16px 16px;
 	background-position: 0 0;
 }
 
-[data-theme="paper"] .bg-dot-grid {
+.bg-dot-grid::before {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	content: "";
 	background-image: radial-gradient(
 		circle,
-		rgba(28, 24, 20, 0.1) 1px,
+		rgba(17, 17, 17, 0.18) 1px,
+		transparent 1px
+	);
+	background-size: 16px 16px;
+	background-position: 0 0;
+	mask-image: linear-gradient(
+		135deg,
+		transparent calc(var(--dot-wave-x) - 22%),
+		#000 calc(var(--dot-wave-x) - 7%),
+		#000 calc(var(--dot-wave-x) + 7%),
+		transparent calc(var(--dot-wave-x) + 22%)
+	);
+	-webkit-mask-image: linear-gradient(
+		135deg,
+		transparent calc(var(--dot-wave-x) - 22%),
+		#000 calc(var(--dot-wave-x) - 7%),
+		#000 calc(var(--dot-wave-x) + 7%),
+		transparent calc(var(--dot-wave-x) + 22%)
+	);
+}
+
+[data-theme="night-light"] .bg-dot-grid {
+	background-image: radial-gradient(
+		circle,
+		rgba(127, 29, 29, 0.052) 1px,
+		transparent 1px
+	);
+}
+
+[data-theme="night-light"] .bg-dot-grid::before {
+	background-image: radial-gradient(
+		circle,
+		rgba(127, 29, 29, 0.2) 1px,
 		transparent 1px
 	);
 }
@@ -54,11 +91,11 @@
 	background-repeat: repeat;
 }
 
-[data-theme="paper"] .bg-line-paper {
+[data-theme="night-light"] .bg-line-paper {
 	background-image: linear-gradient(
 		to bottom,
 		transparent 31px,
-		rgba(28, 24, 20, 0.06) 32px
+		rgba(62, 46, 31, 0.045) 32px
 	);
 }
 
@@ -142,11 +179,11 @@
 	background-repeat: repeat-x;
 	background-position: 0 100%;
 }
-[data-theme="paper"] .edge-perforated-t,
-[data-theme="paper"] .edge-perforated-b {
+[data-theme="night-light"] .edge-perforated-t,
+[data-theme="night-light"] .edge-perforated-b {
 	background-image: linear-gradient(
 		to right,
-		rgba(28, 24, 20, 0.3) 50%,
+		rgba(62, 46, 31, 0.22) 50%,
 		transparent 50%
 	);
 }
@@ -189,18 +226,18 @@
 	--returned: #b91c1c;
 }
 
-[data-theme="paper"] .dispatch-theme {
-	--paper: #ebdeba;
-	--paper-deep: #e0d2a7;
-	--ink: #1c1814;
-	--ink-soft: rgba(28, 24, 20, 0.7);
-	--ink-mid: rgba(28, 24, 20, 0.46);
-	--ink-ghost: rgba(28, 24, 20, 0.24);
-	--rule: rgba(28, 24, 20, 0.26);
-	--rule-soft: rgba(28, 24, 20, 0.1);
-	--motion: #5c1a1a;
-	--overdue: #a85a1f;
-	--returned: #8d1e1e;
+[data-theme="night-light"] .dispatch-theme {
+	--paper: #f7f0e6;
+	--paper-deep: #f1e8dc;
+	--ink: #181614;
+	--ink-soft: rgba(24, 22, 20, 0.66);
+	--ink-mid: rgba(24, 22, 20, 0.42);
+	--ink-ghost: rgba(24, 22, 20, 0.2);
+	--rule: rgba(62, 46, 31, 0.16);
+	--rule-soft: rgba(62, 46, 31, 0.065);
+	--motion: #7f1d1d;
+	--overdue: #d97706;
+	--returned: #b91c1c;
 }
 
 /* Paper texture — layered pinpricks of noise plus a ghost ledger-line
@@ -234,25 +271,13 @@
 		100% 100%;
 }
 
-[data-theme="paper"] .dispatch-paper {
-	background-image:
-		radial-gradient(
-			circle at 22% 18%,
-			rgba(28, 24, 20, 0.065) 0.7px,
-			transparent 0.9px
-		),
-		radial-gradient(
-			circle at 78% 62%,
-			rgba(28, 24, 20, 0.055) 0.7px,
-			transparent 0.9px
-		),
-		radial-gradient(
-			circle at 44% 88%,
-			rgba(28, 24, 20, 0.06) 0.7px,
-			transparent 0.9px
-		),
-		linear-gradient(to bottom, transparent 31px, rgba(28, 24, 20, 0.035) 32px),
-		linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+[data-theme="night-light"] .dispatch-paper {
+	background-image: radial-gradient(
+		circle,
+		rgba(86, 61, 35, 0.04) 0.7px,
+		transparent 1px
+	);
+	background-size: 13px 13px;
 }
 
 /* Horizon rule — draws itself left-to-right on mount. The line IS
@@ -328,7 +353,7 @@
 .dispatch-map-wash {
 	filter: saturate(0.55) sepia(0.18) brightness(1.04) contrast(0.95);
 }
-[data-theme="paper"] .dispatch-map-wash {
+[data-theme="night-light"] .dispatch-map-wash {
 	filter: saturate(0.6) sepia(0.35) brightness(0.98) contrast(0.94);
 }
 
@@ -362,12 +387,12 @@
 	background-size: 10px 10px;
 }
 
-[data-theme="paper"] .shell-plate {
+[data-theme="night-light"] .shell-plate {
 	background-image:
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>"),
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(28,24,20,0.26)' stroke-width='0.9'/></svg>");
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(62,46,31,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(62,46,31,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(62,46,31,0.18)' stroke-width='0.9'/></svg>"),
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M5 1V9M1 5H9' stroke='rgba(62,46,31,0.18)' stroke-width='0.9'/></svg>");
 }
 
 /* ── Procurement · The Compendium ──────────────────────────────
@@ -397,23 +422,23 @@
 	--compendium-stale: #b91c1c;
 }
 
-[data-theme="paper"] .compendium-theme {
-	--folio: #ebdeba;
-	--folio-deep: #e0d2a7;
-	--folio-index: #e6d9b0;
-	--folio-edge: rgba(28, 24, 20, 0.12);
-	--ink: #1c1814;
-	--ink-soft: rgba(28, 24, 20, 0.7);
-	--ink-mid: rgba(28, 24, 20, 0.46);
-	--ink-ghost: rgba(28, 24, 20, 0.22);
-	--rule: rgba(28, 24, 20, 0.16);
-	--rule-soft: rgba(28, 24, 20, 0.07);
-	--compendium-brand: #5c1a1a;
-	--compendium-brand-wash: rgba(92, 26, 26, 0.1);
-	--compendium-fresh: #036141;
+[data-theme="night-light"] .compendium-theme {
+	--folio: #f7f0e6;
+	--folio-deep: #f1e8dc;
+	--folio-index: #f4ebde;
+	--folio-edge: rgba(62, 46, 31, 0.08);
+	--ink: #181614;
+	--ink-soft: rgba(24, 22, 20, 0.66);
+	--ink-mid: rgba(24, 22, 20, 0.42);
+	--ink-ghost: rgba(24, 22, 20, 0.2);
+	--rule: rgba(62, 46, 31, 0.12);
+	--rule-soft: rgba(62, 46, 31, 0.055);
+	--compendium-brand: #7f1d1d;
+	--compendium-brand-wash: rgba(127, 29, 29, 0.08);
+	--compendium-fresh: #047857;
 	--compendium-attention: #d97706;
-	--compendium-aging: #9a5718;
-	--compendium-stale: #8d1e1e;
+	--compendium-aging: #b45309;
+	--compendium-stale: #b91c1c;
 }
 
 /* Compendium folio — a near-pristine white spread with a barely-
@@ -451,23 +476,9 @@
 		100% 100%;
 }
 
-[data-theme="paper"] .compendium-paper {
+[data-theme="night-light"] .compendium-paper {
 	background-image:
-		radial-gradient(
-			circle at 18% 22%,
-			rgba(28, 24, 20, 0.05) 0.6px,
-			transparent 0.9px
-		),
-		radial-gradient(
-			circle at 62% 58%,
-			rgba(28, 24, 20, 0.04) 0.6px,
-			transparent 0.9px
-		),
-		radial-gradient(
-			circle at 88% 84%,
-			rgba(28, 24, 20, 0.045) 0.6px,
-			transparent 0.9px
-		),
+		radial-gradient(circle, rgba(86, 61, 35, 0.035) 0.6px, transparent 1px),
 		linear-gradient(
 			90deg,
 			transparent 0,
@@ -475,6 +486,9 @@
 			var(--rule-soft) calc(100% - 1px),
 			var(--rule-soft) 100%
 		);
+	background-size:
+		13px 13px,
+		100% 100%;
 }
 
 /* Sidebar index — the gutter page. A hair cooler than the spread,
@@ -588,8 +602,8 @@
 	--sales-rule-soft: rgba(17, 17, 17, 0.028);
 }
 
-[data-theme="paper"] .sales-theme {
-	--sales-rule-soft: rgba(28, 24, 20, 0.05);
+[data-theme="night-light"] .sales-theme {
+	--sales-rule-soft: rgba(62, 46, 31, 0.045);
 }
 
 /* Daybook paper — white surface with an imperceptible cool grain.
@@ -619,23 +633,13 @@
 		9px 11px;
 }
 
-[data-theme="paper"] .sales-paper {
-	background-image:
-		radial-gradient(
-			circle at 18% 22%,
-			rgba(28, 24, 20, 0.045) 0.7px,
-			transparent 1px
-		),
-		radial-gradient(
-			circle at 62% 58%,
-			rgba(28, 24, 20, 0.038) 0.7px,
-			transparent 1px
-		),
-		radial-gradient(
-			circle at 88% 84%,
-			rgba(28, 24, 20, 0.05) 0.7px,
-			transparent 1px
-		);
+[data-theme="night-light"] .sales-paper {
+	background-image: radial-gradient(
+		circle,
+		rgba(86, 61, 35, 0.035) 0.7px,
+		transparent 1px
+	);
+	background-size: 13px 13px;
 }
 
 /* Daybook row — a line item without a bottom border. The ledger
@@ -720,11 +724,11 @@
 	--ledger-chase: #b45309;
 }
 
-[data-theme="paper"] .ledger-theme {
-	--ledger-rule-soft: rgba(28, 24, 20, 0.06);
-	--ledger-in: #036141;
-	--ledger-out: #8d1e1e;
-	--ledger-chase: #9a5718;
+[data-theme="night-light"] .ledger-theme {
+	--ledger-rule-soft: rgba(62, 46, 31, 0.055);
+	--ledger-in: #047857;
+	--ledger-out: #b91c1c;
+	--ledger-chase: #d97706;
 }
 
 /* Double underline — accountant's mark for a settled total.
@@ -770,10 +774,10 @@
 		inset -1px 0 0 var(--rule-soft),
 		6px 0 14px -8px rgba(26, 22, 18, 0.06);
 }
-[data-theme="paper"] .compendium-foreedge {
+[data-theme="night-light"] .compendium-foreedge {
 	box-shadow:
 		inset -1px 0 0 var(--rule-soft),
-		6px 0 14px -8px rgba(28, 24, 20, 0.14);
+		6px 0 14px -8px rgba(62, 46, 31, 0.1);
 }
 
 /* SlidePanel directional shadow — the drawer leaks light from the
@@ -785,11 +789,11 @@
 .slide-drawer-start {
 	box-shadow: 16px 0 48px -16px rgba(0, 0, 0, 0.22);
 }
-[data-theme="paper"] .slide-drawer-end {
-	box-shadow: -16px 0 48px -16px rgba(28, 24, 20, 0.3);
+[data-theme="night-light"] .slide-drawer-end {
+	box-shadow: -16px 0 48px -18px rgba(62, 46, 31, 0.2);
 }
-[data-theme="paper"] .slide-drawer-start {
-	box-shadow: 16px 0 48px -16px rgba(28, 24, 20, 0.3);
+[data-theme="night-light"] .slide-drawer-start {
+	box-shadow: 16px 0 48px -18px rgba(62, 46, 31, 0.2);
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 1024px) and (
@@ -818,75 +822,54 @@
 }
 
 /* Dark variant is intentionally orphaned — the app's second mode is
-   now Paper, not Dark. The custom-variant points at a selector that
+   now Night Light, not Dark. The custom-variant points at a selector that
    no one sets (data-theme="dark" never ships) so legacy `dark:`
    prefixed classes fall through and the base light styles apply in
-   Paper mode. Token overrides under [data-theme="paper"] below
-   paint the warm palette on top. */
+   Night Light mode. Token overrides under [data-theme="night-light"]
+   below paint the calm warm palette on top. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* ── Paper mode · global token override ──────────────────────────
-   Kraft-paper surface with warm deep-ink text. Every component
-   that uses --color-* tokens automatically picks up the paper
-   palette when data-theme="paper" is on <html>. Primary flips to
-   a classical ledger burgundy — the traditional ink of stamps,
-   seals, and hand-ruled margins. Signal amber/red stay so
-   "urgent" semantics don't collapse into the new primary. */
-[data-theme="paper"] {
-	--color-primary: #5c1a1a;
-	--color-text: #1c1814;
-	--color-text-muted: #5c5649;
-	--color-text-subtle: #928a77;
-	--color-border: #d6ccb3;
-	--color-surface: #ebdeba;
-	--color-signal-green: #036141;
+/* ── Night Light · calm warm surface ─────────────────────────────
+   The masthead toggle is a screen comfort layer, not a second app
+   identity. The accent becomes a dark red while the surface stays
+   warm and low-contrast. */
+[data-theme="night-light"] {
+	--color-primary: #7f1d1d;
+	--color-text: #181614;
+	--color-text-muted: #625d55;
+	--color-text-subtle: #9a9287;
+	--color-border: #ded6c9;
+	--color-surface: #f7f0e6;
+	--color-signal-green: #047857;
 }
 
-/* Paper mode surface — realism comes from the light, not the noise.
-   Four layered gradients describe how real paper sits under a desk
-   lamp: a broad warm highlight in the upper-left quadrant, a soft
-   secondary bloom at mid-right so the surface doesn't read as a
-   single hotspot, a muted warm shadow pooling at the lower-right,
-   and one very faint grain layer just to kill the plastic-flat
-   look. No dot stipple — the gradient does the lifting. */
-[data-theme="paper"] body,
-[data-theme="paper"] .shell-plate {
+/* Static dither + soft warm wash. No moving gradients, cursor swaps,
+   or theatrical settle animation. */
+[data-theme="night-light"] body,
+[data-theme="night-light"] .shell-plate {
 	background-color: var(--color-surface);
-	background-image:
-		radial-gradient(
-			ellipse 75% 65% at 22% 22%,
-			rgba(255, 248, 218, 0.28) 0%,
-			rgba(255, 248, 218, 0.08) 40%,
-			transparent 70%
-		),
-		radial-gradient(
-			ellipse 85% 80% at 88% 96%,
-			rgba(96, 62, 24, 0.22) 0%,
-			rgba(96, 62, 24, 0.08) 30%,
-			transparent 60%
-		),
-		radial-gradient(
-			circle at 35% 45%,
-			rgba(28, 24, 20, 0.025) 0.6px,
-			transparent 1.2px
-		),
-		linear-gradient(
-			165deg,
-			transparent 0%,
-			transparent 45%,
-			rgba(92, 62, 26, 0.1) 100%
-		);
-	background-size:
-		100% 100%,
-		100% 100%,
-		14px 14px,
-		100% 100%;
-	background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+	background-image: radial-gradient(
+		circle,
+		rgba(86, 61, 35, 0.045) 0.7px,
+		transparent 1px
+	);
+	background-size: 13px 13px;
+	background-repeat: repeat;
 }
 
-/* Paper mode selection wash — burgundy to match the new primary. */
-[data-theme="paper"] ::selection {
-	background: rgba(92, 26, 26, 0.22);
+[data-theme="night-light"] body::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: 2147483647;
+	pointer-events: none;
+	background: rgba(255, 237, 211, 0.055);
+	mix-blend-mode: multiply;
+}
+
+/* Night-light selection wash follows the dark-red accent. */
+[data-theme="night-light"] ::selection {
+	background: rgba(127, 29, 29, 0.22);
 	color: inherit;
 }
 
@@ -901,98 +884,16 @@
 	cursor: none !important;
 }
 
-/* Paper mode cursor — dark 32x32 minimalistic pointer (borrowed from
-   portal). The light cursor looks washed out on kraft paper. Hotspot
-   at 0,0 matches the light cursor so click alignment stays stable.
-   Paper-text covers input fields so caret-hovers pick up the dark
-   variant too — otherwise native OS cursor bleeds through. */
-[data-theme="paper"] *,
-[data-theme="paper"] *::before,
-[data-theme="paper"] *::after {
-	cursor:
-		url("/cursors/paper-normal.png") 9 6,
-		default !important;
-}
-[data-theme="paper"] input[type="text"],
-[data-theme="paper"] input[type="number"],
-[data-theme="paper"] input[type="search"],
-[data-theme="paper"] input[type="email"],
-[data-theme="paper"] input[type="tel"],
-[data-theme="paper"] input[type="password"],
-[data-theme="paper"] input:not([type]),
-[data-theme="paper"] textarea,
-[data-theme="paper"] [contenteditable="true"],
-[data-theme="paper"] [contenteditable=""] {
-	cursor:
-		url("/cursors/paper-text.png") 16 16,
-		text !important;
+/* Keep module mastheads readable without making the whole mode heavy. */
+[data-theme="night-light"] [data-window-header="true"] {
+	border-bottom-color: rgba(62, 46, 31, 0.14) !important;
 }
 
-/* Paper mode — darken the WindowHeader bottom rule. The default
-   light-mode rule (border-black/[0.06]) is 6% ink on kraft paper,
-   which barely separates the Ask-Lyon bar from the module body.
-   Bump to ~22% warm ink so the bar reads as a firm masthead rule. */
-[data-theme="paper"] [data-window-header="true"] {
-	border-bottom-color: rgba(28, 24, 20, 0.24) !important;
-}
-
-/* Paper mode shell-plate shadows — the default light-mode shadow
-   uses a bright white top-edge highlight (rgba(255,255,255,0.72))
-   which reads as a stark bright bar across every module/panel top
-   (it sits right under the window header and reads as a painted
-   line). Kill the inset highlight entirely in paper mode — paper
-   doesn't have a glossy top rim — and keep only the warm drop
-   shadows so the plate still lifts off the floor. */
-[data-theme="paper"] .shell-plate {
+/* Softer lift in night light; no glossy top edge or dramatic pool. */
+[data-theme="night-light"] .shell-plate {
 	box-shadow:
-		0 2px 8px -3px rgba(74, 46, 18, 0.16),
-		0 24px 56px -16px rgba(74, 46, 18, 0.32) !important;
-}
-
-/* Paper mode theme transition — every element that paints with a
-   theme token crossfades its colors when the mode flips. Applied
-   globally (not scoped to paper mode) so transitions fire on both
-   directions — light → paper AND paper → light. The element list
-   is tuned via `will-change` implicitly; we only name the specific
-   properties that actually change between modes so unrelated
-   animations (hovers, scroll shadows) don't get dragged into the
-   longer curve. */
-* {
-	transition-property:
-		background-color, border-color, color, box-shadow, fill, stroke;
-	transition-duration: 320ms;
-	transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Interactive hover states still want quick feedback — override the
-   global transition back to a short curve. Inputs and focus rings
-   also snap (they need to read as responsive, not cinematic). */
-button,
-a,
-[role="button"],
-input,
-textarea,
-select {
-	transition-duration: 160ms;
-}
-
-/* The body surface gets its own layered animation on top of the
-   color crossfade — a brief saturation pulse that reads as the
-   paper settling into the light. Fires only when data-theme="paper"
-   first matches, so only the flip TO paper gets the extra flourish. */
-@keyframes paper-settle {
-	0% {
-		filter: saturate(1.3) brightness(1.02);
-	}
-	60% {
-		filter: saturate(1.05) brightness(1);
-	}
-	100% {
-		filter: saturate(1) brightness(1);
-	}
-}
-[data-theme="paper"] body {
-	animation: paper-settle 520ms cubic-bezier(0.16, 1, 0.3, 1);
+		0 2px 8px -4px rgba(56, 42, 28, 0.12),
+		0 18px 44px -18px rgba(56, 42, 28, 0.2) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1028,7 +929,7 @@ textarea,
 		text !important;
 }
 
-/* Selection highlight — brand blue */
+/* Selection highlight — brand blue in normal light mode. */
 ::selection {
 	background: rgba(37, 99, 235, 0.25);
 	color: inherit;
@@ -1037,7 +938,7 @@ textarea,
 /* Kill the default browser focus outline / border around buttons and
    links. Many components define their own `focus-visible:` rings
    (keyboard-only via ring utilities); anything without one just
-   falls back to a soft brand-blue glow via focus-visible so
+   falls back to a soft primary glow via focus-visible so
    keyboard users still get an affordance. */
 button,
 a,
@@ -1095,18 +996,30 @@ a:focus-visible,
 	background-clip: content-box;
 }
 
-[data-theme="paper"] ::-webkit-scrollbar-thumb {
-	background: rgba(28, 24, 20, 0.16);
+[data-theme="night-light"] ::-webkit-scrollbar-thumb {
+	background: rgba(62, 46, 31, 0.14);
 	border: 2px solid transparent;
 	border-radius: 8px;
 	background-clip: content-box;
 }
 
-[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
-	background: rgba(92, 26, 26, 0.5);
+[data-theme="night-light"] ::-webkit-scrollbar-thumb:hover {
+	background: rgba(127, 29, 29, 0.32);
 	border: 2px solid transparent;
 	border-radius: 8px;
 	background-clip: content-box;
+}
+
+[data-theme="night-light"] .hover\:bg-blue-700:hover {
+	background-color: #6f1717 !important;
+}
+
+[data-theme="night-light"] .hover\:text-blue-700:hover {
+	color: #6f1717 !important;
+}
+
+[data-theme="night-light"] .bg-blue-500 {
+	background-color: #7f1d1d !important;
 }
 
 /* Custom scrollbar — Firefox only */

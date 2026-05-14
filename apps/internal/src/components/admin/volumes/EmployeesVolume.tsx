@@ -17,11 +17,15 @@ import { RegistryMasthead } from '../RegistryMasthead'
 
 type EmployeeDraft = Omit<EmployeeRow, 'id'> & { id?: string }
 
+interface EmployeesVolumeProps {
+	onOpenVolumes: () => void
+}
+
 function blankEmployee(): EmployeeDraft {
 	return { name: '', name_ar: '', phone: '' }
 }
 
-export function EmployeesVolume() {
+export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('employees')
@@ -171,7 +175,12 @@ export function EmployeesVolume() {
 
 	return (
 		<>
-			<RegistryMasthead volume={volume} entryCount={employees.length} />
+			<RegistryMasthead
+				volume={volume}
+				entryCount={employees.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={handleNew}
+			/>
 			<EntityIndex
 				volume="employees"
 				rows={employees}

@@ -172,7 +172,7 @@ export function DispatchMap({
 											{initial}
 										</div>
 										<div
-											className="mt-1 max-w-[120px] truncate px-2 py-0.5"
+											className="mt-1 hidden max-w-[120px] truncate px-2 py-0.5 sm:block"
 											style={{
 												backgroundColor: 'rgba(250, 250, 250, 0.92)',
 												backdropFilter: 'blur(2px)',
@@ -224,7 +224,7 @@ export function DispatchMap({
 										/>
 									</div>
 									<div
-										className="mt-1 max-w-[100px] truncate px-1.5 py-0.5"
+										className="mt-1 hidden max-w-[100px] truncate px-1.5 py-0.5 sm:block"
 										style={{
 											backgroundColor: 'rgba(17, 17, 17, 0.82)',
 											fontFamily: 'IBM Plex Mono, monospace',

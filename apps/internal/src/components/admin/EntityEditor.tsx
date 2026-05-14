@@ -1,11 +1,7 @@
-import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EditorMode } from '../../types/admin'
-import {
-	EmployeeActionButton,
-	EmployeeStatusPill,
-} from '../shared/EmployeeControls'
+import { EmployeeStatusPill } from '../shared/EmployeeControls'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface EntityEditorProps {
@@ -42,6 +38,8 @@ export function EntityEditor({
 			: mode === 'edit'
 				? t('editor.titleEdit', { id: idLabel ?? '' })
 				: t('editor.titleView', { id: idLabel ?? '' })
+	const eyebrow =
+		mode === 'create' ? t('editor.caption') : (idLabel ?? t('editor.caption'))
 
 	return (
 		<SlidePanel
@@ -51,43 +49,30 @@ export function EntityEditor({
 			ariaLabel={title}
 			panelKey="admin-editor"
 			scope="admin"
+			mobileTitle={title}
+			mobileSubtitle={eyebrow}
 		>
-			<header className="relative border-b border-black/[0.06] px-4 pb-5 pt-5 dark:border-white/[0.08] sm:px-6 lg:px-10 lg:pb-6 lg:pt-8">
-				<div className="flex items-start justify-between gap-3">
-					<EmployeeStatusPill className="min-w-0">
-						{mode === 'create'
-							? t('editor.caption')
-							: (idLabel ?? t('editor.caption'))}
-					</EmployeeStatusPill>
+			<div className="flex h-full min-h-0 flex-col">
+				<header className="relative hidden shrink-0 border-b border-black/[0.06] px-10 pb-5 pt-7 dark:border-white/[0.08] lg:block">
+					<EmployeeStatusPill className="min-w-0">{eyebrow}</EmployeeStatusPill>
 
-					<EmployeeActionButton
-						onClick={onClose}
-						tone="neutral"
-						size="sm"
-						leading={<X aria-hidden="true" size={14} strokeWidth={2.2} />}
-						aria-label={t('actions.close')}
-						className="shrink-0 px-2.5"
-					>
-						<span className="sr-only">{t('actions.close')}</span>
-					</EmployeeActionButton>
+					<h2 className="mt-4 break-words font-[family-name:var(--font-bricolage)] text-[30px] font-semibold leading-[1.05] text-[var(--color-text)]">
+						{title}
+					</h2>
+				</header>
+
+				{/* Body ──────────────────────────────────────── */}
+				<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-10 lg:py-7">
+					{children}
 				</div>
 
-				<h2 className="mt-4 break-words font-[family-name:var(--font-bricolage)] text-[28px] font-semibold leading-[1.05] text-[var(--color-text)] sm:text-[30px] lg:text-[32px]">
-					{title}
-				</h2>
-			</header>
-
-			{/* Body ──────────────────────────────────────── */}
-			<div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
-				{children}
+				{/* Footer ────────────────────────────────────── */}
+				{footer && (
+					<footer className="flex shrink-0 flex-col gap-3 border-t border-black/[0.06] bg-[var(--color-surface)] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-white/[0.08] sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:pb-4">
+						{footer}
+					</footer>
+				)}
 			</div>
-
-			{/* Footer ────────────────────────────────────── */}
-			{footer && (
-				<footer className="flex shrink-0 flex-col gap-3 border-t border-black/[0.06] bg-[var(--color-surface)] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-					{footer}
-				</footer>
-			)}
 		</SlidePanel>
 	)
 }

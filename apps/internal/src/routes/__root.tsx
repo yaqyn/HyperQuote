@@ -141,7 +141,7 @@ function RootComponent() {
 				<script
 					dangerouslySetInnerHTML={{
 						__html:
-							'(function(){var raw=localStorage.getItem("hq-theme");var t=raw==="dark"?"paper":(raw==="paper"||raw==="light"?raw:"light");if(t==="paper")document.documentElement.setAttribute("data-theme","paper");if(t!==raw){try{localStorage.setItem("hq-theme",t);}catch(e){}}})()',
+							'(function(){var raw=localStorage.getItem("hq-theme");var t=(raw==="night-light"||raw==="paper"||raw==="dark")?"night-light":raw==="light"?"light":"light";if(t==="night-light")document.documentElement.setAttribute("data-theme","night-light");if(t!==raw){try{localStorage.setItem("hq-theme",t);}catch(e){}}})()',
 					}}
 				/>
 			</head>

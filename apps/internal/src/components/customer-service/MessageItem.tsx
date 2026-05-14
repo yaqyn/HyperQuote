@@ -46,9 +46,7 @@ export function MessageItem({
 			</div>
 
 			{/* Reading column */}
-			<div
-				className={`min-w-0 max-w-[680px] ${isInbound ? '' : 'ms-auto text-end'}`}
-			>
+			<div className={`min-w-0 flex-1 ${isInbound ? '' : 'text-end'}`}>
 				{isFirstInGroup && (
 					<header
 						className={`mb-1.5 flex items-center gap-2.5 ${
