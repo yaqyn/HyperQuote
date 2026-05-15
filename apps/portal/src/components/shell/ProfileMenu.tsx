@@ -4,14 +4,17 @@ import {
 	Headphones,
 	Languages,
 	LogOut,
+	Moon,
 	Receipt,
 	Settings,
 	ShieldCheck,
+	Sun,
 	Upload,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { usePortalStore } from '../../stores/portal'
 
 interface ProfileMenuProps {
@@ -44,6 +47,7 @@ export function ProfileMenu({
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
 	const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+	const [theme, setTheme] = useState(() => getCurrentPortalTheme())
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const setActiveRole = usePortalStore((s) => s.setActiveRole)
 
@@ -57,6 +61,12 @@ export function ProfileMenu({
 			'dir',
 			newLocale === 'ar' ? 'rtl' : 'ltr',
 		)
+	}
+
+	const handleThemeToggle = () => {
+		const newTheme = getCurrentPortalTheme(theme) === 'dark' ? 'light' : 'dark'
+		setPortalTheme(newTheme)
+		setTheme(newTheme)
 	}
 
 	const handleSignOut = async () => {
@@ -96,6 +106,12 @@ export function ProfileMenu({
 			icon: Languages,
 			labelKey: 'profile.language',
 			action: handleLanguageToggle,
+		},
+		{
+			icon: theme === 'dark' ? Sun : Moon,
+			labelKey:
+				theme === 'dark' ? 'profile.switchToLight' : 'profile.switchToDark',
+			action: handleThemeToggle,
 		},
 	]
 
@@ -137,7 +153,7 @@ export function ProfileMenu({
 										)
 										navigate({ to: '/' })
 									}}
-									className="flex-1 h-9 rounded-full text-[var(--text-sm)] font-semibold bg-[var(--color-primary)] text-white"
+									className="flex-1 h-9 rounded-full text-[var(--text-sm)] font-semibold bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
 								>
 									{t(
 										`role.${activeRole === 'customer' ? 'supplier' : 'customer'}`,

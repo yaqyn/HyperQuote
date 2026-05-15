@@ -20,6 +20,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { getMarketProducts } from '../../lib/server/market'
 import {
 	deleteOrder,
@@ -135,7 +136,7 @@ function EditSavedOrder() {
 	if (isLoading) {
 		return (
 			<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-				<div className="w-full max-w-[800px] mx-auto px-4 pt-[calc(env(safe-area-inset-top)+4.25rem)] pb-8 sm:px-6 sm:pt-8">
+				<div className="w-full max-w-[800px] mx-auto px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-8 sm:px-6 sm:pt-5">
 					<EditSkeleton />
 				</div>
 			</div>
@@ -152,7 +153,7 @@ function EditSavedOrder() {
 					</p>
 					<Button
 						onPress={() => navigate({ to: '/orders' })}
-						className="px-4 h-9 rounded-lg bg-[var(--p-text)] text-[var(--p-bg)] text-[13px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
+						className="px-4 h-9 rounded-lg bg-[var(--p-accent)] text-[var(--p-accent-contrast)] text-[13px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
 					>
 						{t('tracking.backToOrders')}
 					</Button>
@@ -166,7 +167,7 @@ function EditSavedOrder() {
 			ref={scrollRef}
 			className="flex-1 flex flex-col h-full min-h-0 overflow-auto"
 		>
-			<div className="w-full max-w-[800px] mx-auto px-4 pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8">
+			<div className="w-full max-w-[800px] mx-auto px-4 pb-8 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5">
 				{/* Back */}
 				<motion.div
 					initial={{ opacity: 0, x: -8 }}
@@ -183,33 +184,24 @@ function EditSavedOrder() {
 				</motion.div>
 
 				{/* Header — editable name */}
-				<motion.div
-					initial={{ opacity: 0, y: 12 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.3, delay: 0.05 }}
-					className="mb-10"
-				>
-					<input
-						type="text"
-						value={orderName}
-						onChange={(e) => {
-							setOrderName(e.target.value)
-							setHasChanges(true)
-						}}
-						placeholder={t('orders.orderName')}
-						className="w-full bg-transparent text-[22px] font-semibold tracking-tight border-none outline-none placeholder:text-[var(--p-text-muted)] sm:text-[24px]"
-						style={{
-							background:
-								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							backgroundClip: 'text',
-						}}
-					/>
-					<p className="text-[13px] text-[var(--p-text-muted)] mt-1">
-						{t('orders.items', { count: items.length })}
-					</p>
-				</motion.div>
+				<PortalTitleRow
+					title={
+						<input
+							type="text"
+							value={orderName}
+							aria-label={t('orders.orderName')}
+							onChange={(e) => {
+								setOrderName(e.target.value)
+								setHasChanges(true)
+							}}
+							placeholder={t('orders.orderName')}
+							className="w-full min-w-0 bg-transparent font-sans text-[20px] font-semibold tracking-tight text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-muted)] sm:text-[22px]"
+						/>
+					}
+					subtitle={t('orders.items', { count: items.length })}
+					fixed
+					className="-mx-4 mb-10 px-4 sm:-mx-6 sm:px-6"
+				/>
 
 				{/* Items */}
 				<motion.div
@@ -360,7 +352,7 @@ function EditSavedOrder() {
 					<Button
 						onPress={() => submitMutation.mutate()}
 						isDisabled={items.length === 0 || submitMutation.isPending}
-						className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-6 text-[13px] font-medium text-[var(--p-bg)] transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-30 disabled:cursor-default sm:h-10 sm:w-auto"
+						className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-6 text-[13px] font-medium text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-30 disabled:cursor-default sm:h-10 sm:w-auto"
 					>
 						{submitMutation.isPending ? (
 							<Spinner />
@@ -627,6 +619,6 @@ function EditSkeleton() {
 
 function Spinner() {
 	return (
-		<span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-[var(--p-bg)]/30 border-t-[var(--p-bg)]" />
+		<span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-[var(--p-accent-contrast-soft)] border-t-[var(--p-accent-contrast)]" />
 	)
 }

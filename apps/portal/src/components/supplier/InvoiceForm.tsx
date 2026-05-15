@@ -412,7 +412,7 @@ export function InvoiceForm({ locale, preselectedPoId }: InvoiceFormProps) {
 			<Button
 				type="submit"
 				isDisabled={submitMutation.isPending}
-				className="flex items-center justify-center h-[44px] w-full rounded-xl bg-[var(--color-primary)] text-white font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+				className="flex items-center justify-center h-[44px] w-full rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
 			>
 				{t('supplier.submitInvoice')}
 			</Button>

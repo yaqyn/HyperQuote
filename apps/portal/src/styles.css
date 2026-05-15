@@ -38,15 +38,15 @@ textarea,
 
 ::selection,
 *::selection {
-	background: rgba(255, 255, 255, 0.18) !important;
-	color: var(--p-text, #f2f2f2) !important;
+	background: var(--p-selection-bg, rgba(37, 99, 235, 0.16)) !important;
+	color: var(--p-selection-text, var(--p-text, #101010)) !important;
 }
 
 /* ================================================================
    Portal — Lyon's Office
-   Paper-and-ink. Chat-first. The portal runs in a single paper-light
-   theme for daily use. The login (/login, .atelier-scene) is the only
-   dark surface in this app — its palette is scoped to that route.
+	   White workspace by default. Blue accent. Chat-first. The portal
+	   supports light and dark themes; /login keeps its own scoped
+	   atelier-scene palette.
    ================================================================ */
 
 @theme {
@@ -72,12 +72,119 @@ textarea,
 
 :root {
 	/* ==========================================================
-	   Portal — single dark theme. Strict grayscale.
-	   Light mode removed; the only second palette is the /login
-	   atelier-scene which is scoped via .atelier-scene below.
+	   Portal light theme. White base, blue accent.
 	   ========================================================== */
 
-	/* Surfaces — every R=G=B */
+	/* Surfaces */
+	--p-bg: #ffffff;
+	--p-sidebar: #ffffff;
+	--p-surface: #f7f9fc;
+	--p-card: #ffffff;
+	--p-elevated: #f1f5f9;
+	--p-input: #ffffff;
+
+	/* Lines + rules */
+	--p-border: rgba(15, 23, 42, 0.08);
+	--p-border-strong: rgba(37, 99, 235, 0.24);
+	--p-rule: rgba(15, 23, 42, 0.08);
+	--p-rule-strong: rgba(15, 23, 42, 0.16);
+
+	/* Text */
+	--p-text: #101010;
+	--p-text-secondary: #475569;
+	--p-text-muted: #64748b;
+	--p-text-faint: #94a3b8;
+
+	/* Accent */
+	--p-accent: #2563eb;
+	--p-accent-hover: #1d4ed8;
+	--p-accent-contrast: #ffffff;
+	--p-accent-contrast-soft: rgba(255, 255, 255, 0.3);
+	--p-accent-dim: rgba(37, 99, 235, 0.08);
+	--p-glow: rgba(37, 99, 235, 0.06);
+	--p-hover: rgba(37, 99, 235, 0.05);
+	--p-active: rgba(37, 99, 235, 0.1);
+	--p-active-ring: rgba(37, 99, 235, 0.14);
+	--p-active-ring-soft: rgba(37, 99, 235, 0.12);
+	--p-focus-ring: rgba(37, 99, 235, 0.45);
+	--p-border-hint: rgba(37, 99, 235, 0.75);
+	--p-selection-bg: rgba(37, 99, 235, 0.16);
+	--p-selection-text: var(--p-text);
+
+	/* Atmosphere — kept for /login atelier scene cross-references */
+	--p-lamp-warm: 37, 99, 235;
+	--p-seal: #2563eb;
+	--p-seal-deep: #1d4ed8;
+	--p-layout-wash: rgba(37, 99, 235, 0.04);
+	--p-sidebar-wash: rgba(37, 99, 235, 0.06);
+	--p-sidebar-sheen: rgba(15, 23, 42, 0.025);
+	--p-desk-depth-top: rgba(37, 99, 235, 0.055);
+	--p-desk-depth-bottom: rgba(15, 23, 42, 0.04);
+	--p-desk-grid-dot: rgba(37, 99, 235, 0.28);
+	--p-card-top-glow: rgba(37, 99, 235, 0.16);
+	--p-sidebar-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+	--p-mark-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+	--p-popover-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+	--p-panel-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
+
+	/* Signal colors */
+	--p-success: #047857;
+	--p-warning: #d97706;
+	--p-error: #b91c1c;
+
+	/* Type scale */
+	--p-text-xs: 0.6875rem;
+	--p-text-sm: 0.75rem;
+	--p-text-base: 0.875rem;
+	--p-text-lg: 1rem;
+
+	/* Shared token aliases for components that use the common app contract */
+	--color-base: var(--p-bg);
+	--color-surface: var(--p-surface);
+	--color-card: var(--p-card);
+	--color-elevated: var(--p-elevated);
+	--color-primary: var(--p-accent);
+	--color-primary-hover: var(--p-accent-hover);
+	--color-primary-contrast: var(--p-accent-contrast);
+	--color-subtle: var(--p-surface);
+	--color-text: var(--p-text);
+	--color-text-muted: var(--p-text-muted);
+	--color-text-subtle: var(--p-text-faint);
+	--color-border: rgba(15, 23, 42, 0.12);
+	--color-divider: var(--p-rule);
+	--color-success: #16a34a;
+	--color-success-bg: #f0fdf4;
+	--color-warning: #d97706;
+	--color-warning-bg: #fffbeb;
+	--color-error: #b91c1c;
+	--color-error-bg: #fef2f2;
+	--color-info: var(--p-accent);
+	--color-info-bg: #eff6ff;
+	--text-xs: var(--p-text-xs);
+	--text-sm: var(--p-text-sm);
+	--text-base: var(--p-text-base);
+	--text-lg: var(--p-text-lg);
+	--font-geist-mono: var(--font-mono);
+	--font-inter: var(--font-sans);
+
+	/* Light paper textures — kept for chat surface only */
+	--p-paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3' stitchTiles='stitch' seed='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.025 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+	--p-paper-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.018 0.8' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0'/><feComposite in='SourceGraphic' operator='in'/></filter><rect width='100%' height='100%' filter='url(%23f)' fill='transparent'/></svg>");
+	--p-paper-vignette: radial-gradient(
+		ellipse 120% 90% at 50% 50%,
+		transparent 0%,
+		transparent 62%,
+		rgba(37, 99, 235, 0.025) 82%,
+		rgba(15, 23, 42, 0.045) 100%
+	);
+}
+
+[data-theme="dark"] {
+	/* ==========================================================
+	   Portal dark theme. Restores the pre-light grayscale office.
+	   ========================================================== */
+
+	/* Surfaces */
 	--p-bg: #060606;
 	--p-sidebar: #000000;
 	--p-surface: #0a0a0a;
@@ -99,26 +206,63 @@ textarea,
 
 	/* Accent — white-ink */
 	--p-accent: #f2f2f2;
+	--p-accent-hover: #ffffff;
+	--p-accent-contrast: #060606;
+	--p-accent-contrast-soft: rgba(6, 6, 6, 0.3);
 	--p-accent-dim: rgba(255, 255, 255, 0.06);
 	--p-glow: rgba(255, 255, 255, 0.02);
 	--p-hover: rgba(255, 255, 255, 0.04);
 	--p-active: rgba(255, 255, 255, 0.08);
+	--p-active-ring: rgba(255, 255, 255, 0.08);
+	--p-active-ring-soft: rgba(255, 255, 255, 0.06);
+	--p-focus-ring: rgba(255, 255, 255, 0.32);
+	--p-border-hint: rgba(255, 255, 255, 0.85);
+	--p-selection-bg: rgba(255, 255, 255, 0.18);
+	--p-selection-text: var(--p-text);
 
-	/* Atmosphere — kept for /login atelier scene cross-references */
+	/* Atmosphere */
 	--p-lamp-warm: 255, 255, 255;
 	--p-seal: #f2f2f2;
 	--p-seal-deep: #6a6a6a;
+	--p-layout-wash: rgba(243, 214, 163, 0.035);
+	--p-sidebar-wash: rgba(255, 255, 255, 0.055);
+	--p-sidebar-sheen: rgba(255, 255, 255, 0.025);
+	--p-desk-depth-top: rgba(255, 255, 255, 0.025);
+	--p-desk-depth-bottom: rgba(0, 0, 0, 0.35);
+	--p-desk-grid-dot: rgba(255, 255, 255, 0.5);
+	--p-card-top-glow: rgba(255, 255, 255, 0.06);
+	--p-sidebar-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+	--p-mark-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+	--p-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+	--p-panel-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 
 	/* Signal through luminance — no hue */
 	--p-success: #9f9f9f;
 	--p-warning: #cfcfcf;
 	--p-error: #ffffff;
 
-	/* Type scale */
-	--p-text-xs: 0.6875rem;
-	--p-text-sm: 0.75rem;
-	--p-text-base: 0.875rem;
-	--p-text-lg: 1rem;
+	/* Shared token aliases for components that use the common app contract */
+	--color-base: var(--p-bg);
+	--color-surface: var(--p-surface);
+	--color-card: var(--p-card);
+	--color-elevated: var(--p-elevated);
+	--color-primary: var(--p-accent);
+	--color-primary-hover: var(--p-accent-hover);
+	--color-primary-contrast: var(--p-accent-contrast);
+	--color-subtle: var(--p-surface);
+	--color-text: var(--p-text);
+	--color-text-muted: var(--p-text-muted);
+	--color-text-subtle: var(--p-text-faint);
+	--color-border: rgba(255, 255, 255, 0.12);
+	--color-divider: var(--p-rule);
+	--color-success: var(--p-success);
+	--color-success-bg: rgba(255, 255, 255, 0.08);
+	--color-warning: var(--p-warning);
+	--color-warning-bg: rgba(255, 255, 255, 0.08);
+	--color-error: var(--p-error);
+	--color-error-bg: rgba(255, 255, 255, 0.08);
+	--color-info: var(--p-accent);
+	--color-info-bg: rgba(255, 255, 255, 0.08);
 
 	/* Grayscale paper textures — kept for chat surface only */
 	--p-paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3' stitchTiles='stitch' seed='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
@@ -132,9 +276,15 @@ textarea,
 	);
 }
 
-/* Office-paper utility: chat-surface only. Always uses screen blending. */
+/* Office-paper utility: chat-surface only. */
 .office-paper::before,
 .office-paper::after {
+	mix-blend-mode: multiply;
+	opacity: 0.4;
+}
+
+[data-theme="dark"] .office-paper::before,
+[data-theme="dark"] .office-paper::after {
 	mix-blend-mode: screen;
 	opacity: 0.3;
 }
@@ -208,15 +358,15 @@ body::-webkit-scrollbar,
 	height: 0;
 }
 
-/* Selection — warm ink stain on paper */
+/* Selection — blue mark on paper */
 ::selection {
-	background: rgba(110, 31, 26, 0.14);
-	color: var(--p-text);
+	background: var(--p-selection-bg);
+	color: var(--p-selection-text);
 }
 
 /* Focus ring — only on interactive elements, never on inputs */
 :focus-visible {
-	outline: 1px solid rgba(255, 255, 255, 0.32);
+	outline: 1px solid var(--p-focus-ring);
 	outline-offset: 2px;
 }
 input:focus-visible,
@@ -234,13 +384,13 @@ input::placeholder {
 /* Ink pulse for validation feedback */
 @keyframes border-hint {
 	0% {
-		border-color: rgba(255, 255, 255, 0.08);
+		border-color: var(--p-border);
 	}
 	25% {
-		border-color: rgba(255, 255, 255, 0.85);
+		border-color: var(--p-border-hint);
 	}
 	100% {
-		border-color: rgba(255, 255, 255, 0.08);
+		border-color: var(--p-border);
 	}
 }
 .border-hint {
@@ -285,8 +435,8 @@ input::placeholder {
 
 /* ================================================================
    THE ATELIER — /login scene
-   Scoped to .atelier-scene. Overrides portal dark tokens for the
-   login route only. The room is a broker's office at night; the
+   Scoped to .atelier-scene. Overrides portal tokens for the login
+   route only. The room is a broker's office at night; the
    login form is a page in the order book on a desk.
    ================================================================ */
 
@@ -960,35 +1110,36 @@ input::placeholder {
 
 /* ================================================================
    LYON'S OFFICE — Portal chrome + chat surface utilities
-   These classes are usable anywhere in the portal, but are designed
-   to work together to produce the "ledger on a desk" feel.
+   These classes keep the paper-and-ink chat surface consistent.
    ================================================================ */
 
-/* Body serif — for Lyon's voice in prose. Readable at 16-20px. */
+/* Chat prose — accessible, professional sans across EN + AR. */
 .voice-serif {
-	font-family: "Fraunces", "Iowan Old Style", "Georgia", serif;
-	font-feature-settings:
-		"kern" 1,
-		"liga" 1,
-		"onum" 1;
-	font-optical-sizing: auto;
-	font-variation-settings: "opsz" 16;
-	font-weight: 400;
-	letter-spacing: 0;
-}
-
-/* Display serif — for page titles, ceremonial moments. Institutional. */
-.voice-display {
-	font-family: "IBM Plex Serif", "Iowan Old Style", "Georgia", serif;
+	font-family:
+		"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
 	font-feature-settings:
 		"kern" 1,
 		"liga" 1;
 	font-weight: 400;
+	letter-spacing: 0;
+}
+
+.voice-display {
+	font-family:
+		"Styrene A", "Anthropic Sans", "Sora", "Inter", ui-sans-serif, system-ui,
+		sans-serif;
+	font-feature-settings:
+		"kern" 1,
+		"liga" 1;
+	font-weight: 520;
+	letter-spacing: 0;
 }
 
 .voice-serif-ar {
 	font-family: "Tajawal", system-ui, sans-serif;
-	font-weight: 300;
+	font-weight: 400;
+	letter-spacing: 0;
 }
 
 .voice-mono {
@@ -996,8 +1147,29 @@ input::placeholder {
 	font-feature-settings: "tnum" 1;
 }
 
+.voice-prompt {
+	font-family:
+		"Styrene A", "Anthropic Sans", "Sora", "Inter", ui-sans-serif, system-ui,
+		sans-serif;
+	font-feature-settings:
+		"kern" 1,
+		"liga" 1;
+	letter-spacing: 0;
+}
+
 /* The page — main reading column in the chat + other rooms. */
 .office-paper {
+	--p-hover: rgba(15, 23, 42, 0.045);
+	--p-active: rgba(15, 23, 42, 0.075);
+	--p-desk-depth-top: rgba(15, 23, 42, 0.028);
+	--p-desk-depth-bottom: rgba(15, 23, 42, 0.038);
+	--p-paper-vignette: radial-gradient(
+		ellipse 120% 90% at 50% 50%,
+		transparent 0%,
+		transparent 64%,
+		rgba(15, 23, 42, 0.026) 86%,
+		rgba(15, 23, 42, 0.045) 100%
+	);
 	position: relative;
 	background:
 		var(--p-paper-vignette),
@@ -1005,26 +1177,40 @@ input::placeholder {
 	background-blend-mode: multiply, normal;
 }
 .office-paper::before {
-	/* Long soft fibers — subtle horizontal grain */
 	content: "";
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	opacity: 0.55;
+	opacity: 0.16;
 	mix-blend-mode: multiply;
-	background-image: var(--p-paper-fibers);
-	background-size: 480px 480px;
+	background:
+		linear-gradient(
+			90deg,
+			transparent 0%,
+			rgba(15, 23, 42, 0.035) 50%,
+			transparent 100%
+		),
+		linear-gradient(180deg, rgba(15, 23, 42, 0.026), transparent 34%);
 }
 .office-paper::after {
-	/* Fine tooth grain on top of fibers */
 	content: "";
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	opacity: 0.5;
-	mix-blend-mode: multiply;
-	background-image: var(--p-paper-grain);
-	background-size: 240px 240px;
+	display: none;
+}
+
+[data-theme="dark"] .office-paper::before {
+	opacity: 0.14;
+	mix-blend-mode: screen;
+	background:
+		linear-gradient(
+			90deg,
+			transparent 0%,
+			rgba(255, 255, 255, 0.05) 50%,
+			transparent 100%
+		),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%);
 }
 
 /* The office wall — darker than the paper, used for sidebars. */
@@ -1042,21 +1228,46 @@ input::placeholder {
 	background: var(--p-rule-strong);
 }
 
-/* Speaker tag — small-caps margin label */
-.office-tag {
-	font-family: "Instrument Serif", "Times New Roman", "Georgia", serif;
-	font-size: 10px;
-	letter-spacing: 0.22em;
-	text-transform: uppercase;
-	color: var(--p-text-faint);
-	line-height: 1.2;
+.office-user-entry {
+	position: relative;
+	padding-block: 1px;
+	padding-inline-end: 10px;
+}
+
+.office-user-entry::after {
+	content: "";
+	position: absolute;
+	inset-block: 2px;
+	inset-inline-end: 0;
+	width: 1px;
+	background: var(--p-rule-strong);
+}
+
+.office-composer {
+	background: transparent;
+	border: 0;
+	padding: 0;
+}
+
+[data-theme="dark"] .office-composer {
+	background: transparent;
+}
+
+@media (max-width: 639px) {
+	.office-user-entry {
+		padding-inline-end: 8px;
+	}
+
+	.office-composer {
+		padding: 0;
+	}
 }
 
 /* Small caps meta (dates, page numbers, labels) */
 .office-meta {
 	font-family: "Geist Mono", ui-monospace, monospace;
 	font-size: 10px;
-	letter-spacing: 0.28em;
+	letter-spacing: 0.18em;
 	text-transform: uppercase;
 	color: var(--p-text-faint);
 }
@@ -1189,24 +1400,10 @@ input::placeholder {
 	border-bottom-color: var(--p-text);
 }
 
-/* Ledger entry opacity gradient — older messages fade toward the top */
+/* Ledger body — no mask so scrolling and pinch-zoom stay inexpensive. */
 .office-ledger {
-	mask-image: linear-gradient(
-		to bottom,
-		rgba(0, 0, 0, 0.7) 0%,
-		rgba(0, 0, 0, 0.82) 12%,
-		rgba(0, 0, 0, 0.94) 28%,
-		#000 48%,
-		#000 100%
-	);
-	-webkit-mask-image: linear-gradient(
-		to bottom,
-		rgba(0, 0, 0, 0.7) 0%,
-		rgba(0, 0, 0, 0.82) 12%,
-		rgba(0, 0, 0, 0.94) 28%,
-		#000 48%,
-		#000 100%
-	);
+	mask-image: none;
+	-webkit-mask-image: none;
 }
 
 /* Sample swatch — bracketed inline block */

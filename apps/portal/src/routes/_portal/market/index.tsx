@@ -35,6 +35,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
 import {
 	getMarketProducts,
 	type MarketProduct,
@@ -268,9 +269,10 @@ function MarketHeader({
 	}, [])
 
 	return (
-		<header className="shrink-0 px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pb-6">
-			<div className="mx-auto flex w-full max-w-[1400px] justify-center">
-				<div className="flex w-full max-w-[620px] items-center justify-center gap-3">
+		<header className="sticky top-0 z-20 shrink-0 bg-[var(--p-bg)] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:pb-6">
+			<div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
+				<PortalTitleRow title={t('sidebar.nav.market')} />
+				<div className="mx-auto flex w-full max-w-[620px] items-center justify-center gap-3">
 					<div className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 transition-colors focus-within:border-[var(--p-border-strong)]">
 						<Search
 							size={17}
@@ -313,7 +315,7 @@ function MarketHeader({
 						>
 							<ShoppingCart size={18} strokeWidth={1.8} />
 							<span
-								className="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--p-text)] px-1.5 text-[11px] font-semibold leading-none text-[var(--p-bg)]"
+								className="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--p-accent)] px-1.5 text-[11px] font-semibold leading-none text-[var(--p-accent-contrast)]"
 								style={{ fontVariantNumeric: 'tabular-nums' }}
 							>
 								{isAr ? draftItemCount.toLocaleString('ar-EG') : draftItemCount}
@@ -513,7 +515,7 @@ function DraftCartDrawer({
 									{...panelMotion}
 								>
 									<motion.div
-										className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--p-text)] text-[var(--p-bg)]"
+										className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--p-accent)] text-[var(--p-accent-contrast)]"
 										initial={
 											shouldReduceMotion ? false : { scale: 0.75, opacity: 0 }
 										}
@@ -539,7 +541,7 @@ function DraftCartDrawer({
 									<button
 										type="button"
 										onClick={onClose}
-										className="mt-7 h-11 rounded-xl bg-[var(--p-text)] px-5 text-[13px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90"
+										className="mt-7 h-11 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 									>
 										{t('market.continueBrowsing')}
 									</button>
@@ -742,7 +744,7 @@ function DraftCartDrawer({
 										<motion.button
 											type="submit"
 											disabled={submitMutation.isPending}
-											className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-[var(--p-text)] px-5 text-[14px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
+											className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
 											whileTap={
 												shouldReduceMotion ? undefined : { scale: 0.985 }
 											}
@@ -766,7 +768,7 @@ function DraftCartDrawer({
 														}
 														className="inline-flex items-center gap-2"
 													>
-														<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-bg)]/30 border-t-[var(--p-bg)]" />
+														<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-accent-contrast-soft)] border-t-[var(--p-accent-contrast)]" />
 														{t('quoteBuilder.submitting')}
 													</motion.span>
 												) : (
@@ -979,7 +981,7 @@ function CategoryChip({
 			className={[
 				'shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap',
 				active
-					? 'bg-[var(--p-text)] text-[var(--p-bg)]'
+					? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)]'
 					: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]',
 			].join(' ')}
 		>
@@ -1049,7 +1051,7 @@ function ProductCard({
 
 				{inDraft && (
 					<span
-						className="absolute top-2 start-2 inline-flex items-center rounded-full bg-[var(--p-text)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-bg)]"
+						className="absolute top-2 start-2 inline-flex items-center rounded-full bg-[var(--p-accent)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-accent-contrast)]"
 						style={{ fontVariantNumeric: 'tabular-nums' }}
 					>
 						{draftItem?.quantity} {product.unitOfMeasure}
@@ -1067,7 +1069,7 @@ function ProductCard({
 					className={[
 						'absolute end-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-200 sm:end-3 sm:bottom-3 sm:h-10 sm:w-10',
 						inDraft || popoverOpen
-							? 'bg-[var(--p-text)] text-[var(--p-bg)] ring-[var(--p-text)]/30'
+							? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)] ring-[var(--p-accent)]/30'
 							: 'bg-black/30 text-white ring-white/15 opacity-100 backdrop-blur-xl hover:bg-black/40 lg:opacity-0 lg:group-hover:opacity-100',
 					].join(' ')}
 					aria-label={inDraft ? t('market.amend') : t('market.record')}
@@ -1260,7 +1262,7 @@ function AddPopover({
 					}}
 					min={1}
 					aria-label={t('market.quantity')}
-					className="h-11 w-full rounded-sm border border-[var(--p-border)] bg-[var(--p-input)] ps-3 pe-14 text-center font-mono text-[16px] font-medium text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-text)]/50 sm:h-9 sm:text-[15px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					className="h-11 w-full rounded-sm border border-[var(--p-border)] bg-[var(--p-input)] ps-3 pe-14 text-center font-mono text-[16px] font-medium text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-accent)]/50 sm:h-9 sm:text-[15px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 					style={{ fontVariantNumeric: 'tabular-nums' }}
 				/>
 				<span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)]">
@@ -1285,7 +1287,7 @@ function AddPopover({
 				<button
 					type="button"
 					onClick={submit}
-					className="h-11 flex-1 rounded-sm bg-[var(--p-text)] font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-bg)] transition-opacity hover:opacity-90 sm:h-9 sm:tracking-[0.22em]"
+					className="h-11 flex-1 rounded-sm bg-[var(--p-accent)] font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 sm:h-9 sm:tracking-[0.22em]"
 				>
 					{existing ? t('market.confirm') : t('market.record')}
 				</button>

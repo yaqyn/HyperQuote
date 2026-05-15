@@ -277,7 +277,7 @@ export default function BulkUpdateDiff({
 										</Button>
 										<Button
 											onPress={() => setShowConfirm(true)}
-											className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity"
+											className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity"
 										>
 											{t('supplier.applyChanges')}
 										</Button>
@@ -305,7 +305,7 @@ export default function BulkUpdateDiff({
 													applyMutation.mutate()
 												}}
 												isDisabled={applyMutation.isPending}
-												className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+												className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
 											>
 												{t('supplier.applyChanges')}
 											</Button>

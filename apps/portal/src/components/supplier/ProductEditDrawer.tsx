@@ -211,7 +211,7 @@ export default function ProductEditDrawer({
 							<Button
 								type="submit"
 								isDisabled={updateMutation.isPending}
-								className="flex items-center justify-center h-[44px] w-full rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+								className="flex items-center justify-center h-[44px] w-full rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
 							>
 								{t('supplier.updateProduct')}
 							</Button>

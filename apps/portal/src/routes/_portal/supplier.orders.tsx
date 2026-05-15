@@ -271,7 +271,7 @@ function ConfirmedPOCard({
 				</Button>
 				<Button
 					onPress={onSubmitInvoice}
-					className="h-9 px-4 rounded-lg bg-[var(--color-primary)] text-white text-[13px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
+					className="h-9 px-4 rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-[13px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
 				>
 					{t('supplier.submitInvoice')}
 				</Button>

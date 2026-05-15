@@ -262,7 +262,7 @@ export function QuoteDetail({ quote }: QuoteDetailProps) {
 						type="button"
 						onClick={() => counterMutation.mutate()}
 						disabled={counterMutation.isPending}
-						className="bg-[var(--color-primary)] text-white h-10 px-6 rounded-lg cursor-pointer font-semibold text-sm disabled:opacity-50"
+						className="bg-[var(--color-primary)] text-[var(--color-primary-contrast)] h-10 px-6 rounded-lg cursor-pointer font-semibold text-sm disabled:opacity-50"
 					>
 						{t('quoteDetail.submitCounterOffer')}
 					</button>

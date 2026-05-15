@@ -144,7 +144,7 @@ export function QuoteBuilderFlow() {
 						<Button
 							onPress={handleContinue}
 							isDisabled={items.length === 0}
-							className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+							className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.continue')}
 						</Button>

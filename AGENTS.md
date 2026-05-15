@@ -10,7 +10,7 @@ Craftsmanship over speed. Built right once beats built fast twice.
 | App | Runtime | Language | Theme | Status | Scope |
 |-----|---------|----------|-------|--------|-------|
 | `apps/website` | TanStack Start on CF Workers | EN + AR | light + dark | active | Public marketing + product catalog |
-| `apps/portal` | TanStack Start on CF Workers | EN + AR | **paper-light only** (+ dark `/login`) | active | Customer account, orders, quotes — "Lyon's office" metaphor |
+| `apps/portal` | TanStack Start on CF Workers | EN + AR | light + dark | active | Customer account, orders, quotes — "Lyon's office" metaphor |
 | `apps/internal` | TanStack Start on CF Workers | EN only | light + dark | active | Ops console — sales, procurement, warehouse, finance, dispatch, customer-service, admin |
 | `apps/driver` | **Vite SPA + Capacitor** (NOT TanStack Start) | EN + AR | light + dark | **placeholder — full rewrite pending** | Driver mobile app. Server functions don't work in Capacitor WebViews — call server via fetch. Shares `@hyperquote/*` packages. |
 | `apps/ceo` | TanStack Start on CF Workers | EN only | light + dark | **placeholder — full rewrite pending** | Executive dashboard |
@@ -161,7 +161,7 @@ safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
 
 - **i18n scope**: website, portal, driver — every user-facing string lives in `src/locales/{en,ar}/<namespace>.json` and is read via `useTranslation('<namespace>')`. Never hardcode EN or AR content in JSX. Internal + ceo are EN-only; inline EN strings are acceptable there.
 - **RTL**: bilingual apps (website, portal, driver) must use logical properties (`margin-inline-start`, `padding-inline-end`, `border-inline-end`) — never `left`/`right`. Internal + ceo can use physical props.
-- **Theming**: website, internal, driver, ceo support light + dark via `[data-theme="dark"]` on `<html>`. The **portal is paper-light only** — its `<html>` is fixed at `data-theme="light"`; the only dark surface is `/login`, which is scoped via `.atelier-scene`. Test both themes where applicable; never ship a component that only works in one.
+- **Theming**: website, portal, internal, driver, ceo support light + dark via `[data-theme="dark"]` on `<html>`. The portal keeps `/login` scoped via `.atelier-scene`, but the authenticated app switches globally. Test both themes where applicable; never ship a component that only works in one.
 - **Primary palette**: white, black, blue `#2563EB`. Signal colors (amber `#D97706`, red `#B91C1C`, emerald) allowed for state indicators, not decoration.
 - **Components**: React Aria primitives throughout. Don't override accessibility behavior.
 - **Images**: always specify width/height or aspect-ratio to prevent layout shift. WebP/AVIF. `loading="lazy"` below the fold.

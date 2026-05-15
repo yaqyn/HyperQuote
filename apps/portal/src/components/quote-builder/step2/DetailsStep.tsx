@@ -163,7 +163,7 @@ export function DetailsStep() {
 												date={date}
 												className="w-8 h-8 rounded-lg text-sm text-center flex items-center justify-center font-mono outline-none cursor-pointer
                           hover:bg-[var(--color-surface)]
-                          selected:bg-[var(--color-primary)] selected:text-white selected:font-semibold
+                          selected:bg-[var(--color-primary)] selected:text-[var(--color-primary-contrast)] selected:font-semibold
                           unavailable:text-[var(--color-text-muted)]/30 unavailable:line-through unavailable:cursor-not-allowed
                           disabled:text-[var(--color-text-muted)]/20 disabled:cursor-not-allowed
                           focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50
@@ -223,7 +223,7 @@ export function DetailsStep() {
 				<Button
 					onPress={() => setStep(3)}
 					isDisabled={!canContinue}
-					className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+					className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 				>
 					{t('quoteBuilder.continue', 'Continue')}
 				</Button>

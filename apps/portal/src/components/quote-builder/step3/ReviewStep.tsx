@@ -203,7 +203,7 @@ export function ReviewStep() {
 					<Button
 						isDisabled={items.length === 0 || isPending}
 						onPress={() => setShowConfirm(true)}
-						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 					>
 						{isPending
 							? t('quoteBuilder.submitting')
@@ -248,7 +248,7 @@ export function ReviewStep() {
 												handleSubmit()
 											}}
 											isDisabled={isPending}
-											className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50"
+											className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50"
 										>
 											{needsApproval
 												? t('quoteBuilder.submitForApproval')

@@ -1,16 +1,5 @@
-/**
- * ChatBubble — a LedgerEntry in Lyon's order book.
- *
- * No bubbles, no rounded cards. Just a speaker tag in the left margin
- * and body text on the page. Lyon speaks in serif italic (or Tajawal
- * Light for AR); the customer in Geist Mono. Numbers always mono,
- * and converted to Arabic-Indic when the locale is AR.
- *
- * Timestamps appear on hover, drawn tiny in the right margin.
- */
-
 import { motion } from 'motion/react'
-import { type ReactElement, useMemo, useState } from 'react'
+import { type ReactElement, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../../lib/chat-types'
 import { RichMessageList } from './RichMessage'
@@ -62,26 +51,12 @@ function processNumbers(
 interface ChatBubbleProps {
 	message: ChatMessage
 	isStreaming?: boolean
-	customerTag?: string
 }
 
-export function ChatBubble({
-	message,
-	isStreaming,
-	customerTag,
-}: ChatBubbleProps) {
-	const { i18n } = useTranslation()
+export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
+	const { i18n, t } = useTranslation('portal')
 	const isUser = message.role === 'user'
 	const isArabic = i18n.language === 'ar'
-	const [hovered, setHovered] = useState(false)
-
-	const formattedTime = useMemo(() => {
-		const d = new Date(message.timestamp)
-		return d.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', {
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-	}, [message.timestamp, isArabic])
 
 	const processedContent = useMemo(() => {
 		if (isUser) return [message.content]
@@ -90,73 +65,60 @@ export function ChatBubble({
 
 	if (!message.content.trim() && !isStreaming) return null
 
-	const speakerTag = isUser
-		? (customerTag ?? (isArabic ? 'أ.' : 'You'))
-		: isArabic
-			? 'ليون'
-			: 'Lyon'
+	const speakerTag = isUser ? t('chat.youLabel') : t('chat.assistantLabel')
+	const articleLabel = isUser
+		? t('chat.youMessageLabel')
+		: t('chat.assistantMessageLabel')
 
 	return (
 		<motion.li
+			dir="ltr"
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			transition={{ duration: 0.35, ease: 'easeOut' }}
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => setHovered(false)}
-			className="group relative list-none"
+			transition={{ duration: 0.24, ease: 'easeOut' }}
+			className={`list-none ${isUser ? 'flex justify-end' : 'block'}`}
 		>
-			{/* Hairline above every entry (except the very first — the ledger
-			    already has a top rule) */}
-			<div
-				aria-hidden
-				className="office-rule mb-4 first:hidden"
-				style={{ opacity: 0.6 }}
-			/>
-
 			<article
-				className="grid grid-cols-1 gap-y-2 pb-4 sm:grid-cols-[60px_1fr] sm:items-baseline sm:gap-x-6"
-				aria-label={isUser ? 'You' : 'Lyon'}
+				className={`w-full ${isUser ? 'flex justify-end text-end' : ''}`}
+				aria-label={articleLabel}
 			>
-				<span className="office-tag">{speakerTag}</span>
-
-				<div className="min-w-0 max-w-[640px]">
-					{isUser ? (
-						<p
-							className="voice-mono whitespace-pre-wrap break-words text-[13.5px] leading-[1.65] text-[var(--p-text)]"
-							style={{ letterSpacing: '0.01em' }}
-						>
-							{processedContent}
-						</p>
-					) : (
-						<>
+				<div
+					dir="auto"
+					className={`min-w-0 ${isUser ? 'max-w-[82%] sm:max-w-[560px]' : 'max-w-[660px]'}`}
+				>
+					<span className="sr-only">{speakerTag}: </span>
+					<div className={isUser ? 'office-user-entry' : undefined}>
+						{isUser ? (
 							<p
-								className={`whitespace-pre-wrap break-words text-[var(--p-text)] ${
-									isArabic
-										? 'voice-serif-ar text-[16px] leading-[1.75]'
-										: 'voice-serif text-[18px] leading-[1.55]'
+								className={`whitespace-pre-wrap break-words font-sans text-[14px] leading-[1.45] text-[var(--p-text)] sm:text-[15px] sm:leading-[1.58] ${
+									isArabic ? 'font-arabic' : ''
 								}`}
 							>
 								{processedContent}
-								{isStreaming && (
-									<span className="office-pen-nib ms-1" aria-hidden />
-								)}
 							</p>
+						) : (
+							<>
+								<p
+									className={`whitespace-pre-wrap break-words text-[var(--p-text)] ${
+										isArabic
+											? 'voice-serif-ar text-[15px] leading-[1.55] sm:text-[17px] sm:leading-[1.68]'
+											: 'voice-serif text-[15px] leading-[1.52] sm:text-[18px] sm:leading-[1.58]'
+									}`}
+								>
+									{processedContent}
+									{isStreaming && (
+										<span className="office-pen-nib ms-1" aria-hidden />
+									)}
+								</p>
 
-							{message.richContent && message.richContent.length > 0 && (
-								<div className="mt-3">
-									<RichMessageList items={message.richContent} />
-								</div>
-							)}
-						</>
-					)}
-
-					{/* Timestamp — appears on hover, small mono */}
-					<span
-						className="voice-mono mt-2 block text-[10px] tabular-nums text-[var(--p-text-faint)] transition-opacity duration-200"
-						style={{ opacity: hovered ? 0.85 : 0, letterSpacing: '0.14em' }}
-					>
-						{formattedTime}
-					</span>
+								{message.richContent && message.richContent.length > 0 && (
+									<div className="mt-2 sm:mt-3">
+										<RichMessageList items={message.richContent} />
+									</div>
+								)}
+							</>
+						)}
+					</div>
 				</div>
 			</article>
 		</motion.li>

@@ -130,7 +130,7 @@ export function CatalogReview({ items, onSubmit, locale }: CatalogReviewProps) {
 				<button
 					type="button"
 					onClick={onSubmit}
-					className="w-full h-[44px] rounded-xl bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
+					className="w-full h-[44px] rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
 				>
 					{t('supplier.submitForReview')}
 				</button>

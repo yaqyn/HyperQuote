@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FloatingParticles } from '../../components/login/FloatingParticles'
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 
 export const Route = createFileRoute('/_portal/about')({
 	component: AboutPage,
@@ -79,7 +80,7 @@ function AboutPage() {
 	return (
 		<div
 			className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative"
-			style={{ background: '#060606' }}
+			style={{ background: 'var(--p-bg)' }}
 		>
 			{/* Dust particles — fade with lights */}
 			<motion.div
@@ -139,13 +140,11 @@ function AboutPage() {
 									draggable={false}
 									animate={{ opacity: lightsOff ? 0.25 : 1 }}
 									transition={{ duration: 0.15, ease: 'easeOut' }}
-									style={{ filter: 'brightness(1.2)' }}
+									style={{ filter: 'brightness(0)' }}
 								/>
 							</button>
 
-							<h1 className="text-[20px] font-semibold tracking-tight text-[var(--p-text)]">
-								HyperQuote
-							</h1>
+							<PortalTitleRow title="HyperQuote" align="center" fixed />
 
 							<p className="mt-1 text-[13px] font-mono text-[var(--p-text-muted)] tracking-wide">
 								{t('about.version', 'Version')} {APP_VERSION}

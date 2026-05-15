@@ -1,10 +1,3 @@
-/**
- * ChatMessages — the ledger body.
- *
- * Entries stack vertically, each is a LedgerEntry (ChatBubble).
- * No bubbles. Uniform left margin for the speaker tag, body beside it.
- * Scroll anchored to the bottom; jump-back glyph appears if scrolled up.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../../lib/chat-types'
 import { ChatBubble } from './ChatBubble'
@@ -14,16 +7,11 @@ import { TypingIndicator } from './TypingIndicator'
 interface ChatMessagesProps {
 	messages: ChatMessage[]
 	isLoading: boolean
-	customerTag?: string
 }
 
 const BOTTOM_THRESHOLD = 120
 
-export function ChatMessages({
-	messages,
-	isLoading,
-	customerTag,
-}: ChatMessagesProps) {
+export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const bottomRef = useRef<HTMLDivElement>(null)
 	const [showScrollBtn, setShowScrollBtn] = useState(false)
@@ -74,10 +62,10 @@ export function ChatMessages({
 			<div
 				ref={scrollRef}
 				onScroll={handleScroll}
-				className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6 lg:px-10"
+				className="flex-1 overflow-y-auto overscroll-contain px-5 pb-4 pt-6 sm:px-8 sm:pb-7 sm:pt-7 lg:px-12"
 			>
 				<ul
-					className="mt-3 flex flex-col sm:mt-4"
+					className="mx-auto flex w-full max-w-[820px] flex-col gap-4 sm:gap-6"
 					role="log"
 					aria-live="polite"
 					aria-relevant="additions"
@@ -87,7 +75,6 @@ export function ChatMessages({
 							key={msg.id}
 							message={msg}
 							isStreaming={isStreaming && idx === messages.length - 1}
-							customerTag={customerTag}
 						/>
 					))}
 
@@ -98,8 +85,8 @@ export function ChatMessages({
 			</div>
 
 			{/* Margin glyph — jump to latest */}
-			<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[3] flex justify-end pe-4 sm:pe-6 lg:pe-10">
-				<div className="pointer-events-auto">
+			<div className="pointer-events-none absolute inset-x-0 bottom-3 z-[3] flex justify-center px-4 sm:px-6 lg:px-10">
+				<div className="pointer-events-auto flex w-full max-w-[820px] justify-end">
 					<ScrollToBottom show={showScrollBtn} onClick={scrollToBottom} />
 				</div>
 			</div>

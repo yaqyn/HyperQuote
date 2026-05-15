@@ -11,14 +11,6 @@ import { usePortalChat } from '../../hooks/usePortalChat'
 import { useSlashCommands } from '../../hooks/useSlashCommands'
 import { SlashCommandPalette } from '../chat/SlashCommandPalette'
 
-const PLACEHOLDER_KEYS = [
-	'chat.placeholder1',
-	'chat.placeholder2',
-	'chat.placeholder3',
-	'chat.placeholder4',
-] as const
-
-const ROTATION_INTERVAL = 8000
 const RATE_WARN_THRESHOLD = 25
 const RATE_LIMIT_THRESHOLD = 30
 const RATE_WINDOW_MS = 60_000
@@ -39,10 +31,8 @@ export function AIChatInput({
 	const chat = chatProp ?? ownChat
 
 	const [value, setValue] = useState('')
-	const [activePlaceholder, setActivePlaceholder] = useState(0)
 	const [isFocused, setIsFocused] = useState(false)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
-	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
 	const slash = useSlashCommands(value)
 
@@ -51,23 +41,6 @@ export function AIChatInput({
 	const [rateLimited, setRateLimited] = useState(false)
 	const [cooldownSeconds, setCooldownSeconds] = useState(0)
 	const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-	// Rotate placeholders when idle
-	useEffect(() => {
-		if (isFocused || hasMessages) {
-			if (intervalRef.current) {
-				clearInterval(intervalRef.current)
-				intervalRef.current = null
-			}
-			return
-		}
-		intervalRef.current = setInterval(() => {
-			setActivePlaceholder((prev) => (prev + 1) % PLACEHOLDER_KEYS.length)
-		}, ROTATION_INTERVAL)
-		return () => {
-			if (intervalRef.current) clearInterval(intervalRef.current)
-		}
-	}, [isFocused, hasMessages])
 
 	useEffect(() => {
 		return () => {
@@ -231,9 +204,7 @@ export function AIChatInput({
 				<div
 					className={[
 						'flex items-end gap-2 transition-all duration-300',
-						isGlass
-							? 'rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/40 backdrop-blur-xl px-4 py-3 shadow-sm'
-							: '',
+						isGlass ? 'border-b border-[var(--color-border)] px-0 py-2' : '',
 					].join(' ')}
 				>
 					{/* Voice button — always visible on the start side */}
@@ -275,18 +246,12 @@ export function AIChatInput({
 							}}
 						/>
 
-						{/* Crossfade placeholder — only when idle */}
+						{/* Ghost text — intentionally short across chat inputs. */}
 						{!value && !hasMessages && (
 							<div className="pointer-events-none absolute inset-0 flex items-start justify-center">
-								{PLACEHOLDER_KEYS.map((key, index) => (
-									<span
-										key={key}
-										className="absolute text-sm text-[var(--color-text-subtle)] transition-opacity duration-700 leading-[22px]"
-										style={{ opacity: activePlaceholder === index ? 1 : 0 }}
-									>
-										{t(key)}
-									</span>
-								))}
+								<span className="text-sm leading-[22px] text-[var(--color-text-subtle)]">
+									{t('chat.writingPlaceholder')}
+								</span>
 							</div>
 						)}
 
@@ -294,7 +259,7 @@ export function AIChatInput({
 						{!value && hasMessages && (
 							<div className="pointer-events-none absolute inset-0 flex items-start">
 								<span className="text-sm text-[var(--color-text-subtle)]/50 leading-[22px]">
-									{t('chat.placeholder1')}
+									{t('chat.writingPlaceholder')}
 								</span>
 							</div>
 						)}

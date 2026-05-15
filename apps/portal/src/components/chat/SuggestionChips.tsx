@@ -1,16 +1,10 @@
-/**
- * SuggestionChips — three action tiles under the empty-state greeting.
- *
- * Bordered cards: small-caps mono label + one-line serif description. Click
- * sends the corresponding prompt to Lyon.
- */
-
+import type { ParseKeys } from 'i18next'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 interface Chip {
-	labelKey: string
-	descKey: string
+	labelKey: ParseKeys<'portal'>
+	descKey: ParseKeys<'portal'>
 	promptEn: string
 	promptAr: string
 }
@@ -65,19 +59,22 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 							ease: [0.2, 0.8, 0.2, 1],
 							delay: 0.2 + idx * 0.08,
 						}}
-						className="group flex min-h-24 flex-col items-center gap-2 border border-[var(--p-border)] bg-transparent px-4 py-4 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-0 sm:gap-3 sm:py-5"
+						dir={locale === 'ar' ? 'rtl' : 'ltr'}
+						className="group grid min-h-14 grid-cols-[22px_1fr] items-center gap-2 border-y border-[var(--p-border)] bg-transparent px-1 py-2 text-start transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-20 sm:grid-cols-[28px_1fr] sm:gap-3 sm:px-2 sm:py-4"
 					>
 						<span
 							aria-hidden
-							className="voice-serif text-[18px] italic leading-none text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]"
+							className="voice-prompt flex h-6 w-5 items-center justify-center border-e border-[var(--p-rule)] text-[11px] font-medium leading-none text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)] sm:h-8 sm:w-7 sm:text-[13px]"
 						>
 							{numeral}
 						</span>
-						<span className="voice-mono text-[10px] uppercase tracking-[0.2em] text-[var(--p-text)] sm:tracking-[0.26em]">
-							{t(chip.labelKey)}
-						</span>
-						<span className="voice-serif text-[13px] leading-[1.4] text-[var(--p-text-muted)]">
-							{t(chip.descKey, '')}
+						<span className="min-w-0">
+							<span className="voice-prompt block text-[10px] font-semibold uppercase leading-tight text-[var(--p-text)] sm:text-[11px]">
+								{t(chip.labelKey)}
+							</span>
+							<span className="voice-prompt mt-0.5 block text-[11px] leading-[1.25] text-[var(--p-text-muted)] sm:mt-1 sm:text-[13px] sm:leading-[1.35]">
+								{t(chip.descKey)}
+							</span>
 						</span>
 					</motion.button>
 				)

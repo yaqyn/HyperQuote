@@ -7,6 +7,7 @@ import {
 	LifeBuoy,
 	LogOut,
 	MessageSquare,
+	Moon,
 	PanelLeft,
 	Plus,
 	Save,
@@ -14,6 +15,7 @@ import {
 	Share2,
 	ShoppingBag,
 	Star,
+	Sun,
 	Trash2,
 	User,
 	X,
@@ -30,6 +32,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
+import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { type Conversation, useChatStore } from '../../stores/chat'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
@@ -140,28 +143,28 @@ export function ChatSidebar({
 	})
 
 	return (
-		<div className="relative flex h-full min-h-0 w-full max-w-full shrink-0 flex-col overflow-hidden border-e border-white/[0.07] bg-[#050505] shadow-2xl lg:shadow-none">
+		<div className="relative flex h-full min-h-0 w-full max-w-full shrink-0 flex-col overflow-hidden border-e border-[var(--p-border)] bg-[var(--p-sidebar)] shadow-[var(--p-sidebar-shadow)] lg:shadow-none">
 			<div
 				aria-hidden
 				className="pointer-events-none absolute inset-0"
 				style={{
 					background:
-						'radial-gradient(ellipse 120% 60% at 0% 0%, rgba(255,255,255,0.055), transparent 56%), linear-gradient(180deg, rgba(255,255,255,0.025), transparent 34%)',
+						'radial-gradient(ellipse 120% 60% at 0% 0%, var(--p-sidebar-wash), transparent 56%), linear-gradient(180deg, var(--p-sidebar-sheen), transparent 34%)',
 				}}
 			/>
 			<div
 				aria-hidden
-				className="pointer-events-none absolute inset-y-0 end-0 w-px bg-gradient-to-b from-white/10 via-white/[0.035] to-transparent"
+				className="pointer-events-none absolute inset-y-0 end-0 w-px bg-gradient-to-b from-[var(--p-border-strong)] via-[var(--p-border)] to-transparent"
 			/>
 
 			<div className="relative flex h-full min-h-0 flex-col px-3 py-3 sm:px-4 sm:py-4">
 				<motion.header {...stagger(0)} className="shrink-0">
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex min-w-0 items-center gap-3">
-							<span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-[var(--p-text)] shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+							<span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] text-[var(--p-accent)] shadow-[var(--p-mark-shadow)]">
 								<span
 									aria-hidden
-									className="absolute inset-1 rounded-xl bg-white/[0.035]"
+									className="absolute inset-1 rounded-xl bg-[var(--p-accent-dim)]"
 								/>
 								<_NibMonogram />
 							</span>
@@ -179,7 +182,7 @@ export function ChatSidebar({
 							<button
 								type="button"
 								onClick={handleNewChat}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.025] text-[var(--p-text-muted)] transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-[var(--p-text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
 								aria-label={t('sidebar.newChat')}
 							>
 								<Plus size={15} strokeWidth={1.8} />
@@ -187,7 +190,7 @@ export function ChatSidebar({
 							<button
 								type="button"
 								onClick={() => usePortalStore.getState().setSidebarOpen(false)}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.045] hover:text-[var(--p-text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
 								aria-label={t('sidebar.hide')}
 								aria-keyshortcuts="["
 							>
@@ -216,20 +219,20 @@ export function ChatSidebar({
 								aria-current={isActive ? 'page' : undefined}
 								className={`group relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-center transition-colors lg:h-11 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-xl lg:px-3 lg:text-start ${
 									isActive
-										? 'bg-white/[0.075] text-[var(--p-text)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
-										: 'text-[var(--p-text-muted)] hover:bg-white/[0.045] hover:text-[var(--p-text)]'
+										? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)] shadow-[inset_0_0_0_1px_var(--p-active-ring)]'
+										: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 								}`}
 							>
 								<span
 									aria-hidden
 									className={`absolute start-2 top-2 hidden h-1.5 w-1.5 rounded-full transition-colors lg:block ${
-										isActive ? 'bg-[var(--p-text)]' : 'bg-transparent'
+										isActive ? 'bg-[var(--p-accent)]' : 'bg-transparent'
 									}`}
 								/>
 								<span
 									className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition-colors lg:h-8 lg:w-8 ${
 										isActive
-											? 'bg-white/10 text-[var(--p-text)]'
+											? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
 											: 'bg-transparent text-[var(--p-text-faint)] group-hover:text-[var(--p-text-muted)]'
 									}`}
 								>
@@ -245,7 +248,7 @@ export function ChatSidebar({
 
 				{hasSupplierRole && (
 					<motion.div {...stagger(2)} className="mt-3 shrink-0">
-						<div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-1">
+						<div className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] p-1">
 							{(['customer', 'supplier'] as const).map((role) => (
 								<button
 									key={role}
@@ -253,8 +256,8 @@ export function ChatSidebar({
 									onClick={() => setActiveRole(role)}
 									className={`h-8 rounded-xl text-[11px] font-semibold transition-colors ${
 										activeRole === role
-											? 'bg-[var(--p-text)] text-[var(--p-bg)]'
-											: 'text-[var(--p-text-muted)] hover:bg-white/[0.045] hover:text-[var(--p-text)]'
+											? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)]'
+											: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 									}`}
 								>
 									{t(`role.${role}`)}
@@ -264,7 +267,7 @@ export function ChatSidebar({
 					</motion.div>
 				)}
 
-				<div className="my-4 h-px shrink-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+				<div className="my-4 h-px shrink-0 bg-gradient-to-r from-transparent via-[var(--p-border)] to-transparent" />
 
 				<motion.div
 					{...stagger(3)}
@@ -324,7 +327,7 @@ export function ChatSidebar({
 
 				<motion.footer
 					{...stagger(4)}
-					className="relative shrink-0 border-t border-white/[0.07] pt-3"
+					className="relative shrink-0 border-t border-[var(--p-border)] pt-3"
 				>
 					<ProfileMenu
 						userName={userName}
@@ -366,7 +369,7 @@ function _NibMonogram() {
 			xmlns="http://www.w3.org/2000/svg"
 			role="img"
 			aria-label="Lyon"
-			className="shrink-0 text-[var(--p-text)]"
+			className="shrink-0 text-[var(--p-accent)]"
 		>
 			<title>Lyon</title>
 			<path
@@ -425,10 +428,10 @@ function SectionHeader({
 			</span>
 			<span
 				aria-hidden
-				className="h-px flex-1 bg-white/[0.07] transition-colors group-hover:bg-white/[0.14]"
+				className="h-px flex-1 bg-[var(--p-border)] transition-colors group-hover:bg-[var(--p-border-strong)]"
 			/>
 			{typeof count === 'number' && count > 0 && (
-				<span className="voice-mono rounded-full bg-white/[0.045] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--p-text-muted)]">
+				<span className="voice-mono rounded-full bg-[var(--p-surface)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--p-text-muted)]">
 					{count}
 				</span>
 			)}
@@ -455,16 +458,16 @@ function ConversationItem({
 			onClick={onSelect}
 			className={`group relative flex min-h-10 w-full items-center gap-2 rounded-xl px-2 py-2 text-start transition-colors ${
 				isActive
-					? 'bg-white/[0.065] text-[var(--p-text)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
-					: 'text-[var(--p-text-muted)] hover:bg-white/[0.035] hover:text-[var(--p-text)]'
+					? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)] shadow-[inset_0_0_0_1px_var(--p-active-ring-soft)]'
+					: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 			}`}
 		>
 			<span
 				aria-hidden
 				className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
 					isActive
-						? 'bg-[var(--p-text)]'
-						: 'bg-white/15 group-hover:bg-white/35'
+						? 'bg-[var(--p-accent)]'
+						: 'bg-[var(--p-border-strong)] group-hover:bg-[var(--p-accent)]'
 				}`}
 			/>
 			<span className="block min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
@@ -487,6 +490,7 @@ function ProfileMenu({
 	const navigate = useNavigate()
 	const setSigningOut = usePortalStore((s) => s.setSigningOut)
 	const [open, setOpen] = useState(false)
+	const [theme, setTheme] = useState(() => getCurrentPortalTheme())
 	const menuRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
@@ -499,6 +503,12 @@ function ProfileMenu({
 		document.addEventListener('mousedown', handleClick)
 		return () => document.removeEventListener('mousedown', handleClick)
 	}, [open])
+
+	useEffect(() => {
+		if (open) {
+			setTheme(getCurrentPortalTheme(theme))
+		}
+	}, [open, theme])
 
 	function handleLanguageToggle() {
 		const newLocale = i18n.language === 'ar' ? 'en' : 'ar'
@@ -515,6 +525,22 @@ function ProfileMenu({
 			)
 		}
 		// Real crossfade via View Transitions API — old snapshot + new live DOM overlap
+		const vtDoc = document as Document & {
+			startViewTransition?: (cb: () => void) => void
+		}
+		if (vtDoc.startViewTransition) {
+			vtDoc.startViewTransition(apply)
+		} else {
+			apply()
+		}
+	}
+
+	function handleThemeToggle() {
+		const newTheme = getCurrentPortalTheme(theme) === 'dark' ? 'light' : 'dark'
+		const apply = () => {
+			setPortalTheme(newTheme)
+			setTheme(newTheme)
+		}
 		const vtDoc = document as Document & {
 			startViewTransition?: (cb: () => void) => void
 		}
@@ -544,6 +570,12 @@ function ProfileMenu({
 			action: handleLanguageToggle,
 		},
 		{
+			labelKey:
+				theme === 'dark' ? 'profile.switchToLight' : 'profile.switchToDark',
+			icon: theme === 'dark' ? Sun : Moon,
+			action: handleThemeToggle,
+		},
+		{
 			labelKey: 'profile.about',
 			icon: Info,
 			action: () => navigate({ to: '/about' }),
@@ -558,9 +590,9 @@ function ProfileMenu({
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="group flex w-full min-w-0 items-center gap-3 rounded-2xl px-1 py-1.5 text-start transition-colors hover:bg-white/[0.035]"
+				className="group flex w-full min-w-0 items-center gap-3 rounded-2xl px-1 py-1.5 text-start transition-colors hover:bg-[var(--p-hover)]"
 			>
-				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-white/20">
+				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] text-[14px] font-semibold text-[var(--p-accent)] transition-colors group-hover:border-[var(--p-border-strong)]">
 					{initial}
 				</span>
 				<div className="min-w-0 flex-1">
@@ -576,7 +608,7 @@ function ProfileMenu({
 			</button>
 
 			{open && (
-				<div className="absolute inset-x-0 bottom-full mb-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080808]/95 p-1 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-xl">
+				<div className="absolute inset-x-0 bottom-full mb-3 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
 					{menuItems.map((item) => {
 						const Icon = item.icon
 						return (
@@ -590,7 +622,7 @@ function ProfileMenu({
 										usePortalStore.getState().setSidebarOpen(false)
 									}
 								}}
-								className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.055] hover:text-[var(--p-text)]"
+								className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
 								<Icon size={15} strokeWidth={1.65} className="shrink-0" />
 								<span className="min-w-0 truncate">{t(item.labelKey)}</span>
@@ -646,17 +678,17 @@ function DraftSection({
 							onClick={() => setModalOpen(!modalOpen)}
 							className={`flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-start transition-colors ${
 								modalOpen
-									? 'border-white/15 bg-white/[0.07] text-[var(--p-text)]'
-									: 'border-white/[0.07] bg-white/[0.025] text-[var(--p-text-secondary)] hover:border-white/15 hover:bg-white/[0.05] hover:text-[var(--p-text)]'
+									? 'border-[var(--p-border-strong)] bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
+									: 'border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-secondary)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 							}`}
 						>
-							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-[var(--p-text)]">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
 								<ClipboardList size={15} strokeWidth={1.6} />
 							</span>
 							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
 								{t('market.draftQuote')}
 							</span>
-							<span className="voice-mono rounded-full bg-[var(--p-text)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--p-bg)]">
+							<span className="voice-mono rounded-full bg-[var(--p-accent)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--p-accent-contrast)]">
 								{items.length}
 							</span>
 						</button>
@@ -677,9 +709,9 @@ function DraftSection({
 									})
 									closeSidebarAfterNavigate()
 								}}
-								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.035] hover:text-[var(--p-text)]"
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
-								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/15" />
+								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
 								<span className="min-w-0 flex-1 truncate text-[13px] font-medium">
 									{order.name ?? 'Draft'}
 								</span>
@@ -709,9 +741,9 @@ function DraftSection({
 									})
 									closeSidebarAfterNavigate()
 								}}
-								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-white/[0.035] hover:text-[var(--p-text)]"
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
-								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/15" />
+								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
 								<span className="voice-mono min-w-0 flex-1 truncate text-[12px] tabular-nums">
 									{order.reference}
 								</span>
@@ -869,7 +901,7 @@ function DraftQuoteModal({
 				className={
 					isCompactViewport
 						? 'fixed inset-0 z-[100] flex h-dvh w-screen flex-col overflow-hidden border-0 bg-[var(--p-bg)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-none'
-						: 'fixed z-[100] flex max-h-[min(60vh,520px)] w-[min(380px,calc(100vw-1.5rem))] flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_8px_40px_rgba(0,0,0,0.5)]'
+						: 'fixed z-[100] flex max-h-[min(60vh,520px)] w-[min(380px,calc(100vw-1.5rem))] flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[var(--p-panel-shadow)]'
 				}
 			>
 				{/* Header */}
@@ -995,7 +1027,7 @@ function DraftQuoteModal({
 							onClick={() => {
 								/* submit quote — future */
 							}}
-							className="h-11 w-full rounded-xl bg-[var(--p-text)] text-[var(--p-bg)] text-[14px] font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+							className="h-11 w-full rounded-xl bg-[var(--p-accent)] text-[var(--p-accent-contrast)] text-[14px] font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
 						>
 							<Send size={15} />
 							{t('market.submitQuote')}

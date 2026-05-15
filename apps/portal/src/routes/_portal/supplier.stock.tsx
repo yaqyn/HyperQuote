@@ -64,7 +64,7 @@ function StockWindow() {
 								onPress={() =>
 									window.location.assign('/supplier/catalog-upload')
 								}
-								className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity"
+								className="flex items-center justify-center h-[44px] rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold px-6 cursor-pointer hover:opacity-90 transition-opacity"
 							>
 								{t('supplier.uploadCatalog')}
 							</Button>

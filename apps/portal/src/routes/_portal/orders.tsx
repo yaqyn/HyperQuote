@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
 	deleteOrder,
 	getAllCustomerOrders,
@@ -66,11 +66,12 @@ function OrdersPage() {
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[var(--p-bg)]">
-			<header className="shrink-0 px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pb-6">
-				<div className="mx-auto flex w-full max-w-[1400px] justify-center">
+			<header className="sticky top-0 z-20 shrink-0 bg-[var(--p-bg)] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:pb-6">
+				<div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<PortalTitleRow title={t('sidebar.nav.orders')} className="flex-1" />
 					<Link
 						to="/market"
-						className="inline-flex h-12 w-full max-w-[620px] items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+						className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:w-auto"
 					>
 						<Plus size={17} strokeWidth={1.8} />
 						{t('orders.newQuote')}
@@ -322,7 +323,7 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 							type="button"
 							onClick={() => submitMutation.mutate()}
 							disabled={submitMutation.isPending}
-							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-3 text-[13px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90 disabled:opacity-50"
+							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:opacity-50"
 						>
 							<Send size={15} strokeWidth={1.8} />
 							{t('orders.submit')}
@@ -360,7 +361,7 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 					<button
 						type="button"
 						onClick={openOrder}
-						className="col-span-2 inline-flex h-11 items-center justify-center rounded-xl bg-[var(--p-text)] px-4 text-[13px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90"
+						className="col-span-2 inline-flex h-11 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 					>
 						{t('orders.view')}
 					</button>
@@ -382,7 +383,7 @@ function OrdersEmpty() {
 			</p>
 			<Link
 				to="/market"
-				className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-5 text-[14px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90"
+				className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 			>
 				<Plus size={16} strokeWidth={1.8} />
 				{t('orders.newQuote')}

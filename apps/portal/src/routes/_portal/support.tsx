@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cubicBezier, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 
 export const Route = createFileRoute('/_portal/support')({
 	component: SupportPage,
@@ -38,22 +39,12 @@ function SupportPage() {
 
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
-			<div className="w-full max-w-[960px] mx-auto px-4 pb-10 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-8">
-				{/* Header */}
-				<motion.div {...stagger(0)} className="mb-8 sm:mb-10">
-					<h1
-						className="break-words text-[20px] font-semibold tracking-tight sm:text-[22px]"
-						style={{
-							background:
-								'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 100%)',
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							backgroundClip: 'text',
-						}}
-					>
-						{t('support.pageTitle')}
-					</h1>
-				</motion.div>
+			<div className="w-full max-w-[960px] mx-auto px-4 pb-10 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-8">
+				<PortalTitleRow
+					title={t('support.pageTitle')}
+					fixed
+					className="-mx-4 mb-8 px-4 sm:-mx-6 sm:mb-10 sm:px-6 lg:-mx-8 lg:px-8"
+				/>
 
 				{/* Service Grid — 4 tall cards */}
 				<div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
@@ -171,7 +162,7 @@ function ServiceCard({
 				className="absolute inset-x-0 top-0 h-px rounded-t-xl"
 				style={{
 					background:
-						'linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.06) 50%, transparent 90%)',
+						'linear-gradient(90deg, transparent 10%, var(--p-card-top-glow) 50%, transparent 90%)',
 				}}
 			/>
 

@@ -109,7 +109,7 @@ export function ApprovalBanner({ approval }: ApprovalBannerProps) {
 					<Button
 						onPress={() => approveMutation.mutate()}
 						isDisabled={approveMutation.isPending}
-						className="h-11 px-5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold cursor-pointer transition-opacity disabled:opacity-50"
+						className="h-11 px-5 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold cursor-pointer transition-opacity disabled:opacity-50"
 					>
 						{approveMutation.isPending
 							? '...'

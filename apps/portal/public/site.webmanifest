@@ -4,7 +4,7 @@
 	"description": "Your materials, one quote",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#060606",
+	"background_color": "#FFFFFF",
 	"theme_color": "#2563EB",
 	"orientation": "portrait-primary",
 	"icons": [

@@ -316,7 +316,7 @@ export function UploadValidation({
 			<div className="flex items-center gap-sm">
 				<Button
 					onPress={handleFixAndContinue}
-					className="h-9 rounded-xl border border-[var(--color-primary)] px-md text-[13px] font-semibold text-[var(--color-primary)] outline-none hover:bg-[var(--color-primary)] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+					className="h-9 rounded-xl border border-[var(--color-primary)] px-md text-[13px] font-semibold text-[var(--color-primary)] outline-none hover:bg-[var(--color-primary)] hover:text-[var(--color-primary-contrast)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
 				>
 					{t('quoteBuilder.fixAndContinue', 'Fix & Continue')}
 				</Button>

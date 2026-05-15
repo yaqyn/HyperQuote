@@ -84,7 +84,7 @@ export function ReorderDialog({
 								<Button
 									onPress={() => reorderMutation.mutate()}
 									isDisabled={reorderMutation.isPending}
-									className="flex-1 h-11 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+									className="flex-1 h-11 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-medium cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
 								>
 									{reorderMutation.isPending ? '...' : t('orders.quickSubmit')}
 								</Button>

@@ -18,6 +18,7 @@ import {
 import { type KeyboardEvent, useCallback, useEffect, useState } from 'react'
 import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
 import { getMarketProducts } from '../../../lib/server/market'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
 
@@ -76,7 +77,7 @@ function ProductDetailPage() {
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)] pb-40 md:pb-0">
-			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pt-7">
+			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12">
 				<div className="mx-auto flex w-full max-w-[1400px] items-center gap-2">
 					<button
 						type="button"
@@ -105,9 +106,12 @@ function ProductDetailPage() {
 							{categoryLabel}
 						</p>
 
-						<h1 className="mt-4 break-words text-[30px] font-semibold leading-[1.08] text-[var(--p-text)] sm:text-[36px] lg:text-[44px]">
-							{productName}
-						</h1>
+						<PortalTitleRow
+							title={productName}
+							align="center"
+							fixed
+							className="mt-4 max-w-full lg:justify-start"
+						/>
 
 						<div className="mt-5 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
 							<span className="max-w-full truncate font-mono text-[12px] text-[var(--p-text-muted)]">
@@ -316,7 +320,7 @@ function RecordAction({
 	const shellClass = isBar
 		? 'w-full'
 		: 'rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:p-5 lg:p-6'
-	const primaryClass = `${isBar ? 'h-12' : 'h-14'} inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-text)] px-5 text-[14px] font-semibold text-[var(--p-bg)] transition-opacity hover:opacity-90`
+	const primaryClass = `${isBar ? 'h-12' : 'h-14'} inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90`
 
 	useEffect(() => {
 		if (!cartItem && mode === 'added') setMode('idle')
@@ -477,7 +481,7 @@ function RecordAction({
 				<button
 					type="button"
 					onClick={handleEdit}
-					className={`${isBar ? 'h-12' : 'h-14'} inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-text)] hover:bg-[var(--p-hover)]`}
+					className={`${isBar ? 'h-12' : 'h-14'} inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-accent)] hover:bg-[var(--p-hover)]`}
 				>
 					<Pencil size={16} />
 					{t('market.amend')}
@@ -496,7 +500,7 @@ const SK_SPECS = ['s1', 's2', 's3', 's4'] as const
 function DetailSkeleton() {
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
-			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:pt-7">
+			<div className="px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12">
 				<div className="mx-auto h-4 w-44 max-w-[1400px] animate-pulse rounded-full bg-[var(--p-border)]" />
 			</div>
 			<div className="mx-auto w-full max-w-[1400px] px-4 pb-12 sm:px-6 lg:px-12 lg:pb-16">

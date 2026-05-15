@@ -8,6 +8,7 @@ import type { ChangeEvent } from 'react'
 import { useRef, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 
 export const Route = createFileRoute('/_portal/profile')({
 	component: ProfilePage,
@@ -79,7 +80,7 @@ function ProfilePage() {
 				initial={false}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.4 }}
-				className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-start px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 md:justify-center md:py-10 lg:max-w-[620px] lg:px-8"
+				className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-start px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 md:justify-center md:py-10 lg:max-w-[620px] lg:px-8"
 			>
 				{/* Avatar centered */}
 				<div className="mb-6 flex flex-col items-center text-center sm:mb-8">
@@ -117,9 +118,12 @@ function ProfilePage() {
 							className="hidden"
 						/>
 					</div>
-					<h1 className="max-w-full break-words text-lg font-semibold tracking-normal text-[var(--p-text)] sm:text-xl">
-						{fullName || t('profilePage.title')}
-					</h1>
+					<PortalTitleRow
+						title={fullName || t('profilePage.title')}
+						align="center"
+						fixed
+						className="max-w-full"
+					/>
 					{phone && (
 						<p
 							className="mt-1 font-mono text-[13px] tracking-normal text-[var(--p-text-muted)]"
@@ -169,7 +173,7 @@ function ProfilePage() {
 					<Button
 						onPress={handleSave}
 						isDisabled={!hasChanges || saving}
-						className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md bg-[var(--p-text)] px-8 text-[13px] font-medium text-[var(--p-bg)] transition-all hover:opacity-90 pressed:opacity-80 disabled:cursor-default disabled:opacity-20 sm:w-auto"
+						className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md bg-[var(--p-accent)] px-8 text-[13px] font-medium text-[var(--p-accent-contrast)] transition-all hover:opacity-90 pressed:opacity-80 disabled:cursor-default disabled:opacity-20 sm:w-auto"
 					>
 						{saving ? (
 							<Loader2 size={14} className="animate-spin" />

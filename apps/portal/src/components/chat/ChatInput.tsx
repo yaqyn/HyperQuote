@@ -1,15 +1,3 @@
-/**
- * ChatInput — the Writing Line.
- *
- * A single ruled line at the bottom of the ledger. Labeled at the margin
- * ("WRITE TO LYON" / "اكتب إلى ليون"). Typing appears as mono ink on
- * the page. Enter sends, Shift+Enter = newline. Tiny margin glyphs for
- * mic + send — no backgrounds, no pills.
- *
- * Voice overlay (full-screen listening orb with live transcript) is
- * preserved, palette-tuned to atelier warm tones.
- */
-
 import { ArrowUp, Mic, Square } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -18,8 +6,8 @@ import type { usePortalChat } from '../../hooks/usePortalChat'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
-const MAX_LINES = 6
-const LINE_HEIGHT = 22
+const MAX_LINES = 5
+const LINE_HEIGHT = 20
 
 // Minimal Web Speech API shape — the spec isn't in lib.dom across all TS
 // targets, so we narrow just what we use.
@@ -46,17 +34,14 @@ interface SpeechRecognitionLike {
 
 interface ChatInputProps {
 	chat: ReturnType<typeof usePortalChat>
-	hasMessages: boolean
 }
 
-export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
+export function ChatInput({ chat }: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
 	const [listening, setListening] = useState(false)
-	const [pulse, setPulse] = useState(0)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
-	const ruleRef = useRef<HTMLDivElement>(null)
 	const analyserRef = useRef<AnalyserNode | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
 	const audioCtxRef = useRef<AudioContext | null>(null)
@@ -78,7 +63,6 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 		if (!value.trim() || chat.isLoading) return
 		chat.sendMessage(value.trim())
 		setValue('')
-		setPulse((p) => p + 1)
 		if (textareaRef.current) {
 			textareaRef.current.style.height = 'auto'
 		}
@@ -242,16 +226,9 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 				)}
 			</AnimatePresence>
 
-			{/* The Writing Line */}
-			<div className="grid gap-2 sm:flex sm:items-end sm:gap-4">
-				{/* Margin label */}
-				<span className="office-meta w-full select-none leading-none sm:w-[60px] sm:shrink-0 sm:pb-2">
-					{isAr ? 'اكتب' : 'Write'}
-				</span>
-
-				{/* Ruled input */}
+			<div className="office-composer">
 				<div className="relative flex-1">
-					<div className="flex items-end gap-3">
+					<div className="flex items-end gap-2 sm:gap-3">
 						<textarea
 							ref={textareaRef}
 							data-chat-input
@@ -262,12 +239,12 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 							}}
 							onKeyDown={handleKeyDown}
 							rows={1}
-							placeholder={t('chat.writingPlaceholder', isAr ? '…' : '…')}
+							placeholder={t('chat.writingPlaceholder')}
 							aria-label={t('a11y.sendMessage')}
 							aria-multiline="true"
 							spellCheck={false}
 							dir="auto"
-							className="voice-mono min-h-10 flex-1 resize-none bg-transparent pb-2 pt-2 text-[16px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)] sm:min-h-0 sm:pt-0 sm:text-[14px]"
+							className="min-h-8 flex-1 resize-none bg-transparent py-1.5 font-sans text-[14px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)] sm:min-h-9 sm:text-[15px]"
 							style={{
 								height: `${LINE_HEIGHT + 4}px`,
 								lineHeight: `${LINE_HEIGHT}px`,
@@ -275,12 +252,11 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 							}}
 						/>
 
-						{/* Margin glyphs — right side */}
-						<div className="flex shrink-0 items-center gap-1 pb-1 sm:pb-2">
+						<div className="flex shrink-0 items-center gap-1 pb-0.5">
 							<button
 								type="button"
 								onClick={startListening}
-								className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:h-6 sm:w-6"
+								className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 								aria-label={t('a11y.voiceInput')}
 							>
 								<Mic size={14} strokeWidth={1.5} />
@@ -289,7 +265,7 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 								<button
 									type="button"
 									onClick={() => chat.stop()}
-									className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)] sm:h-6 sm:w-6"
+									className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--p-text)] text-[var(--p-bg)] transition-colors"
 									aria-label={t('a11y.stopGenerating')}
 								>
 									<Square size={11} strokeWidth={1.8} />
@@ -299,7 +275,7 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 									type="button"
 									onClick={handleSubmit}
 									disabled={!hasText}
-									className="flex h-10 w-10 items-center justify-center text-[var(--p-text-muted)] transition-colors enabled:hover:text-[var(--p-text)] disabled:opacity-40 sm:h-6 sm:w-6"
+									className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors enabled:bg-[var(--p-accent)] enabled:text-[var(--p-accent-contrast)] disabled:opacity-40"
 									aria-label={t('a11y.sendMessage')}
 								>
 									<ArrowUp size={14} strokeWidth={1.8} />
@@ -307,25 +283,12 @@ export function ChatInput({ chat, hasMessages: _hasMessages }: ChatInputProps) {
 							)}
 						</div>
 					</div>
-
-					{/* Ruled underline — pulses on submit */}
-					<div
-						key={pulse}
-						ref={ruleRef}
-						className={`h-px w-full bg-[var(--p-rule-strong)] ${pulse ? 'office-ink-pulse' : ''}`}
-					/>
+					<div className="h-px w-full bg-[var(--p-rule-strong)]" aria-hidden />
 				</div>
 			</div>
 		</>
 	)
 }
-
-// ============================================================================
-// VoiceOrb — the listening overlay (palette-tuned atelier version)
-// ============================================================================
-
-const MOTE_SLOTS = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'] as const
-const ECHO_SLOTS = ['e0', 'e1', 'e2'] as const
 
 function VoiceOrb({
 	amplitude,
@@ -354,139 +317,64 @@ function VoiceOrb({
 			style={{ background: 'rgba(0,0,0,0.96)' }}
 			onClick={onDismiss}
 		>
-			{/* Ambient field — single deep glow that drifts */}
-			<motion.div
-				animate={{ rotate: 360 }}
-				transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-				className="absolute h-[760px] w-[760px]"
+			<div
+				aria-hidden
+				className="absolute h-[min(112vw,520px)] w-[min(112vw,520px)] rounded-full"
 				style={{
-					background: `conic-gradient(from 0deg, transparent, rgba(255,255,255,${0.018 + a * 0.025}), transparent 40%, transparent 60%, rgba(255,255,255,${0.012 + a * 0.018}), transparent)`,
-					filter: 'blur(80px)',
+					background: `radial-gradient(circle, rgba(255,255,255,${0.08 + a * 0.08}) 0%, rgba(255,255,255,${0.025 + a * 0.04}) 34%, transparent 70%)`,
+					filter: 'blur(34px)',
 				}}
 			/>
 
-			{/* Continuous echo rings — radio waves emanating outward */}
-			{ECHO_SLOTS.map((slot, i) => (
-				<motion.div
-					key={slot}
-					aria-hidden
-					className="absolute rounded-full border"
-					style={{
-						width: 110,
-						height: 110,
-						borderColor: `rgba(255,255,255,${0.12 + a * 0.18})`,
-					}}
-					initial={{ scale: 1, opacity: 0 }}
-					animate={{
-						scale: [1, 1.4, 5.5],
-						opacity: [0, 0.45, 0],
-					}}
-					transition={{
-						duration: 4.4,
-						repeat: Infinity,
-						ease: 'easeOut',
-						times: [0, 0.08, 1],
-						delay: i * (4.4 / 3),
-					}}
-				/>
-			))}
-
-			{/* Outer breath — slow exhale */}
 			<motion.div
 				aria-hidden
 				className="absolute rounded-full"
 				animate={{
-					scale: [1, 1.06, 1],
-					opacity: [0.18, 0.28, 0.18],
+					scale: 1 + a * 0.16,
+					opacity: 0.28 + a * 0.22,
 				}}
-				transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+				transition={{ type: 'spring', stiffness: 180, damping: 22 }}
 				style={{
-					width: 360,
-					height: 360,
+					width: 'clamp(132px, 38vw, 220px)',
+					height: 'clamp(132px, 38vw, 220px)',
 					background:
-						'radial-gradient(circle, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 45%, transparent 75%)',
-					filter: 'blur(28px)',
+						'radial-gradient(circle, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 52%, transparent 82%)',
+					filter: 'blur(18px)',
 				}}
 			/>
 
-			{/* Mid breath — slightly faster, offset, amplitude-reactive */}
 			<motion.div
 				aria-hidden
 				className="absolute rounded-full"
 				animate={{
-					scale: [1 + a * 0.2, 1.08 + a * 0.25, 1 + a * 0.2],
-					opacity: [0.25 + a * 0.2, 0.4 + a * 0.25, 0.25 + a * 0.2],
+					scale: 1 + a * 0.22,
+					opacity: 0.5 + a * 0.25,
 				}}
-				transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+				transition={{ type: 'spring', stiffness: 220, damping: 20 }}
 				style={{
-					width: 220,
-					height: 220,
-					background:
-						'radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 50%, transparent 80%)',
-					filter: 'blur(16px)',
-				}}
-			/>
-
-			{/* Inner breath — fastest, brightest */}
-			<motion.div
-				aria-hidden
-				className="absolute rounded-full"
-				animate={{
-					scale: [1 + a * 0.35, 1.12 + a * 0.4, 1 + a * 0.35],
-					opacity: [0.45 + a * 0.25, 0.6 + a * 0.3, 0.45 + a * 0.25],
-				}}
-				transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-				style={{
-					width: 130,
-					height: 130,
+					width: 'clamp(88px, 24vw, 130px)',
+					height: 'clamp(88px, 24vw, 130px)',
 					background:
 						'radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.07) 55%, transparent 85%)',
 					filter: 'blur(10px)',
 				}}
 			/>
 
-			{/* Core sphere — the soul. Internal counter-rotating swirls give the
-			    sense of light moving inside the entity. */}
 			<motion.div
 				className="relative rounded-full"
 				animate={{
-					scale: 1 + a * 0.18,
+					scale: 1 + a * 0.12,
 				}}
 				transition={{ type: 'spring', stiffness: 280, damping: 18 }}
 				style={{
-					width: 96,
-					height: 96,
+					width: 'clamp(64px, 17vw, 92px)',
+					height: 'clamp(64px, 17vw, 92px)',
 					background: `radial-gradient(circle at 36% 30%, rgba(255,255,255,${0.55 + a * 0.25}) 0%, rgba(255,255,255,${0.22 + a * 0.18}) 28%, rgba(255,255,255,0.08) 60%, rgba(255,255,255,0.02) 85%, transparent 100%)`,
-					boxShadow: `0 0 ${80 + a * 120}px ${20 + a * 40}px rgba(255,255,255,${0.08 + a * 0.12}), inset 0 0 ${30 + a * 30}px rgba(255,255,255,${0.1 + a * 0.15}), 0 0 ${12 + a * 18}px ${3 + a * 6}px rgba(255,255,255,${0.18 + a * 0.18})`,
+					boxShadow: `0 0 ${54 + a * 72}px ${12 + a * 24}px rgba(255,255,255,${0.07 + a * 0.1}), inset 0 0 ${24 + a * 22}px rgba(255,255,255,${0.1 + a * 0.14}), 0 0 ${10 + a * 14}px ${2 + a * 5}px rgba(255,255,255,${0.16 + a * 0.16})`,
 					border: `1px solid rgba(255,255,255,${0.18 + a * 0.18})`,
 					overflow: 'hidden',
 				}}
 			>
-				{/* Internal swirl A — soft caustic that rotates clockwise */}
-				<motion.div
-					aria-hidden
-					className="absolute inset-0"
-					animate={{ rotate: 360 }}
-					transition={{ duration: 11, repeat: Infinity, ease: 'linear' }}
-					style={{
-						background: `conic-gradient(from 0deg, transparent, rgba(255,255,255,${0.18 + a * 0.18}) 25%, transparent 50%, rgba(255,255,255,${0.1 + a * 0.1}) 75%, transparent)`,
-						mixBlendMode: 'screen',
-						filter: 'blur(8px)',
-					}}
-				/>
-				{/* Internal swirl B — counter-rotating, different phase */}
-				<motion.div
-					aria-hidden
-					className="absolute inset-0"
-					animate={{ rotate: -360 }}
-					transition={{ duration: 17, repeat: Infinity, ease: 'linear' }}
-					style={{
-						background: `conic-gradient(from 200deg, transparent, rgba(255,255,255,${0.14 + a * 0.14}) 40%, transparent 70%)`,
-						mixBlendMode: 'screen',
-						filter: 'blur(10px)',
-					}}
-				/>
-				{/* Specular highlight — the "wet" glint that suggests a real surface */}
 				<div
 					className="pointer-events-none absolute rounded-full"
 					style={{
@@ -501,58 +389,7 @@ function VoiceOrb({
 				/>
 			</motion.div>
 
-			{/* Orbiting motes — slow elegant orbit, drift toward core on spike */}
-			{MOTE_SLOTS.map((slot, i) => {
-				const baseAngle = (i / MOTE_SLOTS.length) * 360
-				const baseRadius = 78 + (i % 3) * 22
-				const dur = 22 + (i % 4) * 6
-				return (
-					<motion.div
-						key={slot}
-						aria-hidden
-						className="absolute"
-						style={{
-							top: '50%',
-							left: '50%',
-							width: 0,
-							height: 0,
-						}}
-						animate={{ rotate: 360 }}
-						transition={{
-							duration: dur,
-							repeat: Infinity,
-							ease: 'linear',
-							delay: i * 0.35,
-						}}
-					>
-						<motion.span
-							className="absolute block rounded-full"
-							animate={{
-								opacity: [0.18, 0.35 + a * 0.3, 0.18],
-								scale: [1, 1 + a * 0.5, 1],
-							}}
-							transition={{
-								duration: 2.6 + (i % 3) * 0.4,
-								repeat: Infinity,
-								ease: 'easeInOut',
-							}}
-							style={{
-								width: 2 + (i % 3),
-								height: 2 + (i % 3),
-								top: -1,
-								left: baseRadius - a * 18,
-								transform: `rotate(${baseAngle}deg)`,
-								background: 'rgba(255,255,255,0.85)',
-								boxShadow: '0 0 6px rgba(255,255,255,0.6)',
-								filter: 'blur(0.4px)',
-							}}
-						/>
-					</motion.div>
-				)
-			})}
-
-			{/* Transcript */}
-			<div className="absolute inset-x-0 bottom-28 flex justify-center px-8">
+			<div className="absolute inset-x-0 bottom-20 flex justify-center px-5 sm:bottom-28 sm:px-8">
 				<AnimatePresence mode="wait">
 					{transcript ? (
 						<motion.div

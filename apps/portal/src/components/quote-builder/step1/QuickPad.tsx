@@ -488,7 +488,7 @@ export function QuickPad() {
 				{validCount > 0 && (
 					<Button
 						onPress={handleAddAll}
-						className="h-11 rounded-xl bg-[var(--color-primary)] text-sm font-semibold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+						className="h-11 rounded-xl bg-[var(--color-primary)] text-sm font-semibold text-[var(--color-primary-contrast)] outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
 					>
 						{t('quoteBuilder.quickPadAddAll', 'Add All')} ({validCount})
 					</Button>
@@ -537,7 +537,7 @@ export function QuickPad() {
 				<div className="flex items-center gap-sm pt-sm">
 					<Button
 						onPress={handleAddAll}
-						className="flex h-11 items-center gap-xs rounded-xl bg-[var(--color-primary)] px-md text-sm font-semibold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+						className="flex h-11 items-center gap-xs rounded-xl bg-[var(--color-primary)] px-md text-sm font-semibold text-[var(--color-primary-contrast)] outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
 					>
 						<Plus size={16} />
 						{t('quoteBuilder.quickPadAddAll', 'Add All')} (

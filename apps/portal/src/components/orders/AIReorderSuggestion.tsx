@@ -82,7 +82,7 @@ export function AIReorderSuggestion({
 
 			<Button
 				onPress={handleReorder}
-				className="h-11 w-full shrink-0 cursor-pointer rounded-lg bg-[var(--color-primary)] px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:h-9 sm:w-auto"
+				className="h-11 w-full shrink-0 cursor-pointer rounded-lg bg-[var(--color-primary)] px-4 text-sm font-medium text-[var(--color-primary-contrast)] transition-opacity hover:opacity-90 sm:h-9 sm:w-auto"
 			>
 				{t('tracking.reorder')}
 			</Button>

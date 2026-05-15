@@ -1,105 +1,17 @@
-/**
- * ChatView — Lyon's desk.
- *
- * Two states, same page.
- *
- * Empty: a large time-aware greeting, a day-note beneath, a drawn divider,
- * and three quiet commands to start from. Feels like opening the page for
- * the day.
- *
- * Active: the fresh-page header at top, a small greeting as the first
- * entry, then the rolling ledger of exchanges. Writing line at bottom.
- */
-
 import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
+import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatInput } from './ChatInput'
 import { ChatMessages } from './ChatMessages'
 import { SuggestionChips } from './SuggestionChips'
 
 interface ChatViewProps {
-	userName: string
 	locale: 'ar' | 'en'
 }
 
-const DATE_FORMATTER_EN = new Intl.DateTimeFormat('en-GB', {
-	day: '2-digit',
-	month: 'short',
-	year: 'numeric',
-})
-const DATE_FORMATTER_AR = new Intl.DateTimeFormat('ar-EG', {
-	day: 'numeric',
-	month: 'long',
-	year: 'numeric',
-})
-const WEEKDAY_FORMATTER_EN = new Intl.DateTimeFormat('en-US', {
-	weekday: 'long',
-})
-const WEEKDAY_FORMATTER_AR = new Intl.DateTimeFormat('ar-EG', {
-	weekday: 'long',
-})
-
-function formatToday(locale: 'ar' | 'en'): string {
-	const fmt = locale === 'ar' ? DATE_FORMATTER_AR : DATE_FORMATTER_EN
-	return fmt.format(new Date()).toUpperCase()
-}
-
-// Lyon's quiet opening aside. Rotates by day-of-year so the same greeting
-// persists across a day but changes the next morning. Cheap charm without
-// real market data — later we wire to the materials index.
-const NOTES_EN = [
-	'cement prices are steady',
-	'rebar has firmed this week',
-	'the ports ran slow this morning',
-	'tile shipments are on time',
-	'trucking is tight cross-country',
-	'the market opened quiet',
-	"it's been a busy morning",
-	'sand is plentiful today',
-]
-const NOTES_AR = [
-	'أسعار الأسمنت مستقرة',
-	'الحديد ارتفع قليلاً هذا الأسبوع',
-	'الموانئ كانت بطيئة صباحاً',
-	'شحنات البلاط تصل في موعدها',
-	'النقل الطويل مزدحم اليوم',
-	'السوق افتتح هادئاً',
-	'صباح مزدحم قليلاً',
-	'الرمل متوفر بكثرة اليوم',
-]
-
-function dayOfYear(d = new Date()): number {
-	const start = new Date(d.getFullYear(), 0, 0)
-	const diff =
-		d.getTime() -
-		start.getTime() +
-		(start.getTimezoneOffset() - d.getTimezoneOffset()) * 60 * 1000
-	return Math.floor(diff / 86_400_000)
-}
-
-function pickNote(isArabic: boolean): string {
-	const pool = isArabic ? NOTES_AR : NOTES_EN
-	return pool[dayOfYear() % pool.length] ?? pool[0] ?? ''
-}
-
-function greetingFor(
-	hour: number,
-	isArabic: boolean,
-	firstName: string,
-): string {
-	if (isArabic) {
-		const base =
-			hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساء الخير'
-		return firstName ? `${base}، يا ${firstName}.` : `${base}.`
-	}
-	const base =
-		hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
-	return firstName ? `${base}, ${firstName}.` : `${base}.`
-}
-
-export function ChatView({ userName, locale }: ChatViewProps) {
+export function ChatView({ locale }: ChatViewProps) {
 	const { t } = useTranslation('portal')
 	const chat = usePortalChat()
 
@@ -109,61 +21,42 @@ export function ChatView({ userName, locale }: ChatViewProps) {
 	)
 	const hasMessages = realMessages.length > 0 || chat.isLoading
 
-	const firstName = userName.split(/\s+/)[0] ?? ''
 	const isArabic = locale === 'ar'
-	const today = formatToday(locale)
-	const customerTag = useMemo(
-		() => (firstName ? `${firstName.charAt(0).toUpperCase()}.` : undefined),
-		[firstName],
-	)
-
-	const hour = new Date().getHours()
-	const weekday = useMemo(() => {
-		const fmt = isArabic ? WEEKDAY_FORMATTER_AR : WEEKDAY_FORMATTER_EN
-		return fmt.format(new Date())
-	}, [isArabic])
-	const greeting = useMemo(
-		() => greetingFor(hour, isArabic, firstName),
-		[hour, isArabic, firstName],
-	)
-	const dayNote = useMemo(() => pickNote(isArabic), [isArabic])
-
-	const greetingForHeader = useMemo(() => {
-		if (isArabic) {
-			return firstName
-				? `أهلاً يا ${firstName}. ما الذي نُعدّه اليوم؟`
-				: 'أهلاً بك. ما الذي نُعدّه اليوم؟'
-		}
-		return firstName
-			? `Welcome, ${firstName}. What are we preparing today?`
-			: 'Welcome. What are we preparing today?'
-	}, [firstName, isArabic])
+	const newPageLabel = t('chat.newPage', 'New page')
 
 	return (
 		<div className="office-paper relative flex min-h-0 flex-1 flex-col">
-			{hasMessages ? (
-				<ActiveLedger
-					today={today}
-					onNewPage={() => chat.clear()}
-					newPageLabel={t('chat.newPage', 'New page')}
-					greeting={greetingForHeader}
-					isArabic={isArabic}
-					messages={realMessages}
-					isLoading={chat.isLoading}
-					customerTag={customerTag}
+			<header className="relative z-[2] shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-8 sm:pt-5 lg:px-12">
+				<PortalTitleRow
+					title={t('chat.writingPlaceholder')}
+					className="mx-auto w-full max-w-[820px]"
+					action={
+						hasMessages ? (
+							<button
+								type="button"
+								onClick={() => chat.clear()}
+								className="office-quiet"
+								aria-label={newPageLabel}
+							>
+								{newPageLabel}
+							</button>
+						) : null
+					}
 				/>
+			</header>
+			<div className="office-rule mx-5 sm:mx-8 lg:mx-12" />
+
+			{hasMessages ? (
+				<ActiveLedger messages={realMessages} isLoading={chat.isLoading} />
 			) : (
 				<EmptyDesk
-					greeting={greeting}
-					weekday={weekday}
-					dayNote={dayNote}
+					heading={t('chat.newProject')}
 					isArabic={isArabic}
 					onSuggest={(text) => chat.sendMessage(text)}
 					locale={locale}
 				/>
 			)}
 
-			{/* Writing line — present in both states */}
 			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
@@ -174,9 +67,10 @@ export function ChatView({ userName, locale }: ChatViewProps) {
 				}}
 				className="relative z-[2] shrink-0"
 			>
-				<div className="office-rule mx-4 sm:mx-6 lg:mx-10" />
-				<div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6 sm:pt-4 lg:px-10">
-					<ChatInput chat={chat} hasMessages={hasMessages} />
+				<div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-8 sm:pb-7 sm:pt-5 lg:px-12">
+					<div className="mx-auto w-full max-w-[820px]">
+						<ChatInput chat={chat} />
+					</div>
 				</div>
 			</motion.div>
 		</div>
@@ -188,116 +82,70 @@ export function ChatView({ userName, locale }: ChatViewProps) {
 // ============================================================================
 
 function EmptyDesk({
+	heading,
 	isArabic,
 	onSuggest,
 	locale,
 }: {
-	greeting: string
-	weekday: string
-	dayNote: string
+	heading: string
 	isArabic: boolean
 	onSuggest: (text: string) => void
 	locale: 'ar' | 'en'
 }) {
 	return (
-		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+4rem)] sm:px-6 lg:px-10 lg:py-0">
-			{/* Ambient data grid — subtle, institutional */}
+		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+3rem)] sm:px-6 lg:px-10 lg:py-0">
 			<DataGridBackdrop />
 
-			<div className="relative z-[2] flex w-full max-w-[760px] flex-col items-center text-center">
-				<motion.p
-					initial={{ opacity: 0, y: 4 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
-					className="voice-mono max-w-full text-[9px] uppercase tracking-[0.24em] text-[var(--p-text-faint)] sm:text-[10px] sm:tracking-[0.32em]"
-				>
-					HyperQuote · Customer Portal
-				</motion.p>
-
+			<div className="relative z-[2] flex w-full max-w-[720px] flex-col items-center text-center">
 				<motion.h1
 					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.7, delay: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+					transition={{ duration: 0.55, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
 					className={`mt-4 text-[var(--p-text)] ${
 						isArabic
-							? 'voice-serif-ar text-[36px] leading-[1.1] sm:text-[46px]'
-							: 'voice-display text-[42px] leading-[1] sm:text-[56px]'
+							? 'voice-serif-ar text-[30px] font-semibold leading-[1.2] sm:text-[44px]'
+							: 'voice-display text-[30px] leading-[1.1] sm:text-[44px]'
 					}`}
-					style={isArabic ? undefined : { fontWeight: 300 }}
 				>
-					{isArabic ? 'مشروع جديد؟' : 'New Project?'}
+					{heading}
 				</motion.h1>
 
 				<motion.div
 					initial={{ opacity: 0, scaleX: 0 }}
 					animate={{ opacity: 1, scaleX: 1 }}
-					transition={{ duration: 0.6, delay: 0.55, ease: [0.2, 0.8, 0.2, 1] }}
-					className="mt-6 h-px w-24 origin-center bg-[var(--p-rule-strong)]"
+					transition={{ duration: 0.5, delay: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+					className="mt-5 h-px w-20 origin-center bg-[var(--p-rule-strong)] sm:w-24"
 					aria-hidden
 				/>
 
 				<motion.div
 					initial={{ opacity: 0, y: 4 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.6, delay: 1, ease: [0.2, 0.8, 0.2, 1] }}
-					className="mt-8 grid w-full grid-cols-1 gap-2 sm:mt-10 sm:grid-cols-3 sm:gap-3"
+					transition={{ duration: 0.5, delay: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
+					className="mt-6 w-full max-w-[700px] sm:mt-8"
 				>
-					<SuggestionChips onSelect={onSuggest} locale={locale} />
+					<div className="office-rule mb-2 opacity-70" />
+					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+						<SuggestionChips onSelect={onSuggest} locale={locale} />
+					</div>
+					<div className="office-rule mt-2 opacity-70" />
 				</motion.div>
 			</div>
 		</div>
 	)
 }
 
-// Ambient depth — soft radial lift behind the content, a sparse dot-matrix
-// at very low opacity, and a single concentric ring expanding out from center.
-// Reads as "the system is quietly alive", not decoration.
+// Ambient depth — static radial lift behind the content.
 function DataGridBackdrop() {
 	return (
-		<>
-			{/* Depth — dark floor, tiny light shed from above, heavy corners */}
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-0"
-				style={{
-					background:
-						'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,255,255,0.025), transparent 70%), radial-gradient(ellipse 100% 80% at 50% 100%, rgba(0,0,0,0.35), transparent 65%)',
-				}}
-			/>
-			{/* Dot-matrix */}
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-0"
-				style={{
-					backgroundImage:
-						'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)',
-					backgroundSize: '26px 26px',
-					opacity: 0.05,
-					maskImage:
-						'radial-gradient(ellipse 70% 80% at 50% 50%, black 0%, transparent 85%)',
-					WebkitMaskImage:
-						'radial-gradient(ellipse 70% 80% at 50% 50%, black 0%, transparent 85%)',
-				}}
-			/>
-			{/* Expanding ring — very subtle, loops */}
-			<motion.div
-				aria-hidden
-				className="pointer-events-none absolute left-1/2 top-1/2 rounded-full border border-[var(--p-text-faint)]"
-				style={{
-					width: 40,
-					height: 40,
-					marginLeft: -20,
-					marginTop: -20,
-				}}
-				initial={{ scale: 0.5, opacity: 0 }}
-				animate={{ scale: [0.5, 14], opacity: [0, 0.06, 0] }}
-				transition={{
-					duration: 9,
-					repeat: Infinity,
-					ease: 'easeOut',
-				}}
-			/>
-		</>
+		<div
+			aria-hidden
+			className="pointer-events-none absolute inset-0"
+			style={{
+				background:
+					'radial-gradient(ellipse 70% 50% at 50% 0%, var(--p-desk-depth-top), transparent 70%), radial-gradient(ellipse 100% 80% at 50% 100%, var(--p-desk-depth-bottom), transparent 65%)',
+			}}
+		/>
 	)
 }
 
@@ -306,84 +154,17 @@ function DataGridBackdrop() {
 // ============================================================================
 
 function ActiveLedger({
-	today,
-	onNewPage,
-	newPageLabel,
-	greeting,
-	isArabic,
 	messages,
 	isLoading,
-	customerTag,
 }: {
-	today: string
-	onNewPage: () => void
-	newPageLabel: string
-	greeting: string
-	isArabic: boolean
 	messages: ReturnType<typeof usePortalChat>['messages']
 	isLoading: boolean
-	customerTag?: string
 }) {
 	return (
-		<>
-			<header className="relative z-[2] flex shrink-0 flex-col gap-2 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:flex-row sm:items-baseline sm:justify-between sm:px-6 lg:px-10 lg:pt-8">
-				<span className="office-meta">{`Today · ${today} · Page`}</span>
-				<button
-					type="button"
-					onClick={onNewPage}
-					className="office-quiet self-start sm:self-auto"
-					aria-label={newPageLabel}
-				>
-					{newPageLabel}
-				</button>
-			</header>
-
-			<div className="office-rule mx-4 sm:mx-6 lg:mx-10" />
-
-			<div className="relative flex min-h-0 flex-1 flex-col">
-				<div className="office-ledger flex min-h-0 flex-1 flex-col">
-					<FirstEntryGreeting greeting={greeting} isArabic={isArabic} />
-					<ChatMessages
-						messages={messages}
-						isLoading={isLoading}
-						customerTag={customerTag}
-					/>
-				</div>
+		<div className="relative flex min-h-0 flex-1 flex-col">
+			<div className="office-ledger flex min-h-0 flex-1 flex-col">
+				<ChatMessages messages={messages} isLoading={isLoading} />
 			</div>
-		</>
-	)
-}
-
-function FirstEntryGreeting({
-	greeting,
-	isArabic,
-}: {
-	greeting: string
-	isArabic: boolean
-}) {
-	return (
-		<motion.section
-			initial={{ opacity: 0, y: 4 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.5, ease: 'easeOut' }}
-			aria-labelledby="greeting-tag"
-			className="px-4 pt-5 sm:px-6 sm:pt-7 lg:px-10"
-		>
-			<div className="grid grid-cols-1 gap-y-2 sm:grid-cols-[60px_1fr] sm:items-baseline sm:gap-x-6">
-				<span id="greeting-tag" className="office-tag">
-					{isArabic ? 'ليون' : 'Lyon'}
-				</span>
-				<p
-					className={`max-w-[640px] break-words text-[var(--p-text)] ${
-						isArabic
-							? 'voice-serif-ar text-[17px] leading-[1.75]'
-							: 'voice-serif text-[18px] leading-[1.55]'
-					}`}
-				>
-					{greeting}
-				</p>
-			</div>
-			<div className="office-rule mt-6" />
-		</motion.section>
+		</div>
 	)
 }

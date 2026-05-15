@@ -61,7 +61,7 @@ export function SubmitConfirmation({
 					className={[
 						'h-11 px-6 rounded-xl text-sm font-semibold transition-opacity cursor-pointer',
 						isApproval
-							? 'bg-[var(--color-primary)] text-white'
+							? 'bg-[var(--color-primary)] text-[var(--color-primary-contrast)]'
 							: 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface)]',
 					].join(' ')}
 				>
@@ -72,7 +72,7 @@ export function SubmitConfirmation({
 				{!isApproval && (
 					<Button
 						onPress={() => navigate({ to: '/orders' })}
-						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold transition-opacity cursor-pointer"
+						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer"
 					>
 						{t('quoteBuilder.trackQuote')}
 					</Button>

@@ -37,7 +37,7 @@ export function PartialSummaryBar({
 				type="button"
 				onClick={onSubmit}
 				disabled={!canSubmit || isPending}
-				className="bg-[var(--color-primary)] text-white h-10 px-6 rounded-lg cursor-pointer font-semibold text-sm disabled:opacity-50"
+				className="bg-[var(--color-primary)] text-[var(--color-primary-contrast)] h-10 px-6 rounded-lg cursor-pointer font-semibold text-sm disabled:opacity-50"
 			>
 				{t('quoteDetail.submitPartialResponse')}
 			</button>

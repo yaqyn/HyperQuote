@@ -296,7 +296,7 @@ export function UploadMethod() {
 					acceptedFileTypes={['.csv', '.xlsx', '.xls']}
 					onSelect={handleFileSelect}
 				>
-					<Button className="mt-md h-9 rounded-xl bg-[var(--color-primary)] px-md text-[13px] font-semibold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
+					<Button className="mt-md h-9 rounded-xl bg-[var(--color-primary)] px-md text-[13px] font-semibold text-[var(--color-primary-contrast)] outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
 						{t('quoteBuilder.browse', 'Browse Files')}
 					</Button>
 				</FileTrigger>

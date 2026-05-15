@@ -86,7 +86,7 @@ export function GuestClaimBanner({
 				<Button
 					onPress={() => claimMutation.mutate()}
 					isDisabled={claimMutation.isPending}
-					className="h-8 px-4 rounded-full bg-[#0F172A] dark:bg-[#FAFAFA] text-white dark:text-[#09090B] text-sm font-medium pressed:opacity-80 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
+					className="h-8 px-4 rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-medium pressed:opacity-80 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
 				>
 					{t('guestClaim.yesClaim')}
 				</Button>

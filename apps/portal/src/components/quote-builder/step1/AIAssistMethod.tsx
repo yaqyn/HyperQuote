@@ -156,7 +156,7 @@ export function AIAssistMethod() {
 			<Button
 				onPress={handleParse}
 				isDisabled={!text.trim() || isParsing}
-				className="flex h-11 items-center justify-center gap-xs rounded-xl bg-[var(--color-primary)] text-sm font-semibold text-white outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:opacity-50"
+				className="flex h-11 items-center justify-center gap-xs rounded-xl bg-[var(--color-primary)] text-sm font-semibold text-[var(--color-primary-contrast)] outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:opacity-50"
 			>
 				<Sparkles size={16} />
 				{isParsing

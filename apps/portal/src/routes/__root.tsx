@@ -11,6 +11,13 @@ import { I18nProvider } from 'react-aria-components'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { setupI18n } from '../lib/i18n'
+import {
+	applyPortalTheme,
+	detectPortalTheme,
+	type PortalTheme,
+	portalThemeColor,
+	readStoredPortalTheme,
+} from '../lib/theme'
 import styles from '../styles.css?url'
 
 function detectLocale(request?: Request): 'ar' | 'en' {
@@ -29,14 +36,26 @@ function detectLocale(request?: Request): 'ar' | 'en' {
 	return 'en'
 }
 
+async function getRouteRequest(context: unknown): Promise<Request | undefined> {
+	const contextRequest = (context as { request?: unknown }).request
+	if (contextRequest instanceof Request) return contextRequest
+	if (!import.meta.env.SSR) return undefined
+
+	try {
+		const { getRequest } = await import('@tanstack/react-start/server')
+		return getRequest()
+	} catch {
+		return undefined
+	}
+}
+
 export const Route = createRootRoute({
 	beforeLoad: async ({ context }) => {
-		const request = (context as Record<string, unknown>).request as
-			| Request
-			| undefined
+		const request = await getRouteRequest(context)
 		const locale = detectLocale(request)
+		const theme = detectPortalTheme(request)
 		await setupI18n(locale)
-		return { locale }
+		return { locale, theme }
 	},
 	head: () => ({
 		meta: [
@@ -46,16 +65,6 @@ export const Route = createRootRoute({
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
-			{
-				name: 'theme-color',
-				content: '#f4efe6',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				name: 'theme-color',
-				content: '#f4efe6',
-				media: '(prefers-color-scheme: dark)',
-			},
 		],
 		links: [
 			{
@@ -81,7 +90,7 @@ export const Route = createRootRoute({
 			},
 			{
 				rel: 'stylesheet',
-				href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&display=swap',
+				href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Sora:wght@400;500;600;700&display=swap',
 			},
 			{ rel: 'stylesheet', href: styles },
 		],
@@ -90,11 +99,17 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-	const routeContext = Route.useRouteContext() as { locale?: 'ar' | 'en' }
+	const routeContext = Route.useRouteContext() as {
+		locale?: 'ar' | 'en'
+		theme?: PortalTheme
+	}
 	const locale = routeContext.locale ?? 'en'
+	const theme = routeContext.theme ?? 'light'
 	const [queryClient] = useState(() => new QueryClient())
 
-	// Dark theme only — no toggle. The /login atelier-scene is scoped separately.
+	useEffect(() => {
+		applyPortalTheme(readStoredPortalTheme() ?? theme)
+	}, [theme])
 
 	// Document-level UX guards: disable right-click menu and block Ctrl/Cmd+A
 	// outside text inputs. Attached to document because <body> with interactive
@@ -126,9 +141,10 @@ function RootComponent() {
 	}, [])
 
 	return (
-		<html lang={locale} dir="ltr" data-theme="dark">
+		<html lang={locale} dir="ltr" data-theme={theme}>
 			<head>
 				<HeadContent />
+				<meta name="theme-color" content={portalThemeColor(theme)} />
 			</head>
 			<body
 				className={`bg-[var(--p-bg)] text-[var(--p-text)] antialiased ${locale === 'ar' ? 'font-arabic' : 'font-sans'}`}
@@ -154,7 +170,7 @@ function SkipLink() {
 	return (
 		<a
 			href="#main"
-			className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--p-accent)] focus:text-white"
+			className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[var(--p-accent)] focus:text-[var(--p-accent-contrast)]"
 		>
 			{t('a11y.skipToContent')}
 		</a>

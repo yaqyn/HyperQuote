@@ -27,6 +27,7 @@ import { type ReactNode, useMemo } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { PODConfirmFlow } from '../../components/orders/PODConfirmFlow'
+import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
 	type DeliveryInfo,
 	type DeliveryStage,
@@ -110,7 +111,7 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
 			{/* Top bar */}
-			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:py-3.5">
+			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:py-3.5">
 				<div className="mx-auto flex w-full max-w-[980px] items-center gap-4">
 					<button
 						type="button"
@@ -132,31 +133,26 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 			{/* Body */}
 			<div className="mx-auto w-full max-w-[980px] px-4 py-6 sm:px-6 sm:py-10 lg:px-12 lg:py-14">
 				{/* Reference header */}
-				<div className="mb-8 flex flex-col gap-3 border-b border-[var(--p-rule-strong)] pb-3 sm:mb-10 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-					<div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
-						<span className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text-faint)]">
-							{t('tracking.reference')}
-						</span>
-						<h1
-							className="break-all font-mono text-[18px] font-medium text-[var(--p-text)] sm:text-[20px]"
-							style={{ fontVariantNumeric: 'tabular-nums' }}
-						>
-							{order.reference}
-						</h1>
-					</div>
-					<div className="flex flex-wrap items-center gap-3">
-						<span className="font-mono text-[11px] tracking-[0.06em] text-[var(--p-text-muted)]">
-							{formattedDate}
-						</span>
-						{isSealed && (
-							<span
-								role="img"
-								aria-label={t('orders.sealed')}
-								className="inline-block h-2 w-2 rounded-full bg-[var(--p-text)]"
-							/>
-						)}
-					</div>
-				</div>
+				<PortalTitleRow
+					title={order.reference}
+					subtitle={t('tracking.reference')}
+					fixed
+					className="-mx-4 mb-8 border-b border-[var(--p-rule-strong)] px-4 sm:-mx-6 sm:mb-10 sm:px-6 lg:-mx-12 lg:px-12"
+					action={
+						<div className="flex flex-wrap items-center gap-3">
+							<span className="font-mono text-[11px] tracking-[0.06em] text-[var(--p-text-muted)]">
+								{formattedDate}
+							</span>
+							{isSealed && (
+								<span
+									role="img"
+									aria-label={t('orders.sealed')}
+									className="inline-block h-2 w-2 rounded-full bg-[var(--p-accent)]"
+								/>
+							)}
+						</div>
+					}
+				/>
 
 				{/* Delivery tracking */}
 				{delivery && <DeliveryTrackingSection delivery={delivery} pod={pod} />}
@@ -248,29 +244,17 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 							const isLast = i === timeline.length - 1
 							const dotColor =
 								step.status === 'completed'
-									? 'bg-[var(--p-text)]'
+									? 'bg-[var(--p-accent)]'
 									: step.status === 'current'
-										? 'bg-[var(--p-text)] ring-2 ring-[var(--p-text)]/30'
+										? 'bg-[var(--p-accent)] ring-2 ring-[var(--p-accent)]/30'
 										: 'bg-[var(--p-text-faint)]'
 							const iconNode =
 								step.status === 'completed' ? (
-									<Check
-										size={10}
-										strokeWidth={2.5}
-										className="text-[var(--p-bg)]"
-									/>
+									<Check size={10} strokeWidth={2.5} className="text-white" />
 								) : step.status === 'current' ? (
-									<Truck
-										size={10}
-										strokeWidth={1.8}
-										className="text-[var(--p-bg)]"
-									/>
+									<Truck size={10} strokeWidth={1.8} className="text-white" />
 								) : (
-									<Clock
-										size={10}
-										strokeWidth={1.5}
-										className="text-[var(--p-bg)]"
-									/>
+									<Clock size={10} strokeWidth={1.5} className="text-white" />
 								)
 							return (
 								<li key={step.key} className="flex gap-4">
@@ -433,7 +417,7 @@ function DeliveryTrackingSection({
 								{t('tracking.deliveryDetails')}
 							</p>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
-								<span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--p-text)] text-[var(--p-bg)]">
+								<span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--p-accent)] text-[var(--p-accent-contrast)]">
 									<Truck size={16} strokeWidth={1.8} />
 								</span>
 								<h2 className="break-words text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
@@ -507,9 +491,9 @@ function DeliveryStageGrid({ currentStage }: { currentStage: DeliveryStage }) {
 					const isCompleted = i < currentIndex
 					const isCurrent = i === currentIndex
 					const stateClass = isCompleted
-						? 'border-[var(--p-text)] bg-[var(--p-text)] text-[var(--p-bg)]'
+						? 'border-[var(--p-accent)] bg-[var(--p-accent)] text-[var(--p-accent-contrast)]'
 						: isCurrent
-							? 'border-[var(--p-text)] bg-[var(--p-bg)] text-[var(--p-text)] ring-2 ring-[var(--p-text)]/10'
+							? 'border-[var(--p-accent)] bg-[var(--p-bg)] text-[var(--p-text)] ring-2 ring-[var(--p-accent)]/10'
 							: 'border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-muted)]'
 
 					return (
@@ -594,7 +578,7 @@ const SK_TIMELINE = ['t1', 't2', 't3', 't4'] as const
 function DetailSkeleton() {
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
-			<div className="border-b border-[var(--p-border)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:px-6 sm:pt-8 lg:px-12 lg:py-3.5">
+			<div className="border-b border-[var(--p-border)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:py-3.5">
 				<div className="mx-auto h-3 w-32 max-w-[980px] animate-pulse bg-[var(--p-border)]" />
 			</div>
 			<div className="mx-auto w-full max-w-[980px] px-4 py-6 sm:px-6 sm:py-10 lg:px-12 lg:py-14">
@@ -657,7 +641,7 @@ function ErrorState({
 			<p className="text-[14px] text-[var(--p-text-muted)]">{message}</p>
 			<Button
 				onPress={onRetry}
-				className="min-h-10 rounded-sm bg-[var(--p-text)] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-bg)] hover:opacity-90"
+				className="min-h-10 rounded-sm bg-[var(--p-accent)] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--p-accent-contrast)] hover:opacity-90"
 			>
 				{retryLabel}
 			</Button>

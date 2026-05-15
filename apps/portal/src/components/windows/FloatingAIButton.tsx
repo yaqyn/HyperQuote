@@ -62,7 +62,7 @@ function MiniMessage({ message }: { message: ChatMessage }) {
 			<div
 				className={`max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
 					isUser
-						? 'bg-[var(--color-primary)] text-white rounded-br-sm rtl:rounded-br-xl rtl:rounded-bl-sm'
+						? 'bg-[var(--color-primary)] text-[var(--color-primary-contrast)] rounded-br-sm rtl:rounded-br-xl rtl:rounded-bl-sm'
 						: 'bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text)] rounded-bl-sm rtl:rounded-bl-xl rtl:rounded-br-sm'
 				}`}
 			>
