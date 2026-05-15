@@ -55,13 +55,6 @@ function ProductDetailPage() {
 		defaultValue: product.category.replace(/_/g, ' '),
 	})
 
-	const availLabel =
-		product.availabilityStatus === 'available'
-			? t('market.available')
-			: product.availabilityStatus === 'limited'
-				? t('market.limited')
-				: t('market.outOfStock')
-
 	const formatPrice = (min: number | null, max: number | null) => {
 		if (min == null && max == null) return null
 		const fmt = new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
@@ -110,18 +103,14 @@ function ProductDetailPage() {
 							title={productName}
 							align="center"
 							fixed
+							showSidebarButton={false}
 							className="mt-4 max-w-full lg:justify-start"
 						/>
 
-						<div className="mt-5 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+						<div className="mt-5 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
 							<span className="max-w-full truncate font-mono text-[12px] text-[var(--p-text-muted)]">
 								{product.slug}
 							</span>
-							<span className="h-3.5 w-px bg-[var(--p-border)]" />
-							<AvailabilityTag
-								status={product.availabilityStatus}
-								label={availLabel}
-							/>
 						</div>
 
 						{priceLabel && (
@@ -151,28 +140,28 @@ function ProductDetailPage() {
 				</div>
 
 				{product.specs.length > 0 && (
-					<section className="mt-12 sm:mt-16">
-						<header className="mb-4 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-border)] pb-3">
-							<h2 className="text-[18px] font-semibold text-[var(--p-text)]">
+					<section className="mt-10 sm:mt-12 lg:mt-14">
+						<header className="mb-3 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-border)] pb-2.5">
+							<h2 className="text-[16px] font-semibold text-[var(--p-text)]">
 								{t('market.specifications')}
 							</h2>
-							<span className="font-mono text-[12px] text-[var(--p-text-faint)]">
+							<span className="font-mono text-[11px] text-[var(--p-text-faint)]">
 								{isAr
 									? product.specs.length.toLocaleString('ar-EG')
 									: String(product.specs.length).padStart(2, '0')}
 							</span>
 						</header>
-						<div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+						<div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
 							{product.specs.map((spec) => (
 								<div
 									key={spec.label}
-									className="min-w-0 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-4"
+									className="min-w-0 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2.5"
 								>
-									<p className="text-[12px] font-medium text-[var(--p-text-muted)]">
+									<p className="line-clamp-1 text-[11px] font-medium text-[var(--p-text-muted)]">
 										{isAr ? spec.labelAr : spec.label}
 									</p>
 									<p
-										className="mt-2 break-words font-mono text-[15px] font-medium text-[var(--p-text)]"
+										className="mt-1 break-words font-mono text-[13px] font-medium leading-snug text-[var(--p-text)]"
 										style={{ fontVariantNumeric: 'tabular-nums' }}
 									>
 										{spec.value}
@@ -232,31 +221,6 @@ function ProductDetailPage() {
 
 			<MobileRecordBar product={product} />
 		</div>
-	)
-}
-
-// ---------------------------------------------------------------------------
-// Availability tag — mono pill with luminance dot
-// ---------------------------------------------------------------------------
-
-function AvailabilityTag({
-	status,
-	label,
-}: {
-	status: 'available' | 'limited' | 'out_of_stock'
-	label: string
-}) {
-	const cls =
-		status === 'available'
-			? 'bg-[var(--p-success)]'
-			: status === 'limited'
-				? 'bg-[var(--p-warning)]'
-				: 'bg-[var(--p-text-faint)]'
-	return (
-		<span className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--p-text-muted)]">
-			<span className={`h-1.5 w-1.5 rounded-full ${cls}`} />
-			{label}
-		</span>
 	)
 }
 
@@ -519,14 +483,14 @@ function DetailSkeleton() {
 						<div className="hidden h-24 w-full max-w-[560px] animate-pulse rounded-2xl bg-[var(--p-card)] md:block lg:max-w-none" />
 					</div>
 				</div>
-				<div className="mt-12 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:mt-16 sm:grid-cols-4">
+				<div className="mt-10 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:mt-12 sm:grid-cols-3 lg:mt-14 lg:grid-cols-4">
 					{SK_SPECS.map((s) => (
 						<div
 							key={s}
-							className="space-y-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4"
+							className="space-y-1.5 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2.5"
 						>
 							<div className="h-3 w-16 animate-pulse rounded-full bg-[var(--p-border)]" />
-							<div className="h-4 w-24 animate-pulse rounded-full bg-[var(--p-border)]" />
+							<div className="h-3.5 w-24 animate-pulse rounded-full bg-[var(--p-border)]" />
 						</div>
 					))}
 				</div>

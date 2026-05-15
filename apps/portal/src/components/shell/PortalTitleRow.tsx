@@ -11,6 +11,7 @@ interface PortalTitleRowProps {
 	className?: string
 	align?: 'start' | 'center'
 	fixed?: boolean
+	showSidebarButton?: boolean
 }
 
 export function PortalTitleRow({
@@ -20,6 +21,7 @@ export function PortalTitleRow({
 	className = '',
 	align = 'start',
 	fixed = false,
+	showSidebarButton = true,
 }: PortalTitleRowProps) {
 	return (
 		<motion.div
@@ -35,7 +37,7 @@ export function PortalTitleRow({
 					align === 'center' ? 'justify-center' : ''
 				}`}
 			>
-				<SidebarTitleButton className="-ms-2" />
+				{showSidebarButton && <SidebarTitleButton className="-ms-2" />}
 				<div className="min-w-0">
 					<h1 className="truncate font-sans text-[20px] font-semibold leading-tight tracking-tight text-[var(--p-text)] sm:text-[22px]">
 						{title}
