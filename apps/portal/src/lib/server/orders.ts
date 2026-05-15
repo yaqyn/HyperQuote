@@ -24,6 +24,7 @@ function getMockOrders(): Order[] {
 		{
 			id: 'sav-001',
 			type: 'saved',
+			draftSource: 'lyon',
 			name: 'Site A Monthly Supply',
 			items: [
 				{

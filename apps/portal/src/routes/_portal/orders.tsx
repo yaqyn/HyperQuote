@@ -7,16 +7,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import {
-	Clock3,
-	FileText,
-	PackageCheck,
-	Pencil,
-	Plus,
-	Send,
-	Trash2,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ChevronDown, Pencil, Plus, Send, Trash2 } from 'lucide-react'
+import { type RefObject, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
@@ -24,6 +16,7 @@ import {
 	getAllCustomerOrders,
 	submitOrder,
 } from '../../lib/server/orders'
+import { useDraftQuoteStore } from '../../stores/draft-quote'
 import type { Order, OrderType } from '../../types/order'
 
 export const Route = createFileRoute('/_portal/orders')({
@@ -34,17 +27,33 @@ const SECTION_META: Record<
 	OrderType,
 	{
 		labelKey: 'orders.saved' | 'orders.submitted' | 'orders.confirmed'
-		icon: typeof FileText
 	}
 > = {
-	saved: { labelKey: 'orders.saved', icon: FileText },
-	submitted: { labelKey: 'orders.submitted', icon: Clock3 },
-	confirmed: { labelKey: 'orders.confirmed', icon: PackageCheck },
+	saved: { labelKey: 'orders.saved' },
+	submitted: { labelKey: 'orders.submitted' },
+	confirmed: { labelKey: 'orders.confirmed' },
 }
+
+const ORDER_PREVIEW_SLOT_COUNT = 3
+const ORDER_PREVIEW_SLOT_KEYS = ['slot-1', 'slot-2', 'slot-3'] as const
+type MarketDraftItem = ReturnType<
+	typeof useDraftQuoteStore.getState
+>['items'][number]
 
 function OrdersPage() {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
+	const savedSectionRef = useRef<HTMLElement | null>(null)
+	const submittedSectionRef = useRef<HTMLElement | null>(null)
+	const confirmedSectionRef = useRef<HTMLElement | null>(null)
+	const draftItems = useDraftQuoteStore((s) => s.items)
+	const [collapsedSections, setCollapsedSections] = useState<
+		Record<OrderType, boolean>
+	>({
+		saved: true,
+		submitted: true,
+		confirmed: true,
+	})
 
 	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ['customer-orders-all'],
@@ -63,39 +72,74 @@ function OrdersPage() {
 
 	const totalCount =
 		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length
+	const hasDraft = draftItems.length > 0
+	const toggleSection = (type: OrderType) => {
+		setCollapsedSections((current) => ({
+			...current,
+			[type]: !current[type],
+		}))
+	}
+	const scrollToSection = (type: OrderType) => {
+		setCollapsedSections((current) => ({
+			...current,
+			[type]: false,
+		}))
+		requestAnimationFrame(() => {
+			const target =
+				type === 'saved'
+					? savedSectionRef.current
+					: type === 'submitted'
+						? submittedSectionRef.current
+						: confirmedSectionRef.current
+
+			target?.scrollIntoView({
+				behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+					? 'auto'
+					: 'smooth',
+				block: 'start',
+			})
+		})
+	}
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[var(--p-bg)]">
-			<header className="sticky top-0 z-20 shrink-0 bg-[var(--p-bg)] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:pb-6">
-				<div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<header className="sticky top-0 z-20 shrink-0 bg-[var(--p-bg)] px-4 pb-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:pb-6">
+				<div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3">
 					<PortalTitleRow title={t('sidebar.nav.orders')} className="flex-1" />
 					<Link
 						to="/market"
-						className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:w-auto"
+						className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:h-11 sm:px-5 sm:text-[14px]"
 					>
-						<Plus size={17} strokeWidth={1.8} />
+						<Plus size={16} strokeWidth={1.8} />
 						{t('orders.newQuote')}
 					</Link>
 				</div>
 			</header>
 
-			<section className="shrink-0 border-y border-[var(--p-border)] py-3">
-				<div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 px-4 min-[440px]:grid-cols-3 sm:px-6 lg:px-12">
-					<SummaryTile type="saved" count={grouped.saved.length} isAr={isAr} />
+			<section className="shrink-0 border-y border-[var(--p-border)] py-2.5 sm:py-3">
+				<div className="mx-auto grid w-full max-w-[1400px] grid-cols-3 gap-2 px-4 sm:gap-3 sm:px-6 lg:px-12">
+					<SummaryTile
+						type="saved"
+						count={grouped.saved.length}
+						isAr={isAr}
+						onSelect={() => scrollToSection('saved')}
+					/>
 					<SummaryTile
 						type="submitted"
 						count={grouped.submitted.length}
 						isAr={isAr}
+						onSelect={() => scrollToSection('submitted')}
 					/>
 					<SummaryTile
 						type="confirmed"
 						count={grouped.confirmed.length}
 						isAr={isAr}
+						onSelect={() => scrollToSection('confirmed')}
 					/>
 				</div>
 			</section>
 
-			<main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
+			<main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8 lg:px-12">
 				{isLoading && <OrdersSkeleton />}
 
 				{isError && (
@@ -113,20 +157,36 @@ function OrdersPage() {
 					</div>
 				)}
 
-				{!isLoading && !isError && totalCount === 0 && <OrdersEmpty />}
+				{!isLoading && !isError && totalCount === 0 && !hasDraft && (
+					<OrdersEmpty />
+				)}
 
-				{!isLoading && !isError && totalCount > 0 && (
-					<div className="space-y-10 sm:space-y-12">
-						<OrdersSection type="saved" orders={grouped.saved} isAr={isAr} />
+				{!isLoading && !isError && (totalCount > 0 || hasDraft) && (
+					<div className="space-y-8 sm:space-y-10 lg:space-y-12">
+						{hasDraft && <MarketDraftTile items={draftItems} isAr={isAr} />}
+						<OrdersSection
+							type="saved"
+							orders={grouped.saved}
+							isAr={isAr}
+							isCollapsed={collapsedSections.saved}
+							onToggle={() => toggleSection('saved')}
+							sectionRef={savedSectionRef}
+						/>
 						<OrdersSection
 							type="submitted"
 							orders={grouped.submitted}
 							isAr={isAr}
+							isCollapsed={collapsedSections.submitted}
+							onToggle={() => toggleSection('submitted')}
+							sectionRef={submittedSectionRef}
 						/>
 						<OrdersSection
 							type="confirmed"
 							orders={grouped.confirmed}
 							isAr={isAr}
+							isCollapsed={collapsedSections.confirmed}
+							onToggle={() => toggleSection('confirmed')}
+							sectionRef={confirmedSectionRef}
 						/>
 					</div>
 				)}
@@ -139,32 +199,120 @@ function SummaryTile({
 	type,
 	count,
 	isAr,
+	onSelect,
 }: {
 	type: OrderType
 	count: number
 	isAr: boolean
+	onSelect: () => void
 }) {
 	const { t } = useTranslation('portal')
 	const meta = SECTION_META[type]
-	const Icon = meta.icon
 
 	return (
-		<div className="flex min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-3 text-center sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-start">
-			<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--p-input)] text-[var(--p-text-muted)] sm:h-9 sm:w-9">
-				<Icon size={16} strokeWidth={1.7} />
-			</div>
-			<div className="min-w-0">
-				<p
-					className="font-mono text-[18px] font-semibold leading-none text-[var(--p-text)]"
-					style={{ fontVariantNumeric: 'tabular-nums' }}
-				>
-					{isAr ? count.toLocaleString('ar-EG') : count.toLocaleString('en-EG')}
-				</p>
-				<p className="mt-1 break-words text-[11px] font-medium leading-tight text-[var(--p-text-muted)] sm:text-[12px]">
-					{t(meta.labelKey)}
-				</p>
-			</div>
-		</div>
+		<button
+			type="button"
+			onClick={onSelect}
+			disabled={count === 0}
+			className="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2 py-2 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] disabled:cursor-default disabled:opacity-45 sm:min-h-[52px] sm:flex-row sm:justify-start sm:gap-2 sm:px-4 sm:text-start"
+		>
+			<p
+				className="shrink-0 font-mono text-[16px] font-semibold leading-none text-[var(--p-text)] sm:text-[17px]"
+				style={{ fontVariantNumeric: 'tabular-nums' }}
+			>
+				{isAr ? count.toLocaleString('ar-EG') : count.toLocaleString('en-EG')}
+			</p>
+			<p className="min-w-0 truncate text-[11px] font-medium leading-tight text-[var(--p-text-muted)] sm:text-[12px]">
+				{t(meta.labelKey)}
+			</p>
+		</button>
+	)
+}
+
+function MarketDraftTile({
+	items,
+	isAr,
+}: {
+	items: MarketDraftItem[]
+	isAr: boolean
+}) {
+	const { t } = useTranslation('portal')
+	const previewItems = items.slice(0, ORDER_PREVIEW_SLOT_COUNT)
+	const previewSlots = ORDER_PREVIEW_SLOT_KEYS.map((slotKey, index) => ({
+		slotKey,
+		item: previewItems[index],
+	}))
+
+	return (
+		<section aria-label={t('orders.newQuote')}>
+			<article className="flex min-w-0 flex-col rounded-xl border border-dashed border-[var(--p-border-strong)] bg-[var(--p-card)] p-3.5 sm:p-4">
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<p className="text-[12px] font-medium text-[var(--p-text-muted)]">
+							{t('market.draftQuote')}
+						</p>
+						<h3 className="mt-0.5 line-clamp-2 break-words text-[16px] font-semibold leading-snug text-[var(--p-text)] sm:mt-1 sm:text-[17px]">
+							{t('orders.newQuote')}
+						</h3>
+					</div>
+				</div>
+
+				<div className="mt-3 grid gap-2">
+					{previewSlots.map(({ slotKey, item }) => {
+						if (!item) {
+							return (
+								<div
+									key={`market-draft-${slotKey}`}
+									aria-hidden="true"
+									className="flex h-9 min-w-0 items-center gap-2.5 sm:h-10"
+								/>
+							)
+						}
+
+						const itemName = isAr && item.nameAr ? item.nameAr : item.name
+						return (
+							<div
+								key={item.productId}
+								className="flex min-w-0 items-center gap-2.5"
+							>
+								<img
+									src={item.imageUrl}
+									alt={itemName}
+									loading="lazy"
+									decoding="async"
+									className="h-9 w-9 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:h-10 sm:w-10"
+								/>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-[13px] font-medium text-[var(--p-text)]">
+										{itemName}
+									</p>
+									<p
+										className="font-mono text-[12px] text-[var(--p-text-muted)]"
+										style={{ fontVariantNumeric: 'tabular-nums' }}
+									>
+										{formatQuantity(item.quantity, isAr)} {item.unitOfMeasure}
+									</p>
+								</div>
+							</div>
+						)
+					})}
+				</div>
+
+				<div className="mt-3 border-t border-[var(--p-border)] pt-3">
+					<div className="grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2">
+						<p className="truncate text-[12px] text-[var(--p-text-muted)]">
+							{t('orders.items', { count: items.length })}
+						</p>
+						<Link
+							to="/market"
+							className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+						>
+							<span className="truncate">{t('orders.edit')}</span>
+						</Link>
+					</div>
+				</div>
+			</article>
+		</section>
 	)
 }
 
@@ -172,10 +320,16 @@ function OrdersSection({
 	type,
 	orders,
 	isAr,
+	isCollapsed,
+	onToggle,
+	sectionRef,
 }: {
 	type: OrderType
 	orders: Order[]
 	isAr: boolean
+	isCollapsed: boolean
+	onToggle: () => void
+	sectionRef: RefObject<HTMLElement | null>
 }) {
 	const { t } = useTranslation('portal')
 	const meta = SECTION_META[type]
@@ -184,24 +338,45 @@ function OrdersSection({
 
 	return (
 		<section aria-label={t(meta.labelKey)}>
-			<header className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--p-border)] pb-3">
-				<h2 className="text-[18px] font-semibold text-[var(--p-text)]">
-					{t(meta.labelKey)}
-				</h2>
-				<span
-					className="font-mono text-[12px] text-[var(--p-text-muted)]"
-					style={{ fontVariantNumeric: 'tabular-nums' }}
+			<header
+				ref={sectionRef}
+				className="scroll-mt-[76px] mb-3 border-b border-[var(--p-border)] pb-2.5 sm:scroll-mt-24 lg:scroll-mt-28"
+			>
+				<button
+					type="button"
+					aria-expanded={!isCollapsed}
+					onClick={onToggle}
+					className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-start transition-colors hover:bg-[var(--p-hover)] sm:px-3"
 				>
-					{isAr
-						? orders.length.toLocaleString('ar-EG')
-						: orders.length.toLocaleString('en-EG')}
-				</span>
+					<span className="flex min-w-0 items-center gap-2">
+						<ChevronDown
+							size={17}
+							strokeWidth={1.8}
+							className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+								isCollapsed ? '-rotate-90 rtl:rotate-90' : ''
+							}`}
+						/>
+						<span className="truncate text-[17px] font-semibold text-[var(--p-text)] sm:text-[18px]">
+							{t(meta.labelKey)}
+						</span>
+					</span>
+					<span
+						className="shrink-0 font-mono text-[12px] text-[var(--p-text-muted)]"
+						style={{ fontVariantNumeric: 'tabular-nums' }}
+					>
+						{isAr
+							? orders.length.toLocaleString('ar-EG')
+							: orders.length.toLocaleString('en-EG')}
+					</span>
+				</button>
 			</header>
-			<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-				{orders.map((order) => (
-					<OrderTile key={order.id} order={order} isAr={isAr} />
-				))}
-			</div>
+			{!isCollapsed && (
+				<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+					{orders.map((order) => (
+						<OrderTile key={order.id} order={order} isAr={isAr} />
+					))}
+				</div>
+			)}
 		</section>
 	)
 }
@@ -226,11 +401,17 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 
 	const isSaved = order.type === 'saved'
 	const title = order.name ?? order.reference ?? order.id
-	const statusLabel = t(SECTION_META[order.type].labelKey)
+	const statusLabel =
+		order.type === 'saved' && order.draftSource === 'lyon'
+			? t('orders.lyon')
+			: t(SECTION_META[order.type].labelKey)
 	const dateLabel = formatDate(order.date, isAr)
 	const amountLabel = formatAmount(order, isAr)
-	const visibleItems = order.items.slice(0, 3)
-	const extraCount = Math.max(0, order.items.length - visibleItems.length)
+	const previewItems = order.items.slice(0, ORDER_PREVIEW_SLOT_COUNT)
+	const previewSlots = ORDER_PREVIEW_SLOT_KEYS.map((slotKey, index) => ({
+		slotKey,
+		item: previewItems[index],
+	}))
 
 	function openOrder() {
 		if (isSaved) return
@@ -238,13 +419,13 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 	}
 
 	return (
-		<article className="flex min-w-0 flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+		<article className="flex min-w-0 flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 sm:p-4">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<p className="text-[12px] font-medium text-[var(--p-text-muted)]">
 						{statusLabel}
 					</p>
-					<h3 className="mt-1 line-clamp-2 break-words text-[17px] font-semibold leading-snug text-[var(--p-text)]">
+					<h3 className="mt-0.5 line-clamp-2 break-words text-[16px] font-semibold leading-snug text-[var(--p-text)] sm:mt-1 sm:text-[17px]">
 						{title}
 					</h3>
 				</div>
@@ -253,20 +434,30 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 				</span>
 			</div>
 
-			<div className="mt-4 grid gap-2">
-				{visibleItems.map((item) => {
+			<div className="mt-3 grid gap-2">
+				{previewSlots.map(({ slotKey, item }) => {
+					if (!item) {
+						return (
+							<div
+								key={`${order.id}-${slotKey}`}
+								aria-hidden="true"
+								className="flex h-9 min-w-0 items-center gap-2.5 sm:h-10"
+							/>
+						)
+					}
+
 					const itemName = isAr ? item.productNameAr : item.productName
 					return (
 						<div
 							key={`${order.id}-${item.productId}`}
-							className="flex min-w-0 items-center gap-3"
+							className="flex min-w-0 items-center gap-2.5"
 						>
 							<img
 								src={item.imageUrl}
 								alt={itemName}
 								loading="lazy"
 								decoding="async"
-								className="h-10 w-10 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
+								className="h-9 w-9 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:h-10 sm:w-10"
 							/>
 							<div className="min-w-0 flex-1">
 								<p className="truncate text-[13px] font-medium text-[var(--p-text)]">
@@ -282,89 +473,91 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 						</div>
 					)
 				})}
-				{extraCount > 0 && (
-					<p className="rounded-lg bg-[var(--p-input)] px-3 py-2 text-[12px] font-medium text-[var(--p-text-muted)]">
-						+{formatQuantity(extraCount, isAr)} {t('orders.more')}
-					</p>
-				)}
 			</div>
 
-			<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--p-border)] pt-4">
-				<p className="text-[12px] text-[var(--p-text-muted)]">
-					{t('orders.items', { count: order.itemCount })}
-				</p>
-				{amountLabel && (
-					<p
-						className="font-mono text-[14px] font-semibold text-[var(--p-text)]"
-						style={{ fontVariantNumeric: 'tabular-nums' }}
+			<div className="mt-3 border-t border-[var(--p-border)] pt-3">
+				{isSaved && confirmDelete ? (
+					<div className="grid grid-cols-2 gap-2">
+						<button
+							type="button"
+							onClick={() => deleteMutation.mutate()}
+							disabled={deleteMutation.isPending}
+							className="h-9 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-error)] transition-colors hover:bg-[var(--p-hover)] disabled:opacity-50 sm:h-10"
+						>
+							{t('orders.confirmDelete')}
+						</button>
+						<button
+							type="button"
+							onClick={() => setConfirmDelete(false)}
+							className="h-9 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] sm:h-10"
+						>
+							{t('orders.cancel')}
+						</button>
+					</div>
+				) : (
+					<div
+						className={
+							isSaved
+								? 'grid grid-cols-[minmax(0,1fr)_40px_40px_minmax(108px,1fr)] items-center gap-2'
+								: 'grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2'
+						}
 					>
-						{amountLabel}
-					</p>
-				)}
-			</div>
-
-			<div className="mt-4 grid grid-cols-2 gap-2">
-				{isSaved ? (
-					<>
-						<button
-							type="button"
-							onClick={() =>
-								navigate({
-									to: '/orders/edit/$orderId',
-									params: { orderId: order.id },
-								})
-							}
-							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
-						>
-							<Pencil size={15} strokeWidth={1.8} />
-							{t('orders.edit')}
-						</button>
-						<button
-							type="button"
-							onClick={() => submitMutation.mutate()}
-							disabled={submitMutation.isPending}
-							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:opacity-50"
-						>
-							<Send size={15} strokeWidth={1.8} />
-							{t('orders.submit')}
-						</button>
-						{confirmDelete ? (
+						<div className="min-w-0">
+							<p className="truncate text-[12px] text-[var(--p-text-muted)]">
+								{t('orders.items', { count: order.itemCount })}
+							</p>
+							{amountLabel && (
+								<p
+									className="mt-0.5 truncate font-mono text-[12px] font-semibold text-[var(--p-text)] sm:text-[13px]"
+									style={{ fontVariantNumeric: 'tabular-nums' }}
+								>
+									{amountLabel}
+								</p>
+							)}
+						</div>
+						{isSaved ? (
 							<>
 								<button
 									type="button"
-									onClick={() => deleteMutation.mutate()}
-									disabled={deleteMutation.isPending}
-									className="col-span-1 h-10 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-error)] transition-colors hover:bg-[var(--p-hover)] disabled:opacity-50"
+									onClick={() =>
+										navigate({
+											to: '/orders/edit/$orderId',
+											params: { orderId: order.id },
+										})
+									}
+									aria-label={t('orders.edit')}
+									className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
 								>
-									{t('orders.confirmDelete')}
+									<Pencil size={15} strokeWidth={1.8} />
 								</button>
 								<button
 									type="button"
-									onClick={() => setConfirmDelete(false)}
-									className="col-span-1 h-10 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+									onClick={() => setConfirmDelete(true)}
+									aria-label={t('orders.delete')}
+									className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-error)] hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
 								>
-									{t('orders.cancel')}
+									<Trash2 size={15} strokeWidth={1.8} />
+								</button>
+								<button
+									type="button"
+									onClick={() => submitMutation.mutate()}
+									disabled={submitMutation.isPending}
+									className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-2 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:opacity-50"
+								>
+									<Send size={15} strokeWidth={1.8} className="shrink-0" />
+									<span className="truncate">{t('orders.submit')}</span>
 								</button>
 							</>
 						) : (
 							<button
 								type="button"
-								onClick={() => setConfirmDelete(true)}
-								className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-xl text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+								onClick={openOrder}
+								className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 							>
-								<Trash2 size={14} strokeWidth={1.8} />
-								{t('orders.delete')}
+								<span className="truncate">{t('orders.view')}</span>
 							</button>
 						)}
-					</>
-				) : (
-					<button
-						type="button"
-						onClick={openOrder}
-						className="col-span-2 inline-flex h-11 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-					>
-						{t('orders.view')}
-					</button>
+					</div>
 				)}
 			</div>
 		</article>

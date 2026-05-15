@@ -1,5 +1,7 @@
 export type OrderType = 'saved' | 'submitted' | 'confirmed'
 
+export type OrderDraftSource = 'customer' | 'lyon'
+
 export type OrderStatus =
 	| 'draft'
 	| 'submitted'
@@ -24,7 +26,7 @@ export interface OrderItem {
 }
 
 /** Saved list (quote/order draft saved by a user). */
-interface SavedList {
+export interface SavedList {
 	id: string
 	name: string
 	items: OrderItem[]
@@ -34,6 +36,7 @@ interface SavedList {
 export interface Order {
 	id: string
 	type: OrderType
+	draftSource?: OrderDraftSource
 	status?: OrderStatus
 	name?: string
 	reference?: string
