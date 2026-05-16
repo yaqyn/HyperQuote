@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { Search, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import {
@@ -30,6 +31,17 @@ const TAB_TYPE_MAP: Record<TabKey, DocumentType | undefined> = {
 	certificates: 'certificate',
 	all: undefined,
 }
+
+const TAB_OPTIONS = [
+	{ id: 'invoices', labelKey: 'documents.tabInvoices' },
+	{ id: 'delivery_notes', labelKey: 'documents.tabDeliveryNotes' },
+	{ id: 'quotes', labelKey: 'documents.tabQuotes' },
+	{ id: 'certificates', labelKey: 'documents.tabCertificates' },
+	{ id: 'all', labelKey: 'documents.tabAll' },
+] satisfies ReadonlyArray<{
+	id: TabKey
+	labelKey: ParseKeys<'portal'>
+}>
 
 function DocumentsWindow() {
 	const { t } = useTranslation('portal')
@@ -118,7 +130,7 @@ function DocumentsWindow() {
 				window.open(result.url, '_blank', 'noopener,noreferrer')
 			}
 		} catch {
-			// Error handled silently -- toast will be added when wired
+			// Keep the document list stable when a download URL cannot be generated.
 		}
 	}
 
@@ -164,78 +176,15 @@ function DocumentsWindow() {
 							aria-label={t('documents.windowTitle')}
 							className="flex border-b border-[var(--color-border)] overflow-x-auto"
 						>
-							<Tab
-								id="invoices"
-								className={({ isSelected }) =>
-									`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
-										isSelected
-											? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-									}`
-								}
-							>
-								{t('documents.tabInvoices')}
-							</Tab>
-							<Tab
-								id="delivery_notes"
-								className={({ isSelected }) =>
-									`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
-										isSelected
-											? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-									}`
-								}
-							>
-								{t('documents.tabDeliveryNotes')}
-							</Tab>
-							<Tab
-								id="quotes"
-								className={({ isSelected }) =>
-									`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
-										isSelected
-											? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-									}`
-								}
-							>
-								{t('documents.tabQuotes')}
-							</Tab>
-							<Tab
-								id="certificates"
-								className={({ isSelected }) =>
-									`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
-										isSelected
-											? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-									}`
-								}
-							>
-								{t('documents.tabCertificates')}
-							</Tab>
-							<Tab
-								id="all"
-								className={({ isSelected }) =>
-									`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
-										isSelected
-											? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-									}`
-								}
-							>
-								{t('documents.tabAll')}
-							</Tab>
+							{TAB_OPTIONS.map((tab) => (
+								<DocumentTab key={tab.id} id={tab.id}>
+									{t(tab.labelKey)}
+								</DocumentTab>
+							))}
 						</TabList>
 
 						{/* All tabs share the same content panel */}
-						{(
-							[
-								'invoices',
-								'delivery_notes',
-								'quotes',
-								'certificates',
-								'all',
-							] as const
-						).map((tabId) => (
+						{TAB_OPTIONS.map(({ id: tabId }) => (
 							<TabPanel key={tabId} id={tabId} className="pt-4">
 								{loading ? (
 									<div className="flex flex-col gap-3">
@@ -272,5 +221,28 @@ function DocumentsWindow() {
 			</WindowShell>
 			<FloatingAIButton />
 		</>
+	)
+}
+
+function DocumentTab({
+	id,
+	children,
+}: {
+	id: TabKey
+	children: React.ReactNode
+}) {
+	return (
+		<Tab
+			id={id}
+			className={({ isSelected }) =>
+				`px-4 py-2.5 text-sm whitespace-nowrap cursor-pointer outline-none transition-colors ${
+					isSelected
+						? 'text-[var(--color-text)] border-b-2 border-[var(--color-primary)] font-medium'
+						: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+				}`
+			}
+		>
+			{children}
+		</Tab>
 	)
 }

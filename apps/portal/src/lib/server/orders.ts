@@ -28,7 +28,7 @@ function getMockOrders(): Order[] {
 			name: 'Site A Monthly Supply',
 			items: [
 				{
-					productId: 'p-001',
+					productId: 'prod-cement-opc',
 					productName: 'Portland Cement OPC 42.5N',
 					productNameAr: 'اسمنت بورتلاندي عادي',
 					quantity: 500,
@@ -37,7 +37,7 @@ function getMockOrders(): Order[] {
 					category: 'cement',
 				},
 				{
-					productId: 'p-002',
+					productId: 'prod-rebar-12',
 					productName: 'Steel Rebar 12mm Grade 60',
 					productNameAr: 'حديد تسليح ١٢مم',
 					quantity: 10,
@@ -46,7 +46,7 @@ function getMockOrders(): Order[] {
 					category: 'reinforcing_steel',
 				},
 				{
-					productId: 'p-003',
+					productId: 'prod-sand-washed',
 					productName: 'Washed Sand',
 					productNameAr: 'رمل مغسول',
 					quantity: 50,
@@ -55,7 +55,7 @@ function getMockOrders(): Order[] {
 					category: 'sand',
 				},
 				{
-					productId: 'p-004',
+					productId: 'prod-gravel-20',
 					productName: 'Crushed Gravel 20mm',
 					productNameAr: 'زلط مجروش ٢٠مم',
 					quantity: 30,
@@ -64,7 +64,7 @@ function getMockOrders(): Order[] {
 					category: 'aggregates',
 				},
 				{
-					productId: 'p-005',
+					productId: 'prod-brick-red',
 					productName: 'Red Clay Brick Standard',
 					productNameAr: 'طوب أحمر',
 					quantity: 5000,
@@ -85,7 +85,7 @@ function getMockOrders(): Order[] {
 			name: 'Emergency Rebar Order',
 			items: [
 				{
-					productId: 'p-002',
+					productId: 'prod-rebar-12',
 					productName: 'Steel Rebar 12mm Grade 60',
 					productNameAr: 'حديد تسليح ١٢مم',
 					quantity: 5,
@@ -94,7 +94,7 @@ function getMockOrders(): Order[] {
 					category: 'reinforcing_steel',
 				},
 				{
-					productId: 'p-006',
+					productId: 'prod-rebar-16',
 					productName: 'Steel Rebar 16mm Grade 60',
 					productNameAr: 'حديد تسليح ١٦مم',
 					quantity: 3,
@@ -115,7 +115,7 @@ function getMockOrders(): Order[] {
 			reference: 'QR-2026-00042',
 			items: [
 				{
-					productId: 'p-001',
+					productId: 'prod-cement-opc',
 					productName: 'Portland Cement OPC 42.5N',
 					productNameAr: 'اسمنت بورتلاندي عادي',
 					quantity: 200,
@@ -124,7 +124,7 @@ function getMockOrders(): Order[] {
 					category: 'cement',
 				},
 				{
-					productId: 'p-002',
+					productId: 'prod-rebar-12',
 					productName: 'Steel Rebar 12mm Grade 60',
 					productNameAr: 'حديد تسليح ١٢مم',
 					quantity: 8,
@@ -133,7 +133,7 @@ function getMockOrders(): Order[] {
 					category: 'reinforcing_steel',
 				},
 				{
-					productId: 'p-003',
+					productId: 'prod-sand-washed',
 					productName: 'Washed Sand',
 					productNameAr: 'رمل مغسول',
 					quantity: 30,
@@ -142,7 +142,7 @@ function getMockOrders(): Order[] {
 					category: 'sand',
 				},
 				{
-					productId: 'p-007',
+					productId: 'prod-mesh-wire',
 					productName: 'Welded Wire Mesh 4mm',
 					productNameAr: 'شبك حديد ملحوم ٤مم',
 					quantity: 50,
@@ -163,7 +163,7 @@ function getMockOrders(): Order[] {
 			reference: 'QR-2026-00038',
 			items: [
 				{
-					productId: 'p-003',
+					productId: 'prod-sand-washed',
 					productName: 'Washed Sand',
 					productNameAr: 'رمل مغسول',
 					quantity: 100,
@@ -172,7 +172,7 @@ function getMockOrders(): Order[] {
 					category: 'sand',
 				},
 				{
-					productId: 'p-004',
+					productId: 'prod-gravel-20',
 					productName: 'Crushed Gravel 20mm',
 					productNameAr: 'زلط مجروش ٢٠مم',
 					quantity: 60,
@@ -190,28 +190,11 @@ function getMockOrders(): Order[] {
 		{
 			id: 'con-001',
 			type: 'confirmed',
-			reference: 'QR-2026-00035',
+			status: 'order_confirmed',
+			reference: 'QR-2026-00051',
 			items: [
 				{
-					productId: 'p-005',
-					productName: 'Red Clay Brick Standard',
-					productNameAr: 'طوب أحمر',
-					quantity: 10000,
-					unitOfMeasure: 'piece',
-					imageUrl: `${IMG}/bricks.webp`,
-					category: 'bricks',
-				},
-				{
-					productId: 'p-007',
-					productName: 'Welded Wire Mesh 4mm',
-					productNameAr: 'شبك حديد ملحوم ٤مم',
-					quantity: 100,
-					unitOfMeasure: 'sheet',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'p-001',
+					productId: 'prod-cement-opc',
 					productName: 'Portland Cement OPC 42.5N',
 					productNameAr: 'اسمنت بورتلاندي عادي',
 					quantity: 300,
@@ -219,20 +202,39 @@ function getMockOrders(): Order[] {
 					imageUrl: `${IMG}/cement.webp`,
 					category: 'cement',
 				},
+				{
+					productId: 'prod-rebar-12',
+					productName: 'Steel Rebar 12mm Grade 60',
+					productNameAr: 'حديد تسليح ١٢مم',
+					quantity: 6,
+					unitOfMeasure: 'ton',
+					imageUrl: `${IMG}/steel.webp`,
+					category: 'reinforcing_steel',
+				},
+				{
+					productId: 'prod-sand-washed',
+					productName: 'Washed Sand',
+					productNameAr: 'رمل مغسول',
+					quantity: 40,
+					unitOfMeasure: 'm³',
+					imageUrl: `${IMG}/Aggregates.webp`,
+					category: 'sand',
+				},
 			],
 			itemCount: 3,
-			description: 'Red Bricks, Steel Mesh, Cement',
-			date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: 89000,
+			description: 'Cement, Rebar, Washed Sand',
+			date: new Date(now.getTime() - 0.4 * 24 * 60 * 60 * 1000).toISOString(),
+			amount: 172500,
 			currency: 'EGP',
 		},
 		{
 			id: 'con-002',
 			type: 'confirmed',
-			reference: 'QR-2026-00030',
+			status: 'being_prepared',
+			reference: 'QR-2026-00050',
 			items: [
 				{
-					productId: 'p-008',
+					productId: 'prod-plywood-18',
 					productName: 'Plywood 18mm',
 					productNameAr: 'خشب أبلكاش ١٨مم',
 					quantity: 50,
@@ -241,7 +243,7 @@ function getMockOrders(): Order[] {
 					category: 'wood',
 				},
 				{
-					productId: 'p-009',
+					productId: 'prod-paint-white',
 					productName: 'Acrylic Paint White 18L',
 					productNameAr: 'طلاء أكريليك أبيض ١٨ل',
 					quantity: 20,
@@ -250,7 +252,7 @@ function getMockOrders(): Order[] {
 					category: 'paints',
 				},
 				{
-					productId: 'p-010',
+					productId: 'prod-adhesive-tile',
 					productName: 'Tile Adhesive 25kg',
 					productNameAr: 'لاصق بلاط ٢٥كج',
 					quantity: 40,
@@ -261,17 +263,58 @@ function getMockOrders(): Order[] {
 			],
 			itemCount: 3,
 			description: 'Plywood, Paint, Tile Adhesive',
-			date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+			date: new Date(now.getTime() - 1.2 * 24 * 60 * 60 * 1000).toISOString(),
 			amount: 156000,
 			currency: 'EGP',
 		},
 		{
 			id: 'con-003',
 			type: 'confirmed',
-			reference: 'QR-2026-00025',
+			status: 'out_for_delivery',
+			reference: 'QR-2026-00049',
 			items: [
 				{
-					productId: 'p-013',
+					productId: 'prod-brick-red',
+					productName: 'Red Clay Brick Standard',
+					productNameAr: 'طوب أحمر',
+					quantity: 10000,
+					unitOfMeasure: 'piece',
+					imageUrl: `${IMG}/bricks.webp`,
+					category: 'bricks',
+				},
+				{
+					productId: 'prod-mesh-wire',
+					productName: 'Welded Wire Mesh 4mm',
+					productNameAr: 'شبك حديد ملحوم ٤مم',
+					quantity: 100,
+					unitOfMeasure: 'sheet',
+					imageUrl: `${IMG}/steel.webp`,
+					category: 'reinforcing_steel',
+				},
+				{
+					productId: 'prod-cement-opc',
+					productName: 'Portland Cement OPC 42.5N',
+					productNameAr: 'اسمنت بورتلاندي عادي',
+					quantity: 300,
+					unitOfMeasure: 'bag',
+					imageUrl: `${IMG}/cement.webp`,
+					category: 'cement',
+				},
+			],
+			itemCount: 3,
+			description: 'Red Bricks, Steel Mesh, Cement',
+			date: new Date(now.getTime() - 2.4 * 24 * 60 * 60 * 1000).toISOString(),
+			amount: 108500,
+			currency: 'EGP',
+		},
+		{
+			id: 'con-004',
+			type: 'confirmed',
+			status: 'delivered',
+			reference: 'QR-2026-00048',
+			items: [
+				{
+					productId: 'prod-pvc-pipe',
 					productName: 'PVC Pipe 110mm 6m',
 					productNameAr: 'ماسورة PVC ١١٠مم',
 					quantity: 100,
@@ -280,7 +323,7 @@ function getMockOrders(): Order[] {
 					category: 'plumbing',
 				},
 				{
-					productId: 'p-014',
+					productId: 'prod-tiles-ceramic',
 					productName: 'Ceramic Floor Tile 60×60',
 					productNameAr: 'بلاط سيراميك ٦٠×٦٠',
 					quantity: 200,
@@ -289,7 +332,7 @@ function getMockOrders(): Order[] {
 					category: 'tiles',
 				},
 				{
-					productId: 'p-015',
+					productId: 'prod-gypsum-board',
 					productName: 'Gypsum Board 12mm',
 					productNameAr: 'ألواح جبس بورد ١٢مم',
 					quantity: 80,
@@ -300,7 +343,7 @@ function getMockOrders(): Order[] {
 			],
 			itemCount: 3,
 			description: 'PVC Pipes, Ceramic Tiles, Gypsum Board',
-			date: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+			date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
 			amount: 42500,
 			currency: 'EGP',
 		},

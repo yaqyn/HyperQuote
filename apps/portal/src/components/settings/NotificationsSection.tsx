@@ -5,6 +5,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ParseKeys } from 'i18next'
 import { useState } from 'react'
 import { Switch } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -21,13 +22,13 @@ const EVENTS = [
 	'support_response',
 ] as const
 
-const CHANNEL_LABELS: Record<string, string> = {
+const CHANNEL_LABELS: Record<(typeof CHANNELS)[number], string> = {
 	whatsapp: 'WhatsApp',
 	email: 'Email',
 	push: 'Push',
 }
 
-const EVENT_LABELS: Record<string, string> = {
+const EVENT_LABELS: Record<(typeof EVENTS)[number], ParseKeys<'portal'>> = {
 	quote_ready: 'settings.notifications.quoteReady',
 	order_status: 'settings.notifications.orderStatus',
 	delivery_update: 'settings.notifications.deliveryUpdate',

@@ -6,6 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { motion } from 'motion/react'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -27,7 +28,10 @@ import {
 import { getTeamMembers } from '../../lib/server/team'
 import type { SettingsSection } from '../../types/settings'
 
-const SECTIONS: Array<{ id: SettingsSection; labelKey: string }> = [
+const SECTIONS: Array<{
+	id: SettingsSection
+	labelKey: ParseKeys<'portal'>
+}> = [
 	{ id: 'profile', labelKey: 'settings.tabProfile' },
 	{ id: 'addresses', labelKey: 'settings.tabAddresses' },
 	{ id: 'projects', labelKey: 'settings.tabProjects' },

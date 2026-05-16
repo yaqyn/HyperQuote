@@ -1,4 +1,5 @@
 import { DateDisplay, StatusBadge } from '@hyperquote/ui'
+import type { ParseKeys } from 'i18next'
 import { MessageCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { QuoteStatus } from '../../types/quote'
@@ -35,6 +36,21 @@ function getStatusVariant(
 	}
 }
 
+const STATUS_LABEL_KEYS: Record<QuoteStatus, ParseKeys<'portal'>> = {
+	draft: 'quoteDetail.status.draft',
+	internal_review: 'quoteDetail.status.internal_review',
+	pending_approval: 'quoteDetail.status.pending_approval',
+	approved: 'quoteDetail.status.approved',
+	sent: 'quoteDetail.status.sent',
+	viewed: 'quoteDetail.status.viewed',
+	negotiating: 'quoteDetail.status.negotiating',
+	revised: 'quoteDetail.status.revised',
+	accepted: 'quoteDetail.status.accepted',
+	declined: 'quoteDetail.status.declined',
+	expired: 'quoteDetail.status.expired',
+	cancelled: 'quoteDetail.status.cancelled',
+}
+
 export function QuoteHeader({
 	reference,
 	status,
@@ -64,7 +80,7 @@ export function QuoteHeader({
 					status={getStatusVariant(status)}
 					className="text-sm px-3 py-1"
 				>
-					{t(`quoteDetail.status.${status}`)}
+					{t(STATUS_LABEL_KEYS[status])}
 				</StatusBadge>
 			</div>
 

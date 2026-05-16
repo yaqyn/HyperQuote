@@ -7,9 +7,10 @@
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback } from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
+import { toQuoteDraftPayload } from '../../lib/quote-request-payload'
 import { saveDraft } from '../../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../../stores/quote-builder'
 import { StepIndicator } from './StepIndicator'
@@ -23,35 +24,27 @@ export function QuoteBuilderFlow() {
 	const step = useQuoteBuilderStore((s) => s.step)
 	const items = useQuoteBuilderStore((s) => s.items)
 	const setStep = useQuoteBuilderStore((s) => s.setStep)
+	const [draftFeedback, setDraftFeedback] = useState<'saved' | 'error' | null>(
+		null,
+	)
 	const isRTL = i18n.dir() === 'rtl'
 
 	const BackArrow = isRTL ? ArrowRight : ArrowLeft
 
 	const handleSaveDraft = useCallback(async () => {
 		const state = useQuoteBuilderStore.getState()
+		setDraftFeedback(null)
 		try {
-			await saveDraft({
-				data: {
-					draftId: state.draftId ?? undefined,
-					items: state.items.map((item) => ({
-						productId: item.productId,
-						customerDescription: item.customerDescription,
-						quantity: item.quantity,
-						unitOfMeasure: item.unitOfMeasure,
-						notes: item.notes,
-						sortOrder: item.sortOrder,
-						matchConfidence: item.matchConfidence,
-						isUnmatched: item.isUnmatched,
-					})),
-					deliveryAddressId: state.deliveryAddressId ?? undefined,
-					deliveryDate: state.deliveryDate ?? undefined,
-					notes: state.notes || undefined,
-					projectId: state.projectId ?? undefined,
-				},
+			const result = await saveDraft({
+				data: toQuoteDraftPayload(state),
 			})
-			// TODO: show toast "Draft saved"
+
+			if (result.draftId && !state.draftId) {
+				useQuoteBuilderStore.getState().setDraftId(result.draftId)
+			}
+			setDraftFeedback('saved')
 		} catch {
-			// Silently fail -- localStorage is primary
+			setDraftFeedback('error')
 		}
 	}, [])
 
@@ -76,45 +69,24 @@ export function QuoteBuilderFlow() {
 				</Button>
 			</div>
 
-			{/* Step indicator */}
 			<StepIndicator currentStep={step} />
 
-			{/* Step content with transitions */}
 			<div className="flex-1 overflow-auto">
 				<AnimatePresence mode="wait">
 					{step === 1 && (
-						<motion.div
-							key="step1"
-							initial={{ opacity: 0, x: 16 }}
-							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: -16 }}
-							transition={{ duration: 0.2 }}
-						>
+						<StepPanel key="step1">
 							<BuildListStep />
-						</motion.div>
+						</StepPanel>
 					)}
 					{step === 2 && (
-						<motion.div
-							key="step2"
-							initial={{ opacity: 0, x: 16 }}
-							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: -16 }}
-							transition={{ duration: 0.2 }}
-							className="px-6 py-4"
-						>
+						<StepPanel key="step2" padded>
 							<DetailsStep />
-						</motion.div>
+						</StepPanel>
 					)}
 					{step === 3 && (
-						<motion.div
-							key="step3"
-							initial={{ opacity: 0, x: 16 }}
-							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: -16 }}
-							transition={{ duration: 0.2 }}
-						>
+						<StepPanel key="step3">
 							<ReviewStep />
-						</motion.div>
+						</StepPanel>
 					)}
 				</AnimatePresence>
 			</div>
@@ -131,8 +103,21 @@ export function QuoteBuilderFlow() {
 						)}
 					</span>
 
-					<div className="flex items-center gap-3">
-						{/* Save as Draft */}
+					<div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+						{draftFeedback && (
+							<span
+								role={draftFeedback === 'error' ? 'alert' : 'status'}
+								className={`text-[13px] ${
+									draftFeedback === 'error'
+										? 'text-[#B91C1C]'
+										: 'text-[var(--color-text-muted)]'
+								}`}
+							>
+								{draftFeedback === 'error'
+									? t('quoteBuilder.draftSaveFailed')
+									: t('quoteBuilder.draftSaved')}
+							</span>
+						)}
 						<Button
 							onPress={handleSaveDraft}
 							className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
@@ -140,7 +125,6 @@ export function QuoteBuilderFlow() {
 							{t('quoteBuilder.saveAsDraft')}
 						</Button>
 
-						{/* Continue */}
 						<Button
 							onPress={handleContinue}
 							isDisabled={items.length === 0}
@@ -152,5 +136,25 @@ export function QuoteBuilderFlow() {
 				</div>
 			)}
 		</div>
+	)
+}
+
+function StepPanel({
+	children,
+	padded = false,
+}: {
+	children: ReactNode
+	padded?: boolean
+}) {
+	return (
+		<motion.div
+			initial={{ opacity: 0, x: 16 }}
+			animate={{ opacity: 1, x: 0 }}
+			exit={{ opacity: 0, x: -16 }}
+			transition={{ duration: 0.2 }}
+			className={padded ? 'px-6 py-4' : undefined}
+		>
+			{children}
+		</motion.div>
 	)
 }

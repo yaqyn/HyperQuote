@@ -1,4 +1,5 @@
 import { CurrencyDisplay } from '@hyperquote/ui'
+import type { TFunction } from 'i18next'
 import { ChevronDown, X } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -198,7 +199,7 @@ export function VersionComparisonModal({
 						</div>
 
 						<p className="text-[13px] text-[var(--color-text-muted)] mb-3 md:hidden">
-							Scroll to compare
+							{t('quoteDetail.scrollToCompare')}
 						</p>
 
 						{/* Diff table */}
@@ -276,7 +277,7 @@ function VersionSelect({
 	versions: QuoteVersion[]
 	selectedId: string
 	onSelect: (id: string) => void
-	t: (key: string, opts?: Record<string, unknown>) => string
+	t: TFunction<'portal'>
 }) {
 	return (
 		<Select

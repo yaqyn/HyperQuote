@@ -6,9 +6,9 @@
 
 import { StatusBadge } from '@hyperquote/ui'
 import { useQuery } from '@tanstack/react-query'
+import type { ParseKeys } from 'i18next'
 import { useState } from 'react'
 import {
-	Button,
 	Cell,
 	Column,
 	Row,
@@ -18,6 +18,7 @@ import {
 } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { getSupplierPriceHistory } from '../../lib/server/supplier-stock'
+import { SupplierPagination } from './SupplierPagination'
 
 const STATUS_MAP = {
 	applied: { variant: 'success' as const, key: 'supplier.applied' },
@@ -26,7 +27,13 @@ const STATUS_MAP = {
 		key: 'supplier.pendingReview',
 	},
 	rejected: { variant: 'error' as const, key: 'supplier.rejected' },
-}
+} satisfies Record<
+	'applied' | 'pending_review' | 'rejected',
+	{
+		variant: 'success' | 'warning' | 'error'
+		key: ParseKeys<'portal'>
+	}
+>
 
 interface PriceHistoryTableProps {
 	locale: 'ar' | 'en'
@@ -66,9 +73,7 @@ export default function PriceHistoryTable({ locale }: PriceHistoryTableProps) {
 		return (
 			<div className="flex flex-col items-center justify-center py-16">
 				<p className="text-sm text-[var(--color-text-muted)]">
-					{locale === 'ar'
-						? 'لا يوجد سجل تغييرات أسعار'
-						: 'No price history yet'}
+					{t('supplier.emptyPriceHistory')}
 				</p>
 			</div>
 		)
@@ -155,28 +160,13 @@ export default function PriceHistoryTable({ locale }: PriceHistoryTableProps) {
 				</TableBody>
 			</Table>
 
-			{/* Pagination */}
-			{totalPages > 1 && (
-				<div className="flex items-center justify-center gap-4 py-2">
-					<Button
-						isDisabled={page <= 1}
-						onPress={() => setPage(page - 1)}
-						className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
-					>
-						{locale === 'ar' ? 'السابق' : 'Previous'}
-					</Button>
-					<span className="font-mono text-sm text-[var(--color-text-muted)]">
-						{page} / {totalPages}
-					</span>
-					<Button
-						isDisabled={page >= totalPages}
-						onPress={() => setPage(page + 1)}
-						className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
-					>
-						{locale === 'ar' ? 'التالي' : 'Next'}
-					</Button>
-				</div>
-			)}
+			<SupplierPagination
+				page={page}
+				totalPages={totalPages}
+				previousLabel={t('supplier.previous')}
+				nextLabel={t('supplier.next')}
+				onPageChange={setPage}
+			/>
 		</div>
 	)
 }

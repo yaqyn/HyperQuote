@@ -6,6 +6,7 @@
 
 import { StatusBadge } from '@hyperquote/ui'
 import { Link } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { SupplierPO } from '../../types/supplier'
@@ -32,17 +33,14 @@ function getStatusVariant(
 	}
 }
 
-function getStatusLabel(status: POStatus, t: (key: string) => string): string {
-	const labels: Record<POStatus, string> = {
-		sent: t('supplier.pendingAction'),
-		acknowledged: t('supplier.pendingAction'),
-		confirmed: t('supplier.confirmed'),
-		rejected: t('supplier.rejected'),
-		in_production: t('supplier.inProduction'),
-		shipped: t('supplier.shipped'),
-		delivered: t('supplier.delivered'),
-	}
-	return labels[status] ?? status
+const STATUS_LABEL_KEYS: Record<POStatus, ParseKeys<'portal'>> = {
+	sent: 'supplier.pendingAction',
+	acknowledged: 'supplier.pendingAction',
+	confirmed: 'supplier.confirmed',
+	rejected: 'supplier.rejected',
+	in_production: 'supplier.inProduction',
+	shipped: 'supplier.shipped',
+	delivered: 'supplier.delivered',
 }
 
 /** Returns deadline urgency: 'green' > 24h, 'yellow' < 24h, 'red' overdue */
@@ -91,7 +89,7 @@ export function POCard({ po, locale }: POCardProps) {
 						{po.reference}
 					</span>
 					<StatusBadge status={getStatusVariant(po.status)}>
-						{getStatusLabel(po.status, t)}
+						{t(STATUS_LABEL_KEYS[po.status])}
 					</StatusBadge>
 				</div>
 

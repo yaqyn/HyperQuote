@@ -7,6 +7,7 @@
 import { StatusBadge } from '@hyperquote/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { FileText } from 'lucide-react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
@@ -20,7 +21,13 @@ const STATUS_MAP = {
 		variant: 'warning' as const,
 		key: 'supplier.reviewRequired',
 	},
-}
+} satisfies Record<
+	'processing' | 'completed' | 'failed' | 'review_required',
+	{
+		variant: 'neutral' | 'success' | 'error' | 'warning'
+		key: ParseKeys<'portal'>
+	}
+>
 
 interface UploadHistoryListProps {
 	locale: 'ar' | 'en'
@@ -58,9 +65,7 @@ export default function UploadHistoryList({ locale }: UploadHistoryListProps) {
 		return (
 			<div className="flex flex-col items-center justify-center py-16">
 				<p className="text-sm text-[var(--color-text-muted)]">
-					{locale === 'ar'
-						? 'لا يوجد سجل رفع كتالوجات'
-						: 'No upload history yet'}
+					{t('supplier.emptyUploadHistory')}
 				</p>
 			</div>
 		)
@@ -98,7 +103,9 @@ export default function UploadHistoryList({ locale }: UploadHistoryListProps) {
 									{dateFormatter.format(new Date(upload.uploadedAt))}
 								</span>
 								<span className="font-mono text-[13px] text-[var(--color-text-muted)]">
-									{upload.itemsParsed} {locale === 'ar' ? 'عنصر' : 'items'}
+									{t('supplier.itemsParsedCount', {
+										count: upload.itemsParsed,
+									})}
 								</span>
 							</div>
 						</div>

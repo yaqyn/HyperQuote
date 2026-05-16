@@ -4,7 +4,7 @@ const PORTAL_THEME_STORAGE_KEY = 'hq-portal-theme'
 const PORTAL_THEME_COOKIE = 'hq-portal-theme'
 const PORTAL_THEME_COOKIE_MAX_AGE = 31_536_000
 
-export function isPortalTheme(value: unknown): value is PortalTheme {
+function isPortalTheme(value: unknown): value is PortalTheme {
 	return value === 'dark' || value === 'light'
 }
 
@@ -64,7 +64,7 @@ export function applyPortalTheme(theme: PortalTheme) {
 		})
 }
 
-export function persistPortalTheme(theme: PortalTheme) {
+function persistPortalTheme(theme: PortalTheme) {
 	if (typeof localStorage !== 'undefined') {
 		localStorage.setItem(PORTAL_THEME_STORAGE_KEY, theme)
 	}

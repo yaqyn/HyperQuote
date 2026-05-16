@@ -6,6 +6,7 @@
  */
 import { useMutation } from '@tanstack/react-query'
 import { clearLocalDraft } from '../lib/quote-draft'
+import { toQuoteSubmissionPayload } from '../lib/quote-request-payload'
 import { submitQuoteRequest } from '../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../stores/quote-builder'
 
@@ -33,20 +34,7 @@ export function useQuoteSubmit() {
 
 			const result = await submitQuoteRequest({
 				data: {
-					items: state.items.map((item) => ({
-						productId: item.productId,
-						customerDescription: item.customerDescription,
-						quantity: item.quantity,
-						unitOfMeasure: item.unitOfMeasure,
-						notes: item.notes,
-						sortOrder: item.sortOrder,
-						matchConfidence: item.matchConfidence,
-						isUnmatched: item.isUnmatched,
-					})),
-					deliveryAddressId: state.deliveryAddressId ?? undefined,
-					deliveryDate: state.deliveryDate ?? undefined,
-					notes: state.notes || undefined,
-					projectId: state.projectId ?? undefined,
+					...toQuoteSubmissionPayload(state),
 					idempotencyKey: crypto.randomUUID(),
 				},
 			})
@@ -54,7 +42,6 @@ export function useQuoteSubmit() {
 			return result
 		},
 		onSuccess: () => {
-			// Clear draft from both localStorage and store
 			clearLocalDraft()
 			useQuoteBuilderStore.getState().reset()
 		},

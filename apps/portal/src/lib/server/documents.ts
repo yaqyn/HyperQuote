@@ -248,8 +248,7 @@ export const downloadInvoicePDF = createServerFn()
 			}
 		}
 
-		// Production: generate signed R2 URL
-		// TODO: Wire R2 signed URL generation when R2 bucket is configured
+		// Returns a stable CDN URL until signed R2 URLs are configured.
 		const { supabase, session } = await getAuthenticatedSupabase()
 
 		// Log download for audit trail

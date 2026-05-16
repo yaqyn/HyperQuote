@@ -4,12 +4,7 @@
  * Uses @internationalized/date isWeekend with 'ar-EG' locale.
  * Always uses ar-EG regardless of user's display locale.
  */
-import {
-	type DateValue,
-	getLocalTimeZone,
-	isWeekend,
-	today,
-} from '@internationalized/date'
+import { type DateValue, isWeekend } from '@internationalized/date'
 
 // ============================================================================
 // Egyptian Public Holidays 2026 (approximate dates)
@@ -90,25 +85,4 @@ function isEgyptianHoliday(date: DateValue): boolean {
  */
 export function isDateUnavailable(date: DateValue): boolean {
 	return !isEgyptianBusinessDay(date)
-}
-
-/**
- * Get the next Egyptian business day from a given date.
- */
-function getNextBusinessDay(from: DateValue): DateValue {
-	let candidate = from.add({ days: 1 })
-	let safety = 0
-	while (!isEgyptianBusinessDay(candidate) && safety < 14) {
-		candidate = candidate.add({ days: 1 })
-		safety++
-	}
-	return candidate
-}
-
-/**
- * Get the minimum delivery date (next business day from today in Cairo timezone).
- */
-function getMinDeliveryDate(): DateValue {
-	const now = today(getLocalTimeZone())
-	return getNextBusinessDay(now)
 }

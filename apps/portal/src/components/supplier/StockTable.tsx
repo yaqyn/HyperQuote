@@ -7,6 +7,7 @@
 import { EmptyState, StatusBadge } from '@hyperquote/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { EyeOff, Pencil } from 'lucide-react'
 import {
 	Button,
@@ -22,6 +23,7 @@ import { updateSupplierStock } from '../../lib/server/supplier-stock'
 import type { SupplierProduct } from '../../types/supplier'
 import { FreshnessIndicator } from './FreshnessIndicator'
 import { InlineEditCell } from './InlineEditCell'
+import { SupplierPagination } from './SupplierPagination'
 
 interface StockTableProps {
 	products: SupplierProduct[]
@@ -37,7 +39,13 @@ const STATUS_MAP = {
 	low_stock: { variant: 'warning' as const, key: 'supplier.lowStock' },
 	out_of_stock: { variant: 'error' as const, key: 'supplier.outOfStock' },
 	suppressed: { variant: 'neutral' as const, key: 'supplier.suppressed' },
-}
+} satisfies Record<
+	SupplierProduct['status'],
+	{
+		variant: 'success' | 'warning' | 'error' | 'neutral'
+		key: ParseKeys<'portal'>
+	}
+>
 
 const ITEMS_PER_PAGE = 50
 
@@ -197,28 +205,13 @@ export function StockTable({
 				</TableBody>
 			</Table>
 
-			{/* Pagination */}
-			{totalPages > 1 && (
-				<div className="flex items-center justify-center gap-4 py-2">
-					<Button
-						isDisabled={page <= 1}
-						onPress={() => onPageChange(page - 1)}
-						className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
-					>
-						{locale === 'ar' ? 'السابق' : 'Previous'}
-					</Button>
-					<span className="font-mono text-sm text-[var(--color-text-muted)]">
-						{page} / {totalPages}
-					</span>
-					<Button
-						isDisabled={page >= totalPages}
-						onPress={() => onPageChange(page + 1)}
-						className="h-9 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
-					>
-						{locale === 'ar' ? 'التالي' : 'Next'}
-					</Button>
-				</div>
-			)}
+			<SupplierPagination
+				page={page}
+				totalPages={totalPages}
+				previousLabel={t('supplier.previous')}
+				nextLabel={t('supplier.next')}
+				onPageChange={onPageChange}
+			/>
 		</div>
 	)
 }

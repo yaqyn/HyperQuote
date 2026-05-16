@@ -5,44 +5,22 @@
  * category chips, dense image cards, with portal draft-quote actions retained.
  */
 
-import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import {
-	Check,
-	ChevronDown,
-	Minus,
-	Plus,
-	Search,
-	ShoppingCart,
-	Trash2,
-	Undo2,
-	X,
-} from 'lucide-react'
-import {
-	AnimatePresence,
-	cubicBezier,
-	motion,
-	useReducedMotion,
-} from 'motion/react'
-import {
-	type FormEvent,
-	type RefObject,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from 'react'
+import { Check, ChevronDown, Plus, Search, Undo2, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { DraftQuoteTrigger } from '../../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
 import {
 	getMarketProducts,
 	type MarketProduct,
 } from '../../../lib/server/market'
-import { submitQuoteRequest } from '../../../lib/server/quote-requests'
-import { toast } from '../../../lib/toast'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
+import { usePortalStore } from '../../../stores/portal'
 
 export const Route = createFileRoute('/_portal/market/')({
 	component: MarketGridPage,
@@ -68,16 +46,13 @@ const CATEGORY_MAP: Record<string, string[]> = {
 
 const PLACEHOLDER_IMAGE =
 	'https://websiteassets.hyperquote.net/Images/cairo.webp'
-const UUID_RE =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const CART_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 function MarketGridPage() {
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
 	const isAr = i18n.language === 'ar'
 	const draftItemCount = useDraftQuoteStore((s) => s.items.length)
-	const [cartOpen, setCartOpen] = useState(false)
+	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 
 	const [searchQuery, setSearchQuery] = useState('')
 	const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -161,15 +136,10 @@ function MarketGridPage() {
 			<MarketHeader
 				value={searchQuery}
 				onChange={setSearchQuery}
-				placeholder={t('market.locateHint')}
+				placeholder={t('market.searchPlaceholder')}
 				draftItemCount={draftItemCount}
 				isAr={isAr}
-				onOpenCart={() => setCartOpen(true)}
-			/>
-			<DraftCartDrawer
-				open={cartOpen}
-				onClose={() => setCartOpen(false)}
-				isAr={isAr}
+				onOpenCart={() => setDraftQuoteOpen(true)}
 			/>
 
 			<CategoryStrip
@@ -307,506 +277,17 @@ function MarketHeader({
 					</div>
 
 					{draftItemCount > 0 && (
-						<button
-							type="button"
+						<DraftQuoteTrigger
+							count={draftItemCount}
+							isAr={isAr}
+							className="w-auto min-w-[132px] max-w-[150px]"
 							onClick={onOpenCart}
-							aria-label={t('market.openCart')}
-							className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
-						>
-							<ShoppingCart size={18} strokeWidth={1.8} />
-							<span
-								className="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--p-accent)] px-1.5 text-[11px] font-semibold leading-none text-[var(--p-accent-contrast)]"
-								style={{ fontVariantNumeric: 'tabular-nums' }}
-							>
-								{isAr ? draftItemCount.toLocaleString('ar-EG') : draftItemCount}
-							</span>
-						</button>
+						/>
 					)}
 				</div>
 			</div>
 		</header>
 	)
-}
-
-function DraftCartDrawer({
-	open,
-	onClose,
-	isAr,
-}: {
-	open: boolean
-	onClose: () => void
-	isAr: boolean
-}) {
-	const { t } = useTranslation('portal')
-	const shouldReduceMotion = useReducedMotion()
-	const items = useDraftQuoteStore((s) => s.items)
-	const globalNote = useDraftQuoteStore((s) => s.globalNote)
-	const updateQuantity = useDraftQuoteStore((s) => s.updateQuantity)
-	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
-	const remove = useDraftQuoteStore((s) => s.remove)
-	const clear = useDraftQuoteStore((s) => s.clear)
-	const [submittedReference, setSubmittedReference] = useState<string | null>(
-		null,
-	)
-	const formattedItemCount = isAr
-		? items.length.toLocaleString('ar-EG')
-		: items.length.toLocaleString('en-EG')
-
-	const submitMutation = useMutation({
-		mutationFn: () =>
-			submitQuoteRequest({
-				data: {
-					items: items.map((item, index) => ({
-						productId: UUID_RE.test(item.productId)
-							? item.productId
-							: undefined,
-						customerDescription: isAr && item.nameAr ? item.nameAr : item.name,
-						quantity: item.quantity,
-						unitOfMeasure: item.unitOfMeasure,
-						notes: item.note || undefined,
-						sortOrder: index,
-						matchConfidence: 1,
-						isUnmatched: !UUID_RE.test(item.productId),
-					})),
-					notes: globalNote || undefined,
-					idempotencyKey: crypto.randomUUID(),
-				},
-			}),
-		onSuccess: (result) => {
-			clear()
-			setSubmittedReference(result.reference)
-			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
-		},
-	})
-
-	useEffect(() => {
-		if (!open) return
-		const previousOverflow = document.body.style.overflow
-		document.body.style.overflow = 'hidden'
-		return () => {
-			document.body.style.overflow = previousOverflow
-		}
-	}, [open])
-
-	useEffect(() => {
-		if (open) submitMutation.reset()
-		if (!open) setSubmittedReference(null)
-	}, [open, submitMutation.reset])
-
-	useEffect(() => {
-		if (items.length > 0 && submittedReference) {
-			setSubmittedReference(null)
-		}
-	}, [items.length, submittedReference])
-
-	function handleSubmit(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault()
-		if (items.length === 0 || submitMutation.isPending) return
-		submitMutation.mutate()
-	}
-
-	if (typeof document === 'undefined') return null
-
-	const drawerOffset = isAr ? -28 : 28
-	const overlayMotion = shouldReduceMotion
-		? {
-				initial: { opacity: 1 },
-				animate: { opacity: 1 },
-				exit: { opacity: 1 },
-				transition: { duration: 0 },
-			}
-		: {
-				initial: { opacity: 0 },
-				animate: { opacity: 1 },
-				exit: { opacity: 0 },
-				transition: { duration: 0.18, ease: 'easeOut' },
-			}
-	const drawerMotion = shouldReduceMotion
-		? {
-				initial: { opacity: 1 },
-				animate: { opacity: 1 },
-				exit: { opacity: 1 },
-				transition: { duration: 0 },
-			}
-		: {
-				initial: { opacity: 0, x: drawerOffset, y: 10, scale: 0.985 },
-				animate: { opacity: 1, x: 0, y: 0, scale: 1 },
-				exit: { opacity: 0, x: drawerOffset, y: 8, scale: 0.99 },
-				transition: { duration: 0.24, ease: CART_EASE },
-			}
-	const panelMotion = shouldReduceMotion
-		? {
-				initial: { opacity: 1 },
-				animate: { opacity: 1 },
-				exit: { opacity: 1 },
-				transition: { duration: 0 },
-			}
-		: {
-				initial: { opacity: 0, y: 8 },
-				animate: { opacity: 1, y: 0 },
-				exit: { opacity: 0, y: -8 },
-				transition: { duration: 0.2, ease: 'easeOut' },
-			}
-
-	const drawer = (
-		<AnimatePresence initial={false}>
-			{open && (
-				<>
-					<motion.button
-						type="button"
-						aria-label={t('market.closeCart')}
-						className="fixed inset-0 z-[78] bg-black/25 backdrop-blur-[2px]"
-						onClick={onClose}
-						{...overlayMotion}
-					/>
-					<motion.aside
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="market-cart-title"
-						className="fixed inset-0 z-[79] flex h-dvh w-screen flex-col overflow-hidden border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_24px_80px_rgba(0,0,0,0.18)] md:inset-y-4 md:end-4 md:start-auto md:h-auto md:w-[420px] md:rounded-2xl md:border"
-						{...drawerMotion}
-					>
-						<motion.header
-							className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] md:pt-5"
-							initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
-							animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-							transition={{ duration: 0.18, delay: 0.05, ease: 'easeOut' }}
-						>
-							<div className="min-w-0">
-								<h2
-									id="market-cart-title"
-									className="text-[15px] font-semibold text-[var(--p-text)]"
-								>
-									{t('market.draftQuote')}
-								</h2>
-								<p className="mt-1 text-[12px] text-[var(--p-text-muted)]">
-									{t('market.cartItemCount', { count: formattedItemCount })}
-								</p>
-							</div>
-							<div className="flex shrink-0 items-center gap-2">
-								{items.length > 0 && (
-									<button
-										type="button"
-										onClick={() => {
-											clear()
-											setSubmittedReference(null)
-										}}
-										className="h-9 rounded-lg px-2.5 text-[12px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
-									>
-										{t('market.clearDraft')}
-									</button>
-								)}
-								<button
-									type="button"
-									onClick={onClose}
-									className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-									aria-label={t('market.closeCart')}
-								>
-									<X size={16} />
-								</button>
-							</div>
-						</motion.header>
-
-						<AnimatePresence mode="wait" initial={false}>
-							{submittedReference ? (
-								<motion.div
-									key="success"
-									className="flex flex-1 flex-col items-center justify-center px-6 text-center"
-									{...panelMotion}
-								>
-									<motion.div
-										className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--p-accent)] text-[var(--p-accent-contrast)]"
-										initial={
-											shouldReduceMotion ? false : { scale: 0.75, opacity: 0 }
-										}
-										animate={
-											shouldReduceMotion ? undefined : { scale: 1, opacity: 1 }
-										}
-										transition={{
-											type: 'spring',
-											stiffness: 360,
-											damping: 22,
-										}}
-									>
-										<Check size={24} strokeWidth={1.8} />
-									</motion.div>
-									<h3 className="text-[18px] font-semibold text-[var(--p-text)]">
-										{t('market.submitSuccessTitle')}
-									</h3>
-									<p className="mt-3 max-w-[320px] text-[13px] leading-6 text-[var(--p-text-muted)]">
-										{t('market.submitSuccessBody', {
-											ref: submittedReference,
-										})}
-									</p>
-									<button
-										type="button"
-										onClick={onClose}
-										className="mt-7 h-11 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-									>
-										{t('market.continueBrowsing')}
-									</button>
-								</motion.div>
-							) : items.length === 0 ? (
-								<motion.div
-									key="empty"
-									className="flex flex-1 flex-col items-center justify-center px-8 text-center"
-									{...panelMotion}
-								>
-									<ShoppingCart
-										size={28}
-										strokeWidth={1.5}
-										className="mb-4 text-[var(--p-text-faint)]"
-									/>
-									<h3 className="text-[16px] font-semibold text-[var(--p-text)]">
-										{t('market.cartEmptyTitle')}
-									</h3>
-									<p className="mt-2 max-w-[280px] text-[13px] leading-6 text-[var(--p-text-muted)]">
-										{t('market.cartEmptyBody')}
-									</p>
-								</motion.div>
-							) : (
-								<motion.form
-									key="cart-form"
-									onSubmit={handleSubmit}
-									className="flex min-h-0 flex-1 flex-col"
-									{...panelMotion}
-								>
-									<motion.div
-										className="flex-1 overflow-y-auto"
-										initial={false}
-										animate="show"
-									>
-										{items.map((item, index) => {
-											const itemName =
-												isAr && item.nameAr ? item.nameAr : item.name
-											return (
-												<motion.div
-													key={item.productId}
-													layout
-													initial={
-														shouldReduceMotion ? false : { opacity: 0, y: 10 }
-													}
-													animate={
-														shouldReduceMotion
-															? undefined
-															: { opacity: 1, y: 0 }
-													}
-													exit={
-														shouldReduceMotion
-															? undefined
-															: { opacity: 0, x: isAr ? -12 : 12 }
-													}
-													transition={{
-														duration: 0.18,
-														delay: shouldReduceMotion
-															? 0
-															: Math.min(index * 0.035, 0.18),
-														ease: 'easeOut',
-													}}
-													className={[
-														'px-5 py-4',
-														index > 0
-															? 'border-t border-[var(--p-border)]'
-															: '',
-													].join(' ')}
-												>
-													<div className="flex items-start gap-3">
-														<img
-															src={item.imageUrl || PLACEHOLDER_IMAGE}
-															alt=""
-															loading="lazy"
-															decoding="async"
-															className="h-12 w-12 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
-														/>
-														<div className="min-w-0 flex-1">
-															<p className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--p-text)]">
-																{itemName}
-															</p>
-															<p className="mt-1 text-[12px] text-[var(--p-text-muted)]">
-																{item.category.replace(/_/g, ' ')} ·{' '}
-																{item.unitOfMeasure}
-															</p>
-														</div>
-														<button
-															type="button"
-															onClick={() => remove(item.productId)}
-															className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
-															aria-label={t('market.removeItem')}
-														>
-															<Trash2 size={15} strokeWidth={1.7} />
-														</button>
-													</div>
-
-													<div className="mt-3 flex h-11 items-center overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]">
-														<button
-															type="button"
-															onClick={() =>
-																updateQuantity(
-																	item.productId,
-																	item.quantity - 1,
-																)
-															}
-															className="flex h-full w-11 shrink-0 items-center justify-center border-e border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-															aria-label={t('market.decreaseQuantity')}
-														>
-															<Minus size={14} strokeWidth={1.8} />
-														</button>
-														<div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3">
-															<input
-																type="number"
-																inputMode="numeric"
-																min={1}
-																value={item.quantity}
-																onChange={(event) => {
-																	const next = Number.parseInt(
-																		event.currentTarget.value,
-																		10,
-																	)
-																	if (!Number.isNaN(next)) {
-																		updateQuantity(item.productId, next)
-																	}
-																}}
-																className="h-full w-16 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-																style={{ fontVariantNumeric: 'tabular-nums' }}
-																aria-label={t('market.quantity')}
-															/>
-															<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
-																{item.unitOfMeasure}
-															</span>
-														</div>
-														<button
-															type="button"
-															onClick={() =>
-																updateQuantity(
-																	item.productId,
-																	item.quantity + 1,
-																)
-															}
-															className="flex h-full w-11 shrink-0 items-center justify-center border-s border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-															aria-label={t('market.increaseQuantity')}
-														>
-															<Plus size={14} strokeWidth={1.8} />
-														</button>
-													</div>
-												</motion.div>
-											)
-										})}
-									</motion.div>
-
-									<motion.div
-										className="shrink-0 border-t border-[var(--p-border)] px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 md:pb-4"
-										initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-										animate={
-											shouldReduceMotion ? undefined : { opacity: 1, y: 0 }
-										}
-										transition={{
-											duration: 0.18,
-											delay: shouldReduceMotion ? 0 : 0.08,
-											ease: 'easeOut',
-										}}
-									>
-										<label className="block text-[12px] font-medium text-[var(--p-text-muted)]">
-											{t('market.cartNotesLabel')}
-											<textarea
-												value={globalNote}
-												onChange={(event) =>
-													setGlobalNote(event.currentTarget.value)
-												}
-												rows={3}
-												placeholder={t('market.cartNotesPlaceholder')}
-												className="mt-2 block w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-											/>
-										</label>
-
-										<AnimatePresence>
-											{submitMutation.isError && (
-												<motion.p
-													initial={
-														shouldReduceMotion ? false : { opacity: 0, y: -4 }
-													}
-													animate={
-														shouldReduceMotion
-															? undefined
-															: { opacity: 1, y: 0 }
-													}
-													exit={
-														shouldReduceMotion
-															? undefined
-															: { opacity: 0, y: -4 }
-													}
-													className="mt-3 text-[12px] text-[var(--p-error)]"
-												>
-													{t('market.submitError')}
-												</motion.p>
-											)}
-										</AnimatePresence>
-
-										<motion.button
-											type="submit"
-											disabled={submitMutation.isPending}
-											className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
-											whileTap={
-												shouldReduceMotion ? undefined : { scale: 0.985 }
-											}
-										>
-											<AnimatePresence mode="wait" initial={false}>
-												{submitMutation.isPending ? (
-													<motion.span
-														key="submitting"
-														initial={
-															shouldReduceMotion ? false : { opacity: 0, y: 4 }
-														}
-														animate={
-															shouldReduceMotion
-																? undefined
-																: { opacity: 1, y: 0 }
-														}
-														exit={
-															shouldReduceMotion
-																? undefined
-																: { opacity: 0, y: -4 }
-														}
-														className="inline-flex items-center gap-2"
-													>
-														<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-accent-contrast-soft)] border-t-[var(--p-accent-contrast)]" />
-														{t('quoteBuilder.submitting')}
-													</motion.span>
-												) : (
-													<motion.span
-														key="submit"
-														initial={
-															shouldReduceMotion ? false : { opacity: 0, y: 4 }
-														}
-														animate={
-															shouldReduceMotion
-																? undefined
-																: { opacity: 1, y: 0 }
-														}
-														exit={
-															shouldReduceMotion
-																? undefined
-																: { opacity: 0, y: -4 }
-														}
-													>
-														{t('market.submitQuote')}
-													</motion.span>
-												)}
-											</AnimatePresence>
-										</motion.button>
-										<p className="mt-2 text-center text-[11px] leading-5 text-[var(--p-text-muted)]">
-											{t('market.submitHint')}
-										</p>
-									</motion.div>
-								</motion.form>
-							)}
-						</AnimatePresence>
-					</motion.aside>
-				</>
-			)}
-		</AnimatePresence>
-	)
-
-	return createPortal(drawer, document.body)
 }
 
 // ---------------------------------------------------------------------------
@@ -1015,6 +496,14 @@ function ProductCard({
 		s.items.find((i) => i.productId === product.id),
 	)
 	const inDraft = draftItem != null
+	const draftQuantity = draftItem?.quantity ?? 0
+	const draftQuantityLabel = useMemo(
+		() =>
+			new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
+				maximumFractionDigits: 0,
+			}).format(draftQuantity),
+		[draftQuantity, isAr],
+	)
 	const [popoverOpen, setPopoverOpen] = useState(false)
 	const tabRef = useRef<HTMLButtonElement>(null)
 
@@ -1049,15 +538,6 @@ function ProductCard({
 					/>
 				</button>
 
-				{inDraft && (
-					<span
-						className="absolute top-2 start-2 inline-flex items-center rounded-full bg-[var(--p-accent)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-accent-contrast)]"
-						style={{ fontVariantNumeric: 'tabular-nums' }}
-					>
-						{draftItem?.quantity} {product.unitOfMeasure}
-					</span>
-				)}
-
 				<button
 					ref={tabRef}
 					type="button"
@@ -1067,23 +547,23 @@ function ProductCard({
 						setPopoverOpen((v) => !v)
 					}}
 					className={[
-						'absolute end-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-200 sm:end-3 sm:bottom-3 sm:h-10 sm:w-10',
+						'absolute end-2 bottom-2 flex h-9 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-200 sm:end-3 sm:bottom-3 sm:h-10',
+						inDraft
+							? 'min-w-9 max-w-[calc(100%-1rem)] px-2 sm:min-w-10 sm:px-2.5'
+							: 'w-9 sm:w-10',
 						inDraft || popoverOpen
-							? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)] ring-[var(--p-accent)]/30'
-							: 'bg-black/30 text-white ring-white/15 opacity-100 backdrop-blur-xl hover:bg-black/40 lg:opacity-0 lg:group-hover:opacity-100',
+							? 'bg-white text-black ring-white/40 backdrop-blur-md'
+							: 'bg-black/20 text-white ring-white/10 opacity-100 backdrop-blur-xl hover:bg-black/35 lg:opacity-0 lg:group-hover:opacity-100',
 					].join(' ')}
 					aria-label={inDraft ? t('market.amend') : t('market.record')}
 					aria-expanded={popoverOpen}
 				>
 					{inDraft ? (
 						<span
-							className={`font-mono font-semibold leading-none tabular-nums ${
-								(draftItem?.quantity ?? 0) >= 100
-									? 'text-[10px]'
-									: 'text-[13px]'
-							}`}
+							className="min-w-0 truncate px-0.5 text-center font-mono text-[12px] font-semibold leading-none tabular-nums sm:text-[13px]"
+							title={`${draftQuantityLabel} ${product.unitOfMeasure}`}
 						>
-							{draftItem?.quantity}
+							{draftQuantityLabel}
 						</span>
 					) : (
 						<Plus size={16} />

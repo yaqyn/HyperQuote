@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
+import { ArrowUpRight, Check, Globe, Moon, Sun } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -7,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import whatsappLightUrl from '../../../../essential/brand/whatsapp-light.svg'
 import { AtelierScene } from '../components/atelier/AtelierScene'
-import { WaxSeal } from '../components/atelier/WaxSeal'
+import { usePortalThemeSnapshot } from '../hooks/usePortalThemeSnapshot'
 import {
 	checkSession,
 	claimAccount,
@@ -15,6 +17,7 @@ import {
 	sendOTP,
 	verifyOTP,
 } from '../lib/auth'
+import { type PortalTheme, setPortalTheme } from '../lib/theme'
 import { usePortalStore } from '../stores/portal'
 
 // ============================================================================
@@ -49,16 +52,13 @@ const INTRO_LOGO_OUT_MS = 1450
 const INTRO_SCENE_IN_MS = 2150
 
 // ============================================================================
-// Login Page — THE ATELIER
+// Login Page
 // ============================================================================
-//
-// A small broker's office at night. A single pendant lights the desk.
-// On the desk sits an open order book. The login IS a page in the book,
-// not a card on a backdrop. Every detail serves that metaphor.
 
 function LoginPage() {
 	const navigate = useNavigate()
 	const search = useSearch({ from: '/login' })
+	const theme = usePortalThemeSnapshot()
 	const [step, setStep] = useState<AuthStep>('phone')
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
@@ -83,22 +83,23 @@ function LoginPage() {
 	function handleAuthComplete(redirectPath?: string) {
 		const target = search.redirect ?? redirectPath ?? '/'
 		setStage('leaving')
-		// Wait for the full-room fade to complete (1.2s) before navigating —
-		// the user sees the atelier dissolve completely before the portal blooms.
+		// Let the exit fade complete before the portal route mounts.
 		setTimeout(() => navigate({ to: target }), 1300)
 	}
 
 	const showScene = stage === 'scene' || stage === 'leaving'
 
 	const leaving = stage === 'leaving'
+	const isDark = theme === 'dark'
 
 	return (
 		<motion.div
-			className="atelier-scene relative min-h-dvh w-full overflow-x-hidden overflow-y-auto overscroll-none"
+			className={`atelier-scene ${isDark ? 'atelier-scene-dark' : 'atelier-scene-light'} relative min-h-dvh w-full overflow-x-hidden overflow-y-auto overscroll-none`}
 			animate={{ opacity: leaving ? 0 : 1 }}
 			transition={{ duration: leaving ? 1.2 : 0, ease: 'easeInOut' }}
 		>
 			<div className="atelier-vignette" />
+			<AuthTopControls theme={theme} />
 
 			<div className="relative min-h-dvh w-full">
 				<AnimatePresence>
@@ -112,9 +113,9 @@ function LoginPage() {
 							className="absolute inset-0 z-20 flex items-center justify-center"
 						>
 							<img
-								src="/brand/LyonWhite.svg"
+								src={isDark ? '/brand/LyonWhite.svg' : '/brand/LyonBlack.svg'}
 								alt="HyperQuote"
-								className="h-24 w-24 opacity-90 md:h-28 md:w-28"
+								className="h-20 w-20 opacity-90 md:h-24 md:w-24"
 								draggable={false}
 							/>
 						</motion.div>
@@ -131,63 +132,66 @@ function LoginPage() {
 							}}
 							className="relative min-h-dvh w-full"
 						>
-							<AtelierScene lit>
-								<OrderBookPage>
-									<AutoHeight>
-										<AnimatePresence mode="wait" initial={false}>
-											{step === 'phone' && (
-												<StepFrame key="phone">
-													<PhoneStep
-														phone={phone}
-														setPhone={setPhone}
-														onNext={() => setStep('otp')}
-													/>
-												</StepFrame>
-											)}
-											{step === 'otp' && (
-												<StepFrame key="otp">
-													<OTPStep
-														phone={phone}
-														onVerified={(result) => {
-															if (result.claimableCompany) {
-																setClaimableCompany(result.claimableCompany)
-																setStep('claiming')
-															} else if (result.needsAccount) {
-																setStep('create')
-															} else {
-																handleAuthComplete()
-															}
-														}}
-														onBack={() => setStep('phone')}
-													/>
-												</StepFrame>
-											)}
-											{step === 'create' && (
-												<StepFrame key="create">
-													<AccountCreationStep
-														phone={phone}
-														onComplete={() => setStep('farewell')}
-													/>
-												</StepFrame>
-											)}
-											{step === 'claiming' && (
-												<StepFrame key="claiming">
-													<AccountClaimingStep
-														phone={phone}
-														claimableCompany={claimableCompany}
-														onComplete={() => setStep('farewell')}
-														onCreateNew={() => setStep('create')}
-													/>
-												</StepFrame>
-											)}
-											{step === 'farewell' && (
-												<StepFrame key="farewell">
-													<FarewellStep onDone={() => handleAuthComplete()} />
-												</StepFrame>
-											)}
-										</AnimatePresence>
-									</AutoHeight>
-								</OrderBookPage>
+							<AtelierScene lit={isDark}>
+								<div className="auth-layout">
+									<AuthDesktopStory />
+									<AuthPanel>
+										<AutoHeight>
+											<AnimatePresence mode="wait" initial={false}>
+												{step === 'phone' && (
+													<StepFrame key="phone">
+														<PhoneStep
+															phone={phone}
+															setPhone={setPhone}
+															onNext={() => setStep('otp')}
+														/>
+													</StepFrame>
+												)}
+												{step === 'otp' && (
+													<StepFrame key="otp">
+														<OTPStep
+															phone={phone}
+															onVerified={(result) => {
+																if (result.claimableCompany) {
+																	setClaimableCompany(result.claimableCompany)
+																	setStep('claiming')
+																} else if (result.needsAccount) {
+																	setStep('create')
+																} else {
+																	handleAuthComplete()
+																}
+															}}
+															onBack={() => setStep('phone')}
+														/>
+													</StepFrame>
+												)}
+												{step === 'create' && (
+													<StepFrame key="create">
+														<AccountCreationStep
+															phone={phone}
+															onComplete={() => setStep('farewell')}
+														/>
+													</StepFrame>
+												)}
+												{step === 'claiming' && (
+													<StepFrame key="claiming">
+														<AccountClaimingStep
+															phone={phone}
+															claimableCompany={claimableCompany}
+															onComplete={() => setStep('farewell')}
+															onCreateNew={() => setStep('create')}
+														/>
+													</StepFrame>
+												)}
+												{step === 'farewell' && (
+													<StepFrame key="farewell">
+														<FarewellStep onDone={() => handleAuthComplete()} />
+													</StepFrame>
+												)}
+											</AnimatePresence>
+										</AutoHeight>
+									</AuthPanel>
+								</div>
 							</AtelierScene>
 						</motion.div>
 					)}
@@ -200,22 +204,150 @@ function LoginPage() {
 }
 
 // ============================================================================
-// Order Book Page — shared chrome around every step
+// Auth controls
 // ============================================================================
 
-function OrderBookPage({ children }: { children: ReactNode }) {
-	const { t } = useTranslation('portal')
+function AuthTopControls({ theme }: { theme: PortalTheme }) {
+	const { t, i18n } = useTranslation('portal')
+	const locale = i18n.language?.startsWith('ar') ? 'ar' : 'en'
+	const nextTheme = theme === 'dark' ? 'light' : 'dark'
+	const nextLocale = locale === 'ar' ? 'en' : 'ar'
+	const ThemeIcon = theme === 'dark' ? Sun : Moon
+
+	function transition(apply: () => void) {
+		const vtDoc = document as Document & {
+			startViewTransition?: (cb: () => void) => void
+		}
+		if (vtDoc.startViewTransition) {
+			vtDoc.startViewTransition(apply)
+		} else {
+			apply()
+		}
+	}
+
+	function handleThemeToggle() {
+		transition(() => setPortalTheme(nextTheme))
+	}
+
+	function handleLanguageToggle() {
+		transition(() => {
+			i18n.changeLanguage(nextLocale)
+			localStorage.setItem('hq-locale', nextLocale)
+			const doc = document as unknown as Record<'cookie', string>
+			doc.cookie = `hq-locale=${nextLocale};path=/;max-age=31536000`
+			document.documentElement.setAttribute('lang', nextLocale)
+			document.documentElement.setAttribute(
+				'dir',
+				nextLocale === 'ar' ? 'rtl' : 'ltr',
+			)
+			document.body.className = document.body.className.replace(
+				/font-(sans|arabic)/,
+				nextLocale === 'ar' ? 'font-arabic' : 'font-sans',
+			)
+		})
+	}
+
 	return (
-		<div className="atelier-page atelier-page-enter">
-			<p className="atelier-mono text-center text-[10px] uppercase tracking-[0.18em] text-[var(--atelier-ink-faint)] sm:tracking-[0.32em]">
-				{t('login.atelier.caption', 'Lyon · Broker of Record · Est. 2026')}
-			</p>
+		<fieldset className="auth-top-controls">
+			<legend className="sr-only">{t('login.controls.label')}</legend>
+			<button
+				type="button"
+				onClick={handleThemeToggle}
+				className="auth-icon-button"
+				aria-label={t(
+					nextTheme === 'dark'
+						? 'login.controls.switchToDark'
+						: 'login.controls.switchToLight',
+				)}
+			>
+				<ThemeIcon size={17} strokeWidth={1.7} />
+			</button>
+			<button
+				type="button"
+				onClick={handleLanguageToggle}
+				className="auth-icon-button auth-language-button"
+				aria-label={t(
+					nextLocale === 'ar'
+						? 'login.controls.switchToArabic'
+						: 'login.controls.switchToEnglish',
+				)}
+			>
+				<Globe size={17} strokeWidth={1.7} />
+				<span>{nextLocale.toUpperCase()}</span>
+			</button>
+		</fieldset>
+	)
+}
 
-			<div className="atelier-rule-draw mt-3 h-px origin-left bg-[var(--atelier-rule)]" />
+// ============================================================================
+// Auth panel — shared chrome around every step
+// ============================================================================
 
-			<div className="relative mt-6">{children}</div>
+function AuthDesktopStory() {
+	const { t } = useTranslation('portal')
+	const links = [
+		{
+			key: 'login.story.links.website',
+			href: 'https://www.hyperquote.net',
+		},
+		{
+			key: 'login.story.links.support',
+			href: 'https://www.hyperquote.net/docs/support',
+		},
+		{
+			key: 'login.story.links.terms',
+			href: 'https://www.hyperquote.net/docs/legal/terms-of-service',
+		},
+		{
+			key: 'login.story.links.privacy',
+			href: 'https://www.hyperquote.net/docs/legal/privacy-policy',
+		},
+	] satisfies Array<{ key: ParseKeys<'portal'>; href: string }>
+
+	return (
+		<aside className="auth-desktop-story" aria-label={t('login.story.label')}>
+			<p className="auth-story-eyebrow">{t('login.story.eyebrow')}</p>
+			<h2 className="auth-story-heading">{t('login.story.heading')}</h2>
+			<p className="auth-story-tagline">{t('login.story.tagline')}</p>
+			<p className="auth-story-body">{t('login.story.body')}</p>
+			<AuthWorkspaceVector />
+			<nav
+				className="auth-story-links"
+				aria-label={t('login.story.linksLabel')}
+			>
+				{links.map((link) => (
+					<a
+						key={link.key}
+						href={link.href}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="auth-story-link"
+					>
+						<span>{t(link.key)}</span>
+						<ArrowUpRight size={15} strokeWidth={1.7} aria-hidden />
+					</a>
+				))}
+			</nav>
+		</aside>
+	)
+}
+
+function AuthWorkspaceVector() {
+	return (
+		<div className="auth-vector" aria-hidden>
+			<span className="auth-vector-node auth-vector-node-primary" />
+			<span className="auth-vector-node auth-vector-node-quote" />
+			<span className="auth-vector-node auth-vector-node-delivery" />
+			<span className="auth-vector-line auth-vector-line-a" />
+			<span className="auth-vector-line auth-vector-line-b" />
+			<span className="auth-vector-label auth-vector-label-top" />
+			<span className="auth-vector-label auth-vector-label-bottom" />
 		</div>
 	)
+}
+
+function AuthPanel({ children }: { children: ReactNode }) {
+	return <div className="atelier-page atelier-page-enter">{children}</div>
 }
 
 // ============================================================================
@@ -239,7 +371,7 @@ function AutoHeight({ children }: { children: ReactNode }) {
 	return (
 		<motion.div
 			animate={{ height }}
-			transition={{ duration: 0.4, ease: 'easeOut' }}
+			transition={{ duration: 0.22, ease: 'easeOut' }}
 			style={{ overflow: 'hidden' }}
 		>
 			<div ref={contentRef}>{children}</div>
@@ -248,24 +380,41 @@ function AutoHeight({ children }: { children: ReactNode }) {
 }
 
 // ============================================================================
-// Step frame — slide + ink-compose transition between pages
+// Step frame — slide transition between auth steps
 // ============================================================================
 
 function StepFrame({ children }: { children: ReactNode }) {
 	return (
 		<motion.div
-			initial={{ opacity: 0, x: 18 }}
-			animate={{ opacity: 1, x: 0 }}
-			exit={{ opacity: 0, x: -20, filter: 'blur(1.5px)' }}
-			transition={{ duration: 0.28, ease: STEP_EASE }}
+			initial={{ opacity: 0, y: 4 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -3 }}
+			transition={{ duration: 0.18, ease: STEP_EASE }}
 		>
 			{children}
 		</motion.div>
 	)
 }
 
+function AuthStepIntro({
+	heading,
+	body,
+	align = 'start',
+}: {
+	heading: ReactNode
+	body?: ReactNode
+	align?: 'start' | 'center'
+}) {
+	return (
+		<div className={align === 'center' ? 'text-center' : ''}>
+			<h1 className="auth-step-heading">{heading}</h1>
+			{body && <p className="auth-step-body">{body}</p>}
+		</div>
+	)
+}
+
 // ============================================================================
-// Phone Step — "Who shall I prepare this for?"
+// Phone step
 // ============================================================================
 
 function PhoneStep({
@@ -283,6 +432,7 @@ function PhoneStep({
 	const [sendingMethod, setSendingMethod] = useState<'whatsapp' | 'sms' | null>(
 		null,
 	)
+	const [error, setError] = useState<string | null>(null)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 
 	function triggerHint() {
@@ -299,9 +449,11 @@ function PhoneStep({
 
 	function validatePhone(value: string): boolean {
 		if (!value || !phoneRegex.test(value)) {
+			setError(t('login.phoneInvalid'))
 			triggerHint()
 			return false
 		}
+		setError(null)
 		return true
 	}
 
@@ -312,11 +464,13 @@ function PhoneStep({
 		try {
 			const result = await sendOTP({ data: { phone, method } })
 			if (!result.success) {
+				setError(t('login.sendFailed'))
 				triggerHint()
 				return
 			}
 			onNext()
 		} catch {
+			setError(t('login.sendFailed'))
 			triggerHint()
 		} finally {
 			setLoading(false)
@@ -326,25 +480,22 @@ function PhoneStep({
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
-				{t('login.atelier.step1.heading', 'Who shall I prepare this for?')}
-			</h1>
+			<AuthStepIntro
+				heading={t('login.atelier.step1.heading')}
+				body={t('login.atelier.step1.body')}
+			/>
 
-			<div className="mt-8">
-				<label
-					htmlFor="atelier-phone"
-					className="atelier-mono block text-[10px] uppercase tracking-[0.28em] text-[var(--atelier-ink-faint)]"
-				>
-					{t('login.phoneLabel', 'Phone')}
+			<div className="mt-7">
+				<label htmlFor="atelier-phone" className="auth-field-label">
+					{t('login.phoneLabel')}
 				</label>
 
 				<div
 					key={hintKey}
-					className={`atelier-rule-line mt-3 flex items-baseline gap-3 pb-2 ${hintKey > 0 ? 'atelier-border-hint' : ''}`}
+					dir="ltr"
+					className={`atelier-rule-line mt-2 flex items-center gap-3 ${hintKey > 0 ? 'atelier-border-hint' : ''}`}
 				>
-					<span className="atelier-mono shrink-0 text-[13px] text-[var(--atelier-ink-muted)]">
-						+20
-					</span>
+					<span className="auth-country-code">+20</span>
 					<input
 						id="atelier-phone"
 						ref={inputRef}
@@ -356,18 +507,25 @@ function PhoneStep({
 							if (/^20(10|11|12|15)/.test(digits)) digits = digits.slice(2)
 							if (digits.startsWith('0')) digits = digits.slice(1)
 							setPhone(digits.slice(0, 10))
+							if (error) setError(null)
 						}}
-						placeholder="10 xxxx xxxx"
+						placeholder={t('login.phonePlaceholder')}
+						dir="ltr"
 						onKeyDown={(e) => {
 							if (e.key === 'Enter') handleSend('whatsapp')
 						}}
-						aria-label={t('login.phoneLabel', 'Phone')}
-						className="atelier-mono min-w-0 flex-1 bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+						aria-label={t('login.phoneLabel')}
+						className="auth-field-input auth-phone-input min-w-0 flex-1"
 					/>
 				</div>
+				{error && (
+					<p role="alert" className="auth-field-error">
+						{error}
+					</p>
+				)}
 			</div>
 
-			<div className="mt-10 flex flex-col gap-1">
+			<div className="mt-8 flex flex-col gap-2">
 				<Button
 					onPress={() => handleSend('whatsapp')}
 					isDisabled={loading}
@@ -385,7 +543,7 @@ function PhoneStep({
 								className="atelier-whatsapp-icon"
 								draggable={false}
 							/>
-							<span>{t('login.whatsappCTA', 'Continue with WhatsApp')}</span>
+							<span>{t('login.whatsappCTA')}</span>
 						</>
 					)}
 				</Button>
@@ -398,7 +556,7 @@ function PhoneStep({
 					{loading && sendingMethod === 'sms' ? (
 						<AtelierDots />
 					) : (
-						t('login.smsFallback', 'Send via SMS instead')
+						t('login.smsFallback')
 					)}
 				</button>
 			</div>
@@ -407,7 +565,7 @@ function PhoneStep({
 }
 
 // ============================================================================
-// OTP Step — "Enter the six figures I sent."
+// OTP step
 // ============================================================================
 
 const OTP_LENGTH = 6
@@ -468,8 +626,8 @@ function OTPStep({
 				if (!result.success) {
 					setError(
 						result.error === 'rate_limited'
-							? t('login.rateLimit', 'Too many attempts. Wait a moment.')
-							: t('login.wrongCode', 'Incorrect code'),
+							? t('login.rateLimit')
+							: t('login.wrongCode'),
 					)
 					setStriking(true)
 					setTimeout(() => {
@@ -484,7 +642,7 @@ function OTPStep({
 					claimableCompany: result.claimableCompany ?? null,
 				})
 			} catch {
-				setError(t('login.wrongCode', 'Incorrect code'))
+				setError(t('login.wrongCode'))
 				setStriking(true)
 				setTimeout(() => {
 					setStriking(false)
@@ -542,23 +700,20 @@ function OTPStep({
 		try {
 			await sendOTP({ data: { phone, method: 'whatsapp' } })
 		} catch {
-			setError(t('login.sendFailed', 'Could not resend code.'))
+			setError(t('login.sendFailed'))
 		}
 	}
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
-				{t('login.atelier.step2.heading', 'Enter the six figures I sent.')}
-			</h1>
-			<p className="atelier-mono mt-3 text-[11px] uppercase tracking-[0.22em] text-[var(--atelier-ink-muted)]">
-				{t('login.codeSent', 'Sent to')}{' '}
-				<span className="text-[var(--atelier-ink)]">+20 {phone}</span>
-			</p>
+			<AuthStepIntro
+				heading={t('login.atelier.step2.heading')}
+				body={t('login.atelier.step2.body', { phone: `+20 ${phone}` })}
+			/>
 
 			<div
 				dir="ltr"
-				className="mt-8 grid grid-cols-6 gap-2 sm:gap-3"
+				className="mt-7 grid grid-cols-6 gap-2 sm:gap-3"
 				onPaste={handlePaste}
 			>
 				{OTP_SLOTS.map((slot, i) => (
@@ -570,7 +725,7 @@ function OTPStep({
 						{code[i] && (
 							<span
 								key={`${slot}-${code[i]}`}
-								className="atelier-ink-bleed atelier-serif pointer-events-none text-[26px] italic leading-none text-[var(--atelier-ink)] sm:text-[28px]"
+								className="atelier-ink-bleed pointer-events-none text-[22px] font-semibold leading-none text-[var(--atelier-ink)] sm:text-[24px]"
 							>
 								{code[i]}
 							</span>
@@ -588,41 +743,34 @@ function OTPStep({
 							onFocus={() => setFocusedIndex(i)}
 							onBlur={() => setFocusedIndex(-1)}
 							disabled={loading}
-							aria-label={`Digit ${i + 1}`}
-							className="atelier-serif absolute inset-0 h-full w-full bg-transparent text-center text-[26px] italic leading-none text-transparent outline-none caret-[var(--atelier-ink)] disabled:opacity-40 sm:text-[28px]"
+							aria-label={t('login.otpDigitLabel', { index: i + 1 })}
+							className="absolute inset-0 h-full w-full bg-transparent text-center text-[22px] font-semibold leading-none text-transparent outline-none caret-[var(--atelier-ink)] disabled:opacity-40 sm:text-[24px]"
 						/>
 					</div>
 				))}
 			</div>
 
 			{error && (
-				<p
-					role="alert"
-					className="atelier-mono mt-4 text-[11px] uppercase tracking-[0.18em] text-[var(--atelier-ink-error)]"
-				>
+				<p role="alert" className="auth-field-error mt-4">
 					{error}
 				</p>
 			)}
 
-			<div className="atelier-mono mt-8 flex flex-col gap-3 text-[11px] uppercase tracking-[0.14em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.18em]">
-				<button
-					type="button"
-					onClick={onBack}
-					className="text-[var(--atelier-ink-muted)] transition-colors hover:text-[var(--atelier-ink)]"
-				>
-					{t('login.changePhone', 'Change number')}
+			<div className="mt-7 flex flex-col gap-3 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+				<button type="button" onClick={onBack} className="auth-text-action">
+					{t('login.changePhone')}
 				</button>
 				{resendCountdown > 0 ? (
-					<span className="tabular-nums text-[var(--atelier-ink-faint)]">
-						{String(resendCountdown).padStart(2, '0')}
+					<span className="auth-countdown tabular-nums">
+						{t('login.resendIn')} {String(resendCountdown).padStart(2, '0')}
 					</span>
 				) : (
 					<button
 						type="button"
 						onClick={handleResend}
-						className="text-[var(--atelier-ink-muted)] transition-colors hover:text-[var(--atelier-ink)]"
+						className="auth-text-action"
 					>
-						{t('login.resend', 'Resend code')}
+						{t('login.resend')}
 					</button>
 				)}
 			</div>
@@ -631,7 +779,7 @@ function OTPStep({
 }
 
 // ============================================================================
-// Account Creation Step — "Record your details."
+// Account creation step
 // ============================================================================
 
 function AccountCreationStep({
@@ -685,21 +833,19 @@ function AccountCreationStep({
 
 	return (
 		<div className="flex flex-col">
-			<h1 className="atelier-serif text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
-				{t('login.atelier.step3.heading', 'Record your details.')}
-			</h1>
+			<AuthStepIntro
+				heading={t('login.atelier.step3.heading')}
+				body={t('login.atelier.step3.body')}
+			/>
 
-			<div className="mt-8 flex flex-col gap-5">
+			<div className="mt-7 flex flex-col gap-5">
 				<div>
-					<label
-						htmlFor="atelier-name"
-						className="atelier-mono block text-[10px] uppercase tracking-[0.28em] text-[var(--atelier-ink-faint)]"
-					>
-						{t('login.fullName', 'Full name')}
+					<label htmlFor="atelier-name" className="auth-field-label">
+						{t('login.fullName')}
 					</label>
 					<div
 						key={hintNameKey}
-						className={`atelier-rule-line mt-3 pb-2 ${hintNameKey > 0 ? 'atelier-border-hint' : ''}`}
+						className={`atelier-rule-line mt-2 ${hintNameKey > 0 ? 'atelier-border-hint' : ''}`}
 					>
 						<input
 							id="atelier-name"
@@ -716,22 +862,19 @@ function AccountCreationStep({
 									}
 								}
 							}}
-							aria-label={t('login.fullName', 'Full name')}
-							className="atelier-mono w-full bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+							aria-label={t('login.fullName')}
+							className="auth-field-input w-full"
 						/>
 					</div>
 				</div>
 
 				<div>
-					<label
-						htmlFor="atelier-company"
-						className="atelier-mono block text-[10px] uppercase tracking-[0.28em] text-[var(--atelier-ink-faint)]"
-					>
-						{t('login.companyName', 'Company name')}
+					<label htmlFor="atelier-company" className="auth-field-label">
+						{t('login.companyName')}
 					</label>
 					<div
 						key={hintCompanyKey}
-						className={`atelier-rule-line mt-3 pb-2 ${hintCompanyKey > 0 ? 'atelier-border-hint' : ''}`}
+						className={`atelier-rule-line mt-2 ${hintCompanyKey > 0 ? 'atelier-border-hint' : ''}`}
 					>
 						<input
 							id="atelier-company"
@@ -742,23 +885,19 @@ function AccountCreationStep({
 							onKeyDown={(e) => {
 								if (e.key === 'Enter') handleCreate()
 							}}
-							aria-label={t('login.companyName', 'Company name')}
-							className="atelier-mono w-full bg-transparent text-[16px] tracking-normal text-[var(--atelier-ink)] outline-none placeholder:text-[var(--atelier-ink-faint)]"
+							aria-label={t('login.companyName')}
+							className="auth-field-input w-full"
 						/>
 					</div>
 				</div>
 
-				<div className="mt-4">
+				<div className="mt-2">
 					<Button
 						onPress={handleCreate}
 						isDisabled={loading}
 						className="atelier-command"
 					>
-						{loading ? (
-							<AtelierDots />
-						) : (
-							t('login.createButton', 'Create Account')
-						)}
+						{loading ? <AtelierDots /> : t('login.createButton')}
 					</Button>
 				</div>
 			</div>
@@ -767,7 +906,7 @@ function AccountCreationStep({
 }
 
 // ============================================================================
-// Account Claiming Step — "A page already exists."
+// Account claiming step
 // ============================================================================
 
 function AccountClaimingStep({
@@ -785,6 +924,8 @@ function AccountClaimingStep({
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
+	const companyName =
+		claimableCompany?.trim() || t('login.atelier.claiming.fallbackCompany')
 	const initial = claimableCompany
 		? claimableCompany.trim().charAt(0) || '?'
 		: '?'
@@ -795,12 +936,12 @@ function AccountClaimingStep({
 		try {
 			const result = await claimAccount({ data: { phone } })
 			if (!result.success) {
-				setError(t('login.claimFailed', 'Could not claim account. Try again.'))
+				setError(t('login.claimFailed'))
 				return
 			}
 			onComplete()
 		} catch {
-			setError(t('login.claimFailed', 'Could not claim account. Try again.'))
+			setError(t('login.claimFailed'))
 		} finally {
 			setLoading(false)
 		}
@@ -808,22 +949,18 @@ function AccountClaimingStep({
 
 	return (
 		<div className="flex flex-col items-center">
-			<h1 className="atelier-serif text-center text-[26px] leading-[1.1] tracking-normal text-[var(--atelier-ink)] sm:text-[28px]">
-				{t('login.atelier.claiming.heading', 'A page already exists.')}
-			</h1>
-			<p className="atelier-mono mt-3 text-center text-[11px] uppercase tracking-[0.22em] text-[var(--atelier-ink-muted)]">
-				{t('login.atelier.claiming.sub', 'Bearing this mark')}
-			</p>
+			<AuthStepIntro
+				align="center"
+				heading={t('login.atelier.claiming.heading')}
+				body={t('login.atelier.claiming.body', { company: companyName })}
+			/>
 
-			<div className="mt-7">
-				<WaxSeal initial={initial.toUpperCase()} />
+			<div className="mt-6">
+				<CompanyInitialBadge initial={initial.toUpperCase()} />
 			</div>
 
 			{error && (
-				<p
-					role="alert"
-					className="atelier-mono mt-4 text-[11px] uppercase tracking-[0.18em] text-[var(--atelier-ink-error)]"
-				>
+				<p role="alert" className="auth-field-error mt-4 text-center">
 					{error}
 				</p>
 			)}
@@ -834,11 +971,7 @@ function AccountClaimingStep({
 					isDisabled={loading}
 					className="atelier-command"
 				>
-					{loading ? (
-						<AtelierDots />
-					) : (
-						t('login.atelier.claiming.confirm', 'Yes, claim this page')
-					)}
+					{loading ? <AtelierDots /> : t('login.atelier.claiming.confirm')}
 				</Button>
 				<button
 					type="button"
@@ -846,7 +979,7 @@ function AccountClaimingStep({
 					disabled={loading}
 					className="atelier-quiet"
 				>
-					{t('login.atelier.claiming.deny', 'No, open a new page')}
+					{t('login.atelier.claiming.deny')}
 				</button>
 			</div>
 		</div>
@@ -854,11 +987,8 @@ function AccountClaimingStep({
 }
 
 // ============================================================================
-// Farewell Step — "Pleasure doing business." The handshake after signing.
+// Farewell step
 // ============================================================================
-//
-// Fires after a successful create or claim. Holds for ~1.8s, then hands off
-// to handleAuthComplete which runs the leaving fade and navigates.
 
 const FAREWELL_HOLD_MS = 1800
 
@@ -871,16 +1001,21 @@ function FarewellStep({ onDone }: { onDone: () => void }) {
 	}, [onDone])
 
 	return (
-		<div className="flex flex-col items-center py-6">
-			<p className="atelier-serif text-center text-[28px] italic leading-[1.15] tracking-normal text-[var(--atelier-ink)] sm:text-[30px]">
-				{t('login.atelier.farewell.heading', 'Pleasure doing business.')}
-			</p>
-			<div className="atelier-rule-draw mt-7 h-px w-14 origin-left bg-[var(--atelier-rule-strong)]" />
-			<p className="atelier-serif mt-5 text-[20px] italic leading-none text-[var(--atelier-ink-muted)]">
-				{t('login.atelier.farewell.signature', '— L.')}
-			</p>
+		<div className="flex flex-col items-center py-6 text-center">
+			<span className="auth-success-mark" aria-hidden>
+				<Check size={28} strokeWidth={1.8} />
+			</span>
+			<AuthStepIntro
+				align="center"
+				heading={t('login.atelier.farewell.heading')}
+				body={t('login.atelier.farewell.signature')}
+			/>
 		</div>
 	)
+}
+
+function CompanyInitialBadge({ initial }: { initial: string }) {
+	return <span className="auth-company-badge">{initial}</span>
 }
 
 // ============================================================================
@@ -901,23 +1036,23 @@ function LegalFooter({ leaving }: { leaving: boolean }) {
 			className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6"
 		>
 			<p className="atelier-legal-copy pointer-events-auto max-w-[36rem] text-center">
-				{t('login.atelier.legalPrefix', 'By continuing, you agree to')}{' '}
+				{t('login.atelier.legalPrefix')}{' '}
 				<a
 					href="https://www.hyperquote.net/docs/legal/terms-of-service"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="atelier-link"
 				>
-					{t('login.atelier.termsLink', 'Terms')}
+					{t('login.atelier.termsLink')}
 				</a>{' '}
-				{t('login.and', 'and')}{' '}
+				{t('login.and')}{' '}
 				<a
 					href="https://www.hyperquote.net/docs/legal/privacy-policy"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="atelier-link"
 				>
-					{t('login.atelier.privacyLink', 'Privacy')}
+					{t('login.atelier.privacyLink')}
 				</a>
 				.
 			</p>

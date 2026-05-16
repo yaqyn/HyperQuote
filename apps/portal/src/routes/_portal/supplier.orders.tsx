@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { Package, Upload } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -37,6 +38,19 @@ import type { SupplierPO } from '../../types/supplier'
 export const Route = createFileRoute('/_portal/supplier/orders')({
 	component: SupplierOrdersWindow,
 })
+
+const PO_STATUS_LABEL_KEYS: Record<
+	SupplierPO['status'],
+	ParseKeys<'portal'>
+> = {
+	sent: 'supplier.sent',
+	acknowledged: 'supplier.acknowledged',
+	confirmed: 'supplier.confirmed',
+	rejected: 'supplier.rejected',
+	in_production: 'supplier.inProduction',
+	shipped: 'supplier.shipped',
+	delivered: 'supplier.delivered',
+}
 
 function SupplierOrdersWindow() {
 	const { t, i18n } = useTranslation('portal')
@@ -257,9 +271,7 @@ function ConfirmedPOCard({
 				<span className="font-mono">{po.items.length}</span>{' '}
 				{t('supplier.itemsSummary')}
 				{' \u00B7 '}
-				{t(
-					`supplier.${po.status === 'in_production' ? 'inProduction' : po.status}`,
-				)}
+				{t(PO_STATUS_LABEL_KEYS[po.status])}
 			</p>
 
 			<div className="flex gap-2">

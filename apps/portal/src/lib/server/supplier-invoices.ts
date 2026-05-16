@@ -106,7 +106,7 @@ export const submitSupplierInvoice = createServerFn()
 			return { invoiceId: crypto.randomUUID() }
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until supplier invoice writes are wired to Supabase.
 		return { invoiceId: crypto.randomUUID() }
 	})
 
@@ -128,7 +128,7 @@ export const getSupplierInvoices = createServerFn()
 				return { invoices, total: invoices.length }
 			}
 
-			// TODO: Real Supabase query
+			// Mock-backed until supplier invoice reads are wired to Supabase.
 			const invoices = getMockInvoices()
 			return { invoices, total: invoices.length }
 		},

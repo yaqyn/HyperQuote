@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { useNeedsApproval } from '../../../hooks/useApproval'
 import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
 import { clearLocalDraft } from '../../../lib/quote-draft'
+import { toQuoteSubmissionPayload } from '../../../lib/quote-request-payload'
 import { submitForApproval } from '../../../lib/server/approvals'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 import { SubmitConfirmation } from './SubmitConfirmation'
@@ -48,24 +49,10 @@ export function ReviewStep() {
 
 		try {
 			if (needsApproval) {
-				// Submit for approval workflow
 				const state = useQuoteBuilderStore.getState()
 				const res = await submitForApproval({
 					data: {
-						items: state.items.map((item) => ({
-							productId: item.productId,
-							customerDescription: item.customerDescription,
-							quantity: item.quantity,
-							unitOfMeasure: item.unitOfMeasure,
-							notes: item.notes,
-							sortOrder: item.sortOrder,
-							matchConfidence: item.matchConfidence,
-							isUnmatched: item.isUnmatched,
-						})),
-						deliveryAddressId: state.deliveryAddressId ?? undefined,
-						deliveryDate: state.deliveryDate ?? undefined,
-						notes: state.notes || undefined,
-						projectId: state.projectId ?? undefined,
+						...toQuoteSubmissionPayload(state),
 						idempotencyKey: crypto.randomUUID(),
 					},
 				})
@@ -77,7 +64,6 @@ export function ReviewStep() {
 					isApproval: true,
 				})
 			} else {
-				// Direct submit
 				submit(undefined, {
 					onSuccess: (data) => {
 						setResult({
@@ -100,7 +86,6 @@ export function ReviewStep() {
 		}
 	}, [needsApproval, submit, t])
 
-	// Show success/approval confirmation
 	if (result) {
 		return (
 			<SubmitConfirmation

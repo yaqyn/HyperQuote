@@ -203,7 +203,7 @@ export const getSupplierPOs = createServerFn()
 				return { purchaseOrders: pos, total: pos.length }
 			}
 
-			// TODO: Real Supabase query
+			// Mock-backed until supplier PO reads are wired to Supabase.
 			const pos = getMockPOs()
 			return { purchaseOrders: pos, total: pos.length }
 		},
@@ -239,7 +239,7 @@ export const confirmPO = createServerFn()
 			return { success: true }
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until supplier PO confirmations write to Supabase.
 		return { success: true }
 	})
 
@@ -259,7 +259,7 @@ export const rejectPO = createServerFn()
 			return { success: true }
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until supplier PO rejections write to Supabase.
 		return { success: true }
 	})
 
@@ -281,6 +281,6 @@ export const uploadDeliveryNote = createServerFn()
 			return { deliveryNoteId: crypto.randomUUID() }
 		}
 
-		// TODO: Real Supabase query — upload file to R2, notify warehouse
+		// Mock-backed until delivery-note R2 upload and warehouse notification are configured.
 		return { deliveryNoteId: crypto.randomUUID() }
 	})

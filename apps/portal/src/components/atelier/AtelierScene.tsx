@@ -1,16 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react'
 
 // ============================================================================
-// AtelierScene — the room around the order book page
+// AtelierScene — the auth backdrop around the access panel
 // ============================================================================
 //
-// Renders the pendant lamp, the tungsten cone that spills down into the
-// viewport, a handful of drifting dust motes inside the cone, and the page
-// slot (children). The whole assembly fades in with a lamp-click animation
-// when `lit` is true.
-//
-// The page itself is passed as children — this component owns the room,
-// not the document.
+// Dark mode renders the pendant, cone, and slow dust motes. Light mode passes
+// `lit={false}` so the same access panel sits in a clean white workspace.
 
 export function AtelierScene({
 	lit,
@@ -20,7 +15,7 @@ export function AtelierScene({
 	children: ReactNode
 }) {
 	return (
-		<div className="relative flex min-h-dvh w-full items-center justify-center overflow-visible px-4 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:px-6 sm:py-8 sm:pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
+		<div className="relative flex min-h-dvh w-full items-center justify-center overflow-visible px-0 py-0 sm:px-6 sm:py-8 sm:pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
 			{lit && (
 				<div className={`absolute inset-0 atelier-lamp-on`} aria-hidden>
 					<div className="atelier-pendant" />
@@ -36,7 +31,7 @@ export function AtelierScene({
 }
 
 // ============================================================================
-// Dust motes — 5 particles drifting inside the lamp cone
+// Dust motes — 5 particles drifting inside the dark-mode lamp cone
 // ============================================================================
 
 interface Mote {

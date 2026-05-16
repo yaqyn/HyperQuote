@@ -6,6 +6,7 @@
 
 import { StatusBadge } from '@hyperquote/ui'
 import { useQuery } from '@tanstack/react-query'
+import type { ParseKeys } from 'i18next'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
@@ -31,18 +32,12 @@ function getStatusVariant(
 	}
 }
 
-function getStatusLabel(
-	status: InvoiceStatus,
-	t: (key: string) => string,
-): string {
-	const labels: Record<InvoiceStatus, string> = {
-		submitted: t('supplier.submitted'),
-		under_review: t('supplier.underReview'),
-		approved: t('supplier.approved'),
-		paid: t('supplier.paid'),
-		disputed: t('supplier.disputed'),
-	}
-	return labels[status] ?? status
+const STATUS_LABEL_KEYS: Record<InvoiceStatus, ParseKeys<'portal'>> = {
+	submitted: 'supplier.submitted',
+	under_review: 'supplier.underReview',
+	approved: 'supplier.approved',
+	paid: 'supplier.paid',
+	disputed: 'supplier.disputed',
 }
 
 interface InvoiceListTableProps {
@@ -142,7 +137,7 @@ export function InvoiceListTable({ locale }: InvoiceListTableProps) {
 						</span>
 						<div className="flex justify-center">
 							<StatusBadge status={getStatusVariant(inv.status)}>
-								{getStatusLabel(inv.status, t)}
+								{t(STATUS_LABEL_KEYS[inv.status])}
 							</StatusBadge>
 						</div>
 					</div>

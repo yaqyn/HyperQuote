@@ -1,41 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMatches, useNavigate } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import {
 	ClipboardList,
 	Globe,
 	Info,
 	LifeBuoy,
 	LogOut,
+	type LucideIcon,
 	MessageSquare,
 	Moon,
 	PanelLeft,
 	Plus,
-	Save,
-	Send,
-	Share2,
 	ShoppingBag,
 	Star,
 	Sun,
-	Trash2,
 	User,
-	X,
 } from 'lucide-react'
 import { motion } from 'motion/react'
-import {
-	type ReactNode,
-	type RefObject,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from 'react'
-import { createPortal } from 'react-dom'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { type Conversation, useChatStore } from '../../stores/chat'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
+import { DraftQuoteTrigger } from '../shared/DraftQuoteTrigger'
 
 interface ChatSidebarProps {
 	userName: string
@@ -53,7 +43,11 @@ const NAV_ITEMS = [
 		to: '/orders' as const,
 	},
 	{ labelKey: 'sidebar.nav.support', icon: LifeBuoy, to: '/support' as const },
-]
+] satisfies ReadonlyArray<{
+	labelKey: ParseKeys<'portal'>
+	icon: LucideIcon
+	to: string
+}>
 
 type NavTarget = (typeof NAV_ITEMS)[number]['to']
 
@@ -340,24 +334,6 @@ export function ChatSidebar({
 	)
 }
 
-function useDraftModalFullscreen() {
-	const [isFullscreen, setIsFullscreen] = useState(() => {
-		if (typeof window === 'undefined') return false
-		return window.matchMedia('(max-width: 1023px)').matches
-	})
-
-	useEffect(() => {
-		const media = window.matchMedia('(max-width: 1023px)')
-		const update = () => setIsFullscreen(media.matches)
-
-		update()
-		media.addEventListener('change', update)
-		return () => media.removeEventListener('change', update)
-	}, [])
-
-	return isFullscreen
-}
-
 /* ============================================================================ */
 
 function _NibMonogram() {
@@ -581,7 +557,11 @@ function ProfileMenu({
 			action: () => navigate({ to: '/about' }),
 		},
 		{ labelKey: 'profile.signOut', icon: LogOut, action: handleSignOut },
-	]
+	] satisfies Array<{
+		labelKey: ParseKeys<'portal'>
+		icon: LucideIcon
+		action: () => void
+	}>
 
 	const initial = (userName || '?').charAt(0).toUpperCase()
 
@@ -640,12 +620,11 @@ function DraftSection({
 }: {
 	closeOnNavigate?: boolean
 }) {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
+	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const items = useDraftQuoteStore((s) => s.items)
 	const [sectionOpen, setSectionOpen] = useState(true)
-	const [modalOpen, setModalOpen] = useState(false)
-	const btnRef = useRef<HTMLButtonElement>(null)
 
 	const { data } = useQuery({
 		queryKey: ['customer-orders-all'],
@@ -672,26 +651,13 @@ function DraftSection({
 			{sectionOpen && (
 				<div className="mb-2 flex flex-col gap-1">
 					{items.length > 0 && (
-						<button
-							ref={btnRef}
-							type="button"
-							onClick={() => setModalOpen(!modalOpen)}
-							className={`flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-start transition-colors ${
-								modalOpen
-									? 'border-[var(--p-border-strong)] bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
-									: 'border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-secondary)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
-							}`}
-						>
-							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
-								<ClipboardList size={15} strokeWidth={1.6} />
-							</span>
-							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-								{t('market.draftQuote')}
-							</span>
-							<span className="voice-mono rounded-full bg-[var(--p-accent)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--p-accent-contrast)]">
-								{items.length}
-							</span>
-						</button>
+						<DraftQuoteTrigger
+							count={items.length}
+							isAr={i18n.language === 'ar'}
+							onClick={() => {
+								setDraftQuoteOpen(true)
+							}}
+						/>
 					)}
 
 					<p className="voice-mono px-1 pt-3 pb-1 text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
@@ -759,283 +725,6 @@ function DraftSection({
 					)}
 				</div>
 			)}
-			{modalOpen && (
-				<DraftQuoteModal
-					onClose={() => setModalOpen(false)}
-					anchorRef={btnRef}
-				/>
-			)}
 		</>
-	)
-}
-
-function QtyInput({
-	quantity,
-	onChange,
-}: {
-	quantity: number
-	onChange: (v: number) => void
-}) {
-	const [local, setLocal] = useState(String(quantity))
-
-	useEffect(() => {
-		setLocal(String(quantity))
-	}, [quantity])
-
-	return (
-		<input
-			type="text"
-			inputMode="numeric"
-			value={local}
-			onChange={(e) => {
-				const raw = e.target.value.replace(/[^0-9]/g, '')
-				setLocal(raw)
-				const v = parseInt(raw, 10)
-				if (!Number.isNaN(v) && v > 0) onChange(v)
-			}}
-			onBlur={() => {
-				const v = parseInt(local, 10)
-				if (Number.isNaN(v) || v < 1) {
-					setLocal('1')
-					onChange(1)
-				}
-			}}
-			className="font-mono text-[13px] min-w-[2ch] max-w-[6ch] h-7 text-center text-[var(--p-text)] bg-transparent border-none outline-none"
-			style={{ width: `${Math.max(2, local.length + 1)}ch` }}
-		/>
-	)
-}
-
-function DraftQuoteModal({
-	onClose,
-	anchorRef,
-}: {
-	onClose: () => void
-	anchorRef: RefObject<HTMLButtonElement | null>
-}) {
-	const { t, i18n } = useTranslation('portal')
-	const isAr = i18n.language === 'ar'
-	const isCompactViewport = useDraftModalFullscreen()
-	const items = useDraftQuoteStore((s) => s.items)
-	const updateQuantity = useDraftQuoteStore((s) => s.updateQuantity)
-	const remove = useDraftQuoteStore((s) => s.remove)
-	const clear = useDraftQuoteStore((s) => s.clear)
-
-	const [pos, setPos] = useState({ top: 0, left: 0 })
-	useEffect(() => {
-		if (isCompactViewport || !anchorRef.current) return
-
-		function updatePosition() {
-			if (!anchorRef.current) return
-
-			const rect = anchorRef.current.getBoundingClientRect()
-			const modalWidth = Math.min(380, window.innerWidth - 24)
-			const modalHeight = Math.min(window.innerHeight * 0.6, 520)
-			const preferredLeft = isAr ? rect.left - modalWidth - 8 : rect.right + 8
-			const maxLeft = Math.max(12, window.innerWidth - modalWidth - 12)
-			const maxTop = Math.max(12, window.innerHeight - modalHeight - 12)
-
-			setPos({
-				top: Math.min(Math.max(rect.top, 12), maxTop),
-				left: Math.min(Math.max(preferredLeft, 12), maxLeft),
-			})
-		}
-
-		updatePosition()
-		window.addEventListener('resize', updatePosition)
-		return () => window.removeEventListener('resize', updatePosition)
-	}, [anchorRef, isAr, isCompactViewport])
-
-	useEffect(() => {
-		if (!isCompactViewport) return
-
-		const previousOverflow = document.body.style.overflow
-		document.body.style.overflow = 'hidden'
-
-		return () => {
-			document.body.style.overflow = previousOverflow
-		}
-	}, [isCompactViewport])
-
-	useEffect(() => {
-		function handleKey(e: KeyboardEvent) {
-			if (e.key === 'Escape') onClose()
-		}
-		document.addEventListener('keydown', handleKey)
-		return () => document.removeEventListener('keydown', handleKey)
-	}, [onClose])
-
-	const handleShare = async () => {
-		const lines = items.map((item) => {
-			const name = isAr ? item.nameAr : item.name
-			return `${name} — ${item.quantity} ${item.unitOfMeasure}`
-		})
-		const text = lines.join('\n')
-		if (navigator.share) {
-			await navigator.share({ title: t('market.draftQuote'), text })
-		} else {
-			await navigator.clipboard.writeText(text)
-		}
-	}
-
-	return createPortal(
-		<>
-			<button
-				type="button"
-				aria-label={t('window.close')}
-				className="fixed inset-0 z-[99] cursor-default bg-transparent"
-				onClick={onClose}
-			/>
-			<motion.div
-				initial={
-					isCompactViewport ? { opacity: 0, y: 16 } : { opacity: 0, x: -8 }
-				}
-				animate={
-					isCompactViewport ? { opacity: 1, y: 0 } : { opacity: 1, x: 0 }
-				}
-				transition={{ duration: 0.18, ease: 'easeOut' }}
-				style={isCompactViewport ? undefined : { top: pos.top, left: pos.left }}
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="draft-quote-title"
-				className={
-					isCompactViewport
-						? 'fixed inset-0 z-[100] flex h-dvh w-screen flex-col overflow-hidden border-0 bg-[var(--p-bg)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-none'
-						: 'fixed z-[100] flex max-h-[min(60vh,520px)] w-[min(380px,calc(100vw-1.5rem))] flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-[var(--p-panel-shadow)]'
-				}
-			>
-				{/* Header */}
-				<div className="flex items-center justify-between px-6 py-4 border-b border-[var(--p-border)] shrink-0">
-					<h2
-						id="draft-quote-title"
-						className="text-[16px] font-semibold text-[var(--p-text)]"
-					>
-						{t('market.draftQuote')}
-					</h2>
-					<button
-						type="button"
-						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--p-text-muted)] hover:text-[var(--p-text)] hover:bg-[var(--p-hover)] transition-colors"
-					>
-						<X size={16} />
-					</button>
-				</div>
-
-				{/* Items */}
-				<div className="flex-1 overflow-y-auto">
-					{items.length === 0 ? (
-						<div className="flex items-center justify-center py-12">
-							<p className="text-[13px] text-[var(--p-text-muted)]">
-								{t('market.draftEmpty')}
-							</p>
-						</div>
-					) : (
-						items.map((item, idx) => (
-							<div
-								key={item.productId}
-								className={`flex items-center gap-4 px-6 py-3.5 ${
-									idx < items.length - 1
-										? 'border-b border-[var(--p-border)]'
-										: ''
-								}`}
-							>
-								<div className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--p-surface)] shrink-0">
-									<img
-										src={item.imageUrl}
-										alt=""
-										className="w-full h-full object-cover"
-									/>
-								</div>
-								<div className="flex-1 min-w-0">
-									<p className="text-[13px] font-medium text-[var(--p-text)] truncate">
-										{isAr ? item.nameAr : item.name}
-									</p>
-									<p className="text-[13px] text-[var(--p-text-muted)]">
-										{item.unitOfMeasure}
-									</p>
-								</div>
-								<div className="flex items-center gap-1 shrink-0">
-									<button
-										type="button"
-										onClick={() =>
-											updateQuantity(item.productId, item.quantity - 1)
-										}
-										className="w-7 h-7 rounded flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-[14px]"
-									>
-										−
-									</button>
-									<QtyInput
-										quantity={item.quantity}
-										onChange={(v) => updateQuantity(item.productId, v)}
-									/>
-									<button
-										type="button"
-										onClick={() =>
-											updateQuantity(item.productId, item.quantity + 1)
-										}
-										className="w-7 h-7 rounded flex items-center justify-center text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] transition-colors text-[14px]"
-									>
-										+
-									</button>
-								</div>
-								<button
-									type="button"
-									onClick={() => remove(item.productId)}
-									className="p-1.5 text-[var(--p-text-muted)] hover:text-[var(--p-error)] transition-colors shrink-0"
-								>
-									<Trash2 size={14} />
-								</button>
-							</div>
-						))
-					)}
-				</div>
-
-				{/* Footer */}
-				{items.length > 0 && (
-					<div className="shrink-0 border-t border-[var(--p-border)] px-6 py-4 flex flex-col gap-3">
-						<div className="grid grid-cols-2 gap-2 lg:flex lg:items-center">
-							<button
-								type="button"
-								onClick={handleShare}
-								className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[var(--p-border)] px-3 text-[13px] font-medium text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)] lg:h-9"
-							>
-								<Share2 size={13} />
-								{t('market.share')}
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									/* save — already persisted */
-								}}
-								className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[var(--p-border)] px-3 text-[13px] font-medium text-[var(--p-text-secondary)] transition-colors hover:text-[var(--p-text)] lg:h-9"
-							>
-								<Save size={13} />
-								{t('market.saveDraft')}
-							</button>
-							<div className="hidden lg:block lg:flex-1" />
-							<button
-								type="button"
-								onClick={clear}
-								className="col-span-2 flex h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-error)] lg:col-span-1 lg:h-9"
-							>
-								<Trash2 size={13} />
-								{t('market.clearDraft')}
-							</button>
-						</div>
-						<button
-							type="button"
-							onClick={() => {
-								/* submit quote — future */
-							}}
-							className="h-11 w-full rounded-xl bg-[var(--p-accent)] text-[var(--p-accent-contrast)] text-[14px] font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-						>
-							<Send size={15} />
-							{t('market.submitQuote')}
-						</button>
-					</div>
-				)}
-			</motion.div>
-		</>,
-		document.body,
 	)
 }

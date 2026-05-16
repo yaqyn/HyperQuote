@@ -7,6 +7,7 @@
  */
 
 import { useLocation, useMatches } from '@tanstack/react-router'
+import type { ParseKeys } from 'i18next'
 import { ArrowUp, Sparkles, Square, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -31,15 +32,11 @@ const WINDOW_ROUTES = [
 	'/supplier/catalog-upload',
 ]
 
-/** Supplier-mode system prompt context for AI chat */
-const SUPPLIER_CONTEXT =
-	'You are helping a supplier manage their catalog and orders on HyperQuote. The user can ask about: updating prices, checking pending purchase orders, uploading catalogs, viewing analytics. Example prompts: "Update my cement prices", "Show my pending POs", "What is my fill rate this month?"'
-
 /** Context-aware greeting key based on current route and role */
 function getContextGreeting(
 	pathname: string,
 	activeRole: 'customer' | 'supplier',
-): string {
+): ParseKeys<'portal'> {
 	if (activeRole === 'supplier') {
 		if (pathname.startsWith('/supplier/stock'))
 			return 'floatingAI.supplierStock'
@@ -174,7 +171,7 @@ export function FloatingAIButton() {
 						className="fixed bottom-4 end-4 z-50 w-[380px] max-h-[60vh] flex flex-col backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl shadow-2xl border border-[var(--color-border)]/50"
 					>
 						<Dialog
-							aria-label="AI Assistant"
+							aria-label={t('floatingAI.ariaLabel')}
 							isKeyboardDismissDisabled
 							className="outline-none flex flex-col h-full"
 						>
@@ -207,7 +204,7 @@ export function FloatingAIButton() {
 										</p>
 										{activeRole === 'supplier' && (
 											<p className="text-[13px] text-[var(--color-text-muted)] opacity-60">
-												{SUPPLIER_CONTEXT}
+												{t('floatingAI.supplierContext')}
 											</p>
 										)}
 									</div>

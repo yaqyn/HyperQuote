@@ -9,11 +9,14 @@
 		},
 		"apps/portal": {
 			"entry": [
+				"vite.config.ts",
+				"vitest.config.ts",
 				"src/router.tsx",
 				"src/routes/**/*.{ts,tsx}",
+				"src/styles.css",
 				"workbox-config.js"
 			],
-			"project": ["src/**/*.{ts,tsx}"]
+			"project": ["vite.config.ts", "vitest.config.ts", "src/**/*.{ts,tsx,css}"]
 		},
 		"apps/internal": {
 			"entry": [
@@ -23,7 +26,11 @@
 				"src/routes/**/*.{ts,tsx}",
 				"src/styles.css"
 			],
-			"project": ["vite.config.ts", "vitest.config.ts", "src/**/*.{ts,tsx,css}"],
+			"project": [
+				"vite.config.ts",
+				"vitest.config.ts",
+				"src/**/*.{ts,tsx,css}"
+			],
 			"ignore": ["src/shims/*.ts"]
 		},
 		"apps/ceo": {

@@ -11,6 +11,7 @@ import {
 	loadDraftFromLocal,
 	saveDraftToLocal,
 } from '../lib/quote-draft'
+import { toQuoteDraftPayload } from '../lib/quote-request-payload'
 import { saveDraft } from '../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../stores/quote-builder'
 
@@ -36,12 +37,10 @@ export function useQuoteDraft() {
 		useQuoteBuilderStore.persist.rehydrate()
 	}, [])
 
-	// Check for existing draft on mount
 	useEffect(() => {
 		setHasDraft(hasRecentDraft())
 	}, [])
 
-	// Restore draft from localStorage on mount
 	useEffect(() => {
 		const draft = loadDraftFromLocal()
 		if (!draft || draft.items.length === 0) return
@@ -49,7 +48,6 @@ export function useQuoteDraft() {
 		setIsRestoring(true)
 		const store = useQuoteBuilderStore.getState()
 
-		// Only restore if store is empty (user hasn't started new work)
 		if (store.items.length === 0) {
 			store.setItems(draft.items)
 			if (draft.projectId) store.setProjectId(draft.projectId)
@@ -63,7 +61,6 @@ export function useQuoteDraft() {
 		setIsRestoring(false)
 	}, [])
 
-	// Auto-save to localStorage every 30 seconds
 	useEffect(() => {
 		const interval = setInterval(() => {
 			const state = useQuoteBuilderStore.getState()
@@ -82,20 +79,16 @@ export function useQuoteDraft() {
 		return () => clearInterval(interval)
 	}, [])
 
-	// Debounced server save -- triggers 5s after isDirty changes
 	useEffect(() => {
 		const unsubscribe = useQuoteBuilderStore.subscribe((state) => {
 			if (!state.isDirty) return
 
-			// Clear existing timer
 			if (serverSaveTimerRef.current) {
 				clearTimeout(serverSaveTimerRef.current)
 			}
 
-			// Debounce server save
 			serverSaveTimerRef.current = setTimeout(async () => {
 				const now = Date.now()
-				// Throttle: don't save more than once per 5 seconds
 				if (now - lastServerSaveRef.current < SERVER_SAVE_DEBOUNCE) return
 
 				const current = useQuoteBuilderStore.getState()
@@ -103,23 +96,7 @@ export function useQuoteDraft() {
 
 				try {
 					const result = await saveDraft({
-						data: {
-							draftId: current.draftId ?? undefined,
-							items: current.items.map((item) => ({
-								productId: item.productId,
-								customerDescription: item.customerDescription,
-								quantity: item.quantity,
-								unitOfMeasure: item.unitOfMeasure,
-								notes: item.notes,
-								sortOrder: item.sortOrder,
-								matchConfidence: item.matchConfidence,
-								isUnmatched: item.isUnmatched,
-							})),
-							deliveryAddressId: current.deliveryAddressId ?? undefined,
-							deliveryDate: current.deliveryDate ?? undefined,
-							notes: current.notes || undefined,
-							projectId: current.projectId ?? undefined,
-						},
+						data: toQuoteDraftPayload(current),
 					})
 
 					if (result.draftId && !current.draftId) {
@@ -128,8 +105,7 @@ export function useQuoteDraft() {
 
 					lastServerSaveRef.current = Date.now()
 				} catch {
-					// Server save failed -- localStorage save is primary, so this is okay
-					console.warn('[quote-draft] Server save failed')
+					// Local draft persistence remains the source of continuity in dev.
 				}
 			}, SERVER_SAVE_DEBOUNCE)
 		})

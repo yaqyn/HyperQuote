@@ -158,9 +158,6 @@ export const sendOTP = createServerFn()
 
 			// Dev mode: return mock success when Supabase OTP not configured
 			if (isDevMode()) {
-				console.log(
-					`[portal:sendOTP] Dev mode: OTP would be sent to ${formattedPhone} via ${input.method}`,
-				)
 				return { success: true, expiresIn: 300 }
 			}
 
@@ -213,9 +210,6 @@ export const verifyOTP = createServerFn()
 
 			// Dev mode: return mock success
 			if (isDevMode()) {
-				console.log(
-					`[portal:verifyOTP] Dev mode: verifying code ${input.code} for ${formattedPhone}`,
-				)
 				await clearRateLimit(kv, `verify:${input.phone}`)
 				return {
 					success: true,
@@ -283,9 +277,6 @@ export const createAccount = createServerFn()
 
 			// Dev mode: return mock success
 			if (isDevMode()) {
-				console.log(
-					`[portal:createAccount] Dev mode: creating account for ${formattedPhone}`,
-				)
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
@@ -348,9 +339,6 @@ export const claimAccount = createServerFn()
 
 			// Dev mode: return mock success
 			if (isDevMode()) {
-				console.log(
-					`[portal:claimAccount] Dev mode: claiming account for ${formattedPhone}`,
-				)
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
@@ -390,30 +378,3 @@ export const claimAccount = createServerFn()
 			return { success: false, error: 'claim_failed' as const }
 		}
 	})
-
-// ============================================================================
-// signOut — Clear session and SSO cookie
-// ============================================================================
-
-const signOut = createServerFn().handler(async () => {
-	try {
-		const config = getSupabaseConfig()
-		const request = getRequest()
-		const { client } = createSupabaseServerClient({
-			request,
-			...config,
-		})
-
-		const { error } = await client.auth.signOut()
-
-		if (error) {
-			console.error('[portal:signOut] Supabase error:', error)
-			return { success: false, error: 'signout_failed' as const }
-		}
-
-		return { success: true }
-	} catch (err) {
-		console.error('[portal:signOut] Unexpected error:', err)
-		return { success: false, error: 'signout_failed' as const }
-	}
-})

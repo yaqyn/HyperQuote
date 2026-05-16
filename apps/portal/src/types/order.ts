@@ -14,6 +14,7 @@ export type OrderStatus =
 	| 'delivered'
 	| 'expired'
 	| 'cancelled'
+	| 'rejected'
 
 export interface OrderItem {
 	productId: string
@@ -23,14 +24,6 @@ export interface OrderItem {
 	unitOfMeasure: string
 	imageUrl: string
 	category: string
-}
-
-/** Saved list (quote/order draft saved by a user). */
-export interface SavedList {
-	id: string
-	name: string
-	items: OrderItem[]
-	lastUsedAt: string
 }
 
 export interface Order {

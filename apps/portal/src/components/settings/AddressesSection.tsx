@@ -22,7 +22,7 @@ import {
 	SelectValue,
 	TextField,
 } from 'react-aria-components'
-import { Controller, useForm } from 'react-hook-form'
+import { type Control, Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { deleteAddress, saveAddress } from '../../lib/server/settings'
 import type { Address } from '../../types/settings'
@@ -69,6 +69,8 @@ interface AddressFormValues {
 	postalCode: string
 	isDefault: boolean
 }
+
+type AddressTextFieldName = 'label' | 'street' | 'city' | 'postalCode'
 
 const labelClass =
 	'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
@@ -275,61 +277,25 @@ function AddressFormDialog({
 					</Heading>
 
 					<form onSubmit={onSubmit} className="space-y-5">
-						<Controller
+						<AddressTextField
+							control={control}
 							name="label"
-							control={control}
-							rules={{ required: true }}
-							render={({ field }) => (
-								<TextField
-									value={field.value}
-									onChange={field.onChange}
-									isRequired
-									className="space-y-1.5"
-								>
-									<Label className={labelClass}>
-										{t('settings.addresses.label')}
-									</Label>
-									<Input className={underlineInputClass} />
-								</TextField>
-							)}
+							label={t('settings.addresses.label')}
+							isRequired
 						/>
 
-						<Controller
+						<AddressTextField
+							control={control}
 							name="street"
-							control={control}
-							rules={{ required: true }}
-							render={({ field }) => (
-								<TextField
-									value={field.value}
-									onChange={field.onChange}
-									isRequired
-									className="space-y-1.5"
-								>
-									<Label className={labelClass}>
-										{t('settings.addresses.street')}
-									</Label>
-									<Input className={underlineInputClass} />
-								</TextField>
-							)}
+							label={t('settings.addresses.street')}
+							isRequired
 						/>
 
-						<Controller
-							name="city"
+						<AddressTextField
 							control={control}
-							rules={{ required: true }}
-							render={({ field }) => (
-								<TextField
-									value={field.value}
-									onChange={field.onChange}
-									isRequired
-									className="space-y-1.5"
-								>
-									<Label className={labelClass}>
-										{t('settings.addresses.city')}
-									</Label>
-									<Input className={underlineInputClass} />
-								</TextField>
-							)}
+							name="city"
+							label={t('settings.addresses.city')}
+							isRequired
 						/>
 
 						{/* Governorate Select */}
@@ -367,22 +333,10 @@ function AddressFormDialog({
 							)}
 						/>
 
-						{/* Postal Code (optional) */}
-						<Controller
-							name="postalCode"
+						<AddressTextField
 							control={control}
-							render={({ field }) => (
-								<TextField
-									value={field.value}
-									onChange={field.onChange}
-									className="space-y-1.5"
-								>
-									<Label className={labelClass}>
-										{t('settings.addresses.postalCode')}
-									</Label>
-									<Input className={underlineInputClass} />
-								</TextField>
-							)}
+							name="postalCode"
+							label={t('settings.addresses.postalCode')}
 						/>
 
 						<div className="flex justify-end gap-4 pt-4">
@@ -404,6 +358,37 @@ function AddressFormDialog({
 				</Dialog>
 			</Modal>
 		</ModalOverlay>
+	)
+}
+
+function AddressTextField({
+	control,
+	name,
+	label,
+	isRequired = false,
+}: {
+	control: Control<AddressFormValues>
+	name: AddressTextFieldName
+	label: string
+	isRequired?: boolean
+}) {
+	return (
+		<Controller
+			name={name}
+			control={control}
+			rules={isRequired ? { required: true } : undefined}
+			render={({ field }) => (
+				<TextField
+					value={field.value}
+					onChange={field.onChange}
+					isRequired={isRequired}
+					className="space-y-1.5"
+				>
+					<Label className={labelClass}>{label}</Label>
+					<Input className={underlineInputClass} />
+				</TextField>
+			)}
+		/>
 	)
 }
 

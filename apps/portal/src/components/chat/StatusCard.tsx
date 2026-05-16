@@ -8,26 +8,10 @@
  *   dispatched                                         30 MAR 2026
  *   · · · · · — progress ticks at the bottom
  *
- * Arabic-Indic numerals when locale is AR.
  */
 import { useTranslation } from 'react-i18next'
 import type { StatusCardData } from '../../lib/chat-types'
-
-const WESTERN_TO_ARABIC_INDIC: Record<string, string> = {
-	'0': '\u0660',
-	'1': '\u0661',
-	'2': '\u0662',
-	'3': '\u0663',
-	'4': '\u0664',
-	'5': '\u0665',
-	'6': '\u0666',
-	'7': '\u0667',
-	'8': '\u0668',
-	'9': '\u0669',
-}
-function toArabicIndic(str: string): string {
-	return str.replace(/[0-9]/g, (d) => WESTERN_TO_ARABIC_INDIC[d] ?? d)
-}
+import { toArabicIndic } from '../../lib/localized-digits'
 
 const STATUS_COLOR: Record<'green' | 'yellow' | 'red', string> = {
 	green: 'var(--p-success)',
@@ -40,7 +24,7 @@ interface StatusCardProps {
 }
 
 export function StatusCard({ data }: StatusCardProps) {
-	const { i18n } = useTranslation()
+	const { i18n, t } = useTranslation('portal')
 	const isArabic = i18n.language === 'ar'
 
 	const displayNumber = isArabic
@@ -49,12 +33,8 @@ export function StatusCard({ data }: StatusCardProps) {
 
 	const kindLabel =
 		data.entityType === 'order'
-			? isArabic
-				? 'طلب'
-				: 'Order'
-			: isArabic
-				? 'عرض سعر'
-				: 'Quote'
+			? t('chat.status.order')
+			: t('chat.status.quote')
 
 	const shownSteps = data.timeline.filter((s) => s.done).slice(-2)
 	const statusColor = STATUS_COLOR[data.statusColor]
@@ -71,7 +51,7 @@ export function StatusCard({ data }: StatusCardProps) {
 						{kindLabel}
 					</span>
 					<span className="voice-mono break-all text-[12px] tracking-[0.14em] text-[var(--p-text)]">
-						No.&nbsp;{displayNumber}
+						{t('chat.status.numberPrefix')}&nbsp;{displayNumber}
 					</span>
 				</div>
 				<span
@@ -114,7 +94,7 @@ export function StatusCard({ data }: StatusCardProps) {
 					<div className="mt-1 h-px bg-[var(--p-rule-strong)]" />
 					<ol
 						className="mt-3 flex list-none items-center gap-2 p-0"
-						aria-label="Progress"
+						aria-label={t('chat.status.progressLabel')}
 					>
 						{data.timeline.map((step) => (
 							<li

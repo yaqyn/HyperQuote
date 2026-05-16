@@ -6,6 +6,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ParseKeys } from 'i18next'
 import { useState } from 'react'
 import {
 	Button,
@@ -33,7 +34,7 @@ import {
 import type { TeamMember } from '../../types/settings'
 
 const ROLES = ['buyer', 'approver', 'site_manager'] as const
-const ROLE_LABELS: Record<string, string> = {
+const ROLE_LABELS: Record<(typeof ROLES)[number], ParseKeys<'portal'>> = {
 	buyer: 'settings.team.roleBuyer',
 	approver: 'settings.team.roleApprover',
 	site_manager: 'settings.team.roleSiteManager',

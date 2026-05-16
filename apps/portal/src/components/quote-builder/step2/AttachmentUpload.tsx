@@ -6,7 +6,7 @@
 
 import { Paperclip, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Button, DropZone, FileTrigger } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
@@ -19,6 +19,7 @@ const MAX_FILES = 5
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const ACCEPTED_EXTENSIONS = '.pdf,.jpg,.jpeg,.png'
+const ACCEPTED_FILE_NAME_PATTERN = /\.(pdf|jpe?g|png)$/i
 
 // ============================================================================
 // Component
@@ -28,6 +29,9 @@ export function AttachmentUpload() {
 	const { t } = useTranslation('portal')
 	const attachments = useQuoteBuilderStore((s) => s.attachments)
 	const setAttachments = useQuoteBuilderStore((s) => s.setAttachments)
+	const [validationMessage, setValidationMessage] = useState<string | null>(
+		null,
+	)
 
 	const validateAndAdd = useCallback(
 		(incoming: File[]) => {
@@ -35,17 +39,23 @@ export function AttachmentUpload() {
 			const remainingSlots = MAX_FILES - current.length
 
 			if (remainingSlots <= 0) {
-				// TODO: show toast t('quoteBuilder.maxFiles')
+				setValidationMessage(t('quoteBuilder.maxFiles'))
 				return
 			}
 
 			const valid: File[] = []
+			let rejectedMessage =
+				incoming.length > remainingSlots ? t('quoteBuilder.maxFiles') : null
 			for (const file of incoming.slice(0, remainingSlots)) {
 				if (file.size > MAX_SIZE_BYTES) {
-					// TODO: show toast t('quoteBuilder.fileTooLarge')
+					rejectedMessage ??= t('quoteBuilder.fileTooLarge')
 					continue
 				}
-				if (!ACCEPTED_TYPES.includes(file.type)) {
+				if (
+					!ACCEPTED_TYPES.includes(file.type) &&
+					!ACCEPTED_FILE_NAME_PATTERN.test(file.name)
+				) {
+					rejectedMessage ??= t('quoteBuilder.invalidFileType')
 					continue
 				}
 				valid.push(file)
@@ -54,8 +64,9 @@ export function AttachmentUpload() {
 			if (valid.length > 0) {
 				setAttachments([...current, ...valid])
 			}
+			setValidationMessage(rejectedMessage)
 		},
-		[attachments, setAttachments],
+		[attachments, setAttachments, t],
 	)
 
 	const handleRemove = useCallback(
@@ -89,14 +100,9 @@ export function AttachmentUpload() {
 	return (
 		<div className="space-y-3">
 			<span className="text-[13px] font-medium text-[var(--color-text-muted)]">
-				{t('quoteBuilder.attachmentsLabel', 'Attachments')}
+				{t('quoteBuilder.attachmentsLabel')}
 				<span className="text-[var(--color-text-muted)] ms-1">
-					(
-					{t(
-						'quoteBuilder.attachmentsHint',
-						'Drawings, specs -- PDF or images, max 5 files, 10MB each',
-					)}
-					)
+					({t('quoteBuilder.attachmentsHint')})
 				</span>
 			</span>
 
@@ -107,7 +113,7 @@ export function AttachmentUpload() {
 			>
 				<Upload size={20} className="text-[var(--color-text-muted)]" />
 				<p className="text-sm text-[var(--color-text-muted)]">
-					{t('quoteBuilder.dropFiles', 'Drop files here or')}
+					{t('quoteBuilder.dropFiles')}
 				</p>
 				<FileTrigger
 					acceptedFileTypes={ACCEPTED_EXTENSIONS.split(',')}
@@ -115,10 +121,15 @@ export function AttachmentUpload() {
 					onSelect={handleSelect}
 				>
 					<Button className="text-sm text-[var(--color-primary)] font-medium hover:underline cursor-pointer outline-none">
-						{t('quoteBuilder.browseFiles', 'browse')}
+						{t('quoteBuilder.browseFiles')}
 					</Button>
 				</FileTrigger>
 			</DropZone>
+			{validationMessage && (
+				<p role="alert" className="text-[13px] text-[#B91C1C]">
+					{validationMessage}
+				</p>
+			)}
 
 			{/* File chips */}
 			<div className="flex flex-wrap gap-2">
@@ -144,7 +155,7 @@ export function AttachmentUpload() {
 								type="button"
 								onClick={() => handleRemove(idx)}
 								className="shrink-0 p-0.5 rounded-full hover:bg-[var(--color-border)] transition-colors cursor-pointer"
-								aria-label={t('quoteBuilder.removeFile', 'Remove {{name}}', {
+								aria-label={t('quoteBuilder.removeFile', {
 									name: file.name,
 								})}
 							>
@@ -160,7 +171,7 @@ export function AttachmentUpload() {
 				<p className="text-[13px] text-[var(--color-text-muted)]">
 					<span className="font-mono">{attachments.length}</span> /{' '}
 					<span className="font-mono">{MAX_FILES}</span>{' '}
-					{t('quoteBuilder.filesAttached', 'files')}
+					{t('quoteBuilder.filesAttached')}
 				</p>
 			)}
 		</div>

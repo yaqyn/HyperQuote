@@ -240,7 +240,7 @@ export const getSupplierProducts = createServerFn()
 				return { products, total: products.length }
 			}
 
-			// TODO: Real Supabase query
+			// Mock-backed until supplier product reads are wired to Supabase.
 			const products = getMockProducts()
 			return { products, total: products.length }
 		},
@@ -263,7 +263,7 @@ export const updateSupplierStock = createServerFn()
 			return { success: true }
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until stock updates write to Supabase.
 		return { success: true }
 	})
 
@@ -291,7 +291,7 @@ export const bulkUpdatePrices = createServerFn()
 				return { updatedCount: input.updates.length, errors: [] }
 			}
 
-			// TODO: Real Supabase query
+			// Mock-backed until bulk stock updates write to Supabase.
 			return { updatedCount: input.updates.length, errors: [] }
 		},
 	)
@@ -314,7 +314,7 @@ export const getSupplierPriceHistory = createServerFn()
 				return { history, total: history.length }
 			}
 
-			// TODO: Real Supabase query
+			// Mock-backed until supplier price history reads are wired to Supabase.
 			const history = getMockPriceHistory()
 			return { history, total: history.length }
 		},

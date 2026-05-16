@@ -7,6 +7,7 @@ import {
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DraftQuoteDrawer } from '../components/shared/DraftQuoteDrawer'
 import { ChatSidebar } from '../components/sidebar/ChatSidebar'
 import { useShortcut } from '../hooks/useShortcut'
 import { checkPortalAuth } from '../lib/auth'
@@ -37,6 +38,8 @@ function PortalLayout() {
 	const isSigningOut = usePortalStore((s) => s.isSigningOut)
 	const isSidebarOpen = usePortalStore((s) => s.isSidebarOpen)
 	const setSidebarOpen = usePortalStore((s) => s.setSidebarOpen)
+	const isDraftQuoteOpen = usePortalStore((s) => s.isDraftQuoteOpen)
+	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const isCompactViewport = useCompactViewport()
 
 	useEffect(() => {
@@ -182,6 +185,10 @@ function PortalLayout() {
 					</div>
 				</motion.main>
 			</motion.div>
+			<DraftQuoteDrawer
+				open={isDraftQuoteOpen}
+				onClose={() => setDraftQuoteOpen(false)}
+			/>
 			<PortalShortcuts />
 		</div>
 	)

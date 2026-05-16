@@ -152,6 +152,6 @@ export const getSupplierAnalytics = createServerFn()
 			return getMockAnalytics()
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until supplier analytics reads are wired to Supabase.
 		return getMockAnalytics()
 	})

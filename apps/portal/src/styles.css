@@ -434,45 +434,51 @@ input::placeholder {
 }
 
 /* ================================================================
-   THE ATELIER — /login scene
-   Scoped to .atelier-scene. Overrides portal tokens for the login
-   route only. The room is a broker's office at night; the
-   login form is a page in the order book on a desk.
+   /login access scene
+   Scoped to .atelier-scene. Dark mode keeps the focused lamp moment;
+   light mode uses a crisp white workspace with no lamp treatment.
    ================================================================ */
 
 .atelier-scene {
-	/* Strict grayscale — every R=G=B. No warmth. */
 	--atelier-room: #060606;
-	--atelier-paper-top: #0f0f0f;
-	--atelier-paper-bottom: #171717;
-	--atelier-paper-edge: #050505;
+	--atelier-panel: #101010;
+	--atelier-panel-elevated: #151515;
+	--atelier-field: #0b0b0b;
 	--atelier-ink: #f2f2f2;
 	--atelier-ink-muted: #a6a6a6;
-	--atelier-ink-faint: #6b6b6b;
-	--atelier-rule: #3d3d3d;
-	--atelier-rule-strong: #585858;
+	--atelier-ink-faint: #737373;
+	--atelier-rule: rgba(255, 255, 255, 0.1);
+	--atelier-rule-strong: rgba(255, 255, 255, 0.2);
 	--atelier-lamp-warm: 255, 255, 255;
-	--atelier-seal: #bbbbbb;
-	--atelier-seal-deep: #6a6a6a;
-	--atelier-ink-error: #ffffff;
-	background: var(--atelier-room);
+	--atelier-accent: #2563eb;
+	--atelier-accent-hover: #1d4ed8;
+	--atelier-accent-soft: rgba(37, 99, 235, 0.14);
+	--atelier-ink-error: #ef4444;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 36%),
+		var(--atelier-room);
 	color: var(--atelier-ink);
 }
 
-.atelier-serif {
-	font-family: "Instrument Serif", "Times New Roman", "Georgia", serif;
-	font-feature-settings:
-		"kern" 1,
-		"liga" 1,
-		"dlig" 1;
-	font-weight: 400;
+[data-theme="light"] .atelier-scene {
+	--atelier-room: #ffffff;
+	--atelier-panel: #ffffff;
+	--atelier-panel-elevated: #f8fafc;
+	--atelier-field: #ffffff;
+	--atelier-ink: #101010;
+	--atelier-ink-muted: #475569;
+	--atelier-ink-faint: #94a3b8;
+	--atelier-rule: rgba(15, 23, 42, 0.1);
+	--atelier-rule-strong: rgba(15, 23, 42, 0.18);
+	--atelier-accent-soft: rgba(37, 99, 235, 0.08);
+	--atelier-ink-error: #b91c1c;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .atelier-mono {
 	font-family: "Geist Mono", ui-monospace, monospace;
 }
 
-/* Ambient room vignette — keeps the edges dark, centers focus */
 .atelier-vignette {
 	position: absolute;
 	inset: 0;
@@ -485,6 +491,15 @@ input::placeholder {
 		rgba(0, 0, 0, 0.55) 100%
 	);
 	z-index: 0;
+}
+
+[data-theme="light"] .atelier-vignette {
+	background: linear-gradient(
+		180deg,
+		rgba(37, 99, 235, 0.055) 0%,
+		rgba(37, 99, 235, 0.025) 28%,
+		transparent 62%
+	);
 }
 
 /* Pendant — thin horizontal slit at the top of the viewport */
@@ -557,19 +572,10 @@ input::placeholder {
 	}
 }
 
-/* Pendant warms up — quick fade with a brief pre-flicker */
+/* Pendant warms up with a smooth fade */
 @keyframes atelier-pendant-warm-up {
 	0% {
 		opacity: 0;
-	}
-	18% {
-		opacity: 0.85;
-	}
-	24% {
-		opacity: 0.35;
-	}
-	30% {
-		opacity: 1;
 	}
 	100% {
 		opacity: 1;
@@ -595,28 +601,10 @@ input::placeholder {
 	}
 }
 
-/* Lamp click — snap on + one short flicker, then hold */
+/* Lamp reveal — smooth on theme switch, no flicker */
 @keyframes atelier-lamp-click {
 	0% {
 		opacity: 0;
-	}
-	2% {
-		opacity: 0.85;
-	}
-	5% {
-		opacity: 0.15;
-	}
-	7% {
-		opacity: 1;
-	}
-	22% {
-		opacity: 1;
-	}
-	24% {
-		opacity: 0.92;
-	}
-	26% {
-		opacity: 1;
 	}
 	100% {
 		opacity: 1;
@@ -627,156 +615,265 @@ input::placeholder {
 	animation: atelier-lamp-click 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Page — the open order book spread */
+.auth-layout {
+	position: relative;
+	z-index: 3;
+	display: flex;
+	width: 100%;
+	max-width: 1080px;
+	align-items: center;
+	justify-content: center;
+	gap: clamp(48px, 7vw, 96px);
+}
+
+.auth-desktop-story {
+	display: none;
+	width: min(440px, 42vw);
+	flex-direction: column;
+	color: var(--atelier-ink);
+}
+
+.auth-story-eyebrow {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 11px;
+	line-height: 1.4;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--atelier-ink-faint);
+}
+
+.auth-story-heading {
+	margin-top: 16px;
+	max-width: 11ch;
+	font-size: clamp(42px, 4.2vw, 58px);
+	font-weight: 750;
+	line-height: 0.96;
+	letter-spacing: 0;
+	color: var(--atelier-ink);
+}
+
+.auth-story-tagline {
+	margin-top: 12px;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
+	color: var(--atelier-ink);
+}
+
+.auth-story-body {
+	margin-top: 14px;
+	max-width: 34rem;
+	font-size: 15px;
+	line-height: 1.65;
+	color: var(--atelier-ink-muted);
+}
+
+.auth-story-links {
+	margin-top: 28px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.auth-story-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 10px;
+	font-size: 13px;
+	font-weight: 650;
+	color: var(--atelier-ink-muted);
+	background: color-mix(in srgb, var(--atelier-panel) 52%, transparent);
+	border: 1px solid var(--atelier-rule);
+	border-radius: 8px;
+	transition:
+		color 160ms ease-out,
+		border-color 160ms ease-out,
+		background 160ms ease-out;
+}
+
+.auth-story-link:hover,
+.auth-story-link:focus-visible {
+	color: var(--atelier-ink);
+	border-color: var(--atelier-rule-strong);
+	background: var(--atelier-panel);
+}
+
+.auth-vector {
+	position: relative;
+	width: min(360px, 100%);
+	height: 150px;
+	margin-top: 30px;
+}
+
+.auth-vector-node,
+.auth-vector-line,
+.auth-vector-label {
+	position: absolute;
+	display: block;
+}
+
+.auth-vector-node {
+	width: 46px;
+	height: 46px;
+	border: 1px solid var(--atelier-rule-strong);
+	border-radius: 14px;
+	background:
+		linear-gradient(180deg, var(--atelier-panel-elevated), transparent),
+		var(--atelier-panel);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.auth-vector-node::before {
+	content: "";
+	position: absolute;
+	inset: 13px;
+	border: 2px solid var(--atelier-accent);
+	border-radius: 999px;
+}
+
+.auth-vector-node-primary {
+	top: 48px;
+	inset-inline-start: 8px;
+	width: 56px;
+	height: 56px;
+}
+
+.auth-vector-node-quote {
+	top: 8px;
+	inset-inline-start: 172px;
+}
+
+.auth-vector-node-delivery {
+	inset-inline-end: 18px;
+	bottom: 12px;
+}
+
+.auth-vector-line {
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--atelier-rule-strong),
+		transparent
+	);
+	transform-origin: left center;
+}
+
+.auth-vector-line-a {
+	top: 58px;
+	inset-inline-start: 60px;
+	width: 136px;
+	transform: rotate(-15deg);
+}
+
+.auth-vector-line-b {
+	top: 85px;
+	inset-inline-start: 216px;
+	width: 100px;
+	transform: rotate(24deg);
+}
+
+.auth-vector-label {
+	height: 8px;
+	border-radius: 999px;
+	background: var(--atelier-rule);
+}
+
+.auth-vector-label-top {
+	top: 24px;
+	inset-inline-start: 228px;
+	width: 88px;
+}
+
+.auth-vector-label-bottom {
+	inset-inline-end: 88px;
+	bottom: 30px;
+	width: 110px;
+}
+
 .atelier-page {
 	position: relative;
 	z-index: 3;
-	width: min(460px, calc(100vw - 32px));
-	padding: 30px 28px 22px;
-	background: linear-gradient(
-		180deg,
-		var(--atelier-paper-top) 0%,
-		var(--atelier-paper-bottom) 100%
-	);
-	border-radius: 2px;
+	flex: 0 0 auto;
+	width: min(440px, calc(100vw - 32px));
+	padding: 24px;
+	background: var(--atelier-panel);
+	border: 1px solid var(--atelier-rule);
+	border-radius: 8px;
 	box-shadow:
-		0 0 0 1px rgba(255, 255, 255, 0.02),
-		0 30px 80px -20px rgba(0, 0, 0, 0.7),
-		0 8px 30px -10px rgba(0, 0, 0, 0.55),
-		inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		0 28px 80px -32px rgba(0, 0, 0, 0.75),
+		0 10px 34px -22px rgba(0, 0, 0, 0.55),
+		inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Paper grain — restrained noise texture */
-.atelier-page::before {
-	content: "";
-	position: absolute;
-	inset: 0;
-	pointer-events: none;
-	border-radius: inherit;
-	opacity: 0.28;
-	mix-blend-mode: overlay;
-	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
-
-/* Page — fade + gentle rise on appear */
 @keyframes atelier-page-appear {
 	0% {
 		opacity: 0;
-		transform: translateY(8px);
+		transform: translateY(4px) scale(0.998);
 	}
 	100% {
 		opacity: 1;
-		transform: translateY(0);
+		transform: translateY(0) scale(1);
 	}
 }
 
 .atelier-page-enter {
-	animation: atelier-page-appear 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	animation: atelier-page-appear 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Step transitions — current slides out/left, next composes in/right */
-@keyframes atelier-step-out {
-	0% {
-		opacity: 1;
-		transform: translateX(0);
-		filter: blur(0);
-	}
-	100% {
-		opacity: 0;
-		transform: translateX(-20px);
-		filter: blur(1.5px);
-	}
-}
-@keyframes atelier-step-in {
-	0% {
-		opacity: 0;
-		transform: translateX(18px);
-	}
-	100% {
-		opacity: 1;
-		transform: translateX(0);
-	}
-}
-.atelier-step-out {
-	animation: atelier-step-out 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-.atelier-step-in {
-	animation: atelier-step-in 260ms 60ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-/* Ruled line — ledger underline for inputs */
 .atelier-rule-line {
 	position: relative;
-	border-bottom: 1px solid var(--atelier-rule);
-	transition: border-color 220ms ease-out;
+	min-height: 48px;
+	padding: 0 13px;
+	background: var(--atelier-field);
+	border: 1px solid var(--atelier-rule);
+	border-radius: 8px;
+	transition:
+		border-color 180ms ease-out,
+		box-shadow 180ms ease-out,
+		background 180ms ease-out;
 }
 .atelier-rule-line:focus-within {
-	border-bottom-color: var(--atelier-ink);
-}
-
-/* Rule draw — stagger this across the page on load */
-@keyframes atelier-rule-draw {
-	0% {
-		transform: scaleX(0);
-		opacity: 0;
-	}
-	100% {
-		transform: scaleX(1);
-		opacity: 1;
-	}
-}
-.atelier-rule-draw {
-	transform-origin: left center;
-	animation: atelier-rule-draw 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-/* Ink pulse — brief brightness on submit */
-@keyframes atelier-ink-pulse {
-	0% {
-		border-bottom-color: var(--atelier-rule);
-	}
-	35% {
-		border-bottom-color: var(--atelier-ink);
-	}
-	100% {
-		border-bottom-color: var(--atelier-rule);
-	}
-}
-.atelier-ink-pulse {
-	animation: atelier-ink-pulse 700ms ease-out;
+	border-color: var(--atelier-accent);
+	box-shadow: 0 0 0 3px var(--atelier-accent-soft);
 }
 
 /* Border hint — invalid input nudge */
 @keyframes atelier-border-hint {
 	0% {
-		border-bottom-color: var(--atelier-rule);
+		border-color: var(--atelier-rule);
 	}
 	30% {
-		border-bottom-color: var(--atelier-ink-error);
+		border-color: var(--atelier-ink-error);
 	}
 	100% {
-		border-bottom-color: var(--atelier-rule);
+		border-color: var(--atelier-rule);
 	}
 }
 .atelier-border-hint {
 	animation: atelier-border-hint 900ms ease-out;
 }
 
-/* OTP rule cells — six short underlines */
 .atelier-otp-cell {
 	position: relative;
 	width: 100%;
 	min-width: 0;
-	height: 48px;
+	height: 50px;
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
 	justify-content: center;
-	padding-bottom: 6px;
-	border-bottom: 1px solid var(--atelier-rule);
-	transition: border-color 180ms ease-out;
+	background: var(--atelier-field);
+	border: 1px solid var(--atelier-rule);
+	border-radius: 8px;
+	transition:
+		border-color 180ms ease-out,
+		box-shadow 180ms ease-out,
+		background 180ms ease-out;
 }
 .atelier-otp-cell[data-focused="true"] {
-	border-bottom-color: var(--atelier-ink);
+	border-color: var(--atelier-accent);
+	box-shadow: 0 0 0 3px var(--atelier-accent-soft);
 }
 
 /* Ink bleed — digit fades in with a soft blur resolution */
@@ -862,51 +959,53 @@ input::placeholder {
 	z-index: 1;
 }
 
-/* Printed command — the primary CTA rendered as em-dash rules + label */
 .atelier-command {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 14px;
+	gap: 10px;
 	width: 100%;
-	min-height: 44px;
-	padding: 14px 0 12px;
-	font-family: "Geist Mono", ui-monospace, monospace;
-	font-size: 11px;
+	min-height: 48px;
+	padding: 0 18px;
+	font-family:
+		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+	font-size: 14px;
+	font-weight: 700;
 	line-height: 1.35;
-	letter-spacing: 0.22em;
+	letter-spacing: 0;
 	text-align: center;
-	text-transform: uppercase;
-	color: var(--atelier-ink);
-	background: transparent;
-	border: 0;
+	color: #ffffff;
+	background: linear-gradient(
+		180deg,
+		var(--atelier-accent) 0%,
+		var(--atelier-accent-hover) 100%
+	);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 8px;
+	box-shadow:
+		0 14px 28px -18px rgba(37, 99, 235, 0.85),
+		inset 0 1px 0 rgba(255, 255, 255, 0.2);
 	outline: none;
 	transition:
-		color 180ms ease-out,
+		transform 160ms ease-out,
+		filter 160ms ease-out,
+		box-shadow 160ms ease-out,
 		opacity 180ms ease-out;
 }
 .atelier-command::before,
 .atelier-command::after {
-	content: "";
-	flex: 1 1 24px;
-	min-width: 18px;
-	height: 1px;
-	background: var(--atelier-rule);
-	transition:
-		background 180ms ease-out,
-		transform 180ms ease-out;
+	content: none;
 }
-.atelier-command:hover::before,
-.atelier-command:hover::after,
-.atelier-command:focus-visible::before,
-.atelier-command:focus-visible::after,
-.atelier-command[data-pressed="true"]::before,
-.atelier-command[data-pressed="true"]::after {
-	background: var(--atelier-ink);
+.atelier-command:hover,
+.atelier-command:focus-visible {
+	filter: brightness(1.04);
+	box-shadow:
+		0 16px 34px -18px rgba(37, 99, 235, 0.95),
+		inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
-.atelier-command[data-pressed="true"]::before,
-.atelier-command[data-pressed="true"]::after {
-	transform: scaleY(1.8);
+.atelier-command[data-pressed="true"] {
+	transform: translateY(1px);
 }
 .atelier-command[disabled] {
 	opacity: 0.4;
@@ -919,7 +1018,7 @@ input::placeholder {
 	justify-content: center;
 	gap: 10px;
 	width: 100%;
-	min-height: 46px;
+	min-height: 48px;
 	padding: 0 18px;
 	font-family:
 		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
@@ -929,12 +1028,12 @@ input::placeholder {
 	line-height: 1.2;
 	letter-spacing: 0;
 	color: #fff;
-	background: linear-gradient(180deg, #33e075 0%, #25d366 52%, #1fb75e 100%);
-	border: 1px solid rgba(255, 255, 255, 0.28);
+	background: linear-gradient(180deg, #28d767 0%, #1fbe5b 100%);
+	border: 1px solid rgba(255, 255, 255, 0.16);
 	border-radius: 8px;
 	box-shadow:
-		0 12px 28px rgba(18, 140, 126, 0.18),
-		inset 0 1px 0 rgba(255, 255, 255, 0.32);
+		0 14px 28px -18px rgba(18, 140, 126, 0.72),
+		inset 0 1px 0 rgba(255, 255, 255, 0.22);
 	outline: none;
 	transition:
 		transform 160ms ease-out,
@@ -956,8 +1055,8 @@ input::placeholder {
 .atelier-whatsapp-command:focus-visible {
 	filter: saturate(1.06) brightness(1.02);
 	box-shadow:
-		0 14px 32px rgba(18, 140, 126, 0.22),
-		inset 0 1px 0 rgba(255, 255, 255, 0.36);
+		0 16px 34px -18px rgba(18, 140, 126, 0.86),
+		inset 0 1px 0 rgba(255, 255, 255, 0.26);
 }
 .atelier-whatsapp-command[data-pressed="true"] {
 	transform: translateY(1px);
@@ -970,18 +1069,19 @@ input::placeholder {
 	pointer-events: none;
 }
 
-/* Quiet secondary — unadorned mono line */
 .atelier-quiet {
-	font-family: "Geist Mono", ui-monospace, monospace;
-	font-size: 11px;
+	font-family:
+		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+	font-size: 13px;
+	font-weight: 600;
 	line-height: 1.35;
-	letter-spacing: 0.22em;
+	letter-spacing: 0;
 	text-align: center;
-	text-transform: uppercase;
 	color: var(--atelier-ink-muted);
 	background: transparent;
 	border: 0;
-	padding: 10px 0;
+	padding: 11px 0;
 	transition: color 180ms ease-out;
 }
 .atelier-quiet:hover,
@@ -993,10 +1093,153 @@ input::placeholder {
 	pointer-events: none;
 }
 
+.auth-top-controls {
+	position: fixed;
+	top: calc(env(safe-area-inset-top) + 16px);
+	inset-inline-end: 16px;
+	z-index: 70;
+	display: inline-flex;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.auth-icon-button {
+	display: inline-flex;
+	min-width: 38px;
+	height: 38px;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	padding: 0 10px;
+	color: var(--atelier-ink-muted);
+	background: color-mix(in srgb, var(--atelier-panel) 82%, transparent);
+	border: 1px solid var(--atelier-rule);
+	border-radius: 8px;
+	backdrop-filter: blur(14px);
+	transition:
+		color 160ms ease-out,
+		border-color 160ms ease-out,
+		background 160ms ease-out;
+}
+
+.auth-icon-button:hover,
+.auth-icon-button:focus-visible {
+	color: var(--atelier-ink);
+	border-color: var(--atelier-rule-strong);
+	background: var(--atelier-panel);
+}
+
+.auth-language-button {
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.auth-field-label {
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 10px;
+	line-height: 1.3;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--atelier-ink-faint);
+}
+
+.auth-step-heading {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.08;
+	letter-spacing: 0;
+	color: var(--atelier-ink);
+}
+
+.auth-step-body {
+	margin-top: 10px;
+	font-size: 14px;
+	line-height: 1.55;
+	color: var(--atelier-ink-muted);
+}
+
+.auth-country-code {
+	flex-shrink: 0;
+	font-family: "Geist Mono", ui-monospace, monospace;
+	font-size: 14px;
+	color: var(--atelier-ink-muted);
+}
+
+.auth-field-input {
+	min-height: 46px;
+	background: transparent;
+	border: 0;
+	outline: none;
+	font-size: 16px;
+	line-height: 1.2;
+	color: var(--atelier-ink);
+}
+
+.auth-phone-input {
+	direction: ltr;
+	text-align: left;
+}
+
+.auth-field-input::placeholder {
+	color: var(--atelier-ink-faint);
+}
+
+.auth-field-error {
+	margin-top: 8px;
+	font-size: 12px;
+	line-height: 1.45;
+	color: var(--atelier-ink-error);
+}
+
+.auth-text-action {
+	color: var(--atelier-ink-muted);
+	transition: color 160ms ease-out;
+}
+
+.auth-text-action:hover,
+.auth-text-action:focus-visible {
+	color: var(--atelier-ink);
+}
+
+.auth-countdown {
+	color: var(--atelier-ink-faint);
+}
+
+.auth-company-badge,
+.auth-success-mark {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: var(--atelier-panel-elevated);
+	border: 1px solid var(--atelier-rule);
+	color: var(--atelier-ink);
+}
+
+.auth-company-badge {
+	width: 76px;
+	height: 76px;
+	font-size: 30px;
+	font-weight: 800;
+}
+
+.auth-success-mark {
+	width: 58px;
+	height: 58px;
+	margin-bottom: 20px;
+	color: #ffffff;
+	background: var(--atelier-accent);
+	border-color: transparent;
+	box-shadow: 0 14px 28px -18px rgba(37, 99, 235, 0.9);
+}
+
 @media (min-width: 640px) {
 	.atelier-page {
-		width: min(460px, calc(100vw - 48px));
-		padding: 34px 38px 24px;
+		width: min(456px, calc(100vw - 48px));
+		padding: 28px;
 	}
 
 	.atelier-otp-cell {
@@ -1004,22 +1247,121 @@ input::placeholder {
 	}
 }
 
+@media (min-width: 1024px) {
+	.auth-layout {
+		justify-content: space-between;
+	}
+
+	.auth-desktop-story {
+		display: flex;
+	}
+}
+
+@keyframes atelier-mobile-panel-appear {
+	0% {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (max-width: 639px) {
+	.auth-layout {
+		min-height: 100dvh;
+		max-width: none;
+		align-items: stretch;
+		justify-content: stretch;
+		gap: 0;
+	}
+
+	.atelier-page {
+		display: flex;
+		width: 100%;
+		min-height: 100dvh;
+		flex-direction: column;
+		justify-content: center;
+		padding-block: calc(env(safe-area-inset-top) + 84px)
+			calc(env(safe-area-inset-bottom) + 108px);
+		padding-inline: 20px;
+		background:
+			linear-gradient(
+				180deg,
+				var(--atelier-panel-elevated) 0%,
+				var(--atelier-panel) 46%
+			),
+			var(--atelier-panel);
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	[data-theme="dark"] .atelier-page {
+		background:
+			radial-gradient(
+				420px 300px at 50% 0,
+				rgba(var(--atelier-lamp-warm), 0.08),
+				transparent 70%
+			),
+			linear-gradient(
+				180deg,
+				color-mix(in srgb, var(--atelier-panel-elevated) 92%, transparent) 0%,
+				color-mix(in srgb, var(--atelier-panel) 96%, transparent) 46%
+			);
+		backdrop-filter: blur(4px);
+	}
+
+	.atelier-page-enter {
+		animation: atelier-mobile-panel-appear 280ms cubic-bezier(0.2, 0.8, 0.2, 1)
+			both;
+	}
+
+	.auth-step-heading {
+		max-width: 12ch;
+		font-size: clamp(28px, 8vw, 34px);
+		line-height: 1;
+	}
+
+	.auth-step-body {
+		max-width: 31ch;
+		font-size: 14px;
+		line-height: 1.55;
+	}
+
+	.atelier-rule-line {
+		min-height: 48px;
+		padding-inline: 12px;
+	}
+
+	.atelier-command,
+	.atelier-whatsapp-command {
+		min-height: 54px;
+	}
+
+	.auth-field-input {
+		min-height: 46px;
+		font-size: 16px;
+	}
+
+	.atelier-otp-cell {
+		height: 56px;
+		border-radius: 10px;
+	}
+
+	.atelier-legal-copy {
+		max-width: calc(100vw - 40px);
+	}
+}
+
 @media (max-width: 380px) {
 	.atelier-page {
-		width: min(100%, calc(100vw - 24px));
-		padding: 24px 18px 18px;
+		padding-inline: 18px;
 	}
 
 	.atelier-command {
-		gap: 10px;
-		font-size: 10px;
-		letter-spacing: 0.16em;
-	}
-
-	.atelier-command::before,
-	.atelier-command::after {
-		flex-basis: 16px;
-		min-width: 12px;
+		font-size: 13px;
 	}
 
 	.atelier-whatsapp-command {
@@ -1029,12 +1371,30 @@ input::placeholder {
 	}
 
 	.atelier-quiet {
-		font-size: 10px;
-		letter-spacing: 0.16em;
+		font-size: 12px;
+	}
+
+	.auth-top-controls {
+		top: calc(env(safe-area-inset-top) + 10px);
+		inset-inline-end: 10px;
+	}
+
+	.auth-icon-button {
+		min-width: 34px;
+		height: 34px;
+		padding: 0 8px;
+	}
+
+	.auth-step-heading {
+		font-size: 27px;
+	}
+
+	.auth-step-body {
+		font-size: 13px;
 	}
 }
 
-/* Focus ring — ruled, not outlined */
+/* Focus ring — component states provide their own visible focus treatment */
 .atelier-scene :focus-visible {
 	outline: none;
 }
@@ -1042,9 +1402,8 @@ input::placeholder {
 	outline: none;
 }
 
-/* Selection — warm */
 .atelier-scene ::selection {
-	background: rgba(var(--atelier-lamp-warm), 0.22);
+	background: var(--atelier-accent-soft);
 	color: var(--atelier-ink);
 }
 
@@ -1088,15 +1447,11 @@ input::placeholder {
 	animation: atelier-dot 1.2s ease-in-out infinite;
 }
 
-/* Reduced motion — flatten lamp, page, motes, ink bleed */
+/* Reduced motion — flatten lamp, panel, motes, and digit transitions */
 @media (prefers-reduced-motion: reduce) {
 	.atelier-lamp-on,
 	.atelier-page-enter,
-	.atelier-step-out,
-	.atelier-step-in,
-	.atelier-rule-draw,
 	.atelier-ink-bleed,
-	.atelier-ink-pulse,
 	.atelier-border-hint,
 	.atelier-otp-strike,
 	.atelier-otp-strike::after,

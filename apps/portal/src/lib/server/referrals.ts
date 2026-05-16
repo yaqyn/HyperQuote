@@ -57,36 +57,3 @@ export const getReferralStats = createServerFn().handler(
 		}
 	},
 )
-
-// ============================================================================
-// generateReferralLink
-// ============================================================================
-
-const generateReferralLink = createServerFn().handler(
-	async (): Promise<{ referralCode: string; referralLink: string }> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				referralCode: 'HQ-REF-A1234',
-				referralLink: 'https://portal.hyperquote.net/signup?ref=HQ-REF-A1234',
-			}
-		}
-
-		const { supabase, session } = await getAuthenticatedSupabase()
-
-		const customerId = session.user.app_metadata?.customer_id
-		const referralCode = `HQ-REF-${crypto.randomUUID().slice(0, 8).toUpperCase()}`
-
-		// Upsert referral code for customer
-		const { error } = await supabase.from('referral_codes').upsert({
-			customer_id: customerId,
-			code: referralCode,
-		})
-
-		if (error) throw new Error(error.message)
-
-		return {
-			referralCode,
-			referralLink: `https://portal.hyperquote.net/signup?ref=${referralCode}`,
-		}
-	},
-)

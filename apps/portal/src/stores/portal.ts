@@ -13,6 +13,8 @@ interface PortalStore {
 	isSidebarOpen: boolean
 	toggleSidebar: () => void
 	setSidebarOpen: (open: boolean) => void
+	isDraftQuoteOpen: boolean
+	setDraftQuoteOpen: (open: boolean) => void
 }
 
 export const usePortalStore = create<PortalStore>()(
@@ -29,6 +31,8 @@ export const usePortalStore = create<PortalStore>()(
 			isSidebarOpen: false,
 			toggleSidebar: () => set((s) => ({ isSidebarOpen: !s.isSidebarOpen })),
 			setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+			isDraftQuoteOpen: false,
+			setDraftQuoteOpen: (open) => set({ isDraftQuoteOpen: open }),
 		}),
 		{
 			name: 'hq-portal',

@@ -29,12 +29,16 @@ import { useTranslation } from 'react-i18next'
 import { PODConfirmFlow } from '../../components/orders/PODConfirmFlow'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
+	type DeliveryContact,
 	type DeliveryInfo,
 	type DeliveryStage,
 	getOrderDetail,
 	getPODDetails,
+	type OrderDetailResult,
+	type OrderReviewInfo,
 	type PODDetails,
 } from '../../lib/server/deliveries'
+import type { OrderStatus } from '../../types/order'
 
 export const Route = createFileRoute('/_portal/orders_/$orderId')({
 	component: OrderDetailWrapper,
@@ -102,16 +106,15 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 	const formattedDate = dateFmt.format(new Date(order.date))
 	const total =
 		order.amount != null ? `EGP ${moneyFmt.format(order.amount)}` : null
-	const statusLabel = order.status
-		.replace(/_/g, ' ')
-		.replace(/\b\w/g, (c) => c.toUpperCase())
+	const statusLabel = t(getOrderStatusLabelKey(order.status))
 	const isSealed =
 		order.status === 'order_confirmed' || order.status === 'delivered'
+	const isSubmitted = order.status === 'submitted'
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)]">
 			{/* Top bar */}
-			<div className="border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:py-3.5">
+			<div className="sticky top-0 z-30 border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 pb-3.5 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-12 lg:py-3.5">
 				<div className="mx-auto flex w-full max-w-[980px] items-center gap-4">
 					<button
 						type="button"
@@ -154,11 +157,27 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 					}
 				/>
 
+				{isSubmitted && orderData.review ? (
+					<SubmittedReviewSummary
+						review={orderData.review}
+						dateFmt={dateFmt}
+						itemCount={order.itemCount}
+					/>
+				) : (
+					<OrderLifecycleSummary
+						data={orderData}
+						dateFmt={dateFmt}
+						moneyFmt={moneyFmt}
+					/>
+				)}
+
 				{/* Delivery tracking */}
-				{delivery && <DeliveryTrackingSection delivery={delivery} pod={pod} />}
+				{delivery && order.status === 'out_for_delivery' && (
+					<DeliveryTrackingSection delivery={delivery} pod={pod} />
+				)}
 
 				{/* Items */}
-				<section className={delivery ? 'mt-12 sm:mt-14' : undefined}>
+				<section className={isSubmitted ? 'mt-8 sm:mt-10' : 'mt-12 sm:mt-14'}>
 					<header className="mb-2 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-rule-strong)] pb-2">
 						<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
 							{t('orders.items', { count: order.itemCount })}
@@ -233,75 +252,78 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 				</section>
 
 				{/* Timeline */}
-				<section className="mt-12 sm:mt-14">
-					<header className="mb-4 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
-						<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
-							{t('tracking.timeline')}
-						</h2>
-					</header>
-					<ol className="space-y-0">
-						{timeline.map((step, i) => {
-							const isLast = i === timeline.length - 1
-							const dotColor =
-								step.status === 'completed'
-									? 'bg-[var(--p-accent)]'
-									: step.status === 'current'
-										? 'bg-[var(--p-accent)] ring-2 ring-[var(--p-accent)]/30'
-										: 'bg-[var(--p-text-faint)]'
-							const iconNode =
-								step.status === 'completed' ? (
-									<Check size={10} strokeWidth={2.5} className="text-white" />
-								) : step.status === 'current' ? (
-									<Truck size={10} strokeWidth={1.8} className="text-white" />
-								) : (
-									<Clock size={10} strokeWidth={1.5} className="text-white" />
-								)
-							return (
-								<li key={step.key} className="flex gap-4">
-									<div className="flex flex-col items-center">
-										<span
-											className={`flex h-5 w-5 items-center justify-center rounded-full ${dotColor}`}
-										>
-											{iconNode}
-										</span>
-										{!isLast && (
-											<span className="my-1 w-px flex-1 bg-[var(--p-rule)]" />
-										)}
-									</div>
-									<div
-										className={`min-w-0 flex-1 pb-6 ${isLast ? 'pb-0' : ''}`}
-									>
-										<p
-											className={`break-words text-[14px] ${
-												step.status === 'future'
-													? 'text-[var(--p-text-muted)]'
-													: 'text-[var(--p-text)]'
-											}`}
-										>
-											{step.label}
-										</p>
-										{step.timestamp && (
-											<p
-												className="mt-1 break-words font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)] sm:tracking-[0.22em]"
-												style={{ fontVariantNumeric: 'tabular-nums' }}
+				{!isSubmitted && (
+					<section className="mt-12 sm:mt-14">
+						<header className="mb-4 flex items-baseline justify-between border-b border-[var(--p-rule-strong)] pb-2">
+							<h2 className="font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--p-text)]">
+								{t('tracking.timeline')}
+							</h2>
+						</header>
+						<ol className="space-y-0">
+							{timeline.map((step, i) => {
+								const isLast = i === timeline.length - 1
+								const stepLabelKey = getTimelineStepLabelKey(step.key)
+								const dotColor =
+									step.status === 'completed'
+										? 'bg-[var(--p-accent)]'
+										: step.status === 'current'
+											? 'bg-[var(--p-accent)] ring-2 ring-[var(--p-accent)]/30'
+											: 'bg-[var(--p-text-faint)]'
+								const iconNode =
+									step.status === 'completed' ? (
+										<Check size={10} strokeWidth={2.5} className="text-white" />
+									) : step.status === 'current' ? (
+										<Truck size={10} strokeWidth={1.8} className="text-white" />
+									) : (
+										<Clock size={10} strokeWidth={1.5} className="text-white" />
+									)
+								return (
+									<li key={step.key} className="flex gap-4">
+										<div className="flex flex-col items-center">
+											<span
+												className={`flex h-5 w-5 items-center justify-center rounded-full ${dotColor}`}
 											>
-												{new Date(step.timestamp).toLocaleDateString(
-													isAr ? 'ar-EG' : 'en-GB',
-													{
-														day: '2-digit',
-														month: 'short',
-														hour: '2-digit',
-														minute: '2-digit',
-													},
-												)}
+												{iconNode}
+											</span>
+											{!isLast && (
+												<span className="my-1 w-px flex-1 bg-[var(--p-rule)]" />
+											)}
+										</div>
+										<div
+											className={`min-w-0 flex-1 pb-6 ${isLast ? 'pb-0' : ''}`}
+										>
+											<p
+												className={`break-words text-[14px] ${
+													step.status === 'future'
+														? 'text-[var(--p-text-muted)]'
+														: 'text-[var(--p-text)]'
+												}`}
+											>
+												{stepLabelKey ? t(stepLabelKey) : step.label}
 											</p>
-										)}
-									</div>
-								</li>
-							)
-						})}
-					</ol>
-				</section>
+											{step.timestamp && (
+												<p
+													className="mt-1 break-words font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)] sm:tracking-[0.22em]"
+													style={{ fontVariantNumeric: 'tabular-nums' }}
+												>
+													{new Date(step.timestamp).toLocaleDateString(
+														isAr ? 'ar-EG' : 'en-GB',
+														{
+															day: '2-digit',
+															month: 'short',
+															hour: '2-digit',
+															minute: '2-digit',
+														},
+													)}
+												</p>
+											)}
+										</div>
+									</li>
+								)
+							})}
+						</ol>
+					</section>
+				)}
 
 				{/* Documents */}
 				{documents.length > 0 && (
@@ -357,6 +379,287 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 	)
 }
 
+type LifecycleFact = {
+	label: string
+	value: string
+}
+
+function SubmittedReviewSummary({
+	review,
+	dateFmt,
+	itemCount,
+}: {
+	review: OrderReviewInfo
+	dateFmt: Intl.DateTimeFormat
+	itemCount: number
+}) {
+	const { t } = useTranslation('portal')
+
+	return (
+		<section className="mt-8 sm:mt-10">
+			<div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-4 sm:px-5 lg:px-6">
+				<p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[var(--p-text-faint)]">
+					{t('tracking.reviewingOrder')}
+				</p>
+				<h2 className="mt-2 text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
+					{t('tracking.submitted')}
+				</h2>
+				<p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[var(--p-text-muted)]">
+					{review.message}
+				</p>
+				<dl className="mt-4 grid gap-2 sm:grid-cols-2">
+					<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2">
+						<dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+							{t('tracking.submittedAt')}
+						</dt>
+						<dd className="mt-1 text-[13px] text-[var(--p-text)]">
+							{dateFmt.format(new Date(review.submittedAt))}
+						</dd>
+					</div>
+					<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2">
+						<dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+							{t('tracking.itemsOrdered')}
+						</dt>
+						<dd className="mt-1 text-[13px] text-[var(--p-text)]">
+							{t('orders.items', { count: itemCount })}
+						</dd>
+					</div>
+				</dl>
+			</div>
+		</section>
+	)
+}
+
+function OrderLifecycleSummary({
+	data,
+	dateFmt,
+	moneyFmt,
+}: {
+	data: OrderDetailResult
+	dateFmt: Intl.DateTimeFormat
+	moneyFmt: Intl.NumberFormat
+}) {
+	const { t } = useTranslation('portal')
+	const { order, acceptance, payment, delivery, completion, closure } = data
+	const statusLabel = t(getOrderStatusLabelKey(order.status))
+	if (!acceptance) return null
+
+	return (
+		<section className="mt-8 sm:mt-10">
+			<div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]">
+				<header className="border-b border-[var(--p-border)] px-4 py-4 sm:px-5 lg:px-6">
+					<p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[var(--p-text-faint)]">
+						{t('tracking.orderStatus')}
+					</p>
+					<div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
+							{statusLabel}
+						</h2>
+						<span className="rounded-full border border-[var(--p-border)] px-3 py-1 font-mono text-[11px] text-[var(--p-text-muted)]">
+							{order.description}
+						</span>
+					</div>
+				</header>
+
+				<div className="divide-y divide-[var(--p-border)]">
+					<LifecycleBlock
+						icon={<UserRound size={16} strokeWidth={1.8} />}
+						title={t('tracking.requestAccepted')}
+						eyebrow={`${acceptance.employeeName} · ${acceptance.employeeRole}`}
+						body={acceptance.message}
+						facts={[
+							{
+								label: t('tracking.acceptedAt'),
+								value: dateFmt.format(new Date(acceptance.acceptedAt)),
+							},
+							{
+								label: t('tracking.itemsOrdered'),
+								value: t('orders.items', { count: order.itemCount }),
+							},
+						]}
+					/>
+
+					{payment && (
+						<LifecycleBlock
+							icon={<FileText size={16} strokeWidth={1.8} />}
+							title={t('tracking.paymentAccepted')}
+							eyebrow={`${payment.method} · ${payment.reference}`}
+							facts={[
+								{ label: t('tracking.bankName'), value: payment.bankName },
+								{
+									label: t('tracking.amount'),
+									value: `EGP ${moneyFmt.format(payment.paidAmount)}`,
+								},
+								{
+									label: t('tracking.paidAt'),
+									value: dateFmt.format(new Date(payment.paidAt)),
+								},
+								{ label: t('tracking.reviewedBy'), value: payment.reviewedBy },
+							]}
+							lines={payment.reportLines}
+							linesLabel={t('tracking.preparationReport')}
+						/>
+					)}
+
+					{delivery && (
+						<LifecycleBlock
+							icon={<Truck size={16} strokeWidth={1.8} />}
+							title={t('tracking.loadedForDelivery')}
+							eyebrow={`${delivery.driverName} · ${delivery.truckNumber}`}
+							facts={[
+								{ label: t('tracking.driverId'), value: delivery.driverId },
+								{
+									label: t('tracking.driverPhone'),
+									value: delivery.driverPhone,
+								},
+								{
+									label: t('tracking.truckNumber'),
+									value: delivery.truckNumber,
+								},
+								{ label: t('tracking.vehicle'), value: delivery.vehiclePlate },
+								{
+									label: t('tracking.route'),
+									value: `${delivery.route.origin} / ${delivery.route.destination}`,
+								},
+								{
+									label: t('tracking.distance'),
+									value: t('tracking.distanceKm', {
+										count: delivery.route.distanceKm,
+									}),
+								},
+							]}
+						/>
+					)}
+
+					{completion && (
+						<LifecycleBlock
+							icon={<Check size={16} strokeWidth={2.2} />}
+							title={t('tracking.deliveryComplete')}
+							eyebrow={completion.proofOfDelivery}
+							body={completion.message}
+							facts={[
+								{
+									label: t('tracking.deliveredAt'),
+									value: dateFmt.format(new Date(completion.deliveredAt)),
+								},
+								{
+									label: t('tracking.receivedBy'),
+									value: completion.receivedBy,
+								},
+								{
+									label: t('tracking.proofOfDelivery'),
+									value: completion.proofOfDelivery,
+								},
+							]}
+							lines={completion.summaryLines}
+							linesLabel={t('tracking.finalSummary')}
+						/>
+					)}
+
+					{closure && (
+						<LifecycleBlock
+							icon={<FileText size={16} strokeWidth={1.8} />}
+							title={t(
+								closure.type === 'cancelled'
+									? 'tracking.cancelled'
+									: 'tracking.rejected',
+							)}
+							eyebrow={closure.reason}
+							body={closure.note}
+							facts={[
+								{ label: t('tracking.handledBy'), value: closure.handledBy },
+								{
+									label: t('tracking.handledAt'),
+									value: dateFmt.format(new Date(closure.handledAt)),
+								},
+								{
+									label: t('tracking.reachedStage'),
+									value: t(DELIVERY_STAGE_KEYS[closure.reachedStage]),
+								},
+							]}
+						/>
+					)}
+				</div>
+			</div>
+		</section>
+	)
+}
+
+function LifecycleBlock({
+	icon,
+	title,
+	eyebrow,
+	body,
+	facts,
+	lines,
+	linesLabel,
+}: {
+	icon: ReactNode
+	title: string
+	eyebrow: string
+	body?: string
+	facts: LifecycleFact[]
+	lines?: string[]
+	linesLabel?: string
+}) {
+	return (
+		<article className="grid gap-4 px-4 py-4 sm:grid-cols-[40px_1fr] sm:px-5 lg:px-6">
+			<span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--p-hover)] text-[var(--p-text-muted)]">
+				{icon}
+			</span>
+			<div className="min-w-0">
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+					<h3 className="text-[15px] font-semibold text-[var(--p-text)]">
+						{title}
+					</h3>
+					<p className="min-w-0 break-words font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-text-faint)] sm:text-end">
+						{eyebrow}
+					</p>
+				</div>
+				{body && (
+					<p className="mt-2 text-[13px] leading-relaxed text-[var(--p-text-muted)]">
+						{body}
+					</p>
+				)}
+				<dl className="mt-3 grid gap-2 sm:grid-cols-2">
+					{facts.map((fact) => (
+						<div
+							key={`${fact.label}-${fact.value}`}
+							className="min-w-0 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2"
+						>
+							<dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+								{fact.label}
+							</dt>
+							<dd className="mt-1 break-words text-[13px] text-[var(--p-text)]">
+								{fact.value}
+							</dd>
+						</div>
+					))}
+				</dl>
+				{lines && lines.length > 0 && (
+					<div className="mt-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-3">
+						{linesLabel && (
+							<p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+								{linesLabel}
+							</p>
+						)}
+						<ul className="mt-2 space-y-1.5">
+							{lines.map((line) => (
+								<li
+									key={line}
+									className="text-[13px] leading-relaxed text-[var(--p-text)]"
+								>
+									{line}
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+			</div>
+		</article>
+	)
+}
+
 const DELIVERY_STAGE_KEYS: Record<DeliveryStage, ParseKeys<'portal'>> = {
 	confirmed: 'tracking.confirmed',
 	being_prepared: 'tracking.beingPrepared',
@@ -365,13 +668,34 @@ const DELIVERY_STAGE_KEYS: Record<DeliveryStage, ParseKeys<'portal'>> = {
 	invoice_generated: 'tracking.invoiceGenerated',
 }
 
-const DELIVERY_STAGES = [
+function getOrderStatusLabelKey(status: OrderStatus): ParseKeys<'portal'> {
+	if (status === 'submitted') return 'tracking.submitted'
+	if (status === 'being_prepared') return 'tracking.beingPrepared'
+	if (status === 'out_for_delivery') return 'tracking.outForDelivery'
+	if (status === 'delivered') return 'tracking.delivered'
+	if (status === 'cancelled') return 'tracking.cancelled'
+	if (status === 'rejected') return 'tracking.rejected'
+	return 'tracking.confirmed'
+}
+
+function getTimelineStepLabelKey(key: string): ParseKeys<'portal'> | null {
+	if (key === 'submitted') return 'tracking.submitted'
+	if (key === 'confirmed') return 'tracking.confirmed'
+	if (key === 'being_prepared') return 'tracking.beingPrepared'
+	if (key === 'out_for_delivery') return 'tracking.outForDelivery'
+	if (key === 'delivered') return 'tracking.delivered'
+	if (key === 'cancelled') return 'tracking.cancelled'
+	if (key === 'rejected') return 'tracking.rejected'
+	if (key === 'invoice_generated') return 'tracking.invoiceGenerated'
+	return null
+}
+
+const DELIVERY_STAGES: readonly DeliveryStage[] = [
 	'confirmed',
 	'being_prepared',
 	'out_for_delivery',
 	'delivered',
-	'invoice_generated',
-] as const satisfies readonly DeliveryStage[]
+] as const
 
 function formatEta(estimatedArrival: string, locale: string) {
 	const diffMinutes = Math.round(
@@ -441,11 +765,19 @@ function DeliveryTrackingSection({
 
 				<div className="grid lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
 					<div className="border-b border-[var(--p-border)] px-4 py-4 sm:px-5 sm:py-5 lg:border-b-0 lg:border-e lg:px-6">
-						<DeliveryStageGrid currentStage={delivery.currentStage} />
+						<DeliveryRouteMap delivery={delivery} />
+						<div className="mt-4">
+							<DeliveryStageGrid currentStage={delivery.currentStage} />
+						</div>
 					</div>
 
 					<aside className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
 						<dl className="grid gap-3">
+							<TrackingFact
+								icon={<Navigation size={15} strokeWidth={1.7} />}
+								label={t('tracking.driverId')}
+								value={delivery.driverId}
+							/>
 							<TrackingFact
 								icon={<UserRound size={15} strokeWidth={1.7} />}
 								label={t('tracking.driver')}
@@ -458,10 +790,28 @@ function DeliveryTrackingSection({
 							/>
 							<TrackingFact
 								icon={<Truck size={15} strokeWidth={1.7} />}
+								label={t('tracking.truckNumber')}
+								value={delivery.truckNumber}
+							/>
+							<TrackingFact
+								icon={<Truck size={15} strokeWidth={1.7} />}
 								label={t('tracking.vehicle')}
 								value={delivery.vehiclePlate}
 							/>
 						</dl>
+
+						{delivery.dispatchContacts.length > 0 && (
+							<div className="mt-4 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-3">
+								<h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)]">
+									{t('tracking.dispatchTeam')}
+								</h3>
+								<div className="mt-3 grid gap-2">
+									{delivery.dispatchContacts.map((contact) => (
+										<DispatchContactLink key={contact.id} contact={contact} />
+									))}
+								</div>
+							</div>
+						)}
 					</aside>
 				</div>
 
@@ -475,6 +825,236 @@ function DeliveryTrackingSection({
 	)
 }
 
+function DeliveryRouteMap({ delivery }: { delivery: DeliveryInfo }) {
+	const { t } = useTranslation('portal')
+	const map = buildOpenStreetMapTileView(delivery.route)
+	return (
+		<figure className="relative h-44 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] sm:h-52">
+			<svg
+				aria-label={t('tracking.driverMap')}
+				role="img"
+				viewBox={`0 0 ${OSM_MAP_WIDTH} ${OSM_MAP_HEIGHT}`}
+				className="absolute inset-0 h-full w-full"
+				preserveAspectRatio="xMidYMid slice"
+			>
+				<title>{t('tracking.driverMap')}</title>
+				<rect width={OSM_MAP_WIDTH} height={OSM_MAP_HEIGHT} fill="#eef2f6" />
+				{map.tiles.map((tile) => (
+					<image
+						key={tile.key}
+						href={tile.href}
+						x={tile.x}
+						y={tile.y}
+						width={OSM_TILE_SIZE}
+						height={OSM_TILE_SIZE}
+						preserveAspectRatio="none"
+					/>
+				))}
+				<circle
+					cx={map.origin.x}
+					cy={map.origin.y}
+					r="7"
+					fill="#111827"
+					stroke="white"
+					strokeWidth="3"
+				/>
+				<circle
+					cx={map.destination.x}
+					cy={map.destination.y}
+					r="7"
+					fill="#111827"
+					stroke="white"
+					strokeWidth="3"
+				/>
+				<circle
+					cx={map.driver.x}
+					cy={map.driver.y}
+					r="11"
+					fill="#2563eb"
+					stroke="white"
+					strokeWidth="4"
+				/>
+			</svg>
+			<div className="absolute start-3 top-3 max-w-[60%] rounded-full bg-[var(--p-accent)] px-3 py-1 font-mono text-[11px] font-semibold text-[var(--p-accent-contrast)] shadow-sm">
+				{delivery.driverId}
+			</div>
+			<div className="absolute end-3 top-3 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-1 font-mono text-[11px] text-[var(--p-text)] shadow-sm">
+				{t('tracking.distanceKm', { count: delivery.route.distanceKm })}
+			</div>
+			<div className="absolute start-3 bottom-3 max-w-[46%] rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 shadow-sm">
+				<p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-text-faint)]">
+					{t('tracking.origin')}
+				</p>
+				<p className="mt-0.5 truncate text-[12px] text-[var(--p-text)]">
+					{delivery.route.origin}
+				</p>
+			</div>
+			<div className="absolute bottom-3 end-3 max-w-[46%] rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-end shadow-sm">
+				<p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-text-faint)]">
+					{t('tracking.destination')}
+				</p>
+				<p className="mt-0.5 truncate text-[12px] text-[var(--p-text)]">
+					{delivery.route.destination}
+				</p>
+			</div>
+		</figure>
+	)
+}
+
+const OSM_MAP_WIDTH = 420
+const OSM_MAP_HEIGHT = 220
+const OSM_TILE_SIZE = 256
+const OSM_MIN_ZOOM = 10
+const OSM_MAX_ZOOM = 13
+const OSM_FIT_PADDING = 72
+
+type ProjectedMapPoint = {
+	x: number
+	y: number
+}
+
+type OsmTile = {
+	key: string
+	href: string
+	x: number
+	y: number
+}
+
+function buildOpenStreetMapTileView(route: DeliveryInfo['route']): {
+	tiles: OsmTile[]
+	origin: ProjectedMapPoint
+	driver: ProjectedMapPoint
+	destination: ProjectedMapPoint
+} {
+	const zoom = chooseOpenStreetMapZoom(route)
+	const origin = projectOpenStreetMapPoint(route.originLocation, zoom)
+	const driver = projectOpenStreetMapPoint(route.driverLocation, zoom)
+	const destination = projectOpenStreetMapPoint(route.destinationLocation, zoom)
+	const minX = Math.min(origin.x, driver.x, destination.x)
+	const maxX = Math.max(origin.x, driver.x, destination.x)
+	const minY = Math.min(origin.y, driver.y, destination.y)
+	const maxY = Math.max(origin.y, driver.y, destination.y)
+	const left = (minX + maxX - OSM_MAP_WIDTH) / 2
+	const top = (minY + maxY - OSM_MAP_HEIGHT) / 2
+
+	return {
+		tiles: buildOpenStreetMapTiles(left, top, zoom),
+		origin: toSvgMapPoint(origin, left, top),
+		driver: toSvgMapPoint(driver, left, top),
+		destination: toSvgMapPoint(destination, left, top),
+	}
+}
+
+function chooseOpenStreetMapZoom(route: DeliveryInfo['route']): number {
+	for (let zoom = OSM_MAX_ZOOM; zoom >= OSM_MIN_ZOOM; zoom--) {
+		const origin = projectOpenStreetMapPoint(route.originLocation, zoom)
+		const driver = projectOpenStreetMapPoint(route.driverLocation, zoom)
+		const destination = projectOpenStreetMapPoint(
+			route.destinationLocation,
+			zoom,
+		)
+		const spanX =
+			Math.max(origin.x, driver.x, destination.x) -
+			Math.min(origin.x, driver.x, destination.x)
+		const spanY =
+			Math.max(origin.y, driver.y, destination.y) -
+			Math.min(origin.y, driver.y, destination.y)
+
+		if (
+			spanX <= OSM_MAP_WIDTH - OSM_FIT_PADDING &&
+			spanY <= OSM_MAP_HEIGHT - OSM_FIT_PADDING
+		) {
+			return zoom
+		}
+	}
+
+	return OSM_MIN_ZOOM
+}
+
+function buildOpenStreetMapTiles(
+	left: number,
+	top: number,
+	zoom: number,
+): OsmTile[] {
+	const tiles: OsmTile[] = []
+	const tileCount = 2 ** zoom
+	const startX = Math.floor(left / OSM_TILE_SIZE)
+	const endX = Math.floor((left + OSM_MAP_WIDTH) / OSM_TILE_SIZE)
+	const startY = Math.floor(top / OSM_TILE_SIZE)
+	const endY = Math.floor((top + OSM_MAP_HEIGHT) / OSM_TILE_SIZE)
+
+	for (let tileX = startX; tileX <= endX; tileX++) {
+		for (let tileY = startY; tileY <= endY; tileY++) {
+			if (tileY < 0 || tileY >= tileCount) continue
+			const wrappedX = ((tileX % tileCount) + tileCount) % tileCount
+			tiles.push({
+				key: `${zoom}-${wrappedX}-${tileY}`,
+				href: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`,
+				x: tileX * OSM_TILE_SIZE - left,
+				y: tileY * OSM_TILE_SIZE - top,
+			})
+		}
+	}
+
+	return tiles
+}
+
+function projectOpenStreetMapPoint(
+	point: { lat: number; lng: number },
+	zoom: number,
+): ProjectedMapPoint {
+	const sinLat = Math.sin((point.lat * Math.PI) / 180)
+	const mapSize = OSM_TILE_SIZE * 2 ** zoom
+
+	return {
+		x: ((point.lng + 180) / 360) * mapSize,
+		y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * mapSize,
+	}
+}
+
+function toSvgMapPoint(
+	point: ProjectedMapPoint,
+	left: number,
+	top: number,
+): ProjectedMapPoint {
+	return {
+		x: point.x - left,
+		y: point.y - top,
+	}
+}
+
+function DispatchContactLink({ contact }: { contact: DeliveryContact }) {
+	const { t } = useTranslation('portal')
+	const isExternal = contact.href.startsWith('http')
+	return (
+		<a
+			href={contact.href}
+			target={isExternal ? '_blank' : undefined}
+			rel={isExternal ? 'noopener noreferrer' : undefined}
+			className="grid min-w-0 grid-cols-[28px_1fr] items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-2 py-2 transition-colors hover:border-[var(--p-border-strong)]"
+		>
+			<span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--p-hover)] text-[var(--p-text-muted)]">
+				<Phone size={13} strokeWidth={1.8} />
+			</span>
+			<span className="min-w-0">
+				<span className="block truncate text-[12px] font-medium text-[var(--p-text)]">
+					{t(getDispatchContactLabelKey(contact.id))}
+				</span>
+				<span className="block truncate font-mono text-[10px] text-[var(--p-text-muted)]">
+					{contact.value}
+				</span>
+			</span>
+		</a>
+	)
+}
+
+function getDispatchContactLabelKey(id: string): ParseKeys<'portal'> {
+	if (id === 'dispatch-hotline') return 'tracking.dispatchHotline'
+	if (id === 'dispatch-whatsapp') return 'tracking.dispatchWhatsApp'
+	if (id === 'dispatch-email') return 'tracking.dispatchEmail'
+	return 'tracking.dispatchTeam'
+}
+
 function DeliveryStageGrid({ currentStage }: { currentStage: DeliveryStage }) {
 	const { t } = useTranslation('portal')
 	const currentIndex = DELIVERY_STAGES.indexOf(currentStage)
@@ -486,7 +1066,7 @@ function DeliveryStageGrid({ currentStage }: { currentStage: DeliveryStage }) {
 			aria-valuemin={1}
 			aria-valuemax={DELIVERY_STAGES.length}
 		>
-			<ol className="grid gap-2 sm:grid-cols-5">
+			<ol className="grid gap-2 sm:grid-cols-4">
 				{DELIVERY_STAGES.map((stage, i) => {
 					const isCompleted = i < currentIndex
 					const isCurrent = i === currentIndex
@@ -587,8 +1167,8 @@ function DetailSkeleton() {
 					<div className="h-3 w-24 animate-pulse bg-[var(--p-border)]" />
 				</div>
 				<div className="mb-12 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:mb-14 sm:p-5">
-					<div className="grid gap-3 sm:grid-cols-5">
-						{[1, 2, 3, 4, 5].map((i) => (
+					<div className="grid gap-3 sm:grid-cols-4">
+						{[1, 2, 3, 4].map((i) => (
 							<div key={i} className="flex items-center gap-3 sm:flex-col">
 								<div className="h-8 w-8 animate-pulse rounded-full bg-[var(--p-border)]" />
 								<div className="h-3 w-28 animate-pulse bg-[var(--p-border)] sm:w-16" />

@@ -38,11 +38,6 @@ interface MarketProductsResponse {
 	total: number
 }
 
-interface AddToDraftResponse {
-	success: boolean
-	draftId: string
-}
-
 // ============================================================================
 // Schemas
 // ============================================================================
@@ -52,12 +47,6 @@ const getMarketProductsInput = z.object({
 	category: z.string().optional(),
 	page: z.number().int().min(1).default(1),
 	limit: z.number().int().min(1).max(50).default(20),
-})
-
-const addToActiveDraftInput = z.object({
-	productId: z.string(),
-	quantity: z.number().min(1),
-	uom: z.string(),
 })
 
 // ============================================================================
@@ -651,66 +640,5 @@ export const getMarketProducts = createServerFn()
 			}),
 			nextPage: hasMore ? page + 1 : null,
 			total,
-		}
-	})
-
-// ============================================================================
-// addToActiveDraft
-// ============================================================================
-
-const addToActiveDraft = createServerFn()
-	.inputValidator(addToActiveDraftInput)
-	.handler(async ({ data: input }): Promise<AddToDraftResponse> => {
-		if (!isSupabaseConfigured()) {
-			// Mock: always succeed
-			return {
-				success: true,
-				draftId: 'DRAFT-001',
-			}
-		}
-
-		const { supabase, session } = await getAuthenticatedSupabase()
-
-		// Find or create active draft
-		const userId = session.session.user.id
-		const { data: existingDraft } = await supabase
-			.from('quote_requests')
-			.select('id')
-			.eq('created_by', userId)
-			.eq('status', 'draft')
-			.order('updated_at', { ascending: false })
-			.limit(1)
-			.single()
-
-		let draftId: string | undefined = existingDraft?.id
-
-		if (!draftId) {
-			const { data: newDraft, error: createError } = await supabase
-				.from('quote_requests')
-				.insert({ created_by: userId, status: 'draft' })
-				.select('id')
-				.single()
-
-			if (createError) throw new Error(createError.message)
-			draftId = newDraft?.id
-		}
-
-		if (!draftId) throw new Error('Failed to resolve draft id')
-
-		// Add line item
-		const { error: lineError } = await supabase
-			.from('quote_request_items')
-			.insert({
-				quote_request_id: draftId,
-				product_id: input.productId,
-				quantity: input.quantity,
-				unit_of_measure: input.uom,
-			})
-
-		if (lineError) throw new Error(lineError.message)
-
-		return {
-			success: true,
-			draftId,
 		}
 	})

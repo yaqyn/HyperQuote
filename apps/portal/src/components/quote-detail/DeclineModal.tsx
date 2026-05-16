@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next'
 import { ChevronDown } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
@@ -33,7 +34,7 @@ const DECLINE_REASONS: DeclineReason[] = [
 	'other',
 ]
 
-const REASON_KEYS: Record<DeclineReason, string> = {
+const REASON_KEYS: Record<DeclineReason, ParseKeys<'portal'>> = {
 	price_too_high: 'quoteDetail.declineReasonPriceTooHigh',
 	found_alternative: 'quoteDetail.declineReasonFoundAlternative',
 	project_cancelled: 'quoteDetail.declineReasonProjectCancelled',

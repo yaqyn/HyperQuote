@@ -105,7 +105,7 @@ export const uploadCatalog = createServerFn()
 			return { uploadId: crypto.randomUUID(), status: 'processing' }
 		}
 
-		// TODO: Real implementation — upload to R2, queue AI parsing via Cloudflare Queue
+		// Mock-backed until R2 upload and catalog parsing queues are configured.
 		return { uploadId: crypto.randomUUID(), status: 'processing' }
 	})
 
@@ -126,7 +126,7 @@ export const getSupplierUploadHistory = createServerFn()
 			return { uploads, total: uploads.length }
 		}
 
-		// TODO: Real Supabase query
+		// Mock-backed until supplier upload history reads are wired to Supabase.
 		const uploads = getMockUploads()
 		return { uploads, total: uploads.length }
 	})

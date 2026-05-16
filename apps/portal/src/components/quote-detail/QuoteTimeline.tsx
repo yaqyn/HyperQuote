@@ -1,9 +1,23 @@
+import type { ParseKeys } from 'i18next'
 import { Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { QuoteTimelineStep } from '../../types/quote'
 
 interface QuoteTimelineProps {
 	steps: QuoteTimelineStep[]
+}
+
+const TIMELINE_LABEL_KEYS: Record<
+	QuoteTimelineStep['key'],
+	ParseKeys<'portal'>
+> = {
+	submitted: 'quoteDetail.timeline.submitted',
+	under_review: 'quoteDetail.timeline.underReview',
+	sourcing: 'quoteDetail.timeline.sourcing',
+	quote_ready: 'quoteDetail.timeline.quoteReady',
+	sent: 'quoteDetail.timeline.sentToYou',
+	accepted_negotiating: 'quoteDetail.timeline.acceptedNegotiating',
+	order_confirmed: 'quoteDetail.timeline.orderConfirmed',
 }
 
 export function QuoteTimeline({ steps }: QuoteTimelineProps) {
@@ -19,22 +33,7 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
 					<div key={step.key} className="flex items-start gap-3">
 						{/* Indicator column */}
 						<div className="flex flex-col items-center">
-							{/* Circle */}
-							{step.status === 'completed' && (
-								<div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-success)]">
-									<Check size={14} className="text-white" />
-								</div>
-							)}
-							{step.status === 'current' && (
-								<div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-[var(--color-primary)] animate-pulse">
-									<div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-								</div>
-							)}
-							{step.status === 'future' && (
-								<div className="flex items-center justify-center w-6 h-6">
-									<div className="w-2 h-2 rounded-full bg-[var(--color-text-subtle)]" />
-								</div>
-							)}
+							<TimelineMarker status={step.status} />
 
 							{/* Connecting line (not after last) */}
 							{index < steps.length - 1 && (
@@ -61,7 +60,7 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
 											: 'text-[var(--color-text)]',
 								].join(' ')}
 							>
-								{t(`quoteDetail.timeline.${step.key}`)}
+								{t(TIMELINE_LABEL_KEYS[step.key])}
 							</span>
 							{step.timestamp && (
 								<span className="font-mono text-[13px] text-[var(--color-text-muted)]">
@@ -83,22 +82,7 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
 						key={step.key}
 						className="flex flex-col items-center gap-1 min-w-[72px]"
 					>
-						{/* Circle */}
-						{step.status === 'completed' && (
-							<div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-success)]">
-								<Check size={14} className="text-white" />
-							</div>
-						)}
-						{step.status === 'current' && (
-							<div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-[var(--color-primary)] animate-pulse">
-								<div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-							</div>
-						)}
-						{step.status === 'future' && (
-							<div className="flex items-center justify-center w-6 h-6">
-								<div className="w-2 h-2 rounded-full bg-[var(--color-text-subtle)]" />
-							</div>
-						)}
+						<TimelineMarker status={step.status} />
 
 						{/* Label */}
 						<span
@@ -111,11 +95,35 @@ export function QuoteTimeline({ steps }: QuoteTimelineProps) {
 										: 'text-[var(--color-text)]',
 							].join(' ')}
 						>
-							{t(`quoteDetail.timeline.${step.key}`)}
+							{t(TIMELINE_LABEL_KEYS[step.key])}
 						</span>
 					</div>
 				))}
 			</div>
+		</div>
+	)
+}
+
+function TimelineMarker({ status }: { status: QuoteTimelineStep['status'] }) {
+	if (status === 'completed') {
+		return (
+			<div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-success)]">
+				<Check size={14} className="text-white" />
+			</div>
+		)
+	}
+
+	if (status === 'current') {
+		return (
+			<div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-[var(--color-primary)] animate-pulse">
+				<div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
+			</div>
+		)
+	}
+
+	return (
+		<div className="flex items-center justify-center w-6 h-6">
+			<div className="w-2 h-2 rounded-full bg-[var(--color-text-subtle)]" />
 		</div>
 	)
 }

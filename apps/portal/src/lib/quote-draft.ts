@@ -36,8 +36,7 @@ export function saveDraftToLocal(data: Omit<DraftData, 'updatedAt'>): void {
 		}
 		localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
 	} catch {
-		// localStorage full or unavailable -- silently fail
-		console.warn('[quote-draft] Failed to save to localStorage')
+		// Local storage may be unavailable in private sessions.
 	}
 }
 

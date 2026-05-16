@@ -27,6 +27,7 @@ export function LineItemsTable({
 	renderPartialControls,
 }: LineItemsTableProps) {
 	const { t, i18n } = useTranslation('portal')
+	const { t: tUnit } = useTranslation('units')
 	const isArabic = i18n.language === 'ar'
 	const numberFormatter = new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en')
 
@@ -84,7 +85,9 @@ export function LineItemsTable({
 									{numberFormatter.format(item.quantity)}
 								</Cell>
 								<Cell className="py-3 px-3 text-[var(--color-text-muted)]">
-									{t(`units.${item.unitOfMeasure}`)}
+									{tUnit(item.unitOfMeasure, {
+										defaultValue: item.unitOfMeasure,
+									})}
 								</Cell>
 								<Cell className="py-3 px-3 text-end">
 									{editable ? (
@@ -145,7 +148,9 @@ export function LineItemsTable({
 								<span className="font-mono text-sm">
 									{numberFormatter.format(item.quantity)}{' '}
 									<span className="text-[13px] text-[var(--color-text-muted)]">
-										{t(`units.${item.unitOfMeasure}`)}
+										{tUnit(item.unitOfMeasure, {
+											defaultValue: item.unitOfMeasure,
+										})}
 									</span>
 								</span>
 							</div>

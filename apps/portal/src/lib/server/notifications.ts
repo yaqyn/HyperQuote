@@ -138,7 +138,7 @@ export const getNotifications = createServerFn({ method: 'GET' })
 
 			const { data: notifications, error } = await supabase
 				.from('notifications')
-				.select('*')
+				.select('id,type,title,body,read,created_at,target_type,target_id')
 				.order('created_at', { ascending: false })
 				.range(offset, offset + input.limit - 1)
 
@@ -149,13 +149,13 @@ export const getNotifications = createServerFn({ method: 'GET' })
 			// Get unread count
 			const { count: unreadCount } = await supabase
 				.from('notifications')
-				.select('*', { count: 'exact', head: true })
+				.select('id', { count: 'exact', head: true })
 				.eq('read', false)
 
 			// Check if there are more
 			const { count: totalCount } = await supabase
 				.from('notifications')
-				.select('*', { count: 'exact', head: true })
+				.select('id', { count: 'exact', head: true })
 
 			const mapped: Notification[] = (notifications ?? []).map(
 				(row: Record<string, unknown>) => ({

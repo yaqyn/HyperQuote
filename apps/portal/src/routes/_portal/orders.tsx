@@ -7,19 +7,30 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ChevronDown, Pencil, Plus, Send, Trash2 } from 'lucide-react'
-import { type RefObject, useMemo, useRef, useState } from 'react'
+import type { ParseKeys } from 'i18next'
+import { ChevronDown, Copy, Pencil, Plus, Trash2 } from 'lucide-react'
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { z } from 'zod'
+import { DraftQuoteTrigger } from '../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
-import {
-	deleteOrder,
-	getAllCustomerOrders,
-	submitOrder,
-} from '../../lib/server/orders'
+import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
-import type { Order, OrderType } from '../../types/order'
+import { usePortalStore } from '../../stores/portal'
+import type { Order, OrderStatus, OrderType } from '../../types/order'
+
+const ordersSearchSchema = z.object({
+	draft: z
+		.preprocess(
+			(value) =>
+				value === true || value === 'true' || value === '1' || value === 1,
+			z.boolean(),
+		)
+		.optional(),
+})
 
 export const Route = createFileRoute('/_portal/orders')({
+	validateSearch: (search) => ordersSearchSchema.parse(search),
 	component: OrdersPage,
 })
 
@@ -36,17 +47,30 @@ const SECTION_META: Record<
 
 const ORDER_PREVIEW_SLOT_COUNT = 3
 const ORDER_PREVIEW_SLOT_KEYS = ['slot-1', 'slot-2', 'slot-3'] as const
+const ORDER_STATUS_LABEL_KEYS: Partial<
+	Record<OrderStatus, ParseKeys<'portal'>>
+> = {
+	order_confirmed: 'tracking.confirmed',
+	being_prepared: 'tracking.beingPrepared',
+	out_for_delivery: 'tracking.outForDelivery',
+	delivered: 'tracking.delivered',
+	cancelled: 'tracking.cancelled',
+	rejected: 'tracking.rejected',
+}
 type MarketDraftItem = ReturnType<
 	typeof useDraftQuoteStore.getState
 >['items'][number]
 
 function OrdersPage() {
 	const { t, i18n } = useTranslation('portal')
+	const { draft } = Route.useSearch()
+	const navigate = useNavigate()
 	const isAr = i18n.language === 'ar'
 	const savedSectionRef = useRef<HTMLElement | null>(null)
 	const submittedSectionRef = useRef<HTMLElement | null>(null)
 	const confirmedSectionRef = useRef<HTMLElement | null>(null)
 	const draftItems = useDraftQuoteStore((s) => s.items)
+	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const [collapsedSections, setCollapsedSections] = useState<
 		Record<OrderType, boolean>
 	>({
@@ -73,6 +97,16 @@ function OrdersPage() {
 	const totalCount =
 		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length
 	const hasDraft = draftItems.length > 0
+	useEffect(() => {
+		if (draft) {
+			setDraftQuoteOpen(true)
+			navigate({ to: '/orders', search: {}, replace: true })
+		}
+	}, [draft, navigate, setDraftQuoteOpen])
+
+	const openDraft = () => {
+		setDraftQuoteOpen(true)
+	}
 	const toggleSection = (type: OrderType) => {
 		setCollapsedSections((current) => ({
 			...current,
@@ -163,7 +197,13 @@ function OrdersPage() {
 
 				{!isLoading && !isError && (totalCount > 0 || hasDraft) && (
 					<div className="space-y-8 sm:space-y-10 lg:space-y-12">
-						{hasDraft && <MarketDraftTile items={draftItems} isAr={isAr} />}
+						{hasDraft && (
+							<MarketDraftTile
+								items={draftItems}
+								isAr={isAr}
+								onOpen={openDraft}
+							/>
+						)}
 						<OrdersSection
 							type="saved"
 							orders={grouped.saved}
@@ -232,43 +272,23 @@ function SummaryTile({
 function MarketDraftTile({
 	items,
 	isAr,
+	onOpen,
 }: {
 	items: MarketDraftItem[]
 	isAr: boolean
+	onOpen: () => void
 }) {
 	const { t } = useTranslation('portal')
 	const previewItems = items.slice(0, ORDER_PREVIEW_SLOT_COUNT)
-	const previewSlots = ORDER_PREVIEW_SLOT_KEYS.map((slotKey, index) => ({
-		slotKey,
-		item: previewItems[index],
-	}))
+	const extraItemCount = Math.max(0, items.length - previewItems.length)
 
 	return (
-		<section aria-label={t('orders.newQuote')}>
+		<section aria-label={t('market.draftQuote')}>
 			<article className="flex min-w-0 flex-col rounded-xl border border-dashed border-[var(--p-border-strong)] bg-[var(--p-card)] p-3.5 sm:p-4">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0">
-						<p className="text-[12px] font-medium text-[var(--p-text-muted)]">
-							{t('market.draftQuote')}
-						</p>
-						<h3 className="mt-0.5 line-clamp-2 break-words text-[16px] font-semibold leading-snug text-[var(--p-text)] sm:mt-1 sm:text-[17px]">
-							{t('orders.newQuote')}
-						</h3>
-					</div>
-				</div>
+				<DraftQuoteTrigger count={items.length} isAr={isAr} onClick={onOpen} />
 
 				<div className="mt-3 grid gap-2">
-					{previewSlots.map(({ slotKey, item }) => {
-						if (!item) {
-							return (
-								<div
-									key={`market-draft-${slotKey}`}
-									aria-hidden="true"
-									className="flex h-9 min-w-0 items-center gap-2.5 sm:h-10"
-								/>
-							)
-						}
-
+					{previewItems.map((item) => {
 						const itemName = isAr && item.nameAr ? item.nameAr : item.name
 						return (
 							<div
@@ -296,20 +316,14 @@ function MarketDraftTile({
 							</div>
 						)
 					})}
-				</div>
-
-				<div className="mt-3 border-t border-[var(--p-border)] pt-3">
-					<div className="grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2">
-						<p className="truncate text-[12px] text-[var(--p-text-muted)]">
-							{t('orders.items', { count: items.length })}
+					{extraItemCount > 0 && (
+						<p className="px-0.5 text-[12px] font-medium text-[var(--p-text-muted)]">
+							+
+							{t('market.cartItemCount', {
+								count: formatQuantity(extraItemCount, isAr),
+							})}
 						</p>
-						<Link
-							to="/market"
-							className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-						>
-							<span className="truncate">{t('orders.edit')}</span>
-						</Link>
-					</div>
+					)}
 				</div>
 			</article>
 		</section>
@@ -370,41 +384,207 @@ function OrdersSection({
 					</span>
 				</button>
 			</header>
-			{!isCollapsed && (
-				<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-					{orders.map((order) => (
-						<OrderTile key={order.id} order={order} isAr={isAr} />
-					))}
+			{!isCollapsed &&
+				(type === 'saved' ? (
+					<SavedDraftList orders={orders} isAr={isAr} />
+				) : (
+					<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+						{orders.map((order) => (
+							<OrderTile key={order.id} order={order} isAr={isAr} />
+						))}
+					</div>
+				))}
+		</section>
+	)
+}
+
+function SavedDraftList({ orders, isAr }: { orders: Order[]; isAr: boolean }) {
+	const { t } = useTranslation('portal')
+
+	return (
+		<div className="space-y-3">
+			<p className="px-1 text-[13px] leading-relaxed text-[var(--p-text-muted)]">
+				{t('orders.savedDraftsHelp')}
+			</p>
+			<div className="grid gap-2">
+				{orders.map((order) => (
+					<SavedDraftRow key={order.id} order={order} isAr={isAr} />
+				))}
+			</div>
+		</div>
+	)
+}
+
+function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
+	const { t } = useTranslation('portal')
+	const navigate = useNavigate()
+	const queryClient = useQueryClient()
+	const [confirmDelete, setConfirmDelete] = useState(false)
+	const title = order.name ?? order.reference ?? order.id
+	const dateLabel = formatDate(order.date, isAr)
+	const sourceLabel =
+		order.draftSource === 'lyon'
+			? t('orders.lyonDraft')
+			: t('orders.manualDraft')
+	const previewItems = order.items.slice(0, ORDER_PREVIEW_SLOT_COUNT)
+	const extraItemCount = Math.max(0, order.items.length - previewItems.length)
+
+	const deleteMutation = useMutation({
+		mutationFn: () => deleteOrder({ data: { orderId: order.id } }),
+		onSuccess: () => {
+			queryClient.setQueryData<{ orders: Order[] }>(
+				['customer-orders-all'],
+				(current) =>
+					current
+						? {
+								orders: current.orders.filter((item) => item.id !== order.id),
+							}
+						: current,
+			)
+		},
+	})
+
+	function openEditor() {
+		navigate({
+			to: '/orders/edit/$orderId',
+			params: { orderId: order.id },
+		})
+	}
+
+	function duplicateDraft() {
+		const duplicate: Order = {
+			...order,
+			id: `${order.id}-copy-${Date.now()}`,
+			name: t('orders.copyName', { name: title }),
+			draftSource: 'customer',
+			date: new Date().toISOString(),
+			items: order.items.map((item) => ({ ...item })),
+		}
+		queryClient.setQueryData<{ orders: Order[] }>(
+			['customer-orders-all'],
+			(current) =>
+				current
+					? { orders: [duplicate, ...current.orders] }
+					: { orders: [duplicate] },
+		)
+	}
+
+	return (
+		<article className="grid min-w-0 gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors hover:border-[var(--p-border-strong)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
+			<div className="min-w-0">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<span className="rounded-full border border-[var(--p-border)] bg-[var(--p-input)] px-2.5 py-1 text-[11px] font-medium text-[var(--p-text-muted)]">
+						{sourceLabel}
+					</span>
+					<span className="font-mono text-[11px] text-[var(--p-text-faint)]">
+						{t('orders.lastEdited', { date: dateLabel })}
+					</span>
+				</div>
+				<h3 className="mt-2 truncate text-[16px] font-semibold text-[var(--p-text)] sm:text-[17px]">
+					{title}
+				</h3>
+				<div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5">
+					{previewItems.map((item) => {
+						const itemName = isAr ? item.productNameAr : item.productName
+						return (
+							<div
+								key={`${order.id}-${item.productId}`}
+								className="flex max-w-full min-w-0 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] py-1 pe-2 ps-1"
+							>
+								<img
+									src={item.imageUrl}
+									alt={itemName}
+									loading="lazy"
+									decoding="async"
+									className="h-7 w-7 shrink-0 rounded-md bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
+								/>
+								<span className="min-w-0 truncate text-[12px] text-[var(--p-text)]">
+									{itemName}
+								</span>
+							</div>
+						)
+					})}
+					{extraItemCount > 0 && (
+						<span className="rounded-full border border-[var(--p-border)] px-2.5 py-1 text-[11px] text-[var(--p-text-muted)]">
+							{t('orders.itemPreviewMore', { count: extraItemCount })}
+						</span>
+					)}
+				</div>
+				<p className="mt-2 text-[12px] text-[var(--p-text-muted)]">
+					{t('orders.items', { count: order.itemCount })}
+				</p>
+			</div>
+
+			{confirmDelete ? (
+				<div className="grid gap-2 sm:w-[240px] sm:grid-cols-2">
+					<button
+						type="button"
+						onClick={() => deleteMutation.mutate()}
+						disabled={deleteMutation.isPending}
+						className="h-10 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-error)] transition-colors hover:bg-[var(--p-hover)] disabled:opacity-50"
+					>
+						{t('orders.confirmDelete')}
+					</button>
+					<button
+						type="button"
+						onClick={() => setConfirmDelete(false)}
+						className="h-10 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+					>
+						{t('orders.cancel')}
+					</button>
+				</div>
+			) : (
+				<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] items-center gap-2 sm:w-[360px]">
+					<button
+						type="button"
+						onClick={openEditor}
+						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+					>
+						<span className="truncate">{t('orders.reviewSubmit')}</span>
+					</button>
+					<button
+						type="button"
+						onClick={openEditor}
+						aria-label={t('orders.edit')}
+						className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+					>
+						<Pencil size={15} strokeWidth={1.8} />
+					</button>
+					<button
+						type="button"
+						onClick={duplicateDraft}
+						aria-label={t('orders.duplicate')}
+						className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+					>
+						<Copy size={15} strokeWidth={1.8} />
+					</button>
+					<button
+						type="button"
+						onClick={() => setConfirmDelete(true)}
+						aria-label={t('orders.delete')}
+						className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-error)] hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+					>
+						<Trash2 size={15} strokeWidth={1.8} />
+					</button>
 				</div>
 			)}
-		</section>
+		</article>
 	)
 }
 
 function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
-	const queryClient = useQueryClient()
-	const [confirmDelete, setConfirmDelete] = useState(false)
 
-	const deleteMutation = useMutation({
-		mutationFn: () => deleteOrder({ data: { orderId: order.id } }),
-		onSuccess: () =>
-			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
-	})
-
-	const submitMutation = useMutation({
-		mutationFn: () => submitOrder({ data: { orderId: order.id } }),
-		onSuccess: () =>
-			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
-	})
-
-	const isSaved = order.type === 'saved'
+	const isSubmitted = order.type === 'submitted'
 	const title = order.name ?? order.reference ?? order.id
+	const statusKey = order.status ? ORDER_STATUS_LABEL_KEYS[order.status] : null
 	const statusLabel =
 		order.type === 'saved' && order.draftSource === 'lyon'
 			? t('orders.lyon')
-			: t(SECTION_META[order.type].labelKey)
+			: statusKey
+				? t(statusKey)
+				: t(SECTION_META[order.type].labelKey)
 	const dateLabel = formatDate(order.date, isAr)
 	const amountLabel = formatAmount(order, isAr)
 	const previewItems = order.items.slice(0, ORDER_PREVIEW_SLOT_COUNT)
@@ -414,7 +594,6 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 	}))
 
 	function openOrder() {
-		if (isSaved) return
 		navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
 	}
 
@@ -475,90 +654,35 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 				})}
 			</div>
 
+			{isSubmitted && (
+				<p className="mt-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2 text-[12px] leading-relaxed text-[var(--p-text-muted)]">
+					{t('tracking.reviewingOrderMessage')}
+				</p>
+			)}
+
 			<div className="mt-3 border-t border-[var(--p-border)] pt-3">
-				{isSaved && confirmDelete ? (
-					<div className="grid grid-cols-2 gap-2">
-						<button
-							type="button"
-							onClick={() => deleteMutation.mutate()}
-							disabled={deleteMutation.isPending}
-							className="h-9 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-error)] transition-colors hover:bg-[var(--p-hover)] disabled:opacity-50 sm:h-10"
-						>
-							{t('orders.confirmDelete')}
-						</button>
-						<button
-							type="button"
-							onClick={() => setConfirmDelete(false)}
-							className="h-9 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] sm:h-10"
-						>
-							{t('orders.cancel')}
-						</button>
-					</div>
-				) : (
-					<div
-						className={
-							isSaved
-								? 'grid grid-cols-[minmax(0,1fr)_40px_40px_minmax(108px,1fr)] items-center gap-2'
-								: 'grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2'
-						}
-					>
-						<div className="min-w-0">
-							<p className="truncate text-[12px] text-[var(--p-text-muted)]">
-								{t('orders.items', { count: order.itemCount })}
-							</p>
-							{amountLabel && (
-								<p
-									className="mt-0.5 truncate font-mono text-[12px] font-semibold text-[var(--p-text)] sm:text-[13px]"
-									style={{ fontVariantNumeric: 'tabular-nums' }}
-								>
-									{amountLabel}
-								</p>
-							)}
-						</div>
-						{isSaved ? (
-							<>
-								<button
-									type="button"
-									onClick={() =>
-										navigate({
-											to: '/orders/edit/$orderId',
-											params: { orderId: order.id },
-										})
-									}
-									aria-label={t('orders.edit')}
-									className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
-								>
-									<Pencil size={15} strokeWidth={1.8} />
-								</button>
-								<button
-									type="button"
-									onClick={() => setConfirmDelete(true)}
-									aria-label={t('orders.delete')}
-									className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-error)] hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
-								>
-									<Trash2 size={15} strokeWidth={1.8} />
-								</button>
-								<button
-									type="button"
-									onClick={() => submitMutation.mutate()}
-									disabled={submitMutation.isPending}
-									className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-2 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:opacity-50"
-								>
-									<Send size={15} strokeWidth={1.8} className="shrink-0" />
-									<span className="truncate">{t('orders.submit')}</span>
-								</button>
-							</>
-						) : (
-							<button
-								type="button"
-								onClick={openOrder}
-								className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+				<div className="grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2">
+					<div className="min-w-0">
+						<p className="truncate text-[12px] text-[var(--p-text-muted)]">
+							{t('orders.items', { count: order.itemCount })}
+						</p>
+						{amountLabel && (
+							<p
+								className="mt-0.5 truncate font-mono text-[12px] font-semibold text-[var(--p-text)] sm:text-[13px]"
+								style={{ fontVariantNumeric: 'tabular-nums' }}
 							>
-								<span className="truncate">{t('orders.view')}</span>
-							</button>
+								{amountLabel}
+							</p>
 						)}
 					</div>
-				)}
+					<button
+						type="button"
+						onClick={openOrder}
+						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+					>
+						<span className="truncate">{t('orders.view')}</span>
+					</button>
+				</div>
 			</div>
 		</article>
 	)

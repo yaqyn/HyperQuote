@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next'
 import { Check, ChevronDown } from 'lucide-react'
 import {
 	Button as AriaButton,
@@ -25,7 +26,7 @@ const REJECT_REASONS: RejectReason[] = [
 	'other',
 ]
 
-const REASON_KEYS: Record<RejectReason, string> = {
+const REASON_KEYS: Record<RejectReason, ParseKeys<'portal'>> = {
 	too_expensive: 'quoteDetail.rejectReasonTooExpensive',
 	not_needed: 'quoteDetail.rejectReasonNotNeeded',
 	found_alternative: 'quoteDetail.rejectReasonFoundAlternative',

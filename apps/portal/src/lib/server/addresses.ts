@@ -22,11 +22,6 @@ const createAddressInput = z.object({
 	isDefault: z.boolean().optional(),
 })
 
-const createProjectInput = z.object({
-	name: z.string().min(1),
-	description: z.string().optional(),
-})
-
 // ============================================================================
 // Types
 // ============================================================================
@@ -41,13 +36,6 @@ export interface CustomerAddress {
 	landmark: string | null
 	phone: string | null
 	isDefault: boolean
-}
-
-interface CustomerProject {
-	id: string
-	name: string
-	description: string | null
-	isActive: boolean
 }
 
 // ============================================================================
@@ -164,87 +152,5 @@ export const createAddress = createServerFn()
 			landmark: data.landmark,
 			phone: data.phone,
 			isDefault: data.is_default,
-		}
-	})
-
-// ============================================================================
-// getCustomerProjects
-// ============================================================================
-
-const getCustomerProjects = createServerFn().handler(
-	async (): Promise<CustomerProject[]> => {
-		if (!isSupabaseConfigured()) {
-			return [
-				{
-					id: 'proj-mock-1',
-					name: 'New Cairo Villa',
-					description: 'Residential villa project in New Cairo',
-					isActive: true,
-				},
-				{
-					id: 'proj-mock-2',
-					name: 'Maadi Office Renovation',
-					description: null,
-					isActive: true,
-				},
-			]
-		}
-
-		const { supabase } = await getAuthenticatedSupabase()
-
-		const { data, error } = await supabase
-			.from('projects')
-			.select('id, name, description, is_active')
-			.eq('is_active', true)
-			.order('name')
-
-		if (error) throw new Error(error.message)
-
-		return (data ?? []).map((p) => ({
-			id: p.id,
-			name: p.name,
-			description: p.description,
-			isActive: p.is_active,
-		}))
-	},
-)
-
-// ============================================================================
-// createProject
-// ============================================================================
-
-const createProject = createServerFn()
-	.inputValidator(createProjectInput)
-	.handler(async ({ data: input }): Promise<CustomerProject> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				id: crypto.randomUUID(),
-				name: input.name,
-				description: input.description ?? null,
-				isActive: true,
-			}
-		}
-
-		const { supabase, session } = await getAuthenticatedSupabase()
-
-		const { data, error } = await supabase
-			.from('projects')
-			.insert({
-				customer_id: session.user.app_metadata?.customer_id,
-				name: input.name,
-				description: input.description ?? null,
-			})
-			.select('id, name, description, is_active')
-			.single()
-
-		if (error || !data) {
-			throw new Error(error?.message ?? 'Failed to create project')
-		}
-
-		return {
-			id: data.id,
-			name: data.name,
-			description: data.description,
-			isActive: data.is_active,
 		}
 	})
