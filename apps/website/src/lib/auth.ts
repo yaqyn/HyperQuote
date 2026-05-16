@@ -323,31 +323,3 @@ export const claimAccount = createServerFn()
 			return { success: false, error: 'claim_failed' as const }
 		}
 	})
-
-// ============================================================================
-// signOut — Clear session and SSO cookie
-// ============================================================================
-
-const signOut = createServerFn().handler(async () => {
-	try {
-		const request = getRequest()
-		const { client } = createSupabaseServerClient({
-			request,
-			supabaseUrl:
-				process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-		})
-
-		const { error } = await client.auth.signOut()
-
-		if (error) {
-			console.error('[signOut] Supabase error:', error)
-			return { success: false, error: 'signout_failed' as const }
-		}
-
-		return { success: true }
-	} catch (err) {
-		console.error('[signOut] Unexpected error:', err)
-		return { success: false, error: 'signout_failed' as const }
-	}
-})

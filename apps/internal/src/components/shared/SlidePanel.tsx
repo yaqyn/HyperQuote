@@ -17,6 +17,7 @@ import { useDispatchStore } from '../../stores/dispatch'
 import { useFinanceStore } from '../../stores/finance'
 import { useProcurementStore } from '../../stores/procurement'
 import { useSalesStore } from '../../stores/sales'
+import { useSearchStore } from '../../stores/search'
 import { useWarehouseStore } from '../../stores/warehouse'
 
 /**
@@ -91,7 +92,7 @@ export function PanelHostProvider({
  *   • Spring slide-in from the trailing edge, spring slide-out
  *   • Transparent click-outside backdrop (no dimming, no blur)
  *   • Escape-key dismissal
- *   • Visible mobile/tablet back control, plus backdrop/Escape dismissal
+ *   • Visible mobile back control, plus backdrop/Escape dismissal
  *   • Opaque surface background (no bleed-through)
  *   • Shared border, shadow, and positioning
  *   • Optional registration with the module's overlay-close handler so the
@@ -109,9 +110,16 @@ type SlidePanelScope =
 	| 'dispatch'
 	| 'customer-service'
 	| 'admin'
+	| 'search'
 type SlidePanelSide = 'start' | 'end'
 type SlidePanelStyle = CSSProperties & {
 	'--slide-panel-max-width': string
+	'--color-surface'?: string
+	'--color-text'?: string
+	'--color-text-muted'?: string
+	'--color-text-subtle'?: string
+	'--color-border'?: string
+	'--color-primary'?: string
 }
 
 interface SlidePanelProps {
@@ -143,6 +151,7 @@ interface SlidePanelProps {
 	mobileTitle?: ReactNode
 	mobileSubtitle?: ReactNode
 	mobileAction?: ReactNode
+	tone?: 'default' | 'dark'
 	children: ReactNode
 }
 
@@ -157,6 +166,7 @@ export function SlidePanel({
 	mobileTitle,
 	mobileSubtitle,
 	mobileAction,
+	tone = 'default',
 	children,
 }: SlidePanelProps) {
 	const { host, registerClose, unregisterClose, closeAll } =
@@ -168,13 +178,37 @@ export function SlidePanel({
 	const enterOffset = side === 'start' ? '-100%' : '100%'
 	const edgeClass =
 		side === 'start'
-			? 'start-0 end-0 lg:end-auto lg:border-e'
-			: 'start-0 end-0 lg:start-auto lg:border-s'
+			? 'start-0 end-0 md:end-auto md:border-e'
+			: 'start-0 end-0 md:start-auto md:border-s'
 	const shadowClass =
 		side === 'start' ? 'slide-drawer-start' : 'slide-drawer-end'
+	const isDark = tone === 'dark'
 	const panelStyle: SlidePanelStyle = {
 		'--slide-panel-max-width': `${maxWidth}px`,
+		...(isDark
+			? {
+					'--color-surface': '#070707',
+					'--color-text': 'rgba(250,250,250,0.92)',
+					'--color-text-muted': 'rgba(250,250,250,0.58)',
+					'--color-text-subtle': 'rgba(250,250,250,0.34)',
+					'--color-border': 'rgba(255,255,255,0.1)',
+					'--color-primary': '#a9b8cc',
+					boxShadow:
+						side === 'start'
+							? '24px 0 80px -28px rgba(0,0,0,0.96), inset -1px 0 0 rgba(255,255,255,0.045)'
+							: '-24px 0 80px -28px rgba(0,0,0,0.96), inset 1px 0 0 rgba(255,255,255,0.045)',
+				}
+			: {}),
 	}
+	const panelShellClass = isDark
+		? `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-white/[0.075] bg-[#050505] text-white md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
+		: `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
+	const mobileBarClass = isDark
+		? 'slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-white/[0.075] bg-[#050505] px-2 md:hidden'
+		: 'slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 dark:border-white/[0.08] md:hidden'
+	const mobileBackClass = isDark
+		? 'flex h-9 w-9 items-center justify-center text-white/42 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25'
+		: 'flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35'
 
 	// SSR / pre-mount guard: if the panel host isn't available yet, render
 	// nothing on the first paint and catch up once it mounts.
@@ -203,6 +237,7 @@ export function SlidePanel({
 	const setDispatchHandler = useDispatchStore((s) => s.setOverlayCloseHandler)
 	const setSupportHandler = useSupportStore((s) => s.setOverlayCloseHandler)
 	const setAdminHandler = useAdminStore((s) => s.setOverlayCloseHandler)
+	const setSearchHandler = useSearchStore((s) => s.setOverlayCloseHandler)
 
 	useEffect(() => {
 		if (!scope) return
@@ -219,7 +254,9 @@ export function SlidePanel({
 								? setDispatchHandler
 								: scope === 'customer-service'
 									? setSupportHandler
-									: setAdminHandler
+									: scope === 'admin'
+										? setAdminHandler
+										: setSearchHandler
 		if (!isOpen) {
 			// When this panel closes, drop any handler *it* registered. If another
 			// panel in the same module is open, its own effect will have already
@@ -242,6 +279,7 @@ export function SlidePanel({
 		setDispatchHandler,
 		setSupportHandler,
 		setAdminHandler,
+		setSearchHandler,
 	])
 
 	// Escape dismisses whichever panel is currently open.
@@ -272,7 +310,7 @@ export function SlidePanel({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.15 }}
-						className="slide-panel-backdrop fixed inset-0 z-20 cursor-default bg-transparent lg:absolute"
+						className="slide-panel-backdrop fixed inset-0 z-20 cursor-default bg-transparent md:absolute"
 					/>
 
 					<motion.div
@@ -283,15 +321,15 @@ export function SlidePanel({
 						animate={{ x: 0 }}
 						exit={{ x: enterOffset }}
 						transition={{ type: 'spring', stiffness: 300, damping: 34 }}
-						className={`slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] lg:absolute lg:inset-y-0 lg:max-w-[var(--slide-panel-max-width)]`}
+						className={panelShellClass}
 						style={panelStyle}
 					>
-						<div className="slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 dark:border-white/[0.08] lg:hidden">
+						<div className={mobileBarClass}>
 							<button
 								type="button"
 								onClick={onClose}
 								aria-label="Back from side panel"
-								className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+								className={mobileBackClass}
 							>
 								<ChevronLeft
 									aria-hidden="true"

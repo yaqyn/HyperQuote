@@ -20,7 +20,7 @@ import {
  * order_report and advancing the deal to the warehouse stage).
  */
 
-export type OrderItemStatus = 'ready' | 'shortage'
+type OrderItemStatus = 'ready' | 'shortage'
 
 export interface OrderLineItemView {
 	productSlug: string

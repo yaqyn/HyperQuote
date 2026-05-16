@@ -4,7 +4,7 @@
 
 export type DriverType = 'INTERNAL' | 'CONTRACTED' | 'ON_DEMAND'
 
-export type DriverComplianceStatus = 'valid' | 'warning' | 'expired'
+type DriverComplianceStatus = 'valid' | 'warning' | 'expired'
 
 export interface Driver {
 	id: string
@@ -22,16 +22,16 @@ export interface Driver {
 
 // ─── Vehicle ─────────────────────────────────────────────
 
-export type VehicleType = 'truck' | 'van' | 'flatbed' | 'tanker'
+type VehicleType = 'truck' | 'van' | 'flatbed' | 'tanker'
 
-export type VehicleStatus =
+type VehicleStatus =
 	| 'idle'
 	| 'loading'
 	| 'in_transit'
 	| 'unloading'
 	| 'maintenance'
 
-export interface VehicleEquipment {
+interface VehicleEquipment {
 	moffett: boolean
 	boom: boolean
 	crane: boolean
@@ -49,9 +49,9 @@ export interface Vehicle {
 
 // ─── Route ───────────────────────────────────────────────
 
-export type EquipmentNeeded = 'none' | 'moffett' | 'boom' | 'crane' | 'forklift'
+type EquipmentNeeded = 'none' | 'moffett' | 'boom' | 'crane' | 'forklift'
 
-export type RouteStopStatus =
+type RouteStopStatus =
 	| 'pending'
 	| 'en_route'
 	| 'arrived'
@@ -59,7 +59,7 @@ export type RouteStopStatus =
 	| 'failed'
 	| 'canceled'
 
-export interface TimeWindow {
+interface TimeWindow {
 	start: string
 	end: string
 }
@@ -88,7 +88,7 @@ export interface PrayerTime {
 
 // ─── Constraint Validation ───────────────────────────────
 
-export type ConstraintViolationType =
+type ConstraintViolationType =
 	| 'cairo_ban'
 	| 'equipment'
 	| 'jumuah'
@@ -97,7 +97,7 @@ export type ConstraintViolationType =
 	| 'cdl'
 	| 'capacity'
 
-export type ConstraintSeverity = 'error' | 'warning'
+type ConstraintSeverity = 'error' | 'warning'
 
 export interface ConstraintViolation {
 	type: ConstraintViolationType

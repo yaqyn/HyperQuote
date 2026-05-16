@@ -19,14 +19,14 @@ export type DeliveryStage =
 	| 'delivered'
 	| 'invoice_generated'
 
-export interface TimelineStep {
+interface TimelineStep {
 	key: string
 	label: string
 	status: 'completed' | 'current' | 'future'
 	timestamp?: string
 }
 
-export interface DeliveryDocument {
+interface DeliveryDocument {
 	id: string
 	type: 'invoice' | 'delivery_note' | 'quote_pdf' | 'certificate'
 	name: string
@@ -41,7 +41,7 @@ export interface DeliveryContact {
 	href: string
 }
 
-export interface MapPoint {
+interface MapPoint {
 	lat: number
 	lng: number
 }
@@ -68,7 +68,7 @@ export interface DeliveryInfo {
 	}
 }
 
-export interface OrderAcceptanceInfo {
+interface OrderAcceptanceInfo {
 	employeeName: string
 	employeeRole: string
 	acceptedAt: string
@@ -80,7 +80,7 @@ export interface OrderReviewInfo {
 	message: string
 }
 
-export interface OrderPaymentInfo {
+interface OrderPaymentInfo {
 	method: string
 	bankName: string
 	reference: string
@@ -90,7 +90,7 @@ export interface OrderPaymentInfo {
 	reportLines: string[]
 }
 
-export interface OrderCompletionInfo {
+interface OrderCompletionInfo {
 	deliveredAt: string
 	receivedBy: string
 	proofOfDelivery: string
@@ -98,7 +98,7 @@ export interface OrderCompletionInfo {
 	message: string
 }
 
-export interface OrderClosureInfo {
+interface OrderClosureInfo {
 	type: 'cancelled' | 'rejected'
 	reason: string
 	note: string

@@ -7,11 +7,11 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"react-hook-form": "^7.72.0",
+		"react-hook-form": "^7.72.1",
 		"@hookform/resolvers": "^5.2.2"
 	},
 	"peerDependencies": {
-		"react": "^19.0.0",
+		"react": "^19.2.4",
 		"react-aria-components": "^1.16.0"
 	},
 	"devDependencies": {

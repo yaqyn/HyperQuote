@@ -17,7 +17,7 @@ import { z } from 'zod'
 // transport rejects nested `unknown`.
 // ============================================================================
 
-export type SpecValue = string | number | boolean | null
+type SpecValue = string | number | boolean | null
 export interface PublicProduct
 	extends Omit<CatalogProduct, 'specifications' | 'pictureUrl'> {
 	specifications: Record<string, SpecValue>

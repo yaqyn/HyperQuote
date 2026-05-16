@@ -1,6 +1,6 @@
 export type OrderType = 'saved' | 'submitted' | 'confirmed'
 
-export type OrderDraftSource = 'customer' | 'lyon'
+type OrderDraftSource = 'customer' | 'lyon'
 
 export type OrderStatus =
 	| 'draft'

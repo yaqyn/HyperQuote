@@ -52,7 +52,7 @@ export interface FinanceOrderView {
 	isDelivered: boolean
 }
 
-export interface FinanceDealItemView {
+interface FinanceDealItemView {
 	productSlug: string
 	productName: string
 	sku: string

@@ -32,7 +32,7 @@ import {
 
 // ─── Wizard state shape (lives inside report.sections.warehouse) ──
 
-export interface TruckAssignment {
+interface TruckAssignment {
 	truckId: string
 	plateNumber: string
 	driverName: string
@@ -44,7 +44,7 @@ export interface TruckAssignment {
 
 export type SecurityMethod = 'password' | 'qr'
 
-export interface WarehouseSignoff {
+interface WarehouseSignoff {
 	advisorName: string
 	qualityPass: boolean
 	proofUrl: string
@@ -59,7 +59,7 @@ export interface WarehouseSignoff {
  * of these every time they reject a load during signoff. The order
  * bounces back to the loading stage and the advisor fixes + retries.
  */
-export interface FailedInspection {
+interface FailedInspection {
 	advisorName: string
 	reason: string
 	proofUrl: string
@@ -91,7 +91,7 @@ export type WarehouseStage =
 
 // ─── View shapes returned to the client ──
 
-export interface WarehouseItemView {
+interface WarehouseItemView {
 	productSlug: string
 	productName: string
 	sku: string
@@ -741,7 +741,7 @@ export const passOrderToDispatch = createServerFn({ method: 'POST' })
 // When every item on a deal is received, the deal auto-advances to
 // `delivered` and drops off the receiving queue.
 
-export interface ReceivingItemView {
+interface ReceivingItemView {
 	productSlug: string
 	productName: string
 	sku: string

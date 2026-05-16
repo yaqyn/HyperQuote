@@ -9,7 +9,7 @@ export type NotificationType =
 	| 'payment'
 	| 'support'
 
-export type NotificationTargetType = 'quote' | 'order' | 'delivery' | 'ticket'
+type NotificationTargetType = 'quote' | 'order' | 'delivery' | 'ticket'
 
 export interface Notification {
 	id: string

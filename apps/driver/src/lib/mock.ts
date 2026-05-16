@@ -11,7 +11,6 @@ import type {
 	Message,
 	MessageThread,
 	OrderSummary,
-	Telemetry,
 } from './types'
 
 const WAREHOUSE_COORDS: Coords = { lat: 30.1294, lng: 31.2434 }
@@ -248,13 +247,6 @@ const INITIAL_MESSAGES: Message[] = [
 		minutesAgo: 22,
 	},
 ]
-
-const TELEMETRY: Telemetry = {
-	signalStrength: 4,
-	gpsLocked: true,
-	batteryPct: 78,
-	odometerKm: 142_318,
-}
 
 export function getOrderQueue(): Promise<OrderSummary[]> {
 	return Promise.resolve(ORDER_QUEUE)

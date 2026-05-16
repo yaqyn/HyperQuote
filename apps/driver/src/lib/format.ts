@@ -38,13 +38,6 @@ export function formatEtaMinutes(minutes: number, lang: string): string {
 	return `${formatNumber(h, lang)} h ${formatNumber(m, lang)} min`
 }
 
-function formatClock(date: Date, lang: string): string {
-	const hh = String(date.getHours()).padStart(2, '0')
-	const mm = String(date.getMinutes()).padStart(2, '0')
-	const stamp = `${hh}:${mm}`
-	return lang === 'ar' ? toArabicIndic(stamp) : stamp
-}
-
 export function formatRelativeMinutes(min: number, lang: string): string {
 	if (min < 1) return lang === 'ar' ? 'الآن' : 'now'
 	if (min < 60) {
@@ -54,24 +47,4 @@ export function formatRelativeMinutes(min: number, lang: string): string {
 	const h = Math.floor(min / 60)
 	const v = formatNumber(h, lang)
 	return lang === 'ar' ? `قبل ${v} س` : `${v}h ago`
-}
-
-function formatCurrencyEgp(amount: number, lang: string): string {
-	const value = formatNumber(Math.round(amount), lang)
-	return lang === 'ar' ? `${value} ج.م` : `EGP ${value}`
-}
-
-function cargoClassCode(
-	cls: 'aggregate' | 'metal' | 'finishes' | 'mixed',
-): string {
-	switch (cls) {
-		case 'aggregate':
-			return 'AGG'
-		case 'metal':
-			return 'MTL'
-		case 'finishes':
-			return 'FIN'
-		case 'mixed':
-			return 'MIX'
-	}
 }

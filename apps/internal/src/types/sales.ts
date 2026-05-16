@@ -3,9 +3,9 @@
 
 // ─── RFQ ───────────────────────────────────────────────────
 
-export type CustomerTier = 'A' | 'B' | 'C' | 'new'
+type CustomerTier = 'A' | 'B' | 'C' | 'new'
 
-export type RFQStatus =
+type RFQStatus =
 	| 'submitted'
 	| 'assigned'
 	| 'reviewing'

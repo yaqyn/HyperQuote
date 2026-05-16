@@ -8,6 +8,7 @@ import { useSalesStore } from '../../stores/sales'
 interface WindowHeaderProps {
 	moduleId: string
 	onClose: () => void
+	tone?: 'default' | 'dark'
 }
 
 /**
@@ -17,7 +18,11 @@ interface WindowHeaderProps {
  * specific actions next to it (italic-word links, no rounded chrome),
  * and a precise close X on the trailing edge.
  */
-export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
+export function WindowHeader({
+	moduleId,
+	onClose,
+	tone = 'default',
+}: WindowHeaderProps) {
 	const { t } = useTranslation('internal')
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
 	const isAIOpen = useAIChatStore((s) => s.isOpen)
@@ -28,32 +33,48 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 	if (!mod) return null
 
 	const Icon = mod.icon
+	const isDark = tone === 'dark'
+	const headerClass = isDark
+		? 'flex h-12 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-[#050505] px-3 text-white sm:px-5'
+		: 'flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-3 dark:border-white/[0.06] sm:px-5'
+	const askClass = isDark
+		? isAIOpen
+			? 'text-white'
+			: 'text-white/38 hover:text-white/72'
+		: isAIOpen
+			? 'text-[var(--color-primary)]'
+			: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
+	const askDotClass = isDark
+		? isAIOpen
+			? 'bg-white/70'
+			: 'bg-transparent ring-1 ring-inset ring-white/24 group-hover:ring-white/54'
+		: isAIOpen
+			? 'bg-[var(--color-primary)]'
+			: 'bg-transparent ring-1 ring-inset ring-[var(--color-text-subtle)] group-hover:ring-[var(--color-text)]'
+	const iconClass = isDark
+		? 'shrink-0 text-white/42'
+		: 'shrink-0 text-[var(--color-text-muted)]'
+	const labelClass = isDark
+		? 'min-w-0 truncate font-[family-name:var(--font-archivo)] text-white/72'
+		: 'min-w-0 truncate font-[family-name:var(--font-archivo)] text-[var(--color-text)]'
+	const closeClass = isDark
+		? 'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center text-white/34 transition-colors duration-150 hover:text-white sm:h-7 sm:w-7'
+		: 'flex h-9 w-9 shrink-0 items-center justify-center text-[var(--color-text-subtle)] transition-colors duration-150 hover:text-[var(--color-text)] sm:h-7 sm:w-7 cursor-pointer'
 
 	return (
-		<div
-			data-window-header="true"
-			className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-3 dark:border-white/[0.06] sm:px-5"
-		>
+		<div data-window-header="true" className={headerClass}>
 			<div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
 				{/* Ask Lyon — italic with dot indicator, no rounded pill */}
 				<TooltipTrigger delay={3000}>
 					<Button
 						onPress={toggleAIChat}
 						aria-label="Ask Lyon AI"
-						className={`group inline-flex shrink-0 items-center gap-2 font-[family-name:var(--font-archivo)] italic transition-colors cursor-pointer ${
-							isAIOpen
-								? 'text-[var(--color-primary)]'
-								: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'
-						}`}
+						className={`group inline-flex shrink-0 cursor-pointer items-center gap-2 font-[family-name:var(--font-archivo)] italic transition-colors ${askClass}`}
 						style={{ fontSize: '12px' }}
 					>
 						<span
 							aria-hidden="true"
-							className={`h-[7px] w-[7px] rounded-full transition-colors ${
-								isAIOpen
-									? 'bg-[var(--color-primary)]'
-									: 'bg-transparent ring-1 ring-inset ring-[var(--color-text-subtle)] group-hover:ring-[var(--color-text)]'
-							}`}
+							className={`h-[7px] w-[7px] rounded-full transition-colors ${askDotClass}`}
 						/>
 						ask lyon
 					</Button>
@@ -65,17 +86,13 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 					</Tooltip>
 				</TooltipTrigger>
 
-				<Rule />
+				<Rule tone={tone} />
 
 				{/* Module identity — icon + Archivo label */}
 				<div className="flex min-w-0 items-center gap-2">
-					<Icon
-						size={14}
-						strokeWidth={1.5}
-						className="shrink-0 text-[var(--color-text-muted)]"
-					/>
+					<Icon size={14} strokeWidth={1.5} className={iconClass} />
 					<span
-						className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+						className={labelClass}
 						style={{
 							fontSize: '13px',
 							fontWeight: 500,
@@ -106,7 +123,7 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 
 				{moduleId === 'dispatch' && (
 					<div className="hidden items-center gap-5 sm:flex">
-						<Rule />
+						<Rule tone={tone} />
 						<HeaderLink
 							href="tel:+20235551234"
 							tone="muted"
@@ -117,22 +134,22 @@ export function WindowHeader({ moduleId, onClose }: WindowHeaderProps) {
 				)}
 			</div>
 
-			<Button
-				onPress={onClose}
-				aria-label="Close"
-				className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--color-text-subtle)] transition-colors duration-150 hover:text-[var(--color-text)] sm:h-7 sm:w-7 cursor-pointer"
-			>
+			<Button onPress={onClose} aria-label="Close" className={closeClass}>
 				<X size={16} strokeWidth={1.5} />
 			</Button>
 		</div>
 	)
 }
 
-function Rule() {
+function Rule({ tone = 'default' }: { tone?: 'default' | 'dark' }) {
 	return (
 		<div
 			aria-hidden="true"
-			className="h-4 w-px bg-black/[0.08] dark:bg-white/[0.1]"
+			className={
+				tone === 'dark'
+					? 'h-4 w-px bg-white/[0.08]'
+					: 'h-4 w-px bg-black/[0.08] dark:bg-white/[0.1]'
+			}
 		/>
 	)
 }

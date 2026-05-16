@@ -15,9 +15,9 @@ export type ChannelType = 'email' | 'live'
 
 export type ConversationStatus = 'open' | 'pending' | 'resolved' | 'closed'
 
-export type Priority = 'low' | 'medium' | 'high' | 'urgent'
+type Priority = 'low' | 'medium' | 'high' | 'urgent'
 
-export type MessageDirection = 'inbound' | 'outbound'
+type MessageDirection = 'inbound' | 'outbound'
 
 // ── Customer ────────────────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ export interface LinkedQuote {
 
 // ── Message ─────────────────────────────────────────────────────────────────
 
-export interface Attachment {
+interface Attachment {
 	id: string
 	name: string
 	type: string

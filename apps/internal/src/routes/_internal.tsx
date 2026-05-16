@@ -1,7 +1,13 @@
 import type { AuthSession } from '@hyperquote/auth'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { useEffect, useState } from 'react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
@@ -52,6 +58,9 @@ const getAuthSession = createServerFn({ method: 'GET' }).handler(
 	},
 )
 
+const searchCoverFadeMs = 160
+const searchCloseCoverHoldMs = 80
+
 export const Route = createFileRoute('/_internal')({
 	beforeLoad: async () => {
 		const auth = await getAuthSession()
@@ -64,6 +73,17 @@ function InternalLayout() {
 	const { auth } = Route.useRouteContext()
 	const activeModule = useInternalStore((s) => s.activeModule)
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
+	const reduceMotion = useReducedMotion()
+	const [searchRevealReady, setSearchRevealReady] = useState(false)
+	const [searchFadePhase, setSearchFadePhase] = useState<
+		'opening' | 'closing' | null
+	>(null)
+	const [isSearchClosing, setIsSearchClosing] = useState(false)
+	const [isSearchReturnReceded, setIsSearchReturnReceded] = useState(false)
+	const searchCloseTimersRef = useRef<number[]>([])
+	const searchScreenReceding =
+		(activeModule === 'search' && !searchRevealReady && !isSearchClosing) ||
+		isSearchReturnReceded
 
 	// Keep the most recently opened module id around during the exit fade
 	// so ModuleWindow still has content to render while it animates out.
@@ -73,6 +93,88 @@ function InternalLayout() {
 	useEffect(() => {
 		if (activeModule) setLastOpenedModule(activeModule)
 	}, [activeModule])
+
+	const clearSearchCloseTimers = useCallback(() => {
+		for (const timer of searchCloseTimersRef.current) {
+			window.clearTimeout(timer)
+		}
+		searchCloseTimersRef.current = []
+	}, [])
+
+	useEffect(() => clearSearchCloseTimers, [clearSearchCloseTimers])
+
+	const closeActiveModule = useCallback(() => {
+		if (activeModule !== 'search' || reduceMotion) {
+			clearSearchCloseTimers()
+			setIsSearchClosing(false)
+			setIsSearchReturnReceded(false)
+			setSearchFadePhase(null)
+			setActiveModule(null)
+			return
+		}
+
+		if (isSearchClosing) return
+
+		clearSearchCloseTimers()
+		setIsSearchClosing(true)
+		setIsSearchReturnReceded(false)
+		setSearchRevealReady(true)
+		setSearchFadePhase('closing')
+
+		const closeTimer = window.setTimeout(() => {
+			setIsSearchReturnReceded(true)
+			setActiveModule(null)
+
+			const revealTimer = window.setTimeout(() => {
+				setIsSearchReturnReceded(false)
+				setSearchFadePhase(null)
+
+				const cleanupTimer = window.setTimeout(() => {
+					setIsSearchClosing(false)
+					setSearchRevealReady(false)
+				}, searchCoverFadeMs)
+				searchCloseTimersRef.current.push(cleanupTimer)
+			}, searchCloseCoverHoldMs)
+			searchCloseTimersRef.current.push(revealTimer)
+		}, searchCoverFadeMs)
+		searchCloseTimersRef.current.push(closeTimer)
+	}, [
+		activeModule,
+		clearSearchCloseTimers,
+		isSearchClosing,
+		reduceMotion,
+		setActiveModule,
+	])
+
+	useEffect(() => {
+		if (activeModule !== 'search') {
+			if (!isSearchClosing) {
+				setSearchRevealReady(false)
+				setSearchFadePhase(null)
+			}
+			return
+		}
+
+		if (isSearchClosing) return
+
+		clearSearchCloseTimers()
+		setSearchRevealReady(false)
+		setSearchFadePhase('opening')
+
+		const revealDelayMs = reduceMotion ? 0 : searchCoverFadeMs
+		const fadeHoldMs = reduceMotion ? 80 : 420
+		const revealTimer = window.setTimeout(() => {
+			setSearchRevealReady(true)
+		}, revealDelayMs)
+		const fadeTimer = window.setTimeout(() => {
+			setSearchFadePhase(null)
+		}, fadeHoldMs)
+
+		return () => {
+			window.clearTimeout(revealTimer)
+			window.clearTimeout(fadeTimer)
+		}
+	}, [activeModule, clearSearchCloseTimers, isSearchClosing, reduceMotion])
 
 	// Notification store
 	const isWindowOpen = useNotificationStore((s) => s.isWindowOpen)
@@ -120,8 +222,14 @@ function InternalLayout() {
 
 	return (
 		<InternalAuthProvider auth={auth}>
-			<div id="main" className="relative h-dvh w-full overflow-hidden">
-				<InternalShortcuts auth={auth} />
+			<div
+				id="main"
+				className="relative h-dvh w-full overflow-hidden bg-[#010101]"
+			>
+				<InternalShortcuts
+					auth={auth}
+					onCloseActiveModule={closeActiveModule}
+				/>
 
 				{/* Notifications window */}
 				<NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
@@ -130,17 +238,52 @@ function InternalLayout() {
           open/close fade. `isOpen` drives visibility; `moduleId` falls back
           to the last opened module so content stays stable during the
           exit animation. */}
-				{(activeModule || lastOpenedModule) && (
-					<ModuleWindow
-						moduleId={activeModule ?? lastOpenedModule ?? ''}
-						isOpen={!!activeModule}
-						onClose={() => setActiveModule(null)}
-					/>
-				)}
+				<AnimatePresence>
+					{searchFadePhase && (
+						<motion.div
+							key={`search-${searchFadePhase}-fade`}
+							aria-hidden="true"
+							className={`fixed inset-0 bg-[#010101] ${
+								searchFadePhase === 'closing'
+									? 'pointer-events-auto'
+									: 'pointer-events-none'
+							}`}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{
+								duration: reduceMotion ? 0 : searchCoverFadeMs / 1000,
+								ease: cubicBezier(0.16, 1, 0.3, 1),
+							}}
+							style={{ zIndex: searchFadePhase === 'closing' ? 45 : 35 }}
+						/>
+					)}
+				</AnimatePresence>
 
-				<main className="h-full">
+				{(activeModule || lastOpenedModule) &&
+					(activeModule !== 'search' || searchRevealReady) && (
+						<ModuleWindow
+							moduleId={activeModule ?? lastOpenedModule ?? ''}
+							isOpen={!!activeModule}
+							onClose={closeActiveModule}
+						/>
+					)}
+
+				<motion.main
+					className="h-full bg-[var(--color-surface)]"
+					animate={
+						searchScreenReceding && !reduceMotion
+							? { opacity: 0.22, scale: 0.955, filter: 'blur(1.35px)' }
+							: { opacity: 1, scale: 1, filter: 'blur(0px)' }
+					}
+					transition={{
+						duration: reduceMotion ? 0 : searchCoverFadeMs / 1000,
+						ease: cubicBezier(0.16, 1, 0.3, 1),
+					}}
+					style={{ transformOrigin: '50% 50%' }}
+				>
 					<Outlet />
-				</main>
+				</motion.main>
 			</div>
 		</InternalAuthProvider>
 	)

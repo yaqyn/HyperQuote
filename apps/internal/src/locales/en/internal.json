@@ -13,7 +13,8 @@
 		"finance": "Finance",
 		"dispatch": "Dispatch",
 		"customerService": "Customer Service",
-		"admin": "Admin"
+		"admin": "Admin",
+		"search": "Search"
 	},
 	"quickActions": {
 		"viewRfqInbox": "View RFQ Inbox",

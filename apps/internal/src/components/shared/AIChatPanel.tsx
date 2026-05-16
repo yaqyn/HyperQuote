@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { type AIChatMessage, useAIChatStore } from '../../stores/ai-chat'
 import { SlidePanel } from './SlidePanel'
 
+type AIChatPanelTone = 'default' | 'dark'
+
 /**
  * AIChatPanel — the Correspondence.
  *
@@ -19,7 +21,7 @@ import { SlidePanel } from './SlidePanel'
  * atmosphere line, three italic starter questions as clickable seeds,
  * and a closing `— L` signature.
  */
-export function AIChatPanel() {
+export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 	const isOpen = useAIChatStore((s) => s.isOpen)
 	const close = useAIChatStore((s) => s.close)
 	const messages = useAIChatStore((s) => s.messages)
@@ -31,6 +33,7 @@ export function AIChatPanel() {
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+	const isDark = tone === 'dark'
 
 	// Auto-stick to the bottom as new messages arrive — but only if the
 	// user is already near the bottom. If they've scrolled up to read, we
@@ -99,6 +102,7 @@ export function AIChatPanel() {
 			maxWidth={440}
 			panelKey="ai-chat-panel"
 			ariaLabel="AI assistant"
+			tone={tone}
 			mobileTitle={
 				<span className="font-[family-name:var(--font-literata)] text-[18px] font-medium italic tracking-normal">
 					Lyon
@@ -106,7 +110,9 @@ export function AIChatPanel() {
 			}
 			mobileSubtitle={`assistant · ${formatLetterheadDate()}`}
 			mobileAction={
-				messages.length > 0 ? <ClearButton onClear={clear} /> : undefined
+				messages.length > 0 ? (
+					<ClearButton onClear={clear} tone={tone} />
+				) : undefined
 			}
 		>
 			<div className="flex h-full min-h-0 flex-col">
@@ -114,6 +120,7 @@ export function AIChatPanel() {
 					hasConversation={messages.length > 0}
 					onClear={clear}
 					className="hidden lg:flex"
+					tone={tone}
 				/>
 
 				{/* Thread */}
@@ -146,7 +153,11 @@ export function AIChatPanel() {
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: 4 }}
 								transition={{ duration: 0.18, ease: 'easeOut' }}
-								className="absolute bottom-3 left-1/2 inline-flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full bg-white/60 text-[var(--color-primary)] backdrop-blur-[2px] backdrop-saturate-150 transition-colors hover:bg-white/80 dark:bg-white/10 dark:hover:bg-white/15"
+								className={`absolute bottom-3 left-1/2 inline-flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full backdrop-blur-[2px] backdrop-saturate-150 transition-colors ${
+									isDark
+										? 'bg-white/[0.08] text-white/70 hover:bg-white/[0.12]'
+										: 'bg-white/60 text-[var(--color-primary)] hover:bg-white/80 dark:bg-white/10 dark:hover:bg-white/15'
+								}`}
 							>
 								<ArrowDown size={13} strokeWidth={2.5} />
 							</motion.button>
@@ -160,7 +171,11 @@ export function AIChatPanel() {
 						e.preventDefault()
 						send()
 					}}
-					className="shrink-0 border-t border-black/[0.08] px-5 py-3 dark:border-white/[0.08] sm:px-7 sm:py-4"
+					className={`shrink-0 border-t px-5 py-3 sm:px-7 sm:py-4 ${
+						isDark
+							? 'border-white/[0.08]'
+							: 'border-black/[0.08] dark:border-white/[0.08]'
+					}`}
 				>
 					<div className="flex items-end gap-4">
 						<textarea
@@ -204,14 +219,21 @@ function ChatHeader({
 	hasConversation,
 	onClear,
 	className,
+	tone = 'default',
 }: {
 	hasConversation: boolean
 	onClear: () => void
 	className?: string
+	tone?: AIChatPanelTone
 }) {
+	const isDark = tone === 'dark'
 	return (
 		<header
-			className={`h-16 shrink-0 items-center justify-between gap-4 border-b border-black/[0.08] px-6 dark:border-white/[0.08] ${className ?? 'flex'}`}
+			className={`h-16 shrink-0 items-center justify-between gap-4 border-b px-6 ${
+				isDark
+					? 'border-white/[0.08]'
+					: 'border-black/[0.08] dark:border-white/[0.08]'
+			} ${className ?? 'flex'}`}
 		>
 			<div className="min-w-0">
 				<div className="flex min-w-0 items-baseline gap-2">
@@ -238,18 +260,29 @@ function ChatHeader({
 					assistant · {formatLetterheadDate()}
 				</p>
 			</div>
-			{hasConversation && <ClearButton onClear={onClear} />}
+			{hasConversation && <ClearButton onClear={onClear} tone={tone} />}
 		</header>
 	)
 }
 
-function ClearButton({ onClear }: { onClear: () => void }) {
+function ClearButton({
+	onClear,
+	tone = 'default',
+}: {
+	onClear: () => void
+	tone?: AIChatPanelTone
+}) {
+	const isDark = tone === 'dark'
 	return (
 		<button
 			type="button"
 			onClick={onClear}
 			aria-label="Clear conversation"
-			className="inline-flex h-8 shrink-0 items-center rounded-md px-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)] transition-colors hover:bg-black/[0.03] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:hover:bg-white/[0.04]"
+			className={`inline-flex h-8 shrink-0 items-center rounded-md px-2 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+				isDark
+					? 'hover:bg-white/[0.05]'
+					: 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+			}`}
 			style={{ fontSize: '11px', letterSpacing: '0' }}
 		>
 			clear ↻

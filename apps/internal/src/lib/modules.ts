@@ -4,6 +4,7 @@ import {
 	Archive,
 	Banknote,
 	Headset,
+	Search,
 	ShoppingCart,
 	Tag,
 	Truck,
@@ -69,5 +70,12 @@ export const MODULES: ModuleConfig[] = [
 		labelKey: 'modules.admin',
 		hotkey: 'A',
 		permission: 'admin.read',
+	},
+	{
+		id: 'search',
+		icon: Search,
+		labelKey: 'modules.search',
+		hotkey: '/',
+		permission: 'executive.search',
 	},
 ]

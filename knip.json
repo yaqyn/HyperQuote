@@ -9,31 +9,25 @@
 		},
 		"apps/portal": {
 			"entry": [
-				"vite.config.ts",
-				"vitest.config.ts",
 				"src/router.tsx",
 				"src/routes/**/*.{ts,tsx}",
 				"src/styles.css",
 				"workbox-config.js"
 			],
-			"project": ["vite.config.ts", "vitest.config.ts", "src/**/*.{ts,tsx,css}"]
+			"project": ["src/**/*.{ts,tsx}"]
 		},
 		"apps/internal": {
-			"entry": [
-				"vite.config.ts",
-				"vitest.config.ts",
-				"src/router.tsx",
-				"src/routes/**/*.{ts,tsx}",
-				"src/styles.css"
-			],
-			"project": [
-				"vite.config.ts",
-				"vitest.config.ts",
-				"src/**/*.{ts,tsx,css}"
-			],
+			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}", "src/styles.css"],
+			"project": ["src/**/*.{ts,tsx}"],
 			"ignore": ["src/shims/*.ts"]
 		}
 	},
-	"ignoreBinaries": ["infisical", "gitleaks", "supabase", "jq"],
-	"ignoreDependencies": ["cloudflare"]
+	"ignoreBinaries": ["infisical", "gitleaks", "osv-scanner", "semgrep", "jq"],
+	"ignoreDependencies": [
+		"@ast-grep/cli",
+		"cloudflare",
+		"rollup-plugin-visualizer",
+		"tailwindcss",
+		"tailwindcss-react-aria-components"
+	]
 }

@@ -1,5 +1,5 @@
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { useAdminStore } from '../../stores/admin'
@@ -11,15 +11,18 @@ import { useInternalStore } from '../../stores/internal'
 import { keyboardScopeStore } from '../../stores/keyboard-scope'
 import { useProcurementStore } from '../../stores/procurement'
 import { useSalesStore } from '../../stores/sales'
+import { useSearchStore } from '../../stores/search'
 import { useWarehouseStore } from '../../stores/warehouse'
+import { SearchModule } from '../search/SearchModule'
 import { AIChatPanel } from '../shared/AIChatPanel'
 import { PanelHostProvider } from '../shared/SlidePanel'
 import { WindowHeader } from './WindowHeader'
 
-const MODULE_COMPONENTS: Record<
-	string,
-	React.LazyExoticComponent<React.ComponentType>
-> = {
+type ModuleComponentType =
+	| React.ComponentType
+	| React.LazyExoticComponent<React.ComponentType>
+
+const MODULE_COMPONENTS: Record<string, ModuleComponentType> = {
 	sales: lazy(() =>
 		import('../sales/SalesModule').then((m) => ({ default: m.SalesModule })),
 	),
@@ -51,6 +54,7 @@ const MODULE_COMPONENTS: Record<
 	admin: lazy(() =>
 		import('../admin/AdminModule').then((m) => ({ default: m.AdminModule })),
 	),
+	search: SearchModule,
 }
 
 interface ModuleWindowProps {
@@ -69,6 +73,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 
 	const mod = MODULES.find((m) => m.id === moduleId)
 	const ModuleComponent = MODULE_COMPONENTS[moduleId]
+	const immersive = moduleId === 'search'
 
 	// Manage keyboard scope
 	useEffect(() => {
@@ -105,7 +110,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 		}
 	}, [isOpen, moduleId, getWindowState])
 
-	function handleClose() {
+	const handleClose = useCallback(() => {
 		// Lyon is a global leading-edge panel. If it's open, the module X
 		// dismisses Lyon first; a second click then continues down the normal
 		// module / contextual-panel close ladder.
@@ -172,6 +177,12 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 				return
 			}
 		}
+		if (moduleId === 'search') {
+			const search = useSearchStore.getState()
+			if (search.overlayCloseHandler?.()) {
+				return
+			}
+		}
 		if (contentRef.current) {
 			saveWindowState(moduleId, { scrollTop: contentRef.current.scrollTop })
 		}
@@ -180,17 +191,36 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 		// opens with the chat dismissed.
 		useAIChatStore.getState().close()
 		onClose()
-	}
+	}, [moduleId, onClose, saveWindowState])
+
+	useEffect(() => {
+		if (!isOpen || !immersive) return
+		const handler = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				event.preventDefault()
+				handleClose()
+			}
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [isOpen, immersive, handleClose])
 
 	return (
 		<GlassWindow
 			isOpen={isOpen}
 			onClose={handleClose}
 			closeOnBackdropClick={false}
-			className="shell-plate max-lg:!fixed max-lg:!inset-0 max-lg:!h-dvh max-lg:!w-screen max-lg:!rounded-none"
+			variant={immersive ? 'fullscreen' : 'plate'}
+			className={
+				immersive
+					? '!bg-[#010101] max-lg:!fixed max-lg:!inset-0 max-lg:!h-dvh max-lg:!w-screen'
+					: 'shell-plate max-lg:!fixed max-lg:!inset-0 max-lg:!h-dvh max-lg:!w-screen max-lg:!rounded-none'
+			}
 		>
-			{/* Header — pinned at top, never scrolls */}
-			<WindowHeader moduleId={moduleId} onClose={handleClose} />
+			{!immersive && (
+				// Header — pinned at top, never scrolls
+				<WindowHeader moduleId={moduleId} onClose={handleClose} />
+			)}
 
 			{/* Body — relative + ref-captured so every SlidePanel in the module
           can portal into this container and cover the whole body (below
@@ -227,7 +257,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 
 					{/* Global AI chat — slides in from the leading edge via the same
               portal, same rules as every contextual side panel. */}
-					<AIChatPanel />
+					<AIChatPanel tone={immersive ? 'dark' : 'default'} />
 				</PanelHostProvider>
 			</div>
 		</GlassWindow>

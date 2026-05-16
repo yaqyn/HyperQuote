@@ -8,6 +8,7 @@ interface GlassWindowProps {
 	children: ReactNode
 	className?: string
 	closeOnBackdropClick?: boolean
+	variant?: 'plate' | 'fullscreen'
 }
 
 /**
@@ -26,7 +27,10 @@ export function GlassWindow({
 	children,
 	className,
 	closeOnBackdropClick = true,
+	variant = 'plate',
 }: GlassWindowProps) {
+	const fullscreen = variant === 'fullscreen'
+
 	return (
 		<AnimatePresence>
 			{isOpen && (
@@ -35,8 +39,14 @@ export function GlassWindow({
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					exit={{ opacity: 0 }}
-					transition={{ duration: 0.18, ease: 'easeOut' }}
-					className="fixed inset-0 flex items-center justify-center p-3 md:p-6"
+					transition={{
+						duration: fullscreen ? 0.12 : 0.18,
+						ease: 'easeOut',
+					}}
+					className={cn(
+						'fixed inset-0 flex items-center justify-center',
+						fullscreen ? 'p-0' : 'p-3 md:p-6',
+					)}
 					style={{ zIndex: 40 }}
 					role="presentation"
 				>
@@ -53,15 +63,22 @@ export function GlassWindow({
 					)}
 					{/* Plate */}
 					<motion.div
-						initial={{ y: 8, opacity: 0 }}
-						animate={{ y: 0, opacity: 1 }}
-						exit={{ y: 4, opacity: 0 }}
-						transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+						initial={fullscreen ? { opacity: 0 } : { y: 8, opacity: 0 }}
+						animate={fullscreen ? { opacity: 1 } : { y: 0, opacity: 1 }}
+						exit={fullscreen ? { opacity: 0 } : { y: 4, opacity: 0 }}
+						transition={{
+							duration: fullscreen ? 0.16 : 0.24,
+							ease: [0.16, 1, 0.3, 1],
+						}}
 						className={cn(
-							'relative flex flex-col w-full h-full overflow-hidden rounded-xl',
-							'bg-[var(--color-surface)]',
-							'[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72),0_2px_6px_-2px_rgba(0,0,0,0.08),0_20px_48px_-12px_rgba(0,0,0,0.18)]',
-							'dark:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.04),0_2px_6px_-2px_rgba(0,0,0,0.5),0_24px_64px_-12px_rgba(0,0,0,0.65)]',
+							'relative flex flex-col w-full h-full overflow-hidden',
+							fullscreen
+								? 'rounded-none bg-[var(--color-surface)]'
+								: [
+										'rounded-xl bg-[var(--color-surface)]',
+										'[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72),0_2px_6px_-2px_rgba(0,0,0,0.08),0_20px_48px_-12px_rgba(0,0,0,0.18)]',
+										'dark:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.04),0_2px_6px_-2px_rgba(0,0,0,0.5),0_24px_64px_-12px_rgba(0,0,0,0.65)]',
+									],
 							className,
 						)}
 						role="dialog"

@@ -10,7 +10,7 @@ import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
 // Types
 // ============================================================================
 
-export interface ProductSpec {
+interface ProductSpec {
 	label: string
 	labelAr: string
 	value: string

@@ -231,8 +231,3 @@ export const LampContainer = ({
 }
 
 export { LampContainer as LampEffect }
-
-type LampEffectProps = {
-	children?: React.ReactNode
-	className?: string
-}

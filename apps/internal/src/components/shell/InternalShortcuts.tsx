@@ -6,15 +6,23 @@ import { useInternalStore } from '../../stores/internal'
 
 interface InternalShortcutsProps {
 	auth: AuthSession
+	onCloseActiveModule: () => void
 }
 
-export function InternalShortcuts({ auth }: InternalShortcutsProps) {
+export function InternalShortcuts({
+	auth,
+	onCloseActiveModule,
+}: InternalShortcutsProps) {
 	const { scope } = useKeyboardScope()
 	const activeModule = useInternalStore((s) => s.activeModule)
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
 
 	function toggleModule(id: string) {
-		setActiveModule(activeModule === id ? null : id)
+		if (activeModule === id) {
+			onCloseActiveModule()
+			return
+		}
+		setActiveModule(id)
 	}
 
 	// Register hotkeys for all 11 modules
@@ -37,7 +45,7 @@ export function InternalShortcuts({ auth }: InternalShortcutsProps) {
 		'Escape',
 		() => {
 			if (activeModule) {
-				setActiveModule(null)
+				onCloseActiveModule()
 			}
 		},
 		{

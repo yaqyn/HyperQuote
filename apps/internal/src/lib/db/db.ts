@@ -237,7 +237,7 @@ export interface OrderReportRow {
 // ─── Trucks ──────────────────────────────────────────────
 
 export type TruckStatus = 'available' | 'loading' | 'dispatched' | 'maintenance'
-export type TruckBodyType = 'flatbed' | 'curtain-side' | 'box' | 'tipper'
+type TruckBodyType = 'flatbed' | 'curtain-side' | 'box' | 'tipper'
 
 export interface TruckRow {
 	id: string
@@ -267,9 +267,9 @@ export interface EmployeeRow {
 
 // ─── Conversations (support tickets) ─────────────────────
 
-export type ChannelType = 'email' | 'live'
+type ChannelType = 'email' | 'live'
 export type ConversationStatus = 'open' | 'pending' | 'resolved' | 'closed'
-export type Priority = 'low' | 'medium' | 'high' | 'urgent'
+type Priority = 'low' | 'medium' | 'high' | 'urgent'
 
 export interface MessageRow {
 	id: string
@@ -290,7 +290,7 @@ export interface MessageRow {
 	metadata: JsonObject
 }
 
-export interface LinkedOrderRef {
+interface LinkedOrderRef {
 	id: string
 	displayId: string
 	rfqId: string | null
@@ -300,7 +300,7 @@ export interface LinkedOrderRef {
 	createdAt: string
 }
 
-export interface LinkedQuoteRef {
+interface LinkedQuoteRef {
 	id: string
 	displayId: string
 	status: string
@@ -1211,6 +1211,9 @@ export const db = {
 
 	// ── Price update requests ──
 	priceUpdateRequests: {
+		list(): PriceUpdateRequestRow[] {
+			return priceUpdateRequests
+		},
 		pending(): PriceUpdateRequestRow[] {
 			return priceUpdateRequests.filter((r) => r.status === 'pending')
 		},

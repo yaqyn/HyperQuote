@@ -13,7 +13,7 @@ import {
  * component stays dumb.
  */
 
-export interface ResolvedReportItem {
+interface ResolvedReportItem {
 	productSlug: string
 	productName: string
 	unit: string

@@ -7,7 +7,7 @@
  * so keep field names aligned with the server response.
  */
 
-export type CargoClass = 'aggregate' | 'metal' | 'finishes' | 'mixed'
+type CargoClass = 'aggregate' | 'metal' | 'finishes' | 'mixed'
 
 export type OrderStage =
 	| 'queued'
@@ -96,11 +96,4 @@ export interface MessageThread {
 	subtitleAr: string
 	online: boolean
 	unread: number
-}
-
-export interface Telemetry {
-	signalStrength: 1 | 2 | 3 | 4
-	gpsLocked: boolean
-	batteryPct: number
-	odometerKm: number
 }

@@ -47,21 +47,39 @@ interface SearchDropdownProps {
 // ── Utilities ──
 
 function highlightMatch(text: string, query: string): ReactNode {
-	if (!query.trim()) return text
-	const regex = new RegExp(
-		`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
-		'gi',
-	)
-	const parts = text.split(regex)
-	if (parts.length === 1) return text
-	return parts.map((part, i) => {
-		const key = `${i}:${part}`
-		return regex.test(part) ? (
+	const needle = query.trim()
+	if (!needle) return text
+
+	const lowerText = text.toLowerCase()
+	const lowerNeedle = needle.toLowerCase()
+	const parts: Array<{ value: string; match: boolean }> = []
+	let cursor = 0
+
+	while (cursor < text.length) {
+		const matchAt = lowerText.indexOf(lowerNeedle, cursor)
+		if (matchAt === -1) {
+			parts.push({ value: text.slice(cursor), match: false })
+			break
+		}
+		if (matchAt > cursor) {
+			parts.push({ value: text.slice(cursor, matchAt), match: false })
+		}
+		parts.push({
+			value: text.slice(matchAt, matchAt + needle.length),
+			match: true,
+		})
+		cursor = matchAt + needle.length
+	}
+
+	if (!parts.some((part) => part.match)) return text
+	return parts.map((part, index) => {
+		const key = `${index}:${part.value}`
+		return part.match ? (
 			<span key={key} className="text-[var(--color-primary)] font-semibold">
-				{part}
+				{part.value}
 			</span>
 		) : (
-			<span key={key}>{part}</span>
+			<span key={key}>{part.value}</span>
 		)
 	})
 }

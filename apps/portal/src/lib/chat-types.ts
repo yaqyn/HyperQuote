@@ -34,11 +34,11 @@ export interface ActionButtonData {
 	params?: Record<string, string>
 }
 
-export interface MaterialListData {
+interface MaterialListData {
 	items: { name: string; qty: number; unit: string }[]
 }
 
-export interface DisclaimerData {
+interface DisclaimerData {
 	textEn: string
 	textAr: string
 }

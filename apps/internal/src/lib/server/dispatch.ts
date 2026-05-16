@@ -47,7 +47,7 @@ function driverPosition(
 
 // ─── View types ──────────────────────────────────────────
 
-export interface DispatchTruckView {
+interface DispatchTruckView {
 	truckId: string
 	plateNumber: string
 	driverName: string
@@ -55,7 +55,7 @@ export interface DispatchTruckView {
 	capacityTons: number
 }
 
-export interface DispatchRouteItemView {
+interface DispatchRouteItemView {
 	productSlug: string
 	productName: string
 	sku: string

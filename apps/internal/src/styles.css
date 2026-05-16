@@ -868,31 +868,6 @@
 	box-shadow: 16px 0 48px -18px rgba(62, 46, 31, 0.2);
 }
 
-@media (hover: none) and (pointer: coarse) and (min-width: 1024px) and (
-		max-width: 1279px
-	) {
-	.slide-panel-backdrop {
-		position: fixed !important;
-	}
-
-	.slide-panel-shell {
-		position: fixed !important;
-		inset: 0 !important;
-		width: 100% !important;
-		max-width: none !important;
-		border-inline: 0 !important;
-		box-shadow: none !important;
-	}
-
-	.slide-panel-desktop-close {
-		display: none !important;
-	}
-
-	.slide-panel-mobile-bar {
-		display: flex !important;
-	}
-}
-
 /* Dark variant is intentionally orphaned — the app's second mode is
    now Night Light, not Dark. The custom-variant points at a selector that
    no one sets (data-theme="dark" never ships) so legacy `dark:`
