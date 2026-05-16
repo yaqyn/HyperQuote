@@ -11,11 +11,10 @@ Craftsmanship over speed. Built right once beats built fast twice.
 |-----|---------|----------|-------|--------|-------|
 | `apps/website` | TanStack Start on CF Workers | EN + AR | light + dark | active | Public marketing + product catalog |
 | `apps/portal` | TanStack Start on CF Workers | EN + AR | light + dark | active | Customer account, orders, quotes — "Lyon's office" metaphor |
-| `apps/internal` | TanStack Start on CF Workers | EN only | light + dark | active | Ops console — sales, procurement, warehouse, finance, dispatch, customer-service, admin |
+| `apps/internal` | TanStack Start on CF Workers | EN only | light + dark | active | Ops + CEO console — sales, procurement, warehouse, finance, dispatch, customer-service, admin, executive workflows |
 | `apps/driver` | **Vite SPA + Capacitor** (NOT TanStack Start) | EN + AR | light + dark | **placeholder — full rewrite pending** | Driver mobile app. Server functions don't work in Capacitor WebViews — call server via fetch. Shares `@hyperquote/*` packages. |
-| `apps/ceo` | TanStack Start on CF Workers | EN only | light + dark | **placeholder — full rewrite pending** | Executive dashboard |
 
-**Driver and CEO apps are scaffold / placeholder.** Current code is NOT reference material — design, structure, and flow will all change. Don't copy patterns FROM them into other apps. Don't treat their current choices as decisions. Before working in either app, check with me on the new direction.
+**Driver app is scaffold / placeholder.** Current code is NOT reference material — design, structure, and flow will all change. Don't copy patterns FROM it into other apps. Don't treat its current choices as decisions. Before working in it, check with me on the new direction.
 
 Monorepo: Bun workspaces + Turborepo. Shared packages in `packages/`: `types`, `ui`, `auth`, `i18n`. Changes to shared types ripple to every app — bump with intent.
 
@@ -111,7 +110,7 @@ For broad lint passes, typecheck sweeps, or cross-app refactors:
 - **After `biome check --write --unsafe`, verify.** The exhaustive-deps fix can reference a symbol before its declaration (`noInvalidUseBeforeDeclaration`). Run `bun run build` AND `tsc --noEmit` after any unsafe pass.
 - **`Edit(replace_all: true)` on generic tokens is forbidden.** `Map`, `div`, `State`, `id` — never. Substring matching chews through unrelated identifiers (`MapRef`, `DispatchMap`, `State.tsx`). Use targeted edits or `replace_all` only on unique multi-word strings.
 - **Codemods: sample before scripting.** Biome points at 66 `<label>` errors — half will be pseudo-headers needing `<span>`, half will wrap custom components needing `Label` rewiring. Read 3–5 by hand before assuming one pattern.
-- **Dispatch parallel agents by non-overlapping scope.** For a monorepo-wide cleanup, one agent per app (website / portal / driver / internal / ceo) + one for packages. Brief each with: scope, exact file tree, rules/errors they own, verification commands, and hard constraints (no `as any`, no blanket ignores). Never let two agents touch the same files.
+- **Dispatch parallel agents by non-overlapping scope.** For a monorepo-wide cleanup, one agent per app (website / portal / driver / internal) + one for packages. Brief each with: scope, exact file tree, rules/errors they own, verification commands, and hard constraints (no `as any`, no blanket ignores). Never let two agents touch the same files.
 - **Verify in the foreground after agents report done.** Agents' self-reports describe intent, not always reality. Run `biome check` + `tsc --noEmit` + `bun run build` from the parent before claiming done.
 
 ## Code review and scan tooling
@@ -159,9 +158,9 @@ safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
 
 ## Frontend conventions
 
-- **i18n scope**: website, portal, driver — every user-facing string lives in `src/locales/{en,ar}/<namespace>.json` and is read via `useTranslation('<namespace>')`. Never hardcode EN or AR content in JSX. Internal + ceo are EN-only; inline EN strings are acceptable there.
-- **RTL**: bilingual apps (website, portal, driver) must use logical properties (`margin-inline-start`, `padding-inline-end`, `border-inline-end`) — never `left`/`right`. Internal + ceo can use physical props.
-- **Theming**: website, portal, internal, driver, ceo support light + dark via `[data-theme="dark"]` on `<html>`. The portal keeps `/login` scoped via `.atelier-scene`, but the authenticated app switches globally. Test both themes where applicable; never ship a component that only works in one.
+- **i18n scope**: website, portal, driver — every user-facing string lives in `src/locales/{en,ar}/<namespace>.json` and is read via `useTranslation('<namespace>')`. Never hardcode EN or AR content in JSX. Internal is EN-only; inline EN strings are acceptable there.
+- **RTL**: bilingual apps (website, portal, driver) must use logical properties (`margin-inline-start`, `padding-inline-end`, `border-inline-end`) — never `left`/`right`. Internal can use physical props.
+- **Theming**: website, portal, internal, driver support light + dark via `[data-theme="dark"]` on `<html>`. The portal keeps `/login` scoped via `.atelier-scene`, but the authenticated app switches globally. Test both themes where applicable; never ship a component that only works in one.
 - **Primary palette**: white, black, blue `#2563EB`. Signal colors (amber `#D97706`, red `#B91C1C`, emerald) allowed for state indicators, not decoration.
 - **Components**: React Aria primitives throughout. Don't override accessibility behavior.
 - **Images**: always specify width/height or aspect-ratio to prevent layout shift. WebP/AVIF. `loading="lazy"` below the fold.

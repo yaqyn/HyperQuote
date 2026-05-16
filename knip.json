@@ -32,10 +32,6 @@
 				"src/**/*.{ts,tsx,css}"
 			],
 			"ignore": ["src/shims/*.ts"]
-		},
-		"apps/ceo": {
-			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}"],
-			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
 	"ignoreBinaries": ["infisical", "gitleaks", "supabase", "jq"],

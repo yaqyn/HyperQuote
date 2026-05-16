@@ -41,9 +41,8 @@ gaps**. This log separates them.
 
 | Concern | Detail |
 |---|---|
-| Zod version drift | `ceo/internal/portal/website` on Zod `^4.3.6`; `packages/forms` still on Zod `^3.24.0`. 4/5 apps already completed the memo's "Zod 3 → 4 migration." |
-| i18next version drift | `ceo/driver/internal/portal` on `^26.0.3`; `website` + `packages/i18n` on `^25.10.10`. Partial 26 migration. |
-| `@tanstack/ai` drift | `ceo` on `0.10.0`, the rest on `0.9.2`. |
+| Zod version drift | `internal/portal/website` on Zod `^4.3.6`; `packages/forms` still on Zod `^3.24.0`. 3/4 apps already completed the memo's "Zod 3 → 4 migration." |
+| i18next version drift | `driver/internal/portal` on `^26.0.3`; `website` + `packages/i18n` on `^25.10.10`. Partial 26 migration. |
 | `@supabase/supabase-js` drift | `driver/internal/portal` on `2.101.1`; `auth/website` on `2.100.1`. |
 | React version spec drift | Most workspaces `^19.2.4`; some `^19.0.0`. |
 | `@cloudflare/tanstack-ai` | **NOT installed anywhere.** Doc listed it as dependency; reality: never installed. |
@@ -53,11 +52,10 @@ gaps**. This log separates them.
 ## Applied changes
 
 ### 2026-04-18 — A7: enable Workers native observability
-- Added `"observability": { "enabled": true }` to all 4 `wrangler.jsonc`:
+- Added `"observability": { "enabled": true }` to all 3 app `wrangler.jsonc`:
   - `apps/website/wrangler.jsonc`
   - `apps/portal/wrangler.jsonc`
   - `apps/internal/wrangler.jsonc`
-  - `apps/ceo/wrangler.jsonc`
 - No driver config (Capacitor, not Workers).
 - Free on Workers Paid plan; provides logs + invocation metrics in the CF dashboard.
 

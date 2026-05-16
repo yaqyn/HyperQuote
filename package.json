@@ -29,7 +29,6 @@
 		"deploy:website": "infisical run --env=prod --recursive -- bun --cwd apps/website run deploy",
 		"deploy:portal": "infisical run --env=prod --recursive -- bun --cwd apps/portal run deploy",
 		"deploy:internal": "infisical run --env=prod --recursive -- bun --cwd apps/internal run deploy",
-		"deploy:ceo": "infisical run --env=prod --recursive -- bunx wrangler deploy --config apps/ceo/wrangler.jsonc",
 		"db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_REF\" > packages/types/src/supabase.ts",
 		"db:diff": "supabase db diff",
 		"db:push": "infisical run --env=prod --path=/master -- supabase db push"
