@@ -6,7 +6,11 @@ import { useAIChatStore } from '../../stores/ai-chat'
  * Floating toolbar that appears when text is selected anywhere in the app.
  * Copy + Ask Lyon — minimal pill near the selection with smooth animations.
  */
-export function SelectionCopy() {
+export function SelectionCopy({
+	isDisabled = false,
+}: {
+	isDisabled?: boolean
+}) {
 	const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
 	const [copied, setCopied] = useState(false)
 	const [visible, setVisible] = useState(false)
@@ -16,6 +20,11 @@ export function SelectionCopy() {
 	const setDraft = useAIChatStore((s) => s.setDraft)
 
 	const handleSelection = useCallback(() => {
+		if (isDisabled) {
+			setVisible(false)
+			return
+		}
+
 		const sel = document.getSelection()
 		const text = sel?.toString().trim() ?? ''
 
@@ -36,13 +45,19 @@ export function SelectionCopy() {
 			y: rect.top - 8,
 		})
 		setVisible(true)
-	}, [])
+	}, [isDisabled])
 
 	useEffect(() => {
+		if (isDisabled) {
+			setVisible(false)
+			textRef.current = ''
+			return
+		}
+
 		document.addEventListener('selectionchange', handleSelection)
 		return () =>
 			document.removeEventListener('selectionchange', handleSelection)
-	}, [handleSelection])
+	}, [handleSelection, isDisabled])
 
 	useEffect(() => {
 		if (!visible) return

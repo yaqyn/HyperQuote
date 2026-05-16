@@ -79,6 +79,78 @@
 	);
 }
 
+/* Square-grid backdrop for the internal login screen. */
+.login-square-grid {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	background-image:
+		linear-gradient(90deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+		linear-gradient(180deg, rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+	background-position: 0 0;
+	background-size: 72px 72px;
+}
+
+.login-square-cells {
+	position: absolute;
+	inset: -72px;
+	display: none;
+	grid-template-columns: repeat(60, 72px);
+	grid-template-rows: repeat(32, 72px);
+	pointer-events: none;
+	contain: layout paint style;
+}
+
+.login-square-cell {
+	width: 72px;
+	height: 72px;
+	opacity: 0;
+	animation-name: login-square-cell-dim;
+	animation-timing-function: ease-in-out;
+	animation-iteration-count: infinite;
+}
+
+.login-square-cell-ink {
+	background: rgba(17, 17, 17, 0.078);
+}
+
+.login-square-cell-blue {
+	background: rgba(37, 99, 235, 0.108);
+}
+
+@media (min-width: 80rem) {
+	.login-square-cells {
+		display: grid;
+	}
+}
+
+@keyframes login-square-cell-dim {
+	0%,
+	14%,
+	100% {
+		opacity: 0;
+	}
+	30% {
+		opacity: 0.62;
+	}
+	48% {
+		opacity: 0.95;
+	}
+	68% {
+		opacity: 0.52;
+	}
+	82% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.login-square-cell {
+		animation: none;
+		opacity: 0.22;
+	}
+}
+
 /* Line-paper backdrop — horizontal rules at 32px, evokes stationery
    for the customer-service switchboard aesthetic. */
 .bg-line-paper {

@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	Download,
+	LogOut,
 	type LucideIcon,
 	Maximize2,
 	Minimize2,
@@ -280,6 +281,17 @@ export function AppActionsMenu() {
 								setIsOpen(false)
 							}}
 						/>
+						<div className="my-1 h-px bg-[var(--color-border)]" />
+						<AppMenuItem
+							icon={LogOut}
+							label="Sign out"
+							detail="Return to login"
+							tone="danger"
+							onPress={() => {
+								setIsOpen(false)
+								window.location.assign('/login')
+							}}
+						/>
 						{menuStatus && (
 							<div
 								className="px-3 pt-1 pb-1.5 font-[family-name:var(--font-plex-mono)] text-[var(--color-text-subtle)]"
@@ -304,23 +316,41 @@ function AppMenuItem({
 	icon: Icon,
 	label,
 	onPress,
+	tone = 'default',
 }: {
 	detail: string
 	icon: LucideIcon
 	label: string
 	onPress: () => void
+	tone?: 'default' | 'danger'
 }) {
+	const isDanger = tone === 'danger'
+
 	return (
 		<Button
 			onPress={onPress}
-			className="group flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-start outline-none transition-colors hover:bg-[var(--color-primary)]/8 focus-visible:bg-[var(--color-primary)]/8"
+			className={`group flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-start outline-none transition-colors ${
+				isDanger
+					? 'hover:bg-[var(--color-signal-red)]/8 focus-visible:bg-[var(--color-signal-red)]/8'
+					: 'hover:bg-[var(--color-primary)]/8 focus-visible:bg-[var(--color-primary)]/8'
+			}`}
 		>
-			<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)]/8 text-[var(--color-primary)]">
+			<span
+				className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+					isDanger
+						? 'bg-[var(--color-signal-red)]/8 text-[var(--color-signal-red)]'
+						: 'bg-[var(--color-primary)]/8 text-[var(--color-primary)]'
+				}`}
+			>
 				<Icon aria-hidden="true" size={17} strokeWidth={1.8} />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span
-					className="block truncate font-[family-name:var(--font-archivo)] text-[var(--color-text)]"
+					className={`block truncate font-[family-name:var(--font-archivo)] ${
+						isDanger
+							? 'text-[var(--color-signal-red)]'
+							: 'text-[var(--color-text)]'
+					}`}
 					style={{ fontSize: '14px', fontWeight: 600, letterSpacing: 0 }}
 				>
 					{label}

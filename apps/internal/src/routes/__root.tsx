@@ -4,6 +4,7 @@ import {
 	HeadContent,
 	Outlet,
 	Scripts,
+	useRouterState,
 } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { I18nProvider } from 'react-aria-components'
@@ -115,6 +116,9 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+	const isAuthScreen = useRouterState({
+		select: (state) => state.location.pathname === '/login',
+	})
 	const [queryClient] = useState(
 		() =>
 			new QueryClient({
@@ -186,7 +190,7 @@ function RootComponent() {
 						<Outlet />
 					</I18nProvider>
 				</QueryClientProvider>
-				<SelectionCopy />
+				<SelectionCopy isDisabled={isAuthScreen} />
 				<Scripts />
 			</body>
 		</html>
