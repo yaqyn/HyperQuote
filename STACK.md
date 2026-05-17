@@ -60,6 +60,9 @@ There is no checked-in production database scaffold right now. The fake
 - TanStack Start exports `getRouter()`; do not export `createRouter` directly.
 - `StartClient` takes no props.
 - Do not set `srcDirectory: "app"`; this repo uses `src/`.
+- `routeTree.gen.ts` files are ignored generated TanStack Router output. App
+  `typecheck` scripts run `tsr generate` before `tsc --noEmit`; keep that
+  invariant for clean CI checkouts.
 - Server functions use `.inputValidator()`, not `.validator()`.
 - Data crossing the server-function serialization boundary must be `JsonValue`
   or `JsonObject`, not loose `Record<string, unknown>`.
@@ -107,6 +110,10 @@ Deploys are GitHub-driven and promotion-based:
    SHA, reruns critical verification, rebuilds selected app(s), scrubs
    `.dev.vars`, deploys production workers, and attaches production custom
    domains.
+
+Deploy jobs must set up Node `22` before invoking Wrangler. Sanitized staging
+artifacts download under `apps/`; deploy steps run from `apps/<app>` and expect
+`dist/server/wrangler.json` for Start apps or `wrangler.jsonc` for driver.
 
 Production custom domains attach only to production workers. Do not add
 canary/percentage rollout until observability and rollback policy are strong
