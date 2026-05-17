@@ -53,6 +53,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: stable
+          cache: false
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -60,7 +61,7 @@ jobs:
       - name: Install security scanners
         run: |
           python3 -m pip install --user semgrep
-          GOBIN="$HOME/.local/bin" go install github.com/gitleaks/gitleaks/v8@latest
+          GOBIN="$HOME/.local/bin" go install github.com/zricethezav/gitleaks/v8@latest
           GOBIN="$HOME/.local/bin" go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
