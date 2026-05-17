@@ -4,5 +4,6 @@
 //   @hyperquote/auth/guard   → authGuard
 //   @hyperquote/auth/session → getServerSession
 export { createSupabaseBrowserClient } from './client'
+export { resolveSupabaseBrowserConfig } from './config'
 export { hasPermission } from './permissions'
 export type { AuthGuardOptions, AuthSession } from './types'

@@ -1,4 +1,4 @@
-import { LampContainer } from '@hyperquote/ui'
+import { LampContainer } from '@hyperquote/ui/brand/LampEffect'
 import { createFileRoute } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import { motion } from 'motion/react'

@@ -4,7 +4,7 @@
  * NEVER shows customer names -- only PO reference (HQ-2026-NNNN).
  */
 
-import { StatusBadge } from '@hyperquote/ui'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ChevronRight } from 'lucide-react'

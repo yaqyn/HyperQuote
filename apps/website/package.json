@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev --port 3000",
 		"build": "vite build",
+		"typecheck": "tsc --noEmit",
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy --config dist/server/wrangler.json",
 		"cf-typegen": "wrangler types"
@@ -15,7 +16,6 @@
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",
-		"@hyperquote/tables": "workspace:*",
 		"@hyperquote/types": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@tanstack/ai": "^0.9.2",
@@ -36,7 +36,7 @@
 		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "^1.30.2",
+		"@cloudflare/vite-plugin": "^1.37.1",
 		"@tailwindcss/vite": "^4.2.2",
 		"@types/node": "^25.8.0",
 		"@types/react": "^19.2.14",
@@ -46,6 +46,6 @@
 		"tailwindcss-react-aria-components": "^2.0.1",
 		"typescript": "^6.0.3",
 		"vite": "~7.3.3",
-		"wrangler": "^4.77.0"
+		"wrangler": "^4.92.0"
 	}
 }

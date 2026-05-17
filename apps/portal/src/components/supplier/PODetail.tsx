@@ -4,7 +4,7 @@
  * Calls confirmPO and rejectPO server functions.
  */
 
-import { StatusBadge } from '@hyperquote/ui'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'

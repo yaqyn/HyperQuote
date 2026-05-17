@@ -1,3 +1,4 @@
+import { resolveSupabaseBrowserConfig } from '@hyperquote/auth'
 import { createClient } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -21,11 +22,10 @@ export function useRealtimeNotifications({
 	const incrementUnread = useNotificationStore((s) => s.incrementUnread)
 
 	useEffect(() => {
-		const url = import.meta.env.VITE_SUPABASE_URL
-		const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-		if (!enabled || !url || !anonKey) return
+		const config = resolveSupabaseBrowserConfig(import.meta.env)
+		if (!enabled || !config) return
 
-		const supabase = createClient(url, anonKey)
+		const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey)
 
 		const channel = supabase
 			.channel(`notifications:${userId}`)

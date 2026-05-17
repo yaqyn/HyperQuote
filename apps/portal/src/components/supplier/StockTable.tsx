@@ -4,7 +4,8 @@
  * Pagination: 50 per page via prev/next buttons.
  */
 
-import { EmptyState, StatusBadge } from '@hyperquote/ui'
+import { EmptyState } from '@hyperquote/ui/feedback/EmptyState'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'

@@ -4,6 +4,11 @@ import {
 	parseCookieHeader,
 } from '@supabase/ssr'
 
+export {
+	resolveSupabaseServerConfig,
+	type SupabaseServerRuntimeConfig,
+} from './config'
+
 interface ServerClientOptions {
 	request: Request
 	supabaseUrl: string

@@ -4,7 +4,7 @@
  * Cards are keyboard-accessible using React Aria Button semantics.
  */
 
-import { StatusBadge } from '@hyperquote/ui'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'

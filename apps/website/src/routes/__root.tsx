@@ -1,4 +1,3 @@
-import { i18n } from '@hyperquote/i18n'
 import {
 	createRootRoute,
 	HeadContent,
@@ -13,8 +12,7 @@ import { ChatWidget } from '../components/chat/ChatWidget'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
 import { SiteContextMenu } from '../components/layout/SiteContextMenu'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
-import { ChatProvider } from '../hooks/ChatProvider'
-import { setupI18n } from '../lib/i18n'
+import { i18n, setupI18n } from '../lib/i18n'
 import { initTheme } from '../lib/theme'
 import styles from '../styles.css?url'
 
@@ -133,12 +131,10 @@ function RootComponent() {
 					<OfflineBanner />
 					<SkipLink />
 					<I18nProvider locale={locale}>
-						<ChatProvider>
-							<Outlet />
-							<ChatWidget />
-							<SelectionCopy />
-							<SiteContextMenu />
-						</ChatProvider>
+						<Outlet />
+						<ChatWidget />
+						<SelectionCopy />
+						<SiteContextMenu />
 					</I18nProvider>
 				</I18nextProvider>
 				<Scripts />

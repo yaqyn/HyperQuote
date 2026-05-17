@@ -1,4 +1,4 @@
-import { formatCurrency } from '@hyperquote/i18n'
+import { formatCurrency } from '@hyperquote/i18n/formatters/currency'
 import type { ParseKeys, TFunction } from 'i18next'
 
 /**

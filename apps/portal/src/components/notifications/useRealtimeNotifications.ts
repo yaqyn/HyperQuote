@@ -4,25 +4,18 @@
  * Invalidates TanStack Query cache on new notifications.
  */
 
+import { resolveSupabaseBrowserConfig } from '@hyperquote/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-
-// Check if Supabase is configured (client-side)
-function isSupabaseConfigured(): boolean {
-	return !!(
-		import.meta.env.VITE_SUPABASE_URL &&
-		import.meta.env.VITE_SUPABASE_URL !== 'https://placeholder.supabase.co' &&
-		import.meta.env.VITE_SUPABASE_ANON_KEY &&
-		import.meta.env.VITE_SUPABASE_ANON_KEY !== 'placeholder'
-	)
-}
 
 export function useRealtimeNotifications(userId: string | undefined) {
 	const queryClient = useQueryClient()
 
 	useEffect(() => {
 		if (!userId) return
-		if (!isSupabaseConfigured()) return
+		const config = resolveSupabaseBrowserConfig(import.meta.env)
+		if (!config) return
+		const { supabaseUrl, supabaseAnonKey } = config
 
 		let channel: ReturnType<
 			Awaited<
@@ -34,9 +27,6 @@ export function useRealtimeNotifications(userId: string | undefined) {
 		>
 
 		async function setup() {
-			const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-			const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-			if (!supabaseUrl || !supabaseAnonKey) return
 			const { createClient } = await import('@supabase/supabase-js')
 			supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 

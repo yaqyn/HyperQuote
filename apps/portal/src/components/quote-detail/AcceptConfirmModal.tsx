@@ -1,4 +1,4 @@
-import { CurrencyDisplay } from '@hyperquote/ui'
+import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import { motion } from 'motion/react'
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'

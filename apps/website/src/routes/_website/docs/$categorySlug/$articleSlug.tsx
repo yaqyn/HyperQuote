@@ -1,6 +1,4 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
-import { cubicBezier, motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -8,10 +6,7 @@ import {
 	type ExtractedHeading,
 	extractHeadings,
 } from '../../../../components/docs/ArticleRenderer'
-import {
-	DocsMobileSidebar,
-	DocsSidebar,
-} from '../../../../components/docs/DocsSidebar'
+import { DocsPageShell } from '../../../../components/docs/DocsPageShell'
 import { getContent } from '../../../../content/docs'
 import {
 	displayName,
@@ -32,22 +27,12 @@ export const Route = createFileRoute(
 	component: ArticlePage,
 })
 
-const reveal = {
-	hidden: { opacity: 0, y: 12 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.35, ease: cubicBezier(0.25, 0.1, 0.25, 1) },
-	},
-}
-
 function ArticlePage() {
 	const { t, i18n } = useTranslation('website')
 	const { categorySlug, articleSlug } = useParams({
 		from: '/_website/docs/$categorySlug/$articleSlug',
 	})
 	const navigate = useNavigate()
-	const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
 	const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'en' | 'ar'
 	const markdown = getContent(categorySlug, articleSlug, locale)
@@ -63,56 +48,24 @@ function ArticlePage() {
 	const adjacent = getAdjacentArticles(categorySlug, articleSlug)
 
 	return (
-		<div className="mx-auto max-w-[1400px] px-4 pb-16 pt-24 sm:px-6 md:px-8 lg:px-12 lg:pb-24 lg:pt-32">
-			{/* Mobile sidebar trigger */}
-			<div className="mb-8 flex justify-center lg:hidden">
-				<button
-					type="button"
-					onClick={() => setIsMobileSidebarOpen(true)}
-					className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--color-text)]/[0.08] px-3 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)]/[0.16] hover:text-[var(--color-text)]"
-				>
-					<Menu size={16} />
-					{t('docs.browseAll', { defaultValue: 'Browse all topics' })}
-				</button>
-			</div>
-
-			<motion.div
-				initial="hidden"
-				animate="visible"
-				variants={reveal}
-				className="flex gap-10 xl:gap-16"
-			>
-				{/* Sidebar */}
-				<div className="hidden lg:block">
-					<DocsSidebar
-						activeCategorySlug={categorySlug}
-						activeArticleSlug={articleSlug}
-					/>
-				</div>
-
-				{/* Article */}
-				<ArticleRenderer
-					key={locale}
-					markdown={markdown}
-					articleTitle={t(article.titleKey, {
-						defaultValue: displayName(article.titleKey),
-					})}
-					categorySlug={categorySlug}
-					prev={adjacent.prev}
-					next={adjacent.next}
-				/>
-
-				{/* TOC */}
-				<TableOfContentsRaw key={`toc-${locale}`} headings={headings} />
-			</motion.div>
-
-			<DocsMobileSidebar
-				isOpen={isMobileSidebarOpen}
-				onOpenChange={setIsMobileSidebarOpen}
-				activeCategorySlug={categorySlug}
-				activeArticleSlug={articleSlug}
+		<DocsPageShell
+			maxWidth="article"
+			activeCategorySlug={categorySlug}
+			activeArticleSlug={articleSlug}
+		>
+			<ArticleRenderer
+				key={locale}
+				markdown={markdown}
+				articleTitle={t(article.titleKey, {
+					defaultValue: displayName(article.titleKey),
+				})}
+				categorySlug={categorySlug}
+				prev={adjacent.prev}
+				next={adjacent.next}
 			/>
-		</div>
+
+			<TableOfContentsRaw key={`toc-${locale}`} headings={headings} />
+		</DocsPageShell>
 	)
 }
 

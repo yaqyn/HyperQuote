@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { ClientOnly } from '../../lib/client-only'
 import { getDispatchBoard } from '../../lib/server/dispatch'
 import { useDispatchStore } from '../../stores/dispatch'
-import { DispatchMap } from './DispatchMap'
 import { DispatchSidePanel } from './DispatchSidePanel'
+
+const DispatchMap = lazy(() =>
+	import('./DispatchMap').then((module) => ({ default: module.DispatchMap })),
+)
 
 export function DispatchModule() {
 	const [panelOpen, setPanelOpen] = useState(true)
@@ -28,14 +31,22 @@ export function DispatchModule() {
 					</div>
 				}
 			>
-				<DispatchMap
-					routes={routes}
-					selectedQuoteId={selectedQuoteId}
-					onSelectRoute={(id) => {
-						setSelectedQuoteId(id)
-						if (!panelOpen) setPanelOpen(true)
-					}}
-				/>
+				<Suspense
+					fallback={
+						<div className="flex h-full items-center justify-center bg-[var(--color-surface)]">
+							<div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+						</div>
+					}
+				>
+					<DispatchMap
+						routes={routes}
+						selectedQuoteId={selectedQuoteId}
+						onSelectRoute={(id) => {
+							setSelectedQuoteId(id)
+							if (!panelOpen) setPanelOpen(true)
+						}}
+					/>
+				</Suspense>
 			</ClientOnly>
 
 			{/* Side panel overlay */}

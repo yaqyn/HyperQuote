@@ -4,7 +4,7 @@
  * Status badges for 5 invoice statuses.
  */
 
-import { StatusBadge } from '@hyperquote/ui'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { useQuery } from '@tanstack/react-query'
 import type { ParseKeys } from 'i18next'
 import { FileText } from 'lucide-react'

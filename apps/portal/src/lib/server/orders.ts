@@ -9,15 +9,6 @@ import type { Order } from '../../types/order'
 
 const IMG = 'https://websiteassets.hyperquote.net/Images'
 
-function isSupabaseConfigured(): boolean {
-	return !!(
-		process.env.SUPABASE_URL &&
-		process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
-		process.env.SUPABASE_ANON_KEY &&
-		process.env.SUPABASE_ANON_KEY !== 'placeholder'
-	)
-}
-
 function getMockOrders(): Order[] {
 	const now = new Date()
 	return [
@@ -352,9 +343,6 @@ function getMockOrders(): Order[] {
 
 export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<{ orders: Order[] }> => {
-		if (!isSupabaseConfigured()) {
-			return { orders: getMockOrders() }
-		}
 		return { orders: getMockOrders() }
 	},
 )

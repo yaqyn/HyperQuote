@@ -1,18 +1,5 @@
-export function getTheme(): 'light' | 'dark' {
-	if (typeof document === 'undefined') return 'light'
-	return (
-		(document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ??
-		'light'
-	)
-}
-
 function setTheme(theme: 'light' | 'dark') {
 	document.documentElement.setAttribute('data-theme', theme)
-}
-
-export function toggleTheme() {
-	const current = getTheme()
-	setTheme(current === 'dark' ? 'light' : 'dark')
 }
 
 export function initTheme() {

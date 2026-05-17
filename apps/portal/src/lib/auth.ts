@@ -5,7 +5,10 @@ import {
 	clearRateLimit,
 	getKVNamespace,
 } from '@hyperquote/auth/rate-limit'
-import { createSupabaseServerClient } from '@hyperquote/auth/server'
+import {
+	createSupabaseServerClient,
+	resolveSupabaseServerConfig,
+} from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
@@ -45,18 +48,11 @@ const claimAccountInput = z.object({
 // ============================================================================
 
 function getSupabaseConfig() {
-	return {
-		supabaseUrl: process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-		supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-		cookieDomain: process.env.COOKIE_DOMAIN ?? undefined,
-	}
+	return resolveSupabaseServerConfig(process.env)
 }
 
 function isDevMode(): boolean {
-	return (
-		!process.env.SUPABASE_URL ||
-		process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-	)
+	return !getSupabaseConfig()
 }
 
 // ============================================================================
@@ -91,11 +87,8 @@ export const checkPortalAuth = createServerFn().handler(
 			}
 		}
 
-		const session = await getServerSession({
-			supabaseUrl:
-				process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-		})
+		const config = getSupabaseConfig()
+		const session = config ? await getServerSession(config) : null
 
 		if (!session) {
 			return { auth: null, isInternalUser: false }
@@ -115,10 +108,8 @@ export const checkPortalAuth = createServerFn().handler(
 // ============================================================================
 
 export const checkSession = createServerFn().handler(async () => {
-	const session = await getServerSession({
-		supabaseUrl: process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-		supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-	})
+	const config = getSupabaseConfig()
+	const session = config ? await getServerSession(config) : null
 	return { authenticated: !!session }
 })
 
@@ -147,19 +138,18 @@ export const sendOTP = createServerFn()
 				}
 			}
 
+			const formattedPhone = `+20${input.phone}`
 			const config = getSupabaseConfig()
+
+			if (!config) {
+				return { success: true, expiresIn: 300 }
+			}
+
 			const request = getRequest()
 			const { client } = createSupabaseServerClient({
 				request,
 				...config,
 			})
-
-			const formattedPhone = `+20${input.phone}`
-
-			// Dev mode: return mock success when Supabase OTP not configured
-			if (isDevMode()) {
-				return { success: true, expiresIn: 300 }
-			}
 
 			const { error } = await client.auth.signInWithOtp({
 				phone: formattedPhone,
@@ -199,17 +189,10 @@ export const verifyOTP = createServerFn()
 				}
 			}
 
-			const config = getSupabaseConfig()
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				...config,
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const config = getSupabaseConfig()
 
-			// Dev mode: return mock success
-			if (isDevMode()) {
+			if (!config) {
 				await clearRateLimit(kv, `verify:${input.phone}`)
 				return {
 					success: true,
@@ -219,6 +202,12 @@ export const verifyOTP = createServerFn()
 					claimableCompany: null,
 				}
 			}
+
+			const request = getRequest()
+			const { client } = createSupabaseServerClient({
+				request,
+				...config,
+			})
 
 			const { data, error } = await client.auth.verifyOtp({
 				phone: formattedPhone,
@@ -266,23 +255,22 @@ export const createAccount = createServerFn()
 	.inputValidator(createAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const config = getSupabaseConfig()
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				...config,
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const config = getSupabaseConfig()
 
-			// Dev mode: return mock success
-			if (isDevMode()) {
+			if (!config) {
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
 					userId: 'mock-user-id',
 				}
 			}
+
+			const request = getRequest()
+			const { client } = createSupabaseServerClient({
+				request,
+				...config,
+			})
 
 			// Get current auth user
 			const {
@@ -328,23 +316,22 @@ export const claimAccount = createServerFn()
 	.inputValidator(claimAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const config = getSupabaseConfig()
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				...config,
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const config = getSupabaseConfig()
 
-			// Dev mode: return mock success
-			if (isDevMode()) {
+			if (!config) {
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
 					claimed: true,
 				}
 			}
+
+			const request = getRequest()
+			const { client } = createSupabaseServerClient({
+				request,
+				...config,
+			})
 
 			// Get current auth user
 			const {

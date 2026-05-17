@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
-import type { ChatMessage } from '../../hooks/useAIChat'
+import type { ChatMessage } from '../../hooks/chatSession'
 import { ChatMarkdown } from './ChatMarkdown'
 import { TypingIndicator } from './TypingIndicator'
 

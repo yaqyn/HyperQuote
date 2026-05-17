@@ -4,6 +4,7 @@
  * the authenticated-client pattern used across every server module.
  */
 
+import { resolveSupabaseServerConfig } from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
 
 /**
@@ -11,12 +12,7 @@ import { getServerSession } from '@hyperquote/auth/session'
  * Callers use this to branch into mock behavior during dev.
  */
 export function isSupabaseConfigured(): boolean {
-	return !!(
-		process.env.SUPABASE_URL &&
-		process.env.SUPABASE_URL !== 'https://placeholder.supabase.co' &&
-		process.env.SUPABASE_ANON_KEY &&
-		process.env.SUPABASE_ANON_KEY !== 'placeholder'
-	)
+	return !!resolveSupabaseServerConfig(process.env)
 }
 
 /**
@@ -28,12 +24,11 @@ function getSupabaseEnv(): {
 	supabaseUrl: string
 	supabaseAnonKey: string
 } {
-	const supabaseUrl = process.env.SUPABASE_URL
-	const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
-	if (!supabaseUrl || !supabaseAnonKey) {
+	const config = resolveSupabaseServerConfig(process.env)
+	if (!config) {
 		throw new Error('Supabase env not configured')
 	}
-	return { supabaseUrl, supabaseAnonKey }
+	return config
 }
 
 /**

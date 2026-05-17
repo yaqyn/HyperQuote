@@ -1,4 +1,4 @@
-import { CurrencyDisplay } from '@hyperquote/ui'
+import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import type { TFunction } from 'i18next'
 import { ChevronDown, X } from 'lucide-react'
 import { useState } from 'react'

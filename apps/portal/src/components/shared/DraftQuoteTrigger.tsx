@@ -1,4 +1,4 @@
-import { cn } from '@hyperquote/ui'
+import { cn } from '@hyperquote/ui/utils/cn'
 import { Link } from '@tanstack/react-router'
 import { FilePenLine } from 'lucide-react'
 import { forwardRef } from 'react'

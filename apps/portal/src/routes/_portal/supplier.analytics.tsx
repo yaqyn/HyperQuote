@@ -4,7 +4,7 @@
  * monthly revenue chart, and product performance table.
  */
 
-import { EmptyState } from '@hyperquote/ui'
+import { EmptyState } from '@hyperquote/ui/feedback/EmptyState'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { BarChart3 } from 'lucide-react'

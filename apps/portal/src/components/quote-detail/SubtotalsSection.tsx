@@ -1,4 +1,4 @@
-import { CurrencyDisplay } from '@hyperquote/ui'
+import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import { useTranslation } from 'react-i18next'
 
 interface SubtotalsSectionProps {

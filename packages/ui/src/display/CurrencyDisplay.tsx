@@ -1,4 +1,4 @@
-import { formatCurrency } from '@hyperquote/i18n'
+import { formatCurrency } from '@hyperquote/i18n/formatters/currency'
 import { useTranslation } from 'react-i18next'
 
 interface CurrencyDisplayProps {

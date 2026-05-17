@@ -1,4 +1,4 @@
-import { EmptyState } from '@hyperquote/ui'
+import { EmptyState } from '@hyperquote/ui/feedback/EmptyState'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { AlertTriangle, ChevronsUpDown, SearchX } from 'lucide-react'

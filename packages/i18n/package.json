@@ -4,7 +4,21 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./formatters/currency": "./src/formatters/currency.ts",
+		"./formatters/date": "./src/formatters/date.ts",
+		"./formatters/number": "./src/formatters/number.ts",
+		"./formatters/unit": "./src/formatters/unit.ts",
+		"./react/setup": "./src/react/setup.ts",
+		"./locales/ar/common": "./src/locales/ar/common.json",
+		"./locales/ar/portal": "./src/locales/ar/portal.json",
+		"./locales/ar/units": "./src/locales/ar/units.json",
+		"./locales/ar/website": "./src/locales/ar/website.json",
+		"./locales/en/common": "./src/locales/en/common.json",
+		"./locales/en/portal": "./src/locales/en/portal.json",
+		"./locales/en/units": "./src/locales/en/units.json",
+		"./locales/en/website": "./src/locales/en/website.json",
+		"./types/resources": "./src/types/resources.d.ts"
 	},
 	"dependencies": {
 		"i18next": "^26.0.3",

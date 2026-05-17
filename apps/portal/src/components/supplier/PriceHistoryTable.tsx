@@ -4,7 +4,7 @@
  * Pending review items get a note below the row.
  */
 
-import { StatusBadge } from '@hyperquote/ui'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { useQuery } from '@tanstack/react-query'
 import type { ParseKeys } from 'i18next'
 import { useState } from 'react'

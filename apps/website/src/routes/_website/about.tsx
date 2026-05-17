@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ArrowRight } from 'lucide-react'
-import { cubicBezier, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
+import { revealUp, viewportOnce } from '../../components/shared/motionVariants'
 
 export const Route = createFileRoute('/_website/about')({
 	head: () => ({
@@ -21,17 +22,6 @@ export const Route = createFileRoute('/_website/about')({
 const VALUE_KEYS = ['value1', 'value2', 'value3'] as const
 const TEAM_KEYS = ['member1', 'member2', 'member3', 'member4'] as const
 
-const reveal = {
-	hidden: { opacity: 0, y: 20 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.4, ease: cubicBezier(0.25, 0.1, 0.25, 1) },
-	},
-}
-
-const viewportOnce = { once: true, margin: '-60px' as const }
-
 function AboutPage() {
 	const { t } = useTranslation('website')
 
@@ -41,7 +31,7 @@ function AboutPage() {
 			<motion.section
 				initial="hidden"
 				animate="visible"
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 pt-24 pb-12 sm:px-6 sm:pt-28 md:px-8 md:pt-32 md:pb-16 lg:px-16 lg:pt-40 lg:pb-20"
 			>
 				<div className="mx-auto max-w-[1400px] text-center lg:text-start">
@@ -63,7 +53,7 @@ function AboutPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 sm:px-6 md:px-8 lg:px-16"
 			>
 				<div className="max-w-[1400px] mx-auto">
@@ -82,7 +72,7 @@ function AboutPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 sm:px-6 md:px-8 lg:px-16"
 			>
 				<div className="max-w-[1400px] mx-auto border-t border-[var(--color-text)]/[0.06] py-14 sm:py-16 lg:py-24">
@@ -110,7 +100,7 @@ function AboutPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="bg-[#0A0A0A]"
 			>
 				<div className="max-w-[1400px] mx-auto px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24">
@@ -142,7 +132,7 @@ function AboutPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24"
 			>
 				<div className="max-w-[1400px] mx-auto">
@@ -169,7 +159,7 @@ function AboutPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 pb-14 sm:px-6 sm:pb-16 md:px-8 lg:px-16 lg:pb-24"
 			>
 				<div className="max-w-[1400px] mx-auto">

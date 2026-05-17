@@ -1,4 +1,6 @@
-import { CurrencyDisplay, DateDisplay, StatusBadge } from '@hyperquote/ui'
+import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
+import { DateDisplay } from '@hyperquote/ui/display/DateDisplay'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

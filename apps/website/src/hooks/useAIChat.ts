@@ -12,16 +12,12 @@
 import type { StreamChunk } from '@tanstack/ai'
 import type { UIMessage, UseChatReturn } from '@tanstack/ai-react'
 import { stream, useChat } from '@tanstack/ai-react'
+import { useMemo } from 'react'
 import { chatStreamFn } from '../lib/chat'
+import type { ChatMessage } from './chatSession'
 
 interface ChatOptions {
 	onError?: (error: Error) => void
-}
-
-export interface ChatMessage {
-	id: string
-	role: 'user' | 'assistant'
-	content: string
 }
 
 /**
@@ -64,45 +60,49 @@ export function useAIChat(options?: ChatOptions) {
 	// Map UIMessage to simplified ChatMessage for consumers
 	// TanStack AI 0.x stores text in parts[].text, but fallback to every
 	// known property so content is never silently empty.
-	const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => {
-		const m = msg as unknown as {
-			parts?: unknown
-			content?: unknown
-			text?: unknown
-		}
+	const messages: ChatMessage[] = useMemo(
+		() =>
+			chat.messages.map((msg: UIMessage) => {
+				const m = msg as unknown as {
+					parts?: unknown
+					content?: unknown
+					text?: unknown
+				}
 
-		// 1. Try parts with type 'text'
-		let content = ''
-		if (Array.isArray(m.parts) && m.parts.length > 0) {
-			content = m.parts
-				.map((p: unknown) => {
-					if (typeof p === 'string') return p
-					if (p && typeof p === 'object') {
-						const part = p as {
-							text?: unknown
-							content?: unknown
-							delta?: unknown
-						}
-						const value = part.text ?? part.content ?? part.delta
-						return typeof value === 'string' ? value : ''
-					}
-					return ''
-				})
-				.join('')
-		}
+				// 1. Try parts with type 'text'
+				let content = ''
+				if (Array.isArray(m.parts) && m.parts.length > 0) {
+					content = m.parts
+						.map((p: unknown) => {
+							if (typeof p === 'string') return p
+							if (p && typeof p === 'object') {
+								const part = p as {
+									text?: unknown
+									content?: unknown
+									delta?: unknown
+								}
+								const value = part.text ?? part.content ?? part.delta
+								return typeof value === 'string' ? value : ''
+							}
+							return ''
+						})
+						.join('')
+				}
 
-		// 2. Fallback: direct content / text property
-		if (!content) {
-			if (typeof m.content === 'string') content = m.content
-			else if (typeof m.text === 'string') content = m.text
-		}
+				// 2. Fallback: direct content / text property
+				if (!content) {
+					if (typeof m.content === 'string') content = m.content
+					else if (typeof m.text === 'string') content = m.text
+				}
 
-		return {
-			id: msg.id,
-			role: msg.role as 'user' | 'assistant',
-			content,
-		}
-	})
+				return {
+					id: msg.id,
+					role: msg.role as 'user' | 'assistant',
+					content,
+				}
+			}),
+		[chat.messages],
+	)
 
 	return {
 		messages,

@@ -1,4 +1,5 @@
-import { DateDisplay, StatusBadge } from '@hyperquote/ui'
+import { DateDisplay } from '@hyperquote/ui/display/DateDisplay'
+import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'
 import type { ParseKeys } from 'i18next'
 import { MessageCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'

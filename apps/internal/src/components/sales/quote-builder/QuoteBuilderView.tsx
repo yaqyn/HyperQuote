@@ -12,7 +12,15 @@ import {
 	X,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { ClientOnly } from '../../../lib/client-only'
 import {
@@ -54,13 +62,16 @@ import {
 	ApprovalWorkflow,
 	QuoteSignatureSection,
 } from './ApprovalWorkflow'
-import { DeliveryMap } from './DeliveryMap'
 import { DeliveryTerms } from './DeliveryTerms'
 import {
 	type ProductCatalogSelection,
 	ProductSearchMenu,
 } from './ProductSearchMenu'
 import type { LineItemFormValues, QuoteFormValues } from './types'
+
+const DeliveryMap = lazy(() =>
+	import('./DeliveryMap').then((module) => ({ default: module.DeliveryMap })),
+)
 
 interface QuoteBuilderViewProps {
 	quoteId?: string
@@ -4426,11 +4437,27 @@ export function QuoteBuilderView({
 							</div>
 						}
 					>
-						<DeliveryMap
-							address={deliveryAddress}
-							onAddressChange={setDeliveryAddress}
-							onDeliveryConfirmed={() => setMapOpen(false)}
-						/>
+						<Suspense
+							fallback={
+								<div className="flex h-full items-center justify-center">
+									<span
+										className="font-[family-name:var(--font-archivo)] italic"
+										style={{
+											fontSize: '12px',
+											color: 'var(--color-text-subtle)',
+										}}
+									>
+										loading map…
+									</span>
+								</div>
+							}
+						>
+							<DeliveryMap
+								address={deliveryAddress}
+								onAddressChange={setDeliveryAddress}
+								onDeliveryConfirmed={() => setMapOpen(false)}
+							/>
+						</Suspense>
 					</ClientOnly>
 				</div>
 			</SlidePanel>

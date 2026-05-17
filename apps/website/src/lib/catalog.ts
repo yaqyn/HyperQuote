@@ -1,4 +1,7 @@
-import { createSupabaseServerClient } from '@hyperquote/auth/server'
+import {
+	createSupabaseServerClient,
+	resolveSupabaseServerConfig,
+} from '@hyperquote/auth/server'
 import {
 	type BroadCategory,
 	CATALOG_PRODUCTS,
@@ -9,6 +12,7 @@ import {
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { logWebsiteServerError } from './server-log'
 
 // ============================================================================
 // Public product shape — what the market pages actually consume.
@@ -113,14 +117,8 @@ const PUBLIC_COLUMNS = [
 	'is_stockable',
 ].join(', ')
 
-function shouldUseMockCatalog() {
-	const supabaseUrl = process.env.SUPABASE_URL
-	if (!supabaseUrl) return true
-	try {
-		return new URL(supabaseUrl).hostname === 'placeholder.supabase.co'
-	} catch {
-		return supabaseUrl.includes('placeholder.supabase.co')
-	}
+function getSupabaseConfig() {
+	return resolveSupabaseServerConfig(process.env)
 }
 
 // ============================================================================
@@ -131,7 +129,8 @@ export const getPublicCatalog = createServerFn()
 	.inputValidator(catalogInput)
 	.handler(async ({ data: input }) => {
 		// Dev fallback: use the shared catalog when no Supabase is configured.
-		if (shouldUseMockCatalog()) {
+		const config = getSupabaseConfig()
+		if (!config) {
 			let filtered = CATALOG_PRODUCTS.map(decorate)
 
 			if (input.category?.length) {
@@ -179,8 +178,7 @@ export const getPublicCatalog = createServerFn()
 		const request = getRequest()
 		const { client } = createSupabaseServerClient({
 			request,
-			supabaseUrl: process.env.SUPABASE_URL ?? '',
-			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
+			...config,
 		})
 
 		let query = client
@@ -215,7 +213,10 @@ export const getPublicCatalog = createServerFn()
 		const { data, error, count } = await query
 
 		if (error) {
-			console.error('[getPublicCatalog] Supabase error:', error)
+			logWebsiteServerError(
+				'website.catalog.public_catalog.supabase_error',
+				error,
+			)
 			return {
 				items: [] as PublicProduct[],
 				total: 0,
@@ -238,17 +239,16 @@ export const getPublicCatalog = createServerFn()
 export const getProductBySlug = createServerFn()
 	.inputValidator(productBySlugInput)
 	.handler(async ({ data: input }) => {
-		if (shouldUseMockCatalog()) {
+		const config = getSupabaseConfig()
+		if (!config) {
 			const found = CATALOG_PRODUCTS.find((p) => p.slug === input.slug)
 			return found ? decorate(found) : null
 		}
 
 		const request = getRequest()
-		const supabaseUrl = process.env.SUPABASE_URL ?? ''
 		const { client } = createSupabaseServerClient({
 			request,
-			supabaseUrl,
-			supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
+			...config,
 		})
 
 		const { data, error } = await client
@@ -259,7 +259,12 @@ export const getProductBySlug = createServerFn()
 			.single()
 
 		if (error || !data) {
-			if (error) console.error('[getProductBySlug] Supabase error:', error)
+			if (error) {
+				logWebsiteServerError(
+					'website.catalog.product_by_slug.supabase_error',
+					error,
+				)
+			}
 			return null
 		}
 

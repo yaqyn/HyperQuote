@@ -1,4 +1,7 @@
-import { formatDate, formatRelativeTime } from '@hyperquote/i18n'
+import {
+	formatDate,
+	formatRelativeTime,
+} from '@hyperquote/i18n/formatters/date'
 import { useTranslation } from 'react-i18next'
 
 interface DateDisplayProps {

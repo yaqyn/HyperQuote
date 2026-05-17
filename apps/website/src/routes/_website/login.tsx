@@ -11,11 +11,22 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
+import {
+	EGYPT_COUNTRY_CODE,
+	EGYPT_MOBILE_REGEX,
+	emptyOtpCode,
+	resetOtpCode,
+} from '../../components/auth/authFields'
+import { OtpCodeInput } from '../../components/auth/OtpCodeInput'
+import { OtpResendControl } from '../../components/auth/OtpResendControl'
+import { PhoneNumberInput } from '../../components/auth/PhoneNumberInput'
+import { useResendCountdown } from '../../components/auth/useResendCountdown'
+import { verifyOtpCode } from '../../components/auth/verifyOtpCode'
 import { PRIVACY_SECTIONS, TERMS_SECTIONS } from '../../content/legal'
-import { claimAccount, createAccount, sendOTP, verifyOTP } from '../../lib/auth'
+import { claimAccount, createAccount, sendOTP } from '../../lib/auth'
 
 export const Route = createFileRoute('/_website/login')({
 	component: LoginPage,
@@ -32,12 +43,6 @@ export const Route = createFileRoute('/_website/login')({
 
 type AuthStep = 'phone' | 'otp' | 'create' | 'claiming'
 
-const PHONE_REGEX = /^(10|11|12|15)\d{8}$/
-const OTP_LENGTH = 6
-const OTP_SLOTS = Array.from(
-	{ length: OTP_LENGTH },
-	(_, i) => `otp-slot-${i}` as const,
-)
 const RESEND_COOLDOWN = 30
 
 const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
@@ -257,7 +262,7 @@ function PhoneStep({
 			setError(t('login.phoneRequired'))
 			return false
 		}
-		if (!PHONE_REGEX.test(phone)) {
+		if (!EGYPT_MOBILE_REGEX.test(phone)) {
 			setError(t('login.phoneInvalid'))
 			return false
 		}
@@ -306,36 +311,17 @@ function PhoneStep({
 				>
 					{t('login.phoneLabel')}
 				</label>
-				<div
-					className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-2.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-3"
-					dir="ltr"
-				>
-					<div className="flex h-[54px] shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 sm:h-14 sm:px-4">
-						<span className="text-[15px]" aria-hidden="true">
-							🇪🇬
-						</span>
-						<span className="font-mono text-[15px] text-[var(--color-text-muted)]">
-							+20
-						</span>
-					</div>
-					<input
-						id="login-phone"
-						ref={inputRef}
-						type="tel"
-						inputMode="numeric"
-						aria-label={t('login.phoneLabel')}
-						value={phone}
-						onChange={(e) => {
-							const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
-							setPhone(digits)
-							if (error) setError(null)
-						}}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter') handleSend('whatsapp')
-						}}
-						className="h-[54px] min-w-0 rounded-xl border border-[var(--color-border)] bg-transparent px-4 font-mono text-[18px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-					/>
-				</div>
+				<PhoneNumberInput
+					id="login-phone"
+					inputRef={inputRef}
+					ariaLabel={t('login.phoneLabel')}
+					value={phone}
+					onChange={(nextPhone) => {
+						setPhone(nextPhone)
+						if (error) setError(null)
+					}}
+					onEnter={() => handleSend('whatsapp')}
+				/>
 				<p className="mt-2 text-[12px] leading-relaxed text-[var(--color-text-subtle)]">
 					{t('login.phoneHint')}
 				</p>
@@ -400,21 +386,13 @@ function OTPStep({
 	onComplete: () => void
 }) {
 	const { t } = useTranslation('website')
-	const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+	const [code, setCode] = useState<string[]>(() => emptyOtpCode())
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [shaking, setShaking] = useState(false)
-	const [resendCountdown, setResendCountdown] = useState(RESEND_COOLDOWN)
+	const { resendCountdown, setResendCountdown } =
+		useResendCountdown(RESEND_COOLDOWN)
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-
-	useEffect(() => {
-		if (resendCountdown <= 0) return
-		const timer = setInterval(
-			() => setResendCountdown((p) => Math.max(0, p - 1)),
-			1000,
-		)
-		return () => clearInterval(timer)
-	}, [resendCountdown])
 
 	useEffect(() => {
 		inputRefs.current[0]?.focus()
@@ -422,26 +400,25 @@ function OTPStep({
 
 	const submitCode = useCallback(
 		async (digits: string[]) => {
-			const fullCode = digits.join('')
-			if (fullCode.length !== OTP_LENGTH) return
 			setLoading(true)
 			setError(null)
 			try {
-				const result = await verifyOTP({ data: { phone, code: fullCode } })
-				if (!result.success) {
+				const verification = await verifyOtpCode(phone, digits)
+				if (verification.status === 'incomplete') return
+				if (verification.status === 'error') {
 					setError(
-						result.error === 'rate_limited'
+						verification.error === 'rate_limited'
 							? t('login.rateLimit')
 							: t('login.wrongCode'),
 					)
 					setShaking(true)
 					setTimeout(() => {
 						setShaking(false)
-						setCode(Array(OTP_LENGTH).fill(''))
-						inputRefs.current[0]?.focus()
+						resetOtpCode(inputRefs, setCode)
 					}, 300)
 					return
 				}
+				const { result } = verification
 				if (result.claimableCompany) {
 					onClaimable(result.claimableCompany)
 				} else if (result.needsAccount) {
@@ -454,8 +431,7 @@ function OTPStep({
 				setShaking(true)
 				setTimeout(() => {
 					setShaking(false)
-					setCode(Array(OTP_LENGTH).fill(''))
-					inputRefs.current[0]?.focus()
+					resetOtpCode(inputRefs, setCode)
 				}, 300)
 			} finally {
 				setLoading(false)
@@ -463,36 +439,6 @@ function OTPStep({
 		},
 		[phone, t, onClaimable, onNeedsAccount, onComplete],
 	)
-
-	function handleInput(index: number, value: string) {
-		const digit = value.replace(/\D/g, '').slice(-1)
-		const newCode = [...code]
-		newCode[index] = digit
-		setCode(newCode)
-		if (digit && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
-		if (digit && newCode.every((d) => d !== '')) submitCode(newCode)
-	}
-
-	function handleKeyDown(index: number, e: React.KeyboardEvent) {
-		if (e.key === 'Backspace' && !code[index] && index > 0)
-			inputRefs.current[index - 1]?.focus()
-	}
-
-	function handlePaste(e: React.ClipboardEvent) {
-		e.preventDefault()
-		const pasted = e.clipboardData.getData('text').replace(/\D/g, '')
-		if (!pasted.length) return
-		const chars = pasted.slice(0, OTP_LENGTH).split('')
-		const newCode = [...code]
-		for (let i = 0; i < chars.length; i++) newCode[i] = chars[i]
-		setCode(newCode)
-		const nextEmpty = newCode.findIndex((d) => !d)
-		if (nextEmpty >= 0) inputRefs.current[nextEmpty]?.focus()
-		else {
-			inputRefs.current[OTP_LENGTH - 1]?.focus()
-			submitCode(newCode)
-		}
-	}
 
 	async function handleResend() {
 		setError(null)
@@ -512,7 +458,10 @@ function OTPStep({
 				className="mb-6 flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
 			>
 				<ArrowLeft size={14} className="icon-end" />
-				<span className="font-mono">+20{phone}</span>
+				<span className="font-mono">
+					{EGYPT_COUNTRY_CODE}
+					{phone}
+				</span>
 			</button>
 
 			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
@@ -520,35 +469,22 @@ function OTPStep({
 			</h2>
 			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
 				{t('login.codeSent')}{' '}
-				<span className="font-mono text-[var(--color-text)]">+20{phone}</span>
+				<span className="font-mono text-[var(--color-text)]">
+					{EGYPT_COUNTRY_CODE}
+					{phone}
+				</span>
 			</p>
 
 			{/* OTP boxes — always LTR */}
-			<motion.div
-				dir="ltr"
-				className="mt-7 grid grid-cols-6 gap-2 sm:mt-8 sm:gap-2.5"
-				animate={shaking ? { x: [0, -6, 6, -6, 6, 0] } : { x: 0 }}
-				transition={{ duration: 0.2 }}
-				onPaste={handlePaste}
-			>
-				{OTP_SLOTS.map((slot, i) => (
-					<input
-						key={slot}
-						ref={(el) => {
-							inputRefs.current[i] = el
-						}}
-						type="tel"
-						inputMode="numeric"
-						maxLength={1}
-						value={code[i]}
-						onChange={(e) => handleInput(i, e.target.value)}
-						onKeyDown={(e) => handleKeyDown(i, e)}
-						disabled={loading}
-						aria-label={t('login.otpDigit', { n: i + 1 })}
-						className="h-12 w-full rounded-xl border border-[var(--color-border)] bg-transparent text-center font-mono text-[21px] font-semibold text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-50 sm:h-14 sm:text-[22px]"
-					/>
-				))}
-			</motion.div>
+			<OtpCodeInput
+				code={code}
+				onCodeChange={setCode}
+				onComplete={submitCode}
+				inputRefs={inputRefs}
+				disabled={loading}
+				shaking={shaking}
+				ariaLabel={(index) => t('login.otpDigit', { n: index + 1 })}
+			/>
 
 			{error && (
 				<p className="mt-4 text-center text-[13px] text-[var(--color-error)]">
@@ -562,22 +498,7 @@ function OTPStep({
 				</div>
 			)}
 
-			<div className="mt-6 text-center text-[13px]">
-				{resendCountdown > 0 ? (
-					<span className="text-[var(--color-text-subtle)]">
-						{t('login.resendIn')}{' '}
-						<span className="font-mono">{resendCountdown}s</span>
-					</span>
-				) : (
-					<button
-						type="button"
-						onClick={handleResend}
-						className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-					>
-						{t('login.resend')}
-					</button>
-				)}
-			</div>
+			<OtpResendControl countdown={resendCountdown} onResend={handleResend} />
 		</div>
 	)
 }
@@ -607,15 +528,11 @@ function CreateStep({
 	const {
 		register,
 		handleSubmit,
-		control,
 		formState: { errors },
 	} = useForm<AccountFormData>({
 		resolver: standardSchemaResolver(accountSchema),
 		defaultValues: { companyName: '', fullName: '' },
 	})
-
-	const _companyName = useWatch({ control, name: 'companyName' })
-	const _fullName = useWatch({ control, name: 'fullName' })
 
 	async function onSubmit(data: AccountFormData) {
 		setLoading(true)

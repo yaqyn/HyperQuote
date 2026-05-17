@@ -1,4 +1,5 @@
-import { formatNumber, type UnitKey } from '@hyperquote/i18n'
+import { formatNumber } from '@hyperquote/i18n/formatters/number'
+import type { UnitKey } from '@hyperquote/i18n/types/resources'
 import { useTranslation } from 'react-i18next'
 
 interface UnitDisplayProps {

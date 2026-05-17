@@ -1,4 +1,7 @@
-import { createSupabaseServerClient } from '@hyperquote/auth/server'
+import {
+	createSupabaseServerClient,
+	resolveSupabaseServerConfig,
+} from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -8,6 +11,7 @@ import {
 	clearRateLimit,
 	getKVNamespace,
 } from './rate-limit'
+import { logWebsiteServerError } from './server-log'
 
 // ============================================================================
 // Input Schemas
@@ -38,6 +42,30 @@ const claimAccountInput = z.object({
 	phone: phoneSchema,
 })
 
+function getSupabaseConfig() {
+	return resolveSupabaseServerConfig(process.env)
+}
+
+async function getAuthenticatedClient() {
+	const config = getSupabaseConfig()
+	if (!config) return null
+
+	const request = getRequest()
+	const { client } = createSupabaseServerClient({
+		request,
+		...config,
+	})
+
+	const {
+		data: { user },
+	} = await client.auth.getUser()
+	if (!user) {
+		return { error: 'not_authenticated' as const }
+	}
+
+	return { client, user }
+}
+
 // ============================================================================
 // sendOTP — Request OTP via WhatsApp or SMS
 // ============================================================================
@@ -63,26 +91,18 @@ export const sendOTP = createServerFn()
 				}
 			}
 
+			const formattedPhone = `+20${input.phone}`
+			const config = getSupabaseConfig()
+
+			if (!config) {
+				return { success: true, expiresIn: 300 }
+			}
+
 			const request = getRequest()
 			const { client } = createSupabaseServerClient({
 				request,
-				supabaseUrl:
-					process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-				supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
+				...config,
 			})
-
-			const formattedPhone = `+20${input.phone}`
-
-			// Dev mode: return mock success when Supabase OTP not configured
-			if (
-				!process.env.SUPABASE_URL ||
-				process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-			) {
-				console.log(
-					`[sendOTP] Dev mode: OTP would be sent to ${formattedPhone} via ${input.method}`,
-				)
-				return { success: true, expiresIn: 300 }
-			}
 
 			const { error } = await client.auth.signInWithOtp({
 				phone: formattedPhone,
@@ -90,13 +110,13 @@ export const sendOTP = createServerFn()
 			})
 
 			if (error) {
-				console.error('[sendOTP] Supabase error:', error)
+				logWebsiteServerError('website.auth.send_otp.supabase_error', error)
 				return { success: false, error: 'send_failed' as const }
 			}
 
 			return { success: true, expiresIn: 300 }
 		} catch (err) {
-			console.error('[sendOTP] Unexpected error:', err)
+			logWebsiteServerError('website.auth.send_otp.unexpected_error', err)
 			return { success: false, error: 'send_failed' as const }
 		}
 	})
@@ -122,25 +142,10 @@ export const verifyOTP = createServerFn()
 				}
 			}
 
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				supabaseUrl:
-					process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-				supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const config = getSupabaseConfig()
 
-			// Dev mode: return mock success
-			if (
-				!process.env.SUPABASE_URL ||
-				process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-			) {
-				console.log(
-					`[verifyOTP] Dev mode: verifying code ${input.code} for ${formattedPhone}`,
-				)
-				// Clear rate limit counter on success
+			if (!config) {
 				await clearRateLimit(kv, `verify:${input.phone}`)
 				return {
 					success: true,
@@ -151,6 +156,12 @@ export const verifyOTP = createServerFn()
 				}
 			}
 
+			const request = getRequest()
+			const { client } = createSupabaseServerClient({
+				request,
+				...config,
+			})
+
 			const { data, error } = await client.auth.verifyOtp({
 				phone: formattedPhone,
 				token: input.code,
@@ -158,7 +169,7 @@ export const verifyOTP = createServerFn()
 			})
 
 			if (error) {
-				console.error('[verifyOTP] Supabase error:', error)
+				logWebsiteServerError('website.auth.verify_otp.supabase_error', error)
 				return { success: false, error: 'invalid_code' as const }
 			}
 
@@ -184,7 +195,7 @@ export const verifyOTP = createServerFn()
 				claimableCompany,
 			}
 		} catch (err) {
-			console.error('[verifyOTP] Unexpected error:', err)
+			logWebsiteServerError('website.auth.verify_otp.unexpected_error', err)
 			return { success: false, error: 'verify_failed' as const }
 		}
 	})
@@ -197,24 +208,10 @@ export const createAccount = createServerFn()
 	.inputValidator(createAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				supabaseUrl:
-					process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-				supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const authContext = await getAuthenticatedClient()
 
-			// Dev mode: return mock success
-			if (
-				!process.env.SUPABASE_URL ||
-				process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-			) {
-				console.log(
-					`[createAccount] Dev mode: creating account for ${formattedPhone}`,
-				)
+			if (!authContext) {
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
@@ -222,13 +219,11 @@ export const createAccount = createServerFn()
 				}
 			}
 
-			// Get current auth user
-			const {
-				data: { user },
-			} = await client.auth.getUser()
-			if (!user) {
-				return { success: false, error: 'not_authenticated' as const }
+			if ('error' in authContext) {
+				return { success: false, error: authContext.error }
 			}
+
+			const { client, user } = authContext
 
 			// Insert customer record
 			const { data: customer, error } = await client
@@ -243,7 +238,10 @@ export const createAccount = createServerFn()
 				.single()
 
 			if (error) {
-				console.error('[createAccount] Supabase error:', error)
+				logWebsiteServerError(
+					'website.auth.create_account.supabase_error',
+					error,
+				)
 				return { success: false, error: 'create_failed' as const }
 			}
 
@@ -253,7 +251,7 @@ export const createAccount = createServerFn()
 				userId: user.id,
 			}
 		} catch (err) {
-			console.error('[createAccount] Unexpected error:', err)
+			logWebsiteServerError('website.auth.create_account.unexpected_error', err)
 			return { success: false, error: 'create_failed' as const }
 		}
 	})
@@ -266,24 +264,10 @@ export const claimAccount = createServerFn()
 	.inputValidator(claimAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const request = getRequest()
-			const { client } = createSupabaseServerClient({
-				request,
-				supabaseUrl:
-					process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co',
-				supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? 'placeholder',
-			})
-
 			const formattedPhone = `+20${input.phone}`
+			const authContext = await getAuthenticatedClient()
 
-			// Dev mode: return mock success
-			if (
-				!process.env.SUPABASE_URL ||
-				process.env.SUPABASE_URL === 'https://placeholder.supabase.co'
-			) {
-				console.log(
-					`[claimAccount] Dev mode: claiming account for ${formattedPhone}`,
-				)
+			if (!authContext) {
 				return {
 					success: true,
 					customerId: 'mock-customer-id',
@@ -291,13 +275,11 @@ export const claimAccount = createServerFn()
 				}
 			}
 
-			// Get current auth user
-			const {
-				data: { user },
-			} = await client.auth.getUser()
-			if (!user) {
-				return { success: false, error: 'not_authenticated' as const }
+			if ('error' in authContext) {
+				return { success: false, error: authContext.error }
 			}
+
+			const { client, user } = authContext
 
 			// Find and claim the unclaimed customer
 			const { data: customer, error } = await client
@@ -309,7 +291,10 @@ export const claimAccount = createServerFn()
 				.single()
 
 			if (error || !customer) {
-				console.error('[claimAccount] Supabase error:', error)
+				logWebsiteServerError(
+					'website.auth.claim_account.supabase_error',
+					error,
+				)
 				return { success: false, error: 'claim_failed' as const }
 			}
 
@@ -319,7 +304,7 @@ export const claimAccount = createServerFn()
 				claimed: true,
 			}
 		} catch (err) {
-			console.error('[claimAccount] Unexpected error:', err)
+			logWebsiteServerError('website.auth.claim_account.unexpected_error', err)
 			return { success: false, error: 'claim_failed' as const }
 		}
 	})

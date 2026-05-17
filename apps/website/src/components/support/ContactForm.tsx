@@ -1,7 +1,7 @@
 import { standardSchemaResolver } from '@hyperquote/forms'
 import { Check, Info, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useCallback, useState } from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import {
 	TextField as AriaTextField,
 	Button,
@@ -69,6 +69,74 @@ function MessageCharCount({ control }: { control: Control<ContactFormData> }) {
 		<span className="font-[family-name:var(--font-mono)] text-[11px] opacity-30">
 			{count}/2000
 		</span>
+	)
+}
+
+type ContactTextName = Extract<
+	keyof ContactFormData,
+	'name' | 'email' | 'message'
+>
+
+function ContactTextField({
+	control,
+	name,
+	label,
+	fallbackMessage,
+	disabled,
+	type,
+	multiline = false,
+	footer,
+}: {
+	control: Control<ContactFormData>
+	name: ContactTextName
+	label: string
+	fallbackMessage: string
+	disabled: boolean
+	type?: 'email'
+	multiline?: boolean
+	footer?: ReactNode
+}) {
+	return (
+		<Controller
+			name={name}
+			control={control}
+			render={({ field, fieldState }) => {
+				const hint = fieldState.error ? (
+					<FieldHint message={fieldState.error.message ?? fallbackMessage} />
+				) : null
+
+				return (
+					<AriaTextField
+						value={field.value ?? ''}
+						onChange={field.onChange}
+						onBlur={field.onBlur}
+						type={type}
+						isRequired
+						isInvalid={!!fieldState.error}
+						isDisabled={disabled}
+					>
+						<Label className={labelClass}>{label}</Label>
+						{multiline ? (
+							<>
+								<TextArea
+									rows={4}
+									className="min-h-[120px] w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent py-3 ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40"
+								/>
+								<div className="mt-1.5 flex items-center justify-between">
+									{hint ?? <span />}
+									{footer}
+								</div>
+							</>
+						) : (
+							<>
+								<Input className={inputClass} />
+								{hint}
+							</>
+						)}
+					</AriaTextField>
+				)
+			}}
+		/>
 	)
 }
 
@@ -159,55 +227,21 @@ export function ContactForm() {
 			onSubmit={form.handleSubmit(onSubmit)}
 			className="mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8"
 		>
-			{/* Name */}
-			<Controller
+			<ContactTextField
 				name="name"
 				control={form.control}
-				render={({ field, fieldState }) => (
-					<AriaTextField
-						value={field.value ?? ''}
-						onChange={field.onChange}
-						onBlur={field.onBlur}
-						isRequired
-						isInvalid={!!fieldState.error}
-						isDisabled={submitting}
-					>
-						<Label className={labelClass}>{t('support.form.name')}</Label>
-						<Input className={inputClass} />
-						{fieldState.error && (
-							<FieldHint
-								message={fieldState.error.message ?? 'Please enter your name'}
-							/>
-						)}
-					</AriaTextField>
-				)}
+				label={t('support.form.name')}
+				fallbackMessage="Please enter your name"
+				disabled={submitting}
 			/>
 
-			{/* Email */}
-			<Controller
+			<ContactTextField
 				name="email"
 				control={form.control}
-				render={({ field, fieldState }) => (
-					<AriaTextField
-						value={field.value ?? ''}
-						onChange={field.onChange}
-						onBlur={field.onBlur}
-						type="email"
-						isRequired
-						isInvalid={!!fieldState.error}
-						isDisabled={submitting}
-					>
-						<Label className={labelClass}>{t('support.form.email')}</Label>
-						<Input className={inputClass} />
-						{fieldState.error && (
-							<FieldHint
-								message={
-									fieldState.error.message ?? 'Please enter a valid email'
-								}
-							/>
-						)}
-					</AriaTextField>
-				)}
+				label={t('support.form.email')}
+				fallbackMessage="Please enter a valid email"
+				disabled={submitting}
+				type="email"
 			/>
 
 			{/* Phone */}
@@ -281,36 +315,14 @@ export function ContactForm() {
 				)}
 			/>
 
-			{/* Message */}
-			<Controller
+			<ContactTextField
 				name="message"
 				control={form.control}
-				render={({ field, fieldState }) => (
-					<AriaTextField
-						value={field.value ?? ''}
-						onChange={field.onChange}
-						onBlur={field.onBlur}
-						isRequired
-						isInvalid={!!fieldState.error}
-						isDisabled={submitting}
-					>
-						<Label className={labelClass}>{t('support.form.message')}</Label>
-						<TextArea
-							rows={4}
-							className="min-h-[120px] w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent py-3 ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40"
-						/>
-						<div className="mt-1.5 flex items-center justify-between">
-							{fieldState.error ? (
-								<FieldHint
-									message={fieldState.error.message ?? 'Please add more detail'}
-								/>
-							) : (
-								<span />
-							)}
-							<MessageCharCount control={form.control} />
-						</div>
-					</AriaTextField>
-				)}
+				label={t('support.form.message')}
+				fallbackMessage="Please add more detail"
+				disabled={submitting}
+				multiline
+				footer={<MessageCharCount control={form.control} />}
 			/>
 
 			{/* Server error */}

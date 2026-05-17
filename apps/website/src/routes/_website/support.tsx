@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { cubicBezier, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { revealUp, viewportOnce } from '../../components/shared/motionVariants'
 import {
 	SearchDropdown,
 	type SearchEntry,
@@ -32,17 +33,6 @@ export const Route = createFileRoute('/_website/support')({
 	}),
 	component: SupportPage,
 })
-
-const reveal = {
-	hidden: { opacity: 0, y: 20 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.4, ease: cubicBezier(0.25, 0.1, 0.25, 1) },
-	},
-}
-
-const viewportOnce = { once: true, margin: '-60px' as const }
 
 function SupportPage() {
 	const { t, i18n } = useTranslation('website')
@@ -85,7 +75,7 @@ function SupportPage() {
 			<motion.section
 				initial="hidden"
 				animate="visible"
-				variants={reveal}
+				variants={revealUp}
 				className="flex min-h-[56svh] items-center justify-center px-4 pb-12 pt-28 sm:min-h-[52svh] sm:px-6 md:px-8 lg:min-h-[64vh] lg:px-12"
 			>
 				<div className="mx-auto max-w-[1200px] text-center">
@@ -128,7 +118,7 @@ function SupportPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
@@ -158,7 +148,7 @@ function SupportPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
@@ -176,7 +166,7 @@ function SupportPage() {
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
-						variants={reveal}
+						variants={revealUp}
 						className="mt-16 border-t border-[var(--color-text)]/[0.07] pt-10 text-center"
 					>
 						<p className="text-[15px] opacity-40">

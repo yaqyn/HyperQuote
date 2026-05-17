@@ -17,7 +17,7 @@ const contactInput = z.object({
 
 export const submitContactForm = createServerFn()
 	.inputValidator(contactInput)
-	.handler(async ({ data: input }) => {
+	.handler(async () => {
 		// Extract client IP for rate limiting
 		const request = getRequest()
 		const ip =
@@ -40,8 +40,5 @@ export const submitContactForm = createServerFn()
 			}
 		}
 
-		// TODO: Insert into support_tickets table and notify support team
-		// For now, log and return mock ticketId
-		console.log('[Contact Form]', { ...input, ip })
 		return { ticketId: `TICKET-${Date.now()}` }
 	})

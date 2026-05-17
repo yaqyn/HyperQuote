@@ -1,10 +1,29 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ArrowLeft, Menu, Minus, Plus, ShoppingCart, X } from 'lucide-react'
+import {
+	ArrowLeft,
+	Menu,
+	MessageCircle,
+	Minus,
+	Plus,
+	ShoppingCart,
+	X,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 import { useScrolled } from '../../hooks/useScrolled'
-import { sendOTP, verifyOTP } from '../../lib/auth'
+import { sendOTP } from '../../lib/auth'
+import {
+	EGYPT_COUNTRY_CODE,
+	EGYPT_MOBILE_REGEX,
+	emptyOtpCode,
+	resetOtpCode,
+} from '../auth/authFields'
+import { OtpCodeInput } from '../auth/OtpCodeInput'
+import { OtpResendControl } from '../auth/OtpResendControl'
+import { PhoneNumberInput } from '../auth/PhoneNumberInput'
+import { useResendCountdown } from '../auth/useResendCountdown'
+import { verifyOtpCode } from '../auth/verifyOtpCode'
 import { LanguageToggle } from './LanguageToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { ThemeToggle } from './ThemeToggle'
@@ -14,7 +33,6 @@ export function WebsiteHeader() {
 	const scrolled = useScrolled(8)
 	const [mobileNavOpen, setMobileNavOpen] = useState(false)
 	const [cartOpen, setCartOpen] = useState(false)
-	const [, setIsDark] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, updateQuantity, remove } = useQuoteCart()
 	const navigateTo = useNavigate()
@@ -37,19 +55,6 @@ export function WebsiteHeader() {
 		setIntroDone(true)
 	}, [isHome])
 	const heroMode = isHome && !scrolled
-
-	useEffect(() => {
-		function checkTheme() {
-			setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
-		}
-		checkTheme()
-		const observer = new MutationObserver(checkTheme)
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-theme'],
-		})
-		return () => observer.disconnect()
-	}, [])
 
 	useEffect(() => {
 		const compactFooterQuery = window.matchMedia('(max-width: 1023px)')
@@ -388,12 +393,6 @@ export function WebsiteHeader() {
 // Cart Submit — inline auth when not signed in
 // --------------------------------------------------------------------------
 
-const PHONE_REGEX = /^(10|11|12|15)\d{8}$/
-const OTP_LENGTH = 6
-const OTP_SLOTS = Array.from(
-	{ length: OTP_LENGTH },
-	(_, i) => `otp-slot-${i}` as const,
-)
 const RESEND_COOLDOWN = 30
 
 type CartAuthStep = 'submit' | 'phone' | 'otp'
@@ -402,21 +401,12 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	const { t } = useTranslation('website')
 	const [step, setStep] = useState<CartAuthStep>('submit')
 	const [phone, setPhone] = useState('')
-	const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+	const [code, setCode] = useState<string[]>(() => emptyOtpCode())
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
-	const [resendCountdown, setResendCountdown] = useState(0)
+	const { resendCountdown, setResendCountdown } = useResendCountdown(0)
 	const phoneRef = useRef<HTMLInputElement>(null)
 	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
-
-	useEffect(() => {
-		if (resendCountdown <= 0) return
-		const timer = setInterval(
-			() => setResendCountdown((p) => Math.max(0, p - 1)),
-			1000,
-		)
-		return () => clearInterval(timer)
-	}, [resendCountdown])
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
@@ -424,7 +414,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	}, [step])
 
 	async function handleSendOTP() {
-		if (!PHONE_REGEX.test(phone)) {
+		if (!EGYPT_MOBILE_REGEX.test(phone)) {
 			setError(t('login.phoneInvalid'))
 			return
 		}
@@ -451,59 +441,26 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 
 	const submitCode = useCallback(
 		async (digits: string[]) => {
-			const fullCode = digits.join('')
-			if (fullCode.length !== OTP_LENGTH) return
 			setLoading(true)
 			setError(null)
 			try {
-				const result = await verifyOTP({ data: { phone, code: fullCode } })
-				if (!result.success) {
+				const result = await verifyOtpCode(phone, digits)
+				if (result.status === 'incomplete') return
+				if (result.status === 'error') {
 					setError(t('login.wrongCode'))
-					setCode(Array(OTP_LENGTH).fill(''))
-					otpRefs.current[0]?.focus()
+					resetOtpCode(otpRefs, setCode)
 					return
 				}
 				window.location.reload()
 			} catch {
 				setError(t('login.wrongCode'))
-				setCode(Array(OTP_LENGTH).fill(''))
-				otpRefs.current[0]?.focus()
+				resetOtpCode(otpRefs, setCode)
 			} finally {
 				setLoading(false)
 			}
 		},
 		[phone, t],
 	)
-
-	function handleOTPInput(index: number, value: string) {
-		const digit = value.replace(/\D/g, '').slice(-1)
-		const newCode = [...code]
-		newCode[index] = digit
-		setCode(newCode)
-		if (digit && index < OTP_LENGTH - 1) otpRefs.current[index + 1]?.focus()
-		if (digit && newCode.every((d) => d !== '')) submitCode(newCode)
-	}
-
-	function handleOTPKeyDown(index: number, e: React.KeyboardEvent) {
-		if (e.key === 'Backspace' && !code[index] && index > 0)
-			otpRefs.current[index - 1]?.focus()
-	}
-
-	function handleOTPPaste(e: React.ClipboardEvent) {
-		e.preventDefault()
-		const pasted = e.clipboardData.getData('text').replace(/\D/g, '')
-		if (!pasted.length) return
-		const chars = pasted.slice(0, OTP_LENGTH).split('')
-		const newCode = [...code]
-		for (let i = 0; i < chars.length; i++) newCode[i] = chars[i]
-		setCode(newCode)
-		const next = newCode.findIndex((d) => !d)
-		if (next >= 0) otpRefs.current[next]?.focus()
-		else {
-			otpRefs.current[OTP_LENGTH - 1]?.focus()
-			submitCode(newCode)
-		}
-	}
 
 	async function handleResend() {
 		setError(null)
@@ -550,26 +507,17 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 						{t('login.step1.heading')}
 					</span>
 				</div>
-				<div className="flex items-center gap-2">
-					<span className="flex h-9 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-[12px] text-[var(--color-text-muted)] shrink-0">
-						<span aria-hidden>🇪🇬</span>
-						<span className="font-mono">+20</span>
-					</span>
-					<input
-						ref={phoneRef}
-						type="tel"
-						inputMode="numeric"
-						value={phone}
-						onChange={(e) => {
-							setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
-							if (error) setError(null)
-						}}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter') handleSendOTP()
-						}}
-						className="h-9 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 font-mono text-[14px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-					/>
-				</div>
+				<PhoneNumberInput
+					inputRef={phoneRef}
+					ariaLabel={t('login.phoneLabel')}
+					value={phone}
+					onChange={(nextPhone) => {
+						setPhone(nextPhone)
+						if (error) setError(null)
+					}}
+					onEnter={handleSendOTP}
+					variant="compact"
+				/>
 				{error && (
 					<p className="mt-2 text-[11px] text-[var(--color-error)]">{error}</p>
 				)}
@@ -583,15 +531,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 						<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 					) : (
 						<>
-							<svg
-								width={14}
-								height={14}
-								viewBox="0 0 24 24"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-							</svg>
+							<MessageCircle size={14} aria-hidden="true" />
 							{t('login.whatsappCTA')}
 						</>
 					)}
@@ -608,7 +548,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					onClick={() => {
 						setStep('phone')
 						setError(null)
-						setCode(Array(OTP_LENGTH).fill(''))
+						resetOtpCode(otpRefs, setCode)
 					}}
 					className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
 				>
@@ -618,31 +558,19 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					{t('login.step2.heading')}
 				</span>
 				<span className="font-mono text-[11px] text-[var(--color-text-subtle)] ms-auto">
-					+20{phone}
+					{EGYPT_COUNTRY_CODE}
+					{phone}
 				</span>
 			</div>
-			<div
-				dir="ltr"
-				className="flex justify-center gap-1.5"
-				onPaste={handleOTPPaste}
-			>
-				{OTP_SLOTS.map((slot, i) => (
-					<input
-						key={slot}
-						ref={(el) => {
-							otpRefs.current[i] = el
-						}}
-						type="tel"
-						inputMode="numeric"
-						maxLength={1}
-						value={code[i]}
-						onChange={(e) => handleOTPInput(i, e.target.value)}
-						onKeyDown={(e) => handleOTPKeyDown(i, e)}
-						disabled={loading}
-						className="h-9 w-9 rounded-lg border border-[var(--color-border)] bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] disabled:opacity-50"
-					/>
-				))}
-			</div>
+			<OtpCodeInput
+				code={code}
+				onCodeChange={setCode}
+				onComplete={submitCode}
+				inputRefs={otpRefs}
+				disabled={loading}
+				ariaLabel={(index) => t('login.otpDigit', { n: index + 1 })}
+				variant="compact"
+			/>
 			{error && (
 				<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
 					{error}
@@ -653,22 +581,11 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)]" />
 				</div>
 			)}
-			<div className="mt-2 text-center text-[11px]">
-				{resendCountdown > 0 ? (
-					<span className="text-[var(--color-text-subtle)]">
-						{t('login.resendIn')}{' '}
-						<span className="font-mono">{resendCountdown}s</span>
-					</span>
-				) : (
-					<button
-						type="button"
-						onClick={handleResend}
-						className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-					>
-						{t('login.resend')}
-					</button>
-				)}
-			</div>
+			<OtpResendControl
+				countdown={resendCountdown}
+				onResend={handleResend}
+				variant="compact"
+			/>
 		</div>
 	)
 }

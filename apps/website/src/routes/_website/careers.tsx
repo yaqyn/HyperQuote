@@ -1,9 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ArrowRight, X } from 'lucide-react'
-import { AnimatePresence, cubicBezier, motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+	EASE,
+	revealUp,
+	staggerUp,
+	viewportOnce,
+} from '../../components/shared/motionVariants'
 
 export const Route = createFileRoute('/_website/careers')({
 	head: () => ({
@@ -22,28 +28,6 @@ export const Route = createFileRoute('/_website/careers')({
 	}),
 	component: CareersPage,
 })
-
-const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
-
-const reveal = {
-	hidden: { opacity: 0, y: 20 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.4, ease: EASE },
-	},
-}
-
-const stagger = (delay: number) => ({
-	hidden: { opacity: 0, y: 20 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.4, ease: EASE, delay },
-	},
-})
-
-const viewportOnce = { once: true, margin: '-60px' as const }
 
 const JOB_KEYS = ['job1', 'job2', 'job3', 'job4', 'job5', 'job6'] as const
 
@@ -68,7 +52,7 @@ function CareersPage() {
 			<motion.section
 				initial="hidden"
 				animate="visible"
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 pb-12 pt-24 sm:px-6 sm:pb-14 sm:pt-28 md:px-8 lg:px-12 lg:pb-24 lg:pt-36"
 			>
 				<div className="mx-auto max-w-[1200px] text-center lg:text-start">
@@ -94,7 +78,7 @@ function CareersPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 py-12 sm:px-6 sm:py-14 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[720px] text-center lg:text-start">
@@ -106,7 +90,7 @@ function CareersPage() {
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
-						variants={stagger(0.1)}
+						variants={staggerUp(0.1)}
 						className="my-9 sm:my-11 lg:my-14"
 					>
 						<p className="text-[clamp(1.35rem,6vw,2rem)] font-bold leading-[1.2] tracking-normal">
@@ -122,7 +106,7 @@ function CareersPage() {
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
-						variants={stagger(0.1)}
+						variants={staggerUp(0.1)}
 						className="my-9 sm:my-11 lg:my-14"
 					>
 						<p className="text-[clamp(1.35rem,6vw,2rem)] font-bold leading-[1.2] tracking-normal">
@@ -148,7 +132,7 @@ function CareersPage() {
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
-						variants={reveal}
+						variants={revealUp}
 						className="mb-8 text-center text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal sm:mb-10 lg:mb-12 lg:text-start"
 					>
 						{t('careers.positions.heading')}
@@ -161,7 +145,7 @@ function CareersPage() {
 								initial="hidden"
 								whileInView="visible"
 								viewport={viewportOnce}
-								variants={stagger(i * 0.06)}
+								variants={staggerUp(i * 0.06)}
 								className="contents"
 							>
 								<button
@@ -210,7 +194,7 @@ function CareersPage() {
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
-				variants={reveal}
+				variants={revealUp}
 				className="px-4 py-16 sm:px-6 md:px-8 lg:px-12 lg:py-28"
 			>
 				<div className="mx-auto max-w-[1200px] text-center">

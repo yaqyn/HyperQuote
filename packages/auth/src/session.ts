@@ -10,12 +10,14 @@ import type { AuthSession } from './types'
 export async function getServerSession(opts: {
 	supabaseUrl: string
 	supabaseAnonKey: string
+	cookieDomain?: string
 }): Promise<AuthSession | null> {
 	const request = getRequest()
 	const { client } = createSupabaseServerClient({
 		request,
 		supabaseUrl: opts.supabaseUrl,
 		supabaseAnonKey: opts.supabaseAnonKey,
+		cookieDomain: opts.cookieDomain,
 	})
 
 	const {

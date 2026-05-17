@@ -5,9 +5,17 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./brand/LampEffect": "./src/brand/LampEffect.tsx",
+		"./display/CurrencyDisplay": "./src/display/CurrencyDisplay.tsx",
+		"./display/DateDisplay": "./src/display/DateDisplay.tsx",
+		"./display/UnitDisplay": "./src/display/UnitDisplay.tsx",
+		"./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
+		"./feedback/StatusBadge": "./src/feedback/StatusBadge.tsx",
 		"./glass/GlassWindow": "./src/glass/GlassWindow.tsx",
 		"./glass/GlassElevated": "./src/glass/GlassElevated.tsx",
-		"./brand/LionMark": "./src/brand/LionMark.tsx"
+		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
+		"./brand/LionMark": "./src/brand/LionMark.tsx",
+		"./utils/cn": "./src/utils/cn.ts"
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",

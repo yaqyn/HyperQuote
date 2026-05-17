@@ -5,6 +5,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import type { PluginOption } from 'vite'
 import { defineConfig } from 'vite'
+import { hyperquoteManualChunks } from '../../tooling/vite/manual-chunks'
 
 // Client-only shims for server modules that leak into the client module graph.
 // TanStack Start + Cloudflare leaks server-only modules (start-server-core,
@@ -37,6 +38,13 @@ function clientOnlyShims(): PluginOption {
 
 export default defineConfig({
 	server: { port: 3002 },
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: hyperquoteManualChunks,
+			},
+		},
+	},
 	resolve: {
 		dedupe: ['react', 'react-dom'],
 	},

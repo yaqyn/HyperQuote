@@ -1,4 +1,3 @@
-import { i18n } from '@hyperquote/i18n'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
 	createRootRoute,
@@ -10,7 +9,7 @@ import { useEffect, useState } from 'react'
 import { I18nProvider } from 'react-aria-components'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
-import { setupI18n } from '../lib/i18n'
+import { i18n, setupI18n } from '../lib/i18n'
 import {
 	applyPortalTheme,
 	detectPortalTheme,

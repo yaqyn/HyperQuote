@@ -1,4 +1,4 @@
-import { CurrencyDisplay } from '@hyperquote/ui'
+import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import { type ReactNode, useState } from 'react'
 import {
 	Cell,
