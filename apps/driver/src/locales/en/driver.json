@@ -1,0 +1,145 @@
+{
+	"active": {
+		"accept": "Accept delivery",
+		"arrival": "Record arrival",
+		"completed": "Proof captured. Delivery completed.",
+		"current": "Active delivery",
+		"eta": "ETA",
+		"items": "Items",
+		"next": "Next acceptable delivery",
+		"noneEyebrow": "No active delivery",
+		"noneTitle": "No acceptable stops are open right now.",
+		"start": "Start route",
+		"window": "Window"
+	},
+	"brand": {
+		"driver": "HyperStreets",
+		"eyebrow": "HyperQuote"
+	},
+	"controls": {
+		"language": "Switch language",
+		"options": "Driver options",
+		"refreshLocation": "Refresh GPS",
+		"signOut": "Sign out",
+		"theme": "Toggle theme"
+	},
+	"drivers": {
+		"available": "Available",
+		"offline": "Offline",
+		"onDelivery": "On delivery"
+	},
+	"error": {
+		"action": "Return to driver app",
+		"body": "The driver app could not render this route. Return to the main delivery surface.",
+		"title": "Driver route error"
+	},
+	"fleet": {
+		"assigned": "Assigned",
+		"backFromChat": "Back",
+		"backToDeliveries": "Deliveries",
+		"chat": "Team chat",
+		"chatDriver": "Chat",
+		"chatFocus": "Driver lane",
+		"chatLive": "Live radio",
+		"chatRoom": "Dispatch channel",
+		"chatRoomNote": "Shared updates for gates, waiting time, and handoffs.",
+		"clearFocus": "Clear",
+		"deliveries": "Deliveries",
+		"directLane": "Composing toward {{name}} in the team channel",
+		"driver": "Driver",
+		"drivers": "Drivers",
+		"dropoff": "Dropoff",
+		"lastPing": "Last ping",
+		"messageLabel": "Team message",
+		"messagePlaceholder": "Message...",
+		"mentionPeople": "@People",
+		"pickup": "Pickup",
+		"send": "Send message",
+		"tabsLabel": "Driver team panels",
+		"title": "Driver floor",
+		"unassigned": "Unassigned",
+		"view": "View",
+		"you": "You"
+	},
+	"info": {
+		"call": "Call contact",
+		"customer": "Customer contact",
+		"empty": "No active delivery is assigned to this driver.",
+		"items": "Items",
+		"notes": "Delivery notes",
+		"title": "Route brief",
+		"warehouse": "Warehouse contact"
+	},
+	"login": {
+		"access": {
+			"pool": {
+				"label": "Access",
+				"value": "Driver only"
+			},
+			"proof": {
+				"label": "Proof",
+				"value": "Signature + GPS"
+			},
+			"provisioning": {
+				"label": "Provisioning",
+				"value": "Manual"
+			}
+		},
+		"body": "A field pass for assigned stops, live GPS, site calls, and customer proof before the truck leaves the gate.",
+		"email": "Driver email",
+		"formEyebrow": "Route gate",
+		"formTitle": "Driver pass",
+		"kicker": "Dispatch handoff",
+		"passFooter": "GPS proof starts after entry",
+		"passStamp": "Yard clear",
+		"password": "Password",
+		"route": {
+			"code": "Gate 17",
+			"label": "Route strip",
+			"stops": {
+				"proof": {
+					"detail": "Name, signature, GPS, time",
+					"label": "Customer proof"
+				},
+				"release": {
+					"detail": "Accept, depart, arrive",
+					"label": "Route release"
+				},
+				"yard": {
+					"detail": "Driver and vehicle check",
+					"label": "Yard check"
+				}
+			}
+		},
+		"submit": "Enter driver app",
+		"title": "Unlock today's route at the yard gate."
+	},
+	"rail": {
+		"active": "Active",
+		"fleet": "Fleet",
+		"info": "Details"
+	},
+	"shell": {
+		"driver": "Active driver"
+	},
+	"state": {
+		"loading": "Loading driver dashboard"
+	},
+	"status": {
+		"accepted": "Accepted",
+		"arrived": "Arrived",
+		"available": "Available",
+		"completed": "Completed",
+		"inTransit": "In transit"
+	},
+	"units": {
+		"minutes": "{{count}} min"
+	},
+	"verification": {
+		"clearSignature": "Clear signature",
+		"complete": "Complete delivery",
+		"signature": "Touch signature",
+		"signatureCanvas": "Customer signature canvas",
+		"signerName": "Signer name"
+	}
+}

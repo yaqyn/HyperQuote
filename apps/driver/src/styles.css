@@ -1,0 +1,544 @@
+@import "tailwindcss";
+@plugin "tailwindcss-react-aria-components";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+	color-scheme: light;
+	--color-primary: #2563eb;
+	--color-text: #111111;
+	--color-text-muted: #5f6368;
+	--color-text-subtle: #8b9097;
+	--color-border: #e8e8e8;
+	--color-border-strong: #b8b8b8;
+	--color-surface: #ffffff;
+	--color-panel: #ffffff;
+	--color-map: #eef1ee;
+	--color-grid: rgba(17, 17, 17, 0.06);
+	--color-auth-shadow: rgba(17, 17, 17, 0.12);
+	--color-action-bg: #111111;
+	--color-action-border: #111111;
+	--color-action-text: #ffffff;
+	--color-action-hover-bg: #2563eb;
+	--color-active-bg: #111111;
+	--color-active-text: #ffffff;
+	--color-map-label-bg: rgba(255, 255, 255, 0.92);
+	--color-map-label-border: rgba(17, 17, 17, 0.12);
+	--color-map-label-text: #111111;
+	--color-map-pin-customer-bg: #ffffff;
+	--color-map-pin-customer-border: #111111;
+	--color-map-pin-customer-dot: #111111;
+	--color-map-pin-driver-bg: #111111;
+	--color-map-pin-driver-border: #111111;
+	--color-map-pin-driver-dot: #ffffff;
+	--color-map-pin-warehouse-border: #111111;
+	--color-map-pin-dot-on-fill: #ffffff;
+	--color-danger-border: #7f1d1d;
+	--color-danger-glow: rgba(127, 29, 29, 0.12);
+	--font-archivo:
+		"Archivo", "Inter", ui-sans-serif, system-ui, -apple-system,
+		BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--font-plex-mono:
+		"IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+	font-family: var(--font-archivo);
+	background: var(--color-surface);
+}
+
+[data-theme="dark"] {
+	color-scheme: dark;
+	--color-primary: #8f1f1f;
+	--color-text: #f4f4f5;
+	--color-text-muted: #a6a6a6;
+	--color-text-subtle: #717171;
+	--color-border: #1f1f1f;
+	--color-border-strong: #343434;
+	--color-surface: #060606;
+	--color-panel: #0d0d0d;
+	--color-map: #111111;
+	--color-grid: rgba(244, 244, 245, 0.032);
+	--color-auth-shadow: rgba(0, 0, 0, 0.42);
+	--color-action-bg: #000000;
+	--color-action-border: #262626;
+	--color-action-text: #f7f7f7;
+	--color-action-hover-bg: #7f1d1d;
+	--color-active-bg: #000000;
+	--color-active-text: #f7f7f7;
+	--color-map-label-bg: rgba(8, 8, 8, 0.94);
+	--color-map-label-border: rgba(245, 245, 245, 0.08);
+	--color-map-label-text: #eeeeee;
+	--color-map-pin-customer-bg: #0a0a0a;
+	--color-map-pin-customer-border: #565656;
+	--color-map-pin-customer-dot: #eeeeee;
+	--color-map-pin-driver-bg: #f4f4f5;
+	--color-map-pin-driver-border: #f4f4f5;
+	--color-map-pin-driver-dot: #111111;
+	--color-map-pin-warehouse-border: #4a4a4a;
+	--color-map-pin-dot-on-fill: #050505;
+	--color-danger-border: #8f1f1f;
+	--color-danger-glow: rgba(143, 31, 31, 0.2);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	min-height: 100%;
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	overflow: hidden;
+	overscroll-behavior: none;
+	background: var(--color-surface);
+	color: var(--color-text);
+	text-rendering: geometricPrecision;
+	-webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+	font: inherit;
+	letter-spacing: 0;
+}
+
+/* Same calibrated cursor as the internal app. Keep the arrow on text too. */
+*,
+*::before,
+*::after {
+	cursor:
+		url("/cursors/normal.png") 0 11,
+		default !important;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+::-webkit-scrollbar {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-button {
+	display: none;
+	background: transparent;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--color-text-subtle) 28%, transparent);
+	color: inherit;
+}
+
+.driver-action-button {
+	border-color: var(--color-action-border);
+	background: var(--color-action-bg);
+	color: var(--color-action-text);
+}
+
+.driver-action-button:hover:not(:disabled) {
+	border-color: var(--color-primary);
+	background: var(--color-action-hover-bg);
+	color: #ffffff;
+}
+
+.driver-control-button {
+	border-color: var(--color-action-border);
+	background: var(--color-action-bg);
+	color: var(--color-action-text);
+	transition:
+		border-color 160ms ease,
+		background-color 160ms ease,
+		color 160ms ease;
+}
+
+.driver-control-button:hover:not(:disabled) {
+	border-color: var(--color-primary);
+	background: var(--color-action-hover-bg);
+	color: #ffffff;
+}
+
+.driver-secondary-button {
+	border-color: var(--color-primary);
+	background: var(--color-primary);
+	color: #ffffff;
+	transition:
+		border-color 160ms ease,
+		background-color 160ms ease,
+		color 160ms ease;
+}
+
+.driver-secondary-button:hover:not(:disabled) {
+	border-color: var(--color-action-border);
+	background: var(--color-action-bg);
+	color: var(--color-action-text);
+}
+
+.driver-auth-input-frame {
+	border-color: var(--color-border);
+	background: var(--color-surface);
+	transition:
+		border-color 160ms ease,
+		box-shadow 160ms ease;
+}
+
+.driver-auth-input-frame:focus-within {
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 2px
+		color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+.driver-auth-input-frame[data-invalid="true"] {
+	border-color: var(--color-danger-border);
+	box-shadow: 0 0 0 2px var(--color-danger-glow);
+}
+
+.driver-panel-shell {
+	background:
+		repeating-linear-gradient(
+			90deg,
+			transparent 0 47px,
+			var(--color-grid) 47px 48px
+		),
+		repeating-linear-gradient(
+			180deg,
+			transparent 0 47px,
+			var(--color-grid) 47px 48px
+		),
+		var(--color-panel);
+}
+
+.driver-panel-header {
+	background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+	backdrop-filter: blur(14px);
+}
+
+.driver-panel-body {
+	position: relative;
+}
+
+.driver-panel-body::before {
+	position: absolute;
+	inset-inline-end: clamp(1rem, 8vw, 6rem);
+	top: 5rem;
+	width: clamp(120px, 20vw, 280px);
+	height: clamp(120px, 20vw, 280px);
+	pointer-events: none;
+	content: "";
+	border: 1px solid var(--color-border);
+	opacity: 0.38;
+	transform: rotate(45deg);
+}
+
+.driver-floor-tabs {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+	backdrop-filter: blur(14px);
+}
+
+.driver-floor-tabs [role="tab"]::after {
+	position: absolute;
+	inset-inline: 22%;
+	bottom: 0;
+	height: 2px;
+	content: "";
+	background: var(--color-action-bg);
+	opacity: 0;
+	transform: scaleX(0.4);
+	transition:
+		opacity 160ms ease,
+		transform 160ms ease;
+}
+
+.driver-floor-tabs [role="tab"][aria-selected="true"]::after {
+	opacity: 1;
+	transform: scaleX(1);
+}
+
+.driver-floor-deliveries {
+	position: relative;
+	display: block;
+	gap: 1rem;
+	padding: 0.75rem;
+}
+
+.driver-floor-list {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.driver-delivery-row,
+.driver-crew-card,
+.driver-passport-hero,
+.driver-route-vector {
+	position: relative;
+	overflow: hidden;
+}
+
+.driver-delivery-row::before,
+.driver-crew-card::before,
+.driver-passport-hero::before {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	width: 3px;
+	content: "";
+	background: var(--color-primary);
+	opacity: 0;
+}
+
+.driver-delivery-row.is-selected {
+	border-color: color-mix(
+		in srgb,
+		var(--color-primary) 45%,
+		var(--color-border)
+	);
+	box-shadow: inset 0 0 0 1px
+		color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.driver-delivery-row.is-selected::before,
+.driver-crew-card:hover::before,
+.driver-passport-hero::before {
+	opacity: 1;
+}
+
+.driver-chat-header {
+	background: var(--color-panel);
+}
+
+.driver-chat-vector {
+	display: grid;
+	grid-template-columns: auto minmax(44px, 7vw) auto;
+	align-items: center;
+	gap: 0.625rem;
+	color: var(--color-primary);
+}
+
+.driver-chat-vector span {
+	height: 1px;
+	background: repeating-linear-gradient(
+		90deg,
+		currentColor 0 8px,
+		transparent 8px 14px
+	);
+	opacity: 0.7;
+}
+
+.driver-chat-stream {
+	background:
+		linear-gradient(90deg, var(--color-grid) 1px, transparent 1px),
+		linear-gradient(180deg, var(--color-grid) 1px, transparent 1px),
+		color-mix(in srgb, var(--color-surface) 82%, var(--color-panel));
+	background-size: 34px 34px;
+}
+
+.driver-chat-message {
+	display: flex;
+	justify-content: flex-start;
+}
+
+.driver-chat-message.is-mine {
+	justify-content: flex-end;
+}
+
+.driver-chat-message.is-mine > div {
+	border-color: color-mix(
+		in srgb,
+		var(--color-primary) 42%,
+		var(--color-border)
+	);
+	background: color-mix(in srgb, var(--color-primary) 10%, var(--color-panel));
+}
+
+@media (min-width: 64rem) {
+	.driver-floor-deliveries {
+		display: grid;
+		grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+		align-items: start;
+		padding: 1rem;
+	}
+}
+
+.driver-auth-scene {
+	background:
+		repeating-linear-gradient(
+			90deg,
+			transparent 0 52px,
+			var(--color-grid) 52px 53px
+		),
+		repeating-linear-gradient(
+			180deg,
+			transparent 0 52px,
+			var(--color-grid) 52px 53px
+		),
+		var(--color-surface);
+}
+
+.driver-route-field {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.driver-route-field::before {
+	position: absolute;
+	inset-inline-start: clamp(1rem, 8vw, 7rem);
+	top: 6rem;
+	width: min(58vw, 760px);
+	height: calc(100% - 9rem);
+	content: "";
+	background-image:
+		linear-gradient(var(--color-border-strong), var(--color-border-strong)),
+		linear-gradient(var(--color-border-strong), var(--color-border-strong)),
+		linear-gradient(var(--color-border-strong), var(--color-border-strong));
+	background-position:
+		0 14%,
+		100% 14%,
+		100% 78%;
+	background-repeat: no-repeat;
+	background-size:
+		100% 2px,
+		2px 64%,
+		46% 2px;
+	opacity: 0.07;
+}
+
+.driver-route-field::after {
+	position: absolute;
+	inset-inline-start: clamp(1.5rem, 10vw, 8rem);
+	bottom: 14%;
+	width: clamp(96px, 18vw, 240px);
+	height: clamp(96px, 18vw, 240px);
+	content: "";
+	border: 1px solid var(--color-border-strong);
+	opacity: 0.045;
+	transform: rotate(45deg);
+}
+
+.driver-route-ticket,
+.driver-pass-panel {
+	position: relative;
+}
+
+.driver-route-ticket::before,
+.driver-pass-panel::before {
+	position: absolute;
+	inset-inline: 0;
+	top: 0;
+	height: 4px;
+	content: "";
+	background:
+		linear-gradient(90deg, var(--color-primary) 0 32%, transparent 32% 40%),
+		repeating-linear-gradient(
+			90deg,
+			var(--color-border-strong) 0 10px,
+			transparent 10px 18px
+		);
+	opacity: 0.9;
+}
+
+.driver-route-stops {
+	position: relative;
+}
+
+.driver-route-stops::before {
+	position: absolute;
+	inset-block: 1rem;
+	inset-inline-start: 1rem;
+	width: 1px;
+	content: "";
+	background: var(--color-border);
+}
+
+@media (max-width: 63.999rem) {
+	.driver-auth-scene {
+		background:
+			repeating-linear-gradient(
+				90deg,
+				transparent 0 44px,
+				var(--color-grid) 44px 45px
+			),
+			repeating-linear-gradient(
+				180deg,
+				transparent 0 44px,
+				var(--color-grid) 44px 45px
+			),
+			var(--color-surface);
+	}
+
+	.driver-route-field::before,
+	.driver-route-field::after {
+		display: none;
+	}
+}
+
+.driver-map-loading {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	display: grid;
+	place-items: center;
+	background:
+		linear-gradient(90deg, var(--color-grid) 1px, transparent 1px),
+		linear-gradient(180deg, var(--color-grid) 1px, transparent 1px),
+		var(--color-map);
+	background-size: 36px 36px;
+}
+
+.driver-map-loading::after,
+.driver-loading-mark {
+	width: 86px;
+	height: 2px;
+	content: "";
+	background: var(--color-text);
+	transform-origin: left center;
+	animation: driver-line-load 780ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.driver-loading-mark {
+	display: block;
+}
+
+[data-theme="dark"] .maplibregl-canvas {
+	filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(0.92)
+		saturate(0.55);
+}
+
+.maplibregl-control-container {
+	display: none;
+}
+
+@keyframes driver-line-load {
+	0% {
+		transform: scaleX(0);
+		opacity: 0.35;
+	}
+	45% {
+		transform: scaleX(1);
+		opacity: 1;
+	}
+	100% {
+		transform: scaleX(0);
+		opacity: 0.35;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+	}
+}

@@ -1,0 +1,145 @@
+{
+	"active": {
+		"accept": "اقبل التوصيل",
+		"arrival": "سجل الوصول",
+		"completed": "تم حفظ الإثبات. اكتمل التوصيل.",
+		"current": "التوصيل الحالي",
+		"eta": "الوصول",
+		"items": "الأصناف",
+		"next": "التوصيل التالي المتاح",
+		"noneEyebrow": "لا يوجد توصيل نشط",
+		"noneTitle": "لا توجد توقفات متاحة الآن.",
+		"start": "ابدأ المسار",
+		"window": "الموعد"
+	},
+	"brand": {
+		"driver": "HyperStreets",
+		"eyebrow": "هايبركوت"
+	},
+	"controls": {
+		"language": "تبديل اللغة",
+		"options": "خيارات السائق",
+		"refreshLocation": "تحديث الموقع",
+		"signOut": "تسجيل الخروج",
+		"theme": "تبديل النمط"
+	},
+	"drivers": {
+		"available": "متاح",
+		"offline": "غير متصل",
+		"onDelivery": "في توصيل"
+	},
+	"error": {
+		"action": "العودة للتطبيق",
+		"body": "تعذر عرض هذا المسار في تطبيق السائق. ارجع إلى شاشة التوصيل الرئيسية.",
+		"title": "خطأ في مسار السائق"
+	},
+	"fleet": {
+		"assigned": "المعين",
+		"backFromChat": "رجوع",
+		"backToDeliveries": "التوصيلات",
+		"chat": "محادثة الفريق",
+		"chatDriver": "محادثة",
+		"chatFocus": "مسار سائق",
+		"chatLive": "راديو مباشر",
+		"chatRoom": "قناة التشغيل",
+		"chatRoomNote": "تحديثات مشتركة للبوابات والانتظار والتسليمات.",
+		"clearFocus": "مسح",
+		"deliveries": "التوصيلات",
+		"directLane": "كتابة رسالة إلى {{name}} داخل قناة الفريق",
+		"driver": "سائق",
+		"drivers": "السائقون",
+		"dropoff": "التسليم",
+		"lastPing": "آخر إشارة",
+		"messageLabel": "رسالة الفريق",
+		"messagePlaceholder": "رسالة...",
+		"mentionPeople": "@الأشخاص",
+		"pickup": "الاستلام",
+		"send": "إرسال الرسالة",
+		"tabsLabel": "لوحات فريق السائقين",
+		"title": "أرضية السائقين",
+		"unassigned": "غير معين",
+		"view": "عرض",
+		"you": "أنت"
+	},
+	"info": {
+		"call": "اتصل بالجهة",
+		"customer": "جهة العميل",
+		"empty": "لا يوجد توصيل نشط معين لهذا السائق.",
+		"items": "الأصناف",
+		"notes": "ملاحظات التوصيل",
+		"title": "موجز المسار",
+		"warehouse": "جهة المخزن"
+	},
+	"login": {
+		"access": {
+			"pool": {
+				"label": "الدخول",
+				"value": "للسائق فقط"
+			},
+			"proof": {
+				"label": "الإثبات",
+				"value": "توقيع + موقع"
+			},
+			"provisioning": {
+				"label": "التجهيز",
+				"value": "يدوي"
+			}
+		},
+		"body": "تصريح ميداني للتوقفات المعينة، الموقع المباشر، اتصالات الموقع، وإثبات العميل قبل خروج الشاحنة من البوابة.",
+		"email": "إيميل السائق",
+		"formEyebrow": "بوابة المسار",
+		"formTitle": "تصريح السائق",
+		"kicker": "تسليم التشغيل",
+		"passFooter": "إثبات الموقع يبدأ بعد الدخول",
+		"passStamp": "خروج مسموح",
+		"password": "كلمة المرور",
+		"route": {
+			"code": "بوابة ١٧",
+			"label": "شريط المسار",
+			"stops": {
+				"proof": {
+					"detail": "اسم، توقيع، موقع، وقت",
+					"label": "إثبات العميل"
+				},
+				"release": {
+					"detail": "قبول، خروج، وصول",
+					"label": "إطلاق المسار"
+				},
+				"yard": {
+					"detail": "فحص السائق والمركبة",
+					"label": "فحص الساحة"
+				}
+			}
+		},
+		"submit": "ادخل تطبيق السائق",
+		"title": "افتح مسار اليوم من بوابة الساحة."
+	},
+	"rail": {
+		"active": "النشط",
+		"fleet": "الفريق",
+		"info": "تفاصيل"
+	},
+	"shell": {
+		"driver": "السائق النشط"
+	},
+	"state": {
+		"loading": "تحميل لوحة السائق"
+	},
+	"status": {
+		"accepted": "مقبول",
+		"arrived": "وصل",
+		"available": "متاح",
+		"completed": "مكتمل",
+		"inTransit": "في الطريق"
+	},
+	"units": {
+		"minutes": "{{count}} دقيقة"
+	},
+	"verification": {
+		"clearSignature": "مسح التوقيع",
+		"complete": "إكمال التوصيل",
+		"signature": "توقيع باللمس",
+		"signatureCanvas": "مساحة توقيع العميل",
+		"signerName": "اسم الموقع"
+	}
+}

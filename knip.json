@@ -20,10 +20,15 @@
 			"entry": ["src/router.tsx", "src/routes/**/*.{ts,tsx}", "src/styles.css"],
 			"project": ["src/**/*.{ts,tsx}"],
 			"ignore": ["src/shims/*.ts"]
+		},
+		"apps/driver": {
+			"entry": ["src/main.tsx", "src/router.tsx", "src/styles.css"],
+			"project": ["src/**/*.{ts,tsx}", "capacitor.config.ts", "vite.config.ts"]
 		}
 	},
 	"ignoreBinaries": ["infisical", "gitleaks", "osv-scanner", "semgrep", "jq"],
 	"ignoreDependencies": [
+		"@capacitor/ios",
 		"@ast-grep/cli",
 		"cloudflare",
 		"rollup-plugin-visualizer",

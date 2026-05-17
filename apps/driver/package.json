@@ -1,0 +1,51 @@
+{
+	"name": "@hyperquote/driver",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev --port 3003",
+		"build": "vite build",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"preview": "vite preview",
+		"cap:sync": "cap sync",
+		"cap:open:ios": "cap open ios",
+		"cap:open:android": "cap open android"
+	},
+	"dependencies": {
+		"@capacitor/core": "^8.3.4",
+		"@capacitor/geolocation": "^8.2.0",
+		"@hyperquote/forms": "workspace:*",
+		"@tanstack/react-query": "^5.96.2",
+		"@tanstack/react-router": "^1.168.10",
+		"i18next": "^26.0.3",
+		"lucide-react": "^1.7.0",
+		"maplibre-gl": "^5.24.0",
+		"motion": "^12.38.0",
+		"react": "^19.2.4",
+		"react-aria-components": "^1.16.0",
+		"react-dom": "^19.2.4",
+		"react-hook-form": "^7.72.1",
+		"react-i18next": "^17.0.2",
+		"react-map-gl": "^8.1.0",
+		"zod": "^4.3.6",
+		"zustand": "^5.0.12"
+	},
+	"devDependencies": {
+		"@capacitor/android": "^8.3.4",
+		"@capacitor/cli": "^8.3.4",
+		"@capacitor/ios": "^8.3.4",
+		"@tailwindcss/vite": "^4.2.2",
+		"@types/node": "^25.8.0",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "~5.2.0",
+		"jsdom": "^26.0.0",
+		"tailwindcss": "^4.2.2",
+		"tailwindcss-react-aria-components": "^2.0.1",
+		"typescript": "^6.0.3",
+		"vite": "~7.3.3",
+		"vitest": "^4.1.6"
+	}
+}
