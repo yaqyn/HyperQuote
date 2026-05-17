@@ -8,6 +8,7 @@ on:
       - apps/internal/**
       - apps/portal/**
       - apps/website/**
+      - apps/driver/**
       - packages/**
       - package.json
       - bun.lock
@@ -35,17 +36,26 @@ jobs:
             package: '@hyperquote/website'
             label: Website
             worker: hyperquote-website
+            deploy_config: dist/server/wrangler.json
             domains: '["hyperquote.net","www.hyperquote.net"]'
           - app: portal
             package: '@hyperquote/portal'
             label: Portal
             worker: hyperquote-portal
+            deploy_config: dist/server/wrangler.json
             domains: '["portal.hyperquote.net"]'
           - app: internal
             package: '@hyperquote/internal'
             label: Internal
             worker: hyperquote-internal
+            deploy_config: dist/server/wrangler.json
             domains: '["internal.hyperquote.net"]'
+          - app: driver
+            package: '@hyperquote/driver'
+            label: Driver
+            worker: hyperquote-driver
+            deploy_config: wrangler.jsonc
+            domains: '["driver.hyperquote.net"]'
 
     steps:
       - name: Checkout
@@ -64,7 +74,7 @@ jobs:
 
       - name: Deploy ${{ matrix.label }}
         working-directory: apps/${{ matrix.app }}
-        run: bunx wrangler deploy --config dist/server/wrangler.json
+        run: bunx wrangler deploy --config ${{ matrix.deploy_config }}
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

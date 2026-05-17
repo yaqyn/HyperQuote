@@ -9,6 +9,7 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"preview": "vite preview",
+		"deploy": "vite build && wrangler deploy --config wrangler.jsonc",
 		"cap:sync": "cap sync",
 		"cap:open:ios": "cap open ios",
 		"cap:open:android": "cap open android"
@@ -46,6 +47,7 @@
 		"tailwindcss-react-aria-components": "^2.0.1",
 		"typescript": "^6.0.3",
 		"vite": "~7.3.3",
-		"vitest": "^4.1.6"
+		"vitest": "^4.1.6",
+		"wrangler": "^4.92.0"
 	}
 }
