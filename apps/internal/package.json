@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "vite dev --port 3002",
 		"build": "vite build",
-		"typecheck": "tsc --noEmit",
+		"routes:generate": "tsr generate",
+		"typecheck": "bun run routes:generate && tsc --noEmit",
 		"test": "vitest run",
 		"preview": "vite preview",
 		"deploy": "vite build && rm -f dist/server/.dev.vars && wrangler deploy --config dist/server/wrangler.json",
@@ -40,6 +41,7 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.37.1",
 		"@tailwindcss/vite": "^4.3.0",
+		"@tanstack/router-cli": "1.167.5",
 		"@testing-library/jest-dom": "^6.0.0",
 		"@types/node": "^25.8.0",
 		"@types/react": "^19.2.14",

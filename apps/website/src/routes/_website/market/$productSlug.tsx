@@ -119,9 +119,10 @@ function ProductDetailPage() {
 		locale,
 		t,
 	)
-	const categoryLabel = t(
-		`categories.${product.category}` as ParseKeys<'website'>,
-		product.category.replace(/_/g, ' '),
+	const categoryLabel = String(
+		t(`categories.${product.category}` as ParseKeys<'website'>, {
+			defaultValue: product.category.replace(/_/g, ' '),
+		}),
 	)
 	const availStatus = product.availability_status ?? 'out_of_stock'
 	const availDot =

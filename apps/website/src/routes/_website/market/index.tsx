@@ -308,7 +308,7 @@ function MarketPage() {
 								transition={{ duration: 0.25, ease: 'easeOut' }}
 								className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
 							>
-								{data.items.map((item) => (
+								{data.items.map((item: PublicProduct) => (
 									<ProductCard key={item.id} product={item} variant="grid" />
 								))}
 							</motion.div>
