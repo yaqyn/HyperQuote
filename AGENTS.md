@@ -12,10 +12,13 @@ Craftsmanship over speed. Built right once beats built fast twice.
 | `apps/website` | TanStack Start on CF Workers | EN + AR | light + dark | active | Public marketing + product catalog |
 | `apps/portal` | TanStack Start on CF Workers | EN + AR | light + dark | active | Customer account, orders, quotes — "Lyon's office" metaphor |
 | `apps/internal` | TanStack Start on CF Workers | EN only | light + dark | active | Ops + CEO console — sales, procurement, warehouse, finance, dispatch, customer-service, admin, executive workflows |
+| `apps/driver` | Vite SPA + Capacitor, deployed as CF Worker assets | EN + AR | light + dark | active | Driver field app — assigned deliveries, proof of delivery, fleet status, team chat |
 
-Monorepo: Bun workspaces + Turborepo. Shared packages in `packages/`: `types`, `ui`, `auth`, `i18n`. Changes to shared types ripple to every app — bump with intent.
+Monorepo: Bun workspaces + Turborepo. Shared packages in `packages/`: `ai`, `auth`, `forms`, `i18n`, `tables`, `tsconfig`, `types`, `ui`. Changes to shared packages ripple to every app — bump with intent.
 
 Canonical stack decisions + known integration issues live in `essential/brand/STACK-DECISION.md`. Read it before touching infra, installing packages, or wrestling with a weird bug.
+
+Current production focus: website, portal, internal, and driver are the active app surfaces. Treat backend/data work as the remaining production gap unless the user explicitly scopes a UI change. Backend work includes Supabase schema/RLS, migrations, server functions, auth/session integration, storage/queues, realtime, generated DB types, and replacing local mock/repository adapters with real data paths.
 
 ## Data discipline — the central rule
 
@@ -27,7 +30,7 @@ IMPORTANT: The database is the single source of truth for every piece of informa
 
 The single edit test: change the source of truth in one place → the new value appears everywhere that concept surfaces. If it doesn't, there's a duplicate. Find it, kill it.
 
-**Dev mode** runs against an in-memory mock DB at `apps/internal/src/lib/db/db.ts`, seeded from markdown under `apps/internal/src/lib/db/seed/*.md`. All server functions read/write through `db.ts`. The Supabase swap is confined to `buildInitialState` — caller contracts stay the same.
+**Dev mode** still uses local mock/repository adapters where production backend wiring is incomplete. Internal uses the in-memory mock DB at `apps/internal/src/lib/db/db.ts`, seeded from markdown under `apps/internal/src/lib/db/seed/*.md`; driver uses its app-local repository layer under `apps/driver/src/lib/`. Keep caller contracts stable while replacing mocks with real backend reads/writes.
 
 ## Stack pins
 
@@ -96,6 +99,7 @@ Bun's isolated layout does not auto-hoist types. Every workspace that needs them
 ## i18n type augmentation
 
 - `packages/i18n/src/types/resources.d.ts` registers the **shared** namespaces (`common`, `portal`, `units`, `website`). Don't add app-specific namespaces here.
+- App-local namespaces live with the app. Driver uses `apps/driver/src/locales/{en,ar}/driver.json`; internal uses `apps/internal/src/locales/{en,ar}/<namespace>.json`.
 - Each app with its own namespaces declares them in `apps/<app>/src/types/i18n.d.ts` via `declare module 'i18next' { interface CustomTypeOptions { resources: { ns: typeof enNs } } }`. Keep these in sync with what the app's `i18n.ts` actually loads — when you add a namespace to the runtime, add it to the `.d.ts` in the same commit.
 
 ## Cleanups and mass edits
@@ -107,7 +111,7 @@ For broad lint passes, typecheck sweeps, or cross-app refactors:
 - **After `biome check --write --unsafe`, verify.** The exhaustive-deps fix can reference a symbol before its declaration (`noInvalidUseBeforeDeclaration`). Run `bun run build` AND `tsc --noEmit` after any unsafe pass.
 - **`Edit(replace_all: true)` on generic tokens is forbidden.** `Map`, `div`, `State`, `id` — never. Substring matching chews through unrelated identifiers (`MapRef`, `DispatchMap`, `State.tsx`). Use targeted edits or `replace_all` only on unique multi-word strings.
 - **Codemods: sample before scripting.** Biome points at 66 `<label>` errors — half will be pseudo-headers needing `<span>`, half will wrap custom components needing `Label` rewiring. Read 3–5 by hand before assuming one pattern.
-- **Dispatch parallel agents by non-overlapping scope.** For a monorepo-wide cleanup, one agent per app (website / portal / internal) + one for packages. Brief each with: scope, exact file tree, rules/errors they own, verification commands, and hard constraints (no `as any`, no blanket ignores). Never let two agents touch the same files.
+- **Dispatch parallel agents by non-overlapping scope.** For a monorepo-wide cleanup, one agent per app (website / portal / internal / driver), one for shared packages, and one for `supabase/` when backend files are in scope. Brief each with: scope, exact file tree, rules/errors they own, verification commands, and hard constraints (no `as any`, no blanket ignores). Never let two agents touch the same files.
 - **Verify in the foreground after agents report done.** Agents' self-reports describe intent, not always reality. Run `biome check` + `tsc --noEmit` + `bun run build` from the parent before claiming done.
 
 ## Code review and scan tooling
@@ -155,9 +159,9 @@ safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
 
 ## Frontend conventions
 
-- **i18n scope**: website and portal — every user-facing string lives in `src/locales/{en,ar}/<namespace>.json` and is read via `useTranslation('<namespace>')`. Never hardcode EN or AR content in JSX. Internal is EN-only; inline EN strings are acceptable there.
-- **RTL**: bilingual apps (website and portal) must use logical properties (`margin-inline-start`, `padding-inline-end`, `border-inline-end`) — never `left`/`right`. Internal can use physical props.
-- **Theming**: website, portal, and internal support light + dark via `[data-theme="dark"]` on `<html>`. The portal keeps `/login` scoped via `.atelier-scene`, but the authenticated app switches globally. Test both themes where applicable; never ship a component that only works in one.
+- **i18n scope**: website and portal use shared JSON locales from `packages/i18n/src/locales/{en,ar}/`; driver and internal use app-local JSON locales under `apps/<app>/src/locales/{en,ar}/`. Read user-facing strings through `useTranslation('<namespace>')`; do not hardcode EN or AR content in JSX for bilingual surfaces. Internal is ops-first EN, so inline EN is acceptable only when no existing namespace owns the text.
+- **RTL**: bilingual apps (website, portal, driver) must use logical properties (`margin-inline-start`, `padding-inline-end`, `border-inline-end`) — never `left`/`right`. Internal can use physical props.
+- **Theming**: website, portal, internal, and driver support light + dark via `[data-theme="dark"]` on `<html>`. The portal keeps `/login` scoped via `.atelier-scene`, but the authenticated app switches globally. Driver theme state lives in `apps/driver/src/stores/preferences.ts`. Test both themes where applicable; never ship a component that only works in one.
 - **Primary palette**: white, black, blue `#2563EB`. Signal colors (amber `#D97706`, red `#B91C1C`, emerald) allowed for state indicators, not decoration.
 - **Components**: React Aria primitives throughout. Don't override accessibility behavior.
 - **Images**: always specify width/height or aspect-ratio to prevent layout shift. WebP/AVIF. `loading="lazy"` below the fold.
@@ -168,6 +172,7 @@ safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
 
 ## Backend conventions
 
+Backend is the remaining production-critical surface. Prefer completing existing contracts over inventing new app-side data shapes: schema/RLS/migration first, typed server function or repository adapter second, UI hookup third, cleanup last.
 - Every server function: Zod `.inputValidator()` + typed return. No untyped endpoints.
 - Supabase queries: `.select()` specific columns, never `SELECT *`.
 - Errors: structured `{ error: string, code: string }`, never raw stack traces.
@@ -175,6 +180,7 @@ safe. JavaScript scanners are repo dev dependencies; `gitleaks`,
 - Money stored as integers (smallest unit). No floating point.
 - Timestamps in UTC; convert at the display layer only.
 - Migrations idempotent — safe to re-run.
+- Schema changes live under `supabase/migrations/`. Regenerate DB types with `bun run db:types` after accepted schema changes, and keep generated types out of hand-written source unless the file is produced by the script.
 
 ## Security
 
@@ -203,9 +209,10 @@ Things you'd otherwise hunt for:
   1. Add to `MODULES` in `apps/internal/src/lib/modules.ts` (icon + hotkey + permission).
   2. Add a lazy import to `MODULE_COMPONENTS` in `apps/internal/src/components/shell/ModuleWindow.tsx`.
   3. If the module uses `SlidePanel`: extend `SlidePanelScope` in `apps/internal/src/components/shared/SlidePanel.tsx`, add `overlayCloseHandler` + `setOverlayCloseHandler` to the module's Zustand store, and add a branch in `ModuleWindow.handleClose` so the outer X dismisses slide panels first.
-- **Add a locale namespace**: create `apps/<app>/src/locales/{en,ar}/<name>.json` and register in the `ns` array in `apps/<app>/src/lib/i18n.ts`.
-- **Load a font**: add to `<link>` tags in `apps/<app>/src/routes/__root.tsx`. Never via CSS `@import` — Tailwind v4 compilation breaks the rule order.
-- **Use a modal**: compose the shared `DispatchDialog` from `apps/internal/src/components/shared/DispatchDialog.tsx`. Don't inline `ModalOverlay` + `Modal` + `Dialog` — the chrome must stay consistent.
+- **Add a shared locale namespace**: for website/portal shared copy, create `packages/i18n/src/locales/{en,ar}/<name>.json`, export/register it from `packages/i18n`, and register it in the app `ns` array.
+- **Add an app-local locale namespace**: for driver/internal copy, create `apps/<app>/src/locales/{en,ar}/<name>.json`, register it in `apps/<app>/src/lib/i18n.ts`, and update `apps/<app>/src/types/i18n.d.ts`.
+- **Load a font**: TanStack apps add `<link>` tags in `apps/<app>/src/routes/__root.tsx`; driver adds them in `apps/driver/index.html`. Never via CSS `@import` — Tailwind v4 compilation breaks the rule order.
+- **Use a modal**: internal composes the shared `DispatchDialog` from `apps/internal/src/components/shared/DispatchDialog.tsx`. Other apps should reuse their established React Aria/shared UI primitives instead of inlining new modal chrome.
 
 ## When to ask
 
@@ -224,14 +231,16 @@ The codebase is not the spec — my workflow is.
 
 ## Build
 
-Don't build after every edit. Run `bun run build` in the relevant app after a completed feature or when I ask. Constant builds are disruptive.
+Don't build after every edit. Run the relevant app's script after a completed feature or when I ask: website `3000`, portal `3001`, internal `3002`, driver `3003`. Constant builds are disruptive.
 
 ## Deploy
 
 This monorepo deploys from GitHub. Cloudflare deploy secrets live in GitHub
 Actions, so the normal production path is: commit the verified change, push to
-GitHub, and let the workflow deploy. Do not try to bypass this with local
-Wrangler/Infisical deploys unless I explicitly ask.
+GitHub, and let the workflow deploy. Root deploy scripts exist for
+`deploy:website`, `deploy:portal`, `deploy:internal`, and `deploy:driver`; do
+not try to bypass the GitHub path with local Wrangler/Infisical deploys unless I
+explicitly ask.
 
 ## Task hygiene
 

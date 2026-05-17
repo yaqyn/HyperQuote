@@ -15,6 +15,22 @@ export const DEFAULT_DRIVER_LOCATION: DriverLocation = {
 	source: 'mock',
 }
 
+const SIX_OCTOBER_DISPATCH_CONTACT: DriverDelivery['warehouseContact'] = {
+	name: { en: '6 October dispatch desk', ar: 'مكتب تشغيل أكتوبر' },
+	phone: '+20238200001',
+	role: { en: 'Warehouse dispatch', ar: 'تشغيل المخزن' },
+}
+
+const SIX_OCTOBER_WAREHOUSE: DriverDelivery['origin'] = {
+	label: { en: '6 October warehouse', ar: 'مخزن ٦ أكتوبر' },
+	address: {
+		en: 'Industrial Zone, 6th of October City',
+		ar: 'المنطقة الصناعية، مدينة ٦ أكتوبر',
+	},
+	latitude: 29.9753,
+	longitude: 30.9247,
+}
+
 export const MOCK_DRIVERS: DriverProfile[] = [
 	{
 		id: MOCK_CURRENT_DRIVER_ID,
@@ -68,20 +84,8 @@ export const MOCK_DELIVERIES: DriverDelivery[] = [
 			phone: '+20238200031',
 			role: { en: 'Site engineer', ar: 'مهندس الموقع' },
 		},
-		warehouseContact: {
-			name: { en: '6 October dispatch desk', ar: 'مكتب تشغيل أكتوبر' },
-			phone: '+20238200001',
-			role: { en: 'Warehouse dispatch', ar: 'تشغيل المخزن' },
-		},
-		origin: {
-			label: { en: '6 October warehouse', ar: 'مخزن ٦ أكتوبر' },
-			address: {
-				en: 'Industrial Zone, 6th of October City',
-				ar: 'المنطقة الصناعية، مدينة ٦ أكتوبر',
-			},
-			latitude: 29.9753,
-			longitude: 30.9247,
-		},
+		warehouseContact: SIX_OCTOBER_DISPATCH_CONTACT,
+		origin: SIX_OCTOBER_WAREHOUSE,
 		address: {
 			label: { en: 'Sheikh Zayed site gate', ar: 'بوابة موقع الشيخ زايد' },
 			address: {
@@ -218,20 +222,8 @@ export const MOCK_DELIVERIES: DriverDelivery[] = [
 			phone: '+20223581119',
 			role: { en: 'Project coordinator', ar: 'منسق المشروع' },
 		},
-		warehouseContact: {
-			name: { en: '6 October dispatch desk', ar: 'مكتب تشغيل أكتوبر' },
-			phone: '+20238200001',
-			role: { en: 'Warehouse dispatch', ar: 'تشغيل المخزن' },
-		},
-		origin: {
-			label: { en: '6 October warehouse', ar: 'مخزن ٦ أكتوبر' },
-			address: {
-				en: 'Industrial Zone, 6th of October City',
-				ar: 'المنطقة الصناعية، مدينة ٦ أكتوبر',
-			},
-			latitude: 29.9753,
-			longitude: 30.9247,
-		},
+		warehouseContact: SIX_OCTOBER_DISPATCH_CONTACT,
+		origin: SIX_OCTOBER_WAREHOUSE,
 		address: {
 			label: { en: 'Maadi tower lobby', ar: 'مدخل برج المعادي' },
 			address: { en: 'Street 9, Maadi, Cairo', ar: 'شارع ٩، المعادي، القاهرة' },
