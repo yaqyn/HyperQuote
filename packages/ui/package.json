@@ -13,6 +13,7 @@
 		"./feedback/StatusBadge": "./src/feedback/StatusBadge.tsx",
 		"./glass/GlassWindow": "./src/glass/GlassWindow.tsx",
 		"./glass/GlassElevated": "./src/glass/GlassElevated.tsx",
+		"./logging/redacted-error": "./src/logging/redacted-error.ts",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./brand/LionMark": "./src/brand/LionMark.tsx",
 		"./utils/cn": "./src/utils/cn.ts"
@@ -21,14 +22,14 @@
 		"@hyperquote/i18n": "workspace:*",
 		"motion": "^12.38.0",
 		"clsx": "^2.1.1",
-		"tailwind-merge": "^3.5.0"
+		"tailwind-merge": "^3.6.0"
 	},
 	"peerDependencies": {
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
-		"react-aria-components": "^1.16.0",
-		"react-i18next": "^17.0.2",
-		"i18next": "^26.0.3"
+		"react": "^19.2.6",
+		"react-dom": "^19.2.6",
+		"react-aria-components": "^1.17.0",
+		"react-i18next": "^17.0.8",
+		"i18next": "^26.2.0"
 	},
 	"devDependencies": {
 		"@types/react": "^19.2.14"

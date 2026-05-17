@@ -13,6 +13,7 @@ import { getServerSession } from '@hyperquote/auth/session'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { logPortalError } from './log'
 
 // ============================================================================
 // Input Schemas
@@ -157,13 +158,13 @@ export const sendOTP = createServerFn()
 			})
 
 			if (error) {
-				console.error('[portal:sendOTP] Supabase error:', error)
+				logPortalError('portal.auth.send_otp.supabase_error', error)
 				return { success: false, error: 'send_failed' as const }
 			}
 
 			return { success: true, expiresIn: 300 }
 		} catch (err) {
-			console.error('[portal:sendOTP] Unexpected error:', err)
+			logPortalError('portal.auth.send_otp.unexpected_error', err)
 			return { success: false, error: 'send_failed' as const }
 		}
 	})
@@ -216,7 +217,7 @@ export const verifyOTP = createServerFn()
 			})
 
 			if (error) {
-				console.error('[portal:verifyOTP] Supabase error:', error)
+				logPortalError('portal.auth.verify_otp.supabase_error', error)
 				return { success: false, error: 'invalid_code' as const }
 			}
 
@@ -242,7 +243,7 @@ export const verifyOTP = createServerFn()
 				claimableCompany,
 			}
 		} catch (err) {
-			console.error('[portal:verifyOTP] Unexpected error:', err)
+			logPortalError('portal.auth.verify_otp.unexpected_error', err)
 			return { success: false, error: 'verify_failed' as const }
 		}
 	})
@@ -293,7 +294,7 @@ export const createAccount = createServerFn()
 				.single()
 
 			if (error) {
-				console.error('[portal:createAccount] Supabase error:', error)
+				logPortalError('portal.auth.create_account.supabase_error', error)
 				return { success: false, error: 'create_failed' as const }
 			}
 
@@ -303,7 +304,7 @@ export const createAccount = createServerFn()
 				userId: user.id,
 			}
 		} catch (err) {
-			console.error('[portal:createAccount] Unexpected error:', err)
+			logPortalError('portal.auth.create_account.unexpected_error', err)
 			return { success: false, error: 'create_failed' as const }
 		}
 	})
@@ -351,7 +352,7 @@ export const claimAccount = createServerFn()
 				.single()
 
 			if (error || !customer) {
-				console.error('[portal:claimAccount] Supabase error:', error)
+				logPortalError('portal.auth.claim_account.supabase_error', error)
 				return { success: false, error: 'claim_failed' as const }
 			}
 
@@ -361,7 +362,7 @@ export const claimAccount = createServerFn()
 				claimed: true,
 			}
 		} catch (err) {
-			console.error('[portal:claimAccount] Unexpected error:', err)
+			logPortalError('portal.auth.claim_account.unexpected_error', err)
 			return { success: false, error: 'claim_failed' as const }
 		}
 	})

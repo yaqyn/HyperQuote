@@ -16,6 +16,7 @@ import { stream, useChat } from '@tanstack/ai-react'
 import { useCallback, useEffect, useRef } from 'react'
 import { portalChatFn } from '../lib/chat'
 import type { ChatMessage, RichContent } from '../lib/chat-types'
+import { logPortalError } from '../lib/log'
 import { useChatStore } from '../stores/chat'
 import { usePortalStore } from '../stores/portal'
 
@@ -112,7 +113,7 @@ export function usePortalChat() {
 
 				yield* arrayToAsyncIterable(chunks)
 			} catch (err) {
-				console.error('[portal-chat] stream error:', err)
+				logPortalError('portal.chat.stream_error', err)
 				// Yield a minimal error response so the UI doesn't hang
 				yield {
 					type: 'RUN_STARTED' as const,
@@ -145,7 +146,7 @@ export function usePortalChat() {
 			}
 		}),
 		onError: (err) => {
-			console.error('[portal-chat]', err)
+			logPortalError('portal.chat.error', err)
 		},
 	})
 

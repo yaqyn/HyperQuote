@@ -15,13 +15,13 @@
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.9.0",
-		"@supabase/supabase-js": "^2.101.1"
+		"@supabase/supabase-js": "^2.105.4"
 	},
 	"peerDependencies": {
-		"@tanstack/react-router": "^1.168.10",
-		"@tanstack/react-start": "^1.168.5"
+		"@tanstack/react-router": "^1.170.4",
+		"@tanstack/react-start": "^1.168.6"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20260416.2"
+		"@cloudflare/workers-types": "^4.20260517.1"
 	}
 }

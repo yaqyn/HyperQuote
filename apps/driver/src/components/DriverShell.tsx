@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Languages, LogOut, MapPinned, Moon, Sun } from 'lucide-react'
+import { LogOut, MapPinned } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DriverAuthSession } from '../lib/auth'
@@ -12,7 +12,10 @@ import { usePreferencesStore } from '../stores/preferences'
 import { ActiveDeliveryFlow } from './ActiveDeliveryFlow'
 import { CommandRail } from './CommandRail'
 import { DeliveryInfoPanel } from './DeliveryInfoPanel'
-import { DriverOptionsMenu } from './DriverOptionsMenu'
+import {
+	DriverOptionsMenu,
+	getDriverPreferenceOptions,
+} from './DriverOptionsMenu'
 import type { FleetTab, ShellPanel } from './driver-shell-types'
 import { FleetPanel } from './FleetPanel'
 
@@ -161,21 +164,13 @@ export function DriverShell({ session }: DriverShellProps) {
 								label: t('controls.refreshLocation'),
 								onPress: () => refreshLocation.mutate(),
 							},
-							{
-								icon: <Languages aria-hidden="true" size={16} />,
-								label: t('controls.language'),
-								onPress: toggleLanguage,
-							},
-							{
-								icon:
-									theme === 'light' ? (
-										<Moon aria-hidden="true" size={16} />
-									) : (
-										<Sun aria-hidden="true" size={16} />
-									),
-								label: t('controls.theme'),
-								onPress: toggleTheme,
-							},
+							...getDriverPreferenceOptions({
+								languageLabel: t('controls.language'),
+								onToggleLanguage: toggleLanguage,
+								onToggleTheme: toggleTheme,
+								theme,
+								themeLabel: t('controls.theme'),
+							}),
 							{
 								icon: <LogOut aria-hidden="true" size={16} />,
 								label: t('controls.signOut'),

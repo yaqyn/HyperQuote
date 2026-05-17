@@ -1,9 +1,9 @@
-import { MoreHorizontal } from 'lucide-react'
+import { Languages, Moon, MoreHorizontal, Sun } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Button, DialogTrigger, Popover } from 'react-aria-components'
 
-interface DriverOption {
+export interface DriverOption {
 	icon: ReactNode
 	isDisabled?: boolean
 	label: string
@@ -13,6 +13,38 @@ interface DriverOption {
 interface DriverOptionsMenuProps {
 	label: string
 	options: DriverOption[]
+}
+
+export function getDriverPreferenceOptions({
+	languageLabel,
+	onToggleLanguage,
+	onToggleTheme,
+	theme,
+	themeLabel,
+}: {
+	languageLabel: string
+	onToggleLanguage: () => void
+	onToggleTheme: () => void
+	theme: 'dark' | 'light'
+	themeLabel: string
+}): DriverOption[] {
+	return [
+		{
+			icon: <Languages aria-hidden="true" size={16} />,
+			label: languageLabel,
+			onPress: onToggleLanguage,
+		},
+		{
+			icon:
+				theme === 'light' ? (
+					<Moon aria-hidden="true" size={16} />
+				) : (
+					<Sun aria-hidden="true" size={16} />
+				),
+			label: themeLabel,
+			onPress: onToggleTheme,
+		},
+	]
 }
 
 export function DriverOptionsMenu({ label, options }: DriverOptionsMenuProps) {

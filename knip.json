@@ -22,8 +22,8 @@
 			"ignore": ["src/shims/*.ts"]
 		},
 		"apps/driver": {
-			"entry": ["src/main.tsx", "src/router.tsx", "src/styles.css"],
-			"project": ["src/**/*.{ts,tsx}", "capacitor.config.ts", "vite.config.ts"]
+			"entry": ["src/router.tsx", "src/styles.css"],
+			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
 	"ignoreBinaries": ["infisical", "gitleaks", "osv-scanner", "semgrep", "jq"],

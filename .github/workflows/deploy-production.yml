@@ -1,0 +1,315 @@
+name: Deploy Production Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Commit SHA with a successful staging deployment
+        required: true
+        type: string
+      target_app:
+        description: App to deploy
+        required: true
+        type: choice
+        default: all
+        options:
+          - website
+          - portal
+          - internal
+          - driver
+          - all
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cloudflare-production-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: 1.3.11
+  NODE_VERSION: 22
+
+jobs:
+  prepare:
+    name: Verify staging promotion source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      source_sha: ${{ steps.validate.outputs.source_sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate source SHA
+        id: validate
+        env:
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
+        run: |
+          sha="$SOURCE_SHA_INPUT"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::source_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
+          git cat-file -e "${sha}^{commit}"
+          echo "source_sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful staging workflow
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.validate.outputs.source_sha }}
+          WORKFLOW_FILE: deploy-cloudflare.yml
+        run: |
+          node <<'NODE'
+          const repo = process.env.GITHUB_REPOSITORY
+          const token = process.env.GITHUB_TOKEN
+          const sha = process.env.SOURCE_SHA
+          const workflow = encodeURIComponent(process.env.WORKFLOW_FILE)
+          const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&status=success&per_page=20`
+
+          const response = await fetch(url, {
+            headers: {
+              authorization: `Bearer ${token}`,
+              accept: 'application/vnd.github+json',
+              'x-github-api-version': '2022-11-28',
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error(`GitHub workflow lookup failed with ${response.status}`)
+          }
+
+          const body = await response.json()
+          const run = body.workflow_runs?.find(
+            (item) => item.head_sha === sha && item.conclusion === 'success',
+          )
+
+          if (!run) {
+            throw new Error(`No successful staging deployment found for ${sha}`)
+          }
+
+          console.log(`Staging run verified: ${run.html_url}`)
+          NODE
+
+      - name: Select deploy matrix
+        id: select
+        env:
+          TARGET_APP: ${{ inputs.target_app }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const apps = [
+            {
+              app: 'website',
+              package: '@hyperquote/website',
+              label: 'Website',
+              worker: 'hyperquote-website',
+              deploy_config: 'dist/server/wrangler.json',
+              domains: '["hyperquote.net","www.hyperquote.net"]',
+            },
+            {
+              app: 'portal',
+              package: '@hyperquote/portal',
+              label: 'Portal',
+              worker: 'hyperquote-portal',
+              deploy_config: 'dist/server/wrangler.json',
+              domains: '["portal.hyperquote.net"]',
+            },
+            {
+              app: 'internal',
+              package: '@hyperquote/internal',
+              label: 'Internal',
+              worker: 'hyperquote-internal',
+              deploy_config: 'dist/server/wrangler.json',
+              domains: '["internal.hyperquote.net"]',
+            },
+            {
+              app: 'driver',
+              package: '@hyperquote/driver',
+              label: 'Driver',
+              worker: 'hyperquote-driver',
+              deploy_config: 'wrangler.jsonc',
+              domains: '["driver.hyperquote.net"]',
+            },
+          ]
+
+          const target = process.env.TARGET_APP
+          const include = target === 'all' ? apps : apps.filter((app) => app.app === target)
+          if (include.length === 0) {
+            throw new Error(`Unknown target_app: ${target}`)
+          }
+
+          console.log(`matrix=${JSON.stringify({ include })}`)
+          NODE
+
+  verify:
+    name: Critical verification
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout selected SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Biome
+        run: bun run check:ci
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Direct TypeScript coverage
+        run: |
+          for tsconfig in apps/*/tsconfig.json packages/*/tsconfig.json; do
+            echo "::group::tsc ${tsconfig}"
+            bunx tsc -p "$tsconfig" --noEmit --pretty false
+            echo "::endgroup::"
+          done
+
+      - name: Dependency sync
+        run: bun run sync
+
+      - name: App tests
+        env:
+          TARGET_APP: ${{ inputs.target_app }}
+        run: |
+          case "$TARGET_APP" in
+            all)
+              bun run --cwd apps/internal test
+              bun run --cwd apps/driver test
+              bun run --cwd apps/portal test
+              ;;
+            internal|driver|portal)
+              bun run --cwd "apps/${TARGET_APP}" test
+              ;;
+            website)
+              echo "Website has no app-local test script."
+              ;;
+          esac
+
+  deploy:
+    name: Deploy ${{ matrix.label }} production
+    needs:
+      - prepare
+      - verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout selected SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build ${{ matrix.label }}
+        run: bun run build --filter=${{ matrix.package }}
+
+      - name: Remove local dev vars from build output
+        run: find "apps/${{ matrix.app }}/dist" -type f -name ".dev.vars" -delete
+
+      - name: Deploy ${{ matrix.label }}
+        working-directory: apps/${{ matrix.app }}
+        run: bunx wrangler deploy --config "${{ matrix.deploy_config }}" --name "${{ matrix.worker }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Attach production custom domains
+        run: |
+          bun --eval '
+            const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+            const token = process.env.CLOUDFLARE_API_TOKEN;
+            const service = process.env.WORKER_NAME;
+            const hostnames = JSON.parse(process.env.CUSTOM_DOMAINS ?? "[]");
+            const zoneName = "hyperquote.net";
+
+            if (!accountId || !token || !service) {
+              throw new Error("Missing Cloudflare deploy environment");
+            }
+
+            async function request(path, init = {}) {
+              const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+                ...init,
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                  ...init.headers,
+                },
+              });
+              const body = await response.json();
+
+              if (!response.ok || !body.success) {
+                const messages = [...(body.errors ?? []), ...(body.messages ?? [])]
+                  .map((item) => `${item.code ?? "unknown"}: ${item.message}`)
+                  .join("; ");
+                throw new Error(messages || `Cloudflare API request failed with ${response.status}`);
+              }
+
+              return body.result;
+            }
+
+            for (const hostname of hostnames) {
+              const query = new URLSearchParams({ hostname });
+              const existing = await request(`/accounts/${accountId}/workers/domains?${query}`);
+              const domain = Array.isArray(existing)
+                ? existing.find((item) => item.hostname === hostname)
+                : undefined;
+
+              if (domain) {
+                if (domain.service !== service) {
+                  throw new Error(`${hostname} is already attached to ${domain.service}`);
+                }
+
+                console.log(`${hostname} already attached to ${service}`);
+                continue;
+              }
+
+              await request(`/accounts/${accountId}/workers/domains`, {
+                method: "PUT",
+                body: JSON.stringify({ hostname, service, zone_name: zoneName }),
+              });
+              console.log(`Attached ${hostname} to ${service}`);
+            }
+          '
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKER_NAME: ${{ matrix.worker }}
+          CUSTOM_DOMAINS: ${{ matrix.domains }}

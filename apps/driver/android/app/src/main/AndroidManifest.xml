@@ -15,14 +15,21 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
+            android:exported="false" />
 
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity - Android launcher entries must be exported; MainActivity stays private. -->
+        <activity-alias
+            android:name=".LauncherActivity"
+            android:exported="true"
+            android:label="@string/title_activity_main"
+            android:targetActivity=".MainActivity">
+            <!-- Android requires the launcher component itself to be exported. -->
+            <!-- The Capacitor bridge activity remains private. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-        </activity>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

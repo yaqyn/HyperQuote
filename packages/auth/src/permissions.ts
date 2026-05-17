@@ -11,8 +11,6 @@ export function hasPermission(
 	_session: AuthSession,
 	_permission: string,
 ): boolean {
-	// TODO: Wire up role-permission mapping from database seed data.
-	// For now returns true — RLS is the actual enforcement layer.
-	// This will be populated when the permission lookup table is loaded client-side.
+	// RLS is authoritative; client UI gates stay permissive until role maps are loaded.
 	return true
 }

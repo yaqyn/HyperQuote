@@ -2,13 +2,10 @@ import { standardSchemaResolver } from '@hyperquote/forms'
 import {
 	ArrowRight,
 	ClipboardCheck,
-	Languages,
 	LockKeyhole,
 	Mail,
 	MapPinned,
-	Moon,
 	Navigation,
-	Sun,
 } from 'lucide-react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { useForm } from 'react-hook-form'
@@ -20,7 +17,10 @@ import {
 } from '../lib/auth'
 import { useAuthStore } from '../stores/auth'
 import { usePreferencesStore } from '../stores/preferences'
-import { DriverOptionsMenu } from './DriverOptionsMenu'
+import {
+	DriverOptionsMenu,
+	getDriverPreferenceOptions,
+} from './DriverOptionsMenu'
 
 const ACCESS_ROWS = [
 	{
@@ -93,23 +93,13 @@ export function LoginScreen() {
 				</div>
 				<DriverOptionsMenu
 					label={t('controls.options')}
-					options={[
-						{
-							icon: <Languages aria-hidden="true" size={16} />,
-							label: t('controls.language'),
-							onPress: toggleLanguage,
-						},
-						{
-							icon:
-								theme === 'light' ? (
-									<Moon aria-hidden="true" size={16} />
-								) : (
-									<Sun aria-hidden="true" size={16} />
-								),
-							label: t('controls.theme'),
-							onPress: toggleTheme,
-						},
-					]}
+					options={getDriverPreferenceOptions({
+						languageLabel: t('controls.language'),
+						onToggleLanguage: toggleLanguage,
+						onToggleTheme: toggleTheme,
+						theme,
+						themeLabel: t('controls.theme'),
+					})}
 				/>
 			</header>
 

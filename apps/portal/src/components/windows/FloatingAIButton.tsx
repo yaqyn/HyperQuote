@@ -10,7 +10,14 @@ import { useLocation, useMatches } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ArrowUp, Sparkles, Square, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+	type KeyboardEvent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
@@ -118,7 +125,7 @@ export function FloatingAIButton() {
 	}, [inputValue, chat])
 
 	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
+		(e: KeyboardEvent<HTMLInputElement>) => {
 			if (e.key === 'Enter') {
 				e.preventDefault()
 				handleSend()
@@ -170,9 +177,8 @@ export function FloatingAIButton() {
 						transition={{ duration: 0.15, ease: 'easeOut' }}
 						className="fixed bottom-4 end-4 z-50 w-[380px] max-h-[60vh] flex flex-col backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl shadow-2xl border border-[var(--color-border)]/50"
 					>
-						<Dialog
+						<FloatingDialog
 							aria-label={t('floatingAI.ariaLabel')}
-							isKeyboardDismissDisabled
 							className="outline-none flex flex-col h-full"
 						>
 							{/* Header */}
@@ -277,7 +283,7 @@ export function FloatingAIButton() {
 									)}
 								</div>
 							</div>
-						</Dialog>
+						</FloatingDialog>
 					</motion.div>
 				)}
 			</AnimatePresence>
@@ -285,17 +291,14 @@ export function FloatingAIButton() {
 	)
 }
 
-// Need to import Dialog for the JSX above -- using a simple div with role instead
-// since the Dialog is already from react-aria in the original. Keep the import structure.
-function Dialog({
+function FloatingDialog({
 	children,
 	className,
 	...props
 }: {
-	children: React.ReactNode
+	children: ReactNode
 	className?: string
 	'aria-label'?: string
-	isKeyboardDismissDisabled?: boolean
 }) {
 	return (
 		<div role="dialog" aria-label={props['aria-label']} className={className}>
