@@ -12,7 +12,11 @@ import type {
 	CustomerProfile,
 	Project,
 } from '../../types/settings'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	getAuthenticatedSupabase,
+	isSupabaseConfigured,
+} from './_supabase'
 
 // ============================================================================
 // Mock data
@@ -110,13 +114,14 @@ export const getCustomerProfile = createServerFn().handler(
 			return getMockProfile()
 		}
 
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const { data, error } = await supabase
 			.from('customers')
 			.select(
 				'company_name, contact_name, phone, email, trade_license_status, profile_photo_url',
 			)
+			.eq('id', customerId)
 			.single()
 
 		if (error || !data) {
@@ -151,7 +156,7 @@ export const updateCustomerProfile = createServerFn()
 			return { success: true }
 		}
 
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const updateData: Record<string, unknown> = {}
 		if (input.companyName !== undefined)
@@ -163,7 +168,7 @@ export const updateCustomerProfile = createServerFn()
 		const { error } = await supabase
 			.from('customers')
 			.update(updateData)
-			.eq('id', 'current_user_customer_id')
+			.eq('id', customerId)
 
 		if (error) throw new Error(error.message)
 
@@ -181,12 +186,12 @@ export const uploadTradeLicense = createServerFn()
 			return { success: true, status: 'under_review' }
 		}
 
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const { error } = await supabase
 			.from('customers')
 			.update({ trade_license_status: 'under_review' })
-			.eq('id', 'current_user_customer_id')
+			.eq('id', customerId)
 
 		if (error) throw new Error(error.message)
 
@@ -207,12 +212,12 @@ export const uploadProfilePhoto = createServerFn()
 				return { success: true, photoUrl: input.fileUrl }
 			}
 
-			const { supabase } = await getAuthenticatedSupabase()
+			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 			const { error } = await supabase
 				.from('customers')
 				.update({ profile_photo_url: input.fileUrl })
-				.eq('id', 'current_user_customer_id')
+				.eq('id', customerId)
 
 			if (error) throw new Error(error.message)
 
@@ -281,10 +286,10 @@ export const saveAddress = createServerFn()
 			}
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const payload = {
-			customer_id: session.user.app_metadata?.customer_id,
+			customer_id: customerId,
 			label: input.label,
 			street: input.street,
 			city: input.city,
@@ -411,10 +416,10 @@ export const saveProject = createServerFn()
 			}
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const payload = {
-			customer_id: session.user.app_metadata?.customer_id,
+			customer_id: customerId,
 			name: input.name,
 			description: input.description ?? null,
 		}

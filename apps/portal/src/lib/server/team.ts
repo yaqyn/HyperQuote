@@ -8,7 +8,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { TeamMember } from '../../types/settings'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	getAuthenticatedSupabase,
+	isSupabaseConfigured,
+} from './_supabase'
 
 // ============================================================================
 // Mock data
@@ -94,13 +98,14 @@ export const inviteTeamMember = createServerFn()
 			return { inviteId: crypto.randomUUID() }
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
+		const { customerId, session, supabase } =
+			await getAuthenticatedPortalCustomer()
 
 		// Create invite record and send magic link to email
 		const { data, error } = await supabase
 			.from('team_invites')
 			.insert({
-				customer_id: session.user.app_metadata?.customer_id,
+				customer_id: customerId,
 				email: input.email,
 				role: input.role,
 				invited_by: session.user.id,

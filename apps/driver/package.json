@@ -17,6 +17,7 @@
 	"dependencies": {
 		"@capacitor/core": "^8.3.4",
 		"@capacitor/geolocation": "^8.2.0",
+		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@tanstack/react-query": "^5.100.10",
 		"@tanstack/react-router": "^1.170.4",

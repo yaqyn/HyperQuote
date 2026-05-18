@@ -1,7 +1,7 @@
 import { redirect } from '@tanstack/react-router'
 import { getRequest } from '@tanstack/react-start/server'
 import { createSupabaseServerClient } from './server'
-import type { AuthGuardOptions, AuthSession } from './types'
+import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
 
 /**
  * Route guard for TanStack Start beforeLoad.
@@ -32,7 +32,7 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 
 	// Extract claims set by custom access token hook (Phase 2 migration 004)
 	const metadata = session.user.app_metadata ?? {}
-	const pool = (metadata.pool as 'internal' | 'external') ?? 'external'
+	const pool = resolveAuthPool(metadata.pool)
 	const roles = (metadata.roles as string[]) ?? []
 	const tenantId = (metadata.tenant_id as string) ?? null
 
@@ -61,4 +61,11 @@ function redirectToLogin(loginPath: string, request: Request) {
 		to: loginPath,
 		search: { redirect: redirectPath },
 	})
+}
+
+function resolveAuthPool(value: unknown): AuthPool {
+	if (value === 'internal' || value === 'external' || value === 'driver') {
+		return value
+	}
+	return 'external'
 }

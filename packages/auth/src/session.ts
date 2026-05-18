@@ -1,6 +1,6 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { createSupabaseServerClient } from './server'
-import type { AuthSession } from './types'
+import type { AuthPool, AuthSession } from './types'
 
 /**
  * Get the current session without redirecting.
@@ -31,8 +31,15 @@ export async function getServerSession(opts: {
 	return {
 		session,
 		user: session.user,
-		pool: (metadata.pool as 'internal' | 'external') ?? 'external',
+		pool: resolveAuthPool(metadata.pool),
 		roles: (metadata.roles as string[]) ?? [],
 		tenantId: (metadata.tenant_id as string) ?? null,
 	}
+}
+
+function resolveAuthPool(value: unknown): AuthPool {
+	if (value === 'internal' || value === 'external' || value === 'driver') {
+		return value
+	}
+	return 'external'
 }

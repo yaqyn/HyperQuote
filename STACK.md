@@ -16,19 +16,43 @@ workers. Shared packages live under `packages/`.
 
 ## Backend Boundary
 
-There is no checked-in production database scaffold right now. The fake
-`supabase/` config/migrations and root DB CLI scripts were removed in the May
-2026 production sweep.
+Supabase/Postgres is the selected production source of truth. Use separate
+Supabase environments for local development, hosted staging
+(`hyperquote-staged`), and hosted production (`hyperquote-production`).
+Cloudflare Workers remain the app runtime and deploy target.
+
+The checked-in `supabase/` directory is the real backend migration surface.
+Staged and production projects must receive the same migrations, generated
+types, storage policies, RPC contracts, and app code SHA.
 
 - Keep frontend auth/session contracts when apps still import them.
-- `@supabase/supabase-js` remains only where frontend clients need it.
+- Use Supabase Auth for the three account pools:
+  - `customer`: public signup, shared by website and portal.
+  - `internal`: company-created only, role-based employee access.
+  - `driver`: company-created only, driver app access.
+- Suppliers do not have auth in v1. Supplier calls, prices, refill deals, and
+  receiving issues are manually recorded by employees.
+- `@supabase/supabase-js` remains where frontend clients need public auth,
+  Realtime subscriptions, or typed browser access.
 - `@supabase/ssr` remains in `packages/auth` for auth helpers.
-- Do not recreate `supabase/`, add migrations, run DB commands, generate DB
-  types, or add DB scripts unless the user explicitly scopes a real backend
-  session.
-- The next backend pass should introduce schema, RLS, migrations, generated
-  types, storage/queues, server functions, and repository adapters as one
-  coherent change.
+- RLS is authoritative for data visibility. UI role gates are convenience only.
+- Critical workflow transitions go through server-side functions/RPC backed by
+  Postgres transactions, not direct client-side table updates.
+- Required transactional flows include claim-next-order, confirm/reject order,
+  reserve/release stock, record finance approval/payment, hand off to
+  warehouse, assign dispatch/driver, and complete delivery with signature.
+- Activity/history must be append-only and attached to the actor, role, entity,
+  transition, timestamp, and request context where practical.
+- Portal/internal realtime status should use Supabase Realtime where it keeps
+  the UI current without replacing transactional writes.
+- Delivery signatures and generated documents should use Supabase Storage
+  unless a later scoped decision chooses a different object store.
+- Do not introduce Convex, Cloudflare D1, Neon, Clerk, or a custom auth system
+  as a replacement backend unless the user explicitly reopens architecture.
+- Add migrations, run DB commands, generate DB types, or change DB scripts only
+  inside explicitly scoped backend work.
+- Do not point staged apps at production Supabase, and do not point production
+  apps at staged Supabase.
 
 ## Core Pins
 
@@ -140,7 +164,9 @@ Classify those manually before abstracting.
 
 ## Open Production Gaps
 
-- Real backend: schema, RLS, migrations, generated types, storage/queues,
-  repository adapters, and production data.
+- App adapters still need to move gradually from mock/server-function fallbacks
+  to the real Supabase contracts.
+- Hosted staged/production Supabase projects still need environment-scoped
+  secrets, migration application, and smoke verification.
 - Real portal tests replacing skipped/todo coverage.
 - Observability and rollback policy before canary rollout.

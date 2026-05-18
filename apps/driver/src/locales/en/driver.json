@@ -87,6 +87,12 @@
 		},
 		"body": "A field pass for assigned stops, live GPS, site calls, and customer proof before the truck leaves the gate.",
 		"email": "Driver email",
+		"errors": {
+			"invalid_credentials": "Check the driver email and password.",
+			"profile_missing": "This login is missing a driver profile.",
+			"unexpected": "Driver login could not be completed.",
+			"wrong_pool": "This account is not assigned to the driver app."
+		},
 		"formEyebrow": "Route gate",
 		"formTitle": "Driver pass",
 		"kicker": "Dispatch handoff",

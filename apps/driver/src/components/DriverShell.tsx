@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, MapPinned } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { DriverAuthSession } from '../lib/auth'
+import { type DriverAuthSession, signOutDriver } from '../lib/auth'
 import type { DriverProfile } from '../lib/driver-repository'
 import { localize } from '../lib/format'
 import { locationProvider } from '../lib/location-provider'
@@ -59,6 +59,11 @@ export function DriverShell({ session }: DriverShellProps) {
 
 	const invalidateDriverQueries = () => {
 		queryClient.invalidateQueries({ queryKey: ['driver'] })
+	}
+
+	async function handleSignOut() {
+		await signOutDriver()
+		signOut()
 	}
 
 	const acceptDelivery = useMutation({
@@ -174,7 +179,9 @@ export function DriverShell({ session }: DriverShellProps) {
 							{
 								icon: <LogOut aria-hidden="true" size={16} />,
 								label: t('controls.signOut'),
-								onPress: signOut,
+								onPress: () => {
+									void handleSignOut()
+								},
 							},
 						]}
 					/>

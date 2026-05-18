@@ -7,11 +7,13 @@ import {
 	MapPinned,
 	Navigation,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {
-	createMockDriverSession,
+	authenticateDriver,
+	type DriverLoginError,
 	type LoginFormValues,
 	loginSchema,
 } from '../lib/auth'
@@ -61,6 +63,7 @@ export function LoginScreen() {
 	const theme = usePreferencesStore((state) => state.theme)
 	const toggleLanguage = usePreferencesStore((state) => state.toggleLanguage)
 	const toggleTheme = usePreferencesStore((state) => state.toggleTheme)
+	const [authError, setAuthError] = useState<DriverLoginError | null>(null)
 	const {
 		formState: { errors, isSubmitting },
 		handleSubmit,
@@ -70,8 +73,14 @@ export function LoginScreen() {
 		resolver: standardSchemaResolver(loginSchema),
 	})
 
-	function onSubmit(values: LoginFormValues) {
-		signIn(createMockDriverSession(values))
+	async function onSubmit(values: LoginFormValues) {
+		setAuthError(null)
+		const result = await authenticateDriver(values)
+		if (result.ok) {
+			signIn(result.session)
+			return
+		}
+		setAuthError(result.error)
 	}
 
 	return (
@@ -253,6 +262,12 @@ export function LoginScreen() {
 									</div>
 								</TextField>
 							</div>
+
+							{authError && (
+								<p role="alert" className="mt-3 text-sm text-[#B91C1C]">
+									{t(`login.errors.${authError}`)}
+								</p>
+							)}
 
 							<Button
 								type="submit"

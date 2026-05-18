@@ -1,4 +1,5 @@
 export * from './catalog'
+export type { Database, Json } from './database.types'
 export * from './entities'
 export * from './enums'
 export * from './helpers'

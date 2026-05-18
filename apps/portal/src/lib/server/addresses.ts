@@ -5,7 +5,11 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	getAuthenticatedSupabase,
+	isSupabaseConfigured,
+} from './_supabase'
 
 // ============================================================================
 // Schemas
@@ -118,12 +122,12 @@ export const createAddress = createServerFn()
 			}
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const { data, error } = await supabase
 			.from('customer_addresses')
 			.insert({
-				customer_id: session.user.app_metadata?.customer_id,
+				customer_id: customerId,
 				label: input.label ?? null,
 				street: input.street,
 				area: input.area,

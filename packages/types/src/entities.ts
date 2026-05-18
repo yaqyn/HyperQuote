@@ -61,7 +61,7 @@ export interface UserProfile extends BaseEntity {
 	user_id: string
 	tenant_id: string
 	user_type: UserType
-	pool: 'internal' | 'external'
+	pool: 'internal' | 'external' | 'driver'
 	customer_id: string | null
 	supplier_id: string | null
 	driver_id: string | null

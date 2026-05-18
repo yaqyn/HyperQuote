@@ -6,7 +6,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	isSupabaseConfigured,
+} from './_supabase'
 import {
 	insertQuoteRequestItems,
 	quoteRequestItemInputSchema,
@@ -51,8 +54,8 @@ export const submitForApproval = createServerFn()
 				}
 			}
 
-			const { supabase, session } = await getAuthenticatedSupabase()
-			const customerId = session.user.app_metadata?.customer_id
+			const { customerId, session, supabase } =
+				await getAuthenticatedPortalCustomer()
 
 			// Check idempotency
 			const { data: existing } = await supabase
@@ -182,8 +185,8 @@ export const checkTeamHasApprover = createServerFn().handler(
 			return { hasApprover: false }
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
-		const customerId = session.user.app_metadata?.customer_id
+		const { customerId, session, supabase } =
+			await getAuthenticatedPortalCustomer()
 
 		if (!customerId) {
 			return { hasApprover: false }

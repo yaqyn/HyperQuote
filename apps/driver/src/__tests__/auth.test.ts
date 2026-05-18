@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isMockLoginAccepted, loginSchema } from '../lib/auth'
+import {
+	createMockDriverSession,
+	isMockLoginAccepted,
+	loginSchema,
+} from '../lib/auth'
 
 describe('driver login validation', () => {
 	it('accepts a valid driver email and password length', () => {
@@ -10,6 +14,7 @@ describe('driver login validation', () => {
 
 		expect(loginSchema.safeParse(values).success).toBe(true)
 		expect(isMockLoginAccepted(values)).toBe(true)
+		expect(createMockDriverSession(values).source).toBe('mock')
 	})
 
 	it('rejects invalid email and short passwords', () => {

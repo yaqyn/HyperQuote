@@ -7,6 +7,7 @@
       "devDependencies": {
         "@ast-grep/cli": "0.42.2",
         "@biomejs/biome": "^2.4.15",
+        "@supabase/supabase-js": "^2.105.4",
         "@types/node": "^25.8.0",
         "dependency-cruiser": "17.4.0",
         "jscpd": "^4.2.3",
@@ -24,6 +25,7 @@
       "dependencies": {
         "@capacitor/core": "^8.3.4",
         "@capacitor/geolocation": "^8.2.0",
+        "@hyperquote/auth": "workspace:*",
         "@hyperquote/forms": "workspace:*",
         "@tanstack/react-query": "^5.100.10",
         "@tanstack/react-router": "^1.170.4",

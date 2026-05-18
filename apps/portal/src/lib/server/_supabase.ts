@@ -61,3 +61,23 @@ export async function getAuthenticatedSupabase() {
 	})
 	return { supabase, session }
 }
+
+export async function getAuthenticatedPortalCustomer() {
+	const { supabase, session } = await getAuthenticatedSupabase()
+	const metadataCustomerId = session.user.app_metadata?.customer_id
+	if (typeof metadataCustomerId === 'string' && metadataCustomerId.length > 0) {
+		return { customerId: metadataCustomerId, session, supabase }
+	}
+
+	const { data, error } = await supabase
+		.from('customers')
+		.select('id')
+		.eq('user_id', session.user.id)
+		.single()
+
+	if (error || !data) {
+		throw new Error(error?.message ?? 'Customer profile not found')
+	}
+
+	return { customerId: data.id, session, supabase }
+}

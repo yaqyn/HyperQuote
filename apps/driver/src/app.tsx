@@ -1,8 +1,9 @@
 import { AlertTriangle } from 'lucide-react'
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { useTranslation } from 'react-i18next'
 import { LoginScreen } from './components/LoginScreen'
+import { getCurrentDriverSession } from './lib/auth'
 import { setDriverLanguage } from './lib/i18n'
 import { useAuthStore } from './stores/auth'
 import { usePreferencesStore } from './stores/preferences'
@@ -35,8 +36,10 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function DriverApp() {
 	const session = useAuthStore((state) => state.session)
+	const signIn = useAuthStore((state) => state.signIn)
 	const language = usePreferencesStore((state) => state.language)
 	const theme = usePreferencesStore((state) => state.theme)
+	const [isRestoringSession, setIsRestoringSession] = useState(true)
 
 	useEffect(() => {
 		setDriverLanguage(language)
@@ -69,6 +72,26 @@ export function DriverApp() {
 			window.removeEventListener('scroll', handleWindowScroll)
 		}
 	}, [])
+
+	useEffect(() => {
+		let cancelled = false
+		getCurrentDriverSession()
+			.then((restoredSession) => {
+				if (cancelled) return
+				if (restoredSession) signIn(restoredSession)
+			})
+			.finally(() => {
+				if (!cancelled) setIsRestoringSession(false)
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [signIn])
+
+	if (isRestoringSession) {
+		return <DriverAppLoading />
+	}
 
 	return session ? (
 		<Suspense fallback={<DriverAppLoading />}>

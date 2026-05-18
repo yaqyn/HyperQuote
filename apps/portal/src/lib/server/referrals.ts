@@ -6,7 +6,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import type { ReferralStats } from '../../types/settings'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	isSupabaseConfigured,
+} from './_supabase'
 
 // ============================================================================
 // getReferralStats
@@ -24,9 +27,7 @@ export const getReferralStats = createServerFn().handler(
 			}
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
-
-		const customerId = session.user.app_metadata?.customer_id
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		// Get referral stats
 		const { data: referrals, error } = await supabase

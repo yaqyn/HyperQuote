@@ -6,7 +6,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	isSupabaseConfigured,
+} from './_supabase'
 import {
 	insertQuoteRequestItems,
 	quoteRequestItemInputSchema,
@@ -57,7 +60,8 @@ export const submitQuoteRequest = createServerFn()
 				}
 			}
 
-			const { supabase, session } = await getAuthenticatedSupabase()
+			const { customerId, session, supabase } =
+				await getAuthenticatedPortalCustomer()
 
 			const { data: existing } = await supabase
 				.from('quote_requests')
@@ -80,7 +84,7 @@ export const submitQuoteRequest = createServerFn()
 			const { data: qr, error: qrError } = await supabase
 				.from('quote_requests')
 				.insert({
-					customer_id: session.user.app_metadata?.customer_id,
+					customer_id: customerId,
 					status,
 					urgency: 'standard',
 					project_id: input.projectId ?? null,
@@ -132,7 +136,7 @@ export const saveDraft = createServerFn()
 			return { draftId: input.draftId ?? crypto.randomUUID() }
 		}
 
-		const { supabase, session } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		if (input.draftId) {
 			const { error } = await supabase
@@ -164,7 +168,7 @@ export const saveDraft = createServerFn()
 		const { data: qr, error: qrError } = await supabase
 			.from('quote_requests')
 			.insert({
-				customer_id: session.user.app_metadata?.customer_id,
+				customer_id: customerId,
 				status: 'draft',
 				project_id: input.projectId ?? null,
 				delivery_address_id: input.deliveryAddressId ?? null,

@@ -16,6 +16,12 @@ or checkout away changes you did not make.
 
 - Read named files before making claims; read nearby patterns and 1-2 analogs
   before adding modules, components, routes, stores, or scripts.
+- Backend work follows `STACK.md`: Supabase/Postgres is the selected production
+  source of truth, Cloudflare Workers remain the app runtime, and Convex, D1,
+  Neon, or Clerk are not replacement backends unless the user explicitly
+  reopens architecture.
+- Supplier auth is out of scope for v1. Treat suppliers as business records
+  managed by employees, not as portal/auth users.
 - Make the smallest coherent root-cause change. Do not refactor unrelated code.
 - Treat user reactions as signal. If the request changes instructions, stack,
   architecture, defaults, workflow, or UX direction, state the concern,
@@ -29,6 +35,10 @@ or checkout away changes you did not make.
 - Dev mode may use existing adapters: internal uses
   `apps/internal/src/lib/db/db.ts` plus seed markdown; driver uses its local
   repository layer. Keep caller contracts stable.
+- Critical workflow transitions must be enforced server-side with database
+  transactions/RPC and append-only activity history. Do not rely on UI-only
+  checks for order claiming, role gates, stock reservation, finance approval,
+  warehouse handoff, dispatch assignment, or delivery completion.
 - User-facing components should handle loading, error, and empty states when
   those states can occur.
 
