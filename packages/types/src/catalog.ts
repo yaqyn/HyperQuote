@@ -5,6 +5,11 @@
 // apps replace their mock fallbacks with DB queries and this array shrinks
 // to types only.
 
+import type { Database } from './database.types'
+
+type DbEnum<Name extends keyof Database['public']['Enums']> =
+	Database['public']['Enums'][Name]
+
 export const IMG_BASE = 'https://websiteassets.hyperquote.net/Images'
 
 /** Broad category axis — the 6 categories the website groups by. */
@@ -77,8 +82,8 @@ export function getCategoryImage(specific: string): string {
 	return BROAD_CATEGORY_IMAGES[getBroadCategory(specific)]
 }
 
-export type PriceTier = 'budget' | 'mid_range' | 'premium'
-export type AvailabilityStatus = 'available' | 'low_stock' | 'out_of_stock'
+export type PriceTier = DbEnum<'price_tier'>
+export type AvailabilityStatus = DbEnum<'catalog_availability_status'>
 
 export interface CatalogProduct {
 	id: string

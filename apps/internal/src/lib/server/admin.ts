@@ -99,7 +99,12 @@ const ProductPayload = z.object({
 	price_range_min: z.number().min(0),
 	price_range_max: z.number().min(0),
 	price_tier: z.enum(['budget', 'mid_range', 'premium']),
-	availability_status: z.enum(['available', 'low_stock', 'out_of_stock']),
+	availability_status: z.enum([
+		'available',
+		'low_stock',
+		'out_of_stock',
+		'hidden',
+	]),
 	tags: z.array(z.string()),
 	is_stockable: z.boolean(),
 	pictureUrl: z.string().nullable(),

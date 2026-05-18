@@ -36,7 +36,7 @@ export type Database = {
 		Tables: {
 			activity_events: {
 				Row: {
-					action: string
+					action: Database['public']['Enums']['audit_event_type']
 					actor_customer_id: string | null
 					actor_driver_id: string | null
 					actor_employee_id: string | null
@@ -48,7 +48,7 @@ export type Database = {
 					id: string
 				}
 				Insert: {
-					action: string
+					action: Database['public']['Enums']['audit_event_type']
 					actor_customer_id?: string | null
 					actor_driver_id?: string | null
 					actor_employee_id?: string | null
@@ -60,7 +60,7 @@ export type Database = {
 					id?: string
 				}
 				Update: {
-					action?: string
+					action?: Database['public']['Enums']['audit_event_type']
 					actor_customer_id?: string | null
 					actor_driver_id?: string | null
 					actor_employee_id?: string | null
@@ -99,7 +99,7 @@ export type Database = {
 				Row: {
 					actor_employee_id: string | null
 					actor_user_id: string | null
-					agent_scope: string
+					agent_scope: Database['public']['Enums']['ai_agent_scope']
 					approved_by_user: boolean
 					created_at: string
 					id: string
@@ -113,7 +113,7 @@ export type Database = {
 				Insert: {
 					actor_employee_id?: string | null
 					actor_user_id?: string | null
-					agent_scope: string
+					agent_scope: Database['public']['Enums']['ai_agent_scope']
 					approved_by_user?: boolean
 					created_at?: string
 					id?: string
@@ -127,7 +127,7 @@ export type Database = {
 				Update: {
 					actor_employee_id?: string | null
 					actor_user_id?: string | null
-					agent_scope?: string
+					agent_scope?: Database['public']['Enums']['ai_agent_scope']
 					approved_by_user?: boolean
 					created_at?: string
 					id?: string
@@ -159,7 +159,7 @@ export type Database = {
 					entity_type: string
 					id: string
 					requested_by: string | null
-					status: string
+					status: Database['public']['Enums']['approval_status']
 					updated_at: string
 				}
 				Insert: {
@@ -172,7 +172,7 @@ export type Database = {
 					entity_type: string
 					id?: string
 					requested_by?: string | null
-					status?: string
+					status?: Database['public']['Enums']['approval_status']
 					updated_at?: string
 				}
 				Update: {
@@ -185,7 +185,7 @@ export type Database = {
 					entity_type?: string
 					id?: string
 					requested_by?: string | null
-					status?: string
+					status?: Database['public']['Enums']['approval_status']
 					updated_at?: string
 				}
 				Relationships: []
@@ -296,7 +296,7 @@ export type Database = {
 					payment_fraction: number
 					proof_path: string
 					recorded_by_employee_id: string | null
-					status: string
+					status: Database['public']['Enums']['payment_record_status']
 				}
 				Insert: {
 					amount: number
@@ -306,7 +306,7 @@ export type Database = {
 					payment_fraction: number
 					proof_path: string
 					recorded_by_employee_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['payment_record_status']
 				}
 				Update: {
 					amount?: number
@@ -316,7 +316,7 @@ export type Database = {
 					payment_fraction?: number
 					proof_path?: string
 					recorded_by_employee_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['payment_record_status']
 				}
 				Relationships: [
 					{
@@ -352,8 +352,8 @@ export type Database = {
 					id: string
 					phone: string
 					profile_photo_url: string | null
-					status: string
-					trade_license_status: string
+					status: Database['public']['Enums']['customer_status']
+					trade_license_status: Database['public']['Enums']['trade_license_status']
 					updated_at: string
 					user_id: string | null
 				}
@@ -366,8 +366,8 @@ export type Database = {
 					id?: string
 					phone: string
 					profile_photo_url?: string | null
-					status?: string
-					trade_license_status?: string
+					status?: Database['public']['Enums']['customer_status']
+					trade_license_status?: Database['public']['Enums']['trade_license_status']
 					updated_at?: string
 					user_id?: string | null
 				}
@@ -380,8 +380,8 @@ export type Database = {
 					id?: string
 					phone?: string
 					profile_photo_url?: string | null
-					status?: string
-					trade_license_status?: string
+					status?: Database['public']['Enums']['customer_status']
+					trade_license_status?: Database['public']['Enums']['trade_license_status']
 					updated_at?: string
 					user_id?: string | null
 				}
@@ -408,7 +408,7 @@ export type Database = {
 					rejection_proof: Json | null
 					rejection_reason: string | null
 					started_at: string | null
-					status: string
+					status: Database['public']['Enums']['delivery_status']
 					truck_id: string | null
 					updated_at: string
 				}
@@ -424,7 +424,7 @@ export type Database = {
 					rejection_proof?: Json | null
 					rejection_reason?: string | null
 					started_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['delivery_status']
 					truck_id?: string | null
 					updated_at?: string
 				}
@@ -440,7 +440,7 @@ export type Database = {
 					rejection_proof?: Json | null
 					rejection_reason?: string | null
 					started_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['delivery_status']
 					truck_id?: string | null
 					updated_at?: string
 				}
@@ -490,7 +490,7 @@ export type Database = {
 					id: string
 					location: Json
 					proof_path: string | null
-					proof_type: string
+					proof_type: Database['public']['Enums']['delivery_proof_type']
 					signer_name: string | null
 				}
 				Insert: {
@@ -500,7 +500,7 @@ export type Database = {
 					id?: string
 					location?: Json
 					proof_path?: string | null
-					proof_type: string
+					proof_type: Database['public']['Enums']['delivery_proof_type']
 					signer_name?: string | null
 				}
 				Update: {
@@ -510,7 +510,7 @@ export type Database = {
 					id?: string
 					location?: Json
 					proof_path?: string | null
-					proof_type?: string
+					proof_type?: Database['public']['Enums']['delivery_proof_type']
 					signer_name?: string | null
 				}
 				Relationships: [
@@ -577,7 +577,7 @@ export type Database = {
 					related_order_ref: string | null
 					storage_path: string | null
 					title: string
-					type: string
+					type: Database['public']['Enums']['document_type']
 					updated_at: string
 				}
 				Insert: {
@@ -590,7 +590,7 @@ export type Database = {
 					related_order_ref?: string | null
 					storage_path?: string | null
 					title: string
-					type: string
+					type: Database['public']['Enums']['document_type']
 					updated_at?: string
 				}
 				Update: {
@@ -603,7 +603,7 @@ export type Database = {
 					related_order_ref?: string | null
 					storage_path?: string | null
 					title?: string
-					type?: string
+					type?: Database['public']['Enums']['document_type']
 					updated_at?: string
 				}
 				Relationships: [
@@ -626,7 +626,7 @@ export type Database = {
 					latitude: number
 					longitude: number
 					recorded_at: string
-					source: string
+					source: Database['public']['Enums']['driver_location_source']
 					speed_kmh: number | null
 				}
 				Insert: {
@@ -638,7 +638,7 @@ export type Database = {
 					latitude: number
 					longitude: number
 					recorded_at?: string
-					source?: string
+					source?: Database['public']['Enums']['driver_location_source']
 					speed_kmh?: number | null
 				}
 				Update: {
@@ -650,7 +650,7 @@ export type Database = {
 					latitude?: number
 					longitude?: number
 					recorded_at?: string
-					source?: string
+					source?: Database['public']['Enums']['driver_location_source']
 					speed_kmh?: number | null
 				}
 				Relationships: [
@@ -681,19 +681,19 @@ export type Database = {
 				Row: {
 					driver_id: string
 					last_seen_at: string
-					status: string
+					status: Database['public']['Enums']['driver_online_status']
 					updated_at: string
 				}
 				Insert: {
 					driver_id: string
 					last_seen_at?: string
-					status?: string
+					status?: Database['public']['Enums']['driver_online_status']
 					updated_at?: string
 				}
 				Update: {
 					driver_id?: string
 					last_seen_at?: string
-					status?: string
+					status?: Database['public']['Enums']['driver_online_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -713,7 +713,7 @@ export type Database = {
 					full_name: string
 					id: string
 					phone: string
-					status: string
+					status: Database['public']['Enums']['driver_status']
 					updated_at: string
 					user_id: string | null
 					vehicle_label: string | null
@@ -724,7 +724,7 @@ export type Database = {
 					full_name: string
 					id?: string
 					phone: string
-					status?: string
+					status?: Database['public']['Enums']['driver_status']
 					updated_at?: string
 					user_id?: string | null
 					vehicle_label?: string | null
@@ -735,7 +735,7 @@ export type Database = {
 					full_name?: string
 					id?: string
 					phone?: string
-					status?: string
+					status?: Database['public']['Enums']['driver_status']
 					updated_at?: string
 					user_id?: string | null
 					vehicle_label?: string | null
@@ -749,7 +749,7 @@ export type Database = {
 					created_at: string
 					employee_id: string
 					id: string
-					panel: string
+					panel: Database['public']['Enums']['employee_panel']
 				}
 				Insert: {
 					can_read?: boolean
@@ -757,7 +757,7 @@ export type Database = {
 					created_at?: string
 					employee_id: string
 					id?: string
-					panel: string
+					panel: Database['public']['Enums']['employee_panel']
 				}
 				Update: {
 					can_read?: boolean
@@ -765,7 +765,7 @@ export type Database = {
 					created_at?: string
 					employee_id?: string
 					id?: string
-					panel?: string
+					panel?: Database['public']['Enums']['employee_panel']
 				}
 				Relationships: [
 					{
@@ -782,19 +782,19 @@ export type Database = {
 					created_at: string
 					employee_id: string
 					id: string
-					role: string
+					role: Database['public']['Enums']['employee_role']
 				}
 				Insert: {
 					created_at?: string
 					employee_id: string
 					id?: string
-					role: string
+					role: Database['public']['Enums']['employee_role']
 				}
 				Update: {
 					created_at?: string
 					employee_id?: string
 					id?: string
-					role?: string
+					role?: Database['public']['Enums']['employee_role']
 				}
 				Relationships: [
 					{
@@ -814,7 +814,7 @@ export type Database = {
 					id: string
 					is_ceo: boolean
 					phone: string | null
-					status: string
+					status: Database['public']['Enums']['profile_status']
 					updated_at: string
 					user_id: string | null
 				}
@@ -825,7 +825,7 @@ export type Database = {
 					id?: string
 					is_ceo?: boolean
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['profile_status']
 					updated_at?: string
 					user_id?: string | null
 				}
@@ -836,7 +836,7 @@ export type Database = {
 					id?: string
 					is_ceo?: boolean
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['profile_status']
 					updated_at?: string
 					user_id?: string | null
 				}
@@ -850,7 +850,7 @@ export type Database = {
 					order_id: string
 					product_id: string
 					quantity: number
-					status: string
+					status: Database['public']['Enums']['inventory_reservation_status']
 					updated_at: string
 				}
 				Insert: {
@@ -860,7 +860,7 @@ export type Database = {
 					order_id: string
 					product_id: string
 					quantity: number
-					status?: string
+					status?: Database['public']['Enums']['inventory_reservation_status']
 					updated_at?: string
 				}
 				Update: {
@@ -870,7 +870,7 @@ export type Database = {
 					order_id?: string
 					product_id?: string
 					quantity?: number
-					status?: string
+					status?: Database['public']['Enums']['inventory_reservation_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -1013,7 +1013,7 @@ export type Database = {
 					order_id: string
 					proof: Json
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['loading_task_status']
 					updated_at: string
 				}
 				Insert: {
@@ -1023,7 +1023,7 @@ export type Database = {
 					order_id: string
 					proof?: Json
 					rejection_reason?: string | null
-					status?: string
+					status?: Database['public']['Enums']['loading_task_status']
 					updated_at?: string
 				}
 				Update: {
@@ -1033,7 +1033,7 @@ export type Database = {
 					order_id?: string
 					proof?: Json
 					rejection_reason?: string | null
-					status?: string
+					status?: Database['public']['Enums']['loading_task_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -1047,14 +1047,14 @@ export type Database = {
 					{
 						foreignKeyName: 'loading_tasks_order_id_fkey'
 						columns: ['order_id']
-						isOneToOne: false
+						isOneToOne: true
 						referencedRelation: 'ceo_order_summary'
 						referencedColumns: ['id']
 					},
 					{
 						foreignKeyName: 'loading_tasks_order_id_fkey'
 						columns: ['order_id']
-						isOneToOne: false
+						isOneToOne: true
 						referencedRelation: 'orders'
 						referencedColumns: ['id']
 					},
@@ -1062,7 +1062,7 @@ export type Database = {
 			}
 			notification_preferences: {
 				Row: {
-					channel: string
+					channel: Database['public']['Enums']['notification_channel']
 					created_at: string
 					customer_id: string | null
 					enabled: boolean
@@ -1071,7 +1071,7 @@ export type Database = {
 					user_id: string | null
 				}
 				Insert: {
-					channel: string
+					channel: Database['public']['Enums']['notification_channel']
 					created_at?: string
 					customer_id?: string | null
 					enabled?: boolean
@@ -1080,7 +1080,7 @@ export type Database = {
 					user_id?: string | null
 				}
 				Update: {
-					channel?: string
+					channel?: Database['public']['Enums']['notification_channel']
 					created_at?: string
 					customer_id?: string | null
 					enabled?: boolean
@@ -1155,7 +1155,7 @@ export type Database = {
 					quote_id: string | null
 					quote_request_id: string | null
 					reserved_at: string | null
-					status: string
+					status: Database['public']['Enums']['order_workflow_status']
 					total_amount: number
 					updated_at: string
 				}
@@ -1168,7 +1168,7 @@ export type Database = {
 					quote_id?: string | null
 					quote_request_id?: string | null
 					reserved_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['order_workflow_status']
 					total_amount?: number
 					updated_at?: string
 				}
@@ -1181,7 +1181,7 @@ export type Database = {
 					quote_id?: string | null
 					quote_request_id?: string | null
 					reserved_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['order_workflow_status']
 					total_amount?: number
 					updated_at?: string
 				}
@@ -1196,14 +1196,14 @@ export type Database = {
 					{
 						foreignKeyName: 'orders_quote_id_fkey'
 						columns: ['quote_id']
-						isOneToOne: false
+						isOneToOne: true
 						referencedRelation: 'quotes'
 						referencedColumns: ['id']
 					},
 					{
 						foreignKeyName: 'orders_quote_request_id_fkey'
 						columns: ['quote_request_id']
-						isOneToOne: false
+						isOneToOne: true
 						referencedRelation: 'quote_requests'
 						referencedColumns: ['id']
 					},
@@ -1219,7 +1219,7 @@ export type Database = {
 					reason: string
 					requested_by_employee_id: string | null
 					resolved_at: string | null
-					status: string
+					status: Database['public']['Enums']['price_update_request_status']
 					updated_at: string
 				}
 				Insert: {
@@ -1231,7 +1231,7 @@ export type Database = {
 					reason: string
 					requested_by_employee_id?: string | null
 					resolved_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['price_update_request_status']
 					updated_at?: string
 				}
 				Update: {
@@ -1243,7 +1243,7 @@ export type Database = {
 					reason?: string
 					requested_by_employee_id?: string | null
 					resolved_at?: string | null
-					status?: string
+					status?: Database['public']['Enums']['price_update_request_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -1351,7 +1351,7 @@ export type Database = {
 			}
 			products: {
 				Row: {
-					availability_status: string
+					availability_status: Database['public']['Enums']['catalog_availability_status']
 					brand: string | null
 					category: string
 					created_at: string
@@ -1366,7 +1366,7 @@ export type Database = {
 					name_ar: string
 					price_range_max: number | null
 					price_range_min: number | null
-					price_tier: string | null
+					price_tier: Database['public']['Enums']['price_tier'] | null
 					search_vector: unknown
 					sku: string
 					slug: string
@@ -1378,7 +1378,7 @@ export type Database = {
 					weight_kg: number | null
 				}
 				Insert: {
-					availability_status?: string
+					availability_status?: Database['public']['Enums']['catalog_availability_status']
 					brand?: string | null
 					category: string
 					created_at?: string
@@ -1393,7 +1393,7 @@ export type Database = {
 					name_ar?: string
 					price_range_max?: number | null
 					price_range_min?: number | null
-					price_tier?: string | null
+					price_tier?: Database['public']['Enums']['price_tier'] | null
 					search_vector?: unknown
 					sku: string
 					slug: string
@@ -1405,7 +1405,7 @@ export type Database = {
 					weight_kg?: number | null
 				}
 				Update: {
-					availability_status?: string
+					availability_status?: Database['public']['Enums']['catalog_availability_status']
 					brand?: string | null
 					category?: string
 					created_at?: string
@@ -1420,7 +1420,7 @@ export type Database = {
 					name_ar?: string
 					price_range_max?: number | null
 					price_range_min?: number | null
-					price_tier?: string | null
+					price_tier?: Database['public']['Enums']['price_tier'] | null
 					search_vector?: unknown
 					sku?: string
 					slug?: string
@@ -1435,7 +1435,7 @@ export type Database = {
 			}
 			profiles: {
 				Row: {
-					account_type: string
+					account_type: Database['public']['Enums']['account_type']
 					auth_user_id: string
 					created_at: string
 					display_name: string
@@ -1443,11 +1443,11 @@ export type Database = {
 					id: string
 					locale: string
 					phone: string | null
-					status: string
+					status: Database['public']['Enums']['profile_status']
 					updated_at: string
 				}
 				Insert: {
-					account_type: string
+					account_type: Database['public']['Enums']['account_type']
 					auth_user_id: string
 					created_at?: string
 					display_name: string
@@ -1455,11 +1455,11 @@ export type Database = {
 					id?: string
 					locale?: string
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['profile_status']
 					updated_at?: string
 				}
 				Update: {
-					account_type?: string
+					account_type?: Database['public']['Enums']['account_type']
 					auth_user_id?: string
 					created_at?: string
 					display_name?: string
@@ -1467,7 +1467,7 @@ export type Database = {
 					id?: string
 					locale?: string
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['profile_status']
 					updated_at?: string
 				}
 				Relationships: []
@@ -1512,7 +1512,7 @@ export type Database = {
 			}
 			quote_counter_offers: {
 				Row: {
-					counter_type: string
+					counter_type: Database['public']['Enums']['quote_counter_type']
 					created_at: string
 					id: string
 					line_items: Json | null
@@ -1522,7 +1522,7 @@ export type Database = {
 					total_discount: number | null
 				}
 				Insert: {
-					counter_type: string
+					counter_type: Database['public']['Enums']['quote_counter_type']
 					created_at?: string
 					id?: string
 					line_items?: Json | null
@@ -1532,7 +1532,7 @@ export type Database = {
 					total_discount?: number | null
 				}
 				Update: {
-					counter_type?: string
+					counter_type?: Database['public']['Enums']['quote_counter_type']
 					created_at?: string
 					id?: string
 					line_items?: Json | null
@@ -1557,7 +1557,7 @@ export type Database = {
 					customer_counter_price: number | null
 					id: string
 					is_accepted: boolean
-					line_status: string
+					line_status: Database['public']['Enums']['quote_item_line_status']
 					line_total: number
 					margin_percent: number | null
 					product_id: string | null
@@ -1577,7 +1577,7 @@ export type Database = {
 					customer_counter_price?: number | null
 					id?: string
 					is_accepted?: boolean
-					line_status?: string
+					line_status?: Database['public']['Enums']['quote_item_line_status']
 					line_total: number
 					margin_percent?: number | null
 					product_id?: string | null
@@ -1597,7 +1597,7 @@ export type Database = {
 					customer_counter_price?: number | null
 					id?: string
 					is_accepted?: boolean
-					line_status?: string
+					line_status?: Database['public']['Enums']['quote_item_line_status']
 					line_total?: number
 					margin_percent?: number | null
 					product_id?: string | null
@@ -1725,11 +1725,11 @@ export type Database = {
 					rejected_proof: Json | null
 					rejected_reason: string | null
 					request_number: string
-					status: string
+					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
 					submitted_by: string | null
 					updated_at: string
-					urgency: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				Insert: {
 					approval_required?: boolean
@@ -1748,11 +1748,11 @@ export type Database = {
 					rejected_proof?: Json | null
 					rejected_reason?: string | null
 					request_number?: string
-					status?: string
+					status?: Database['public']['Enums']['quote_request_status']
 					submitted_at?: string | null
 					submitted_by?: string | null
 					updated_at?: string
-					urgency?: string
+					urgency?: Database['public']['Enums']['quote_request_urgency']
 				}
 				Update: {
 					approval_required?: boolean
@@ -1771,11 +1771,11 @@ export type Database = {
 					rejected_proof?: Json | null
 					rejected_reason?: string | null
 					request_number?: string
-					status?: string
+					status?: Database['public']['Enums']['quote_request_status']
 					submitted_at?: string | null
 					submitted_by?: string | null
 					updated_at?: string
-					urgency?: string
+					urgency?: Database['public']['Enums']['quote_request_urgency']
 				}
 				Relationships: [
 					{
@@ -1814,7 +1814,7 @@ export type Database = {
 					id: string
 					notes: string | null
 					quote_id: string
-					status: string
+					status: Database['public']['Enums']['quote_status']
 					subtotal: number
 					total: number
 					version_number: number
@@ -1824,7 +1824,7 @@ export type Database = {
 					id?: string
 					notes?: string | null
 					quote_id: string
-					status?: string
+					status?: Database['public']['Enums']['quote_status']
 					subtotal?: number
 					total?: number
 					version_number: number
@@ -1834,7 +1834,7 @@ export type Database = {
 					id?: string
 					notes?: string | null
 					quote_id?: string
-					status?: string
+					status?: Database['public']['Enums']['quote_status']
 					subtotal?: number
 					total?: number
 					version_number?: number
@@ -1868,7 +1868,7 @@ export type Database = {
 					project_id: string | null
 					quote_number: string
 					quote_request_id: string | null
-					status: string
+					status: Database['public']['Enums']['quote_status']
 					subtotal: number
 					tax_amount: number
 					total: number
@@ -1895,7 +1895,7 @@ export type Database = {
 					project_id?: string | null
 					quote_number?: string
 					quote_request_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['quote_status']
 					subtotal?: number
 					tax_amount?: number
 					total?: number
@@ -1922,7 +1922,7 @@ export type Database = {
 					project_id?: string | null
 					quote_number?: string
 					quote_request_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['quote_status']
 					subtotal?: number
 					tax_amount?: number
 					total?: number
@@ -2016,7 +2016,7 @@ export type Database = {
 					proof: Json
 					refill_request_id: string
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['receiving_task_status']
 					updated_at: string
 				}
 				Insert: {
@@ -2026,7 +2026,7 @@ export type Database = {
 					proof?: Json
 					refill_request_id: string
 					rejection_reason?: string | null
-					status?: string
+					status?: Database['public']['Enums']['receiving_task_status']
 					updated_at?: string
 				}
 				Update: {
@@ -2036,7 +2036,7 @@ export type Database = {
 					proof?: Json
 					refill_request_id?: string
 					rejection_reason?: string | null
-					status?: string
+					status?: Database['public']['Enums']['receiving_task_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -2050,7 +2050,7 @@ export type Database = {
 					{
 						foreignKeyName: 'receiving_tasks_refill_request_id_fkey'
 						columns: ['refill_request_id']
-						isOneToOne: false
+						isOneToOne: true
 						referencedRelation: 'refill_requests'
 						referencedColumns: ['id']
 					},
@@ -2063,7 +2063,7 @@ export type Database = {
 					id: string
 					referral_code: string
 					referred_email: string | null
-					status: string
+					status: Database['public']['Enums']['referral_status']
 					updated_at: string
 				}
 				Insert: {
@@ -2072,7 +2072,7 @@ export type Database = {
 					id?: string
 					referral_code: string
 					referred_email?: string | null
-					status?: string
+					status?: Database['public']['Enums']['referral_status']
 					updated_at?: string
 				}
 				Update: {
@@ -2081,7 +2081,7 @@ export type Database = {
 					id?: string
 					referral_code?: string
 					referred_email?: string | null
-					status?: string
+					status?: Database['public']['Enums']['referral_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -2102,7 +2102,7 @@ export type Database = {
 					proof: Json
 					quantity: number
 					requested_by_employee_id: string | null
-					status: string
+					status: Database['public']['Enums']['refill_request_status']
 					supplier_id: string
 					unit_cost: number
 					updated_at: string
@@ -2114,7 +2114,7 @@ export type Database = {
 					proof?: Json
 					quantity: number
 					requested_by_employee_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['refill_request_status']
 					supplier_id: string
 					unit_cost: number
 					updated_at?: string
@@ -2126,7 +2126,7 @@ export type Database = {
 					proof?: Json
 					quantity?: number
 					requested_by_employee_id?: string | null
-					status?: string
+					status?: Database['public']['Enums']['refill_request_status']
 					supplier_id?: string
 					unit_cost?: number
 					updated_at?: string
@@ -2213,7 +2213,7 @@ export type Database = {
 					id: string
 					notes: string | null
 					quote_request_id: string
-					status: string
+					status: Database['public']['Enums']['sales_quote_version_status']
 					subtotal: number
 					tax_amount: number
 					total: number
@@ -2227,7 +2227,7 @@ export type Database = {
 					id?: string
 					notes?: string | null
 					quote_request_id: string
-					status?: string
+					status?: Database['public']['Enums']['sales_quote_version_status']
 					subtotal?: number
 					tax_amount?: number
 					total?: number
@@ -2241,7 +2241,7 @@ export type Database = {
 					id?: string
 					notes?: string | null
 					quote_request_id?: string
-					status?: string
+					status?: Database['public']['Enums']['sales_quote_version_status']
 					subtotal?: number
 					tax_amount?: number
 					total?: number
@@ -2273,7 +2273,7 @@ export type Database = {
 					proof_path: string
 					recorded_by_employee_id: string | null
 					refill_request_id: string
-					status: string
+					status: Database['public']['Enums']['payment_record_status']
 				}
 				Insert: {
 					amount: number
@@ -2283,7 +2283,7 @@ export type Database = {
 					proof_path: string
 					recorded_by_employee_id?: string | null
 					refill_request_id: string
-					status?: string
+					status?: Database['public']['Enums']['payment_record_status']
 				}
 				Update: {
 					amount?: number
@@ -2293,7 +2293,7 @@ export type Database = {
 					proof_path?: string
 					recorded_by_employee_id?: string | null
 					refill_request_id?: string
-					status?: string
+					status?: Database['public']['Enums']['payment_record_status']
 				}
 				Relationships: [
 					{
@@ -2384,7 +2384,7 @@ export type Database = {
 					name: string
 					notes: string | null
 					phone: string | null
-					status: string
+					status: Database['public']['Enums']['supplier_status']
 					updated_at: string
 				}
 				Insert: {
@@ -2394,7 +2394,7 @@ export type Database = {
 					name: string
 					notes?: string | null
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['supplier_status']
 					updated_at?: string
 				}
 				Update: {
@@ -2404,7 +2404,7 @@ export type Database = {
 					name?: string
 					notes?: string | null
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['supplier_status']
 					updated_at?: string
 				}
 				Relationships: []
@@ -2443,36 +2443,36 @@ export type Database = {
 			}
 			support_conversations: {
 				Row: {
-					channel: string
+					channel: Database['public']['Enums']['support_channel']
 					created_at: string
 					customer_id: string | null
 					email: string | null
 					external_thread_id: string | null
 					id: string
 					phone: string | null
-					status: string
+					status: Database['public']['Enums']['support_conversation_status']
 					updated_at: string
 				}
 				Insert: {
-					channel: string
+					channel: Database['public']['Enums']['support_channel']
 					created_at?: string
 					customer_id?: string | null
 					email?: string | null
 					external_thread_id?: string | null
 					id?: string
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['support_conversation_status']
 					updated_at?: string
 				}
 				Update: {
-					channel?: string
+					channel?: Database['public']['Enums']['support_channel']
 					created_at?: string
 					customer_id?: string | null
 					email?: string | null
 					external_thread_id?: string | null
 					id?: string
 					phone?: string | null
-					status?: string
+					status?: Database['public']['Enums']['support_conversation_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -2488,34 +2488,34 @@ export type Database = {
 			support_messages: {
 				Row: {
 					body: string
-					channel: string
+					channel: Database['public']['Enums']['support_message_channel']
 					conversation_id: string | null
 					created_at: string
 					external_message_id: string | null
 					id: string
-					sender_type: string
+					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
 				}
 				Insert: {
 					body: string
-					channel: string
+					channel: Database['public']['Enums']['support_message_channel']
 					conversation_id?: string | null
 					created_at?: string
 					external_message_id?: string | null
 					id?: string
-					sender_type: string
+					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id?: string | null
 					ticket_id?: string | null
 				}
 				Update: {
 					body?: string
-					channel?: string
+					channel?: Database['public']['Enums']['support_message_channel']
 					conversation_id?: string | null
 					created_at?: string
 					external_message_id?: string | null
 					id?: string
-					sender_type?: string
+					sender_type?: Database['public']['Enums']['support_sender_type']
 					sender_user_id?: string | null
 					ticket_id?: string | null
 				}
@@ -2545,8 +2545,8 @@ export type Database = {
 					requester_email: string
 					requester_name: string | null
 					requester_phone: string | null
-					source: string
-					status: string
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
 					subject: string
 					updated_at: string
 				}
@@ -2558,8 +2558,8 @@ export type Database = {
 					requester_email: string
 					requester_name?: string | null
 					requester_phone?: string | null
-					source?: string
-					status?: string
+					source?: Database['public']['Enums']['support_ticket_source']
+					status?: Database['public']['Enums']['support_ticket_status']
 					subject: string
 					updated_at?: string
 				}
@@ -2571,8 +2571,8 @@ export type Database = {
 					requester_email?: string
 					requester_name?: string | null
 					requester_phone?: string | null
-					source?: string
-					status?: string
+					source?: Database['public']['Enums']['support_ticket_source']
+					status?: Database['public']['Enums']['support_ticket_status']
 					subject?: string
 					updated_at?: string
 				}
@@ -2592,8 +2592,8 @@ export type Database = {
 					customer_id: string
 					email: string
 					id: string
-					role: string
-					status: string
+					role: Database['public']['Enums']['team_member_role']
+					status: Database['public']['Enums']['team_invite_status']
 					updated_at: string
 				}
 				Insert: {
@@ -2601,8 +2601,8 @@ export type Database = {
 					customer_id: string
 					email: string
 					id?: string
-					role?: string
-					status?: string
+					role?: Database['public']['Enums']['team_member_role']
+					status?: Database['public']['Enums']['team_invite_status']
 					updated_at?: string
 				}
 				Update: {
@@ -2610,8 +2610,8 @@ export type Database = {
 					customer_id?: string
 					email?: string
 					id?: string
-					role?: string
-					status?: string
+					role?: Database['public']['Enums']['team_member_role']
+					status?: Database['public']['Enums']['team_invite_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -2629,21 +2629,21 @@ export type Database = {
 					created_at: string
 					customer_id: string
 					id: string
-					role: string
+					role: Database['public']['Enums']['team_member_role']
 					user_id: string | null
 				}
 				Insert: {
 					created_at?: string
 					customer_id: string
 					id?: string
-					role?: string
+					role?: Database['public']['Enums']['team_member_role']
 					user_id?: string | null
 				}
 				Update: {
 					created_at?: string
 					customer_id?: string
 					id?: string
-					role?: string
+					role?: Database['public']['Enums']['team_member_role']
 					user_id?: string | null
 				}
 				Relationships: [
@@ -2663,7 +2663,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					plate_number: string
-					status: string
+					status: Database['public']['Enums']['truck_status']
 					updated_at: string
 				}
 				Insert: {
@@ -2672,7 +2672,7 @@ export type Database = {
 					driver_id?: string | null
 					id?: string
 					plate_number: string
-					status?: string
+					status?: Database['public']['Enums']['truck_status']
 					updated_at?: string
 				}
 				Update: {
@@ -2681,7 +2681,7 @@ export type Database = {
 					driver_id?: string | null
 					id?: string
 					plate_number?: string
-					status?: string
+					status?: Database['public']['Enums']['truck_status']
 					updated_at?: string
 				}
 				Relationships: [
@@ -2707,7 +2707,7 @@ export type Database = {
 					phone: string | null
 					updated_at: string
 					user_id: string
-					user_type: string
+					user_type: Database['public']['Enums']['user_profile_type']
 				}
 				Insert: {
 					created_at?: string
@@ -2721,7 +2721,7 @@ export type Database = {
 					phone?: string | null
 					updated_at?: string
 					user_id: string
-					user_type: string
+					user_type: Database['public']['Enums']['user_profile_type']
 				}
 				Update: {
 					created_at?: string
@@ -2735,7 +2735,7 @@ export type Database = {
 					phone?: string | null
 					updated_at?: string
 					user_id?: string
-					user_type?: string
+					user_type?: Database['public']['Enums']['user_profile_type']
 				}
 				Relationships: [
 					{
@@ -2765,19 +2765,19 @@ export type Database = {
 				Row: {
 					created_at: string
 					id: string
-					role: string
+					role: Database['public']['Enums']['user_role']
 					user_profile_id: string
 				}
 				Insert: {
 					created_at?: string
 					id?: string
-					role: string
+					role: Database['public']['Enums']['user_role']
 					user_profile_id: string
 				}
 				Update: {
 					created_at?: string
 					id?: string
-					role?: string
+					role?: Database['public']['Enums']['user_role']
 					user_profile_id?: string
 				}
 				Relationships: [
@@ -2829,7 +2829,7 @@ export type Database = {
 					driver_name: string | null
 					id: string | null
 					order_id: string | null
-					status: string | null
+					status: Database['public']['Enums']['delivery_status'] | null
 					updated_at: string | null
 				}
 				Relationships: [
@@ -2879,7 +2879,7 @@ export type Database = {
 					delivered_at: string | null
 					id: string | null
 					order_number: string | null
-					status: string | null
+					status: Database['public']['Enums']['order_workflow_status'] | null
 					total_amount: number | null
 				}
 				Relationships: []
@@ -2919,11 +2919,11 @@ export type Database = {
 					rejected_proof: Json | null
 					rejected_reason: string | null
 					request_number: string
-					status: string
+					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
 					submitted_by: string | null
 					updated_at: string
-					urgency: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				SetofOptions: {
 					from: '*'
@@ -2951,11 +2951,11 @@ export type Database = {
 					rejected_proof: Json | null
 					rejected_reason: string | null
 					request_number: string
-					status: string
+					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
 					submitted_by: string | null
 					updated_at: string
-					urgency: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				SetofOptions: {
 					from: '*'
@@ -2979,7 +2979,7 @@ export type Database = {
 					proof: Json
 					quantity: number
 					requested_by_employee_id: string | null
-					status: string
+					status: Database['public']['Enums']['refill_request_status']
 					supplier_id: string
 					unit_cost: number
 					updated_at: string
@@ -3007,8 +3007,8 @@ export type Database = {
 					requester_email: string
 					requester_name: string | null
 					requester_phone: string | null
-					source: string
-					status: string
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
 					subject: string
 					updated_at: string
 				}
@@ -3022,6 +3022,156 @@ export type Database = {
 			current_customer_id: { Args: never; Returns: string }
 			current_driver_id: { Args: never; Returns: string }
 			current_employee_id: { Args: never; Returns: string }
+			customer_accept_quote: {
+				Args: { p_quote_id: string }
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			customer_decline_quote: {
+				Args: { p_notes?: string; p_quote_id: string; p_reason?: string }
+				Returns: {
+					accepted_at: string | null
+					assigned_rep_name: string | null
+					assigned_rep_phone: string | null
+					created_at: string
+					currency: string
+					customer_id: string | null
+					decline_notes: string | null
+					decline_reason: string | null
+					declined_at: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					payment_terms: string | null
+					previous_version_id: string | null
+					project_id: string | null
+					quote_number: string
+					quote_request_id: string | null
+					status: Database['public']['Enums']['quote_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					updated_at: string
+					valid_until: string
+					validity_days: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quotes'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			customer_request_quote_negotiation: {
+				Args: {
+					p_counter_type: Database['public']['Enums']['quote_counter_type']
+					p_line_items?: Json
+					p_notes?: string
+					p_quote_id: string
+					p_self_pickup?: boolean
+					p_total_discount?: number
+				}
+				Returns: {
+					counter_type: Database['public']['Enums']['quote_counter_type']
+					created_at: string
+					id: string
+					line_items: Json | null
+					notes: string | null
+					quote_id: string
+					self_pickup: boolean
+					total_discount: number | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_counter_offers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			customer_submit_quote_line_response: {
+				Args: { p_line_responses: Json; p_quote_id: string }
+				Returns: {
+					accepted_at: string | null
+					assigned_rep_name: string | null
+					assigned_rep_phone: string | null
+					created_at: string
+					currency: string
+					customer_id: string | null
+					decline_notes: string | null
+					decline_reason: string | null
+					declined_at: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					payment_terms: string | null
+					previous_version_id: string | null
+					project_id: string | null
+					quote_number: string
+					quote_request_id: string | null
+					status: Database['public']['Enums']['quote_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					updated_at: string
+					valid_until: string
+					validity_days: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quotes'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			dispatch_assign_driver: {
+				Args: {
+					p_driver_id: string
+					p_loading_task_id?: string
+					p_order_id: string
+					p_truck_id?: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			dispatch_complete_delivery: {
 				Args: { p_delivery_id: string; p_proof: Json }
 				Returns: {
@@ -3036,7 +3186,7 @@ export type Database = {
 					rejection_proof: Json | null
 					rejection_reason: string | null
 					started_at: string | null
-					status: string
+					status: Database['public']['Enums']['delivery_status']
 					truck_id: string | null
 					updated_at: string
 				}
@@ -3061,7 +3211,32 @@ export type Database = {
 					rejection_proof: Json | null
 					rejection_reason: string | null
 					started_at: string | null
-					status: string
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_accept_delivery: {
+				Args: { p_delivery_id: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
 					truck_id: string | null
 					updated_at: string
 				}
@@ -3092,7 +3267,32 @@ export type Database = {
 					rejection_proof: Json | null
 					rejection_reason: string | null
 					started_at: string | null
-					status: string
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_record_arrival: {
+				Args: { p_delivery_id: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
 					truck_id: string | null
 					updated_at: string
 				}
@@ -3117,7 +3317,32 @@ export type Database = {
 					rejection_proof: Json | null
 					rejection_reason: string | null
 					started_at: string | null
-					status: string
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_start_delivery: {
+				Args: { p_delivery_id: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
 					truck_id: string | null
 					updated_at: string
 				}
@@ -3146,7 +3371,7 @@ export type Database = {
 					latitude: number
 					longitude: number
 					recorded_at: string
-					source: string
+					source: Database['public']['Enums']['driver_location_source']
 					speed_kmh: number | null
 				}
 				SetofOptions: {
@@ -3164,12 +3389,12 @@ export type Database = {
 				}
 				Returns: {
 					body: string
-					channel: string
+					channel: Database['public']['Enums']['support_message_channel']
 					conversation_id: string | null
 					created_at: string
 					external_message_id: string | null
 					id: string
-					sender_type: string
+					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
 				}
@@ -3180,13 +3405,35 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			inventory_evaluate_order: {
+				Args: { p_order_id: string }
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			is_employee_with_role: {
 				Args: { required_role: string }
 				Returns: boolean
 			}
 			log_activity: {
 				Args: {
-					action: string
+					action: Database['public']['Enums']['audit_event_type']
 					details?: Json
 					entity_id: string
 					entity_type: string
@@ -3210,7 +3457,7 @@ export type Database = {
 					payment_fraction: number
 					proof_path: string
 					recorded_by_employee_id: string | null
-					status: string
+					status: Database['public']['Enums']['payment_record_status']
 				}
 				SetofOptions: {
 					from: '*'
@@ -3234,7 +3481,7 @@ export type Database = {
 					proof_path: string
 					recorded_by_employee_id: string | null
 					refill_request_id: string
-					status: string
+					status: Database['public']['Enums']['payment_record_status']
 				}
 				SetofOptions: {
 					from: '*'
@@ -3254,7 +3501,7 @@ export type Database = {
 					reason: string
 					requested_by_employee_id: string | null
 					resolved_at: string | null
-					status: string
+					status: Database['public']['Enums']['price_update_request_status']
 					updated_at: string
 				}
 				SetofOptions: {
@@ -3280,7 +3527,7 @@ export type Database = {
 					quote_id: string | null
 					quote_request_id: string | null
 					reserved_at: string | null
-					status: string
+					status: Database['public']['Enums']['order_workflow_status']
 					total_amount: number
 					updated_at: string
 				}
@@ -3302,7 +3549,29 @@ export type Database = {
 					quote_id: string | null
 					quote_request_id: string | null
 					reserved_at: string | null
-					status: string
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_confirm_order: {
+				Args: { p_order_id: string; p_quote_version_id?: string }
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
 					total_amount: number
 					updated_at: string
 				}
@@ -3332,11 +3601,11 @@ export type Database = {
 					rejected_proof: Json | null
 					rejected_reason: string | null
 					request_number: string
-					status: string
+					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
 					submitted_by: string | null
 					updated_at: string
-					urgency: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				SetofOptions: {
 					from: '*'
@@ -3364,11 +3633,11 @@ export type Database = {
 					rejected_proof: Json | null
 					rejected_reason: string | null
 					request_number: string
-					status: string
+					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
 					submitted_by: string | null
 					updated_at: string
-					urgency: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				SetofOptions: {
 					from: '*'
@@ -3378,15 +3647,19 @@ export type Database = {
 				}
 			}
 			send_support_reply: {
-				Args: { p_body: string; p_channel?: string; p_ticket_id: string }
+				Args: {
+					p_body: string
+					p_channel?: Database['public']['Enums']['support_message_channel']
+					p_ticket_id: string
+				}
 				Returns: {
 					body: string
-					channel: string
+					channel: Database['public']['Enums']['support_message_channel']
 					conversation_id: string | null
 					created_at: string
 					external_message_id: string | null
 					id: string
-					sender_type: string
+					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
 				}
@@ -3410,7 +3683,7 @@ export type Database = {
 					order_id: string
 					proof: Json
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['loading_task_status']
 					updated_at: string
 				}
 				SetofOptions: {
@@ -3429,7 +3702,7 @@ export type Database = {
 					proof: Json
 					refill_request_id: string
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['receiving_task_status']
 					updated_at: string
 				}
 				SetofOptions: {
@@ -3448,7 +3721,7 @@ export type Database = {
 					order_id: string
 					proof: Json
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['loading_task_status']
 					updated_at: string
 				}
 				SetofOptions: {
@@ -3467,7 +3740,7 @@ export type Database = {
 					proof: Json
 					refill_request_id: string
 					rejection_reason: string | null
-					status: string
+					status: Database['public']['Enums']['receiving_task_status']
 					updated_at: string
 				}
 				SetofOptions: {
@@ -3477,9 +3750,199 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			warehouse_start_loading: {
+				Args: { p_order_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 		}
 		Enums: {
-			[_ in never]: never
+			account_type: 'customer' | 'employee' | 'driver'
+			ai_agent_scope: 'website' | 'portal' | 'employee' | 'search'
+			approval_status:
+				| 'pending'
+				| 'approved'
+				| 'changes_requested'
+				| 'rejected'
+				| 'canceled'
+			audit_event_type:
+				| 'quote_accepted'
+				| 'customer_quote_accepted'
+				| 'customer_quote_declined'
+				| 'customer_quote_negotiation_requested'
+				| 'customer_quote_line_response_submitted'
+				| 'sales_order_claimed'
+				| 'sales_order_requeued'
+				| 'sales_quote_approved'
+				| 'sales_order_confirmed'
+				| 'sales_order_rejected'
+				| 'manual_order_created'
+				| 'price_update_requested'
+				| 'supplier_refill_created'
+				| 'customer_payment_recorded'
+				| 'supplier_payment_recorded'
+				| 'inventory_order_evaluated'
+				| 'order_stock_reserved'
+				| 'warehouse_loading_started'
+				| 'warehouse_loading_approved'
+				| 'warehouse_loading_rejected'
+				| 'warehouse_receiving_approved'
+				| 'warehouse_receiving_rejected'
+				| 'dispatch_driver_assigned'
+				| 'dispatch_delivery_completed'
+				| 'dispatch_delivery_rejected'
+				| 'driver_delivery_accepted'
+				| 'driver_delivery_started'
+				| 'driver_delivery_arrived'
+				| 'driver_delivery_confirmed'
+				| 'driver_delivery_rejected'
+				| 'support_ticket_created'
+				| 'support_reply_sent'
+				| 'whatsapp_message_ingested'
+			catalog_availability_status:
+				| 'available'
+				| 'low_stock'
+				| 'out_of_stock'
+				| 'hidden'
+			customer_status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
+			delivery_proof_type: 'signature' | 'photo' | 'note'
+			delivery_status:
+				| 'assigned'
+				| 'accepted'
+				| 'in_transit'
+				| 'arrived'
+				| 'completed'
+				| 'rejected'
+			document_type: 'invoice' | 'delivery_note' | 'quote_pdf' | 'certificate'
+			driver_location_source: 'driver_app' | 'dispatch' | 'system'
+			driver_online_status: 'online' | 'offline'
+			driver_status:
+				| 'invited'
+				| 'available'
+				| 'on_delivery'
+				| 'offline'
+				| 'disabled'
+			employee_panel:
+				| 'sales'
+				| 'inventory'
+				| 'warehouse'
+				| 'finance'
+				| 'dispatch'
+				| 'customer_service'
+				| 'admin'
+				| 'search'
+			employee_role:
+				| 'admin'
+				| 'sales'
+				| 'inventory'
+				| 'warehouse'
+				| 'finance'
+				| 'dispatch'
+				| 'customer_service'
+				| 'driver_manager'
+				| 'ceo'
+			inventory_reservation_status: 'reserved' | 'released' | 'consumed'
+			loading_task_status: 'pending' | 'loading' | 'approved' | 'rejected'
+			notification_channel: 'email' | 'sms' | 'whatsapp' | 'push'
+			order_workflow_status:
+				| 'confirmed_for_inventory'
+				| 'inventory_reserved'
+				| 'warehouse_loading'
+				| 'dispatch_ready'
+				| 'dispatch_assigned'
+				| 'out_for_delivery'
+				| 'delivered'
+				| 'rejected'
+				| 'canceled'
+			payment_record_status: 'recorded' | 'voided'
+			price_tier: 'budget' | 'mid_range' | 'premium'
+			price_update_request_status: 'pending' | 'resolved' | 'canceled'
+			profile_status: 'invited' | 'active' | 'disabled'
+			quote_counter_type: 'total' | 'per_line'
+			quote_item_line_status: 'quoted' | 'accepted' | 'rejected' | 'negotiate'
+			quote_request_status:
+				| 'draft'
+				| 'submitted'
+				| 'assigned'
+				| 'saved'
+				| 'reviewing'
+				| 'awaiting_clarification'
+				| 'quoting'
+				| 'quoted'
+				| 'approved'
+				| 'rejected'
+				| 'declined'
+				| 'expired'
+				| 'canceled'
+			quote_request_urgency: 'standard' | 'urgent'
+			quote_status:
+				| 'draft'
+				| 'internal_review'
+				| 'pending_approval'
+				| 'approved'
+				| 'sent'
+				| 'viewed'
+				| 'negotiating'
+				| 'revised'
+				| 'accepted'
+				| 'declined'
+				| 'expired'
+				| 'canceled'
+				| 'cancelled'
+				| 'requires_re_quote'
+			receiving_task_status: 'pending' | 'approved' | 'rejected'
+			referral_status: 'pending' | 'converted' | 'credited' | 'canceled'
+			refill_request_status:
+				| 'finance_pending'
+				| 'finance_approved'
+				| 'warehouse_receiving'
+				| 'received'
+				| 'rejected'
+				| 'canceled'
+			sales_quote_version_status: 'draft' | 'approved' | 'sent' | 'rejected'
+			supplier_status: 'active' | 'inactive' | 'blocked'
+			support_channel: 'email' | 'whatsapp'
+			support_conversation_status: 'open' | 'closed'
+			support_message_channel: 'email' | 'whatsapp' | 'portal' | 'website'
+			support_sender_type: 'customer' | 'employee' | 'system' | 'external'
+			support_ticket_source: 'website' | 'portal' | 'whatsapp' | 'internal'
+			support_ticket_status: 'open' | 'pending' | 'closed'
+			team_invite_status: 'pending' | 'accepted' | 'revoked'
+			team_member_role: 'owner' | 'admin' | 'member'
+			trade_license_status:
+				| 'not_uploaded'
+				| 'under_review'
+				| 'approved'
+				| 'rejected'
+			truck_status: 'available' | 'loading' | 'dispatched' | 'maintenance'
+			user_profile_type: 'customer' | 'internal' | 'driver'
+			user_role:
+				| 'customer'
+				| 'approver'
+				| 'admin'
+				| 'sales'
+				| 'inventory'
+				| 'warehouse'
+				| 'finance'
+				| 'dispatch'
+				| 'customer_service'
+				| 'driver_manager'
+				| 'driver'
+				| 'ceo'
 		}
 		CompositeTypes: {
 			[_ in never]: never
@@ -3609,6 +4072,192 @@ export const Constants = {
 		Enums: {},
 	},
 	public: {
-		Enums: {},
+		Enums: {
+			account_type: ['customer', 'employee', 'driver'],
+			ai_agent_scope: ['website', 'portal', 'employee', 'search'],
+			approval_status: [
+				'pending',
+				'approved',
+				'changes_requested',
+				'rejected',
+				'canceled',
+			],
+			audit_event_type: [
+				'quote_accepted',
+				'customer_quote_accepted',
+				'customer_quote_declined',
+				'customer_quote_negotiation_requested',
+				'customer_quote_line_response_submitted',
+				'sales_order_claimed',
+				'sales_order_requeued',
+				'sales_quote_approved',
+				'sales_order_confirmed',
+				'sales_order_rejected',
+				'manual_order_created',
+				'price_update_requested',
+				'supplier_refill_created',
+				'customer_payment_recorded',
+				'supplier_payment_recorded',
+				'inventory_order_evaluated',
+				'order_stock_reserved',
+				'warehouse_loading_started',
+				'warehouse_loading_approved',
+				'warehouse_loading_rejected',
+				'warehouse_receiving_approved',
+				'warehouse_receiving_rejected',
+				'dispatch_driver_assigned',
+				'dispatch_delivery_completed',
+				'dispatch_delivery_rejected',
+				'driver_delivery_accepted',
+				'driver_delivery_started',
+				'driver_delivery_arrived',
+				'driver_delivery_confirmed',
+				'driver_delivery_rejected',
+				'support_ticket_created',
+				'support_reply_sent',
+				'whatsapp_message_ingested',
+			],
+			catalog_availability_status: [
+				'available',
+				'low_stock',
+				'out_of_stock',
+				'hidden',
+			],
+			customer_status: ['unclaimed', 'claimed', 'active', 'inactive'],
+			delivery_proof_type: ['signature', 'photo', 'note'],
+			delivery_status: [
+				'assigned',
+				'accepted',
+				'in_transit',
+				'arrived',
+				'completed',
+				'rejected',
+			],
+			document_type: ['invoice', 'delivery_note', 'quote_pdf', 'certificate'],
+			driver_location_source: ['driver_app', 'dispatch', 'system'],
+			driver_online_status: ['online', 'offline'],
+			driver_status: [
+				'invited',
+				'available',
+				'on_delivery',
+				'offline',
+				'disabled',
+			],
+			employee_panel: [
+				'sales',
+				'inventory',
+				'warehouse',
+				'finance',
+				'dispatch',
+				'customer_service',
+				'admin',
+				'search',
+			],
+			employee_role: [
+				'admin',
+				'sales',
+				'inventory',
+				'warehouse',
+				'finance',
+				'dispatch',
+				'customer_service',
+				'driver_manager',
+				'ceo',
+			],
+			inventory_reservation_status: ['reserved', 'released', 'consumed'],
+			loading_task_status: ['pending', 'loading', 'approved', 'rejected'],
+			notification_channel: ['email', 'sms', 'whatsapp', 'push'],
+			order_workflow_status: [
+				'confirmed_for_inventory',
+				'inventory_reserved',
+				'warehouse_loading',
+				'dispatch_ready',
+				'dispatch_assigned',
+				'out_for_delivery',
+				'delivered',
+				'rejected',
+				'canceled',
+			],
+			payment_record_status: ['recorded', 'voided'],
+			price_tier: ['budget', 'mid_range', 'premium'],
+			price_update_request_status: ['pending', 'resolved', 'canceled'],
+			profile_status: ['invited', 'active', 'disabled'],
+			quote_counter_type: ['total', 'per_line'],
+			quote_item_line_status: ['quoted', 'accepted', 'rejected', 'negotiate'],
+			quote_request_status: [
+				'draft',
+				'submitted',
+				'assigned',
+				'saved',
+				'reviewing',
+				'awaiting_clarification',
+				'quoting',
+				'quoted',
+				'approved',
+				'rejected',
+				'declined',
+				'expired',
+				'canceled',
+			],
+			quote_request_urgency: ['standard', 'urgent'],
+			quote_status: [
+				'draft',
+				'internal_review',
+				'pending_approval',
+				'approved',
+				'sent',
+				'viewed',
+				'negotiating',
+				'revised',
+				'accepted',
+				'declined',
+				'expired',
+				'canceled',
+				'cancelled',
+				'requires_re_quote',
+			],
+			receiving_task_status: ['pending', 'approved', 'rejected'],
+			referral_status: ['pending', 'converted', 'credited', 'canceled'],
+			refill_request_status: [
+				'finance_pending',
+				'finance_approved',
+				'warehouse_receiving',
+				'received',
+				'rejected',
+				'canceled',
+			],
+			sales_quote_version_status: ['draft', 'approved', 'sent', 'rejected'],
+			supplier_status: ['active', 'inactive', 'blocked'],
+			support_channel: ['email', 'whatsapp'],
+			support_conversation_status: ['open', 'closed'],
+			support_message_channel: ['email', 'whatsapp', 'portal', 'website'],
+			support_sender_type: ['customer', 'employee', 'system', 'external'],
+			support_ticket_source: ['website', 'portal', 'whatsapp', 'internal'],
+			support_ticket_status: ['open', 'pending', 'closed'],
+			team_invite_status: ['pending', 'accepted', 'revoked'],
+			team_member_role: ['owner', 'admin', 'member'],
+			trade_license_status: [
+				'not_uploaded',
+				'under_review',
+				'approved',
+				'rejected',
+			],
+			truck_status: ['available', 'loading', 'dispatched', 'maintenance'],
+			user_profile_type: ['customer', 'internal', 'driver'],
+			user_role: [
+				'customer',
+				'approver',
+				'admin',
+				'sales',
+				'inventory',
+				'warehouse',
+				'finance',
+				'dispatch',
+				'customer_service',
+				'driver_manager',
+				'driver',
+				'ceo',
+			],
+		},
 	},
 } as const

@@ -2,6 +2,50 @@
 // Auth & System Enums
 // =============================================================================
 
+import type { Database } from './database.types'
+
+type DbEnum<Name extends keyof Database['public']['Enums']> =
+	Database['public']['Enums'][Name]
+
+export type AccountType = DbEnum<'account_type'>
+export type ProfileStatus = DbEnum<'profile_status'>
+export type CustomerStatus = DbEnum<'customer_status'>
+export type TradeLicenseStatus = DbEnum<'trade_license_status'>
+export type EmployeeRole = DbEnum<'employee_role'>
+export type EmployeePanel = DbEnum<'employee_panel'>
+export type DriverStatus = DbEnum<'driver_status'>
+export type UserProfileType = DbEnum<'user_profile_type'>
+export type BackendUserRole = DbEnum<'user_role'>
+export type SupplierStatus = DbEnum<'supplier_status'>
+export type CatalogAvailabilityStatus = DbEnum<'catalog_availability_status'>
+export type PriceUpdateRequestStatus = DbEnum<'price_update_request_status'>
+export type ReferralStatus = DbEnum<'referral_status'>
+export type QuoteRequestUrgency = DbEnum<'quote_request_urgency'>
+export type SalesQuoteVersionStatus = DbEnum<'sales_quote_version_status'>
+export type QuoteItemLineStatus = DbEnum<'quote_item_line_status'>
+export type QuoteCounterType = DbEnum<'quote_counter_type'>
+export type OrderWorkflowStatus = DbEnum<'order_workflow_status'>
+export type InventoryReservationStatus = DbEnum<'inventory_reservation_status'>
+export type RefillRequestStatus = DbEnum<'refill_request_status'>
+export type PaymentRecordStatus = DbEnum<'payment_record_status'>
+export type TruckStatus = DbEnum<'truck_status'>
+export type LoadingTaskStatus = DbEnum<'loading_task_status'>
+export type ReceivingTaskStatus = DbEnum<'receiving_task_status'>
+export type DriverOnlineStatus = DbEnum<'driver_online_status'>
+export type DriverLocationSource = DbEnum<'driver_location_source'>
+export type DeliveryProofType = DbEnum<'delivery_proof_type'>
+export type SupportTicketStatus = DbEnum<'support_ticket_status'>
+export type SupportTicketSource = DbEnum<'support_ticket_source'>
+export type SupportChannel = DbEnum<'support_channel'>
+export type SupportConversationStatus = DbEnum<'support_conversation_status'>
+export type SupportSenderType = DbEnum<'support_sender_type'>
+export type SupportMessageChannel = DbEnum<'support_message_channel'>
+export type BackendDocumentType = DbEnum<'document_type'>
+export type TeamMemberRole = DbEnum<'team_member_role'>
+export type TeamInviteStatus = DbEnum<'team_invite_status'>
+export type AiAgentScope = DbEnum<'ai_agent_scope'>
+export type AuditEventType = DbEnum<'audit_event_type'>
+
 export type AppRole =
 	| 'super_admin'
 	| 'admin'
@@ -290,20 +334,15 @@ export const AUDIT_ACTIONS = [
 	'escalate',
 ] as const
 
-export type ApprovalStatus =
-	| 'pending'
-	| 'approved'
-	| 'rejected'
-	| 'escalated'
-	| 'expired'
+export type ApprovalStatus = DbEnum<'approval_status'>
 
 export const APPROVAL_STATUSES = [
 	'pending',
 	'approved',
+	'changes_requested',
 	'rejected',
-	'escalated',
-	'expired',
-] as const
+	'canceled',
+] as const satisfies readonly ApprovalStatus[]
 
 export type ApprovalType =
 	| 'quote_discount'
@@ -637,43 +676,25 @@ export const RESERVATION_STATUSES = ['active', 'expired', 'converted'] as const
 // Quote & Order Enums
 // =============================================================================
 
-export type QuoteRequestStatus =
-	| 'draft'
-	| 'submitted'
-	| 'under_review'
-	| 'sourcing'
-	| 'quote_ready'
-	| 'on_hold'
-	| 'rejected'
-	| 'withdrawn'
-	| 'cancelled'
+export type QuoteRequestStatus = DbEnum<'quote_request_status'>
 
 export const QUOTE_REQUEST_STATUSES = [
 	'draft',
 	'submitted',
-	'under_review',
-	'sourcing',
-	'quote_ready',
-	'on_hold',
+	'assigned',
+	'saved',
+	'reviewing',
+	'awaiting_clarification',
+	'quoting',
+	'quoted',
+	'approved',
 	'rejected',
-	'withdrawn',
-	'cancelled',
-] as const
+	'declined',
+	'expired',
+	'canceled',
+] as const satisfies readonly QuoteRequestStatus[]
 
-export type QuoteStatus =
-	| 'draft'
-	| 'internal_review'
-	| 'pending_approval'
-	| 'approved'
-	| 'sent'
-	| 'viewed'
-	| 'negotiating'
-	| 'revised'
-	| 'accepted'
-	| 'declined'
-	| 'expired'
-	| 'cancelled'
-	| 'requires_re_quote'
+export type QuoteStatus = DbEnum<'quote_status'>
 
 export const QUOTE_STATUSES = [
 	'draft',
@@ -687,32 +708,24 @@ export const QUOTE_STATUSES = [
 	'accepted',
 	'declined',
 	'expired',
+	'canceled',
 	'cancelled',
 	'requires_re_quote',
-] as const
+] as const satisfies readonly QuoteStatus[]
 
-export type OrderStatus =
-	| 'confirmed'
-	| 'processing'
-	| 'partially_fulfilled'
-	| 'fulfilled'
-	| 'completed'
-	| 'on_hold'
-	| 'cancellation_requested'
-	| 'back_ordered'
-	| 'cancelled'
+export type OrderStatus = OrderWorkflowStatus
 
 export const ORDER_STATUSES = [
-	'confirmed',
-	'processing',
-	'partially_fulfilled',
-	'fulfilled',
-	'completed',
-	'on_hold',
-	'cancellation_requested',
-	'back_ordered',
-	'cancelled',
-] as const
+	'confirmed_for_inventory',
+	'inventory_reserved',
+	'warehouse_loading',
+	'dispatch_ready',
+	'dispatch_assigned',
+	'out_for_delivery',
+	'delivered',
+	'rejected',
+	'canceled',
+] as const satisfies readonly OrderStatus[]
 
 // =============================================================================
 // Procurement Enums
@@ -766,32 +779,16 @@ export const FULFILLMENT_SOURCES = [
 // Delivery & Logistics Enums
 // =============================================================================
 
-export type DeliveryStatus =
-	| 'scheduled'
-	| 'picking_loading'
-	| 'dispatched'
-	| 'in_transit'
-	| 'at_site'
-	| 'delivered'
-	| 'partially_delivered'
-	| 'failed'
-	| 'rescheduled'
-	| 'returned'
-	| 'cancelled'
+export type DeliveryStatus = DbEnum<'delivery_status'>
 
 export const DELIVERY_STATUSES = [
-	'scheduled',
-	'picking_loading',
-	'dispatched',
+	'assigned',
+	'accepted',
 	'in_transit',
-	'at_site',
-	'delivered',
-	'partially_delivered',
-	'failed',
-	'rescheduled',
-	'returned',
-	'cancelled',
-] as const
+	'arrived',
+	'completed',
+	'rejected',
+] as const satisfies readonly DeliveryStatus[]
 
 export type DriverType = 'internal' | 'contracted' | 'on_demand'
 

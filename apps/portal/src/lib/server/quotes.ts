@@ -377,32 +377,16 @@ export const acceptQuote = createServerFn()
 
 			const { supabase } = await getAuthenticatedSupabase()
 
-			// Update quote status to accepted (only if currently 'sent')
-			const { error: updateError } = await supabase
-				.from('quotes')
-				.update({ status: 'accepted', accepted_at: new Date().toISOString() })
-				.eq('id', input.quoteId)
-				.eq('status', 'sent')
+			const { data: order, error } = await supabase.rpc(
+				'customer_accept_quote',
+				{ p_quote_id: input.quoteId },
+			)
 
-			if (updateError) {
-				throw new Error(updateError.message)
+			if (error || !order) {
+				throw new Error(error?.message ?? 'Failed to accept quote')
 			}
 
-			// The on_quote_accepted() DB trigger creates the order + proforma invoice.
-			// Fetch the created order ID.
-			const { data: order, error: orderError } = await supabase
-				.from('orders')
-				.select('id')
-				.eq('quote_id', input.quoteId)
-				.single()
-
-			if (orderError || !order) {
-				// Trigger may not have run yet or may not exist in dev.
-				// Return a placeholder -- the order will appear eventually.
-				return { orderId: '', status: 'accepted' }
-			}
-
-			return { orderId: order.id, status: 'confirmed' }
+			return { orderId: order.id, status: order.status }
 		},
 	)
 
@@ -419,16 +403,11 @@ export const rejectQuote = createServerFn()
 
 		const { supabase } = await getAuthenticatedSupabase()
 
-		const { error } = await supabase
-			.from('quotes')
-			.update({
-				status: 'declined',
-				decline_reason: input.reason ?? null,
-				decline_notes: input.notes ?? null,
-				declined_at: new Date().toISOString(),
-			})
-			.eq('id', input.quoteId)
-			.eq('status', 'sent')
+		const { error } = await supabase.rpc('customer_decline_quote', {
+			p_notes: input.notes ?? null,
+			p_quote_id: input.quoteId,
+			p_reason: input.reason ?? null,
+		})
 
 		if (error) {
 			throw new Error(error.message)
@@ -450,33 +429,20 @@ export const submitCounterOffer = createServerFn()
 
 		const { supabase } = await getAuthenticatedSupabase()
 
-		// Update quote status to negotiating
-		const { error: statusError } = await supabase
-			.from('quotes')
-			.update({ status: 'negotiating' })
-			.eq('id', input.quoteId)
-			.eq('status', 'sent')
+		const { data: counter, error } = await supabase.rpc(
+			'customer_request_quote_negotiation',
+			{
+				p_counter_type: input.counterType,
+				p_line_items: input.lineItems ?? null,
+				p_notes: input.notes ?? null,
+				p_quote_id: input.quoteId,
+				p_self_pickup: input.selfPickup ?? false,
+				p_total_discount: input.totalDiscount ?? null,
+			},
+		)
 
-		if (statusError) {
-			throw new Error(statusError.message)
-		}
-
-		// Insert counter-offer record
-		const { data: counter, error: counterError } = await supabase
-			.from('quote_counter_offers')
-			.insert({
-				quote_id: input.quoteId,
-				counter_type: input.counterType,
-				total_discount: input.totalDiscount ?? null,
-				self_pickup: input.selfPickup ?? false,
-				notes: input.notes ?? null,
-				line_items: input.lineItems ?? null,
-			})
-			.select('id')
-			.single()
-
-		if (counterError || !counter) {
-			throw new Error(counterError?.message ?? 'Failed to create counter-offer')
+		if (error || !counter) {
+			throw new Error(error?.message ?? 'Failed to create counter-offer')
 		}
 
 		return { quoteVersionId: counter.id }
@@ -495,41 +461,21 @@ export const submitPartialResponse = createServerFn()
 
 		const { supabase } = await getAuthenticatedSupabase()
 
-		// Update quote status to negotiating
-		const { error: statusError } = await supabase
-			.from('quotes')
-			.update({ status: 'negotiating' })
-			.eq('id', input.quoteId)
-			.eq('status', 'sent')
+		const { error } = await supabase.rpc(
+			'customer_submit_quote_line_response',
+			{
+				p_line_responses: input.lineResponses.map((line) => ({
+					decision: line.decision,
+					item_id: line.itemId,
+					negotiated_price: line.negotiatedPrice ?? null,
+					reject_reason: line.rejectReason ?? null,
+				})),
+				p_quote_id: input.quoteId,
+			},
+		)
 
-		if (statusError) {
-			throw new Error(statusError.message)
-		}
-
-		// Update each line item with the customer's decision
-		for (const line of input.lineResponses) {
-			const updateData: Record<string, unknown> = {
-				line_status: line.decision,
-				is_accepted: line.decision === 'accepted',
-			}
-
-			if (line.decision === 'rejected' && line.rejectReason) {
-				updateData.reject_reason = line.rejectReason
-			}
-
-			if (line.decision === 'negotiate' && line.negotiatedPrice) {
-				updateData.customer_counter_price = line.negotiatedPrice
-			}
-
-			const { error } = await supabase
-				.from('quote_items')
-				.update(updateData)
-				.eq('id', line.itemId)
-				.eq('quote_id', input.quoteId)
-
-			if (error) {
-				throw new Error(error.message)
-			}
+		if (error) {
+			throw new Error(error.message)
 		}
 
 		return { success: true }

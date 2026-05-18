@@ -1,4 +1,5 @@
 import {
+	type AvailabilityStatus,
 	BROAD_CATEGORIES,
 	BROAD_CATEGORY_IMAGES,
 	type BroadCategory,
@@ -121,7 +122,7 @@ export interface InventoryProductView {
 	pendingRequestCount: number
 	pendingRequestedBy: string[]
 	isUrgent: boolean
-	availability: 'available' | 'low_stock' | 'out_of_stock'
+	availability: AvailabilityStatus
 }
 
 interface InventoryCategorySummary {

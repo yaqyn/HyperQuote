@@ -186,6 +186,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 		{ value: 'available', label: 'Available' },
 		{ value: 'low_stock', label: 'Low stock' },
 		{ value: 'out_of_stock', label: 'Out of stock' },
+		{ value: 'hidden', label: 'Hidden' },
 	]
 
 	const columns: ColumnDef<CatalogProduct>[] = [

@@ -5,6 +5,163 @@ create extension if not exists pg_trgm with schema extensions;
 
 create schema if not exists app_private;
 
+create type public.account_type as enum ('customer', 'employee', 'driver');
+create type public.profile_status as enum ('invited', 'active', 'disabled');
+create type public.customer_status as enum ('unclaimed', 'claimed', 'active', 'inactive');
+create type public.trade_license_status as enum ('not_uploaded', 'under_review', 'approved', 'rejected');
+create type public.employee_role as enum (
+	'admin',
+	'sales',
+	'inventory',
+	'warehouse',
+	'finance',
+	'dispatch',
+	'customer_service',
+	'driver_manager',
+	'ceo'
+);
+create type public.employee_panel as enum (
+	'sales',
+	'inventory',
+	'warehouse',
+	'finance',
+	'dispatch',
+	'customer_service',
+	'admin',
+	'search'
+);
+create type public.driver_status as enum ('invited', 'available', 'on_delivery', 'offline', 'disabled');
+create type public.user_profile_type as enum ('customer', 'internal', 'driver');
+create type public.user_role as enum (
+	'customer',
+	'approver',
+	'admin',
+	'sales',
+	'inventory',
+	'warehouse',
+	'finance',
+	'dispatch',
+	'customer_service',
+	'driver_manager',
+	'driver',
+	'ceo'
+);
+create type public.supplier_status as enum ('active', 'inactive', 'blocked');
+create type public.price_tier as enum ('budget', 'mid_range', 'premium');
+create type public.catalog_availability_status as enum ('available', 'low_stock', 'out_of_stock', 'hidden');
+create type public.price_update_request_status as enum ('pending', 'resolved', 'canceled');
+create type public.referral_status as enum ('pending', 'converted', 'credited', 'canceled');
+create type public.quote_request_status as enum (
+	'draft',
+	'submitted',
+	'assigned',
+	'saved',
+	'reviewing',
+	'awaiting_clarification',
+	'quoting',
+	'quoted',
+	'approved',
+	'rejected',
+	'declined',
+	'expired',
+	'canceled'
+);
+create type public.quote_request_urgency as enum ('standard', 'urgent');
+create type public.approval_status as enum ('pending', 'approved', 'changes_requested', 'rejected', 'canceled');
+create type public.sales_quote_version_status as enum ('draft', 'approved', 'sent', 'rejected');
+create type public.quote_status as enum (
+	'draft',
+	'internal_review',
+	'pending_approval',
+	'approved',
+	'sent',
+	'viewed',
+	'negotiating',
+	'revised',
+	'accepted',
+	'declined',
+	'expired',
+	'canceled',
+	'cancelled',
+	'requires_re_quote'
+);
+create type public.quote_item_line_status as enum ('quoted', 'accepted', 'rejected', 'negotiate');
+create type public.quote_counter_type as enum ('total', 'per_line');
+create type public.order_workflow_status as enum (
+	'confirmed_for_inventory',
+	'inventory_reserved',
+	'warehouse_loading',
+	'dispatch_ready',
+	'dispatch_assigned',
+	'out_for_delivery',
+	'delivered',
+	'rejected',
+	'canceled'
+);
+create type public.inventory_reservation_status as enum ('reserved', 'released', 'consumed');
+create type public.refill_request_status as enum (
+	'finance_pending',
+	'finance_approved',
+	'warehouse_receiving',
+	'received',
+	'rejected',
+	'canceled'
+);
+create type public.payment_record_status as enum ('recorded', 'voided');
+create type public.truck_status as enum ('available', 'loading', 'dispatched', 'maintenance');
+create type public.loading_task_status as enum ('pending', 'loading', 'approved', 'rejected');
+create type public.receiving_task_status as enum ('pending', 'approved', 'rejected');
+create type public.delivery_status as enum ('assigned', 'accepted', 'in_transit', 'arrived', 'completed', 'rejected');
+create type public.driver_online_status as enum ('online', 'offline');
+create type public.driver_location_source as enum ('driver_app', 'dispatch', 'system');
+create type public.delivery_proof_type as enum ('signature', 'photo', 'note');
+create type public.support_ticket_status as enum ('open', 'pending', 'closed');
+create type public.support_ticket_source as enum ('website', 'portal', 'whatsapp', 'internal');
+create type public.support_channel as enum ('email', 'whatsapp');
+create type public.support_conversation_status as enum ('open', 'closed');
+create type public.support_sender_type as enum ('customer', 'employee', 'system', 'external');
+create type public.support_message_channel as enum ('email', 'whatsapp', 'portal', 'website');
+create type public.document_type as enum ('invoice', 'delivery_note', 'quote_pdf', 'certificate');
+create type public.notification_channel as enum ('email', 'sms', 'whatsapp', 'push');
+create type public.team_member_role as enum ('owner', 'admin', 'member');
+create type public.team_invite_status as enum ('pending', 'accepted', 'revoked');
+create type public.ai_agent_scope as enum ('website', 'portal', 'employee', 'search');
+create type public.audit_event_type as enum (
+	'quote_accepted',
+	'customer_quote_accepted',
+	'customer_quote_declined',
+	'customer_quote_negotiation_requested',
+	'customer_quote_line_response_submitted',
+	'sales_order_claimed',
+	'sales_order_requeued',
+	'sales_quote_approved',
+	'sales_order_confirmed',
+	'sales_order_rejected',
+	'manual_order_created',
+	'price_update_requested',
+	'supplier_refill_created',
+	'customer_payment_recorded',
+	'supplier_payment_recorded',
+	'inventory_order_evaluated',
+	'order_stock_reserved',
+	'warehouse_loading_started',
+	'warehouse_loading_approved',
+	'warehouse_loading_rejected',
+	'warehouse_receiving_approved',
+	'warehouse_receiving_rejected',
+	'dispatch_driver_assigned',
+	'dispatch_delivery_completed',
+	'dispatch_delivery_rejected',
+	'driver_delivery_accepted',
+	'driver_delivery_started',
+	'driver_delivery_arrived',
+	'driver_delivery_confirmed',
+	'driver_delivery_rejected',
+	'support_ticket_created',
+	'support_reply_sent',
+	'whatsapp_message_ingested'
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -45,11 +202,11 @@ create sequence if not exists public.order_number_seq as bigint start with 1;
 create table public.profiles (
 	id uuid primary key default gen_random_uuid(),
 	auth_user_id uuid not null unique references auth.users(id) on delete cascade,
-	account_type text not null check (account_type in ('customer', 'employee', 'driver')),
+	account_type public.account_type not null,
 	display_name text not null,
 	phone text,
 	email text,
-	status text not null default 'active' check (status in ('invited', 'active', 'disabled')),
+	status public.profile_status not null default 'active',
 	locale text not null default 'en',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -62,10 +219,8 @@ create table public.customers (
 	contact_name text not null,
 	phone text not null unique,
 	email text,
-	status text not null default 'active' check (status in ('unclaimed', 'claimed', 'active', 'inactive')),
-	trade_license_status text not null default 'not_uploaded' check (
-		trade_license_status in ('not_uploaded', 'under_review', 'approved', 'rejected')
-	),
+	status public.customer_status not null default 'active',
+	trade_license_status public.trade_license_status not null default 'not_uploaded',
 	profile_photo_url text,
 	created_by_employee_id uuid,
 	created_at timestamptz not null default now(),
@@ -78,7 +233,7 @@ create table public.employees (
 	full_name text not null,
 	email text not null unique,
 	phone text,
-	status text not null default 'active' check (status in ('invited', 'active', 'disabled')),
+	status public.profile_status not null default 'active',
 	is_ceo boolean not null default false,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -91,19 +246,7 @@ alter table public.customers
 create table public.employee_roles (
 	id uuid primary key default gen_random_uuid(),
 	employee_id uuid not null references public.employees(id) on delete cascade,
-	role text not null check (
-		role in (
-			'admin',
-			'sales',
-			'inventory',
-			'warehouse',
-			'finance',
-			'dispatch',
-			'customer_service',
-			'driver_manager',
-			'ceo'
-		)
-	),
+	role public.employee_role not null,
 	created_at timestamptz not null default now(),
 	unique (employee_id, role)
 );
@@ -111,18 +254,7 @@ create table public.employee_roles (
 create table public.employee_panel_permissions (
 	id uuid primary key default gen_random_uuid(),
 	employee_id uuid not null references public.employees(id) on delete cascade,
-	panel text not null check (
-		panel in (
-			'sales',
-			'inventory',
-			'warehouse',
-			'finance',
-			'dispatch',
-			'customer_service',
-			'admin',
-			'search'
-		)
-	),
+	panel public.employee_panel not null,
 	can_read boolean not null default true,
 	can_write boolean not null default false,
 	created_at timestamptz not null default now(),
@@ -135,9 +267,7 @@ create table public.drivers (
 	full_name text not null,
 	email text unique,
 	phone text not null unique,
-	status text not null default 'offline' check (
-		status in ('invited', 'available', 'on_delivery', 'offline', 'disabled')
-	),
+	status public.driver_status not null default 'offline',
 	vehicle_label text,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -146,7 +276,7 @@ create table public.drivers (
 create table public.user_profiles (
 	id uuid primary key default gen_random_uuid(),
 	user_id uuid not null unique references auth.users(id) on delete cascade,
-	user_type text not null check (user_type in ('customer', 'internal', 'driver')),
+	user_type public.user_profile_type not null,
 	customer_id uuid references public.customers(id) on delete cascade,
 	employee_id uuid references public.employees(id) on delete cascade,
 	driver_id uuid references public.drivers(id) on delete cascade,
@@ -166,7 +296,7 @@ create table public.user_profiles (
 create table public.user_roles (
 	id uuid primary key default gen_random_uuid(),
 	user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
-	role text not null,
+	role public.user_role not null,
 	created_at timestamptz not null default now(),
 	unique (user_profile_id, role)
 );
@@ -187,7 +317,7 @@ create table public.suppliers (
 	name text not null,
 	phone text,
 	email text,
-	status text not null default 'active' check (status in ('active', 'inactive', 'blocked')),
+	status public.supplier_status not null default 'active',
 	notes text,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -210,10 +340,8 @@ create table public.products (
 	weight_kg numeric,
 	price_range_min numeric,
 	price_range_max numeric,
-	price_tier text check (price_tier in ('budget', 'mid_range', 'premium')),
-	availability_status text not null default 'available' check (
-		availability_status in ('available', 'low_stock', 'out_of_stock', 'hidden')
-	),
+	price_tier public.price_tier,
+	availability_status public.catalog_availability_status not null default 'available',
 	image_urls text[] not null default '{}',
 	tags text[] not null default '{}',
 	is_stockable boolean not null default true,
@@ -254,7 +382,7 @@ create table public.price_update_requests (
 	requested_by_employee_id uuid references public.employees(id) on delete set null,
 	assigned_employee_id uuid references public.employees(id) on delete set null,
 	reason text not null,
-	status text not null default 'pending' check (status in ('pending', 'resolved', 'canceled')),
+	status public.price_update_request_status not null default 'pending',
 	resolved_at timestamptz,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -303,7 +431,7 @@ create table public.referrals (
 	customer_id uuid not null references public.customers(id) on delete cascade,
 	referral_code text not null unique,
 	referred_email text,
-	status text not null default 'pending' check (status in ('pending', 'converted', 'credited', 'canceled')),
+	status public.referral_status not null default 'pending',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
@@ -312,23 +440,8 @@ create table public.quote_requests (
 	id uuid primary key default gen_random_uuid(),
 	request_number text not null unique default public.next_quote_request_number(),
 	customer_id uuid references public.customers(id) on delete restrict,
-	status text not null default 'draft' check (
-		status in (
-			'draft',
-			'submitted',
-			'assigned',
-			'saved',
-			'approved',
-			'rejected',
-			'canceled',
-			'finance',
-			'inventory',
-			'warehouse',
-			'dispatch',
-			'delivered'
-		)
-	),
-	urgency text not null default 'standard' check (urgency in ('standard', 'urgent')),
+	status public.quote_request_status not null default 'draft',
+	urgency public.quote_request_urgency not null default 'standard',
 	project_id uuid references public.projects(id) on delete set null,
 	delivery_address_id uuid references public.customer_addresses(id) on delete set null,
 	delivery_date date,
@@ -376,7 +489,7 @@ create table public.approvals (
 	entity_id uuid not null,
 	requested_by uuid references auth.users(id) on delete set null,
 	assigned_to uuid references auth.users(id) on delete set null,
-	status text not null default 'pending' check (status in ('pending', 'approved', 'changes_requested', 'rejected', 'canceled')),
+	status public.approval_status not null default 'pending',
 	context jsonb not null default '{}'::jsonb,
 	decided_at timestamptz,
 	created_at timestamptz not null default now(),
@@ -388,7 +501,7 @@ create table public.sales_quote_versions (
 	quote_request_id uuid not null references public.quote_requests(id) on delete cascade,
 	version_number integer not null,
 	created_by_employee_id uuid references public.employees(id) on delete set null,
-	status text not null default 'draft' check (status in ('draft', 'approved', 'sent', 'rejected')),
+	status public.sales_quote_version_status not null default 'draft',
 	subtotal numeric not null default 0,
 	tax_amount numeric not null default 0,
 	delivery_fee numeric not null default 0,
@@ -407,9 +520,7 @@ create table public.quotes (
 	project_id uuid references public.projects(id) on delete set null,
 	version_number integer not null default 1,
 	previous_version_id uuid references public.quotes(id) on delete set null,
-	status text not null default 'draft' check (
-		status in ('draft', 'sent', 'accepted', 'declined', 'negotiating', 'expired', 'revised')
-	),
+	status public.quote_status not null default 'draft',
 	subtotal numeric not null default 0,
 	tax_amount numeric not null default 0,
 	delivery_fee numeric not null default 0,
@@ -433,7 +544,7 @@ create table public.quote_versions (
 	id uuid primary key default gen_random_uuid(),
 	quote_id uuid not null references public.quotes(id) on delete cascade,
 	version_number integer not null,
-	status text not null default 'draft',
+	status public.quote_status not null default 'draft',
 	subtotal numeric not null default 0,
 	total numeric not null default 0,
 	notes text,
@@ -454,9 +565,7 @@ create table public.quote_items (
 	line_total numeric not null check (line_total >= 0),
 	margin_percent numeric,
 	customer_counter_price numeric,
-	line_status text not null default 'quoted' check (
-		line_status in ('quoted', 'accepted', 'rejected', 'negotiate')
-	),
+	line_status public.quote_item_line_status not null default 'quoted',
 	is_accepted boolean not null default false,
 	reject_reason text,
 	sort_order integer not null default 0,
@@ -467,7 +576,7 @@ create table public.quote_items (
 create table public.quote_counter_offers (
 	id uuid primary key default gen_random_uuid(),
 	quote_id uuid not null references public.quotes(id) on delete cascade,
-	counter_type text not null check (counter_type in ('total', 'per_line')),
+	counter_type public.quote_counter_type not null,
 	total_discount numeric,
 	self_pickup boolean not null default false,
 	notes text,
@@ -478,22 +587,10 @@ create table public.quote_counter_offers (
 create table public.orders (
 	id uuid primary key default gen_random_uuid(),
 	order_number text not null unique default public.next_order_number(),
-	quote_id uuid references public.quotes(id) on delete set null,
-	quote_request_id uuid references public.quote_requests(id) on delete set null,
+	quote_id uuid unique references public.quotes(id) on delete set null,
+	quote_request_id uuid unique references public.quote_requests(id) on delete set null,
 	customer_id uuid references public.customers(id) on delete restrict,
-	status text not null default 'confirmed' check (
-		status in (
-			'confirmed',
-			'finance',
-			'inventory',
-			'reserved',
-			'warehouse',
-			'dispatch',
-			'delivered',
-			'rejected',
-			'canceled'
-		)
-	),
+	status public.order_workflow_status not null default 'confirmed_for_inventory',
 	total_amount numeric not null default 0,
 	reserved_at timestamptz,
 	delivered_at timestamptz,
@@ -526,7 +623,7 @@ create table public.inventory_reservations (
 	order_id uuid not null references public.orders(id) on delete cascade,
 	product_id uuid not null references public.products(id) on delete restrict,
 	quantity numeric not null check (quantity > 0),
-	status text not null default 'reserved' check (status in ('reserved', 'released', 'consumed')),
+	status public.inventory_reservation_status not null default 'reserved',
 	created_by_employee_id uuid references public.employees(id) on delete set null,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now(),
@@ -540,9 +637,7 @@ create table public.refill_requests (
 	requested_by_employee_id uuid references public.employees(id) on delete set null,
 	quantity numeric not null check (quantity > 0),
 	unit_cost numeric not null check (unit_cost >= 0),
-	status text not null default 'finance_pending' check (
-		status in ('finance_pending', 'finance_approved', 'warehouse_receiving', 'received', 'rejected', 'canceled')
-	),
+	status public.refill_request_status not null default 'finance_pending',
 	proof jsonb not null default '{}'::jsonb,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -555,7 +650,7 @@ create table public.customer_payments (
 	amount numeric not null check (amount > 0),
 	payment_fraction numeric not null check (payment_fraction in (0.5, 1.0)),
 	proof_path text not null,
-	status text not null default 'recorded' check (status in ('recorded', 'voided')),
+	status public.payment_record_status not null default 'recorded',
 	created_at timestamptz not null default now()
 );
 
@@ -566,7 +661,7 @@ create table public.supplier_payments (
 	amount numeric not null check (amount > 0),
 	payment_fraction numeric not null check (payment_fraction in (0.5, 1.0)),
 	proof_path text not null,
-	status text not null default 'recorded' check (status in ('recorded', 'voided')),
+	status public.payment_record_status not null default 'recorded',
 	created_at timestamptz not null default now()
 );
 
@@ -575,16 +670,16 @@ create table public.trucks (
 	plate_number text not null unique,
 	driver_id uuid references public.drivers(id) on delete set null,
 	capacity_tons numeric,
-	status text not null default 'available' check (status in ('available', 'loading', 'dispatched', 'maintenance')),
+	status public.truck_status not null default 'available',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
 
 create table public.loading_tasks (
 	id uuid primary key default gen_random_uuid(),
-	order_id uuid not null references public.orders(id) on delete cascade,
+	order_id uuid not null unique references public.orders(id) on delete cascade,
 	advisor_employee_id uuid references public.employees(id) on delete set null,
-	status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+	status public.loading_task_status not null default 'pending',
 	proof jsonb not null default '{}'::jsonb,
 	rejection_reason text,
 	created_at timestamptz not null default now(),
@@ -603,9 +698,9 @@ create table public.loading_task_drivers (
 
 create table public.receiving_tasks (
 	id uuid primary key default gen_random_uuid(),
-	refill_request_id uuid not null references public.refill_requests(id) on delete cascade,
+	refill_request_id uuid not null unique references public.refill_requests(id) on delete cascade,
 	advisor_employee_id uuid references public.employees(id) on delete set null,
-	status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+	status public.receiving_task_status not null default 'pending',
 	proof jsonb not null default '{}'::jsonb,
 	rejection_reason text,
 	created_at timestamptz not null default now(),
@@ -627,9 +722,7 @@ create table public.deliveries (
 	loading_task_id uuid references public.loading_tasks(id) on delete set null,
 	driver_id uuid references public.drivers(id) on delete set null,
 	truck_id uuid references public.trucks(id) on delete set null,
-	status text not null default 'assigned' check (
-		status in ('assigned', 'accepted', 'in_transit', 'arrived', 'completed', 'rejected')
-	),
+	status public.delivery_status not null default 'assigned',
 	rejection_reason text,
 	rejection_proof jsonb,
 	started_at timestamptz,
@@ -641,7 +734,7 @@ create table public.deliveries (
 
 create table public.driver_online_states (
 	driver_id uuid primary key references public.drivers(id) on delete cascade,
-	status text not null default 'offline' check (status in ('online', 'offline')),
+	status public.driver_online_status not null default 'offline',
 	last_seen_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
@@ -655,7 +748,7 @@ create table public.driver_locations (
 	accuracy_meters numeric,
 	heading numeric,
 	speed_kmh numeric,
-	source text not null default 'driver_app' check (source in ('driver_app', 'dispatch', 'system')),
+	source public.driver_location_source not null default 'driver_app',
 	recorded_at timestamptz not null default now()
 );
 
@@ -666,7 +759,7 @@ create table public.delivery_proofs (
 	id uuid primary key default gen_random_uuid(),
 	delivery_id uuid not null references public.deliveries(id) on delete cascade,
 	driver_id uuid references public.drivers(id) on delete set null,
-	proof_type text not null check (proof_type in ('signature', 'photo', 'note')),
+	proof_type public.delivery_proof_type not null,
 	proof_path text,
 	signer_name text,
 	location jsonb not null default '{}'::jsonb,
@@ -681,8 +774,8 @@ create table public.support_tickets (
 	requester_email text not null,
 	requester_phone text,
 	subject text not null,
-	status text not null default 'open' check (status in ('open', 'pending', 'closed')),
-	source text not null default 'website' check (source in ('website', 'portal', 'whatsapp', 'internal')),
+	status public.support_ticket_status not null default 'open',
+	source public.support_ticket_source not null default 'website',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
@@ -690,11 +783,11 @@ create table public.support_tickets (
 create table public.support_conversations (
 	id uuid primary key default gen_random_uuid(),
 	customer_id uuid references public.customers(id) on delete set null,
-	channel text not null check (channel in ('email', 'whatsapp')),
+	channel public.support_channel not null,
 	external_thread_id text,
 	phone text,
 	email text,
-	status text not null default 'open' check (status in ('open', 'closed')),
+	status public.support_conversation_status not null default 'open',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
@@ -703,9 +796,9 @@ create table public.support_messages (
 	id uuid primary key default gen_random_uuid(),
 	ticket_id uuid references public.support_tickets(id) on delete cascade,
 	conversation_id uuid references public.support_conversations(id) on delete cascade,
-	sender_type text not null check (sender_type in ('customer', 'employee', 'system', 'external')),
+	sender_type public.support_sender_type not null,
 	sender_user_id uuid references auth.users(id) on delete set null,
-	channel text not null check (channel in ('email', 'whatsapp', 'portal', 'website')),
+	channel public.support_message_channel not null,
 	body text not null,
 	external_message_id text,
 	created_at timestamptz not null default now(),
@@ -723,7 +816,7 @@ create table public.support_attachments (
 create table public.documents (
 	id uuid primary key default gen_random_uuid(),
 	customer_id uuid references public.customers(id) on delete cascade,
-	type text not null check (type in ('invoice', 'delivery_note', 'quote_pdf', 'certificate')),
+	type public.document_type not null,
 	reference text not null,
 	title text not null,
 	file_size text,
@@ -758,7 +851,7 @@ create table public.notification_preferences (
 	id uuid primary key default gen_random_uuid(),
 	user_id uuid references auth.users(id) on delete cascade,
 	customer_id uuid references public.customers(id) on delete cascade,
-	channel text not null check (channel in ('email', 'sms', 'whatsapp', 'push')),
+	channel public.notification_channel not null,
 	enabled boolean not null default true,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
@@ -785,7 +878,7 @@ create table public.team_members (
 	id uuid primary key default gen_random_uuid(),
 	customer_id uuid not null references public.customers(id) on delete cascade,
 	user_id uuid references auth.users(id) on delete cascade,
-	role text not null default 'member',
+	role public.team_member_role not null default 'member',
 	created_at timestamptz not null default now(),
 	unique (customer_id, user_id)
 );
@@ -794,8 +887,8 @@ create table public.team_invites (
 	id uuid primary key default gen_random_uuid(),
 	customer_id uuid not null references public.customers(id) on delete cascade,
 	email text not null,
-	role text not null default 'member',
-	status text not null default 'pending' check (status in ('pending', 'accepted', 'revoked')),
+	role public.team_member_role not null default 'member',
+	status public.team_invite_status not null default 'pending',
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
@@ -808,7 +901,7 @@ create table public.activity_events (
 	actor_driver_id uuid references public.drivers(id) on delete set null,
 	entity_type text not null,
 	entity_id uuid,
-	action text not null,
+	action public.audit_event_type not null,
 	details jsonb not null default '{}'::jsonb,
 	created_at timestamptz not null default now()
 );
@@ -817,7 +910,7 @@ create table public.ai_tool_call_audit (
 	id uuid primary key default gen_random_uuid(),
 	actor_user_id uuid references auth.users(id) on delete set null,
 	actor_employee_id uuid references public.employees(id) on delete set null,
-	agent_scope text not null check (agent_scope in ('website', 'portal', 'employee', 'search')),
+	agent_scope public.ai_agent_scope not null,
 	tool_name text not null,
 	read_entities text[] not null default '{}',
 	write_entity_type text,
@@ -1000,7 +1093,7 @@ as $$
 		left join public.employee_roles er on er.employee_id = e.id
 		where e.user_id = auth.uid()
 		  and e.status = 'active'
-		  and (e.is_ceo or er.role = required_role or er.role = 'admin')
+		  and (e.is_ceo or er.role::text = required_role or er.role = 'admin')
 	)
 $$;
 
@@ -1021,9 +1114,9 @@ as $$
 		  and (
 			e.is_ceo
 			or er.role = 'admin'
-			or er.role = required_panel
+			or er.role::text = required_panel
 			or (
-				ep.panel = required_panel
+				ep.panel::text = required_panel
 				and ep.can_read
 				and (not write_required or ep.can_write)
 			)
@@ -1061,10 +1154,42 @@ begin
 end;
 $$;
 
+create or replace function app_private.allow_workflow_state_change()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+	perform set_config('app.workflow_rpc', 'on', true);
+end;
+$$;
+
+create or replace function public.prevent_direct_state_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	state_column text := tg_argv[0];
+begin
+	if tg_op = 'UPDATE'
+		and to_jsonb(old)->>state_column is distinct from to_jsonb(new)->>state_column
+		and coalesce(current_setting('app.workflow_rpc', true), '') <> 'on'
+		and coalesce(auth.role(), '') <> 'service_role'
+	then
+		raise exception 'state_updates_must_use_rpc' using errcode = '42501';
+	end if;
+
+	return new;
+end;
+$$;
+
 create or replace function public.log_activity(
 	entity_type text,
 	entity_id uuid,
-	action text,
+	action public.audit_event_type,
 	details jsonb default '{}'::jsonb
 )
 returns void
@@ -1129,8 +1254,13 @@ as $$
 begin
 	if new.status = 'accepted' and old.status is distinct from new.status then
 		insert into public.orders (quote_id, quote_request_id, customer_id, total_amount, status)
-		values (new.id, new.quote_request_id, new.customer_id, new.total, 'finance')
-		on conflict do nothing;
+		values (new.id, new.quote_request_id, new.customer_id, new.total, 'confirmed_for_inventory')
+		on conflict (quote_id) do update
+		set
+			quote_request_id = excluded.quote_request_id,
+			customer_id = excluded.customer_id,
+			total_amount = excluded.total_amount
+		where public.orders.status = 'confirmed_for_inventory';
 		perform public.log_activity('quote', new.id, 'quote_accepted', '{}'::jsonb);
 	end if;
 	return new;
@@ -1140,6 +1270,256 @@ $$;
 create trigger quotes_create_order_after_accept
 	after update of status on public.quotes
 	for each row execute function public.create_order_from_accepted_quote();
+
+create or replace function public.customer_accept_quote(p_quote_id uuid)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_customer_id uuid;
+	accepted_quote public.quotes%rowtype;
+	created_order public.orders%rowtype;
+begin
+	v_customer_id := public.current_customer_id();
+	if v_customer_id is null then
+		raise exception 'customer_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.quotes
+	set status = 'accepted', accepted_at = now()
+	where id = p_quote_id
+	  and quotes.customer_id = v_customer_id
+	  and status = 'sent'
+	returning * into accepted_quote;
+
+	if accepted_quote.id is null then
+		raise exception 'quote_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	insert into public.orders (quote_id, quote_request_id, customer_id, total_amount, status)
+	values (
+		accepted_quote.id,
+		accepted_quote.quote_request_id,
+		accepted_quote.customer_id,
+		accepted_quote.total,
+		'confirmed_for_inventory'
+	)
+	on conflict (quote_id) do update
+	set
+		quote_request_id = excluded.quote_request_id,
+		customer_id = excluded.customer_id,
+		total_amount = excluded.total_amount
+	where public.orders.status = 'confirmed_for_inventory'
+	returning * into created_order;
+
+	if created_order.id is null then
+		select * into created_order
+		from public.orders
+		where quote_id = accepted_quote.id;
+	end if;
+
+	perform public.log_activity(
+		'quote',
+		accepted_quote.id,
+		'customer_quote_accepted',
+		jsonb_build_object(
+			'from_status', 'sent',
+			'to_status', 'accepted',
+			'order_id', created_order.id,
+			'order_status', created_order.status
+		)
+	);
+
+	return created_order;
+end;
+$$;
+
+create or replace function public.customer_decline_quote(
+	p_quote_id uuid,
+	p_reason text default null,
+	p_notes text default null
+)
+returns public.quotes
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_customer_id uuid;
+	declined_quote public.quotes%rowtype;
+begin
+	v_customer_id := public.current_customer_id();
+	if v_customer_id is null then
+		raise exception 'customer_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.quotes
+	set
+		status = 'declined',
+		decline_reason = p_reason,
+		decline_notes = p_notes,
+		declined_at = now()
+	where id = p_quote_id
+	  and quotes.customer_id = v_customer_id
+	  and status = 'sent'
+	returning * into declined_quote;
+
+	if declined_quote.id is null then
+		raise exception 'quote_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	perform public.log_activity(
+		'quote',
+		declined_quote.id,
+		'customer_quote_declined',
+		jsonb_build_object('from_status', 'sent', 'to_status', 'declined', 'reason', p_reason)
+	);
+
+	return declined_quote;
+end;
+$$;
+
+create or replace function public.customer_request_quote_negotiation(
+	p_quote_id uuid,
+	p_counter_type public.quote_counter_type,
+	p_line_items jsonb default null,
+	p_total_discount numeric default null,
+	p_self_pickup boolean default false,
+	p_notes text default null
+)
+returns public.quote_counter_offers
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_customer_id uuid;
+	updated_quote public.quotes%rowtype;
+	counter public.quote_counter_offers%rowtype;
+begin
+	v_customer_id := public.current_customer_id();
+	if v_customer_id is null then
+		raise exception 'customer_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.quotes
+	set status = 'negotiating'
+	where id = p_quote_id
+	  and quotes.customer_id = v_customer_id
+	  and status = 'sent'
+	returning * into updated_quote;
+
+	if updated_quote.id is null then
+		raise exception 'quote_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	insert into public.quote_counter_offers (
+		quote_id,
+		counter_type,
+		total_discount,
+		self_pickup,
+		notes,
+		line_items
+	)
+	values (
+		updated_quote.id,
+		p_counter_type,
+		p_total_discount,
+		coalesce(p_self_pickup, false),
+		p_notes,
+		p_line_items
+	)
+	returning * into counter;
+
+	perform public.log_activity(
+		'quote',
+		updated_quote.id,
+		'customer_quote_negotiation_requested',
+		jsonb_build_object('from_status', 'sent', 'to_status', 'negotiating', 'counter_offer_id', counter.id)
+	);
+
+	return counter;
+end;
+$$;
+
+create or replace function public.customer_submit_quote_line_response(
+	p_quote_id uuid,
+	p_line_responses jsonb
+)
+returns public.quotes
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_customer_id uuid;
+	updated_quote public.quotes%rowtype;
+	line jsonb;
+	line_decision public.quote_item_line_status;
+begin
+	v_customer_id := public.current_customer_id();
+	if v_customer_id is null then
+		raise exception 'customer_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.quotes
+	set status = 'negotiating'
+	where id = p_quote_id
+	  and quotes.customer_id = v_customer_id
+	  and status = 'sent'
+	returning * into updated_quote;
+
+	if updated_quote.id is null then
+		raise exception 'quote_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	for line in select value from jsonb_array_elements(coalesce(p_line_responses, '[]'::jsonb))
+	loop
+		line_decision := (line->>'decision')::public.quote_item_line_status;
+
+		update public.quote_items
+		set
+			line_status = line_decision,
+			is_accepted = line_decision = 'accepted',
+			reject_reason = case
+				when line_decision = 'rejected' then coalesce(line->>'reject_reason', line->>'rejectReason')
+				else reject_reason
+			end,
+			customer_counter_price = case
+				when line_decision = 'negotiate' and line ? 'negotiated_price'
+					then (line->>'negotiated_price')::numeric
+				when line_decision = 'negotiate' and line ? 'negotiatedPrice'
+					then (line->>'negotiatedPrice')::numeric
+				else customer_counter_price
+			end
+		where id = nullif(coalesce(line->>'item_id', line->>'itemId'), '')::uuid
+		  and quote_id = updated_quote.id;
+	end loop;
+
+	perform public.log_activity(
+		'quote',
+		updated_quote.id,
+		'customer_quote_line_response_submitted',
+		jsonb_build_object(
+			'from_status', 'sent',
+			'to_status', 'negotiating',
+			'line_response_count', jsonb_array_length(coalesce(p_line_responses, '[]'::jsonb))
+		)
+	);
+
+	return updated_quote;
+end;
+$$;
 
 create trigger profiles_set_updated_at before update on public.profiles for each row execute function public.set_updated_at();
 create trigger customers_set_updated_at before update on public.customers for each row execute function public.set_updated_at();
@@ -1173,6 +1553,19 @@ create trigger documents_set_updated_at before update on public.documents for ea
 create trigger notification_preferences_set_updated_at before update on public.notification_preferences for each row execute function public.set_updated_at();
 create trigger team_invites_set_updated_at before update on public.team_invites for each row execute function public.set_updated_at();
 
+create trigger quote_requests_prevent_direct_status_update before update on public.quote_requests for each row execute function public.prevent_direct_state_update('status');
+create trigger quotes_prevent_direct_status_update before update on public.quotes for each row execute function public.prevent_direct_state_update('status');
+create trigger quote_items_prevent_direct_line_status_update before update on public.quote_items for each row execute function public.prevent_direct_state_update('line_status');
+create trigger orders_prevent_direct_status_update before update on public.orders for each row execute function public.prevent_direct_state_update('status');
+create trigger inventory_reservations_prevent_direct_status_update before update on public.inventory_reservations for each row execute function public.prevent_direct_state_update('status');
+create trigger refill_requests_prevent_direct_status_update before update on public.refill_requests for each row execute function public.prevent_direct_state_update('status');
+create trigger customer_payments_prevent_direct_status_update before update on public.customer_payments for each row execute function public.prevent_direct_state_update('status');
+create trigger supplier_payments_prevent_direct_status_update before update on public.supplier_payments for each row execute function public.prevent_direct_state_update('status');
+create trigger loading_tasks_prevent_direct_status_update before update on public.loading_tasks for each row execute function public.prevent_direct_state_update('status');
+create trigger receiving_tasks_prevent_direct_status_update before update on public.receiving_tasks for each row execute function public.prevent_direct_state_update('status');
+create trigger deliveries_prevent_direct_status_update before update on public.deliveries for each row execute function public.prevent_direct_state_update('status');
+create trigger drivers_prevent_direct_status_update before update on public.drivers for each row execute function public.prevent_direct_state_update('status');
+
 create trigger customers_sync_auth_metadata after insert or update of user_id, status on public.customers for each row execute function app_private.sync_customer_auth_metadata();
 create trigger employees_sync_auth_metadata after insert or update of user_id, status, is_ceo on public.employees for each row execute function app_private.sync_employee_auth_metadata();
 create trigger employee_roles_sync_auth_metadata after insert or update or delete on public.employee_roles for each row execute function app_private.sync_employee_role_auth_metadata();
@@ -1189,6 +1582,7 @@ declare
 	claimed public.quote_requests%rowtype;
 begin
 	employee_id := public.require_panel('sales', true);
+	perform app_private.allow_workflow_state_change();
 
 	update public.quote_requests qr
 	set
@@ -1207,7 +1601,12 @@ begin
 	returning * into claimed;
 
 	if claimed.id is not null then
-		perform public.log_activity('quote_request', claimed.id, 'sales_order_claimed', jsonb_build_object('employee_id', employee_id));
+		perform public.log_activity(
+			'quote_request',
+			claimed.id,
+			'sales_order_claimed',
+			jsonb_build_object('employee_id', employee_id, 'from_status', 'submitted', 'to_status', 'assigned')
+		);
 	end if;
 
 	return claimed;
@@ -1225,6 +1624,7 @@ declare
 	updated public.quote_requests%rowtype;
 begin
 	employee_id := public.require_panel('sales', true);
+	perform app_private.allow_workflow_state_change();
 
 	update public.quote_requests
 	set
@@ -1241,7 +1641,12 @@ begin
 		raise exception 'quote_request_not_found_or_not_assigned' using errcode = '02000';
 	end if;
 
-	perform public.log_activity('quote_request', updated.id, 'sales_order_requeued', jsonb_build_object('note', p_note));
+	perform public.log_activity(
+		'quote_request',
+		updated.id,
+		'sales_order_requeued',
+		jsonb_build_object('from_status', 'assigned', 'to_status', 'submitted', 'note', p_note)
+	);
 	return updated;
 end;
 $$;
@@ -1252,27 +1657,73 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+begin
+	return public.sales_confirm_order(p_order_id, p_quote_version_id);
+end;
+$$;
+
+create or replace function public.sales_confirm_order(p_order_id uuid, p_quote_version_id uuid default null)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
 declare
 	employee_id uuid;
 	source_request public.quote_requests%rowtype;
 	created_order public.orders%rowtype;
+	from_status text;
 begin
 	employee_id := public.require_panel('sales', true);
+	perform app_private.allow_workflow_state_change();
+
+	select * into source_request
+	from public.quote_requests
+	where id = p_order_id
+	for update;
+
+	if source_request.id is null then
+		raise exception 'quote_request_not_found' using errcode = '02000';
+	end if;
+
+	if source_request.status not in ('assigned', 'submitted', 'saved') then
+		raise exception 'invalid_sales_confirm_transition_%', source_request.status using errcode = '23514';
+	end if;
+
+	from_status := source_request.status::text;
 
 	update public.quote_requests
 	set status = 'approved'
 	where id = p_order_id
 	returning * into source_request;
 
-	if source_request.id is null then
-		raise exception 'quote_request_not_found' using errcode = '02000';
-	end if;
-
 	insert into public.orders (quote_request_id, customer_id, status, total_amount)
-	values (source_request.id, source_request.customer_id, 'finance', 0)
+	values (source_request.id, source_request.customer_id, 'confirmed_for_inventory', 0)
+	on conflict (quote_request_id) do update
+	set
+		customer_id = excluded.customer_id,
+		total_amount = excluded.total_amount
+	where public.orders.status = 'confirmed_for_inventory'
 	returning * into created_order;
 
-	perform public.log_activity('quote_request', source_request.id, 'sales_quote_approved', jsonb_build_object('employee_id', employee_id, 'quote_version_id', p_quote_version_id));
+	if created_order.id is null then
+		select * into created_order
+		from public.orders
+		where quote_request_id = source_request.id;
+	end if;
+
+	perform public.log_activity(
+		'quote_request',
+		source_request.id,
+		'sales_order_confirmed',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'quote_version_id', p_quote_version_id,
+			'from_status', from_status,
+			'to_status', 'approved',
+			'order_status', created_order.status
+		)
+	);
 	return created_order;
 end;
 $$;
@@ -1288,6 +1739,7 @@ declare
 begin
 	perform public.require_panel('sales', true);
 	perform public.require_rejection_proof(p_proof);
+	perform app_private.allow_workflow_state_change();
 
 	update public.quote_requests
 	set status = 'rejected', rejected_reason = p_reason, rejected_proof = p_proof
@@ -1298,7 +1750,12 @@ begin
 		raise exception 'quote_request_not_found' using errcode = '02000';
 	end if;
 
-	perform public.log_activity('quote_request', updated.id, 'sales_order_rejected', jsonb_build_object('reason', p_reason, 'proof', p_proof));
+	perform public.log_activity(
+		'quote_request',
+		updated.id,
+		'sales_order_rejected',
+		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
+	);
 	return updated;
 end;
 $$;
@@ -1435,8 +1892,22 @@ as $$
 declare
 	employee_id uuid;
 	payment public.customer_payments%rowtype;
+	target_order public.orders%rowtype;
 begin
 	employee_id := public.require_panel('finance', true);
+
+	select * into target_order
+	from public.orders
+	where id = p_order_id
+	for update;
+
+	if target_order.id is null then
+		raise exception 'order_not_found' using errcode = '02000';
+	end if;
+
+	if target_order.status in ('delivered', 'rejected', 'canceled') then
+		raise exception 'invalid_customer_payment_order_status_%', target_order.status using errcode = '23514';
+	end if;
 
 	insert into public.customer_payments (
 		order_id,
@@ -1448,11 +1919,16 @@ begin
 	values (p_order_id, employee_id, p_amount, p_payment_fraction, p_proof_path)
 	returning * into payment;
 
-	update public.orders
-	set status = 'inventory'
-	where id = p_order_id;
-
-	perform public.log_activity('order', p_order_id, 'customer_payment_recorded', jsonb_build_object('amount', p_amount, 'payment_fraction', p_payment_fraction));
+	perform public.log_activity(
+		'order',
+		p_order_id,
+		'customer_payment_recorded',
+		jsonb_build_object(
+			'amount', p_amount,
+			'payment_fraction', p_payment_fraction,
+			'order_status', target_order.status
+		)
+	);
 	return payment;
 end;
 $$;
@@ -1471,8 +1947,26 @@ as $$
 declare
 	employee_id uuid;
 	payment public.supplier_payments%rowtype;
+	refill public.refill_requests%rowtype;
+	from_status text;
 begin
 	employee_id := public.require_panel('finance', true);
+	perform app_private.allow_workflow_state_change();
+
+	select * into refill
+	from public.refill_requests
+	where id = p_refill_request_id
+	for update;
+
+	if refill.id is null then
+		raise exception 'refill_request_not_found' using errcode = '02000';
+	end if;
+
+	if refill.status not in ('finance_pending', 'finance_approved') then
+		raise exception 'invalid_supplier_payment_refill_status_%', refill.status using errcode = '23514';
+	end if;
+
+	from_status := refill.status::text;
 
 	insert into public.supplier_payments (
 		refill_request_id,
@@ -1492,7 +1986,17 @@ begin
 	values (p_refill_request_id)
 	on conflict do nothing;
 
-	perform public.log_activity('refill_request', p_refill_request_id, 'supplier_payment_recorded', jsonb_build_object('amount', p_amount, 'payment_fraction', p_payment_fraction));
+	perform public.log_activity(
+		'refill_request',
+		p_refill_request_id,
+		'supplier_payment_recorded',
+		jsonb_build_object(
+			'amount', p_amount,
+			'payment_fraction', p_payment_fraction,
+			'from_status', from_status,
+			'to_status', 'warehouse_receiving'
+		)
+	);
 	return payment;
 end;
 $$;
@@ -1509,6 +2013,7 @@ declare
 	line record;
 begin
 	employee_id := public.require_panel('inventory', true);
+	perform app_private.allow_workflow_state_change();
 
 	select * into target_order
 	from public.orders
@@ -1517,6 +2022,10 @@ begin
 
 	if target_order.id is null then
 		raise exception 'order_not_found' using errcode = '02000';
+	end if;
+
+	if target_order.status <> 'confirmed_for_inventory' then
+		raise exception 'invalid_inventory_transition_%', target_order.status using errcode = '23514';
 	end if;
 
 	for line in
@@ -1547,7 +2056,7 @@ begin
 	end loop;
 
 	update public.orders
-	set status = 'warehouse', reserved_at = now()
+	set status = 'inventory_reserved', reserved_at = now()
 	where id = p_order_id
 	returning * into target_order;
 
@@ -1555,8 +2064,83 @@ begin
 	values (p_order_id)
 	on conflict do nothing;
 
-	perform public.log_activity('order', p_order_id, 'order_stock_reserved', jsonb_build_object('employee_id', employee_id));
+	perform public.log_activity(
+		'order',
+		p_order_id,
+		'order_stock_reserved',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'from_status', 'confirmed_for_inventory',
+			'to_status', 'inventory_reserved'
+		)
+	);
 	return target_order;
+end;
+$$;
+
+create or replace function public.inventory_evaluate_order(p_order_id uuid)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+	return public.reserve_order_stock(p_order_id);
+end;
+$$;
+
+create or replace function public.warehouse_start_loading(p_order_id uuid)
+returns public.loading_tasks
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	target_order public.orders%rowtype;
+	task public.loading_tasks%rowtype;
+begin
+	employee_id := public.require_panel('warehouse', true);
+	perform app_private.allow_workflow_state_change();
+
+	select * into target_order
+	from public.orders
+	where id = p_order_id
+	for update;
+
+	if target_order.id is null then
+		raise exception 'order_not_found' using errcode = '02000';
+	end if;
+
+	if target_order.status <> 'inventory_reserved' then
+		raise exception 'invalid_warehouse_loading_transition_%', target_order.status using errcode = '23514';
+	end if;
+
+	insert into public.loading_tasks (order_id, advisor_employee_id, status)
+	values (p_order_id, employee_id, 'loading')
+	on conflict (order_id) do update
+	set
+		advisor_employee_id = excluded.advisor_employee_id,
+		status = 'loading'
+	returning * into task;
+
+	update public.orders
+	set status = 'warehouse_loading'
+	where id = p_order_id;
+
+	perform public.log_activity(
+		'order',
+		p_order_id,
+		'warehouse_loading_started',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'loading_task_id', task.id,
+			'from_status', 'inventory_reserved',
+			'to_status', 'warehouse_loading'
+		)
+	);
+
+	return task;
 end;
 $$;
 
@@ -1568,8 +2152,24 @@ set search_path = public
 as $$
 declare
 	updated public.loading_tasks%rowtype;
+	target_order public.orders%rowtype;
 begin
 	perform public.require_panel('warehouse', true);
+	perform app_private.allow_workflow_state_change();
+
+	select o.* into target_order
+	from public.orders o
+	join public.loading_tasks lt on lt.order_id = o.id
+	where lt.id = p_loading_task_id
+	for update of o;
+
+	if target_order.id is null then
+		raise exception 'loading_task_not_found' using errcode = '02000';
+	end if;
+
+	if target_order.status <> 'warehouse_loading' then
+		raise exception 'invalid_warehouse_approve_transition_%', target_order.status using errcode = '23514';
+	end if;
 
 	update public.loading_tasks
 	set status = 'approved', proof = coalesce(p_proof, '{}'::jsonb)
@@ -1580,15 +2180,20 @@ begin
 		raise exception 'loading_task_not_found' using errcode = '02000';
 	end if;
 
-	update public.orders set status = 'dispatch' where id = updated.order_id;
+	update public.orders
+	set status = 'dispatch_ready'
+	where id = updated.order_id;
 
-	insert into public.deliveries (order_id, loading_task_id, driver_id, truck_id)
-	select updated.order_id, ltd.loading_task_id, ltd.driver_id, ltd.truck_id
-	from public.loading_task_drivers ltd
-	where ltd.loading_task_id = updated.id
-	on conflict do nothing;
-
-	perform public.log_activity('loading_task', updated.id, 'warehouse_loading_approved', p_proof);
+	perform public.log_activity(
+		'loading_task',
+		updated.id,
+		'warehouse_loading_approved',
+		jsonb_build_object(
+			'from_status', 'warehouse_loading',
+			'to_status', 'dispatch_ready',
+			'proof', coalesce(p_proof, '{}'::jsonb)
+		)
+	);
 	return updated;
 end;
 $$;
@@ -1604,6 +2209,7 @@ declare
 begin
 	perform public.require_panel('warehouse', true);
 	perform public.require_rejection_proof(p_proof);
+	perform app_private.allow_workflow_state_change();
 
 	update public.loading_tasks
 	set status = 'rejected', rejection_reason = p_reason, proof = p_proof
@@ -1614,7 +2220,17 @@ begin
 		raise exception 'loading_task_not_found' using errcode = '02000';
 	end if;
 
-	perform public.log_activity('loading_task', updated.id, 'warehouse_loading_rejected', jsonb_build_object('reason', p_reason, 'proof', p_proof));
+	update public.orders
+	set status = 'rejected'
+	where id = updated.order_id
+	  and status in ('warehouse_loading', 'dispatch_ready');
+
+	perform public.log_activity(
+		'loading_task',
+		updated.id,
+		'warehouse_loading_rejected',
+		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
+	);
 	return updated;
 end;
 $$;
@@ -1630,6 +2246,7 @@ declare
 	item record;
 begin
 	perform public.require_panel('warehouse', true);
+	perform app_private.allow_workflow_state_change();
 
 	update public.receiving_tasks
 	set status = 'approved', proof = coalesce(p_proof, '{}'::jsonb)
@@ -1672,6 +2289,7 @@ declare
 begin
 	perform public.require_panel('warehouse', true);
 	perform public.require_rejection_proof(p_proof);
+	perform app_private.allow_workflow_state_change();
 
 	update public.receiving_tasks
 	set status = 'rejected', rejection_reason = p_reason, proof = p_proof
@@ -1691,6 +2309,103 @@ begin
 end;
 $$;
 
+create or replace function public.dispatch_assign_driver(
+	p_order_id uuid,
+	p_driver_id uuid,
+	p_truck_id uuid default null,
+	p_loading_task_id uuid default null
+)
+returns public.deliveries
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	target_order public.orders%rowtype;
+	delivery public.deliveries%rowtype;
+	loading_task_id uuid;
+begin
+	employee_id := public.require_panel('dispatch', true);
+	perform app_private.allow_workflow_state_change();
+
+	select * into target_order
+	from public.orders
+	where id = p_order_id
+	for update;
+
+	if target_order.id is null then
+		raise exception 'order_not_found' using errcode = '02000';
+	end if;
+
+	if target_order.status <> 'dispatch_ready' then
+		raise exception 'invalid_dispatch_assignment_transition_%', target_order.status using errcode = '23514';
+	end if;
+
+	if not exists (
+		select 1
+		from public.drivers
+		where id = p_driver_id
+		  and status in ('available', 'offline')
+	) then
+		raise exception 'driver_not_available' using errcode = '23514';
+	end if;
+
+	if p_truck_id is not null and not exists (
+		select 1
+		from public.trucks
+		where id = p_truck_id
+		  and status = 'available'
+	) then
+		raise exception 'truck_not_available' using errcode = '23514';
+	end if;
+
+	if p_loading_task_id is not null then
+		loading_task_id := p_loading_task_id;
+	else
+		select id into loading_task_id
+		from public.loading_tasks
+		where order_id = p_order_id
+		order by created_at desc
+		limit 1;
+	end if;
+
+	insert into public.deliveries (order_id, loading_task_id, driver_id, truck_id, status)
+	values (p_order_id, loading_task_id, p_driver_id, p_truck_id, 'assigned')
+	returning * into delivery;
+
+	update public.orders
+	set status = 'dispatch_assigned'
+	where id = p_order_id;
+
+	update public.drivers
+	set status = 'on_delivery'
+	where id = p_driver_id;
+
+	if p_truck_id is not null then
+		update public.trucks
+		set status = 'dispatched'
+		where id = p_truck_id;
+	end if;
+
+	perform public.log_activity(
+		'order',
+		p_order_id,
+		'dispatch_driver_assigned',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'delivery_id', delivery.id,
+			'driver_id', p_driver_id,
+			'truck_id', p_truck_id,
+			'from_status', 'dispatch_ready',
+			'to_status', 'dispatch_assigned'
+		)
+	);
+
+	return delivery;
+end;
+$$;
+
 create or replace function public.dispatch_complete_delivery(p_delivery_id uuid, p_proof jsonb)
 returns public.deliveries
 language plpgsql
@@ -1701,14 +2416,16 @@ declare
 	updated public.deliveries%rowtype;
 begin
 	perform public.require_panel('dispatch', true);
+	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
 	set status = 'completed', completed_at = now()
 	where id = p_delivery_id
+	  and status in ('assigned', 'accepted', 'in_transit', 'arrived')
 	returning * into updated;
 
 	if updated.id is null then
-		raise exception 'delivery_not_found' using errcode = '02000';
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
 	end if;
 
 	update public.inventory_reservations
@@ -1720,7 +2437,20 @@ begin
 	set status = 'delivered', delivered_at = now()
 	where id = updated.order_id;
 
-	perform public.log_activity('delivery', updated.id, 'dispatch_delivery_completed', coalesce(p_proof, '{}'::jsonb));
+	update public.drivers
+	set status = 'available'
+	where id = updated.driver_id;
+
+	update public.trucks
+	set status = 'available'
+	where id = updated.truck_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'dispatch_delivery_completed',
+		jsonb_build_object('to_status', 'delivered', 'proof', coalesce(p_proof, '{}'::jsonb))
+	);
 	return updated;
 end;
 $$;
@@ -1736,21 +2466,161 @@ declare
 begin
 	perform public.require_panel('dispatch', true);
 	perform public.require_rejection_proof(p_proof);
+	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
 	set status = 'rejected', rejection_reason = p_reason, rejection_proof = p_proof
 	where id = p_delivery_id
+	  and status in ('assigned', 'accepted', 'in_transit', 'arrived')
 	returning * into updated;
 
 	if updated.id is null then
-		raise exception 'delivery_not_found' using errcode = '02000';
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
 	end if;
 
 	update public.orders
-	set status = 'warehouse'
+	set status = 'rejected'
 	where id = updated.order_id;
 
-	perform public.log_activity('delivery', updated.id, 'dispatch_delivery_rejected', jsonb_build_object('reason', p_reason, 'proof', p_proof));
+	update public.drivers
+	set status = 'available'
+	where id = updated.driver_id;
+
+	update public.trucks
+	set status = 'available'
+	where id = updated.truck_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'dispatch_delivery_rejected',
+		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
+	);
+	return updated;
+end;
+$$;
+
+create or replace function public.driver_accept_delivery(p_delivery_id uuid)
+returns public.deliveries
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_driver_id uuid;
+	updated public.deliveries%rowtype;
+begin
+	v_driver_id := public.current_driver_id();
+	if v_driver_id is null then
+		raise exception 'driver_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.deliveries
+	set status = 'accepted'
+	where id = p_delivery_id
+	  and deliveries.driver_id = v_driver_id
+	  and status = 'assigned'
+	returning * into updated;
+
+	if updated.id is null then
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	update public.drivers
+	set status = 'on_delivery'
+	where id = v_driver_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'driver_delivery_accepted',
+		jsonb_build_object('driver_id', v_driver_id, 'from_status', 'assigned', 'to_status', 'accepted')
+	);
+
+	return updated;
+end;
+$$;
+
+create or replace function public.driver_start_delivery(p_delivery_id uuid)
+returns public.deliveries
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_driver_id uuid;
+	updated public.deliveries%rowtype;
+begin
+	v_driver_id := public.current_driver_id();
+	if v_driver_id is null then
+		raise exception 'driver_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.deliveries
+	set status = 'in_transit', started_at = now()
+	where id = p_delivery_id
+	  and deliveries.driver_id = v_driver_id
+	  and status = 'accepted'
+	returning * into updated;
+
+	if updated.id is null then
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	update public.orders
+	set status = 'out_for_delivery'
+	where id = updated.order_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'driver_delivery_started',
+		jsonb_build_object('driver_id', v_driver_id, 'from_status', 'accepted', 'to_status', 'in_transit', 'order_status', 'out_for_delivery')
+	);
+
+	return updated;
+end;
+$$;
+
+create or replace function public.driver_record_arrival(p_delivery_id uuid)
+returns public.deliveries
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_driver_id uuid;
+	updated public.deliveries%rowtype;
+begin
+	v_driver_id := public.current_driver_id();
+	if v_driver_id is null then
+		raise exception 'driver_required' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.deliveries
+	set status = 'arrived', arrived_at = now()
+	where id = p_delivery_id
+	  and deliveries.driver_id = v_driver_id
+	  and status = 'in_transit'
+	returning * into updated;
+
+	if updated.id is null then
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
+	end if;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'driver_delivery_arrived',
+		jsonb_build_object('driver_id', v_driver_id, 'from_status', 'in_transit', 'to_status', 'arrived')
+	);
+
 	return updated;
 end;
 $$;
@@ -1776,6 +2646,7 @@ begin
 	if v_driver_id is null then
 		raise exception 'driver_required' using errcode = '42501';
 	end if;
+	perform app_private.allow_workflow_state_change();
 
 	if p_delivery_id is not null and not exists (
 		select 1 from public.deliveries
@@ -1831,6 +2702,7 @@ begin
 	if v_driver_id is null then
 		raise exception 'driver_required' using errcode = '42501';
 	end if;
+	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
 	set status = 'completed', completed_at = now()
@@ -1869,7 +2741,20 @@ begin
 	where order_id = updated.order_id
 	  and status = 'reserved';
 
-	perform public.log_activity('delivery', updated.id, 'driver_delivery_confirmed', jsonb_build_object('driver_id', v_driver_id));
+	update public.drivers
+	set status = 'available'
+	where id = v_driver_id;
+
+	update public.trucks
+	set status = 'available'
+	where id = updated.truck_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'driver_delivery_confirmed',
+		jsonb_build_object('driver_id', v_driver_id, 'to_status', 'delivered')
+	);
 	return updated;
 end;
 $$;
@@ -1889,22 +2774,37 @@ begin
 		raise exception 'driver_required' using errcode = '42501';
 	end if;
 	perform public.require_rejection_proof(p_proof);
+	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
 	set status = 'rejected', rejection_reason = p_reason, rejection_proof = p_proof
 	where id = p_delivery_id
 	  and deliveries.driver_id = v_driver_id
+	  and status in ('assigned', 'accepted', 'in_transit', 'arrived')
 	returning * into updated;
 
 	if updated.id is null then
-		raise exception 'delivery_not_found' using errcode = '02000';
+		raise exception 'delivery_not_found_or_invalid_transition' using errcode = '02000';
 	end if;
 
 	update public.orders
-	set status = 'warehouse'
+	set status = 'rejected'
 	where id = updated.order_id;
 
-	perform public.log_activity('delivery', updated.id, 'driver_delivery_rejected', jsonb_build_object('reason', p_reason, 'proof', p_proof));
+	update public.drivers
+	set status = 'available'
+	where id = v_driver_id;
+
+	update public.trucks
+	set status = 'available'
+	where id = updated.truck_id;
+
+	perform public.log_activity(
+		'delivery',
+		updated.id,
+		'driver_delivery_rejected',
+		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
+	);
 	return updated;
 end;
 $$;
@@ -1922,10 +2822,10 @@ security definer
 set search_path = public
 as $$
 declare
-	customer_id uuid;
+	v_customer_id uuid;
 	ticket public.support_tickets%rowtype;
 begin
-	customer_id := public.current_customer_id();
+	v_customer_id := public.current_customer_id();
 
 	insert into public.support_tickets (
 		customer_id,
@@ -1935,7 +2835,14 @@ begin
 		subject,
 		source
 	)
-	values (customer_id, p_requester_name, p_requester_email, p_requester_phone, p_subject, case when customer_id is null then 'website' else 'portal' end)
+	values (
+		v_customer_id,
+		p_requester_name,
+		p_requester_email,
+		p_requester_phone,
+		p_subject,
+		case when v_customer_id is null then 'website'::public.support_ticket_source else 'portal'::public.support_ticket_source end
+	)
 	returning * into ticket;
 
 	insert into public.support_messages (
@@ -1945,7 +2852,13 @@ begin
 		channel,
 		body
 	)
-	values (ticket.id, case when customer_id is null then 'external' else 'customer' end, auth.uid(), 'website', p_message);
+	values (
+		ticket.id,
+		case when v_customer_id is null then 'external'::public.support_sender_type else 'customer'::public.support_sender_type end,
+		auth.uid(),
+		'website',
+		p_message
+	);
 
 	perform public.log_activity('support_ticket', ticket.id, 'support_ticket_created', jsonb_build_object('source', ticket.source));
 	return ticket;
@@ -1955,7 +2868,7 @@ $$;
 create or replace function public.send_support_reply(
 	p_ticket_id uuid,
 	p_body text,
-	p_channel text default 'email'
+	p_channel public.support_message_channel default 'email'
 )
 returns public.support_messages
 language plpgsql
@@ -2141,7 +3054,7 @@ select
 	'order' as entity_type,
 	id as entity_id,
 	order_number as title,
-	status as subtitle,
+	status::text as subtitle,
 	jsonb_build_object('total_amount', total_amount, 'created_at', created_at) as metadata
 from public.orders
 where public.is_employee_with_role('ceo')
@@ -2159,7 +3072,7 @@ select
 	'support_ticket' as entity_type,
 	id as entity_id,
 	reference as title,
-	status as subtitle,
+	status::text as subtitle,
 	jsonb_build_object('subject', subject, 'requester_email', requester_email) as metadata
 from public.support_tickets
 where public.is_employee_with_role('ceo');
@@ -2418,9 +3331,14 @@ grant select on public.ceo_inventory_summary to authenticated;
 grant select on public.ceo_dispatch_summary to authenticated;
 grant select on public.ceo_search_index to authenticated;
 
+grant execute on function public.customer_accept_quote(uuid) to authenticated;
+grant execute on function public.customer_decline_quote(uuid, text, text) to authenticated;
+grant execute on function public.customer_request_quote_negotiation(uuid, public.quote_counter_type, jsonb, numeric, boolean, text) to authenticated;
+grant execute on function public.customer_submit_quote_line_response(uuid, jsonb) to authenticated;
 grant execute on function public.claim_next_sales_order() to authenticated;
 grant execute on function public.sales_save_and_requeue(uuid, text) to authenticated;
 grant execute on function public.sales_approve_quote(uuid, uuid) to authenticated;
+grant execute on function public.sales_confirm_order(uuid, uuid) to authenticated;
 grant execute on function public.sales_reject_order(uuid, text, jsonb) to authenticated;
 grant execute on function public.create_manual_order(uuid, jsonb, text) to authenticated;
 grant execute on function public.request_price_update(uuid, uuid, text) to authenticated;
@@ -2428,17 +3346,23 @@ grant execute on function public.create_supplier_refill(uuid, uuid, numeric, num
 grant execute on function public.record_customer_payment(uuid, numeric, numeric, text) to authenticated;
 grant execute on function public.record_supplier_payment(uuid, numeric, numeric, text) to authenticated;
 grant execute on function public.reserve_order_stock(uuid) to authenticated;
+grant execute on function public.inventory_evaluate_order(uuid) to authenticated;
+grant execute on function public.warehouse_start_loading(uuid) to authenticated;
 grant execute on function public.warehouse_approve_loading(uuid, jsonb) to authenticated;
 grant execute on function public.warehouse_reject_loading(uuid, text, jsonb) to authenticated;
 grant execute on function public.warehouse_approve_receiving(uuid, jsonb) to authenticated;
 grant execute on function public.warehouse_reject_receiving(uuid, text, jsonb) to authenticated;
+grant execute on function public.dispatch_assign_driver(uuid, uuid, uuid, uuid) to authenticated;
 grant execute on function public.dispatch_complete_delivery(uuid, jsonb) to authenticated;
 grant execute on function public.dispatch_reject_delivery(uuid, text, jsonb) to authenticated;
+grant execute on function public.driver_accept_delivery(uuid) to authenticated;
+grant execute on function public.driver_start_delivery(uuid) to authenticated;
+grant execute on function public.driver_record_arrival(uuid) to authenticated;
 grant execute on function public.driver_update_location(numeric, numeric, numeric, uuid, numeric, numeric) to authenticated;
 grant execute on function public.driver_confirm_delivery(uuid, text, text, numeric, numeric) to authenticated;
 grant execute on function public.driver_reject_delivery(uuid, text, jsonb) to authenticated;
 grant execute on function public.create_support_ticket(text, text, text, text, text) to anon, authenticated;
-grant execute on function public.send_support_reply(uuid, text, text) to authenticated;
+grant execute on function public.send_support_reply(uuid, text, public.support_message_channel) to authenticated;
 grant execute on function public.ingest_whatsapp_message(text, text, text) to service_role;
 grant execute on function public.transfer_team_ownership(uuid) to authenticated;
 
