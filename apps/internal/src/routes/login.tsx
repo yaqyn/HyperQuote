@@ -14,6 +14,11 @@ import { useState } from 'react'
 import { Button } from 'react-aria-components'
 import { z } from 'zod'
 import { getSafeRedirectPath } from '../lib/login-redirect'
+import {
+	getInternalLoginStatus,
+	submitInternalLogin,
+} from '../lib/server/internal-auth'
+import type { InternalLoginErrorCode } from '../lib/server/internal-auth-core'
 
 const loginSearchSchema = z.object({
 	redirect: z.string().optional(),
@@ -56,6 +61,9 @@ const STATUS_ROWS = [
 
 export const Route = createFileRoute('/login')({
 	validateSearch: loginSearchSchema,
+	beforeLoad: async () => ({
+		loginStatus: await getInternalLoginStatus(),
+	}),
 	component: InternalLoginRoute,
 })
 
@@ -92,27 +100,60 @@ function getGridHash(column: number, row: number) {
 
 function InternalLoginRoute() {
 	const search = Route.useSearch()
+	const { loginStatus } = Route.useRouteContext()
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
 	const [invalidFields, setInvalidFields] = useState<LoginInvalidFields>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [loginError, setLoginError] = useState<InternalLoginErrorCode | null>(
+		null,
+	)
 
-	function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	const isLoginConfigured = loginStatus.configured
+
+	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
 		if (isSubmitting) return
+		setLoginError(null)
+
+		if (!isLoginConfigured) {
+			setLoginError('not_configured')
+			return
+		}
 
 		const nextInvalidFields = getInvalidFields(email, password)
 		setInvalidFields(nextInvalidFields)
 		if (Object.keys(nextInvalidFields).length > 0) return
 
 		setIsSubmitting(true)
-		window.location.assign(
-			getSafeRedirectPath(search.redirect, window.location.origin),
-		)
+		const result = await submitInternalLogin({
+			data: {
+				email: email.trim(),
+				password,
+				redirect: search.redirect,
+			},
+		})
+
+		if (result.ok) {
+			window.location.assign(
+				getSafeRedirectPath(result.redirectTo, window.location.origin),
+			)
+			return
+		}
+
+		setLoginError(result.error)
+		if (
+			result.error === 'invalid_credentials' ||
+			result.error === 'wrong_pool'
+		) {
+			setInvalidFields({ email: true, password: true })
+		}
+		setIsSubmitting(false)
 	}
 
 	function handleEmailChange(value: string) {
 		setEmail(value)
+		setLoginError(null)
 		if (isEmailValid(value)) {
 			setInvalidFields((current) => clearInvalidField(current, 'email'))
 		}
@@ -120,6 +161,7 @@ function InternalLoginRoute() {
 
 	function handlePasswordChange(value: string) {
 		setPassword(value)
+		setLoginError(null)
 		if (isPasswordValid(value)) {
 			setInvalidFields((current) => clearInvalidField(current, 'password'))
 		}
@@ -236,7 +278,7 @@ function InternalLoginRoute() {
 								<CredentialField
 									autoComplete="username"
 									id="internal-login-email"
-									isDisabled={isSubmitting}
+									isDisabled={isSubmitting || !isLoginConfigured}
 									label="Employee email"
 									onChange={handleEmailChange}
 									state={emailState}
@@ -246,7 +288,7 @@ function InternalLoginRoute() {
 								<CredentialField
 									autoComplete="current-password"
 									id="internal-login-password"
-									isDisabled={isSubmitting}
+									isDisabled={isSubmitting || !isLoginConfigured}
 									label="Password"
 									onChange={handlePasswordChange}
 									state={passwordState}
@@ -255,9 +297,13 @@ function InternalLoginRoute() {
 								/>
 							</div>
 
+							<LoginStatusMessage
+								code={isLoginConfigured ? loginError : 'not_configured'}
+							/>
+
 							<Button
 								type="submit"
-								isDisabled={isSubmitting}
+								isDisabled={isSubmitting || !isLoginConfigured}
 								className="group mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 font-[family-name:var(--font-archivo)] text-sm font-bold text-white outline-none transition-colors hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#2563eb]/35 disabled:cursor-not-allowed disabled:bg-black/25"
 							>
 								{isSubmitting ? (
@@ -269,7 +315,11 @@ function InternalLoginRoute() {
 										className="motion-safe:transition-transform group-hover:motion-safe:translate-x-0.5"
 									/>
 								)}
-								{isSubmitting ? 'Entering internal ops' : 'Enter internal ops'}
+								{isSubmitting
+									? 'Entering internal ops'
+									: isLoginConfigured
+										? 'Enter internal ops'
+										: 'Login not configured'}
 							</Button>
 						</form>
 
@@ -302,6 +352,34 @@ function LoginSquareField() {
 			))}
 		</div>
 	)
+}
+
+function LoginStatusMessage({ code }: { code: InternalLoginErrorCode | null }) {
+	if (!code) return null
+
+	const message = getLoginErrorMessage(code)
+
+	return (
+		<p
+			role="alert"
+			className="mt-4 border border-black/10 bg-black/[0.025] px-3 py-2 font-[family-name:var(--font-archivo)] text-sm leading-5 text-black/62"
+		>
+			{message}
+		</p>
+	)
+}
+
+function getLoginErrorMessage(code: InternalLoginErrorCode): string {
+	switch (code) {
+		case 'not_configured':
+			return 'Login is not configured on this server. Contact ops support.'
+		case 'invalid_credentials':
+			return 'Email or password was not accepted.'
+		case 'wrong_pool':
+			return 'This account is not provisioned for internal operations.'
+		case 'unexpected':
+			return 'Login could not be completed. Try again or contact ops support.'
+	}
 }
 
 function EmployeeLoginHelp() {
@@ -511,13 +589,7 @@ function isEmailValid(value: string): boolean {
 }
 
 function isPasswordValid(value: string): boolean {
-	return (
-		value.length >= 6 &&
-		/[0-9]/.test(value) &&
-		/[!@#]/.test(value) &&
-		/[A-Z]/.test(value) &&
-		/[a-z]/.test(value)
-	)
+	return value.length > 0
 }
 
 function clearInvalidField(

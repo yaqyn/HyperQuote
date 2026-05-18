@@ -19,39 +19,24 @@ import { useNotificationStore } from '../stores/notifications'
 
 const getAuthSession = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<AuthSession> => {
-		const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-		const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-		if (!supabaseUrl || !supabaseAnonKey) {
-			// Dev-mode stub. No Supabase configured → mock an internal admin
-			// session so the app is usable without live auth. The Session + User
-			// shapes are faked just enough to satisfy consumers that only read
-			// `user.id`, `user.user_metadata.name`, `pool`, and `roles`.
-			return {
-				session: {
-					access_token: 'dev',
-					refresh_token: 'dev',
-					expires_in: 0,
-					expires_at: 0,
-					token_type: 'bearer',
-					user: {} as AuthSession['user'],
-				} as AuthSession['session'],
-				user: {
-					id: 'dev-user',
-					app_metadata: {},
-					user_metadata: { name: 'Dev User' },
-					aud: 'authenticated',
-					created_at: new Date().toISOString(),
-				} as AuthSession['user'],
-				pool: 'internal',
-				roles: ['admin'],
-				tenantId: 'dev-tenant',
+		const {
+			createInternalDevAuthSession,
+			getInternalSupabaseConfig,
+			shouldUseInternalDevAuthStub,
+		} = await import('../lib/server/internal-auth-core')
+		const config = getInternalSupabaseConfig(process.env)
+		if (!config) {
+			if (shouldUseInternalDevAuthStub(process.env, import.meta.env.PROD)) {
+				return createInternalDevAuthSession()
 			}
+
+			const { redirect } = await import('@tanstack/react-router')
+			throw redirect({ to: '/login' })
 		}
 
 		const { authGuard } = await import('@hyperquote/auth/guard')
 		return authGuard({
-			supabaseUrl,
-			supabaseAnonKey,
+			...config,
 			requiredPool: 'internal',
 			loginPath: '/login',
 		})
@@ -183,7 +168,7 @@ function InternalLayout() {
 
 	// Supabase Realtime notifications
 	useRealtimeNotifications({
-		userId: auth.user?.id ?? 'dev-user',
+		userId: auth.user.id,
 		enabled: !!import.meta.env.VITE_SUPABASE_URL,
 	})
 

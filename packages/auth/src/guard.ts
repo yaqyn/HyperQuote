@@ -15,6 +15,7 @@ import type { AuthGuardOptions, AuthSession } from './types'
  */
 export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	const request = getRequest()
+	const loginPath = opts.loginPath ?? '/login'
 	const { client } = createSupabaseServerClient({
 		request,
 		supabaseUrl: opts.supabaseUrl,
@@ -26,7 +27,7 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	} = await client.auth.getSession()
 
 	if (!session) {
-		throw redirect({ to: opts.loginPath ?? '/login' })
+		throw redirectToLogin(loginPath, request)
 	}
 
 	// Extract claims set by custom access token hook (Phase 2 migration 004)
@@ -36,7 +37,7 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	const tenantId = (metadata.tenant_id as string) ?? null
 
 	if (opts.requiredPool && pool !== opts.requiredPool) {
-		throw redirect({ to: opts.loginPath ?? '/login' })
+		throw redirectToLogin(loginPath, request)
 	}
 
 	return {
@@ -46,4 +47,18 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 		roles,
 		tenantId,
 	}
+}
+
+function redirectToLogin(loginPath: string, request: Request) {
+	const requestUrl = new URL(request.url)
+	const redirectPath = `${requestUrl.pathname}${requestUrl.search}${requestUrl.hash}`
+
+	if (redirectPath === loginPath) {
+		return redirect({ to: loginPath })
+	}
+
+	return redirect({
+		to: loginPath,
+		search: { redirect: redirectPath },
+	})
 }

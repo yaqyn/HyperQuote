@@ -30,21 +30,14 @@ import { useAIChatStore } from '../../stores/ai-chat'
 import { SlidePanel } from '../shared/SlidePanel'
 
 const searchFrameFadeSeconds = 0.12
-const unlockIntroHoldMs = 1080
-const unlockRevealMs = 140
-const unlockSlotIds = [
-	'unlock-slot-1',
-	'unlock-slot-2',
-	'unlock-slot-3',
-	'unlock-slot-4',
-	'unlock-slot-5',
-	'unlock-slot-6',
+const searchSkeletonIds = [
+	'search-skeleton-1',
+	'search-skeleton-2',
+	'search-skeleton-3',
+	'search-skeleton-4',
+	'search-skeleton-5',
+	'search-skeleton-6',
 ] as const
-let hasUnlockedSearch = false
-
-function normalizeUnlockValue(value: string) {
-	return value.replace(/[^a-z]/gi, '').slice(0, 6)
-}
 
 function isEditableEventTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false
@@ -62,14 +55,8 @@ type DetailPanelStyle = CSSProperties & {
 
 export function SearchModule() {
 	const inputRef = useRef<HTMLInputElement | null>(null)
-	const unlockValueRef = useRef('')
 	const reduceMotion = useReducedMotion()
 	const [query, setQuery] = useState('')
-	const [unlockValue, setUnlockValue] = useState('')
-	const [isUnlocked, setIsUnlocked] = useState(() => hasUnlockedSearch)
-	const [unlockStage, setUnlockStage] = useState<
-		'title' | 'input' | 'unlocking'
-	>('title')
 	const debouncedQuery = useDebouncedValue(query, 120)
 	const [activeTableId, setActiveTableId] = useState<string | null>(null)
 	const [activeSummaryId, setActiveSummaryId] =
@@ -83,7 +70,6 @@ export function SearchModule() {
 	const searchQuery = useQuery({
 		queryKey: ['internal-search', debouncedQuery],
 		queryFn: () => searchInternalDb({ data: { query: debouncedQuery } }),
-		enabled: isUnlocked,
 		placeholderData: keepPreviousData,
 		staleTime: 5_000,
 	})
@@ -91,7 +77,6 @@ export function SearchModule() {
 	const executiveBriefQuery = useQuery({
 		queryKey: ['internal-search-executive-brief'],
 		queryFn: () => getSearchExecutiveBrief(),
-		enabled: isUnlocked,
 		placeholderData: keepPreviousData,
 		staleTime: 15_000,
 	})
@@ -99,7 +84,7 @@ export function SearchModule() {
 	const tableQuery = useQuery({
 		queryKey: ['internal-search-table', activeTableId],
 		queryFn: () => listSearchTable({ data: { tableId: activeTableId ?? '' } }),
-		enabled: isUnlocked && activeTableId !== null,
+		enabled: activeTableId !== null,
 		placeholderData: keepPreviousData,
 		staleTime: 5_000,
 	})
@@ -108,19 +93,17 @@ export function SearchModule() {
 		queryKey: ['internal-search-module-summary', activeSummaryId],
 		queryFn: () =>
 			getSearchModuleSummary({ data: { moduleId: activeSummaryId ?? '' } }),
-		enabled: isUnlocked && activeSummaryId !== null,
+		enabled: activeSummaryId !== null,
 		placeholderData: keepPreviousData,
 		staleTime: 15_000,
 	})
 
 	useEffect(() => {
 		const id = window.setTimeout(() => {
-			if (isUnlocked) {
-				inputRef.current?.focus()
-			}
+			inputRef.current?.focus()
 		}, 80)
 		return () => window.clearTimeout(id)
-	}, [isUnlocked])
+	}, [])
 
 	const trimmedQuery = query.trim()
 	const hasContent =
@@ -138,14 +121,11 @@ export function SearchModule() {
 		[activeSummaryId, activeTableId],
 	)
 
-	const setSearchInputRef = useCallback(
-		(node: HTMLInputElement | null) => {
-			inputRef.current = node
-			if (!node || !isUnlocked) return
-			window.requestAnimationFrame(() => node.focus())
-		},
-		[isUnlocked],
-	)
+	const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
+		inputRef.current = node
+		if (!node) return
+		window.requestAnimationFrame(() => node.focus())
+	}, [])
 
 	const switchSearchFrame = useCallback(
 		(expanded: boolean) => {
@@ -168,19 +148,6 @@ export function SearchModule() {
 		[isFrameExpanded, reduceMotion],
 	)
 
-	const handleUnlockValueChange = useCallback(
-		(value: string) => {
-			if (unlockStage === 'unlocking') return
-			const nextValue = normalizeUnlockValue(value)
-			unlockValueRef.current = nextValue
-			setUnlockValue(nextValue)
-			if (nextValue.length === 6) {
-				setUnlockStage('unlocking')
-			}
-		},
-		[unlockStage],
-	)
-
 	useEffect(() => {
 		if (hasContent) {
 			switchSearchFrame(true)
@@ -199,74 +166,7 @@ export function SearchModule() {
 	}, [hasContent, isFrameExpanded, reduceMotion, switchSearchFrame])
 
 	useEffect(() => {
-		if (isUnlocked) return
-		if (reduceMotion) {
-			setUnlockStage('input')
-			return
-		}
-		const id = window.setTimeout(() => {
-			setUnlockStage('input')
-		}, unlockIntroHoldMs)
-		return () => window.clearTimeout(id)
-	}, [isUnlocked, reduceMotion])
-
-	useEffect(() => {
-		if (isUnlocked || unlockStage === 'unlocking') return
-
-		function handleWindowKeyDown(event: KeyboardEvent) {
-			if (
-				event.defaultPrevented ||
-				event.metaKey ||
-				event.ctrlKey ||
-				event.altKey
-			)
-				return
-
-			if (event.key === 'Backspace') {
-				if (unlockStage === 'title' && unlockValueRef.current.length === 0)
-					return
-				event.preventDefault()
-				if (unlockStage === 'title') setUnlockStage('input')
-				handleUnlockValueChange(unlockValueRef.current.slice(0, -1))
-				return
-			}
-
-			if (event.key.length !== 1 || !/^[a-z]$/i.test(event.key)) return
-			event.preventDefault()
-			if (unlockStage === 'title') setUnlockStage('input')
-			handleUnlockValueChange(`${unlockValueRef.current}${event.key}`)
-		}
-
-		function handleWindowPaste(event: ClipboardEvent) {
-			const pastedText = event.clipboardData?.getData('text') ?? ''
-			if (!/[a-z]/i.test(pastedText)) return
-			event.preventDefault()
-			if (unlockStage === 'title') setUnlockStage('input')
-			handleUnlockValueChange(`${unlockValueRef.current}${pastedText}`)
-		}
-
-		window.addEventListener('keydown', handleWindowKeyDown, true)
-		window.addEventListener('paste', handleWindowPaste, true)
-		return () => {
-			window.removeEventListener('keydown', handleWindowKeyDown, true)
-			window.removeEventListener('paste', handleWindowPaste, true)
-		}
-	}, [handleUnlockValueChange, isUnlocked, unlockStage])
-
-	useEffect(() => {
-		if (unlockStage !== 'unlocking') return
-		const id = window.setTimeout(
-			() => {
-				hasUnlockedSearch = true
-				setIsUnlocked(true)
-			},
-			reduceMotion ? 0 : unlockRevealMs,
-		)
-		return () => window.clearTimeout(id)
-	}, [reduceMotion, unlockStage])
-
-	useEffect(() => {
-		if (!isUnlocked || selectedRow) return
+		if (selectedRow) return
 
 		function handleWindowKeyDown(event: KeyboardEvent) {
 			if (
@@ -304,7 +204,7 @@ export function SearchModule() {
 			window.removeEventListener('keydown', handleWindowKeyDown, true)
 			window.removeEventListener('paste', handleWindowPaste, true)
 		}
-	}, [handleQueryChange, isUnlocked, query, selectedRow])
+	}, [handleQueryChange, query, selectedRow])
 
 	function openTable(table: SearchTableSummary) {
 		setActiveTableId(table.tableId)
@@ -334,200 +234,115 @@ export function SearchModule() {
 
 	return (
 		<div className="relative h-full min-h-0 overflow-hidden bg-[#010101] text-white">
-			<AnimatePresence initial={false} mode="wait">
-				{isUnlocked ? (
-					<motion.div
-						key="search-console"
-						className={`relative z-10 flex h-full min-h-0 flex-col ${
-							isFrameExpanded ? '' : 'items-center justify-center'
-						}`}
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{
-							duration: reduceMotion ? 0 : 0.2,
-							ease: 'easeOut',
-						}}
-					>
-						<motion.div
-							className={
-								isFrameExpanded
-									? 'mx-auto w-full max-w-3xl px-4 pt-[min(7vh,56px)] sm:px-6 lg:px-8'
-									: 'w-[min(480px,calc(100%-40px))] px-0'
-							}
-							initial={false}
-							animate={{ opacity: isSearchFrameVisible ? 1 : 0 }}
-							transition={{
-								duration: reduceMotion ? 0 : searchFrameFadeSeconds,
-								ease: 'easeOut',
-							}}
-							onAnimationComplete={() => {
-								if (isSearchFrameVisible || pendingFrameExpanded === null)
-									return
-								setIsFrameExpanded(pendingFrameExpanded)
-								setPendingFrameExpanded(null)
-								setIsSearchFrameVisible(true)
-							}}
-						>
-							<SearchBox
-								inputRef={setSearchInputRef}
-								query={query}
-								onQueryChange={handleQueryChange}
-								onSubmit={askLyon}
-							/>
-						</motion.div>
+			<motion.div
+				key="search-console"
+				className={`relative z-10 flex h-full min-h-0 flex-col ${
+					isFrameExpanded ? '' : 'items-center justify-center'
+				}`}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{
+					duration: reduceMotion ? 0 : 0.2,
+					ease: 'easeOut',
+				}}
+			>
+				<motion.div
+					className={
+						isFrameExpanded
+							? 'mx-auto w-full max-w-3xl px-4 pt-[min(7vh,56px)] sm:px-6 lg:px-8'
+							: 'w-[min(480px,calc(100%-40px))] px-0'
+					}
+					initial={false}
+					animate={{ opacity: isSearchFrameVisible ? 1 : 0 }}
+					transition={{
+						duration: reduceMotion ? 0 : searchFrameFadeSeconds,
+						ease: 'easeOut',
+					}}
+					onAnimationComplete={() => {
+						if (isSearchFrameVisible || pendingFrameExpanded === null) return
+						setIsFrameExpanded(pendingFrameExpanded)
+						setPendingFrameExpanded(null)
+						setIsSearchFrameVisible(true)
+					}}
+				>
+					<SearchBox
+						inputRef={setSearchInputRef}
+						query={query}
+						onQueryChange={handleQueryChange}
+						onSubmit={askLyon}
+					/>
+				</motion.div>
 
-						{!isFrameExpanded && (
-							<SearchExecutiveBriefPanel
-								brief={executiveBriefQuery.data}
-								isLoading={executiveBriefQuery.isLoading}
-								reduceMotion={!!reduceMotion}
-								onOpenSummary={openSummary}
-							/>
-						)}
-
-						<AnimatePresence
-							initial={false}
-							mode="wait"
-							onExitComplete={() => {
-								if (!hasContent && !reduceMotion) switchSearchFrame(false)
-							}}
-						>
-							{isFrameExpanded && hasContent && (
-								<motion.div
-									key={
-										activeTableId
-											? `table-${activeTableId}`
-											: activeSummaryId
-												? `summary-${activeSummaryId}`
-												: 'search-results'
-									}
-									className="mx-auto mt-5 min-h-0 w-full max-w-3xl flex-1 px-4 pb-6 sm:px-6 lg:px-8"
-									initial={reduceMotion ? false : { opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{
-										duration: reduceMotion ? 0 : 0.16,
-										ease: 'easeOut',
-									}}
-								>
-									{activeTableId ? (
-										<TableView
-											table={tableQuery.data}
-											isLoading={tableQuery.isLoading}
-											isError={tableQuery.isError}
-											onBack={() => {
-												setActiveTableId(null)
-											}}
-											onOpenRow={openRow}
-										/>
-									) : activeSummaryId ? (
-										<ModuleSummaryView
-											summary={moduleSummaryQuery.data}
-											isLoading={moduleSummaryQuery.isLoading}
-											isError={moduleSummaryQuery.isError}
-											onBack={() => setActiveSummaryId(null)}
-											onOpenRow={openRow}
-										/>
-									) : (
-										<SearchResults
-											query={trimmedQuery}
-											data={searchData}
-											isLoading={searchQuery.isLoading}
-											isPlaceholderData={searchQuery.isPlaceholderData}
-											isError={searchQuery.isError}
-											onOpenTable={openTable}
-											onOpenRow={openRow}
-										/>
-									)}
-								</motion.div>
-							)}
-						</AnimatePresence>
-					</motion.div>
-				) : (
-					<ExecutiveUnlockIntro
-						key="executive-unlock"
-						value={unlockValue}
-						stage={unlockStage}
+				{!isFrameExpanded && (
+					<SearchExecutiveBriefPanel
+						brief={executiveBriefQuery.data}
+						isLoading={executiveBriefQuery.isLoading}
 						reduceMotion={!!reduceMotion}
+						onOpenSummary={openSummary}
 					/>
 				)}
-			</AnimatePresence>
+
+				<AnimatePresence
+					initial={false}
+					mode="wait"
+					onExitComplete={() => {
+						if (!hasContent && !reduceMotion) switchSearchFrame(false)
+					}}
+				>
+					{isFrameExpanded && hasContent && (
+						<motion.div
+							key={
+								activeTableId
+									? `table-${activeTableId}`
+									: activeSummaryId
+										? `summary-${activeSummaryId}`
+										: 'search-results'
+							}
+							className="mx-auto mt-5 min-h-0 w-full max-w-3xl flex-1 px-4 pb-6 sm:px-6 lg:px-8"
+							initial={reduceMotion ? false : { opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{
+								duration: reduceMotion ? 0 : 0.16,
+								ease: 'easeOut',
+							}}
+						>
+							{activeTableId ? (
+								<TableView
+									table={tableQuery.data}
+									isLoading={tableQuery.isLoading}
+									isError={tableQuery.isError}
+									onBack={() => {
+										setActiveTableId(null)
+									}}
+									onOpenRow={openRow}
+								/>
+							) : activeSummaryId ? (
+								<ModuleSummaryView
+									summary={moduleSummaryQuery.data}
+									isLoading={moduleSummaryQuery.isLoading}
+									isError={moduleSummaryQuery.isError}
+									onBack={() => setActiveSummaryId(null)}
+									onOpenRow={openRow}
+								/>
+							) : (
+								<SearchResults
+									query={trimmedQuery}
+									data={searchData}
+									isLoading={searchQuery.isLoading}
+									isPlaceholderData={searchQuery.isPlaceholderData}
+									isError={searchQuery.isError}
+									onOpenTable={openTable}
+									onOpenRow={openRow}
+								/>
+							)}
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</motion.div>
 
 			<RowDetailPanel row={selectedRow} onClose={() => setSelectedRow(null)} />
 		</div>
-	)
-}
-
-function ExecutiveUnlockIntro({
-	value,
-	stage,
-	reduceMotion,
-}: {
-	value: string
-	stage: 'title' | 'input' | 'unlocking'
-	reduceMotion: boolean
-}) {
-	return (
-		<motion.div
-			className="relative z-10 flex h-full min-h-0 items-center justify-center px-6 text-white"
-			initial={reduceMotion ? false : { opacity: 0 }}
-			animate={{ opacity: 1 }}
-			exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
-			transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
-		>
-			<AnimatePresence mode="wait">
-				{stage === 'title' ? (
-					<motion.h1
-						key="executive-title"
-						className="text-center font-[family-name:var(--font-bricolage)] text-[clamp(32px,5vw,64px)] font-semibold leading-none text-white/94 [text-shadow:0_0_24px_rgba(255,255,255,0.16)]"
-						initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -5 }}
-						transition={{ duration: reduceMotion ? 0 : 0.32, ease: 'easeOut' }}
-					>
-						Welcome back, executive.
-					</motion.h1>
-				) : (
-					<motion.form
-						key="executive-password"
-						onSubmit={(event) => {
-							event.preventDefault()
-						}}
-						className="flex items-center justify-center"
-						initial={reduceMotion ? false : { opacity: 0, y: 5 }}
-						animate={{
-							opacity: stage === 'unlocking' ? 0 : 1,
-							y: stage === 'unlocking' ? -3 : 0,
-							filter: stage === 'unlocking' ? 'blur(4px)' : 'blur(0px)',
-						}}
-						exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-						transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' }}
-					>
-						<div
-							aria-hidden="true"
-							className="flex min-w-[9ch] items-center justify-center gap-[0.34em] font-[family-name:var(--font-plex-mono)] text-[18px] font-medium sm:text-[20px]"
-						>
-							{unlockSlotIds.map((slotId, index) => (
-								<span
-									key={slotId}
-									className={`inline-block w-[1ch] text-center transition-[color,text-shadow] duration-150 ${
-										index < value.length
-											? 'text-white/82 [text-shadow:0_0_14px_rgba(255,255,255,0.18)]'
-											: 'text-white/14'
-									}`}
-								>
-									•
-								</span>
-							))}
-						</div>
-						<span className="sr-only">
-							Executive access key, {value.length} of 6 letters entered.
-						</span>
-					</motion.form>
-				)}
-			</AnimatePresence>
-		</motion.div>
 	)
 }
 
@@ -555,7 +370,7 @@ function SearchBox({
 					ref={inputRef}
 					value={query}
 					onChange={(event) => onQueryChange(event.target.value)}
-					placeholder="َQuery"
+					placeholder="Query"
 					dir="ltr"
 					className={`min-w-0 bg-transparent text-center font-[family-name:var(--font-archivo)] text-[14px] font-medium text-white/90 outline-none transition-[width] duration-200 placeholder:font-normal placeholder:italic placeholder:text-white/24 focus:w-[24ch] sm:text-[15px] sm:focus:w-[30ch] ${
 						query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
@@ -605,7 +420,7 @@ function SearchExecutiveBriefPanel({
 				</div>
 			) : (
 				<div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-					{unlockSlotIds.map((slotId) => (
+					{searchSkeletonIds.map((slotId) => (
 						<div
 							key={slotId}
 							className="h-[104px] border border-white/[0.05] bg-white/[0.012] p-3"

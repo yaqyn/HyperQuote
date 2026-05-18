@@ -214,6 +214,11 @@ jobs:
       - verify
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: ${{ vars.PRODUCTION_VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.PRODUCTION_VITE_SUPABASE_ANON_KEY }}
+      VITE_MAPTILER_KEY: ${{ vars.PRODUCTION_VITE_MAPTILER_KEY }}
+      VITE_INTERNAL_URL: ${{ vars.PRODUCTION_VITE_INTERNAL_URL }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -238,11 +243,24 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Validate production build environment
+        run: bun run deploy:check-env -- --target production --app "${{ matrix.app }}"
+
       - name: Build ${{ matrix.label }}
         run: bun run build --filter=${{ matrix.package }}
 
       - name: Remove local dev vars from build output
         run: find "apps/${{ matrix.app }}/dist" -type f -name ".dev.vars" -delete
+
+      - name: Verify ${{ matrix.label }} Worker secrets
+        run: >
+          bun run deploy:check-secrets --
+          --app "${{ matrix.app }}"
+          --worker "${{ matrix.worker }}"
+          --config "apps/${{ matrix.app }}/${{ matrix.deploy_config }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Deploy ${{ matrix.label }}
         working-directory: apps/${{ matrix.app }}
@@ -313,3 +331,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           WORKER_NAME: ${{ matrix.worker }}
           CUSTOM_DOMAINS: ${{ matrix.domains }}
+
+      - name: Smoke ${{ matrix.label }} production
+        run: bun run deploy:smoke -- --target production --app "${{ matrix.app }}"
+        env:
+          PRODUCTION_WEBSITE_URL: ${{ vars.PRODUCTION_WEBSITE_URL }}
+          PRODUCTION_PORTAL_URL: ${{ vars.PRODUCTION_PORTAL_URL }}
+          PRODUCTION_INTERNAL_URL: ${{ vars.PRODUCTION_INTERNAL_URL }}
+          PRODUCTION_DRIVER_URL: ${{ vars.PRODUCTION_DRIVER_URL }}

@@ -10,6 +10,7 @@ on:
       - apps/website/**
       - apps/driver/**
       - packages/**
+      - scripts/**
       - package.json
       - bun.lock
       - turbo.json
@@ -32,6 +33,11 @@ jobs:
     name: Quality gate and build
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    env:
+      VITE_SUPABASE_URL: ${{ vars.STAGING_VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.STAGING_VITE_SUPABASE_ANON_KEY }}
+      VITE_MAPTILER_KEY: ${{ vars.STAGING_VITE_MAPTILER_KEY }}
+      VITE_INTERNAL_URL: ${{ vars.STAGING_VITE_INTERNAL_URL }}
 
     steps:
       - name: Checkout
@@ -84,6 +90,9 @@ jobs:
           bun run --cwd apps/internal test
           bun run --cwd apps/driver test
           bun run --cwd apps/portal test
+
+      - name: Validate staging build environment
+        run: bun run deploy:check-env -- --target staging --app all
 
       - name: Build all apps
         run: bunx turbo build --force
@@ -203,9 +212,27 @@ jobs:
         working-directory: apps/${{ matrix.app }}
         run: test -f "${{ matrix.deploy_config }}"
 
+      - name: Verify ${{ matrix.label }} Worker secrets
+        run: >
+          bun run deploy:check-secrets --
+          --app "${{ matrix.app }}"
+          --worker "${{ matrix.worker }}"
+          --config "apps/${{ matrix.app }}/${{ matrix.deploy_config }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Deploy ${{ matrix.label }} to Workers.dev staging
         working-directory: apps/${{ matrix.app }}
         run: bunx wrangler deploy --config "${{ matrix.deploy_config }}" --name "${{ matrix.worker }}"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Smoke ${{ matrix.label }} staging
+        run: bun run deploy:smoke -- --target staging --app "${{ matrix.app }}"
+        env:
+          STAGING_WEBSITE_URL: ${{ vars.STAGING_WEBSITE_URL }}
+          STAGING_PORTAL_URL: ${{ vars.STAGING_PORTAL_URL }}
+          STAGING_INTERNAL_URL: ${{ vars.STAGING_INTERNAL_URL }}
+          STAGING_DRIVER_URL: ${{ vars.STAGING_DRIVER_URL }}
