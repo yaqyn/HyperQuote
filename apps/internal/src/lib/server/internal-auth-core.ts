@@ -44,7 +44,7 @@ export function getInternalSupabaseConfig(
 	return resolveSupabaseServerConfig(env)
 }
 
-export function isInternalProductionRuntime(
+function isInternalProductionRuntime(
 	env: Record<string, string | undefined>,
 	isProductionBuild: boolean,
 ): boolean {
@@ -86,7 +86,7 @@ export function createInternalDevAuthSession(now = new Date()): AuthSession {
 	}
 }
 
-export function getUserPool(user: User | null): string | null {
+function getUserPool(user: User | null): string | null {
 	const pool = user?.app_metadata?.pool
 	return typeof pool === 'string' ? pool : null
 }

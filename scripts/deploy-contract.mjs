@@ -1,4 +1,4 @@
-export const START_RUNTIME_SECRETS = [
+const START_RUNTIME_SECRETS = [
 	'SUPABASE_URL',
 	'SUPABASE_ANON_KEY',
 	'GROQ_API_KEY',
@@ -6,7 +6,7 @@ export const START_RUNTIME_SECRETS = [
 	'USE_AI',
 ]
 
-export const APP_DEPLOY_CONTRACTS = {
+const APP_DEPLOY_CONTRACTS = {
 	website: {
 		buildVars: [],
 		runtimeSecrets: START_RUNTIME_SECRETS,
@@ -54,7 +54,7 @@ export function getContractApps(app) {
 	return [app]
 }
 
-export function unique(values) {
+function unique(values) {
 	return [...new Set(values)]
 }
 
