@@ -8,7 +8,7 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "turbo dev",
+		"dev": "node scripts/dev-local.mjs",
 		"build": "turbo build",
 		"lint": "turbo lint",
 		"typecheck": "turbo typecheck",
