@@ -236,6 +236,7 @@
 	"profilePage.phoneInvalid": "أدخل رقم هاتف مصري صحيح.",
 	"profilePage.phoneCodeSent": "تم إرسال رمز التحقق.",
 	"profilePage.phoneChanged": "تم تغيير رقم الهاتف.",
+	"profilePage.phoneUsageNotice": "سيُستخدم هذا الرقم لتسجيل الدخول إلى الحساب والتواصل معك من HyperQuote.",
 	"profilePage.phoneAuthRequired": "سجل الدخول مرة أخرى قبل تغيير رقم الهاتف.",
 	"profilePage.phoneChangeFailed": "لم يتم تغيير رقم الهاتف.",
 	"profilePage.phoneSame": "هذا هو رقم هاتفك الحالي.",

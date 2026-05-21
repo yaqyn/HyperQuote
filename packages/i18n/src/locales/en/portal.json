@@ -373,6 +373,7 @@
 		"phoneInvalid": "Enter a valid Egyptian mobile number.",
 		"phoneCodeSent": "Verification code sent.",
 		"phoneChanged": "Phone number changed.",
+		"phoneUsageNotice": "This number is used for both account login and HyperQuote contact.",
 		"phoneAuthRequired": "Sign in again before changing your phone number.",
 		"phoneChangeFailed": "Phone number was not changed.",
 		"phoneSame": "This is already your phone number.",

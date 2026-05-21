@@ -7,9 +7,9 @@ import type { TFunction } from 'i18next'
 import {
 	AlertTriangle,
 	Check,
+	KeyRound,
 	Loader2,
 	LockKeyhole,
-	Phone,
 	Save,
 	ShieldCheck,
 	User,
@@ -33,9 +33,8 @@ export const Route = createFileRoute('/_portal/profile')({
 const EGYPT_MOBILE_REGEX = /^(10|11|12|15)\d{8}$/
 
 function ProfilePage() {
-	const { t, i18n } = useTranslation('portal')
+	const { t } = useTranslation('portal')
 	const queryClient = useQueryClient()
-	const isAr = i18n.language === 'ar'
 	const [companyName, setCompanyName] = useState('')
 	const [email, setEmail] = useState('')
 	const [phoneDraft, setPhoneDraft] = useState('')
@@ -234,127 +233,88 @@ function ProfilePage() {
 
 	return (
 		<ProfileShell>
-			<div className="grid min-h-0 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
-				<section className="min-w-0">
-					<div className="flex min-w-0 items-center gap-4 border-b border-[var(--p-border)] pb-5">
-						<ProfileAvatar profile={profile} />
-						<div className="min-w-0">
-							<PortalTitleRow
-								title={profile.companyName || t('profilePage.title')}
-								subtitle={profile.contactName}
-								className="max-w-full"
-							/>
-						</div>
-					</div>
-
-					<div className="mt-6 grid gap-5">
-						<ProfileField
-							label={t('profilePage.name')}
-							value={profile.contactName}
-							disabled
-							icon={<LockKeyhole size={14} strokeWidth={1.7} />}
-						/>
-						<ProfileField
-							label={t('profilePage.companyName')}
-							value={companyName}
-							onChange={(event) => {
-								setCompanyName(event.currentTarget.value)
-								setProfileSaved(false)
-								setProfileError(null)
-							}}
-						/>
-						<ProfileField
-							label={t('settings.profile.email')}
-							value={email}
-							type="email"
-							onChange={(event) => {
-								setEmail(event.currentTarget.value)
-								setProfileSaved(false)
-								setProfileError(null)
-							}}
-							placeholder={t('profilePage.emailPlaceholder')}
+			<section className="min-w-0">
+				<div className="flex min-w-0 items-center gap-4 border-b border-[var(--p-border)] pb-5">
+					<ProfileAvatar profile={profile} />
+					<div className="min-w-0">
+						<PortalTitleRow
+							title={profile.companyName || t('profilePage.title')}
+							subtitle={profile.contactName}
+							className="max-w-full"
+							showSidebarButton={false}
 						/>
 					</div>
+				</div>
 
-					<div className="mt-6 flex flex-wrap items-center gap-3">
-						<button
-							type="button"
-							onClick={handleProfileSave}
-							disabled={!hasProfileChanges || updateMutation.isPending}
-							className="flex h-11 min-w-36 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
-						>
-							{updateMutation.isPending ? (
-								<Loader2 size={15} className="animate-spin" />
-							) : (
-								<Save size={15} strokeWidth={1.8} />
-							)}
-							<span>{t('profilePage.save')}</span>
-						</button>
-						{profileSaved && (
-							<StatusText kind="success" text={t('profilePage.saved')} />
-						)}
-						{profileError && <StatusText kind="error" text={profileError} />}
-					</div>
-
-					<PhoneChangePanel
-						currentPhone={profile.phone}
-						phoneDraft={phoneDraft}
-						otpCode={otpCode}
-						stage={phoneStage}
-						message={phoneMessage}
-						isRequesting={requestPhoneMutation.isPending}
-						isVerifying={verifyPhoneMutation.isPending}
-						onPhoneChange={(value) => {
-							setPhoneDraft(normalizeEgyptPhoneInput(value))
-							setPhoneMessage(null)
-						}}
-						onOtpChange={(value) => {
-							setOtpCode(value.replace(/\D/g, '').slice(0, 6))
-							setPhoneMessage(null)
-						}}
-						onRequest={handleRequestPhoneChange}
-						onVerify={handleVerifyPhoneChange}
+				<div className="mt-6 grid gap-5">
+					<ProfileField
+						label={t('profilePage.name')}
+						value={profile.contactName}
+						disabled
+						icon={<LockKeyhole size={14} strokeWidth={1.7} />}
 					/>
-				</section>
+					<ProfileField
+						label={t('profilePage.companyName')}
+						value={companyName}
+						onChange={(event) => {
+							setCompanyName(event.currentTarget.value)
+							setProfileSaved(false)
+							setProfileError(null)
+						}}
+					/>
+					<ProfileField
+						label={t('settings.profile.email')}
+						value={email}
+						type="email"
+						onChange={(event) => {
+							setEmail(event.currentTarget.value)
+							setProfileSaved(false)
+							setProfileError(null)
+						}}
+						placeholder={t('profilePage.emailPlaceholder')}
+					/>
+				</div>
 
-				<aside className="min-w-0 border-t border-[var(--p-border)] pt-5 lg:border-s lg:border-t-0 lg:ps-6 lg:pt-0">
-					<div className="grid gap-3">
-						<InfoRow
-							label={t('profilePage.customerId')}
-							value={profile.id}
-							mono
-						/>
-						<InfoRow
-							label={t('profilePage.status')}
-							value={profileStatusLabel(profile.status, t)}
-						/>
-						<InfoRow
-							label={t('profilePage.tier')}
-							value={tierLabel(profile.tier, t)}
-						/>
-						<InfoRow
-							label={t('profilePage.creditLimit')}
-							value={formatMoney(profile.creditLimit, isAr)}
-						/>
-						<InfoRow
-							label={t('profilePage.paymentHistory')}
-							value={paymentHistoryLabel(profile.paymentHistory, t)}
-						/>
-						<InfoRow
-							label={t('settings.profile.tradeLicense')}
-							value={tradeLicenseLabel(profile.tradeLicenseStatus, t)}
-						/>
-						<InfoRow
-							label={t('profilePage.createdAt')}
-							value={formatDate(profile.createdAt, isAr)}
-						/>
-						<InfoRow
-							label={t('profilePage.updatedAt')}
-							value={formatDate(profile.updatedAt, isAr)}
-						/>
-					</div>
-				</aside>
-			</div>
+				<div className="mt-6 flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						onClick={handleProfileSave}
+						disabled={!hasProfileChanges || updateMutation.isPending}
+						className="flex h-11 min-w-36 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+					>
+						{updateMutation.isPending ? (
+							<Loader2 size={15} className="animate-spin" />
+						) : (
+							<Save size={15} strokeWidth={1.8} />
+						)}
+						<span>{t('profilePage.save')}</span>
+					</button>
+					{profileSaved && (
+						<StatusText kind="success" text={t('profilePage.saved')} />
+					)}
+					{profileError && <StatusText kind="error" text={profileError} />}
+				</div>
+
+				<PhoneChangePanel
+					currentPhone={profile.phone}
+					phoneDraft={phoneDraft}
+					otpCode={otpCode}
+					stage={phoneStage}
+					message={phoneMessage}
+					isRequesting={requestPhoneMutation.isPending}
+					isVerifying={verifyPhoneMutation.isPending}
+					onPhoneChange={(value) => {
+						setPhoneDraft(normalizeEgyptPhoneInput(value))
+						setPhoneMessage(null)
+					}}
+					onOtpChange={(value) => {
+						setOtpCode(value.replace(/\D/g, '').slice(0, 6))
+						setPhoneMessage(null)
+					}}
+					onRequest={handleRequestPhoneChange}
+					onVerify={handleVerifyPhoneChange}
+				/>
+			</section>
 		</ProfileShell>
 	)
 }
@@ -472,6 +432,9 @@ function PhoneChangePanel({
 					<p className="text-[14px] font-semibold text-[var(--p-text)]">
 						{t('profilePage.phoneChangeTitle')}
 					</p>
+					<p className="mt-1 max-w-2xl text-[12px] leading-5 text-[var(--p-text-muted)]">
+						{t('profilePage.phoneUsageNotice')}
+					</p>
 					<p className="mt-1 font-mono text-[12px] text-[var(--p-text-muted)]">
 						{formatPhone(currentPhone)}
 					</p>
@@ -502,7 +465,7 @@ function PhoneChangePanel({
 					{isRequesting ? (
 						<Loader2 size={15} className="animate-spin" />
 					) : (
-						<Phone size={15} strokeWidth={1.8} />
+						<KeyRound size={15} strokeWidth={1.8} />
 					)}
 					<span>{t('profilePage.sendCode')}</span>
 				</button>
@@ -540,29 +503,6 @@ function PhoneChangePanel({
 	)
 }
 
-function InfoRow({
-	label,
-	value,
-	mono = false,
-}: {
-	label: string
-	value: string
-	mono?: boolean
-}) {
-	return (
-		<div className="border-b border-[var(--p-border)] pb-3">
-			<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--p-text-muted)]">
-				{label}
-			</p>
-			<p
-				className={`mt-1 break-words text-[14px] text-[var(--p-text)] ${mono ? 'font-mono text-[12px]' : ''}`}
-			>
-				{value}
-			</p>
-		</div>
-	)
-}
-
 function StatusText({
 	kind,
 	text,
@@ -586,24 +526,14 @@ function StatusText({
 
 function ProfileSkeleton() {
 	return (
-		<div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
-			<div className="space-y-5">
-				<div className="h-24 animate-pulse rounded-2xl bg-[var(--p-card)]" />
-				{['a', 'b', 'c', 'd'].map((key) => (
-					<div
-						key={key}
-						className="h-14 animate-pulse rounded-xl bg-[var(--p-card)]"
-					/>
-				))}
-			</div>
-			<div className="space-y-3">
-				{['e', 'f', 'g', 'h', 'i'].map((key) => (
-					<div
-						key={key}
-						className="h-12 animate-pulse rounded-xl bg-[var(--p-card)]"
-					/>
-				))}
-			</div>
+		<div className="space-y-5">
+			<div className="h-24 animate-pulse rounded-2xl bg-[var(--p-card)]" />
+			{['a', 'b', 'c', 'd'].map((key) => (
+				<div
+					key={key}
+					className="h-14 animate-pulse rounded-xl bg-[var(--p-card)]"
+				/>
+			))}
 		</div>
 	)
 }
@@ -624,70 +554,6 @@ function toLocalEgyptPhone(value: string) {
 function formatPhone(value: string) {
 	const local = toLocalEgyptPhone(value)
 	return local ? `+20 ${local}` : value
-}
-
-function formatDate(value: string, isAr: boolean) {
-	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
-		day: '2-digit',
-		month: 'short',
-		year: 'numeric',
-	}).format(new Date(value))
-}
-
-function formatMoney(value: number, isAr: boolean) {
-	return new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
-		currency: 'EGP',
-		maximumFractionDigits: 0,
-		style: 'currency',
-	}).format(value)
-}
-
-function profileStatusLabel(
-	status: CustomerProfile['status'],
-	t: TFunction<'portal'>,
-) {
-	const labels: Record<CustomerProfile['status'], string> = {
-		active: t('profilePage.statusActive'),
-		claimed: t('profilePage.statusClaimed'),
-		inactive: t('profilePage.statusInactive'),
-		unclaimed: t('profilePage.statusUnclaimed'),
-	}
-	return labels[status]
-}
-
-function tierLabel(tier: CustomerProfile['tier'], t: TFunction<'portal'>) {
-	const labels: Record<CustomerProfile['tier'], string> = {
-		A: t('profilePage.tierA'),
-		B: t('profilePage.tierB'),
-		C: t('profilePage.tierC'),
-		new: t('profilePage.tierNew'),
-	}
-	return labels[tier]
-}
-
-function paymentHistoryLabel(
-	value: CustomerProfile['paymentHistory'],
-	t: TFunction<'portal'>,
-) {
-	const labels: Record<CustomerProfile['paymentHistory'], string> = {
-		excellent: t('profilePage.paymentExcellent'),
-		fair: t('profilePage.paymentFair'),
-		good: t('profilePage.paymentGood'),
-		poor: t('profilePage.paymentPoor'),
-	}
-	return labels[value]
-}
-
-function tradeLicenseLabel(
-	value: CustomerProfile['tradeLicenseStatus'],
-	t: TFunction<'portal'>,
-) {
-	const labels: Record<CustomerProfile['tradeLicenseStatus'], string> = {
-		not_uploaded: t('settings.profile.notUploaded'),
-		under_review: t('settings.profile.underReview'),
-		verified: t('settings.profile.verified'),
-	}
-	return labels[value]
 }
 
 function phoneErrorLabel(error: string, t: TFunction<'portal'>) {
