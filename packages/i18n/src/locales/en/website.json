@@ -134,6 +134,7 @@
 		"increaseQuantity": "Increase quantity",
 		"addNote": "Add a note",
 		"notes": "Notes",
+		"notesPlaceholder": "Delivery timing, site access, brand preferences...",
 		"copyNotes": "Copy notes",
 		"itemNotes": "Item notes",
 		"saveDraft": "Save Draft",

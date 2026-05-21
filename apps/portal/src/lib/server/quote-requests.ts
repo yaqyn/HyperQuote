@@ -50,6 +50,12 @@ function normalizeDraftName(value: string | undefined): string | null {
 	return name || null
 }
 
+function normalizeNotes(value: string | undefined): string | null {
+	if (value === undefined) return null
+	const notes = value.trim()
+	return notes || null
+}
+
 function buildDraftMetadataUpdate(input: {
 	attachmentUrls?: string[]
 	deliveryAddressId?: string
@@ -73,7 +79,7 @@ function buildDraftMetadataUpdate(input: {
 		update.draft_name = normalizeDraftName(input.name)
 	}
 	if (input.notes !== undefined) {
-		update.notes = input.notes.trim() || null
+		update.notes = normalizeNotes(input.notes)
 	}
 	if (input.attachmentUrls !== undefined) {
 		update.attachment_urls = input.attachmentUrls
@@ -246,7 +252,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					delivery_address_id: input.deliveryAddressId ?? null,
 					delivery_date: input.deliveryDate ?? null,
 					draft_name: normalizeDraftName(input.name),
-					notes: input.notes ?? null,
+					notes: normalizeNotes(input.notes),
 					attachment_urls: input.attachmentUrls ?? [],
 					idempotency_key: input.idempotencyKey,
 					approval_required: input.approvalRequired ?? false,
@@ -368,7 +374,7 @@ export const saveDraft = createServerFn({ method: 'POST' })
 					project_id: input.projectId ?? null,
 					delivery_address_id: input.deliveryAddressId ?? null,
 					delivery_date: input.deliveryDate ?? null,
-					notes: input.notes ?? null,
+					notes: normalizeNotes(input.notes),
 					attachment_urls: input.attachmentUrls ?? [],
 				})
 				.select('id, request_number')

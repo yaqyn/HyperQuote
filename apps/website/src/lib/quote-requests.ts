@@ -124,6 +124,12 @@ function normalizeDraftName(value: string | undefined): string | null {
 	return name || null
 }
 
+function normalizeNotes(value: string | undefined): string | null {
+	if (value === undefined) return null
+	const notes = value.trim()
+	return notes || null
+}
+
 function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
 	if (Array.isArray(relation)) return relation[0] ?? null
 	return relation ?? null
@@ -446,7 +452,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						.update({
 							draft_name: normalizeDraftName(input.name),
 							idempotency_key: input.idempotencyKey,
-							notes: input.notes ?? null,
+							notes: normalizeNotes(input.notes),
 						})
 						.eq('id', input.draftId)
 						.eq('customer_id', auth.customerId)
@@ -490,7 +496,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						status: 'draft',
 						urgency: 'standard',
 						draft_name: normalizeDraftName(input.name),
-						notes: input.notes ?? null,
+						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						idempotency_key: input.idempotencyKey,
 						approval_required: false,
@@ -566,7 +572,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						.from('quote_requests')
 						.update({
 							draft_name: normalizeDraftName(input.name),
-							notes: input.notes ?? null,
+							notes: normalizeNotes(input.notes),
 						})
 						.eq('id', input.draftId)
 						.eq('customer_id', auth.customerId)
@@ -614,7 +620,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						status: 'draft',
 						urgency: 'standard',
 						draft_name: normalizeDraftName(input.name),
-						notes: input.notes ?? null,
+						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						approval_required: false,
 					})

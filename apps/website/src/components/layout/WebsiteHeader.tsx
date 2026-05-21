@@ -75,7 +75,8 @@ export function WebsiteHeader() {
 	const [cartOpen, setCartOpen] = useState(false)
 	const [emptySavedOrdersOpen, setEmptySavedOrdersOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
-	const { items, updateQuantity, remove } = useQuoteCart()
+	const { globalNote, items, remove, setGlobalNote, updateQuantity } =
+		useQuoteCart()
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
@@ -503,6 +504,23 @@ export function WebsiteHeader() {
 														</div>
 													</div>
 												))}
+											</div>
+
+											<div className="shrink-0 border-t border-[var(--color-border)] px-4 py-3">
+												<label className="block">
+													<span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-muted)]">
+														{t('cart.notes')}
+													</span>
+													<textarea
+														value={globalNote}
+														onChange={(event) =>
+															setGlobalNote(event.currentTarget.value)
+														}
+														rows={3}
+														placeholder={t('cart.notesPlaceholder')}
+														className="block max-h-28 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+													/>
+												</label>
 											</div>
 
 											{/* Submit / Inline Auth */}
@@ -1186,7 +1204,7 @@ function CartSubmit({
 							sortOrder: index,
 						})),
 						name: draftName.trim() || persistedDraftName || defaultDraftName,
-						notes: globalNote || undefined,
+						notes: globalNote.trim() || undefined,
 						idempotencyKey: crypto.randomUUID(),
 					},
 				})
@@ -1241,7 +1259,7 @@ function CartSubmit({
 							sortOrder: index,
 						})),
 						name: nextName,
-						notes: globalNote || undefined,
+						notes: globalNote.trim() || undefined,
 					},
 				})
 				if (result.success) {

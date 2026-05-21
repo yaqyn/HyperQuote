@@ -132,7 +132,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 					draftId: savedDraftId ?? undefined,
 					items: quoteRequestItems,
 					name: draftName.trim() || persistedDraftName || defaultDraftName,
-					notes: globalNote || undefined,
+					notes: globalNote.trim() || undefined,
 					idempotencyKey: crypto.randomUUID(),
 				},
 			}),
@@ -152,7 +152,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 					draftId: savedDraftId ?? undefined,
 					items: quoteRequestItems,
 					name,
-					notes: globalNote || undefined,
+					notes: globalNote.trim() || undefined,
 				},
 			}),
 		onSuccess: (result, nextName) => {
