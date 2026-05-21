@@ -243,6 +243,42 @@ export type Database = {
 					},
 				]
 			}
+			ceo_search_documents: {
+				Row: {
+					entity_id: string
+					entity_type: string
+					metadata: Json
+					refreshed_at: string
+					search_text: string
+					search_vector: unknown
+					sort_at: string | null
+					subtitle: string | null
+					title: string
+				}
+				Insert: {
+					entity_id: string
+					entity_type: string
+					metadata?: Json
+					refreshed_at?: string
+					search_text?: string
+					search_vector?: unknown
+					sort_at?: string | null
+					subtitle?: string | null
+					title: string
+				}
+				Update: {
+					entity_id?: string
+					entity_type?: string
+					metadata?: Json
+					refreshed_at?: string
+					search_text?: string
+					search_vector?: unknown
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: string
+				}
+				Relationships: []
+			}
 			customer_addresses: {
 				Row: {
 					area: string | null
@@ -3925,6 +3961,24 @@ export type Database = {
 					sort_at: string | null
 					subtitle: string | null
 					title: string | null
+				}
+				Insert: {
+					entity_id?: string | null
+					entity_type?: string | null
+					metadata?: Json | null
+					search_text?: string | null
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: string | null
+				}
+				Update: {
+					entity_id?: string | null
+					entity_type?: string | null
+					metadata?: Json | null
+					search_text?: string | null
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: string | null
 				}
 				Relationships: []
 			}
