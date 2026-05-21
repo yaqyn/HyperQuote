@@ -39,6 +39,28 @@ const PANEL_PERMISSIONS = [
 	'search',
 ]
 
+const EMPLOYEE_ROLES = [
+	'admin',
+	'sales',
+	'inventory',
+	'warehouse',
+	'finance',
+	'dispatch',
+	'customer_service',
+	'driver_manager',
+	'ceo',
+]
+
+const SIMPLE_INTERNAL_ADMIN = {
+	email: 'admin@admin.admin',
+	fullName: 'Admin',
+	isCeo: true,
+	panels: PANEL_PERMISSIONS,
+	password: 'admin',
+	phone: '+201000000003',
+	roles: EMPLOYEE_ROLES,
+}
+
 const LOCAL_ROLE_EMPLOYEES = [
 	{
 		email: 'local-manager@hyperquote.local',
@@ -113,18 +135,6 @@ const LOCAL_ROLE_EMPLOYEES = [
 	},
 ]
 
-const EMPLOYEE_ROLES = [
-	'admin',
-	'sales',
-	'inventory',
-	'warehouse',
-	'finance',
-	'dispatch',
-	'customer_service',
-	'driver_manager',
-	'ceo',
-]
-
 const quiet = process.argv.includes('--quiet')
 
 main().catch((error) => {
@@ -170,7 +180,7 @@ async function main() {
 	const employee = await upsertEmployee(supabase, employeeUser.id)
 	await syncEmployeeProfile(supabase, employeeUser.id, employee.id)
 
-	for (const account of LOCAL_ROLE_EMPLOYEES) {
+	for (const account of [SIMPLE_INTERNAL_ADMIN, ...LOCAL_ROLE_EMPLOYEES]) {
 		debugStep(`role-auth:${account.email}`)
 		const roleEmployeeUser = await upsertAuthUser(supabase, {
 			app_metadata: { pool: 'internal', roles: account.roles },
@@ -209,6 +219,7 @@ async function main() {
 	if (!quiet) {
 		console.log('Local Supabase auth accounts are seeded.')
 		console.log(`Customer OTP phone: ${LOCAL_ACCOUNTS.customer.phone}`)
+		console.log(`Simple internal email: ${SIMPLE_INTERNAL_ADMIN.email}`)
 		console.log(`Internal email: ${LOCAL_ACCOUNTS.employee.email}`)
 		console.log(`Driver email: ${LOCAL_ACCOUNTS.driver.email}`)
 		console.log(
@@ -274,9 +285,7 @@ async function upsertAuthUser(
 	}
 
 	if (existing) {
-		if (password.length >= 6) {
-			payload.password = password
-		}
+		payload.password = password
 		const { data, error } = await supabase.auth.admin.updateUserById(
 			existing.id,
 			payload,
