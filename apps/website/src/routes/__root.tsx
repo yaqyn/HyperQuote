@@ -105,7 +105,7 @@ function RootComponent() {
 						__html: `(function(){
 							var d=document.documentElement;
 							var t=localStorage.getItem("hq-theme");
-							if(t)d.setAttribute("data-theme",t);
+							if(t==="dark"||t==="light")d.setAttribute("data-theme",t);
 							var l=localStorage.getItem("hq-locale");
 							if(l){d.lang=l;d.dir=l==="ar"?"rtl":"ltr";}
 						})()`,

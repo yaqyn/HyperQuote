@@ -3,13 +3,12 @@ function setTheme(theme: 'light' | 'dark') {
 }
 
 export function initTheme() {
-	// Respect system preference on first load
 	if (typeof window === 'undefined') return
 	const stored = localStorage.getItem('hq-theme')
 	if (stored === 'dark' || stored === 'light') {
 		setTheme(stored)
-	} else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-		setTheme('dark')
+	} else {
+		setTheme('light')
 	}
 }
 

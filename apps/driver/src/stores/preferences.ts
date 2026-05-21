@@ -3,6 +3,8 @@ import type { DriverLanguage } from '../lib/driver-repository'
 
 type DriverTheme = 'light' | 'dark'
 
+const DRIVER_THEME_STORAGE_KEY = 'hq-driver-theme'
+
 interface PreferencesState {
 	language: DriverLanguage
 	theme: DriverTheme
@@ -11,9 +13,22 @@ interface PreferencesState {
 	toggleTheme: () => void
 }
 
+function readStoredTheme(): DriverTheme {
+	if (typeof localStorage === 'undefined') return 'light'
+
+	const stored = localStorage.getItem(DRIVER_THEME_STORAGE_KEY)
+	return stored === 'dark' || stored === 'light' ? stored : 'light'
+}
+
+function persistTheme(theme: DriverTheme) {
+	if (typeof localStorage === 'undefined') return
+
+	localStorage.setItem(DRIVER_THEME_STORAGE_KEY, theme)
+}
+
 export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 	language: 'en',
-	theme: 'light',
+	theme: readStoredTheme(),
 	setLanguage: (language) => set({ language }),
 	toggleLanguage: () => {
 		const nextLanguage = get().language === 'en' ? 'ar' : 'en'
@@ -21,6 +36,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 	},
 	toggleTheme: () => {
 		const nextTheme = get().theme === 'light' ? 'dark' : 'light'
+		persistTheme(nextTheme)
 		set({ theme: nextTheme })
 	},
 }))

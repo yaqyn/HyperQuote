@@ -1,14 +1,14 @@
 import { Button } from 'react-aria-components/Button'
 import { Switch } from 'react-aria-components/Switch'
 import { useTranslation } from 'react-i18next'
+import { type PortalTheme, setPortalTheme } from '../../lib/theme'
 
 interface AppearanceSectionProps {
 	currentLocale: string
-	currentTheme: string
+	currentTheme: PortalTheme
 	numberFormat: 'arabic' | 'western'
 	dateFormat: 'gregorian' | 'hijri'
 	onLocaleChange: (locale: string) => void
-	onThemeChange: (theme: string) => void
 	onNumberFormatChange: (format: 'arabic' | 'western') => void
 	onDateFormatChange: (format: 'gregorian' | 'hijri') => void
 }
@@ -22,7 +22,6 @@ export function AppearanceSection({
 	numberFormat,
 	dateFormat,
 	onLocaleChange,
-	onThemeChange,
 	onNumberFormatChange,
 	onDateFormatChange,
 }: AppearanceSectionProps) {
@@ -33,12 +32,8 @@ export function AppearanceSection({
 		onLocaleChange(value)
 	}
 
-	function handleThemeChange(value: string) {
-		document.documentElement.setAttribute(
-			'data-theme',
-			value === 'system' ? '' : value,
-		)
-		onThemeChange(value)
+	function handleThemeChange(value: PortalTheme) {
+		setPortalTheme(value)
 	}
 
 	const isArabic = currentLocale === 'ar'
@@ -66,7 +61,7 @@ export function AppearanceSection({
 			<div className="space-y-2">
 				<span className={labelClass}>{t('settings.appearance.theme')}</span>
 				<div className="flex items-center gap-4">
-					{(['light', 'dark', 'system'] as const).map((theme) => (
+					{(['light', 'dark'] as const).map((theme) => (
 						<TextToggle
 							key={theme}
 							active={currentTheme === theme}

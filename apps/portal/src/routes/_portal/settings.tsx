@@ -19,6 +19,7 @@ import { ReferralsSection } from '../../components/settings/ReferralsSection'
 import { SecuritySection } from '../../components/settings/SecuritySection'
 import { TeamSection } from '../../components/settings/TeamSection'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { usePortalThemeSnapshot } from '../../hooks/usePortalThemeSnapshot'
 import {
 	getActiveSessions,
 	getAddresses,
@@ -56,8 +57,8 @@ function SettingsWindow() {
 	const [activeSection, setActiveSection] = useState<SettingsSection>(
 		section ?? 'profile',
 	)
+	const currentTheme = usePortalThemeSnapshot()
 
-	const [currentTheme, setCurrentTheme] = useState('light')
 	const [numberFormat, setNumberFormat] = useState<'arabic' | 'western'>(
 		i18n.language === 'ar' ? 'arabic' : 'western',
 	)
@@ -220,7 +221,6 @@ function SettingsWindow() {
 									locale === 'ar' ? 'font-arabic' : 'font-sans',
 								)
 							}}
-							onThemeChange={setCurrentTheme}
 							onNumberFormatChange={setNumberFormat}
 							onDateFormatChange={setDateFormat}
 						/>
