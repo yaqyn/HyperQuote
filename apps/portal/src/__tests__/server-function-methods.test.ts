@@ -35,6 +35,8 @@ const mutatingServerFunctions = [
 			'verifyOTP',
 			'createAccount',
 			'claimAccount',
+			'requestPhoneChange',
+			'verifyPhoneChange',
 		],
 	},
 	{

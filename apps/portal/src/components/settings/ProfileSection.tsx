@@ -28,7 +28,6 @@ interface ProfileSectionProps {
 
 interface ProfileFormValues {
 	companyName: string
-	contactName: string
 	email: string
 }
 
@@ -45,7 +44,6 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	const { control, handleSubmit, reset } = useForm<ProfileFormValues>({
 		defaultValues: {
 			companyName: profile.companyName,
-			contactName: profile.contactName,
 			email: profile.email ?? '',
 		},
 	})
@@ -54,7 +52,6 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 	const hasChanges =
 		watchedValues.companyName !== profile.companyName ||
-		watchedValues.contactName !== profile.contactName ||
 		watchedValues.email !== (profile.email ?? '')
 
 	const updateMutation = useMutation({
@@ -153,22 +150,16 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 				/>
 
 				{/* Contact Name */}
-				<Controller
-					name="contactName"
-					control={control}
-					render={({ field }) => (
-						<TextField
-							value={field.value}
-							onChange={field.onChange}
-							className="space-y-1.5"
-						>
-							<Label className={labelClass}>
-								{t('settings.profile.contactName')}
-							</Label>
-							<Input className={underlineInputClass} />
-						</TextField>
-					)}
-				/>
+				<div className="space-y-1.5">
+					<span className={labelClass}>
+						{t('settings.profile.contactName')}
+					</span>
+					<div className="border-b border-[var(--color-border)] py-2">
+						<span className="text-sm text-[var(--color-text-subtle)]">
+							{profile.contactName}
+						</span>
+					</div>
+				</div>
 
 				{/* Phone (read-only) */}
 				<div className="space-y-1.5">

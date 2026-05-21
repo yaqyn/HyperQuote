@@ -14,12 +14,19 @@ export type SettingsSection =
 	| 'referrals'
 
 export interface CustomerProfile {
+	id: string
 	companyName: string
 	contactName: string
 	phone: string
 	email?: string
+	status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
+	tier: 'A' | 'B' | 'C' | 'new'
+	creditLimit: number
+	paymentHistory: 'excellent' | 'good' | 'fair' | 'poor'
 	tradeLicenseStatus: 'not_uploaded' | 'under_review' | 'verified'
 	profilePhotoUrl?: string
+	createdAt: string
+	updatedAt: string
 }
 
 export interface Address {

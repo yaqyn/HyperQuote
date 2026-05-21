@@ -46,6 +46,18 @@ const claimAccountInput = z.object({
 	phone: phoneSchema,
 })
 
+const phoneChangeRequestInput = z.object({
+	phone: phoneSchema,
+})
+
+const phoneChangeVerifyInput = z.object({
+	phone: phoneSchema,
+	code: z
+		.string()
+		.length(6)
+		.regex(/^\d{6}$/),
+})
+
 const emailPasswordInput = z.object({
 	email: z.string().trim().email().max(254),
 	password: z.string().min(6).max(128),
@@ -594,5 +606,192 @@ export const claimAccount = createServerFn({ method: 'POST' })
 		} catch (err) {
 			logPortalError('portal.auth.claim_account.unexpected_error', err)
 			return { success: false, error: 'claim_failed' as const }
+		}
+	})
+
+// ============================================================================
+// requestPhoneChange — Start authenticated phone change verification
+// ============================================================================
+
+export const requestPhoneChange = createServerFn({ method: 'POST' })
+	.inputValidator(phoneChangeRequestInput)
+	.handler(async ({ data: input }) => {
+		try {
+			const kv = await getKVNamespace()
+			const rateResult = await checkRateLimit(kv, {
+				key: `phoneChange:${input.phone}`,
+				limit: 3,
+				windowSeconds: 60,
+			})
+
+			if (!rateResult.allowed) {
+				return {
+					success: false,
+					error: 'rate_limited' as const,
+					retryAfter: rateResult.retryAfter,
+				}
+			}
+
+			const formattedPhone = `+20${input.phone}`
+			const config = await getSupabaseConfig()
+
+			if (!config) {
+				return { success: false, error: 'send_failed' as const }
+			}
+
+			const request = getRequest()
+			const { client, responseCookies, responseHeaders } =
+				createSupabaseServerClient({
+					request,
+					...config,
+				})
+
+			const {
+				data: { user },
+				error: userError,
+			} = await client.auth.getUser()
+			if (userError || !user || !isCustomerAuthUser(user)) {
+				return { success: false, error: 'not_authenticated' as const }
+			}
+
+			const { data: customer, error: customerError } = await client
+				.from('customers')
+				.select('id, phone')
+				.eq('user_id', user.id)
+				.single()
+
+			if (customerError || !customer) {
+				return { success: false, error: 'not_authenticated' as const }
+			}
+
+			if (customer.phone === formattedPhone) {
+				return { success: false, error: 'same_phone' as const }
+			}
+
+			const { error } = await client.auth.updateUser({
+				phone: formattedPhone,
+			})
+
+			appendPendingAuthCookies(
+				responseCookies.values(),
+				responseHeaders.entries(),
+			)
+
+			if (error) {
+				logPortalError('portal.auth.phone_change_request.supabase_error', error)
+				return { success: false, error: 'send_failed' as const }
+			}
+
+			return { success: true, expiresIn: 300 }
+		} catch (err) {
+			logPortalError('portal.auth.phone_change_request.unexpected_error', err)
+			return { success: false, error: 'send_failed' as const }
+		}
+	})
+
+// ============================================================================
+// verifyPhoneChange — Confirm phone-change OTP before updating customer record
+// ============================================================================
+
+export const verifyPhoneChange = createServerFn({ method: 'POST' })
+	.inputValidator(phoneChangeVerifyInput)
+	.handler(async ({ data: input }) => {
+		try {
+			const kv = await getKVNamespace()
+			const rateResult = await checkOTPVerifyLimit(kv, input.phone)
+
+			if (!rateResult.allowed) {
+				return {
+					success: false,
+					error: 'rate_limited' as const,
+					retryAfter: rateResult.retryAfter,
+				}
+			}
+
+			const formattedPhone = `+20${input.phone}`
+			const config = await getSupabaseConfig()
+
+			if (!config) {
+				return { success: false, error: 'verify_failed' as const }
+			}
+
+			const request = getRequest()
+			const { client, responseCookies, responseHeaders } =
+				createSupabaseServerClient({
+					request,
+					...config,
+				})
+
+			const {
+				data: { user: currentUser },
+				error: currentUserError,
+			} = await client.auth.getUser()
+			if (
+				currentUserError ||
+				!currentUser ||
+				!isCustomerAuthUser(currentUser)
+			) {
+				return { success: false, error: 'not_authenticated' as const }
+			}
+
+			const { data: customer, error: customerError } = await client
+				.from('customers')
+				.select('id')
+				.eq('user_id', currentUser.id)
+				.single()
+
+			if (customerError || !customer) {
+				return { success: false, error: 'not_authenticated' as const }
+			}
+
+			const { data, error } = await client.auth.verifyOtp({
+				phone: formattedPhone,
+				token: input.code,
+				type: 'phone_change',
+			})
+
+			if (error) {
+				logPortalError('portal.auth.phone_change_verify.supabase_error', error)
+				return { success: false, error: 'invalid_code' as const }
+			}
+
+			if (
+				!data.user ||
+				data.user.id !== currentUser.id ||
+				!isCustomerAuthUser(data.user)
+			) {
+				return { success: false, error: 'auth_mismatch' as const }
+			}
+
+			const { error: updateError } = await client
+				.from('customers')
+				.update({ phone: formattedPhone })
+				.eq('id', customer.id)
+				.eq('user_id', currentUser.id)
+
+			if (updateError) {
+				logPortalError(
+					'portal.auth.phone_change_customer.supabase_error',
+					updateError,
+				)
+				return {
+					success: false,
+					error:
+						updateError.code === '23505'
+							? ('phone_in_use' as const)
+							: ('verify_failed' as const),
+				}
+			}
+
+			appendPendingAuthCookies(
+				responseCookies.values(),
+				responseHeaders.entries(),
+			)
+			await clearRateLimit(kv, `verify:${input.phone}`)
+
+			return { success: true, phone: formattedPhone }
+		} catch (err) {
+			logPortalError('portal.auth.phone_change_verify.unexpected_error', err)
+			return { success: false, error: 'verify_failed' as const }
 		}
 	})

@@ -12,6 +12,11 @@ type PortalLogEvent =
 	| 'portal.auth.claim_account.unexpected_error'
 	| 'portal.auth.activity.supabase_error'
 	| 'portal.auth.sign_out.supabase_error'
+	| 'portal.auth.phone_change_request.supabase_error'
+	| 'portal.auth.phone_change_request.unexpected_error'
+	| 'portal.auth.phone_change_verify.supabase_error'
+	| 'portal.auth.phone_change_verify.unexpected_error'
+	| 'portal.auth.phone_change_customer.supabase_error'
 	| 'portal.chat.stream_error'
 	| 'portal.chat.error'
 

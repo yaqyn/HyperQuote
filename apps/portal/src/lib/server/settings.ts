@@ -21,7 +21,7 @@ export const getCustomerProfile = createServerFn().handler(
 		const { data, error } = await supabase
 			.from('customers')
 			.select(
-				'company_name, contact_name, phone, email, trade_license_status, profile_photo_url',
+				'id, company_name, contact_name, phone, email, status, tier, credit_limit, payment_history, trade_license_status, profile_photo_url, created_at, updated_at',
 			)
 			.eq('id', customerId)
 			.single()
@@ -31,12 +31,19 @@ export const getCustomerProfile = createServerFn().handler(
 		}
 
 		return {
+			id: data.id,
 			companyName: data.company_name,
 			contactName: data.contact_name,
 			phone: data.phone,
 			email: data.email,
+			status: data.status,
+			tier: data.tier,
+			creditLimit: data.credit_limit,
+			paymentHistory: data.payment_history,
 			tradeLicenseStatus: data.trade_license_status ?? 'not_uploaded',
 			profilePhotoUrl: data.profile_photo_url,
+			createdAt: data.created_at,
+			updatedAt: data.updated_at,
 		}
 	},
 )
@@ -44,9 +51,10 @@ export const getCustomerProfile = createServerFn().handler(
 export const updateCustomerProfile = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
-			companyName: z.string().optional(),
-			contactName: z.string().optional(),
-			email: z.string().email().optional(),
+			companyName: z.string().trim().min(1).max(200).optional(),
+			email: z
+				.union([z.string().trim().email().max(254), z.literal('')])
+				.optional(),
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
@@ -54,9 +62,7 @@ export const updateCustomerProfile = createServerFn({ method: 'POST' })
 		const updateData: Record<string, unknown> = {}
 		if (input.companyName !== undefined)
 			updateData.company_name = input.companyName
-		if (input.contactName !== undefined)
-			updateData.contact_name = input.contactName
-		if (input.email !== undefined) updateData.email = input.email
+		if (input.email !== undefined) updateData.email = input.email || null
 
 		const { error } = await supabase
 			.from('customers')

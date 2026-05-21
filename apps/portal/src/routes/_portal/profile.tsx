@@ -1,227 +1,705 @@
 /**
- * Profile — clean, flat, scroll-safe on compact screens.
+ * Profile — customer record panel backed by Supabase.
  */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Camera, Check, Loader2, User } from 'lucide-react'
+import type { TFunction } from 'i18next'
+import {
+	AlertTriangle,
+	Check,
+	Loader2,
+	LockKeyhole,
+	Phone,
+	Save,
+	ShieldCheck,
+	User,
+} from 'lucide-react'
 import { motion } from 'motion/react'
-import type { ChangeEvent } from 'react'
-import { useRef, useState } from 'react'
-import { Button } from 'react-aria-components/Button'
+import type { ChangeEvent, ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
+import { requestPhoneChange, verifyPhoneChange } from '../../lib/auth'
+import {
+	getCustomerProfile,
+	updateCustomerProfile,
+} from '../../lib/server/settings'
+import type { CustomerProfile } from '../../types/settings'
 
 export const Route = createFileRoute('/_portal/profile')({
 	component: ProfilePage,
 })
 
+const EGYPT_MOBILE_REGEX = /^(10|11|12|15)\d{8}$/
+
 function ProfilePage() {
-	const { t } = useTranslation('portal')
-	const { auth } = Route.useRouteContext()
+	const { t, i18n } = useTranslation('portal')
+	const queryClient = useQueryClient()
+	const isAr = i18n.language === 'ar'
+	const [companyName, setCompanyName] = useState('')
+	const [email, setEmail] = useState('')
+	const [phoneDraft, setPhoneDraft] = useState('')
+	const [otpCode, setOtpCode] = useState('')
+	const [phoneStage, setPhoneStage] = useState<'idle' | 'code'>('idle')
+	const [profileSaved, setProfileSaved] = useState(false)
+	const [profileError, setProfileError] = useState<string | null>(null)
+	const [phoneMessage, setPhoneMessage] = useState<{
+		kind: 'success' | 'error'
+		text: string
+	} | null>(null)
 
-	const typedAuth = auth as {
-		user?: {
-			phone?: string
-			user_metadata?: {
-				name?: string
-				company_name?: string
-				tax_id?: string
-				default_address?: string
-				default_notes?: string
-				avatar_url?: string | null
+	const profileQuery = useQuery({
+		queryKey: ['customerProfile'],
+		queryFn: () => getCustomerProfile(),
+	})
+
+	const profile = profileQuery.data
+
+	useEffect(() => {
+		if (!profile) return
+		setCompanyName(profile.companyName)
+		setEmail(profile.email ?? '')
+		setPhoneDraft(toLocalEgyptPhone(profile.phone))
+		setOtpCode('')
+		setPhoneStage('idle')
+		setProfileSaved(false)
+		setProfileError(null)
+		setPhoneMessage(null)
+	}, [profile])
+
+	const updateMutation = useMutation({
+		mutationFn: () =>
+			updateCustomerProfile({
+				data: {
+					companyName: companyName.trim(),
+					email: email.trim(),
+				},
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+			setProfileSaved(true)
+			setProfileError(null)
+			window.setTimeout(() => setProfileSaved(false), 1800)
+		},
+		onError: () => {
+			setProfileError(t('profilePage.saveFailed'))
+		},
+	})
+
+	const requestPhoneMutation = useMutation({
+		mutationFn: (phone: string) => requestPhoneChange({ data: { phone } }),
+		onSuccess: (result) => {
+			if (result.success) {
+				setPhoneStage('code')
+				setPhoneMessage({
+					kind: 'success',
+					text: t('profilePage.phoneCodeSent'),
+				})
+				return
 			}
+			setPhoneMessage({
+				kind: 'error',
+				text: phoneErrorLabel(result.error, t),
+			})
+		},
+		onError: () => {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneChangeFailed'),
+			})
+		},
+	})
+
+	const verifyPhoneMutation = useMutation({
+		mutationFn: (data: { phone: string; code: string }) =>
+			verifyPhoneChange({ data }),
+		onSuccess: (result) => {
+			if (result.success) {
+				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+				setOtpCode('')
+				setPhoneStage('idle')
+				setPhoneMessage({
+					kind: 'success',
+					text: t('profilePage.phoneChanged'),
+				})
+				return
+			}
+			setPhoneMessage({
+				kind: 'error',
+				text: phoneErrorLabel(result.error, t),
+			})
+		},
+		onError: () => {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneChangeFailed'),
+			})
+		},
+	})
+
+	const hasProfileChanges = useMemo(() => {
+		if (!profile) return false
+		return (
+			companyName.trim() !== profile.companyName ||
+			email.trim() !== (profile.email ?? '')
+		)
+	}, [companyName, email, profile])
+
+	function handleProfileSave() {
+		if (!profile || !hasProfileChanges || updateMutation.isPending) return
+		if (!companyName.trim()) {
+			setProfileError(t('profilePage.companyRequired'))
+			return
 		}
-	} | null
-	const user = typedAuth?.user
-	const meta = user?.user_metadata ?? {}
-	const fullName = meta.name ?? ''
-	const phone = user?.phone ?? ''
-
-	const [companyName, setCompanyName] = useState(meta.company_name ?? '')
-	const [taxId, setTaxId] = useState(meta.tax_id ?? '')
-	const [defaultAddress, setDefaultAddress] = useState(
-		meta.default_address ?? '',
-	)
-	const [defaultNotes, setDefaultNotes] = useState(meta.default_notes ?? '')
-	const [avatarUrl, setAvatarUrl] = useState<string | null>(
-		meta.avatar_url ?? null,
-	)
-	const [hasChanges, setHasChanges] = useState(false)
-	const [saving, setSaving] = useState(false)
-	const [saved, setSaved] = useState(false)
-	const fileInputRef = useRef<HTMLInputElement>(null)
-
-	const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0]
-		if (!file) return
-		setAvatarUrl(URL.createObjectURL(file))
-		setHasChanges(true)
+		setProfileSaved(false)
+		setProfileError(null)
+		updateMutation.mutate()
 	}
 
-	const handleSave = async () => {
-		setSaving(true)
-		await new Promise((r) => setTimeout(r, 800))
-		setSaving(false)
-		setHasChanges(false)
-		setSaved(true)
-		setTimeout(() => setSaved(false), 2000)
+	function handleRequestPhoneChange() {
+		if (!profile || requestPhoneMutation.isPending) return
+		const nextPhone = normalizeEgyptPhoneInput(phoneDraft)
+		setPhoneDraft(nextPhone)
+		if (!EGYPT_MOBILE_REGEX.test(nextPhone)) {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneInvalid'),
+			})
+			return
+		}
+		if (`+20${nextPhone}` === profile.phone) {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneSame'),
+			})
+			return
+		}
+		setPhoneMessage(null)
+		requestPhoneMutation.mutate(nextPhone)
 	}
 
-	const set =
-		(fn: (v: string) => void) =>
-		(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-			fn(e.target.value)
-			setHasChanges(true)
-			setSaved(false)
+	function handleVerifyPhoneChange() {
+		const nextPhone = normalizeEgyptPhoneInput(phoneDraft)
+		const code = otpCode.replace(/\D/g, '').slice(0, 6)
+		setOtpCode(code)
+		if (!EGYPT_MOBILE_REGEX.test(nextPhone)) {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneInvalid'),
+			})
+			return
 		}
+		if (code.length !== 6) {
+			setPhoneMessage({
+				kind: 'error',
+				text: t('profilePage.phoneCodeInvalid'),
+			})
+			return
+		}
+		setPhoneMessage(null)
+		verifyPhoneMutation.mutate({ phone: nextPhone, code })
+	}
 
+	if (profileQuery.isLoading) {
+		return (
+			<ProfileShell>
+				<ProfileSkeleton />
+			</ProfileShell>
+		)
+	}
+
+	if (profileQuery.isError || !profile) {
+		return (
+			<ProfileShell>
+				<div className="flex min-h-72 flex-col items-center justify-center text-center">
+					<AlertTriangle
+						size={28}
+						strokeWidth={1.6}
+						className="mb-3 text-[var(--p-text-faint)]"
+					/>
+					<p className="text-[14px] text-[var(--p-text-muted)]">
+						{t('profilePage.loadFailed')}
+					</p>
+					<button
+						type="button"
+						onClick={() => profileQuery.refetch()}
+						className="mt-4 h-10 rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+					>
+						{t('orders.retry')}
+					</button>
+				</div>
+			</ProfileShell>
+		)
+	}
+
+	return (
+		<ProfileShell>
+			<div className="grid min-h-0 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
+				<section className="min-w-0">
+					<div className="flex min-w-0 items-center gap-4 border-b border-[var(--p-border)] pb-5">
+						<ProfileAvatar profile={profile} />
+						<div className="min-w-0">
+							<PortalTitleRow
+								title={profile.companyName || t('profilePage.title')}
+								subtitle={profile.contactName}
+								className="max-w-full"
+							/>
+						</div>
+					</div>
+
+					<div className="mt-6 grid gap-5">
+						<ProfileField
+							label={t('profilePage.name')}
+							value={profile.contactName}
+							disabled
+							icon={<LockKeyhole size={14} strokeWidth={1.7} />}
+						/>
+						<ProfileField
+							label={t('profilePage.companyName')}
+							value={companyName}
+							onChange={(event) => {
+								setCompanyName(event.currentTarget.value)
+								setProfileSaved(false)
+								setProfileError(null)
+							}}
+						/>
+						<ProfileField
+							label={t('settings.profile.email')}
+							value={email}
+							type="email"
+							onChange={(event) => {
+								setEmail(event.currentTarget.value)
+								setProfileSaved(false)
+								setProfileError(null)
+							}}
+							placeholder={t('profilePage.emailPlaceholder')}
+						/>
+					</div>
+
+					<div className="mt-6 flex flex-wrap items-center gap-3">
+						<button
+							type="button"
+							onClick={handleProfileSave}
+							disabled={!hasProfileChanges || updateMutation.isPending}
+							className="flex h-11 min-w-36 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+						>
+							{updateMutation.isPending ? (
+								<Loader2 size={15} className="animate-spin" />
+							) : (
+								<Save size={15} strokeWidth={1.8} />
+							)}
+							<span>{t('profilePage.save')}</span>
+						</button>
+						{profileSaved && (
+							<StatusText kind="success" text={t('profilePage.saved')} />
+						)}
+						{profileError && <StatusText kind="error" text={profileError} />}
+					</div>
+
+					<PhoneChangePanel
+						currentPhone={profile.phone}
+						phoneDraft={phoneDraft}
+						otpCode={otpCode}
+						stage={phoneStage}
+						message={phoneMessage}
+						isRequesting={requestPhoneMutation.isPending}
+						isVerifying={verifyPhoneMutation.isPending}
+						onPhoneChange={(value) => {
+							setPhoneDraft(normalizeEgyptPhoneInput(value))
+							setPhoneMessage(null)
+						}}
+						onOtpChange={(value) => {
+							setOtpCode(value.replace(/\D/g, '').slice(0, 6))
+							setPhoneMessage(null)
+						}}
+						onRequest={handleRequestPhoneChange}
+						onVerify={handleVerifyPhoneChange}
+					/>
+				</section>
+
+				<aside className="min-w-0 border-t border-[var(--p-border)] pt-5 lg:border-s lg:border-t-0 lg:ps-6 lg:pt-0">
+					<div className="grid gap-3">
+						<InfoRow
+							label={t('profilePage.customerId')}
+							value={profile.id}
+							mono
+						/>
+						<InfoRow
+							label={t('profilePage.status')}
+							value={profileStatusLabel(profile.status, t)}
+						/>
+						<InfoRow
+							label={t('profilePage.tier')}
+							value={tierLabel(profile.tier, t)}
+						/>
+						<InfoRow
+							label={t('profilePage.creditLimit')}
+							value={formatMoney(profile.creditLimit, isAr)}
+						/>
+						<InfoRow
+							label={t('profilePage.paymentHistory')}
+							value={paymentHistoryLabel(profile.paymentHistory, t)}
+						/>
+						<InfoRow
+							label={t('settings.profile.tradeLicense')}
+							value={tradeLicenseLabel(profile.tradeLicenseStatus, t)}
+						/>
+						<InfoRow
+							label={t('profilePage.createdAt')}
+							value={formatDate(profile.createdAt, isAr)}
+						/>
+						<InfoRow
+							label={t('profilePage.updatedAt')}
+							value={formatDate(profile.updatedAt, isAr)}
+						/>
+					</div>
+				</aside>
+			</div>
+		</ProfileShell>
+	)
+}
+
+function ProfileShell({ children }: { children: ReactNode }) {
+	const { t } = useTranslation('portal')
 	return (
 		<div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--p-bg)]">
 			<motion.div
-				initial={false}
+				initial={{ opacity: 0, y: 8 }}
 				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4 }}
-				className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-start px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 md:justify-center md:py-10 lg:max-w-[620px] lg:px-8"
+				transition={{ duration: 0.28, ease: 'easeOut' }}
+				className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-8 lg:py-10"
 			>
-				{/* Avatar centered */}
-				<div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-					<div className="relative mb-3 sm:mb-4">
-						<button
-							type="button"
-							onClick={() => fileInputRef.current?.click()}
-							className="group relative h-20 w-20 cursor-pointer overflow-hidden rounded-full border border-[var(--p-border)] bg-[var(--p-card)] p-0 transition-colors hover:border-[var(--p-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--p-bg)] sm:h-24 sm:w-24"
-							aria-label={t('profilePage.changePhoto')}
-						>
-							{avatarUrl ? (
-								<img
-									src={avatarUrl}
-									alt=""
-									className="h-full w-full object-cover"
-								/>
-							) : (
-								<div className="flex h-full w-full items-center justify-center">
-									<User
-										size={32}
-										strokeWidth={0.8}
-										className="text-[var(--p-text-muted)]"
-									/>
-								</div>
-							)}
-							<span className="absolute end-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-muted)] transition-colors group-hover:text-[var(--p-text)]">
-								<Camera size={18} strokeWidth={1.5} />
-							</span>
-						</button>
-						<input
-							ref={fileInputRef}
-							type="file"
-							accept="image/*"
-							onChange={handleAvatarChange}
-							className="hidden"
-						/>
-					</div>
+				<header className="mb-6 shrink-0">
 					<PortalTitleRow
-						title={fullName || t('profilePage.title')}
-						align="center"
+						title={t('profilePage.title')}
+						subtitle={t('profilePage.subtitle')}
 						fixed
-						className="max-w-full"
 					/>
-					{phone && (
-						<p
-							className="mt-1 font-mono text-[13px] tracking-normal text-[var(--p-text-muted)]"
-							dir="ltr"
-						>
-							{phone}
-						</p>
-					)}
-				</div>
-
-				{/* Fields */}
-				<div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:gap-5">
-					<Field
-						label={t('profilePage.companyName')}
-						value={companyName}
-						onChange={set(setCompanyName)}
-					/>
-					<Field
-						label={t('profilePage.taxId')}
-						value={taxId}
-						onChange={set(setTaxId)}
-						placeholder={t('profilePage.taxIdPlaceholder')}
-						mono
-					/>
-					<Field
-						label={t('profilePage.defaultAddress')}
-						value={defaultAddress}
-						onChange={set(setDefaultAddress)}
-						placeholder={t('profilePage.addressPlaceholder')}
-					/>
-					<div>
-						<span className="mb-1.5 block text-[13px] font-medium uppercase tracking-normal text-[var(--p-text-muted)]">
-							{t('profilePage.defaultNotes')}
-						</span>
-						<textarea
-							value={defaultNotes}
-							onChange={set(setDefaultNotes)}
-							rows={3}
-							placeholder={t('profilePage.notesPlaceholder')}
-							className="min-h-28 w-full resize-none border-b border-[var(--p-border)] bg-transparent py-2.5 text-[16px] leading-relaxed tracking-normal text-[var(--p-text)] outline-none transition-colors duration-300 placeholder:font-light placeholder:text-[var(--p-text-muted)]/40 focus:border-[var(--p-text-muted)] sm:min-h-24 sm:text-[15px]"
-						/>
-					</div>
-				</div>
-
-				{/* Save */}
-				<div className="sticky bottom-0 -mx-4 flex min-h-16 items-center gap-3 border-t border-[var(--p-border)] bg-[var(--p-bg)]/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:min-h-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-					<Button
-						onPress={handleSave}
-						isDisabled={!hasChanges || saving}
-						className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md bg-[var(--p-accent)] px-8 text-[13px] font-medium text-[var(--p-accent-contrast)] transition-all hover:opacity-90 pressed:opacity-80 disabled:cursor-default disabled:opacity-20 sm:w-auto"
-					>
-						{saving ? (
-							<Loader2 size={14} className="animate-spin" />
-						) : (
-							t('profilePage.save')
-						)}
-					</Button>
-					{saved && (
-						<motion.span
-							initial={{ opacity: 0, x: -4 }}
-							animate={{ opacity: 1, x: 0 }}
-							className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--p-success)]"
-						>
-							<Check size={12} />
-							{t('profilePage.saved', 'Saved')}
-						</motion.span>
-					)}
-				</div>
+				</header>
+				{children}
 			</motion.div>
 		</div>
 	)
 }
 
-function Field({
+function ProfileAvatar({ profile }: { profile: CustomerProfile }) {
+	const initial = profile.contactName.trim().charAt(0).toUpperCase() || '?'
+	return (
+		<div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] sm:h-24 sm:w-24">
+			{profile.profilePhotoUrl ? (
+				<img
+					src={profile.profilePhotoUrl}
+					alt=""
+					className="h-full w-full object-cover"
+				/>
+			) : initial !== '?' ? (
+				<span className="text-2xl font-semibold">{initial}</span>
+			) : (
+				<User size={30} strokeWidth={1.4} />
+			)}
+		</div>
+	)
+}
+
+function ProfileField({
 	label,
 	value,
 	onChange,
 	placeholder,
-	mono,
+	disabled = false,
+	type = 'text',
+	icon,
 }: {
 	label: string
 	value: string
-	onChange: (e: ChangeEvent<HTMLInputElement>) => void
+	onChange?: (event: ChangeEvent<HTMLInputElement>) => void
 	placeholder?: string
-	mono?: boolean
+	disabled?: boolean
+	type?: 'email' | 'tel' | 'text'
+	icon?: ReactNode
 }) {
 	return (
-		<div>
-			<span className="mb-1.5 block text-[13px] font-medium uppercase tracking-normal text-[var(--p-text-muted)]">
+		<label className="block">
+			<span className="mb-1.5 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--p-text-muted)]">
+				{icon}
 				{label}
 			</span>
 			<input
-				type="text"
+				type={type}
 				value={value}
 				onChange={onChange}
 				placeholder={placeholder}
-				className={`min-h-11 w-full border-b border-[var(--p-border)] bg-transparent py-2.5 text-[16px] tracking-normal text-[var(--p-text)] outline-none transition-colors duration-300 placeholder:font-light placeholder:text-[var(--p-text-muted)]/40 focus:border-[var(--p-text-muted)] sm:text-[15px] ${mono ? 'font-mono' : ''}`}
+				disabled={disabled}
+				className="h-11 w-full border-b border-[var(--p-border)] bg-transparent text-[15px] text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)] disabled:cursor-not-allowed disabled:text-[var(--p-text-faint)]"
 			/>
+		</label>
+	)
+}
+
+function PhoneChangePanel({
+	currentPhone,
+	phoneDraft,
+	otpCode,
+	stage,
+	message,
+	isRequesting,
+	isVerifying,
+	onPhoneChange,
+	onOtpChange,
+	onRequest,
+	onVerify,
+}: {
+	currentPhone: string
+	phoneDraft: string
+	otpCode: string
+	stage: 'idle' | 'code'
+	message: { kind: 'success' | 'error'; text: string } | null
+	isRequesting: boolean
+	isVerifying: boolean
+	onPhoneChange: (value: string) => void
+	onOtpChange: (value: string) => void
+	onRequest: () => void
+	onVerify: () => void
+}) {
+	const { t } = useTranslation('portal')
+	return (
+		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
+			<div className="mb-4 flex items-start gap-3">
+				<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
+					<ShieldCheck size={17} strokeWidth={1.8} />
+				</span>
+				<div className="min-w-0">
+					<p className="text-[14px] font-semibold text-[var(--p-text)]">
+						{t('profilePage.phoneChangeTitle')}
+					</p>
+					<p className="mt-1 font-mono text-[12px] text-[var(--p-text-muted)]">
+						{formatPhone(currentPhone)}
+					</p>
+				</div>
+			</div>
+
+			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+				<div className="flex h-11 min-w-0 items-center border-b border-[var(--p-border)] focus-within:border-[var(--p-border-strong)]">
+					<span className="shrink-0 pe-3 font-mono text-[14px] text-[var(--p-text-muted)]">
+						+20
+					</span>
+					<input
+						type="tel"
+						inputMode="numeric"
+						value={phoneDraft}
+						onChange={(event) => onPhoneChange(event.currentTarget.value)}
+						placeholder="10xxxxxxxx"
+						className="h-full min-w-0 flex-1 bg-transparent font-mono text-[15px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+						dir="ltr"
+					/>
+				</div>
+				<button
+					type="button"
+					onClick={onRequest}
+					disabled={isRequesting || isVerifying}
+					className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50"
+				>
+					{isRequesting ? (
+						<Loader2 size={15} className="animate-spin" />
+					) : (
+						<Phone size={15} strokeWidth={1.8} />
+					)}
+					<span>{t('profilePage.sendCode')}</span>
+				</button>
+			</div>
+
+			{stage === 'code' && (
+				<div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+					<input
+						type="text"
+						inputMode="numeric"
+						value={otpCode}
+						onChange={(event) => onOtpChange(event.currentTarget.value)}
+						placeholder={t('profilePage.verificationCode')}
+						className="h-11 min-w-0 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 font-mono text-[15px] tracking-[0.35em] text-[var(--p-text)] outline-none transition-colors placeholder:font-sans placeholder:tracking-normal placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+						dir="ltr"
+					/>
+					<button
+						type="button"
+						onClick={onVerify}
+						disabled={isRequesting || isVerifying}
+						className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-4 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+					>
+						{isVerifying ? (
+							<Loader2 size={15} className="animate-spin" />
+						) : (
+							<Check size={15} strokeWidth={1.8} />
+						)}
+						<span>{t('profilePage.verifyPhone')}</span>
+					</button>
+				</div>
+			)}
+
+			{message && <StatusText kind={message.kind} text={message.text} />}
+		</section>
+	)
+}
+
+function InfoRow({
+	label,
+	value,
+	mono = false,
+}: {
+	label: string
+	value: string
+	mono?: boolean
+}) {
+	return (
+		<div className="border-b border-[var(--p-border)] pb-3">
+			<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--p-text-muted)]">
+				{label}
+			</p>
+			<p
+				className={`mt-1 break-words text-[14px] text-[var(--p-text)] ${mono ? 'font-mono text-[12px]' : ''}`}
+			>
+				{value}
+			</p>
 		</div>
 	)
+}
+
+function StatusText({
+	kind,
+	text,
+}: {
+	kind: 'success' | 'error'
+	text: string
+}) {
+	return (
+		<p
+			className={`flex min-h-7 items-center gap-2 text-[13px] font-medium ${kind === 'success' ? 'text-[var(--p-success)]' : 'text-[var(--p-error)]'}`}
+		>
+			{kind === 'success' ? (
+				<Check size={14} strokeWidth={1.8} />
+			) : (
+				<AlertTriangle size={14} strokeWidth={1.8} />
+			)}
+			{text}
+		</p>
+	)
+}
+
+function ProfileSkeleton() {
+	return (
+		<div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
+			<div className="space-y-5">
+				<div className="h-24 animate-pulse rounded-2xl bg-[var(--p-card)]" />
+				{['a', 'b', 'c', 'd'].map((key) => (
+					<div
+						key={key}
+						className="h-14 animate-pulse rounded-xl bg-[var(--p-card)]"
+					/>
+				))}
+			</div>
+			<div className="space-y-3">
+				{['e', 'f', 'g', 'h', 'i'].map((key) => (
+					<div
+						key={key}
+						className="h-12 animate-pulse rounded-xl bg-[var(--p-card)]"
+					/>
+				))}
+			</div>
+		</div>
+	)
+}
+
+function normalizeEgyptPhoneInput(value: string) {
+	return value
+		.replace(/\D/g, '')
+		.replace(/^0020/, '')
+		.replace(/^20/, '')
+		.replace(/^0/, '')
+		.slice(0, 10)
+}
+
+function toLocalEgyptPhone(value: string) {
+	return normalizeEgyptPhoneInput(value.replace(/^\+20/, ''))
+}
+
+function formatPhone(value: string) {
+	const local = toLocalEgyptPhone(value)
+	return local ? `+20 ${local}` : value
+}
+
+function formatDate(value: string, isAr: boolean) {
+	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
+		day: '2-digit',
+		month: 'short',
+		year: 'numeric',
+	}).format(new Date(value))
+}
+
+function formatMoney(value: number, isAr: boolean) {
+	return new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
+		currency: 'EGP',
+		maximumFractionDigits: 0,
+		style: 'currency',
+	}).format(value)
+}
+
+function profileStatusLabel(
+	status: CustomerProfile['status'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['status'], string> = {
+		active: t('profilePage.statusActive'),
+		claimed: t('profilePage.statusClaimed'),
+		inactive: t('profilePage.statusInactive'),
+		unclaimed: t('profilePage.statusUnclaimed'),
+	}
+	return labels[status]
+}
+
+function tierLabel(tier: CustomerProfile['tier'], t: TFunction<'portal'>) {
+	const labels: Record<CustomerProfile['tier'], string> = {
+		A: t('profilePage.tierA'),
+		B: t('profilePage.tierB'),
+		C: t('profilePage.tierC'),
+		new: t('profilePage.tierNew'),
+	}
+	return labels[tier]
+}
+
+function paymentHistoryLabel(
+	value: CustomerProfile['paymentHistory'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['paymentHistory'], string> = {
+		excellent: t('profilePage.paymentExcellent'),
+		fair: t('profilePage.paymentFair'),
+		good: t('profilePage.paymentGood'),
+		poor: t('profilePage.paymentPoor'),
+	}
+	return labels[value]
+}
+
+function tradeLicenseLabel(
+	value: CustomerProfile['tradeLicenseStatus'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['tradeLicenseStatus'], string> = {
+		not_uploaded: t('settings.profile.notUploaded'),
+		under_review: t('settings.profile.underReview'),
+		verified: t('settings.profile.verified'),
+	}
+	return labels[value]
+}
+
+function phoneErrorLabel(error: string, t: TFunction<'portal'>) {
+	const labels: Record<string, string> = {
+		auth_mismatch: t('profilePage.phoneAuthMismatch'),
+		invalid_code: t('profilePage.phoneCodeInvalid'),
+		not_authenticated: t('profilePage.phoneAuthRequired'),
+		phone_in_use: t('profilePage.phoneInUse'),
+		rate_limited: t('login.rateLimit'),
+		same_phone: t('profilePage.phoneSame'),
+		send_failed: t('profilePage.phoneChangeFailed'),
+		verify_failed: t('profilePage.phoneChangeFailed'),
+	}
+	return labels[error] ?? t('profilePage.phoneChangeFailed')
 }
