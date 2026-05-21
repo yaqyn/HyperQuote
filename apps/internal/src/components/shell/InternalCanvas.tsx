@@ -1,5 +1,5 @@
 import { type AuthSession, hasPermission } from '@hyperquote/auth'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
 import {
 	AnimatePresence,
@@ -8,9 +8,12 @@ import {
 	useReducedMotion,
 } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { Button, DialogTrigger, Popover } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { DialogTrigger } from 'react-aria-components/Dialog'
+import { Popover } from 'react-aria-components/Popover'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
+import { validateCurrentInternalPassword } from '../../lib/server/internal-auth'
 import { getUrgentItems } from '../../lib/server/urgent-items'
 import { useInternalStore } from '../../stores/internal'
 import { AppActionsMenu } from './AppActionsMenu'
@@ -26,8 +29,9 @@ import { AppActionsMenu } from './AppActionsMenu'
  */
 
 function useCurrentTime() {
-	const [now, setNow] = useState(() => new Date())
+	const [now, setNow] = useState<Date | null>(null)
 	useEffect(() => {
+		setNow(new Date())
 		const id = setInterval(() => setNow(new Date()), 1000)
 		return () => clearInterval(id)
 	}, [])
@@ -177,7 +181,7 @@ interface InternalCanvasProps {
 export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const { t } = useTranslation('internal')
 	const now = useCurrentTime()
-	const time = formatTime(now)
+	const time = now ? formatTime(now) : '--:--'
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
 	const [awayActive, setAwayActive] = useState(false)
 	const canLockFromClock = useMediaQuery('(min-width: 640px)')
@@ -185,7 +189,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 	const name = auth.user?.user_metadata?.name ?? ''
 	const firstName = (name.split(' ')[0] || 'there').toLowerCase()
-	const greeting = getGreeting(now.getHours())
+	const greeting = now ? getGreeting(now.getHours()) : 'welcome'
 
 	const allowedModules = MODULES.filter((m) =>
 		hasPermission(auth, m.permission),
@@ -196,6 +200,14 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 		queryFn: () => getUrgentItems(),
 		staleTime: 60_000,
 	})
+
+	useEffect(() => {
+		window.dispatchEvent(
+			new CustomEvent('internal-away-state-change', {
+				detail: { away: awayActive },
+			}),
+		)
+	}, [awayActive])
 
 	const attention = buildAttentionFeed(urgentData?.breakdown)
 	const urgentCount = urgentData?.total ?? 0
@@ -261,11 +273,10 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 					<>
 						<SectionRule label={attentionHeadline(urgentCount)} />
 						<div className="mt-5 flex flex-col gap-2.5 max-w-[640px] mx-auto">
-							{attention.map((row, i) => (
+							{attention.map((row) => (
 								<AttentionRow
 									key={`${row.moduleId}-${row.label}`}
 									row={row}
-									index={i}
 									onJump={() => setActiveModule(row.moduleId)}
 								/>
 							))}
@@ -278,12 +289,11 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 						<SectionRule label="modules" />
 					</div>
 					<div className="mt-5 hidden flex-wrap items-center justify-center gap-x-7 gap-y-3 lg:flex">
-						{panelOptions.map((mod, i) => (
+						{panelOptions.map((mod) => (
 							<ModuleLink
 								key={mod.id}
 								label={mod.label}
 								hasAttention={mod.hasAttention}
-								index={i}
 								onJump={() => setActiveModule(mod.id)}
 							/>
 						))}
@@ -300,7 +310,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 			<AnimatePresence>
 				{awayActive && (
 					<AwayScreen
-						now={now}
+						now={now ?? new Date()}
 						firstName={firstName}
 						onUnlock={() => setAwayActive(false)}
 					/>
@@ -312,7 +322,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 // ─── Masthead ────────────────────────────────────────────
 
-function Masthead({ now }: { now: Date }) {
+function Masthead({ now }: { now: Date | null }) {
 	return (
 		<div className="relative z-10 shrink-0 px-4 pt-4 pb-3 sm:px-8 lg:px-12 lg:pt-5">
 			<div className="flex items-baseline justify-between gap-6">
@@ -356,7 +366,7 @@ function Masthead({ now }: { now: Date }) {
 							lineHeight: 1,
 						}}
 					>
-						{formatMastheadDate(now)}
+						{now ? formatMastheadDate(now) : 'loading'}
 					</span>
 					<span
 						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
@@ -366,7 +376,7 @@ function Masthead({ now }: { now: Date }) {
 							lineHeight: 1,
 						}}
 					>
-						· {formatWeekNumber(now)}
+						· {now ? formatWeekNumber(now) : 'w--'}
 					</span>
 				</div>
 			</div>
@@ -446,20 +456,15 @@ function SectionRule({ label }: { label: string }) {
 
 function AttentionRow({
 	row,
-	index,
 	onJump,
 }: {
 	row: AttentionRow
-	index: number
 	onJump: () => void
 }) {
 	return (
-		<motion.button
+		<button
 			type="button"
 			onClick={onJump}
-			initial={{ opacity: 0, y: 4 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ delay: 0.3 + index * 0.05, duration: 0.32 }}
 			className="group flex items-baseline gap-4 py-1 text-start"
 		>
 			<span
@@ -480,7 +485,7 @@ function AttentionRow({
 			>
 				→ {row.moduleId.replace('-', ' ')}
 			</span>
-		</motion.button>
+		</button>
 	)
 }
 
@@ -489,21 +494,16 @@ function AttentionRow({
 function ModuleLink({
 	label,
 	hasAttention,
-	index,
 	onJump,
 }: {
 	label: string
 	hasAttention: boolean
-	index: number
 	onJump: () => void
 }) {
 	return (
-		<motion.button
+		<button
 			type="button"
 			onClick={onJump}
-			initial={{ opacity: 0, y: 4 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ delay: 0.4 + index * 0.03, duration: 0.3 }}
 			className="group inline-flex items-baseline gap-1.5 font-[family-name:var(--font-literata)] italic transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
 			style={{ fontSize: '15px', letterSpacing: '0' }}
 		>
@@ -514,7 +514,7 @@ function ModuleLink({
 				/>
 			)}
 			{label.toLowerCase()}
-		</motion.button>
+		</button>
 	)
 }
 
@@ -617,8 +617,6 @@ function PanelMenu({
 
 // ─── Away screen ─────────────────────────────────────────
 
-const AWAY_PASSWORD = '1234'
-
 function AwayScreen({
 	now,
 	firstName,
@@ -628,59 +626,56 @@ function AwayScreen({
 	firstName: string
 	onUnlock: () => void
 }) {
-	const [digits, setDigits] = useState<string[]>(['', '', '', ''])
+	const [password, setPassword] = useState('')
+	const [error, setError] = useState<string | null>(null)
 	const [shake, setShake] = useState(false)
 	const [awaySince] = useState(() => now)
-	const inputsRef = useRef<Array<HTMLInputElement | null>>([])
+	const inputRef = useRef<HTMLInputElement | null>(null)
+	const unlockMutation = useMutation({
+		mutationFn: () =>
+			validateCurrentInternalPassword({ data: { password: password.trim() } }),
+		onSuccess: (result) => {
+			if (result.ok) {
+				onUnlock()
+				return
+			}
+			setError('Password did not match your account.')
+			setPassword('')
+			setShake(true)
+			setTimeout(() => {
+				setShake(false)
+				inputRef.current?.focus()
+			}, 520)
+		},
+		onError: () => {
+			setError('Could not verify your password.')
+			setShake(true)
+			setTimeout(() => setShake(false), 520)
+		},
+	})
 
-	// Autofocus first slot on mount + refocus whenever the page loses
-	// focus. The locked screen should never lose caret — the only way
-	// back is typing four digits.
+	// Keep the unlock field active; the only way back is a verified password.
 	useEffect(() => {
-		const focusActiveSlot = () => {
-			const firstEmpty = digits.findIndex((d) => !d)
-			const target = firstEmpty === -1 ? 3 : firstEmpty
-			inputsRef.current[target]?.focus()
-		}
-		focusActiveSlot()
-		const interval = setInterval(focusActiveSlot, 200)
-		window.addEventListener('blur', focusActiveSlot)
-		document.addEventListener('visibilitychange', focusActiveSlot)
+		const focusPassword = () => inputRef.current?.focus()
+		focusPassword()
+		const interval = setInterval(focusPassword, 200)
+		window.addEventListener('blur', focusPassword)
+		document.addEventListener('visibilitychange', focusPassword)
 		return () => {
 			clearInterval(interval)
-			window.removeEventListener('blur', focusActiveSlot)
-			document.removeEventListener('visibilitychange', focusActiveSlot)
+			window.removeEventListener('blur', focusPassword)
+			document.removeEventListener('visibilitychange', focusPassword)
 		}
-	}, [digits])
+	}, [])
 
-	const handleChange = (i: number, value: string) => {
-		const clean = value.replace(/\D/g, '').slice(-1)
-		const next = [...digits]
-		next[i] = clean
-		setDigits(next)
-		if (clean && i < 3) inputsRef.current[i + 1]?.focus()
-		if (next.join('').length === 4) {
-			if (next.join('') === AWAY_PASSWORD) {
-				onUnlock()
-			} else {
-				setShake(true)
-				setTimeout(() => {
-					setShake(false)
-					setDigits(['', '', '', ''])
-					inputsRef.current[0]?.focus()
-				}, 520)
-			}
-		}
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault()
+		setError(null)
+		if (!password.trim() || unlockMutation.isPending) return
+		unlockMutation.mutate()
 	}
 
-	const handleKeyDown = (
-		i: number,
-		e: React.KeyboardEvent<HTMLInputElement>,
-	) => {
-		if (e.key === 'Backspace' && !digits[i] && i > 0) {
-			inputsRef.current[i - 1]?.focus()
-			return
-		}
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Escape') {
 			e.preventDefault()
 			// Escape does NOT close — the only exit is the password
@@ -764,12 +759,12 @@ function AwayScreen({
 				</div>
 			</motion.div>
 
-			{/* Passcode — four tight dots, almost invisible until filled. */}
-			<motion.div
+			<motion.form
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.3, duration: 0.4 }}
-				className="absolute bottom-20 flex flex-col items-center"
+				className="absolute bottom-20 flex w-[min(360px,calc(100vw-48px))] flex-col items-center gap-3"
+				onSubmit={handleSubmit}
 			>
 				<motion.div
 					animate={
@@ -780,23 +775,27 @@ function AwayScreen({
 								}
 							: {}
 					}
-					className="flex items-center gap-5"
+					className="w-full"
 				>
-					{digits.map((d, i) => (
-						<PasscodeDot
-							// biome-ignore lint/suspicious/noArrayIndexKey: fixed 4-slot array
-							key={i}
-							index={i}
-							value={d}
-							filled={d.length > 0}
-							inputRef={(el) => {
-								inputsRef.current[i] = el
-							}}
-							onChange={(e) => handleChange(i, e.target.value)}
-							onKeyDown={(e) => handleKeyDown(i, e)}
-						/>
-					))}
+					<input
+						ref={inputRef}
+						type="password"
+						value={password}
+						onChange={(event) => setPassword(event.target.value)}
+						onKeyDown={handleKeyDown}
+						aria-label="Enter your account password"
+						autoComplete="current-password"
+						className="h-14 w-full rounded-none border border-white/22 bg-white/[0.06] px-4 font-[family-name:var(--font-archivo)] text-[18px] text-white outline-none transition-colors placeholder:text-white/32 focus:border-white/60 focus:bg-white/[0.1]"
+						placeholder="Account password"
+					/>
 				</motion.div>
+				<button
+					type="submit"
+					disabled={!password.trim() || unlockMutation.isPending}
+					className="h-11 w-full border border-white/22 bg-white/[0.08] px-4 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-white outline-none transition-colors hover:bg-white/[0.14] focus-visible:border-white/60 disabled:cursor-not-allowed disabled:opacity-45"
+				>
+					{unlockMutation.isPending ? 'Verifying' : 'Unlock'}
+				</button>
 				<span
 					className="mt-4 font-[family-name:var(--font-geist-mono)] uppercase"
 					style={{
@@ -805,61 +804,9 @@ function AwayScreen({
 						color: shake ? '#F87171' : 'rgba(255,255,255,0.22)',
 					}}
 				>
-					{shake ? 'incorrect' : 'four digits'}
+					{error ?? 'account password'}
 				</span>
-			</motion.div>
+			</motion.form>
 		</motion.div>
-	)
-}
-
-function PasscodeDot({
-	index,
-	value,
-	filled,
-	inputRef,
-	onChange,
-	onKeyDown,
-}: {
-	index: number
-	value: string
-	filled: boolean
-	inputRef: (el: HTMLInputElement | null) => void
-	onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-	onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
-}) {
-	return (
-		<label
-			className="relative inline-flex h-8 w-8 items-center justify-center"
-			aria-label={`Digit ${index + 1} of 4`}
-		>
-			{/* Hidden input — invisible, but captures the keystroke. */}
-			<input
-				ref={inputRef}
-				type="password"
-				inputMode="numeric"
-				maxLength={1}
-				value={value}
-				onChange={onChange}
-				onKeyDown={onKeyDown}
-				className="absolute inset-0 h-full w-full opacity-0 outline-none"
-				style={{ caretColor: 'transparent' }}
-			/>
-			{/* Visual dot — hollow ring when empty, solid dot when filled. */}
-			<motion.span
-				aria-hidden="true"
-				animate={{
-					scale: filled ? 1 : 0.8,
-					backgroundColor: filled
-						? 'rgba(245,245,245,0.92)'
-						: 'rgba(255,255,255,0)',
-					borderColor: filled
-						? 'rgba(245,245,245,0.92)'
-						: 'rgba(255,255,255,0.28)',
-				}}
-				transition={{ duration: 0.18, ease: 'easeOut' }}
-				className="h-[7px] w-[7px] rounded-full"
-				style={{ borderWidth: '1px', borderStyle: 'solid' }}
-			/>
-		</label>
 	)
 }

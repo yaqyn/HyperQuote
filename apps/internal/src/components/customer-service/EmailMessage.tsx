@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Forward, Reply, ReplyAll } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type { Message } from '../../types/customer-service'
 import { EmployeeStatusPill } from '../shared/EmployeeControls'

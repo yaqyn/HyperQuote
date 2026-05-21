@@ -1,12 +1,14 @@
+import type { StyleSpecification } from 'maplibre-gl'
+
 /**
  * MapLibre GL style configuration.
  * Uses MapTiler if key is available, falls back to OpenStreetMap raster tiles.
  * Cairo default center: 30.0444°N, 31.2357°E
  */
-
-export const MAP_STYLE: string = import.meta.env.VITE_MAPTILER_KEY
+export const MAP_STYLE: string | StyleSpecification = import.meta.env
+	.VITE_MAPTILER_KEY
 	? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-	: ({
+	: {
 			version: 8,
 			sources: {
 				osm: {
@@ -27,4 +29,4 @@ export const MAP_STYLE: string = import.meta.env.VITE_MAPTILER_KEY
 					maxzoom: 19,
 				},
 			],
-		} as unknown as string)
+		}

@@ -1,4 +1,3 @@
-import type { AuthSession } from '@hyperquote/auth'
 import {
 	resolveSupabaseServerConfig,
 	type SupabaseServerRuntimeConfig,
@@ -34,7 +33,9 @@ interface SupabasePasswordAuthClient {
 			}
 			error: { message?: string } | null
 		}>
-		signOut(): Promise<unknown>
+		signOut(options?: {
+			scope?: 'global' | 'local' | 'others'
+		}): Promise<unknown>
 	}
 }
 
@@ -44,63 +45,9 @@ export function getInternalSupabaseConfig(
 	return resolveSupabaseServerConfig(env)
 }
 
-function isInternalProductionRuntime(
-	env: Record<string, string | undefined>,
-	isProductionBuild: boolean,
-): boolean {
-	return isProductionBuild || env.NODE_ENV === 'production'
-}
-
-export function shouldUseInternalDevAuthStub(
-	env: Record<string, string | undefined>,
-	isProductionBuild: boolean,
-): boolean {
-	return (
-		!getInternalSupabaseConfig(env) &&
-		!isInternalProductionRuntime(env, isProductionBuild)
-	)
-}
-
-export function createInternalDevAuthSession(now = new Date()): AuthSession {
-	const user = {
-		id: 'dev-user',
-		app_metadata: {},
-		user_metadata: { name: 'Dev User' },
-		aud: 'authenticated',
-		created_at: now.toISOString(),
-	} as unknown as AuthSession['user']
-
-	return {
-		session: {
-			access_token: 'dev',
-			refresh_token: 'dev',
-			expires_in: 0,
-			expires_at: 0,
-			token_type: 'bearer',
-			user,
-		} as unknown as AuthSession['session'],
-		user,
-		pool: 'internal',
-		roles: ['admin'],
-		tenantId: 'dev-tenant',
-	}
-}
-
 function getUserPool(user: User | null): string | null {
 	const pool = user?.app_metadata?.pool
 	return typeof pool === 'string' ? pool : null
-}
-
-export function appendSetCookieHeaders(
-	headers: Headers,
-	cookies: Iterable<string>,
-): number {
-	let appended = 0
-	for (const cookie of cookies) {
-		headers.append('set-cookie', cookie)
-		appended += 1
-	}
-	return appended
 }
 
 export async function authenticateInternalPassword({
@@ -122,7 +69,7 @@ export async function authenticateInternalPassword({
 	}
 
 	if (getUserPool(data.user) !== 'internal') {
-		await client.auth.signOut()
+		await client.auth.signOut({ scope: 'local' })
 		return { ok: false, error: 'wrong_pool' }
 	}
 

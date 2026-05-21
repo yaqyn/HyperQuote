@@ -75,6 +75,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 	const [draft, setDraft] = useState<RefillDraft | null>(null)
 	const [notes, setNotes] = useState('')
 	const [supplierMenuOpen, setSupplierMenuOpen] = useState(false)
+	const [saveError, setSaveError] = useState<string | null>(null)
 
 	const selectedSupplier = useMemo(() => {
 		if (!data) return null
@@ -91,6 +92,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		setSelectedSupplierRowId(first?.rowId ?? null)
 		setNotes('')
 		setSupplierMenuOpen(false)
+		setSaveError(null)
 		if (!first) {
 			setDraft(null)
 			return
@@ -100,13 +102,20 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 
 	const mutation = useMutation({
 		mutationFn: createDeal,
-		onSuccess: () => {
+		onSuccess: (result) => {
+			if (!result.success) {
+				setSaveError(result.error)
+				return
+			}
 			qc.invalidateQueries({ queryKey: ['stock-overview'] })
 			qc.invalidateQueries({ queryKey: ['refill-product', productSlug] })
 			qc.invalidateQueries({ queryKey: ['inventory-overview'] })
 			qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
 			qc.invalidateQueries({ queryKey: ['finance-inbox'] })
 			onClose()
+		},
+		onError: () => {
+			setSaveError('Supplier deal could not be sent. Refresh and try again.')
 		},
 	})
 
@@ -120,7 +129,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		!!selectedSupplier &&
 		!!draft &&
 		draft.agreedQty > 0 &&
-		draft.agreedRawCost >= 0 &&
+		draft.agreedRawCost > 0 &&
 		notesOk &&
 		!mutation.isPending
 
@@ -129,17 +138,21 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		setSelectedSupplierRowId(supplier.rowId)
 		setDraft(buildPrimaryDraft(data, supplier))
 		setNotes('')
+		setSaveError(null)
 		setSupplierMenuOpen(false)
 	}
 
 	const updateDraft = (patch: Partial<RefillDraft>) => {
+		setSaveError(null)
 		setDraft((current) => (current ? { ...current, ...patch } : current))
 	}
 
 	const submitDeal = () => {
 		if (!selectedSupplier || !draft || !canSubmit) return
+		setSaveError(null)
 		mutation.mutate({
 			data: {
+				supplierId: selectedSupplier.supplierId,
 				supplierName: selectedSupplier.supplierName,
 				items: [
 					{
@@ -179,8 +192,8 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 							<PanelSection title="Step 1 · Supplier" />
 							{data.suppliers.length === 0 ? (
 								<EmptyPanelNote>
-									No supplier carries this material yet. Add a supplier quote
-									before creating a refill deal.
+									No supplier specialty covers this material yet. Add one in
+									Admin before creating a refill deal.
 								</EmptyPanelNote>
 							) : (
 								<SupplierMenuButton
@@ -219,6 +232,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 							saving={mutation.isPending}
 							notesRequired={notesRequired}
 							notesOk={notesOk}
+							errorMessage={saveError}
 							onSubmit={submitDeal}
 						/>
 					</>
@@ -499,6 +513,7 @@ function DealEditor({
 					<input
 						type="text"
 						inputMode="numeric"
+						aria-label={`Refill quantity in ${draft.unit}`}
 						value={draft.agreedQty}
 						onChange={(event) => {
 							const next = sanitizeIntQty(
@@ -513,6 +528,7 @@ function DealEditor({
 					<input
 						type="text"
 						inputMode="decimal"
+						aria-label="Supplier unit cost"
 						value={draft.agreedRawCost}
 						onChange={(event) => {
 							const next = sanitizeCost(
@@ -637,6 +653,7 @@ function RefillFooter({
 	saving,
 	notesRequired,
 	notesOk,
+	errorMessage,
 	onSubmit,
 }: {
 	quantity: number
@@ -646,6 +663,7 @@ function RefillFooter({
 	saving: boolean
 	notesRequired: boolean
 	notesOk: boolean
+	errorMessage: string | null
 	onSubmit: () => void
 }) {
 	return (
@@ -667,6 +685,11 @@ function RefillFooter({
 				{notesRequired && !notesOk && (
 					<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--compendium-attention)]">
 						Add proof before sending this deal.
+					</p>
+				)}
+				{errorMessage && (
+					<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--compendium-attention)]">
+						{errorMessage}
 					</p>
 				)}
 				<EmployeeActionButton

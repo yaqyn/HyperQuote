@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
-import { Button, Tooltip, TooltipTrigger } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Tooltip, TooltipTrigger } from 'react-aria-components/Tooltip'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { useAIChatStore } from '../../stores/ai-chat'
@@ -10,6 +11,11 @@ interface WindowHeaderProps {
 	onClose: () => void
 	tone?: 'default' | 'dark'
 }
+
+const INTERNAL_WAREHOUSE_PHONE_E164 =
+	import.meta.env.VITE_INTERNAL_WAREHOUSE_PHONE_E164 ?? ''
+const INTERNAL_EMERGENCY_PHONE_E164 =
+	import.meta.env.VITE_INTERNAL_EMERGENCY_PHONE_E164 ?? ''
 
 /**
  * WindowHeader — the ruled rail above every module. Consistent across
@@ -121,17 +127,26 @@ export function WindowHeader({
 					)}
 				</div>
 
-				{moduleId === 'dispatch' && (
-					<div className="hidden items-center gap-5 sm:flex">
-						<Rule tone={tone} />
-						<HeaderLink
-							href="tel:+20235551234"
-							tone="muted"
-							label="warehouse"
-						/>
-						<HeaderLink href="tel:991" tone="signal" label="emergency" />
-					</div>
-				)}
+				{moduleId === 'dispatch' &&
+					(INTERNAL_WAREHOUSE_PHONE_E164 || INTERNAL_EMERGENCY_PHONE_E164) && (
+						<div className="hidden items-center gap-5 sm:flex">
+							<Rule tone={tone} />
+							{INTERNAL_WAREHOUSE_PHONE_E164 && (
+								<HeaderLink
+									href={`tel:${INTERNAL_WAREHOUSE_PHONE_E164}`}
+									tone="muted"
+									label="warehouse"
+								/>
+							)}
+							{INTERNAL_EMERGENCY_PHONE_E164 && (
+								<HeaderLink
+									href={`tel:${INTERNAL_EMERGENCY_PHONE_E164}`}
+									tone="signal"
+									label="emergency"
+								/>
+							)}
+						</div>
+					)}
 			</div>
 
 			<Button onPress={onClose} aria-label="Close" className={closeClass}>

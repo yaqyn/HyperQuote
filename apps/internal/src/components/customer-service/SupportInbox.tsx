@@ -9,8 +9,8 @@ import {
 } from '../shared/EmployeeControls'
 import { ConversationItem } from './ConversationItem'
 
-/** Top-level: Email vs Live Chat. Live Chat has a sub-filter for resolved. */
-type ChannelTab = 'email' | 'live'
+/** Top-level: Email vs WhatsApp. WhatsApp keeps a sub-filter for closed chats. */
+type ChannelTab = 'email' | 'whatsapp'
 
 interface SupportInboxProps {
 	conversations: Conversation[]
@@ -21,6 +21,10 @@ interface SupportInboxProps {
 
 function isResolved(conversation: Conversation): boolean {
 	return conversation.status === 'resolved' || conversation.status === 'closed'
+}
+
+function isWhatsAppLike(conversation: Conversation): boolean {
+	return conversation.channel === 'whatsapp' || conversation.channel === 'live'
 }
 
 export function SupportInbox({
@@ -35,7 +39,7 @@ export function SupportInbox({
 	const setSelectedConversation = useSupportStore(
 		(s) => s.setSelectedConversation,
 	)
-	const [activeTab, setActiveTab] = useState<ChannelTab>('live')
+	const [activeTab, setActiveTab] = useState<ChannelTab>('whatsapp')
 	const [showResolved, setShowResolved] = useState(false)
 
 	function handleTabChange(tab: ChannelTab) {
@@ -53,7 +57,7 @@ export function SupportInbox({
 
 		for (const conv of conversations) {
 			if (conv.priority === 'urgent' || conv.slaBreached) next.urgent++
-			if (conv.channel === 'live') {
+			if (isWhatsAppLike(conv)) {
 				if (isResolved(conv)) next.liveResolved++
 				else next.live++
 				continue
@@ -65,9 +69,11 @@ export function SupportInbox({
 	}, [conversations])
 
 	const filtered = useMemo(() => {
-		let result = conversations.filter((c) => c.channel === activeTab)
+		let result = conversations.filter((c) =>
+			activeTab === 'whatsapp' ? isWhatsAppLike(c) : c.channel === activeTab,
+		)
 
-		if (activeTab === 'live') {
+		if (activeTab === 'whatsapp') {
 			result = showResolved
 				? result.filter(isResolved)
 				: result.filter((c) => !isResolved(c))
@@ -84,7 +90,7 @@ export function SupportInbox({
 			)
 		}
 
-		const sortKey = activeTab === 'live' ? 'createdAt' : 'lastMessageAt'
+		const sortKey = activeTab === 'whatsapp' ? 'createdAt' : 'lastMessageAt'
 		return [...result].sort((a, b) => {
 			if (activeTab === 'email') {
 				const aNeedsAttention = a.priority === 'urgent' || a.slaBreached
@@ -97,7 +103,7 @@ export function SupportInbox({
 		})
 	}, [conversations, activeTab, showResolved, searchQuery])
 
-	const isLiveActive = activeTab === 'live' && !showResolved
+	const isLiveActive = activeTab === 'whatsapp' && !showResolved
 
 	const liveQueueHeadId = useMemo(() => {
 		if (!isLiveActive) return null
@@ -109,13 +115,15 @@ export function SupportInbox({
 		if (isLiveActive) {
 			if (liveQueueHeadId && selectedId !== liveQueueHeadId) {
 				setSelectedConversation(liveQueueHeadId)
+			} else if (!liveQueueHeadId && selectedId !== null) {
+				setSelectedConversation(null)
 			}
 			return
 		}
 
 		const currentInTab = selectedId && filtered.some((c) => c.id === selectedId)
 		const head = filtered[0]
-		if (!currentInTab && head) setSelectedConversation(head.id)
+		if (!currentInTab) setSelectedConversation(head?.id ?? null)
 	}, [
 		isLiveActive,
 		liveQueueHeadId,
@@ -126,9 +134,9 @@ export function SupportInbox({
 	])
 
 	const queueLabel = showResolved
-		? 'resolved live chats'
-		: activeTab === 'live'
-			? 'live chats waiting'
+		? 'closed WhatsApp chats'
+		: activeTab === 'whatsapp'
+			? 'WhatsApp conversations waiting'
 			: 'email conversations'
 
 	return (
@@ -141,10 +149,10 @@ export function SupportInbox({
 							activeTab={activeTab}
 							showResolved={showResolved}
 							iconSize={16}
-							onLive={() => handleTabChange('live')}
+							onLive={() => handleTabChange('whatsapp')}
 							onEmail={() => handleTabChange('email')}
 							onResolved={() => {
-								setActiveTab('live')
+								setActiveTab('whatsapp')
 								setShowResolved(true)
 							}}
 						/>
@@ -197,10 +205,10 @@ export function SupportInbox({
 							activeTab={activeTab}
 							showResolved={showResolved}
 							iconSize={15}
-							onLive={() => handleTabChange('live')}
+							onLive={() => handleTabChange('whatsapp')}
 							onEmail={() => handleTabChange('email')}
 							onResolved={() => {
-								setActiveTab('live')
+								setActiveTab('whatsapp')
 								setShowResolved(true)
 							}}
 						/>
@@ -276,8 +284,8 @@ function QueueButtonGrid({
 	return (
 		<>
 			<MobileQueueButton
-				active={activeTab === 'live' && !showResolved}
-				label="Live chats"
+				active={activeTab === 'whatsapp' && !showResolved}
+				label="WhatsApp"
 				count={counts.live}
 				onClick={onLive}
 			>
@@ -292,8 +300,8 @@ function QueueButtonGrid({
 				<Mail size={iconSize} strokeWidth={2.2} />
 			</MobileQueueButton>
 			<MobileQueueButton
-				active={activeTab === 'live' && showResolved}
-				label="Resolved chats"
+				active={activeTab === 'whatsapp' && showResolved}
+				label="Closed chats"
 				count={counts.liveResolved}
 				onClick={onResolved}
 			>

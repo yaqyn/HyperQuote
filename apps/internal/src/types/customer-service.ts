@@ -11,7 +11,7 @@ type JsonValue =
 	| JsonValue[]
 	| { [key: string]: JsonValue }
 
-export type ChannelType = 'email' | 'live'
+export type ChannelType = 'email' | 'live' | 'whatsapp'
 
 export type ConversationStatus = 'open' | 'pending' | 'resolved' | 'closed'
 
@@ -23,6 +23,7 @@ type MessageDirection = 'inbound' | 'outbound'
 
 export interface Customer {
 	id: string
+	recordType: 'customer' | 'external'
 	name: string
 	nameAr: string
 	email: string | null

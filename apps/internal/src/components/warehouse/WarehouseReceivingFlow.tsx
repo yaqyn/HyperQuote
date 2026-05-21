@@ -3,8 +3,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
 	getReceivingDealDetail,
+	type getReceivingQueue,
 	getWarehouseEmployees,
 	type ReceivingDealDetailView,
+	type ReceivingDealRowView,
 	recordReceivingAttempt,
 	type SecurityMethod,
 } from '../../lib/server/warehouse'
@@ -18,6 +20,7 @@ import {
 
 type Decision = 'receive' | 'reject' | null
 type ReceivingMobileStep = 'inspect' | 'reason' | 'signoff'
+type ReceivingQueueData = Awaited<ReturnType<typeof getReceivingQueue>>
 
 /**
  * Receiving wizard — per-item binary decisions. Accepted items flip
@@ -77,6 +80,37 @@ function EmptyPanel() {
 			</div>
 		</aside>
 	)
+}
+
+function receivingQueueTotals(deals: ReceivingDealRowView[]) {
+	return {
+		total: deals.length,
+		retrying: deals.filter((deal) => deal.previousAttemptCount > 0).length,
+		fresh: deals.filter((deal) => deal.previousAttemptCount === 0).length,
+	}
+}
+
+function updateReceivingQueueCache(
+	current: ReceivingQueueData | undefined,
+	dealId: string,
+	fullyReceived: boolean,
+): ReceivingQueueData | undefined {
+	if (!current) return current
+	const deals = fullyReceived
+		? current.deals.filter((deal) => deal.dealId !== dealId)
+		: current.deals.map((deal) =>
+				deal.dealId === dealId
+					? {
+							...deal,
+							previousAttemptCount: Math.max(1, deal.previousAttemptCount + 1),
+						}
+					: deal,
+			)
+	return {
+		...current,
+		deals,
+		totals: receivingQueueTotals(deals),
+	}
 }
 
 function FlowInner({ dealId }: { dealId: string }) {
@@ -144,18 +178,21 @@ function FlowInner({ dealId }: { dealId: string }) {
 				setError(res.error)
 				return
 			}
+			qc.setQueryData<ReceivingQueueData>(
+				['warehouse-receiving-queue'],
+				(current) =>
+					updateReceivingQueueCache(current, dealId, res.fullyReceived),
+			)
 			qc.invalidateQueries({ queryKey: ['warehouse-receiving-queue'] })
 			qc.invalidateQueries({ queryKey: ['warehouse-receiving-deal', dealId] })
 			qc.invalidateQueries({ queryKey: ['finance-inbox'] })
 			qc.invalidateQueries({ queryKey: ['stock-overview'] })
 			qc.invalidateQueries({ queryKey: ['inventory-overview'] })
-			if (res.fullyReceived) setSelectedDealId(null)
-			else {
-				setDecisions({})
-				setRejectionReason('')
-				setProofUrl('')
-				setSecurityToken('')
-			}
+			setSelectedDealId(null)
+			setDecisions({})
+			setRejectionReason('')
+			setProofUrl('')
+			setSecurityToken('')
 		},
 		onError: (e: Error) => setError(e.message),
 	})
@@ -176,7 +213,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 		(i) => decisions[i.productSlug] === 'reject',
 	)
 	const nameOk = advisorId !== null
-	const tokenOk = securityToken.trim().length >= 4
+	const tokenOk = securityToken.trim().length > 0
 	const proofOk = proofUrl.trim().length > 0
 	const reasonOk = !anyRejected || rejectionReason.trim().length >= 3
 	const ready = allDecided && nameOk && tokenOk && proofOk && reasonOk
@@ -301,7 +338,7 @@ function ReceivingBody({
 		.join('|')
 	const allDecided = pendingItems.every((i) => decisions[i.productSlug] != null)
 	const reasonOk = !anyRejected || rejectionReason.trim().length >= 3
-	const tokenOk = securityToken.trim().length >= 4
+	const tokenOk = securityToken.trim().length > 0
 	const proofOk = proofUrl.trim().length > 0
 	const mobileSteps: ReceivingMobileStep[] = anyRejected
 		? ['inspect', 'reason', 'signoff']
@@ -324,6 +361,17 @@ function ReceivingBody({
 				: ready
 	const selectedAdvisor =
 		employees.find((employee) => employee.id === advisorId) ?? null
+	const desktopBlocker = !allDecided
+		? 'Decide every item first'
+		: !reasonOk
+			? 'Add rejection reason'
+			: !advisorId
+				? 'Select advisor'
+				: !tokenOk
+					? 'Password required'
+					: !proofOk
+						? 'Proof required before receipt'
+						: null
 
 	useEffect(() => {
 		if (!anyRejected && mobileStep === 'reason') setMobileStep('signoff')
@@ -670,24 +718,27 @@ function ReceivingBody({
 				)}
 			</AnimatePresence>
 
-			<motion.button
-				type="button"
-				onClick={onSubmit}
-				disabled={!ready || pending}
-				whileTap={ready ? { scale: 0.98 } : undefined}
-				animate={{
-					backgroundColor: ready ? '#0A5C2E' : 'rgba(0,0,0,0.05)',
-					color: ready ? '#FFFFFF' : 'rgba(0,0,0,0.3)',
-				}}
-				transition={{ duration: 0.25 }}
-				className="hidden w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed lg:block"
-			>
-				{pending
-					? 'Recording…'
-					: ready
-						? 'Commit receipt'
-						: 'Decide every item first'}
-			</motion.button>
+			<div className="hidden lg:block">
+				{desktopBlocker && (
+					<p className="mb-2 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.18em] text-black/45">
+						{desktopBlocker}
+					</p>
+				)}
+				<motion.button
+					type="button"
+					onClick={onSubmit}
+					disabled={!ready || pending}
+					whileTap={ready ? { scale: 0.98 } : undefined}
+					animate={{
+						backgroundColor: ready ? '#0A5C2E' : 'rgba(0,0,0,0.05)',
+						color: ready ? '#FFFFFF' : 'rgba(0,0,0,0.3)',
+					}}
+					transition={{ duration: 0.25 }}
+					className="w-full border-[3px] border-[var(--color-text)] py-5 font-[family-name:var(--font-geist-mono)] text-[14px] font-bold uppercase tracking-[0.22em] enabled:hover:shadow-[6px_6px_0_0_var(--color-text)] disabled:cursor-not-allowed"
+				>
+					{pending ? 'Recording…' : 'Commit receipt'}
+				</motion.button>
+			</div>
 
 			<MobileStepControls
 				backLabel={mobileStepIndex > 0 ? 'Reset' : 'Exit'}

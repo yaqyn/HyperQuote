@@ -56,7 +56,7 @@ export function OrdersView() {
 						Orders could not load.
 					</p>
 					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
-						Refresh before approving anything for warehouse.
+						Refresh before filling any customer order.
 					</p>
 				</div>
 			</div>
@@ -110,6 +110,7 @@ export function OrdersView() {
 				{selectedQuoteId && (
 					<OrderPrepView
 						quoteId={selectedQuoteId}
+						initialOrder={selectedOrder}
 						onBack={() => setSelectedQuoteId(null)}
 					/>
 				)}

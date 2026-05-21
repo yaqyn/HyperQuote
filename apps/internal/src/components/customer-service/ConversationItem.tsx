@@ -5,7 +5,7 @@ import {
 	MessageSquare,
 	UserRound,
 } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type {
 	Conversation,

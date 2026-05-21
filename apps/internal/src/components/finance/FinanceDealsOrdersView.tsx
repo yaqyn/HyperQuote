@@ -19,7 +19,7 @@ import {
 	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
-import { formatRelativeHoursAgo, formatRoundedEgp } from '../shared/formatters'
+import { formatDecimalEgp, formatRelativeHoursAgo } from '../shared/formatters'
 import { FinancePaymentPanel } from './FinancePaymentPanel'
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -270,7 +270,7 @@ function LedgerMasthead({
 						Waiting for finance
 					</span>
 					<strong className="break-words font-[family-name:var(--font-geist-mono)] text-[26px] font-semibold leading-none text-[var(--color-text)] tabular-nums sm:text-[34px]">
-						{formatRoundedEgp(totalOutstanding)}
+						{formatDecimalEgp(totalOutstanding)}
 					</strong>
 					<span className="font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 						EGP
@@ -434,7 +434,7 @@ function SectionTotal({
 					letterSpacing: '-0.02em',
 				}}
 			>
-				{formatRoundedEgp(value)}
+				{formatDecimalEgp(value)}
 			</span>
 			<span
 				className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -451,6 +451,16 @@ function SectionTotal({
 }
 
 // ─── Entries ─────────────────────────────────────────────
+
+function followUpContext(
+	followUp:
+		| FinanceOrderView['latestFollowUp']
+		| FinanceDealView['latestFollowUp'],
+): string | undefined {
+	if (!followUp) return undefined
+	const due = new Date(followUp.followUpDueAt).toLocaleDateString('en-EG')
+	return `${followUp.followUpState} follow-up due ${due}`
+}
 
 function LedgerEntry({
 	index,
@@ -579,7 +589,7 @@ function LedgerEntry({
 							letterSpacing: '-0.018em',
 						}}
 					>
-						{formatRoundedEgp(amount)}
+						{formatDecimalEgp(amount)}
 					</span>
 					<span
 						className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -623,8 +633,8 @@ function OrderEntry({
 			? 'Paid in full'
 			: order.paymentStatus === 'partial'
 				? urgent
-					? `Collect ${formatRoundedEgp(order.remainingDue)} EGP balance`
-					: `${formatRoundedEgp(order.remainingDue)} EGP balance due`
+					? `Collect ${formatDecimalEgp(order.remainingDue)} EGP balance`
+					: `${formatDecimalEgp(order.remainingDue)} EGP balance due`
 				: 'Collect 50% to release order'
 	const paymentTone: 'neutral' | 'chase' | 'in' = urgent
 		? 'chase'
@@ -641,6 +651,7 @@ function OrderEntry({
 			index={index}
 			counterparty={order.customerName}
 			reference={reference}
+			context={followUpContext(order.latestFollowUp)}
 			ageLabel={`accepted ${formatRelativeHoursAgo(order.acceptedHoursAgo)}`}
 			amount={order.totalDue}
 			paymentLabel={paymentLabel}
@@ -668,15 +679,17 @@ function DealEntry({
 		deal.paymentStatus === 'paid'
 			? 'Paid in full'
 			: deal.paymentStatus === 'partial'
-				? `${formatRoundedEgp(deal.remainingDue)} EGP supplier balance`
+				? `${formatDecimalEgp(deal.remainingDue)} EGP supplier balance`
 				: 'Payment needed'
 	const paymentTone: 'neutral' | 'out' =
 		deal.paymentStatus === 'paid' ? 'out' : 'neutral'
 
-	const context =
+	const productContext =
 		deal.itemCount === 1
 			? deal.headlineProductName
 			: `${deal.headlineProductName} + ${deal.itemCount - 1} more`
+	const followUp = followUpContext(deal.latestFollowUp)
+	const context = followUp ? `${productContext} · ${followUp}` : productContext
 
 	return (
 		<LedgerEntry

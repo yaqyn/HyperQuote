@@ -31,6 +31,7 @@ import {
 	normalizeIntegerInput,
 } from '../../../lib/inputs'
 import { useInternalAuth } from '../../../lib/internal-auth'
+import { computeSellPriceFromMargin } from '../../../lib/pricing-math'
 import { addCustomer } from '../../../lib/server/sales-customers'
 import { markAsWon } from '../../../lib/server/sales-pipeline'
 import {
@@ -44,6 +45,7 @@ import type {
 	PriceStatus,
 	QuoteStatus,
 } from '../../../types/sales'
+import { resolveMarginThreshold } from '../../../types/sales'
 import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { isValidEGPhone, PhoneInput } from '../../shared/PhoneInput'
 import { SlidePanel } from '../../shared/SlidePanel'
@@ -56,6 +58,8 @@ import {
 	SALES_MARGIN_FLOOR_COLOR,
 	SALES_MARGIN_TARGET_COLOR,
 } from '../marginPalette'
+import { CallRFQDialog } from '../rfq/CallRFQDialog'
+import { CancelRFQDialog } from '../rfq/CancelRFQDialog'
 import { DeclineRFQDialog } from '../rfq/DeclineRFQDialog'
 import {
 	type ApprovalSignatureState,
@@ -77,7 +81,11 @@ interface QuoteBuilderViewProps {
 	quoteId?: string
 	rfqId: string
 	isNewCustomer?: boolean
+	initialCustomerCompany?: string
+	initialCustomerEmail?: string
 	initialCustomerName?: string
+	initialCustomerPhone?: string
+	initialDeliveryAddress?: string
 	onBack?: () => void
 	onSave?: () => void
 }
@@ -88,7 +96,15 @@ interface QuoteBuilderViewProps {
 
 const DELIVERY_DATE_REQUIRED_MESSAGE = 'Please select a delivery date'
 const DELIVERY_ATTENTION_DURATION_MS = 1400
-const MINIMUM_MARGIN_PERCENT = 15
+const MINIMUM_MARGIN_PERCENT = 0
+
+function toNationalEgyptianMobile(value: string): string {
+	const digits = value.replace(/\D/g, '')
+	if (digits.startsWith('20') && digits.length >= 12) return digits.slice(2)
+	if (digits.startsWith('0') && digits.length === 11) return digits.slice(1)
+	return digits
+}
+
 type PanelCurrency = 'EGP' | 'USD' | 'EUR' | 'SAR'
 const PANEL_CURRENCIES: PanelCurrency[] = ['EGP', 'USD', 'EUR', 'SAR']
 interface AutomaticExchangeRates {
@@ -170,6 +186,7 @@ function QuoteChromeAction({
 		<button
 			type="button"
 			aria-label={ariaLabel}
+			title={ariaLabel}
 			onClick={onClick}
 			className={`inline-flex h-7 w-7 items-center justify-center rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 				tone === 'danger'
@@ -921,17 +938,12 @@ function formatUnitCount(value: number | null) {
 	return `${value.toLocaleString('en-EG')} Units`
 }
 
-function computeSellPriceFromMargin(cost: number, margin: number): number {
-	if (cost <= 0 || margin >= 100) return 0
-	return Math.round((cost / (1 - margin / 100)) * 100) / 100
+function getEffectiveQuoteMarginCap(floor: number, bonus?: number) {
+	return Math.max(getSalesMarginCap(floor), bonus ?? SALES_MARGIN_CAP_PERCENT)
 }
 
-function getEffectiveQuoteMarginCap(floor: number) {
-	return getSalesMarginCap(floor)
-}
-
-function clampQuoteMargin(raw: number, min: number): number {
-	return clampSalesMargin(raw, min, getEffectiveQuoteMarginCap(min))
+function clampQuoteMargin(raw: number, min: number, bonus?: number): number {
+	return clampSalesMargin(raw, min, getEffectiveQuoteMarginCap(min, bonus))
 }
 
 function getMarginProgress(value: number, floor: number, cap: number) {
@@ -1157,11 +1169,7 @@ function getLineMarginColor(
 	thresholds: MarginThresholds | null,
 ) {
 	if (!thresholds) return getSalesMarginColor(marginPercent)
-	return getSalesMarginColor(
-		marginPercent,
-		thresholds.target,
-		SALES_MARGIN_CAP_PERCENT,
-	)
+	return getSalesMarginColor(marginPercent, thresholds.target, thresholds.bonus)
 }
 
 function ItemEditPanel({
@@ -1250,11 +1258,13 @@ function ItemEditPanel({
 		calculator: null,
 		inventory: null,
 	})
-	const marginCap = getEffectiveQuoteMarginCap(marginFloor)
+	const marginCap = getEffectiveQuoteMarginCap(marginFloor, thresholds?.bonus)
 	const targetMargin = thresholds
 		? Math.min(marginCap, Math.max(marginFloor, thresholds.target))
 		: Math.min(marginCap, marginFloor + 5)
-	const bonusMargin = marginCap
+	const bonusMargin = thresholds
+		? Math.min(marginCap, Math.max(targetMargin, thresholds.bonus))
+		: marginCap
 	const targetProgress = getMarginProgress(targetMargin, marginFloor, marginCap)
 	const bonusProgress = getMarginProgress(bonusMargin, marginFloor, marginCap)
 	const currentMarginColor = getItemEditorMarginColor(
@@ -2846,31 +2856,45 @@ function lineProductKey(item: LineItemFormValues): string {
 	return item.productSlug || item.id
 }
 
+function lineMarginThreshold(
+	item: Pick<LineItemFormValues, 'productCategory' | 'productSlug'>,
+	thresholds: MarginThresholds[],
+) {
+	return resolveMarginThreshold(thresholds, {
+		categorySlug: item.productCategory || null,
+		productSlug: item.productSlug || null,
+	})
+}
+
 // --- Main view ---
 
 export function QuoteBuilderView({
 	quoteId: initialQuoteId,
 	rfqId,
 	isNewCustomer = false,
+	initialCustomerCompany,
+	initialCustomerEmail,
 	initialCustomerName,
+	initialCustomerPhone,
+	initialDeliveryAddress,
 	onBack,
 	onSave,
 }: QuoteBuilderViewProps) {
 	const reduceMotion = useReducedMotion()
 	const auth = useInternalAuth()
 	const authName = auth?.user?.user_metadata?.name
+	const authEmail = auth?.user?.email
 	const preparedByName =
 		typeof authName === 'string' && authName.trim()
 			? authName.trim()
-			: 'Signed-in user'
+			: typeof authEmail === 'string' && authEmail.trim()
+				? authEmail.trim()
+				: ''
 	const custNameRef = useRef<HTMLInputElement | null>(null)
 	const [isPersistingCustomer, setIsPersistingCustomer] = useState(false)
 	const [quoteId, setQuoteId] = useState<string | undefined>(initialQuoteId)
 	const [status, setStatus] = useState<QuoteStatus>('draft')
-	const [quoteNumber] = useState(
-		() =>
-			`QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-	)
+	const quoteNumber = quoteId ?? rfqId
 	const [marginThresholds, setMarginThresholds] = useState<MarginThresholds[]>(
 		[],
 	)
@@ -2882,15 +2906,15 @@ export function QuoteBuilderView({
 		availableCredit: number
 	} | null>(null)
 	// Customer fields start empty; they hydrate from getQuoteBuilderData once
-	// the loader resolves. No hardcoded defaults — no fake names / addresses.
+	// the loader resolves. No invented names or addresses.
 	const [customerName, setCustomerName] = useState(initialCustomerName ?? '')
 	const [customerTier, setCustomerTier] = useState<string>(
 		isNewCustomer ? 'New' : '',
 	)
-	const [rfqReference] = useState(
-		() => `QR-2026-${rfqId.slice(-5).padStart(5, '0')}`,
+	const rfqReference = rfqId
+	const [deliveryAddress, setDeliveryAddress] = useState(
+		initialDeliveryAddress ?? '',
 	)
-	const [deliveryAddress, setDeliveryAddress] = useState('')
 	const deliverySectionRef = useRef<HTMLDivElement | null>(null)
 	const approvalSectionRef = useRef<HTMLDivElement | null>(null)
 	const deliveryAttentionTimerRef = useRef<ReturnType<
@@ -2903,15 +2927,19 @@ export function QuoteBuilderView({
 	const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
 	// Customer form fields (Step 1)
-	const [custPhone, setCustPhone] = useState('')
-	const [custEmail, setCustEmail] = useState('')
-	const [custCompany, setCustCompany] = useState('')
+	const [custPhone, setCustPhone] = useState(
+		toNationalEgyptianMobile(initialCustomerPhone ?? ''),
+	)
+	const [custEmail, setCustEmail] = useState(initialCustomerEmail ?? '')
+	const [custCompany, setCustCompany] = useState(initialCustomerCompany ?? '')
 
 	// Wizard state — start at Step 1 (Customer) for new, Step 2 (Build) for existing RFQ
 	const isFromRfq = !isNewCustomer && !rfqId.startsWith('new-')
 	const canEditCustomerFields = !isFromRfq
 	const [currentStep, setCurrentStep] = useState(isFromRfq ? 2 : 1)
 	const [declineOpen, setDeclineOpen] = useState(false)
+	const [cancelOpen, setCancelOpen] = useState(false)
+	const [callDialogOpen, setCallDialogOpen] = useState(false)
 	const [itemEditIndex, setItemEditIndex] = useState<number | null>(null)
 	const [mapOpen, setMapOpen] = useState(false)
 
@@ -3247,7 +3275,7 @@ export function QuoteBuilderView({
 					setCustomerTier(
 						data.customer.tier === 'new' ? 'New' : data.customer.tier,
 					)
-					setCustPhone(data.customer.phone ?? '')
+					setCustPhone(toNationalEgyptianMobile(data.customer.phone ?? ''))
 					setCustEmail(data.customer.email ?? '')
 					setCustCompany(data.customer.company ?? data.customer.name)
 				}
@@ -3275,11 +3303,14 @@ export function QuoteBuilderView({
 				})
 
 				if (data.suggestedProducts && data.suggestedProducts.length > 0) {
-					const getTargetMargin = (category?: string) => {
-						const threshold = data.marginThresholds.find(
-							(t) => t.productCategory === category,
-						)
-						return threshold?.target ?? data.marginThresholds[0]?.target ?? 18
+					const getScopedThreshold = (
+						productSlug?: string,
+						category?: string,
+					) => {
+						return resolveMarginThreshold(data.marginThresholds, {
+							categorySlug: category ?? null,
+							productSlug: productSlug ?? null,
+						})
 					}
 
 					const items = data.suggestedProducts.map((p, i) => {
@@ -3287,9 +3318,13 @@ export function QuoteBuilderView({
 						// server), respect it; otherwise fall back to the category target.
 						const savedMargin = (p as { marginPercent?: number }).marginPercent
 						const savedSellPrice = (p as { sellPrice?: number }).sellPrice
+						const productSlug = p.productSlug ?? p.id ?? `item-${i}`
+						const productCategory = p.productCategory ?? p.category ?? ''
+						const threshold = getScopedThreshold(productSlug, productCategory)
 						const margin = clampQuoteMargin(
-							savedMargin ?? getTargetMargin(p.category),
-							MINIMUM_MARGIN_PERCENT,
+							savedMargin ?? threshold.target,
+							Math.max(MINIMUM_MARGIN_PERCENT, threshold.floor),
+							threshold.bonus,
 						)
 						const canReuseSavedSellPrice =
 							savedMargin != null &&
@@ -3298,11 +3333,12 @@ export function QuoteBuilderView({
 						const sellPrice = canReuseSavedSellPrice
 							? savedSellPrice
 							: p.supplierCost > 0
-								? Math.round((p.supplierCost / (1 - margin / 100)) * 100) / 100
+								? computeSellPriceFromMargin(p.supplierCost, margin)
 								: 0
 						return {
-							id: p.productSlug ?? p.id ?? `item-${i}`,
-							productSlug: p.productSlug ?? p.id ?? `item-${i}`,
+							id: productSlug,
+							productSlug,
+							productCategory,
 							productName: p.productName,
 							specification: p.specification,
 							quantity: p.quantity,
@@ -3344,6 +3380,7 @@ export function QuoteBuilderView({
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
 						productSlug: item.productSlug,
+						productCategory: item.productCategory,
 						productName: item.productName,
 						specification: item.specification,
 						quantity: item.quantity,
@@ -3384,6 +3421,7 @@ export function QuoteBuilderView({
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
 						productSlug: item.productSlug,
+						productCategory: item.productCategory,
 						productName: item.productName,
 						specification: item.specification,
 						quantity: item.quantity,
@@ -3430,14 +3468,10 @@ export function QuoteBuilderView({
 		}
 	}, [handleAutoSave])
 
-	const marginFloor =
+	const primaryMarginThreshold =
 		marginThresholds.length > 0
-			? Math.max(
-					MINIMUM_MARGIN_PERCENT,
-					Math.min(...marginThresholds.map((t) => t.absoluteMin)),
-				)
-			: MINIMUM_MARGIN_PERCENT
-	const primaryMarginThreshold = marginThresholds[0] ?? null
+			? resolveMarginThreshold(marginThresholds, {})
+			: null
 	const updateLineQuantity = (index: number, quantity: number) => {
 		const item = (watchedItems ?? [])[index]
 		if (!item) return
@@ -3454,7 +3488,12 @@ export function QuoteBuilderView({
 	const updateLineMargin = (index: number, margin: number) => {
 		const item = (watchedItems ?? [])[index]
 		if (!item) return
-		const nextMargin = clampQuoteMargin(margin, marginFloor)
+		const threshold = lineMarginThreshold(item, marginThresholds)
+		const nextMargin = clampQuoteMargin(
+			margin,
+			Math.max(MINIMUM_MARGIN_PERCENT, threshold.floor),
+			threshold.bonus,
+		)
 		const price = computeSellPriceFromMargin(item.supplierCost || 0, nextMargin)
 		methods.setValue(`lineItems.${index}.marginPercent`, nextMargin, {
 			shouldDirty: true,
@@ -3492,19 +3531,54 @@ export function QuoteBuilderView({
 			const quantity = Math.max(1, Math.round(selection.quantity))
 			const existing = currentById.get(productId)
 			if (existing) {
+				const liveProduct = selection.product
+				const productCategory =
+					liveProduct?.category ?? existing.productCategory ?? ''
+				const productSlug = liveProduct?.slug ?? existing.productSlug
+				const threshold = resolveMarginThreshold(marginThresholds, {
+					categorySlug: productCategory || null,
+					productSlug: productSlug || null,
+				})
+				const margin = clampQuoteMargin(
+					existing.marginPercent,
+					Math.max(MINIMUM_MARGIN_PERCENT, threshold.floor),
+					threshold.bonus,
+				)
+				const supplierCost = liveProduct?.supplierCost ?? existing.supplierCost
+				const sellPrice = liveProduct
+					? computeSellPriceFromMargin(supplierCost, margin)
+					: existing.sellPrice || 0
 				return [
 					{
 						...existing,
+						freshnessIndicator:
+							liveProduct?.freshness ?? existing.freshnessIndicator,
+						lineTotal: Math.round(sellPrice * quantity * 100) / 100,
+						marginPercent: margin,
+						priceStatus: liveProduct?.priceStatus ?? existing.priceStatus,
+						productCategory,
+						productName: liveProduct?.name ?? existing.productName,
+						productSlug,
 						quantity,
-						lineTotal:
-							Math.round((existing.sellPrice || 0) * quantity * 100) / 100,
+						recentlyOrdered:
+							liveProduct?.recentlyOrdered ?? existing.recentlyOrdered,
+						sellPrice,
+						specification: liveProduct?.specification ?? existing.specification,
+						supplierCost,
+						supplierName: liveProduct?.supplierName ?? existing.supplierName,
+						unit: liveProduct?.unit ?? existing.unit,
 					},
 				]
 			}
 			if (!selection.product) return []
+			const threshold = resolveMarginThreshold(marginThresholds, {
+				categorySlug: selection.product.category || null,
+				productSlug: selection.product.slug,
+			})
 			const margin = clampQuoteMargin(
-				Math.max(MINIMUM_MARGIN_PERCENT, primaryMarginThreshold?.target ?? 18),
-				MINIMUM_MARGIN_PERCENT,
+				Math.max(MINIMUM_MARGIN_PERCENT, threshold.target),
+				Math.max(MINIMUM_MARGIN_PERCENT, threshold.floor),
+				threshold.bonus,
 			)
 			const sellPrice = computeSellPriceFromMargin(
 				selection.product.supplierCost,
@@ -3514,6 +3588,7 @@ export function QuoteBuilderView({
 				{
 					id: selection.product.slug,
 					productSlug: selection.product.slug,
+					productCategory: selection.product.category,
 					productName: selection.product.name,
 					specification: selection.product.specification,
 					quantity,
@@ -3655,13 +3730,19 @@ export function QuoteBuilderView({
 	)
 
 	const handleSaveForLater = async () => {
-		await handleAutoSave()
+		const savedId = await persistDraftAndGetId()
+		if (!savedId) {
+			setValidationErrors(['Add at least one item before saving.'])
+			return
+		}
 		if (onSave) {
 			onSave()
 		} else {
 			onBack?.()
 		}
 	}
+
+	const handleCallCustomer = () => setCallDialogOpen(true)
 
 	return (
 		<div className="flex h-full flex-col">
@@ -3673,7 +3754,7 @@ export function QuoteBuilderView({
 						</h1>
 						<button
 							type="button"
-							onClick={() => window.open(`/api/call/${rfqId}`, '_blank')}
+							onClick={handleCallCustomer}
 							aria-label={`Call ${customerName || 'customer'}`}
 							className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-[var(--color-primary)] outline-none transition-colors hover:bg-[var(--color-primary)]/[0.06] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
 						>
@@ -3687,6 +3768,13 @@ export function QuoteBuilderView({
 							tone="danger"
 						>
 							<Undo2 size={15} strokeWidth={2.2} aria-hidden="true" />
+						</QuoteChromeAction>
+						<QuoteChromeAction
+							ariaLabel="Cancel quote"
+							onClick={() => setCancelOpen(true)}
+							tone="danger"
+						>
+							<X size={15} strokeWidth={2.2} aria-hidden="true" />
 						</QuoteChromeAction>
 						<QuoteChromeAction
 							ariaLabel="Save for later"
@@ -4002,6 +4090,7 @@ export function QuoteBuilderView({
 										<div className="mt-4 border-t-2 border-[var(--color-border)]">
 											<DeliveryTerms
 												deliveryAddress={deliveryAddress}
+												onAddressChange={setDeliveryAddress}
 												highlightDate={isDeliveryDateAttentionVisible}
 												datePickerOpenSignal={deliveryDatePickerOpenSignal}
 												onAddressPress={() => {
@@ -4485,8 +4574,17 @@ export function QuoteBuilderView({
 					<ItemEditPanel
 						item={(watchedItems ?? [])[itemEditIndex]}
 						index={itemEditIndex}
-						marginFloor={marginFloor}
-						thresholds={primaryMarginThreshold}
+						marginFloor={Math.max(
+							MINIMUM_MARGIN_PERCENT,
+							lineMarginThreshold(
+								(watchedItems ?? [])[itemEditIndex],
+								marginThresholds,
+							).floor,
+						)}
+						thresholds={lineMarginThreshold(
+							(watchedItems ?? [])[itemEditIndex],
+							marginThresholds,
+						)}
 						exchangeRates={exchangeRates}
 						isRequestingPrice={requestUpdateMutation.isPending}
 						isPriceRequested={requestedPriceIds.has(
@@ -4509,6 +4607,18 @@ export function QuoteBuilderView({
 				isOpen={declineOpen}
 				onClose={() => setDeclineOpen(false)}
 				onDeclined={() => onBack?.()}
+			/>
+			<CancelRFQDialog
+				rfqId={rfqId}
+				isOpen={cancelOpen}
+				onClose={() => setCancelOpen(false)}
+				onCanceled={() => onBack?.()}
+			/>
+			<CallRFQDialog
+				rfqId={rfqId}
+				isOpen={callDialogOpen}
+				onClose={() => setCallDialogOpen(false)}
+				onRecorded={(message) => setValidationErrors([message])}
 			/>
 		</div>
 	)

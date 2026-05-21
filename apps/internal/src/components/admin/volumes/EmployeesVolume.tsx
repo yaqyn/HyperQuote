@@ -1,33 +1,63 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { EmployeeRow } from '../../../lib/db/db'
 import {
+	type AdminEmployeeRole,
+	type AdminEmployeeRow,
 	adminCreateEmployee,
 	adminDeleteEmployee,
 	adminListEmployees,
 	adminUpdateEmployee,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
-import { TextControl } from '../AdminControls'
+import { Toggle } from '../../ui/Toggle'
+import { SelectControl, StatusTag, TextControl } from '../AdminControls'
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
+import { useAdminExport } from './useAdminExport'
 import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
-type EmployeeDraft = Omit<EmployeeRow, 'id'> & { id?: string }
+type EmployeeDraft = Omit<AdminEmployeeRow, 'id'> & {
+	id?: string
+	password?: string
+}
+type EmployeePayload = Omit<AdminEmployeeRow, 'id'> & { password?: string }
 
 interface EmployeesVolumeProps {
 	onOpenVolumes: () => void
 }
 
 function blankEmployee(): EmployeeDraft {
-	return { name: '', name_ar: '', phone: '' }
+	return {
+		name: '',
+		email: '',
+		phone: '',
+		password: '',
+		status: 'active',
+		isCeo: false,
+		roles: [],
+	}
 }
+
+const employeeRoleOptions: Array<{ value: AdminEmployeeRole; label: string }> =
+	[
+		{ value: 'admin', label: 'Admin' },
+		{ value: 'sales', label: 'Sales' },
+		{ value: 'inventory', label: 'Inventory' },
+		{ value: 'warehouse', label: 'Warehouse' },
+		{ value: 'finance', label: 'Finance' },
+		{ value: 'dispatch', label: 'Dispatch' },
+		{ value: 'customer_service', label: 'Customer service' },
+		{ value: 'driver_manager', label: 'Driver manager' },
+		{ value: 'ceo', label: 'CEO' },
+	]
 
 export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('employees')
+	const { exportStatus, isExporting, requestExport } =
+		useAdminExport('employees')
 
 	const {
 		data: employees = [],
@@ -52,13 +82,13 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 	} = useVolumeEditor({
 		rows: employees,
 		blankDraft: blankEmployee,
-		rowToDraft: (row) => ({ ...row }),
+		rowToDraft: (row) => ({ ...row, password: '' }),
 		rowId: (row) => row.id,
 		draftId: (row) => row.id,
 	})
 
 	const createMutation = useMutation({
-		mutationFn: (payload: Omit<EmployeeRow, 'id'>) =>
+		mutationFn: (payload: EmployeePayload) =>
 			adminCreateEmployee({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
@@ -67,7 +97,7 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (payload: { id: string } & Partial<Omit<EmployeeRow, 'id'>>) =>
+		mutationFn: (payload: { id: string } & Partial<EmployeePayload>) =>
 			adminUpdateEmployee({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
@@ -76,7 +106,8 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 	})
 
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => adminDeleteEmployee({ data: { id } }),
+		mutationFn: (payload: { id: string; reason: string }) =>
+			adminDeleteEmployee({ data: payload }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
 			handleClose()
@@ -101,10 +132,32 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 			!window.confirm(t('actions.confirmDelete'))
 		)
 			return
-		deleteMutation.mutate(draft.id)
+		const reason =
+			typeof window === 'undefined'
+				? null
+				: window.prompt('Reason for disabling this employee')
+		if (!reason || reason.trim().length < 8) return
+		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
 	}
 
-	const columns: ColumnDef<EmployeeRow>[] = [
+	const statusOptions: Array<{
+		value: AdminEmployeeRow['status']
+		label: string
+	}> = [
+		{ value: 'invited', label: 'Invited' },
+		{ value: 'active', label: 'Active' },
+		{ value: 'disabled', label: 'Disabled' },
+	]
+
+	function toggleRole(role: AdminEmployeeRole, checked: boolean) {
+		if (!draft) return
+		const roles = checked
+			? Array.from(new Set([...draft.roles, role]))
+			: draft.roles.filter((current) => current !== role)
+		setDraft({ ...draft, roles })
+	}
+
+	const columns: ColumnDef<AdminEmployeeRow>[] = [
 		{
 			key: 'id',
 			labelKey: 'volumes.employees.columns.id',
@@ -125,14 +178,37 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 			),
 		},
 		{
-			key: 'nameAr',
-			labelKey: 'volumes.employees.columns.nameAr',
-			width: 'minmax(160px, 1.4fr)',
+			key: 'email',
+			labelKey: 'volumes.employees.columns.email',
+			width: 'minmax(180px, 1.4fr)',
 			mobileRole: 'detail',
 			render: (r) => (
 				<span className="break-words text-[var(--color-text-muted)]">
-					{r.name_ar}
+					{r.email}
 				</span>
+			),
+		},
+		{
+			key: 'roles',
+			labelKey: 'volumes.employees.columns.roles',
+			width: 'minmax(180px, 1.4fr)',
+			mobileRole: 'detail',
+			render: (r) => (
+				<span className="break-words text-[var(--color-text-muted)]">
+					{r.roles.length ? r.roles.join(', ') : '—'}
+				</span>
+			),
+		},
+		{
+			key: 'status',
+			labelKey: 'volumes.employees.columns.status',
+			width: '110px',
+			mobileRole: 'detail',
+			render: (r) => (
+				<StatusTag
+					label={r.status}
+					tone={r.status === 'active' ? 'primary' : 'muted'}
+				/>
 			),
 		},
 		{
@@ -145,9 +221,10 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 		},
 	]
 
-	const filter = (r: EmployeeRow, q: string) =>
+	const filter = (r: AdminEmployeeRow, q: string) =>
 		r.name.toLowerCase().includes(q) ||
-		r.name_ar.includes(q) ||
+		r.email.toLowerCase().includes(q) ||
+		r.roles.join(' ').toLowerCase().includes(q) ||
 		r.phone.includes(q) ||
 		r.id.toLowerCase().includes(q)
 
@@ -158,6 +235,9 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 				entryCount={employees.length}
 				onOpenVolumes={onOpenVolumes}
 				onNewEntry={handleNew}
+				onExport={requestExport}
+				isExporting={isExporting}
+				exportStatus={exportStatus}
 			/>
 			<EntityIndex
 				volume="employees"
@@ -202,16 +282,16 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 								ariaLabel={t('editor.fields.name')}
 							/>
 						</Field>
-						<Field label={t('editor.fields.nameAr')} required>
+						<Section title={t('editor.section.contact')} />
+						<Field label={t('editor.fields.email')} required>
 							<TextControl
-								value={draft.name_ar}
-								onChange={(v) => setDraft({ ...draft, name_ar: v })}
+								value={draft.email}
+								onChange={(v) => setDraft({ ...draft, email: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.nameAr')}
+								ariaLabel={t('editor.fields.email')}
+								type="email"
 							/>
 						</Field>
-
-						<Section title={t('editor.section.contact')} />
 						<Field label={t('editor.fields.phone')} required>
 							<TextControl
 								value={draft.phone}
@@ -221,9 +301,116 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 								type="tel"
 							/>
 						</Field>
+						{!readOnly && (
+							<Field
+								label={t('editor.fields.password')}
+								required={mode === 'create'}
+							>
+								<TextControl
+									value={draft.password ?? ''}
+									onChange={(v) => setDraft({ ...draft, password: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.password')}
+									type="password"
+								/>
+							</Field>
+						)}
+
+						<Section title={t('editor.section.assignment')} />
+						<Field label={t('editor.fields.status')}>
+							<SelectControl
+								value={draft.status}
+								onChange={(v) => setDraft({ ...draft, status: v })}
+								options={statusOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.status')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.roles')}>
+							{readOnly ? (
+								<span className="flex flex-wrap gap-1.5">
+									{draft.roles.length ? (
+										draft.roles.map((role) => (
+											<StatusTag key={role} label={role} tone="neutral" />
+										))
+									) : (
+										<StatusTag label="No roles" tone="muted" />
+									)}
+								</span>
+							) : (
+								<div className="grid gap-2 sm:grid-cols-2">
+									{employeeRoleOptions.map((role) => (
+										<RoleSwitch
+											key={role.value}
+											label={role.label}
+											isSelected={draft.roles.includes(role.value)}
+											onPress={() =>
+												toggleRole(
+													role.value,
+													!draft.roles.includes(role.value),
+												)
+											}
+										/>
+									))}
+								</div>
+							)}
+						</Field>
+						<Field label={t('editor.fields.isCeo')}>
+							{readOnly ? (
+								<StatusTag
+									label={draft.isCeo ? 'CEO access' : 'Standard employee'}
+									tone={draft.isCeo ? 'primary' : 'neutral'}
+								/>
+							) : (
+								<Toggle
+									isSelected={draft.isCeo}
+									onChange={(checked) => setDraft({ ...draft, isCeo: checked })}
+									aria-label={t('editor.fields.isCeo')}
+								/>
+							)}
+						</Field>
 					</div>
 				)}
 			</EntityEditor>
 		</>
+	)
+}
+
+function RoleSwitch({
+	label,
+	isSelected,
+	onPress,
+}: {
+	label: string
+	isSelected: boolean
+	onPress: () => void
+}) {
+	return (
+		<button
+			type="button"
+			role="switch"
+			aria-checked={isSelected}
+			aria-label={label}
+			onClick={onPress}
+			className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-[var(--color-border)] px-3 py-2 text-start outline-none transition-colors hover:bg-black/[0.02] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:hover:bg-white/[0.03]"
+		>
+			<span className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+				{label}
+			</span>
+			<span
+				aria-hidden="true"
+				className={`flex h-4 w-7 rounded-full p-0.5 transition-colors ${
+					isSelected
+						? 'bg-[var(--color-primary)]'
+						: 'bg-black/[0.06] dark:bg-white/[0.08]'
+				}`}
+			>
+				<span
+					className={`h-3 w-3 rounded-full bg-white shadow transition-transform dark:bg-black ${
+						isSelected ? 'translate-x-3' : ''
+					}`}
+				/>
+			</span>
+		</button>
 	)
 }

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { z } from 'zod'
 import { getSafeRedirectPath } from '../lib/login-redirect'
 import {

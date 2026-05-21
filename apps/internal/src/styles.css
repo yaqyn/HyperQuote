@@ -352,6 +352,21 @@
 	background-size: 13px 13px;
 }
 
+.dispatch-side-panel {
+	inset: 0;
+	width: 100%;
+}
+
+@media (min-width: 1024px) {
+	.dispatch-side-panel {
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: auto;
+		width: 440px;
+	}
+}
+
 /* Horizon rule — draws itself left-to-right on mount. The line IS
    the work. */
 @keyframes horizon-draw {
@@ -918,17 +933,6 @@
 [data-theme="night-light"] ::selection {
 	background: rgba(127, 29, 29, 0.22);
 	color: inherit;
-}
-
-/* Locked away-screen — no cursor at all (the only way back is
-   four digits, so the pointer is actively hidden). Overrides the
-   global cursor rule including its !important via higher
-   specificity + !important. */
-[data-away-lock="true"],
-[data-away-lock="true"] *,
-[data-away-lock="true"] *::before,
-[data-away-lock="true"] *::after {
-	cursor: none !important;
 }
 
 /* Keep module mastheads readable without making the whole mode heavy. */

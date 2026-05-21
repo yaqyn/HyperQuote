@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { CustomerRow } from '../../../lib/db/db'
+import type { CustomerRow } from '../../../lib/db/types'
 import {
 	adminCreateCustomer,
 	adminDeleteCustomer,
 	adminListCustomers,
+	adminListEmployees,
 	adminUpdateCustomer,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
+import { Toggle } from '../../ui/Toggle'
 import {
 	NumberControl,
 	SelectControl,
@@ -15,6 +17,7 @@ import {
 	TextAreaControl,
 	TextControl,
 } from '../AdminControls'
+import { CustomerSubrecords } from '../CustomerSubrecords'
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
@@ -24,6 +27,7 @@ type CustomerDraft = Omit<CustomerRow, 'id' | 'joinedAt'> & {
 	id?: string
 	joinedAt?: string
 }
+type CustomerPayload = Omit<CustomerRow, 'id' | 'joinedAt' | 'userId'>
 
 interface CustomersVolumeProps {
 	onOpenVolumes: () => void
@@ -31,14 +35,29 @@ interface CustomersVolumeProps {
 
 function blankCustomer(): CustomerDraft {
 	return {
+		userId: null,
 		companyName: '',
 		tier: 'new',
 		status: 'unclaimed',
+		tradeLicenseStatus: 'not_uploaded',
+		profilePhotoUrl: null,
+		createdByEmployeeId: null,
 		contactName: '',
 		phone: '',
 		email: null,
+		addressId: null,
+		addressLabel: 'Primary',
 		address: '',
+		street: '',
+		area: '',
 		city: '',
+		governorate: '',
+		landmark: '',
+		addressPhone: '',
+		postalCode: '',
+		latitude: null,
+		longitude: null,
+		isDefault: true,
 		creditLimit: 0,
 		currentExposure: 0,
 		orderCount: 0,
@@ -62,6 +81,10 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 		queryKey: ['admin', 'customers'],
 		queryFn: () => adminListCustomers(),
 	})
+	const { data: employees = [] } = useQuery({
+		queryKey: ['admin', 'employees'],
+		queryFn: () => adminListEmployees(),
+	})
 
 	const {
 		mode,
@@ -83,7 +106,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 	})
 
 	const createMutation = useMutation({
-		mutationFn: (payload: Omit<CustomerRow, 'id' | 'joinedAt'>) =>
+		mutationFn: (payload: CustomerPayload) =>
 			adminCreateCustomer({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'customers'] })
@@ -92,9 +115,8 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (
-			payload: { id: string } & Partial<Omit<CustomerRow, 'id' | 'joinedAt'>>,
-		) => adminUpdateCustomer({ data: payload }),
+		mutationFn: (payload: { id: string } & Partial<CustomerPayload>) =>
+			adminUpdateCustomer({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'customers'] })
 			showSavedDraft({ ...updated }, updated.id)
@@ -112,10 +134,10 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 	function handleSave() {
 		if (!draft) return
 		if (mode === 'create') {
-			const { id: _id, joinedAt: _joined, ...payload } = draft
+			const { id: _id, joinedAt: _joined, userId: _userId, ...payload } = draft
 			createMutation.mutate(payload)
 		} else if (mode === 'edit' && draft.id) {
-			const { id, joinedAt: _joined, ...patch } = draft
+			const { id, joinedAt: _joined, userId: _userId, ...patch } = draft
 			updateMutation.mutate({ id, ...patch })
 		}
 	}
@@ -211,6 +233,8 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 		r.companyName.toLowerCase().includes(q) ||
 		r.contactName.toLowerCase().includes(q) ||
 		r.city.toLowerCase().includes(q) ||
+		r.governorate.toLowerCase().includes(q) ||
+		r.street.toLowerCase().includes(q) ||
 		r.phone.includes(q) ||
 		r.id.toLowerCase().includes(q)
 
@@ -238,6 +262,45 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 		{ value: 'fair', label: t('editor.enums.paymentHistory.fair') },
 		{ value: 'poor', label: t('editor.enums.paymentHistory.poor') },
 	]
+	const tradeLicenseOptions: Array<{
+		value: CustomerRow['tradeLicenseStatus']
+		label: string
+	}> = [
+		{
+			value: 'not_uploaded',
+			label: t('editor.enums.tradeLicense.not_uploaded'),
+		},
+		{
+			value: 'under_review',
+			label: t('editor.enums.tradeLicense.under_review'),
+		},
+		{ value: 'approved', label: t('editor.enums.tradeLicense.approved') },
+		{ value: 'rejected', label: t('editor.enums.tradeLicense.rejected') },
+	]
+	const employeeOptions = [
+		{ value: '', label: '—' },
+		...employees.map((employee) => ({
+			value: employee.id,
+			label: employee.name,
+		})),
+	]
+	const salesRepOptions = [
+		{ value: '', label: '—' },
+		...employees
+			.filter(
+				(employee) =>
+					employee.status === 'active' &&
+					(employee.roles.includes('sales') ||
+						employee.roles.includes('admin')),
+			)
+			.map((employee) => ({ value: employee.id, label: employee.name })),
+	]
+
+	function coordinateFromInput(value: string): number | null {
+		if (!value.trim()) return null
+		const parsed = Number(value)
+		return Number.isFinite(parsed) ? parsed : null
+	}
 
 	return (
 		<>
@@ -310,6 +373,41 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 								/>
 							</Field>
 						</div>
+						<Field label={t('editor.fields.profilePhotoUrl')}>
+							<TextControl
+								value={draft.profilePhotoUrl ?? ''}
+								onChange={(v) =>
+									setDraft({ ...draft, profilePhotoUrl: v || null })
+								}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.profilePhotoUrl')}
+								placeholder="https://..."
+							/>
+						</Field>
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+							<Field label={t('editor.fields.tradeLicenseStatus')}>
+								<SelectControl
+									value={draft.tradeLicenseStatus}
+									onChange={(v) =>
+										setDraft({ ...draft, tradeLicenseStatus: v })
+									}
+									options={tradeLicenseOptions}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.tradeLicenseStatus')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.createdByEmployee')}>
+								<SelectControl
+									value={draft.createdByEmployeeId ?? ''}
+									onChange={(v) =>
+										setDraft({ ...draft, createdByEmployeeId: v || null })
+									}
+									options={employeeOptions}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.createdByEmployee')}
+								/>
+							</Field>
+						</div>
 
 						<Section title={t('editor.section.contact')} />
 						<Field label={t('editor.fields.contactName')} required>
@@ -342,22 +440,112 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 						</div>
 
 						<Section title={t('editor.section.address')} />
-						<Field label={t('editor.fields.address')}>
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+							<Field label={t('editor.fields.addressLabel')}>
+								<TextControl
+									value={draft.addressLabel}
+									onChange={(v) => setDraft({ ...draft, addressLabel: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.addressLabel')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.addressPhone')}>
+								<TextControl
+									value={draft.addressPhone}
+									onChange={(v) => setDraft({ ...draft, addressPhone: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.addressPhone')}
+									type="tel"
+								/>
+							</Field>
+						</div>
+						<Field label={t('editor.fields.street')} required>
 							<TextAreaControl
-								value={draft.address}
-								onChange={(v) => setDraft({ ...draft, address: v })}
+								value={draft.street}
+								onChange={(v) => setDraft({ ...draft, street: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.address')}
+								ariaLabel={t('editor.fields.street')}
 								rows={2}
 							/>
 						</Field>
-						<Field label={t('editor.fields.city')}>
-							<TextControl
-								value={draft.city}
-								onChange={(v) => setDraft({ ...draft, city: v })}
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+							<Field label={t('editor.fields.area')}>
+								<TextControl
+									value={draft.area}
+									onChange={(v) => setDraft({ ...draft, area: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.area')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.city')} required>
+								<TextControl
+									value={draft.city}
+									onChange={(v) => setDraft({ ...draft, city: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.city')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.governorate')} required>
+								<TextControl
+									value={draft.governorate}
+									onChange={(v) => setDraft({ ...draft, governorate: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.governorate')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.postalCode')}>
+								<TextControl
+									value={draft.postalCode}
+									onChange={(v) => setDraft({ ...draft, postalCode: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.postalCode')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.latitude')}>
+								<TextControl
+									value={draft.latitude?.toString() ?? ''}
+									onChange={(v) =>
+										setDraft({ ...draft, latitude: coordinateFromInput(v) })
+									}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.latitude')}
+								/>
+							</Field>
+							<Field label={t('editor.fields.longitude')}>
+								<TextControl
+									value={draft.longitude?.toString() ?? ''}
+									onChange={(v) =>
+										setDraft({ ...draft, longitude: coordinateFromInput(v) })
+									}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.longitude')}
+								/>
+							</Field>
+						</div>
+						<Field label={t('editor.fields.landmark')}>
+							<TextAreaControl
+								value={draft.landmark}
+								onChange={(v) => setDraft({ ...draft, landmark: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.city')}
+								ariaLabel={t('editor.fields.landmark')}
+								rows={2}
 							/>
+						</Field>
+						<Field label={t('editor.fields.isDefaultAddress')}>
+							{readOnly ? (
+								<StatusTag
+									label={draft.isDefault ? 'Default' : 'Secondary'}
+									tone={draft.isDefault ? 'primary' : 'neutral'}
+								/>
+							) : (
+								<Toggle
+									isSelected={draft.isDefault}
+									onChange={(checked) =>
+										setDraft({ ...draft, isDefault: checked })
+									}
+									aria-label={t('editor.fields.isDefaultAddress')}
+								/>
+							)}
 						</Field>
 
 						<Section title={t('editor.section.commercial')} />
@@ -376,7 +564,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 								<NumberControl
 									value={draft.currentExposure}
 									onChange={(v) => setDraft({ ...draft, currentExposure: v })}
-									readOnly={readOnly}
+									readOnly={true}
 									ariaLabel={t('editor.fields.currentExposure')}
 									min={0}
 									suffix="EGP"
@@ -386,7 +574,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 								<NumberControl
 									value={draft.orderCount}
 									onChange={(v) => setDraft({ ...draft, orderCount: v })}
-									readOnly={readOnly}
+									readOnly={true}
 									ariaLabel={t('editor.fields.orderCount')}
 									min={0}
 								/>
@@ -395,7 +583,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 								<NumberControl
 									value={draft.lifetimeValue}
 									onChange={(v) => setDraft({ ...draft, lifetimeValue: v })}
-									readOnly={readOnly}
+									readOnly={true}
 									ariaLabel={t('editor.fields.lifetimeValue')}
 									min={0}
 									suffix="EGP"
@@ -405,7 +593,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 								<NumberControl
 									value={draft.avgMargin}
 									onChange={(v) => setDraft({ ...draft, avgMargin: v })}
-									readOnly={readOnly}
+									readOnly={true}
 									ariaLabel={t('editor.fields.avgMargin')}
 									suffix="%"
 									step={0.1}
@@ -424,15 +612,19 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 
 						<Section title={t('editor.section.assignment')} />
 						<Field label={t('editor.fields.assignedSalesRep')}>
-							<TextControl
+							<SelectControl
 								value={draft.assignedSalesRep ?? ''}
 								onChange={(v) =>
 									setDraft({ ...draft, assignedSalesRep: v || null })
 								}
+								options={salesRepOptions}
 								readOnly={readOnly}
 								ariaLabel={t('editor.fields.assignedSalesRep')}
 							/>
 						</Field>
+
+						<Section title={t('editor.section.customerRecords')} />
+						<CustomerSubrecords customerId={draft.id} readOnly={readOnly} />
 					</div>
 				)}
 			</EntityEditor>

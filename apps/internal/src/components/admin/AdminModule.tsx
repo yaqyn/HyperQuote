@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useAdminStore } from '../../stores/admin'
 import { VolumeRail } from './VolumeRail'
+import { CategoriesVolume } from './volumes/CategoriesVolume'
 import { CustomersVolume } from './volumes/CustomersVolume'
 import { DriversVolume } from './volumes/DriversVolume'
 import { EmployeesVolume } from './volumes/EmployeesVolume'
+import { PricingRulesVolume } from './volumes/PricingRulesVolume'
 import { ProductsVolume } from './volumes/ProductsVolume'
 import { SuppliersVolume } from './volumes/SuppliersVolume'
+import { TrucksVolume } from './volumes/TrucksVolume'
 
 /**
  * The admin module — five editable registry volumes for the internal team.
@@ -37,14 +40,23 @@ export function AdminModule() {
 				{activeVolume === 'products' && (
 					<ProductsVolume onOpenVolumes={openVolumes} />
 				)}
+				{activeVolume === 'categories' && (
+					<CategoriesVolume onOpenVolumes={openVolumes} />
+				)}
 				{activeVolume === 'employees' && (
 					<EmployeesVolume onOpenVolumes={openVolumes} />
 				)}
 				{activeVolume === 'drivers' && (
 					<DriversVolume onOpenVolumes={openVolumes} />
 				)}
+				{activeVolume === 'trucks' && (
+					<TrucksVolume onOpenVolumes={openVolumes} />
+				)}
 				{activeVolume === 'suppliers' && (
 					<SuppliersVolume onOpenVolumes={openVolumes} />
+				)}
+				{activeVolume === 'pricingRules' && (
+					<PricingRulesVolume onOpenVolumes={openVolumes} />
 				)}
 			</main>
 		</div>

@@ -1,58 +1,44 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { db } from '../db/db'
-import {
-	getQuoteContext,
-	quoteCustomerSnapshot,
-	quoteDeliverySnapshot,
-} from './order-context'
-import type { WarehouseSection } from './warehouse'
+import { getInternalSupabaseClient } from './_supabase'
+import { verifyEmployeeCredential } from './employee-credentials'
 
-const MOCK_ADVISOR_TOKEN = '1234' as const
 const OVERDUE_HOURS = 4
-
-// ─── Coordinates ────────────────────────────────────────
-
-/** HyperQuote warehouse — 6th of October City, Giza */
-export const WAREHOUSE_COORDS = { lat: 29.9753, lng: 30.9247 } as const
-
-/** Mock delivery coordinates from city name. In production, geocoded at order creation. */
-function deliveryCoords(city: string): { lat: number; lng: number } {
-	const c = city.toLowerCase()
-	if (c.includes('dokki')) return { lat: 30.0392, lng: 31.2117 }
-	if (c.includes('maadi')) return { lat: 29.9602, lng: 31.2569 }
-	if (c.includes('6th oct') || c.includes('october'))
-		return { lat: 29.9853, lng: 30.9377 }
-	if (c.includes('nasr')) return { lat: 30.0511, lng: 31.3656 }
-	if (c.includes('heliopolis')) return { lat: 30.0866, lng: 31.3454 }
-	if (c.includes('new cairo')) return { lat: 30.0131, lng: 31.4966 }
-	return { lat: 30.0444, lng: 31.2357 } // Cairo center fallback
-}
-
-/** Mock driver position — lerp between warehouse and delivery based on elapsed time. */
-function driverPosition(
-	warehouseLat: number,
-	warehouseLng: number,
-	deliveryLat: number,
-	deliveryLng: number,
-	hoursAgo: number,
-): { lat: number; lng: number } {
-	// Mock: driver completes ~80% of the journey in OVERDUE_HOURS
-	const t = Math.min(hoursAgo / OVERDUE_HOURS, 0.85)
-	return {
-		lat: warehouseLat + (deliveryLat - warehouseLat) * t,
-		lng: warehouseLng + (deliveryLng - warehouseLng) * t,
-	}
-}
+const DRIVER_LOCATION_LIVE_WINDOW_MS = 2 * 60 * 1000
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const DISPATCH_ADVISOR_ROLES = new Set([
+	'admin',
+	'ceo',
+	'dispatch',
+	'warehouse',
+])
+const ACTIVE_DELIVERY_STATUSES = new Set([
+	'assigned',
+	'accepted',
+	'in_transit',
+	'arrived',
+])
 
 // ─── View types ──────────────────────────────────────────
 
 interface DispatchTruckView {
+	driverId: string
 	truckId: string
 	plateNumber: string
 	driverName: string
 	driverPhone: string
 	capacityTons: number
+	deliveryId: string | null
+	deliveryStatus: string | null
+	deliveryStartedAt: string | null
+	deliveryArrivedAt: string | null
+	deliveryCompletedAt: string | null
+	deliveryRejectionReason: string | null
+	driverLat: number | null
+	driverLng: number | null
+	locationRecordedAt: string | null
+	hasLiveLocation: boolean
 }
 
 interface DispatchRouteItemView {
@@ -61,6 +47,9 @@ interface DispatchRouteItemView {
 	sku: string
 	qty: number
 	unit: string
+	truckId: string | null
+	truckPlateNumber: string | null
+	driverName: string | null
 }
 
 export interface DispatchRouteView {
@@ -78,11 +67,10 @@ export interface DispatchRouteView {
 	passedAtHoursAgo: number
 	isOverdue: boolean
 	/** Delivery destination coordinates */
-	deliveryLat: number
-	deliveryLng: number
-	/** Mock driver position along route */
-	driverLat: number
-	driverLng: number
+	deliveryLat: number | null
+	deliveryLng: number | null
+	driverLat: number | null
+	driverLng: number | null
 }
 
 export interface DispatchBoardTotals {
@@ -98,7 +86,8 @@ interface DispatchBoardView {
 }
 
 export interface DispatchDriverView {
-	truckId: string
+	driverId: string
+	truckId: string | null
 	plateNumber: string
 	driverName: string
 	driverPhone: string
@@ -109,9 +98,253 @@ export interface DispatchDriverView {
 	assignedQuoteId: string | null
 	assignedQuoteNumber: string | null
 	assignedCustomerName: string | null
+	assignedDeliveryStatus: string | null
+}
+
+interface SupabaseDispatchProductRow {
+	id: string
+	slug: string
+	sku: string
+	name: string
+	unit_of_measure: string
+}
+
+interface SupabaseDispatchItemRow {
+	product_id: string | null
+	customer_description: string
+	quantity: number
+	unit_of_measure: string
+	sort_order: number
+	products: SupabaseDispatchProductRow | SupabaseDispatchProductRow[] | null
+}
+
+interface SupabaseDispatchAddressRow {
+	street: string
+	area: string | null
+	city: string
+	governorate: string
+	phone: string | null
+	latitude: number | null
+	longitude: number | null
+}
+
+interface SupabaseDispatchCustomerRow {
+	company_name: string
+	contact_name: string
+	phone: string
+	status: string
+}
+
+interface SupabaseDispatchRequestRow {
+	id: string
+	request_number: string
+	delivery_date: string | null
+	created_at: string
+	customer_addresses:
+		| SupabaseDispatchAddressRow
+		| SupabaseDispatchAddressRow[]
+		| null
+	quote_request_items: SupabaseDispatchItemRow[] | null
+}
+
+interface SupabaseDispatchOrderRow {
+	id: string
+	order_number: string
+	quote_request_id: string
+	customer_id: string | null
+	status: string
+	total_amount: number
+	created_at: string
+	delivered_at: string | null
+	customers: SupabaseDispatchCustomerRow | SupabaseDispatchCustomerRow[] | null
+	quote_requests:
+		| SupabaseDispatchRequestRow
+		| SupabaseDispatchRequestRow[]
+		| null
+}
+
+interface SupabaseDispatchTaskRow {
+	id: string
+	order_id: string
+	status: string
+	proof: Record<string, unknown>
+	rejection_reason: string | null
+	created_at: string
+	updated_at: string
+	orders: SupabaseDispatchOrderRow | SupabaseDispatchOrderRow[] | null
+}
+
+interface SupabaseDispatchDriverRow {
+	id: string
+	full_name: string
+	phone: string
+	status: string
+	vehicle_label: string | null
+}
+
+interface SupabaseDispatchTruckRow {
+	id: string
+	plate_number: string
+	driver_id: string | null
+	capacity_tons: number | null
+	body_type?: string | null
+	status: string
+	drivers: SupabaseDispatchDriverRow | SupabaseDispatchDriverRow[] | null
+}
+
+interface SupabaseDispatchAssignmentRow {
+	id: string
+	loading_task_id: string
+	driver_id: string
+	truck_id: string | null
+	assigned_items: unknown
+	created_at: string
+	drivers: SupabaseDispatchDriverRow | SupabaseDispatchDriverRow[] | null
+	trucks: SupabaseDispatchTruckRow | SupabaseDispatchTruckRow[] | null
+}
+
+interface SupabaseDispatchLocationRow {
+	driver_id: string
+	delivery_id: string | null
+	latitude: number
+	longitude: number
+	recorded_at: string
+}
+
+interface SupabaseDispatchDeliveryRow {
+	id: string
+	order_id: string | null
+	loading_task_id: string | null
+	driver_id: string | null
+	truck_id: string | null
+	status: string
+	created_at: string
+	updated_at: string
+	started_at: string | null
+	arrived_at: string | null
+	completed_at: string | null
+	rejection_reason: string | null
+}
+
+interface SupabaseDispatchOnlineRow {
+	driver_id: string
+	status: string
+	last_seen_at: string
+}
+
+interface SupabaseDispatchEmployeeRoleRow {
+	role: string
+}
+
+interface SupabaseDispatchEmployeeRow {
+	id: string
+	full_name: string
+	employee_roles: SupabaseDispatchEmployeeRoleRow[] | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────
+
+function isUuid(value: string | undefined): value is string {
+	return Boolean(value && UUID_RE.test(value))
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value ?? null
+}
+
+function parseAssignedItems(value: unknown): string[] {
+	if (!Array.isArray(value)) return []
+	return value.filter((item): item is string => typeof item === 'string')
+}
+
+function nullableCoordinate(value: number | null | undefined): number | null {
+	return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function locationRecordedAtMs(row: SupabaseDispatchLocationRow): number {
+	const recordedAt = Date.parse(row.recorded_at)
+	return Number.isFinite(recordedAt) ? recordedAt : 0
+}
+
+function locationRank(
+	row: SupabaseDispatchLocationRow,
+	activeDeliveryIds: Set<string>,
+): number {
+	if (row.delivery_id && activeDeliveryIds.has(row.delivery_id)) return 2
+	if (!row.delivery_id) return 1
+	return 0
+}
+
+function isBetterLocationForDriver(
+	candidate: SupabaseDispatchLocationRow,
+	current: SupabaseDispatchLocationRow | undefined,
+	activeDeliveryIds: Set<string>,
+): boolean {
+	if (!current) return true
+	const candidateRank = locationRank(candidate, activeDeliveryIds)
+	const currentRank = locationRank(current, activeDeliveryIds)
+	if (candidateRank !== currentRank) return candidateRank > currentRank
+	return locationRecordedAtMs(candidate) > locationRecordedAtMs(current)
+}
+
+function isFreshDriverLocation(
+	location: SupabaseDispatchLocationRow | undefined,
+): boolean {
+	if (!location) return false
+	const recordedAt = locationRecordedAtMs(location)
+	return (
+		recordedAt > 0 && Date.now() - recordedAt <= DRIVER_LOCATION_LIVE_WINDOW_MS
+	)
+}
+
+function assignmentDeliveryKey(input: {
+	driver_id: string | null
+	loading_task_id: string | null
+	truck_id: string | null
+}) {
+	return [
+		input.loading_task_id ?? '',
+		input.driver_id ?? '',
+		input.truck_id ?? '',
+	].join(':')
+}
+
+function truckRank(status: string): number {
+	if (status === 'dispatched') return 4
+	if (status === 'loading') return 3
+	if (status === 'available') return 2
+	if (status === 'maintenance') return 1
+	return 0
+}
+
+function isDispatchAdvisor(row: SupabaseDispatchEmployeeRow): boolean {
+	return (row.employee_roles ?? []).some((entry) =>
+		DISPATCH_ADVISOR_ROLES.has(entry.role),
+	)
+}
+
+function roundedHoursSince(iso: string): number {
+	return (
+		Math.round(((Date.now() - new Date(iso).getTime()) / 3_600_000) * 10) / 10
+	)
+}
+
+function formatSupabaseAddress(address: SupabaseDispatchAddressRow | null) {
+	if (!address) return ''
+	return [address.street, address.area, address.city, address.governorate]
+		.filter((part): part is string => Boolean(part))
+		.join(', ')
+}
+
+function supabaseDeliveryUrgencyDays(deliveryDate: string | null) {
+	if (!deliveryDate) return 0
+	const today = new Date()
+	today.setHours(0, 0, 0, 0)
+	const target = new Date(`${deliveryDate}T00:00:00`)
+	const diffMs = target.getTime() - today.getTime()
+	return Math.max(0, Math.ceil(diffMs / 86_400_000))
+}
 
 function isToday(iso: string): boolean {
 	const d = new Date(iso)
@@ -123,107 +356,302 @@ function isToday(iso: string): boolean {
 	)
 }
 
-function buildRoute(quoteId: string): DispatchRouteView | null {
-	const context = getQuoteContext(quoteId)
-	if (!context) return null
-	const { quote, report } = context
-	if (quote.status !== 'accepted') return null
-	if (!report) return null
+async function getSupabaseDispatchData(orderId?: string) {
+	const auth = await getInternalSupabaseClient()
 
-	const whSection = report.sections.warehouse as WarehouseSection | undefined
-	if (!whSection?.passedAt) return null
-	if (report.sections.delivered) return null
-	if (report.sections.returned) return null
+	let taskQuery = auth.client.from('loading_tasks').select(`
+		id,
+		order_id,
+		status,
+		proof,
+		rejection_reason,
+		created_at,
+		updated_at,
+		orders (
+			id,
+			order_number,
+			quote_request_id,
+			customer_id,
+			status,
+			total_amount,
+			created_at,
+			delivered_at,
+			customers (
+				company_name,
+				contact_name,
+				phone,
+				status
+			),
+			quote_requests (
+				id,
+				request_number,
+				delivery_date,
+				created_at,
+				customer_addresses (
+					street,
+					area,
+					city,
+					governorate,
+					phone,
+					latitude,
+					longitude
+				),
+				quote_request_items (
+					product_id,
+					customer_description,
+					quantity,
+					unit_of_measure,
+					sort_order,
+					products (
+						id,
+						slug,
+						sku,
+						name,
+						unit_of_measure
+					)
+				)
+			)
+		)
+	`)
+	if (orderId) taskQuery = taskQuery.eq('order_id', orderId)
 
-	const items: DispatchRouteItemView[] = quote.items
-		.map((i) => {
-			const p = db.products.findBySlug(i.productSlug)
-			if (!p) return null
-			return {
-				productSlug: i.productSlug,
-				productName: p.name,
-				sku: p.sku,
-				qty: i.quantity,
-				unit: p.unit_of_measure,
+	const { data: taskRows, error: taskError } = await taskQuery
+	if (taskError) throw new Error(taskError.message)
+	const tasks = (taskRows ?? []) as unknown as SupabaseDispatchTaskRow[]
+	const taskIds = tasks.map((task) => task.id)
+
+	const assignmentsByTask = new Map<string, SupabaseDispatchAssignmentRow[]>()
+	const driverIds = new Set<string>()
+	if (taskIds.length > 0) {
+		const { data: assignmentRows, error: assignmentError } = await auth.client
+			.from('loading_task_drivers')
+			.select(`
+				id,
+				loading_task_id,
+				driver_id,
+				truck_id,
+				assigned_items,
+				created_at,
+				drivers (
+					id,
+					full_name,
+					phone,
+					status,
+					vehicle_label
+				),
+				trucks (
+					id,
+					plate_number,
+					driver_id,
+					capacity_tons,
+					body_type,
+					status
+				)
+			`)
+			.in('loading_task_id', taskIds)
+		if (assignmentError) throw new Error(assignmentError.message)
+		for (const assignment of (assignmentRows ??
+			[]) as unknown as SupabaseDispatchAssignmentRow[]) {
+			const list = assignmentsByTask.get(assignment.loading_task_id) ?? []
+			list.push(assignment)
+			assignmentsByTask.set(assignment.loading_task_id, list)
+			driverIds.add(assignment.driver_id)
+		}
+	}
+
+	const deliveriesByAssignment = new Map<string, SupabaseDispatchDeliveryRow>()
+	const activeDeliveryIdsByDriver = new Map<string, Set<string>>()
+	if (taskIds.length > 0) {
+		const { data: deliveryRows, error: deliveryError } = await auth.client
+			.from('deliveries')
+			.select(
+				'id, order_id, loading_task_id, driver_id, truck_id, status, created_at, updated_at, started_at, arrived_at, completed_at, rejection_reason',
+			)
+			.in('loading_task_id', taskIds)
+			.order('updated_at', { ascending: false })
+		if (deliveryError) throw new Error(deliveryError.message)
+		for (const row of (deliveryRows ??
+			[]) as unknown as SupabaseDispatchDeliveryRow[]) {
+			const key = assignmentDeliveryKey(row)
+			if (!deliveriesByAssignment.has(key)) {
+				deliveriesByAssignment.set(key, row)
 			}
-		})
-		.filter((x): x is DispatchRouteItemView => x !== null)
-
-	const trucks: DispatchTruckView[] = (whSection.truckAssignments ?? [])
-		.map((a) => {
-			const t = db.trucks.get(a.truckId)
-			if (!t) return null
-			return {
-				truckId: t.id,
-				plateNumber: t.plateNumber,
-				driverName: t.driverName,
-				driverPhone: t.driverPhone,
-				capacityTons: t.capacityTons,
+			if (row.driver_id && ACTIVE_DELIVERY_STATUSES.has(row.status)) {
+				const activeIds =
+					activeDeliveryIdsByDriver.get(row.driver_id) ?? new Set<string>()
+				activeIds.add(row.id)
+				activeDeliveryIdsByDriver.set(row.driver_id, activeIds)
 			}
-		})
-		.filter((x): x is DispatchTruckView => x !== null)
+		}
+	}
 
-	const passedAtHoursAgo =
-		Math.round(
-			((Date.now() - new Date(whSection.passedAt).getTime()) / 3_600_000) * 10,
-		) / 10
-	const customer = quoteCustomerSnapshot(context, '')
-	const delivery = quoteDeliverySnapshot(context, { preferQuote: true })
-	const city = delivery.deliveryCity
-	const dest = deliveryCoords(city)
-	const driver = driverPosition(
-		WAREHOUSE_COORDS.lat,
-		WAREHOUSE_COORDS.lng,
-		dest.lat,
-		dest.lng,
-		passedAtHoursAgo,
-	)
+	const latestLocationByDriver = new Map<string, SupabaseDispatchLocationRow>()
+	if (driverIds.size > 0) {
+		const { data: locationRows, error: locationError } = await auth.client
+			.from('driver_locations')
+			.select('driver_id, delivery_id, latitude, longitude, recorded_at')
+			.in('driver_id', [...driverIds])
+			.order('recorded_at', { ascending: false })
+		if (locationError) throw new Error(locationError.message)
+		for (const row of (locationRows ??
+			[]) as unknown as SupabaseDispatchLocationRow[]) {
+			const activeDeliveryIds =
+				activeDeliveryIdsByDriver.get(row.driver_id) ?? new Set<string>()
+			const current = latestLocationByDriver.get(row.driver_id)
+			if (isBetterLocationForDriver(row, current, activeDeliveryIds)) {
+				latestLocationByDriver.set(row.driver_id, row)
+			}
+		}
+	}
 
 	return {
-		quoteId: quote.id,
-		quoteNumber: quote.quoteNumber,
-		customerName: customer.customerName,
-		customerPhone: customer.customerPhone,
-		customerContactName: customer.customerContactName,
-		deliveryAddress: delivery.deliveryAddress,
-		deliveryCity: city,
-		deliveryUrgencyDays: delivery.deliveryUrgencyDays,
-		items,
-		trucks,
-		passedAt: whSection.passedAt,
-		passedAtHoursAgo,
-		isOverdue: passedAtHoursAgo >= OVERDUE_HOURS,
-		deliveryLat: dest.lat,
-		deliveryLng: dest.lng,
-		driverLat: driver.lat,
-		driverLng: driver.lng,
+		auth,
+		tasks,
+		assignmentsByTask,
+		latestLocationByDriver,
+		deliveriesByAssignment,
 	}
 }
 
-function getDispatchedOrderMutationContext(data: {
-	quoteId: string
-	advisorId: string
-	securityToken: string
-}) {
-	if (data.securityToken !== MOCK_ADVISOR_TOKEN) {
-		return { success: false as const, error: 'Invalid credential' }
+function buildSupabaseRoute(
+	task: SupabaseDispatchTaskRow,
+	assignments: SupabaseDispatchAssignmentRow[],
+	latestLocationByDriver: Map<string, SupabaseDispatchLocationRow>,
+	deliveriesByAssignment: Map<string, SupabaseDispatchDeliveryRow>,
+): DispatchRouteView | null {
+	const order = firstRelation(task.orders)
+	if (!order || task.status !== 'approved') return null
+	if (
+		!['dispatch_ready', 'dispatch_assigned', 'out_for_delivery'].includes(
+			order.status,
+		)
+	) {
+		return null
 	}
+	const customer = firstRelation(order.customers)
+	const request = firstRelation(order.quote_requests)
+	if (!customer || !request || assignments.length === 0) return null
 
-	const advisor = db.employees.get(data.advisorId)
-	if (!advisor) return { success: false as const, error: 'Advisor not found' }
-
-	const quote = db.quotes.get(data.quoteId)
-	if (!quote) return { success: false as const, error: 'Order not found' }
-
-	const report = db.orderReports.forRfq(quote.rfqId)
-	if (!report) return { success: false as const, error: 'No report' }
-
-	const whSection = report.sections.warehouse as WarehouseSection | undefined
-	if (!whSection?.passedAt) {
-		return { success: false as const, error: 'Order not dispatched yet' }
+	const address = firstRelation(request.customer_addresses)
+	const city = address?.city ?? ''
+	const passedAt = task.updated_at || task.created_at
+	const passedAtHoursAgo = roundedHoursSince(passedAt)
+	const itemAssignments = new Map<
+		string,
+		{
+			truckId: string | null
+			truckPlateNumber: string | null
+			driverName: string
+		}
+	>()
+	for (const assignment of assignments) {
+		const truck = firstRelation(assignment.trucks)
+		const driver = firstRelation(assignment.drivers)
+		if (!driver) continue
+		for (const slug of parseAssignedItems(assignment.assigned_items)) {
+			itemAssignments.set(slug, {
+				truckId: truck?.id ?? null,
+				truckPlateNumber: truck?.plate_number ?? null,
+				driverName: driver.full_name,
+			})
+		}
 	}
+	const items: DispatchRouteItemView[] = (request.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
+		.map((item) => {
+			const product = firstRelation(item.products)
+			const slug =
+				product?.slug ??
+				item.customer_description
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '')
+			const assignment = itemAssignments.get(slug)
+			return {
+				productSlug: slug,
+				productName: product?.name ?? item.customer_description,
+				sku: product?.sku ?? '',
+				qty: Number(item.quantity),
+				unit: product?.unit_of_measure ?? item.unit_of_measure,
+				truckId: assignment?.truckId ?? null,
+				truckPlateNumber: assignment?.truckPlateNumber ?? null,
+				driverName: assignment?.driverName ?? null,
+			}
+		})
 
-	return { success: true as const, advisor, quote, report, whSection }
+	const trucks: DispatchTruckView[] = assignments
+		.map((assignment) => {
+			const truck = firstRelation(assignment.trucks)
+			const driver = firstRelation(assignment.drivers)
+			if (!driver) return null
+			const location = latestLocationByDriver.get(driver.id)
+			const delivery = deliveriesByAssignment.get(
+				assignmentDeliveryKey({
+					driver_id: driver.id,
+					loading_task_id: assignment.loading_task_id,
+					truck_id: truck?.id ?? null,
+				}),
+			)
+			return {
+				driverId: driver.id,
+				truckId: truck?.id ?? assignment.id,
+				plateNumber: truck?.plate_number ?? 'No truck asset',
+				driverName: driver.full_name,
+				driverPhone: driver.phone,
+				capacityTons: Number(truck?.capacity_tons ?? 0),
+				deliveryId: delivery?.id ?? null,
+				deliveryStatus: delivery?.status ?? null,
+				deliveryStartedAt: delivery?.started_at ?? null,
+				deliveryArrivedAt: delivery?.arrived_at ?? null,
+				deliveryCompletedAt: delivery?.completed_at ?? null,
+				deliveryRejectionReason: delivery?.rejection_reason ?? null,
+				driverLat: location ? Number(location.latitude) : null,
+				driverLng: location ? Number(location.longitude) : null,
+				locationRecordedAt: location?.recorded_at ?? null,
+				hasLiveLocation: isFreshDriverLocation(location),
+			}
+		})
+		.filter((truck): truck is DispatchTruckView => truck !== null)
+	if (trucks.length === 0) return null
+	const leadTruck = trucks[0]
+
+	return {
+		quoteId: order.id,
+		quoteNumber: order.order_number || request.request_number,
+		customerName: customer.company_name,
+		customerPhone: customer.phone,
+		customerContactName: customer.contact_name,
+		deliveryAddress: formatSupabaseAddress(address),
+		deliveryCity: city,
+		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
+		items,
+		trucks,
+		passedAt,
+		passedAtHoursAgo,
+		isOverdue: passedAtHoursAgo >= OVERDUE_HOURS,
+		deliveryLat: nullableCoordinate(address?.latitude),
+		deliveryLng: nullableCoordinate(address?.longitude),
+		driverLat: leadTruck.driverLat,
+		driverLng: leadTruck.driverLng,
+	}
+}
+
+async function getDispatchAdvisor(
+	client: Parameters<typeof verifyEmployeeCredential>[0]['client'],
+	advisorId: string,
+	securityMethod: 'password' | 'qr',
+	securityToken: string,
+) {
+	const verified = await verifyEmployeeCredential({
+		allowedRoles: DISPATCH_ADVISOR_ROLES,
+		client,
+		employeeId: advisorId,
+		method: securityMethod,
+		password: securityToken,
+	})
+	if (!verified.success) return verified
+	return { success: true as const, advisor: verified.employee }
 }
 
 // ─── Server functions ────────────────────────────────────
@@ -231,32 +659,39 @@ function getDispatchedOrderMutationContext(data: {
 export const getDispatchBoard = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async (): Promise<DispatchBoardView> => {
-		const allQuotes = db.quotes.list()
-		const routes: DispatchRouteView[] = []
+		const supabaseData = await getSupabaseDispatchData()
+		const routes = supabaseData.tasks
+			.map((task) =>
+				buildSupabaseRoute(
+					task,
+					supabaseData.assignmentsByTask.get(task.id) ?? [],
+					supabaseData.latestLocationByDriver,
+					supabaseData.deliveriesByAssignment,
+				),
+			)
+			.filter((route): route is DispatchRouteView => route !== null)
+			.sort((a, b) => {
+				if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1
+				return b.passedAtHoursAgo - a.passedAtHoursAgo
+			})
 
-		for (const q of allQuotes) {
-			const route = buildRoute(q.id)
-			if (route) routes.push(route)
-		}
-
-		routes.sort((a, b) => {
-			if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1
-			return b.passedAtHoursAgo - a.passedAtHoursAgo
-		})
-
-		let deliveredToday = 0
-		let returnedToday = 0
-		for (const report of db.orderReports.list()) {
-			const delivered = report.sections.delivered as
-				| { deliveredAt?: string }
-				| undefined
-			if (delivered?.deliveredAt && isToday(delivered.deliveredAt))
-				deliveredToday++
-			const returned = report.sections.returned as
-				| { returnedAt?: string }
-				| undefined
-			if (returned?.returnedAt && isToday(returned.returnedAt)) returnedToday++
-		}
+		const { data: deliveryRows, error: deliveryError } =
+			await supabaseData.auth.client
+				.from('deliveries')
+				.select('status, created_at, updated_at, completed_at')
+				.in('status', ['completed', 'rejected'])
+		if (deliveryError) throw new Error(deliveryError.message)
+		const deliveries = (deliveryRows ??
+			[]) as unknown as SupabaseDispatchDeliveryRow[]
+		const deliveredToday = deliveries.filter(
+			(delivery) =>
+				delivery.status === 'completed' &&
+				isToday(delivery.completed_at ?? delivery.updated_at),
+		).length
+		const returnedToday = deliveries.filter(
+			(delivery) =>
+				delivery.status === 'rejected' && isToday(delivery.updated_at),
+		).length
 
 		return {
 			routes,
@@ -272,56 +707,137 @@ export const getDispatchBoard = createServerFn({ method: 'GET' })
 export const getDispatchRouteDetail = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }): Promise<DispatchRouteView | null> => {
-		return buildRoute(data.quoteId)
+		if (!isUuid(data.quoteId)) return null
+		const supabaseData = await getSupabaseDispatchData(data.quoteId)
+		const task = supabaseData.tasks[0]
+		if (!task) return null
+		return buildSupabaseRoute(
+			task,
+			supabaseData.assignmentsByTask.get(task.id) ?? [],
+			supabaseData.latestLocationByDriver,
+			supabaseData.deliveriesByAssignment,
+		)
 	})
 
 export const getDispatchDrivers = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async (): Promise<{ drivers: DispatchDriverView[] }> => {
-		const allTrucks = db.trucks.list()
-		const allQuotes = db.quotes.list()
-
-		const drivers: DispatchDriverView[] = allTrucks.map((t) => {
-			let assignedQuoteId: string | null = null
-			let assignedQuoteNumber: string | null = null
-			let assignedCustomerName: string | null = null
-
-			if (t.status === 'dispatched') {
-				for (const q of allQuotes) {
-					if (q.status !== 'accepted') continue
-					const report = db.orderReports.forRfq(q.rfqId)
-					if (!report) continue
-					const wh = report.sections.warehouse as WarehouseSection | undefined
-					if (
-						!wh?.passedAt ||
-						report.sections.delivered ||
-						report.sections.returned
-					)
-						continue
-					const assigned = wh.truckAssignments?.some((a) => a.truckId === t.id)
-					if (assigned) {
-						assignedQuoteId = q.id
-						assignedQuoteNumber = q.quoteNumber
-						const context = getQuoteContext(q.id)
-						assignedCustomerName = context
-							? quoteCustomerSnapshot(context, '').customerName
-							: null
-						break
-					}
-				}
+		const supabaseData = await getSupabaseDispatchData()
+		const { data: driverRows, error: driverError } =
+			await supabaseData.auth.client
+				.from('drivers')
+				.select('id, full_name, phone, status, vehicle_label')
+				.neq('status', 'invited')
+				.neq('status', 'disabled')
+				.order('full_name')
+		if (driverError) throw new Error(driverError.message)
+		const driverRowsTyped = (driverRows ??
+			[]) as unknown as SupabaseDispatchDriverRow[]
+		const driverIds = driverRowsTyped.map((driver) => driver.id)
+		const onlineByDriver = new Map<string, SupabaseDispatchOnlineRow>()
+		if (driverIds.length > 0) {
+			const { data: onlineRows, error: onlineError } =
+				await supabaseData.auth.client
+					.from('driver_online_states')
+					.select('driver_id, status, last_seen_at')
+					.in('driver_id', driverIds)
+			if (onlineError) throw new Error(onlineError.message)
+			for (const row of (onlineRows ??
+				[]) as unknown as SupabaseDispatchOnlineRow[]) {
+				onlineByDriver.set(row.driver_id, row)
 			}
+		}
+		const { data: truckRows, error: truckError } =
+			driverIds.length === 0
+				? { data: [], error: null }
+				: await supabaseData.auth.client
+						.from('trucks')
+						.select(`
+				id,
+				plate_number,
+				driver_id,
+				capacity_tons,
+				body_type,
+				status,
+				drivers (
+					id,
+					full_name,
+					phone,
+					status,
+					vehicle_label
+				)
+			`)
+						.in('driver_id', driverIds)
+						.order('updated_at', { ascending: false })
+		if (truckError) throw new Error(truckError.message)
+		const trucks = (truckRows ?? []) as unknown as SupabaseDispatchTruckRow[]
+		const truckByDriver = new Map<string, SupabaseDispatchTruckRow>()
+		for (const truck of trucks) {
+			if (!truck.driver_id) continue
+			const current = truckByDriver.get(truck.driver_id)
+			if (!current || truckRank(truck.status) > truckRank(current.status)) {
+				truckByDriver.set(truck.driver_id, truck)
+			}
+		}
 
+		const assignmentByDriver = new Map<
+			string,
+			{
+				customerName: string
+				deliveryStatus: string | null
+				orderId: string
+				orderNumber: string
+			}
+		>()
+		for (const task of supabaseData.tasks) {
+			const route = buildSupabaseRoute(
+				task,
+				supabaseData.assignmentsByTask.get(task.id) ?? [],
+				supabaseData.latestLocationByDriver,
+				supabaseData.deliveriesByAssignment,
+			)
+			if (!route) continue
+			for (const assignment of supabaseData.assignmentsByTask.get(task.id) ??
+				[]) {
+				const routeTruck = route.trucks.find(
+					(truck) => truck.driverId === assignment.driver_id,
+				)
+				assignmentByDriver.set(assignment.driver_id, {
+					orderId: route.quoteId,
+					orderNumber: route.quoteNumber,
+					customerName: route.customerName,
+					deliveryStatus: routeTruck?.deliveryStatus ?? null,
+				})
+			}
+		}
+
+		const now = Date.now()
+		const drivers: DispatchDriverView[] = driverRowsTyped.map((driver) => {
+			const truck = truckByDriver.get(driver.id)
+			const online = onlineByDriver.get(driver.id)
+			const freshOnline =
+				online?.status === 'online' &&
+				now - new Date(online.last_seen_at).getTime() <= 15 * 60_000
+			const assignment = assignmentByDriver.get(driver.id)
+			const status =
+				assignment || driver.status === 'on_delivery'
+					? 'dispatched'
+					: driver.status === 'available' && freshOnline
+						? 'available'
+						: 'offline'
 			return {
-				truckId: t.id,
-				plateNumber: t.plateNumber,
-				driverName: t.driverName,
-				driverPhone: t.driverPhone,
-				capacityTons: t.capacityTons,
-				bodyType: t.bodyType,
-				status: t.status,
-				assignedQuoteId,
-				assignedQuoteNumber,
-				assignedCustomerName,
+				driverId: driver.id,
+				truckId: truck?.id ?? null,
+				plateNumber: truck?.plate_number ?? 'No truck asset',
+				driverName: driver.full_name,
+				driverPhone: driver.phone,
+				capacityTons: Number(truck?.capacity_tons ?? 0),
+				bodyType: truck?.body_type ?? driver.vehicle_label ?? '',
+				status,
+				assignedQuoteId: assignment?.orderId ?? null,
+				assignedQuoteNumber: assignment?.orderNumber ?? null,
+				assignedCustomerName: assignment?.customerName ?? null,
+				assignedDeliveryStatus: assignment?.deliveryStatus ?? null,
 			}
 		})
 
@@ -333,34 +849,34 @@ export const markOrderDelivered = createServerFn({ method: 'POST' })
 		z.object({
 			quoteId: z.string(),
 			advisorId: z.string(),
-			proofUrl: z.string().min(1),
+			proofUrl: z.string().optional(),
 			securityMethod: z.enum(['password', 'qr']),
-			securityToken: z.string(),
+			securityToken: z.string().min(1),
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		const context = getDispatchedOrderMutationContext(data)
-		if (!context.success) return context
-		if (context.report.sections.delivered) {
-			return { success: false, error: 'Already delivered' }
+		if (!isUuid(data.quoteId)) {
+			return { success: false, error: 'Order not found' }
 		}
-
-		db.orderReports.appendSection(context.quote.rfqId, 'delivered', {
-			deliveredAt: new Date().toISOString(),
-			advisorName: context.advisor.name,
-			advisorId: data.advisorId,
-			proofUrl: data.proofUrl,
-			securityMethod: data.securityMethod,
+		const auth = await getInternalSupabaseClient()
+		const advisorCheck = await getDispatchAdvisor(
+			auth.client,
+			data.advisorId,
+			data.securityMethod,
+			data.securityToken,
+		)
+		if (!advisorCheck.success) return advisorCheck
+		const { error } = await auth.client.rpc('dispatch_complete_loaded_order', {
+			p_order_id: data.quoteId,
+			p_proof: {
+				advisor_id: data.advisorId,
+				advisor_name: advisorCheck.advisor.name,
+				proof_source: 'advisor_credential',
+				proof_url: data.proofUrl?.trim() ?? null,
+				security_method: data.securityMethod,
+			},
 		})
-
-		for (const item of context.quote.items) {
-			db.stock.consume(item.productSlug, item.quantity)
-		}
-
-		for (const a of context.whSection.truckAssignments ?? []) {
-			db.trucks.setStatus(a.truckId, 'available')
-		}
-
+		if (error) return { success: false, error: error.message }
 		return { success: true }
 	})
 
@@ -372,39 +888,32 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 			reason: z.string().min(3),
 			proofUrl: z.string().min(1),
 			securityMethod: z.enum(['password', 'qr']),
-			securityToken: z.string(),
+			securityToken: z.string().min(1),
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		const context = getDispatchedOrderMutationContext(data)
-		if (!context.success) return context
-
-		db.orderReports.appendSection(context.quote.rfqId, 'returned', {
-			returnedAt: new Date().toISOString(),
-			reason: data.reason,
-			advisorName: context.advisor.name,
-			advisorId: data.advisorId,
-			proofUrl: data.proofUrl,
-			securityMethod: data.securityMethod,
+		if (!isUuid(data.quoteId)) {
+			return { success: false, error: 'Order not found' }
+		}
+		const auth = await getInternalSupabaseClient()
+		const advisorCheck = await getDispatchAdvisor(
+			auth.client,
+			data.advisorId,
+			data.securityMethod,
+			data.securityToken,
+		)
+		if (!advisorCheck.success) return advisorCheck
+		const { error } = await auth.client.rpc('dispatch_return_loaded_order', {
+			p_order_id: data.quoteId,
+			p_reason: data.reason.trim(),
+			p_proof: {
+				advisor_id: data.advisorId,
+				advisor_name: advisorCheck.advisor.name,
+				proof_url: data.proofUrl.trim(),
+				security_method: data.securityMethod,
+			},
 		})
-
-		const resetSection: WarehouseSection = {
-			truckAssignments: [],
-			advisorMarkedReady: false,
-			failedInspections: context.whSection.failedInspections ?? [],
-			signoff: null,
-			passedAt: null,
-		}
-		context.report.sections.warehouse = resetSection as unknown as Record<
-			string,
-			unknown
-		>
-		context.report.currentStage = 'warehouse'
-
-		for (const a of context.whSection.truckAssignments ?? []) {
-			db.trucks.setStatus(a.truckId, 'available')
-		}
-
+		if (error) return { success: false, error: error.message }
 		return { success: true }
 	})
 
@@ -413,7 +922,20 @@ export const getWarehouseEmployeesForDispatch = createServerFn({
 })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		return {
-			employees: db.employees.list().map((e) => ({ id: e.id, name: e.name })),
-		}
+		const auth = await getInternalSupabaseClient()
+		const { data, error } = await auth.client
+			.from('employees')
+			.select('id, full_name, employee_roles(role)')
+			.eq('status', 'active')
+			.order('full_name', { ascending: true })
+		if (error) throw new Error(error.message)
+
+		const employees = ((data ?? []) as unknown as SupabaseDispatchEmployeeRow[])
+			.filter(isDispatchAdvisor)
+			.map((employee) => ({
+				id: employee.id,
+				name: employee.full_name,
+			}))
+
+		return { employees }
 	})

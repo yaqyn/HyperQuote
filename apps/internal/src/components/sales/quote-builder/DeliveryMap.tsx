@@ -17,6 +17,36 @@ import { EmployeeActionButton } from '../../shared/EmployeeControls'
 // ─── Nominatim Geocoding (OpenStreetMap, free) ───────────
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
+const DEFAULT_MAP_CENTER = { lat: 30.0444, lng: 31.2357 }
+
+interface NominatimSearchResult {
+	lat: string
+	lon: string
+}
+
+interface NominatimReverseResult {
+	display_name?: string
+}
+
+function isSearchResult(value: unknown): value is NominatimSearchResult {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		typeof (value as Partial<NominatimSearchResult>).lat === 'string' &&
+		typeof (value as Partial<NominatimSearchResult>).lon === 'string'
+	)
+}
+
+function isReverseResult(value: unknown): value is NominatimReverseResult {
+	return typeof value === 'object' && value !== null
+}
+
+function canUseInteractiveMap(): boolean {
+	const canvas = document.createElement('canvas')
+	return Boolean(
+		canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl'),
+	)
+}
 
 async function forwardGeocode(
 	address: string,
@@ -24,10 +54,10 @@ async function forwardGeocode(
 	try {
 		const res = await fetch(
 			`${NOMINATIM_BASE}/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-			{ headers: { 'Accept-Language': 'ar,en' } },
+			{ headers: { 'Accept-Language': 'en,ar' } },
 		)
 		const data = await res.json()
-		if (data.length > 0) {
+		if (Array.isArray(data) && isSearchResult(data[0])) {
 			return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
 		}
 	} catch {
@@ -40,21 +70,17 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 	try {
 		const res = await fetch(
 			`${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-			{ headers: { 'Accept-Language': 'ar,en' } },
+			{ headers: { 'Accept-Language': 'en,ar' } },
 		)
 		const data = await res.json()
-		if (data.display_name) return data.display_name
+		if (isReverseResult(data) && typeof data.display_name === 'string') {
+			return data.display_name
+		}
 	} catch {
 		// Nominatim unavailable
 	}
 	return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 }
-
-// ─── Geometry helpers ────────────────────────────────────
-
-/** HyperQuote warehouse — 6th of October City, Giza */
-const WAREHOUSE = { lat: 29.9753, lng: 30.9247 }
-const CAIRO = { lat: 30.0444, lng: 31.2357 }
 
 // ─── Component ───────────────────────────────────────────
 
@@ -71,7 +97,10 @@ export function DeliveryMap({
 }: DeliveryMapProps) {
 	const mapRef = useRef<MapRef>(null)
 	const searchInputRef = useRef<HTMLInputElement | null>(null)
-	const [markerPos, setMarkerPos] = useState(CAIRO)
+	const [markerPos, setMarkerPos] = useState<{
+		lat: number
+		lng: number
+	} | null>(null)
 	const [clickedPoint, setClickedPoint] = useState<{
 		lat: number
 		lng: number
@@ -79,9 +108,17 @@ export function DeliveryMap({
 	const [reverseResult, setReverseResult] = useState<string | null>(null)
 	const [isReversing, setIsReversing] = useState(false)
 	const [searchInput, setSearchInput] = useState(() => address)
+	const [searchError, setSearchError] = useState<string | null>(null)
 	const [mapLoaded, setMapLoaded] = useState(false)
+	const [interactiveMapReady, setInteractiveMapReady] = useState<
+		boolean | null
+	>(null)
 	const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const committedFromClickRef = useRef<Set<string>>(new Set())
+
+	useEffect(() => {
+		setInteractiveMapReady(canUseInteractiveMap())
+	}, [])
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
@@ -97,6 +134,7 @@ export function DeliveryMap({
 		if (committedFromClickRef.current.has(address)) return
 		geocodeTimerRef.current = setTimeout(async () => {
 			if (!address.trim()) return
+			setSearchError(null)
 			const coords = await forwardGeocode(address)
 			if (coords) {
 				setMarkerPos(coords)
@@ -113,9 +151,20 @@ export function DeliveryMap({
 		}
 	}, [address])
 
+	useEffect(() => {
+		const target = clickedPoint ?? markerPos
+		if (!target || !mapLoaded) return
+		mapRef.current?.flyTo({
+			center: [target.lng, target.lat],
+			zoom: clickedPoint ? 15 : 14,
+			duration: 900,
+		})
+	}, [clickedPoint, markerPos, mapLoaded])
+
 	// Map click → show pin + reverse geocode
 	const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
 		const point = { lat: e.lngLat.lat, lng: e.lngLat.lng }
+		setSearchError(null)
 		setClickedPoint(point)
 		setReverseResult(null)
 		setIsReversing(true)
@@ -129,52 +178,147 @@ export function DeliveryMap({
 		if (!clickedPoint || !reverseResult) return
 		committedFromClickRef.current.add(reverseResult)
 		setMarkerPos(clickedPoint)
+		setSearchInput(reverseResult)
+		setSearchError(null)
 		onAddressChange(reverseResult)
 		setClickedPoint(null)
 		setReverseResult(null)
 		onDeliveryConfirmed?.()
 	}, [clickedPoint, reverseResult, onAddressChange, onDeliveryConfirmed])
 
+	const findSearchAddress = useCallback(async () => {
+		const q = searchInput.trim()
+		if (!q) return
+		setSearchError(null)
+		setIsReversing(true)
+		const coords = await forwardGeocode(q)
+		if (!coords) {
+			setSearchError('No map result found. Try a more specific address.')
+			setIsReversing(false)
+			return
+		}
+		mapRef.current?.flyTo({
+			center: [coords.lng, coords.lat],
+			zoom: 15,
+			duration: 1200,
+		})
+		const pretty = await reverseGeocode(coords.lat, coords.lng)
+		setClickedPoint(coords)
+		setReverseResult(pretty)
+		setSearchInput(pretty)
+		setIsReversing(false)
+	}, [searchInput])
+
 	// Search form: fire a forward geocode immediately on Enter.
 	const handleSearchSubmit = useCallback(
+		(e: React.FormEvent) => {
+			e.preventDefault()
+			void findSearchAddress()
+		},
+		[findSearchAddress],
+	)
+
+	const handleFallbackAddressSubmit = useCallback(
 		async (e: React.FormEvent) => {
 			e.preventDefault()
 			const q = searchInput.trim()
 			if (!q) return
+			setSearchError(null)
+			setIsReversing(true)
 			const coords = await forwardGeocode(q)
-			if (!coords) return
-			mapRef.current?.flyTo({
-				center: [coords.lng, coords.lat],
-				zoom: 15,
-				duration: 1200,
-			})
-			const pretty = await reverseGeocode(coords.lat, coords.lng)
-			setClickedPoint(coords)
-			setReverseResult(pretty)
+			const nextAddress = coords
+				? await reverseGeocode(coords.lat, coords.lng)
+				: q
+			onAddressChange(nextAddress)
+			setIsReversing(false)
+			onDeliveryConfirmed?.()
 		},
-		[searchInput],
+		[searchInput, onAddressChange, onDeliveryConfirmed],
 	)
 
-	// Route line from warehouse to current delivery marker
 	const routeGeoJSON: GeoJSON.FeatureCollection = useMemo(
-		() => ({
-			type: 'FeatureCollection',
-			features: [
-				{
-					type: 'Feature' as const,
-					properties: {},
-					geometry: {
-						type: 'LineString' as const,
-						coordinates: [
-							[WAREHOUSE.lng, WAREHOUSE.lat],
-							[markerPos.lng, markerPos.lat],
-						],
-					},
-				},
-			],
-		}),
-		[markerPos],
+		() => ({ type: 'FeatureCollection', features: [] }),
+		[],
 	)
+	const initialCenter = markerPos ?? DEFAULT_MAP_CENTER
+
+	if (interactiveMapReady === false) {
+		return (
+			<div
+				id="delivery-map-panel"
+				className="flex h-full w-full flex-col"
+				style={{ backgroundColor: 'var(--color-surface)' }}
+			>
+				<div
+					className="flex items-center gap-3 px-5 py-3"
+					style={{ borderBottom: '1px solid var(--color-border)' }}
+				>
+					<Search
+						size={13}
+						strokeWidth={1.5}
+						className="shrink-0 text-[var(--color-text-subtle)]"
+						aria-hidden="true"
+					/>
+					<span
+						className="font-[family-name:var(--font-archivo)] italic text-[var(--color-text-subtle)]"
+						style={{ fontSize: '12px', letterSpacing: '0' }}
+					>
+						map view unavailable on this renderer
+					</span>
+				</div>
+				<form
+					onSubmit={handleFallbackAddressSubmit}
+					className="flex min-h-0 flex-1 flex-col justify-center gap-4 px-5"
+				>
+					<label htmlFor="delivery-map-search" className="block">
+						<span className="sr-only">Search for an address</span>
+						<input
+							ref={searchInputRef}
+							id="delivery-map-search"
+							type="text"
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
+							placeholder="search an address, or paste it here..."
+							className="w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/65 focus:border-[var(--color-primary)]/45 focus:ring-2 focus:ring-[var(--color-primary)]/20"
+							style={{ fontSize: '13px', letterSpacing: '0' }}
+						/>
+					</label>
+					<div className="min-w-0">
+						<p className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-medium text-[var(--color-text)]">
+							{searchInput.trim() || address || 'no address yet'}
+						</p>
+						<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+							address will be saved without opening the WebGL map
+						</p>
+					</div>
+					<EmployeeActionButton
+						type="submit"
+						tone="success"
+						disabled={!searchInput.trim() || isReversing}
+						aria-disabled={!searchInput.trim() || isReversing}
+						trailing={<span aria-hidden="true">→</span>}
+					>
+						{isReversing ? 'Finding address' : 'Use address'}
+					</EmployeeActionButton>
+				</form>
+			</div>
+		)
+	}
+
+	if (interactiveMapReady === null) {
+		return (
+			<div
+				id="delivery-map-panel"
+				className="flex h-full w-full items-center justify-center"
+				style={{ backgroundColor: 'var(--color-surface)' }}
+			>
+				<div
+					className="h-px w-[80px] origin-left scale-x-0 animate-[horizon-draw_720ms_cubic-bezier(0.16,1,0.3,1)_forwards]"
+					style={{ backgroundColor: 'var(--color-text-subtle)' }}
+				/>
+			</div>
+		)
+	}
 
 	return (
 		<div
@@ -248,9 +392,9 @@ export function DeliveryMap({
 					ref={mapRef}
 					mapStyle={MAP_STYLE}
 					initialViewState={{
-						latitude: markerPos.lat,
-						longitude: markerPos.lng,
-						zoom: 13,
+						latitude: initialCenter.lat,
+						longitude: initialCenter.lng,
+						zoom: markerPos ? 13 : 10,
 					}}
 					style={{ width: '100%', height: '100%' }}
 					onClick={handleMapClick}
@@ -260,8 +404,7 @@ export function DeliveryMap({
 					minZoom={3}
 					maxZoom={18}
 				>
-					{/* Route line — dashed graphite from warehouse to delivery */}
-					{mapLoaded && (
+					{mapLoaded && routeGeoJSON && (
 						<Source id="delivery-route" type="geojson" data={routeGeoJSON}>
 							<Layer
 								id="delivery-route-line"
@@ -276,66 +419,31 @@ export function DeliveryMap({
 						</Source>
 					)}
 
-					{/* Warehouse pin — anchor with italic label */}
-					<Marker
-						latitude={WAREHOUSE.lat}
-						longitude={WAREHOUSE.lng}
-						anchor="center"
-					>
-						<div className="flex flex-col items-center">
+					{/* Delivery address marker */}
+					{markerPos && (
+						<Marker
+							latitude={markerPos.lat}
+							longitude={markerPos.lng}
+							anchor="center"
+						>
 							<div className="relative flex items-center justify-center">
 								<div
-									className="h-4 w-4 rounded-full"
+									className="absolute h-7 w-7 rounded-full"
 									style={{
-										backgroundColor: '#FAFAFA',
-										border: '2px solid #111111',
+										backgroundColor: 'rgba(37, 99, 235, 0.12)',
 									}}
 								/>
 								<div
-									className="absolute h-[5px] w-[5px] rounded-full"
-									style={{ backgroundColor: '#111111' }}
+									className="relative h-[14px] w-[14px] rounded-full"
+									style={{
+										backgroundColor: '#2563EB',
+										border: '2px solid #FAFAFA',
+										boxShadow: '0 4px 10px -3px rgba(20, 15, 10, 0.4)',
+									}}
 								/>
 							</div>
-							<div
-								className="mt-1 px-1.5 py-0.5"
-								style={{
-									backgroundColor: 'rgba(250, 250, 250, 0.92)',
-									backdropFilter: 'blur(2px)',
-									fontFamily: 'Archivo, sans-serif',
-									fontStyle: 'italic',
-									fontSize: '9.5px',
-									color: '#111111',
-									letterSpacing: '0',
-								}}
-							>
-								warehouse
-							</div>
-						</div>
-					</Marker>
-
-					{/* Delivery address marker */}
-					<Marker
-						latitude={markerPos.lat}
-						longitude={markerPos.lng}
-						anchor="center"
-					>
-						<div className="relative flex items-center justify-center">
-							<div
-								className="absolute h-7 w-7 rounded-full"
-								style={{
-									backgroundColor: 'rgba(37, 99, 235, 0.12)',
-								}}
-							/>
-							<div
-								className="relative h-[14px] w-[14px] rounded-full"
-								style={{
-									backgroundColor: '#2563EB',
-									border: '2px solid #FAFAFA',
-									boxShadow: '0 4px 10px -3px rgba(20, 15, 10, 0.4)',
-								}}
-							/>
-						</div>
-					</Marker>
+						</Marker>
+					)}
 
 					{/* Clicked point marker — pin only, no tooltip; the bottom
 					    bar carries the confirm flow. */}
@@ -457,7 +565,7 @@ export function DeliveryMap({
 							>
 								{address
 									? address.split(',').slice(0, 2).join(',')
-									: 'no address yet'}
+									: searchInput.trim() || 'no address yet'}
 							</p>
 							<p
 								className="mt-0.5 truncate font-[family-name:var(--font-archivo)] italic"
@@ -466,11 +574,27 @@ export function DeliveryMap({
 									color: 'var(--color-text-subtle)',
 								}}
 							>
-								click anywhere on the map to pick a new location
+								{searchError ??
+									(searchInput.trim()
+										? 'press Enter to find it, or click the map'
+										: 'search or click anywhere on the map to pick a location')}
 							</p>
 						</>
 					)}
 				</div>
+				{!clickedPoint && searchInput.trim() && (
+					<EmployeeActionButton
+						type="button"
+						onClick={() => void findSearchAddress()}
+						tone="success"
+						size="sm"
+						disabled={isReversing}
+						aria-disabled={isReversing}
+						trailing={<span aria-hidden="true">→</span>}
+					>
+						{isReversing ? 'Finding' : 'Find on map'}
+					</EmployeeActionButton>
+				)}
 				{clickedPoint && reverseResult && !isReversing && (
 					<div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
 						<EmployeeActionButton

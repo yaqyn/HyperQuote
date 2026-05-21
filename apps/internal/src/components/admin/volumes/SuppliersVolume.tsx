@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { SupplierRow } from '../../../lib/db/db'
+import type { SupplierRow } from '../../../lib/db/types'
 import {
 	adminCreateSupplier,
 	adminDeleteSupplier,
@@ -12,19 +12,24 @@ import {
 	NumberControl,
 	SelectControl,
 	StatusTag,
+	TextAreaControl,
 	TextControl,
 } from '../AdminControls'
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
-import { SupplierItems, useSupplierItemCount } from '../SupplierItems'
+import {
+	SupplierSpecialties,
+	useSupplierSpecialtyCount,
+} from '../SupplierItems'
+import { useAdminExport } from './useAdminExport'
 import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
-type SupplierDraft = Omit<SupplierRow, 'joinedAt'> & {
+type SupplierDraft = Omit<SupplierRow, 'id' | 'joinedAt'> & {
+	id?: string
 	joinedAt?: string
-	/** The name the record was keyed by when the draft was opened. */
-	originalName?: string
 }
+type SupplierPayload = Omit<SupplierRow, 'id' | 'joinedAt'>
 
 interface SuppliersVolumeProps {
 	onOpenVolumes: () => void
@@ -33,11 +38,14 @@ interface SuppliersVolumeProps {
 function blankSupplier(): SupplierDraft {
 	return {
 		name: '',
+		email: null,
+		status: 'active',
 		tier: 'new',
 		paymentTerms: '',
 		phone: null,
 		rating: 3,
 		customBadges: [],
+		notes: null,
 	}
 }
 
@@ -45,6 +53,8 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('suppliers')
+	const { exportStatus, isExporting, requestExport } =
+		useAdminExport('suppliers')
 
 	const {
 		data: suppliers = [],
@@ -69,34 +79,32 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	} = useVolumeEditor({
 		rows: suppliers,
 		blankDraft: blankSupplier,
-		rowToDraft: (row) => ({ ...row, originalName: row.name }),
-		rowId: (row) => row.name,
-		draftId: (row) => row.originalName,
+		rowToDraft: (row) => ({ ...row }),
+		rowId: (row) => row.id,
+		draftId: (row) => row.id,
 	})
 
 	const createMutation = useMutation({
-		mutationFn: (payload: Omit<SupplierRow, 'joinedAt'>) =>
+		mutationFn: (payload: SupplierPayload) =>
 			adminCreateSupplier({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'suppliers'] })
-			showSavedDraft({ ...created, originalName: created.name }, created.name)
+			showSavedDraft({ ...created }, created.id)
 		},
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (
-			payload: { originalName: string } & Partial<
-				Omit<SupplierRow, 'joinedAt'>
-			>,
-		) => adminUpdateSupplier({ data: payload }),
+		mutationFn: (payload: { id: string } & Partial<SupplierPayload>) =>
+			adminUpdateSupplier({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'suppliers'] })
-			showSavedDraft({ ...updated, originalName: updated.name }, updated.name)
+			showSavedDraft({ ...updated }, updated.id)
 		},
 	})
 
 	const deleteMutation = useMutation({
-		mutationFn: (name: string) => adminDeleteSupplier({ data: { name } }),
+		mutationFn: (payload: { id: string; reason: string }) =>
+			adminDeleteSupplier({ data: payload }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['admin', 'suppliers'] })
 			handleClose()
@@ -106,22 +114,30 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	function handleSave() {
 		if (!draft) return
 		if (mode === 'create') {
-			const { originalName: _o, joinedAt: _j, ...payload } = draft
+			const { id: _id, joinedAt: _j, ...payload } = draft
 			createMutation.mutate(payload)
-		} else if (mode === 'edit' && draft.originalName) {
-			const { originalName, joinedAt: _j, ...patch } = draft
-			updateMutation.mutate({ originalName, ...patch })
+		} else if (mode === 'edit' && draft.id) {
+			const { id, joinedAt: _j, ...patch } = draft
+			updateMutation.mutate({ id, ...patch })
 		}
 	}
 
 	function handleDelete() {
-		if (!draft?.originalName) return
+		if (!draft?.id) return
 		if (
 			typeof window !== 'undefined' &&
 			!window.confirm(t('actions.confirmDelete'))
 		)
 			return
-		deleteMutation.mutate(draft.originalName)
+		const reason =
+			typeof window === 'undefined'
+				? null
+				: window.prompt('Reason for deactivating this supplier')
+		if (!reason || reason.trim().length < 8) return
+		deleteMutation.mutate({
+			id: draft.id,
+			reason: reason.trim(),
+		})
 	}
 
 	const tierOptions: Array<{ value: SupplierRow['tier']; label: string }> = [
@@ -130,6 +146,12 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 		{ value: 'conditional', label: t('editor.enums.supplierTier.conditional') },
 		{ value: 'new', label: t('editor.enums.supplierTier.new') },
 	]
+	const statusOptions: Array<{ value: SupplierRow['status']; label: string }> =
+		[
+			{ value: 'active', label: t('editor.enums.supplierStatus.active') },
+			{ value: 'inactive', label: t('editor.enums.supplierStatus.inactive') },
+			{ value: 'blocked', label: t('editor.enums.supplierStatus.blocked') },
+		]
 
 	const columns: ColumnDef<SupplierRow>[] = [
 		{
@@ -162,6 +184,18 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 			),
 		},
 		{
+			key: 'status',
+			labelKey: 'volumes.suppliers.columns.status',
+			width: '110px',
+			mobileRole: 'detail',
+			render: (r) => (
+				<StatusTag
+					label={t(`editor.enums.supplierStatus.${r.status}`)}
+					tone={r.status === 'active' ? 'primary' : 'muted'}
+				/>
+			),
+		},
+		{
 			key: 'paymentTerms',
 			labelKey: 'volumes.suppliers.columns.paymentTerms',
 			width: 'minmax(120px, 1.4fr)',
@@ -182,13 +216,13 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 			render: (r) => <>{r.rating.toFixed(1)}</>,
 		},
 		{
-			key: 'items',
-			labelKey: 'volumes.suppliers.columns.items',
+			key: 'specialties',
+			labelKey: 'volumes.suppliers.columns.specialties',
 			width: '70px',
 			align: 'end',
 			mono: true,
 			mobileRole: 'detail',
-			render: (r) => <SupplierItemCountCell name={r.name} />,
+			render: (r) => <SupplierSpecialtyCountCell id={r.id} />,
 		},
 		{
 			key: 'phone',
@@ -202,7 +236,9 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 
 	const filter = (r: SupplierRow, q: string) =>
 		r.name.toLowerCase().includes(q) ||
+		(r.email?.toLowerCase().includes(q) ?? false) ||
 		r.paymentTerms.toLowerCase().includes(q) ||
+		(r.notes?.toLowerCase().includes(q) ?? false) ||
 		(r.phone?.includes(q) ?? false)
 
 	return (
@@ -212,12 +248,15 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 				entryCount={suppliers.length}
 				onOpenVolumes={onOpenVolumes}
 				onNewEntry={handleNew}
+				onExport={requestExport}
+				isExporting={isExporting}
+				exportStatus={exportStatus}
 			/>
 			<EntityIndex
 				volume="suppliers"
 				rows={suppliers}
 				columns={columns}
-				rowKey={(r) => r.name}
+				rowKey={(r) => r.id}
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
@@ -229,12 +268,12 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 				isOpen={mode !== null}
 				onClose={handleClose}
 				mode={mode}
-				idLabel={draft?.originalName ?? null}
+				idLabel={draft?.id ?? null}
 				footer={
 					draft ? (
 						<VolumeEditorFooter
 							mode={mode}
-							id={draft.originalName}
+							id={draft.id}
 							isSaving={createMutation.isPending || updateMutation.isPending}
 							isDeleting={deleteMutation.isPending}
 							onEdit={handleEdit}
@@ -254,6 +293,15 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 								onChange={(v) => setDraft({ ...draft, name: v })}
 								readOnly={readOnly}
 								ariaLabel={t('editor.fields.supplierName')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.email')}>
+							<TextControl
+								value={draft.email ?? ''}
+								onChange={(v) => setDraft({ ...draft, email: v || null })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.email')}
+								type="email"
 							/>
 						</Field>
 						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
@@ -276,6 +324,15 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 									max={5}
 									step={0.1}
 									suffix="/ 5"
+								/>
+							</Field>
+							<Field label={t('editor.fields.status')}>
+								<SelectControl
+									value={draft.status}
+									onChange={(v) => setDraft({ ...draft, status: v })}
+									options={statusOptions}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.status')}
 								/>
 							</Field>
 						</div>
@@ -301,6 +358,15 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 								type="tel"
 							/>
 						</Field>
+						<Field label={t('editor.fields.notes')}>
+							<TextAreaControl
+								value={draft.notes ?? ''}
+								onChange={(v) => setDraft({ ...draft, notes: v || null })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.notes')}
+								rows={3}
+							/>
+						</Field>
 
 						<Section title={t('editor.section.badges')} />
 						<Field label={t('editor.fields.customBadges')}>
@@ -321,9 +387,9 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 							/>
 						</Field>
 
-						<Section title={t('items.title')} />
-						<SupplierItems
-							supplierName={draft.originalName ?? null}
+						<Section title={t('specialties.title')} />
+						<SupplierSpecialties
+							supplierId={draft.id ?? null}
 							readOnly={readOnly}
 						/>
 					</div>
@@ -333,9 +399,9 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 	)
 }
 
-// ─── Items count cell ────────────────────────────────────
+// ─── Specialty count cell ────────────────────────────────
 
-function SupplierItemCountCell({ name }: { name: string }) {
-	const count = useSupplierItemCount(name)
+function SupplierSpecialtyCountCell({ id }: { id: string }) {
+	const count = useSupplierSpecialtyCount(id)
 	return <>{count}</>
 }

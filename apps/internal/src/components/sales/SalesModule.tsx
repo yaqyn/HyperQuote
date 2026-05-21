@@ -1,9 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	compareSalesQueuePosition,
+	isClaimableSalesRfq,
+	isSalesPipelineRfq,
+} from '../../lib/sales-active-queue'
+import { setEmployeePresence } from '../../lib/server/employee-presence'
 import { getCustomerList } from '../../lib/server/sales-customers'
-import { getRFQQueue, saveRFQForLater } from '../../lib/server/sales-rfq'
+import {
+	claimNextSalesOrder,
+	claimSalesOrder,
+	getRFQQueue,
+	saveRFQForLater,
+} from '../../lib/server/sales-rfq'
 import { useSalesStore } from '../../stores/sales'
+import type { RFQ } from '../../types/sales'
 import {
 	DispatchAction,
 	DispatchBody,
@@ -29,6 +41,8 @@ const SAVE_DURATIONS = [
 	{ label: 'Tomorrow', minutes: 960 },
 ]
 
+type SalesPresenceStatus = 'online' | 'away' | 'offline'
+
 export function SalesModule() {
 	const qc = useQueryClient()
 	const editingRfqId = useSalesStore((s) => s.editingRfqId)
@@ -41,7 +55,10 @@ export function SalesModule() {
 		null,
 	)
 	const [customerSelectOpen, setCustomerSelectOpen] = useState(false)
+	const [customerSearchTerm, setCustomerSearchTerm] = useState('')
 	const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+	const [salesPresenceStatus, setSalesPresenceStatus] =
+		useState<SalesPresenceStatus>('offline')
 
 	// Floating windows
 	const [reportRfqId, setReportRfqId] = useState<string | null>(null)
@@ -49,6 +66,13 @@ export function SalesModule() {
 	// Save timer
 	const [saveTimerOpen, setSaveTimerOpen] = useState(false)
 	const [savingRfqId, setSavingRfqId] = useState<string | null>(null)
+	const [saveConfirmingMinutes, setSaveConfirmingMinutes] = useState<
+		number | null
+	>(null)
+	const [autoClaiming, setAutoClaiming] = useState(false)
+	const autoClaimingRef = useRef(false)
+	const [claimingRfqId, setClaimingRfqId] = useState<string | null>(null)
+	const [claimError, setClaimError] = useState<string | null>(null)
 
 	// Working on a saved order (not from main pipeline)
 	const [workingSavedOrder, setWorkingSavedOrder] = useState(false)
@@ -56,23 +80,26 @@ export function SalesModule() {
 	// Fetch pipeline
 	const { data: rfqData } = useQuery({
 		queryKey: ['sales-rfq-list'],
-		queryFn: () => getRFQQueue({ data: {} }),
-		staleTime: 10_000,
+		queryFn: () => getRFQQueue({ data: { limit: 500, page: 1 } }),
+		refetchInterval: 5_000,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: 2_000,
 	})
 
 	const rfqs = rfqData?.rfqs ?? []
 
-	// Pipeline: ONLY submitted, oldest first
+	// Pipeline: submitted work plus claimed work that is still being handled.
 	const pipeline = useMemo(() => {
-		return rfqs
-			.filter((r) => r.status === 'submitted')
-			.sort(
-				(a, b) =>
-					new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-			)
+		return rfqs.filter(isSalesPipelineRfq).sort(compareSalesQueuePosition)
 	}, [rfqs])
 
 	const saved = useMemo(() => rfqs.filter((r) => r.status === 'saved'), [rfqs])
+	const activePipeline = pipeline
+	const hasClaimableSupabaseOrder = useMemo(
+		() => pipeline.some(isClaimableSalesRfq),
+		[pipeline],
+	)
 	const evaluated = useMemo(
 		() => rfqs.filter((r) => r.status === 'quoted'),
 		[rfqs],
@@ -82,10 +109,66 @@ export function SalesModule() {
 		[rfqs],
 	)
 
+	useEffect(() => {
+		let cancelled = false
+
+		const currentPresenceStatus = (): SalesPresenceStatus => {
+			if (document.visibilityState !== 'visible') return 'away'
+			if (document.querySelector('[data-away-lock="true"]')) return 'away'
+			return 'online'
+		}
+
+		const syncPresence = async (status = currentPresenceStatus()) => {
+			if (status !== 'online' && !cancelled) setSalesPresenceStatus(status)
+			try {
+				await setEmployeePresence({
+					data: {
+						activePanel: status === 'online' ? 'sales' : undefined,
+						status,
+					},
+				})
+				if (!cancelled) setSalesPresenceStatus(status)
+			} catch {
+				if (!cancelled) setSalesPresenceStatus('offline')
+			}
+		}
+
+		void syncPresence()
+		const interval = window.setInterval(() => {
+			void syncPresence()
+		}, 25_000)
+		const handlePresenceChange = () => {
+			void syncPresence()
+		}
+		document.addEventListener('visibilitychange', handlePresenceChange)
+		window.addEventListener('focus', handlePresenceChange)
+		window.addEventListener('internal-away-state-change', handlePresenceChange)
+
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+			document.removeEventListener('visibilitychange', handlePresenceChange)
+			window.removeEventListener('focus', handlePresenceChange)
+			window.removeEventListener(
+				'internal-away-state-change',
+				handlePresenceChange,
+			)
+			void setEmployeePresence({
+				data: { status: 'offline' },
+			}).catch(() => undefined)
+		}
+	}, [])
+
 	// Auto-load first pipeline item if nothing selected and not working on a saved order
 	useEffect(() => {
 		const head = pipeline[0]
-		if (!editingRfqId && !newQuoteCustomer && !workingSavedOrder && head) {
+		if (
+			!editingRfqId &&
+			!newQuoteCustomer &&
+			!workingSavedOrder &&
+			head &&
+			(head.source !== 'supabase' || head.status === 'assigned')
+		) {
 			setEditingRfqId(head.id)
 		}
 	}, [
@@ -94,6 +177,45 @@ export function SalesModule() {
 		newQuoteCustomer,
 		workingSavedOrder,
 		setEditingRfqId,
+	])
+
+	useEffect(() => {
+		if (
+			editingRfqId ||
+			newQuoteCustomer ||
+			workingSavedOrder ||
+			autoClaimingRef.current ||
+			!hasClaimableSupabaseOrder ||
+			salesPresenceStatus !== 'online'
+		) {
+			return
+		}
+
+		let cancelled = false
+		autoClaimingRef.current = true
+		setAutoClaiming(true)
+		claimNextSalesOrder()
+			.then(async (result) => {
+				if (cancelled) return
+				await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
+				if (result.rfqId) setEditingRfqId(result.rfqId)
+			})
+			.finally(() => {
+				autoClaimingRef.current = false
+				if (!cancelled) setAutoClaiming(false)
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [
+		editingRfqId,
+		hasClaimableSupabaseOrder,
+		newQuoteCustomer,
+		qc,
+		salesPresenceStatus,
+		setEditingRfqId,
+		workingSavedOrder,
 	])
 
 	// After an action (reject/evaluate), clear editingRfqId.
@@ -114,21 +236,55 @@ export function SalesModule() {
 
 	const handleSaveConfirm = useCallback(
 		async (minutes: number) => {
-			if (!savingRfqId) return
-			// 1. Change status in DB
-			await saveRFQForLater({
-				data: { rfqId: savingRfqId, returnInMinutes: minutes },
-			})
-			// 2. Close dialog
-			setSaveTimerOpen(false)
-			setSavingRfqId(null)
-			if (workingSavedOrder) setWorkingSavedOrder(false)
-			// 3. Refetch pipeline FIRST — so the saved order is gone from the list
-			await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-			// 4. THEN clear editing — auto-load will pick from the already-updated pipeline
-			setEditingRfqId(null)
+			if (!savingRfqId || saveConfirmingMinutes !== null) return
+			setSaveConfirmingMinutes(minutes)
+			try {
+				await saveRFQForLater({
+					data: { rfqId: savingRfqId, returnInMinutes: minutes },
+				})
+				setSaveTimerOpen(false)
+				setSavingRfqId(null)
+				if (workingSavedOrder) setWorkingSavedOrder(false)
+				await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
+				setEditingRfqId(null)
+			} finally {
+				setSaveConfirmingMinutes(null)
+			}
 		},
-		[savingRfqId, workingSavedOrder, setEditingRfqId, qc],
+		[
+			savingRfqId,
+			saveConfirmingMinutes,
+			workingSavedOrder,
+			setEditingRfqId,
+			qc,
+		],
+	)
+
+	const handleOpenActiveOrder = useCallback(
+		async (rfq: RFQ) => {
+			setClaimError(null)
+			setWorkingSavedOrder(false)
+			if (isClaimableSalesRfq(rfq)) {
+				setClaimingRfqId(rfq.id)
+				try {
+					const result = await claimSalesOrder({ data: { rfqId: rfq.id } })
+					await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
+					setStatusDialogOpen(false)
+					setEditingRfqId(result.rfqId)
+				} catch {
+					setClaimError(
+						'Could not receive this submitted order. Make sure you are online in Sales and try again.',
+					)
+					await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
+				} finally {
+					setClaimingRfqId(null)
+				}
+				return
+			}
+			setStatusDialogOpen(false)
+			setEditingRfqId(rfq.id)
+		},
+		[qc, setEditingRfqId],
 	)
 
 	// Open saved order in builder
@@ -149,17 +305,28 @@ export function SalesModule() {
 
 	// Customer list
 	const { data: customerData } = useQuery({
-		queryKey: ['sales-customer-list'],
-		queryFn: () => getCustomerList({ data: { page: 1, limit: 100 } }),
+		queryKey: ['sales-customer-list', customerSearchTerm],
+		queryFn: () =>
+			getCustomerList({
+				data: {
+					limit: customerSearchTerm.trim() ? 100 : 500,
+					page: 1,
+					search: customerSearchTerm.trim() || undefined,
+				},
+			}),
 		staleTime: 5 * 60_000,
 	})
 	const customers = useMemo(
 		() =>
 			(customerData?.customers ?? []).map((c) => ({
+				address: c.address ?? '',
+				companyName: c.companyName,
+				contactName: c.contactName,
+				email: c.email,
 				id: c.id,
 				name: c.companyName,
+				phone: c.phone,
 				tier: c.tier,
-				address: c.address ?? '',
 			})),
 		[customerData],
 	)
@@ -200,13 +367,13 @@ export function SalesModule() {
 	}
 
 	const statusGroups = [
-		{ key: 'submitted', label: 'submitted', items: pipeline },
+		{ key: 'active', label: 'active', items: activePipeline },
 		{ key: 'saved', label: 'saved', items: saved },
 		{ key: 'evaluated', label: 'evaluated', items: evaluated },
 		{ key: 'rejected', label: 'rejected', items: rejected },
 	] as const
 	const statusTotal =
-		pipeline.length + saved.length + evaluated.length + rejected.length
+		activePipeline.length + saved.length + evaluated.length + rejected.length
 	const isNew = !!newQuoteCustomer?.id.startsWith('new-')
 
 	return (
@@ -246,7 +413,11 @@ export function SalesModule() {
 							<QuoteBuilderView
 								rfqId={`new-${newQuoteCustomer.id}`}
 								isNewCustomer={isNew}
+								initialCustomerCompany={newQuoteCustomer.companyName}
+								initialCustomerEmail={newQuoteCustomer.email ?? undefined}
 								initialCustomerName={newQuoteCustomer.name}
+								initialCustomerPhone={newQuoteCustomer.phone}
+								initialDeliveryAddress={newQuoteCustomer.address}
 								onBack={() => setNewQuoteCustomer(null)}
 								onSave={handleSaveRequest}
 							/>
@@ -265,6 +436,34 @@ export function SalesModule() {
 								onSave={handleSaveRequest}
 							/>
 						</motion.div>
+					) : autoClaiming ? (
+						<div className="flex items-center justify-center h-full">
+							<div className="flex max-w-[380px] flex-col items-center text-center">
+								<span
+									className="font-[family-name:var(--font-plex-mono)] font-semibold uppercase"
+									style={{
+										fontSize: '10px',
+										letterSpacing: '0.22em',
+										color: 'var(--color-text-subtle)',
+									}}
+								>
+									Sales queue
+								</span>
+								<p
+									className="mt-4 font-[family-name:var(--font-literata)] italic"
+									style={{
+										fontSize: '26px',
+										fontWeight: 500,
+										letterSpacing: '0',
+										color: 'var(--color-text)',
+									}}
+								>
+									receiving the next submitted order.
+								</p>
+							</div>
+						</div>
+					) : hasClaimableSupabaseOrder ? (
+						<AutomaticSalesQueueState presenceStatus={salesPresenceStatus} />
 					) : (
 						<div className="flex items-center justify-center h-full">
 							<div className="flex max-w-[380px] flex-col items-center text-center">
@@ -314,17 +513,39 @@ export function SalesModule() {
 			>
 				{(search) => {
 					const query = search.toLowerCase().trim()
+					const filteredGroups = statusGroups
+						.map(({ key, label, items }) => ({
+							key,
+							label,
+							items: query
+								? items.filter((rfq) =>
+										`${rfq.customerName} ${rfq.requestNumber ?? ''} ${rfq.id}`
+											.toLowerCase()
+											.includes(query),
+									)
+								: items,
+						}))
+						.filter((group) => group.items.length > 0)
 					return (
 						<div className="divide-y divide-[var(--color-border)]">
-							{statusGroups.map(({ key, label, items }) => {
-								const filtered = query
-									? items.filter((rfq) =>
-											`${rfq.customerName} ${rfq.id}`
-												.toLowerCase()
-												.includes(query),
-										)
-									: items
-								if (filtered.length === 0) return null
+							{claimError && (
+								<div className="border-b border-[var(--color-border)] px-4 py-3">
+									<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-signal-red)]">
+										{claimError}
+									</p>
+								</div>
+							)}
+							{filteredGroups.length === 0 ? (
+								<div className="px-4 py-10 text-center">
+									<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+										No matching orders
+									</p>
+									<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
+										Try a customer name or quote reference.
+									</p>
+								</div>
+							) : null}
+							{filteredGroups.map(({ key, label, items: filtered }) => {
 								return (
 									<section key={key} aria-labelledby={`sales-status-${key}`}>
 										<div className="sticky top-0 z-10 flex items-baseline justify-between bg-[var(--color-surface)] px-4 py-2">
@@ -351,8 +572,12 @@ export function SalesModule() {
 															? `${age}h`
 															: `${Math.floor(age / 24)}d`
 												const action =
-													key === 'submitted'
-														? 'open'
+													key === 'active'
+														? claimingRfqId === rfq.id
+															? 'receiving'
+															: rfq.status === 'submitted'
+																? 'receive'
+																: 'open'
 														: key === 'saved'
 															? 'resume'
 															: 'report'
@@ -362,10 +587,8 @@ export function SalesModule() {
 														type="button"
 														data-searchmenu-row="true"
 														onClick={() => {
-															if (key === 'submitted') {
-																setStatusDialogOpen(false)
-																setWorkingSavedOrder(false)
-																setEditingRfqId(rfq.id)
+															if (key === 'active') {
+																void handleOpenActiveOrder(rfq)
 															} else if (key === 'saved') {
 																handleOpenSavedOrder(rfq.id)
 															} else {
@@ -381,6 +604,10 @@ export function SalesModule() {
 															</span>
 															<span className="mt-0.5 flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
 																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
+																	{rfq.requestNumber ?? rfq.id}
+																</span>
+																<span aria-hidden="true">·</span>
+																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
 																	{rfq.lineItemCount}{' '}
 																	{rfq.lineItemCount === 1 ? 'item' : 'items'}
 																</span>
@@ -393,6 +620,14 @@ export function SalesModule() {
 																		<span aria-hidden="true">·</span>
 																		<span className="text-[var(--color-signal-amber)]">
 																			outdated
+																		</span>
+																	</>
+																)}
+																{rfq.status === 'submitted' && (
+																	<>
+																		<span aria-hidden="true">·</span>
+																		<span className="text-[var(--color-primary)]">
+																			new
 																		</span>
 																	</>
 																)}
@@ -431,8 +666,9 @@ export function SalesModule() {
 							<li key={minutes}>
 								<button
 									type="button"
+									disabled={saveConfirmingMinutes !== null}
 									onClick={() => handleSaveConfirm(minutes)}
-									className="group flex min-h-14 w-full items-center justify-between gap-4 rounded-md border border-[var(--color-border)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+									className="group flex min-h-14 w-full items-center justify-between gap-4 rounded-md border border-[var(--color-border)] px-3 py-2 text-start outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-primary)]/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 disabled:cursor-wait disabled:opacity-60"
 								>
 									<span className="min-w-0">
 										<span className="block font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
@@ -443,7 +679,7 @@ export function SalesModule() {
 										</span>
 									</span>
 									<span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--color-primary)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-transform group-hover:translate-x-0.5">
-										Save
+										{saveConfirmingMinutes === minutes ? 'Saving' : 'Save'}
 										<span aria-hidden="true">→</span>
 									</span>
 								</button>
@@ -474,6 +710,7 @@ export function SalesModule() {
 			<SearchMenu
 				isOpen={customerSelectOpen}
 				onClose={() => setCustomerSelectOpen(false)}
+				onSearchChange={setCustomerSearchTerm}
 				placeholder="Search customers or enter new..."
 				onEnter={(search) => {
 					const q = search.toLowerCase().trim()
@@ -617,6 +854,59 @@ export function SalesModule() {
 					)
 				}}
 			</SearchMenu>
+		</div>
+	)
+}
+
+function AutomaticSalesQueueState({
+	presenceStatus,
+}: {
+	presenceStatus: SalesPresenceStatus
+}) {
+	const headline =
+		presenceStatus === 'online'
+			? 'receiving the next submitted order.'
+			: 'submitted orders wait until you are online.'
+	const caption =
+		presenceStatus === 'online'
+			? 'work is assigned oldest first; other online sales reps receive the next available entries.'
+			: 'away, hidden, or closed sales panels are excluded from assignment.'
+
+	return (
+		<div className="flex h-full items-center justify-center">
+			<div className="flex max-w-[420px] flex-col items-center px-6 text-center">
+				<span
+					className="font-[family-name:var(--font-plex-mono)] font-semibold uppercase"
+					style={{
+						fontSize: '10px',
+						letterSpacing: '0.22em',
+						color: 'var(--color-text-subtle)',
+					}}
+				>
+					Sales queue
+				</span>
+				<p
+					className="mt-3 font-[family-name:var(--font-literata)] italic"
+					style={{
+						fontSize: '26px',
+						fontWeight: 500,
+						letterSpacing: '0',
+						color: 'var(--color-text)',
+					}}
+				>
+					{headline}
+				</p>
+				<p
+					className="mt-3 font-[family-name:var(--font-archivo)] italic"
+					style={{
+						fontSize: '12.5px',
+						lineHeight: 1.5,
+						color: 'var(--color-text-subtle)',
+					}}
+				>
+					{caption}
+				</p>
+			</div>
 		</div>
 	)
 }

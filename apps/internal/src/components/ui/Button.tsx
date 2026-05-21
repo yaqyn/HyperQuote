@@ -1,5 +1,5 @@
-import type { ButtonProps as AriaButtonProps } from 'react-aria-components'
-import { Button as AriaButton } from 'react-aria-components'
+import type { ButtonProps as AriaButtonProps } from 'react-aria-components/Button'
+import { Button as AriaButton } from 'react-aria-components/Button'
 
 interface ButtonProps extends Omit<AriaButtonProps, 'className'> {
 	variant?: 'primary' | 'outline' | 'subtle' | 'ghost'

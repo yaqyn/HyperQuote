@@ -1,12 +1,16 @@
-import {
-	type BroadCategory,
-	type CatalogProduct,
-	getBroadCategory,
-} from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { FreshnessIndicator, MarginThresholds } from '../../types/sales'
-import { db, hoursSince } from '../db/db'
+import type {
+	FreshnessIndicator,
+	MarginThresholds,
+	PriceStatus,
+} from '../../types/sales'
+import {
+	computeMarginFromSellPrice,
+	computeSellPriceFromMargin,
+} from '../pricing-math'
+import { getInternalSupabaseClient } from './_supabase'
+import { verifyEmployeeCredential } from './employee-credentials'
 
 // Re-exported so every sales UI that already imports from here keeps working
 // while the canonical definitions live in inventory.ts.
@@ -14,7 +18,6 @@ export { requestInventoryPriceUpdate } from './inventory'
 
 // ─── Config ───────────────────────────────────────────────
 
-const PROCUREMENT_BUFFER = 0.025
 type QuoteBuilderCurrency = 'EGP' | 'USD' | 'EUR' | 'SAR'
 const QUOTE_BUILDER_FOREIGN_CURRENCIES: Array<
 	Exclude<QuoteBuilderCurrency, 'EGP'>
@@ -27,6 +30,47 @@ interface QuoteBuilderExchangeRates {
 	rates: Record<QuoteBuilderCurrency, number | null>
 	updatedAt: string | null
 	source: string
+}
+
+interface SupabaseEmployeeRoleRow {
+	role: string
+}
+
+interface SupabaseApproverEmployeeRow {
+	id: string
+	full_name: string
+	is_ceo: boolean
+	employee_roles: SupabaseEmployeeRoleRow[] | null
+}
+
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const SALES_APPROVER_ROLES = new Set(['admin', 'ceo', 'sales'])
+
+function isUuid(value: string): boolean {
+	return UUID_RE.test(value)
+}
+
+function isSalesApprover(row: SupabaseApproverEmployeeRow): boolean {
+	if (row.is_ceo) return true
+	return (row.employee_roles ?? []).some((entry) =>
+		SALES_APPROVER_ROLES.has(entry.role),
+	)
+}
+
+function encodeSupabaseQuoteVersionId(
+	quoteRequestId: string,
+	quoteVersionId: string,
+): string {
+	return `sb:${quoteRequestId}:${quoteVersionId}`
+}
+
+function decodeSupabaseQuoteVersionId(value: string | undefined) {
+	if (!value?.startsWith('sb:')) return null
+	const [, quoteRequestId, quoteVersionId] = value.split(':')
+	if (!quoteRequestId || !quoteVersionId) return null
+	return { quoteRequestId, quoteVersionId }
 }
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
@@ -92,218 +136,542 @@ async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates
 	}
 }
 
-function bufferCost(rawCost: number): number {
-	return Math.round(rawCost * (1 + PROCUREMENT_BUFFER) * 100) / 100
+interface SupabasePricingRuleRow {
+	category_slug: string | null
+	product_slug: string | null
+	product_category: string
+	bonus_margin: number
+	target_margin: number
+	floor_margin: number
+	absolute_min_margin: number
 }
 
-/** Maps broad catalog categories to the sales pricing_rules buckets. */
-function marginCategoryFor(product: CatalogProduct): string {
-	if (product.category === 'waterproofing' || product.category === 'roofing')
-		return 'roofing'
-	const broad: BroadCategory = getBroadCategory(product.category)
-	const map: Record<BroadCategory, string> = {
-		cement: 'cement_concrete',
-		aggregates: 'cement_concrete',
-		bricks: 'cement_concrete',
-		steel: 'steel_rebar',
-		timber: 'lumber_timber',
-		finishing: 'specialty_custom',
+async function getSupabaseMarginThresholds(
+	auth: Awaited<ReturnType<typeof getInternalSupabaseClient>>,
+): Promise<MarginThresholds[]> {
+	const { data, error } = await auth.client
+		.from('pricing_rules')
+		.select(
+			'category_slug, product_slug, product_category, bonus_margin, target_margin, floor_margin, absolute_min_margin',
+		)
+		.eq('active', true)
+		.order('category_slug', { ascending: true, nullsFirst: true })
+		.order('product_slug', { ascending: true, nullsFirst: true })
+	if (error) throw new Error(error.message)
+	return ((data ?? []) as SupabasePricingRuleRow[]).map((row) => ({
+		categorySlug: row.category_slug,
+		productSlug: row.product_slug,
+		productCategory: row.product_category,
+		bonus: Number(row.bonus_margin),
+		target: Number(row.target_margin),
+		floor: Number(row.floor_margin),
+		absoluteMin: Number(row.absolute_min_margin),
+	}))
+}
+
+interface SupabaseQuoteBuilderProductRow {
+	id: string
+	slug: string
+	name: string
+	category: string
+	subcategory: string | null
+	unit_of_measure: string
+	price_range_min: number | null
+	price_range_max: number | null
+	updated_at: string
+	supplier_product_links: SupabaseQuoteBuilderSupplierLinkRow[] | null
+}
+
+interface SupabaseQuoteBuilderItemRow {
+	id: string
+	customer_description: string
+	quantity: number
+	unit_of_measure: string
+	notes: string | null
+	sort_order: number
+	products:
+		| SupabaseQuoteBuilderProductRow
+		| SupabaseQuoteBuilderProductRow[]
+		| null
+}
+
+interface SupabaseQuoteBuilderCustomerRow {
+	id: string
+	company_name: string
+	contact_name: string
+	phone: string
+	email: string | null
+}
+
+interface SupabaseQuoteBuilderAddressRow {
+	street: string
+	area: string | null
+	city: string
+	governorate: string
+	landmark: string | null
+}
+
+interface SupabaseQuoteBuilderRequestRow {
+	id: string
+	status: string
+	delivery_date: string | null
+	notes: string | null
+	customers:
+		| SupabaseQuoteBuilderCustomerRow
+		| SupabaseQuoteBuilderCustomerRow[]
+		| null
+	customer_addresses:
+		| SupabaseQuoteBuilderAddressRow
+		| SupabaseQuoteBuilderAddressRow[]
+		| null
+	quote_request_items: SupabaseQuoteBuilderItemRow[] | null
+}
+
+interface SupabaseQuoteBuilderSupplierLinkRow {
+	raw_cost: number | null
+	is_primary: boolean
+	last_quoted_at: string | null
+	suppliers: { name: string } | { name: string }[] | null
+}
+
+interface SupabaseSavedQuoteLineItem {
+	id?: string
+	productSlug?: string
+	productName: string
+	specification: string
+	quantity: number
+	unit: string
+	productCategory?: string
+	supplierCost: number
+	marginPercent?: number
+	sellPrice?: number
+}
+
+interface SupabaseSavedQuoteNotes {
+	notes?: string
+	deliveryAddress?: string | null
+	deliveryCity?: string | null
+	deliveryDate?: string | null
+	deliveryWindow?: string | null
+	paymentTerms?: string | null
+	earlyPaymentDiscount?: string | null
+	coverNote?: string | null
+	items?: SupabaseSavedQuoteLineItem[]
+}
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value
+}
+
+function hoursSincePriceTimestamp(value: string | null | undefined): number {
+	if (!value) return Number.POSITIVE_INFINITY
+	const parsed = new Date(value).getTime()
+	if (!Number.isFinite(parsed)) return Number.POSITIVE_INFINITY
+	return (Date.now() - parsed) / 3_600_000
+}
+
+function positivePrice(value: number | null | undefined): number | null {
+	const numeric = Number(value ?? 0)
+	return Number.isFinite(numeric) && numeric > 0 ? numeric : null
+}
+
+function primarySupplierLink(
+	links: SupabaseQuoteBuilderSupplierLinkRow[] | null,
+): SupabaseQuoteBuilderSupplierLinkRow | null {
+	if (!links || links.length === 0) return null
+	return links.find((link) => link.is_primary) ?? links[0] ?? null
+}
+
+function productPriceFreshness(
+	product: SupabaseQuoteBuilderProductRow | null,
+): {
+	freshness: FreshnessIndicator
+	lastQuotedAt: string
+	priceStatus: PriceStatus
+	sellPrice: number
+	supplierCost: number
+	supplierName: string
+} {
+	const primaryLink = primarySupplierLink(
+		product?.supplier_product_links ?? null,
+	)
+	const supplier = firstRelation(primaryLink?.suppliers ?? null)
+	const supplierCost =
+		positivePrice(primaryLink?.raw_cost) ??
+		positivePrice(product?.price_range_min) ??
+		positivePrice(product?.price_range_max) ??
+		0
+	const sellPrice =
+		positivePrice(product?.price_range_max) ??
+		positivePrice(product?.price_range_min) ??
+		positivePrice(primaryLink?.raw_cost) ??
+		0
+	const lastQuotedAt =
+		primaryLink?.last_quoted_at ??
+		product?.updated_at ??
+		new Date(0).toISOString()
+
+	if (supplierCost <= 0 && sellPrice <= 0) {
+		return {
+			freshness: 'missing',
+			lastQuotedAt,
+			priceStatus: 'outdated',
+			sellPrice,
+			supplierCost,
+			supplierName: supplier?.name ?? '',
+		}
 	}
-	return map[broad]
+
+	const hours = hoursSincePriceTimestamp(lastQuotedAt)
+	const freshness: FreshnessIndicator =
+		hours < 24 ? 'fresh' : hours < 72 ? 'aging' : 'stale'
+	return {
+		freshness,
+		lastQuotedAt,
+		priceStatus: freshness === 'fresh' ? 'updated' : 'outdated',
+		sellPrice,
+		supplierCost,
+		supplierName: supplier?.name ?? '',
+	}
 }
 
-const MARGIN_THRESHOLDS: MarginThresholds[] = [
-	{ productCategory: 'cement_concrete', target: 20, floor: 14, absoluteMin: 8 },
-	{ productCategory: 'steel_rebar', target: 15, floor: 10, absoluteMin: 6 },
-	{ productCategory: 'lumber_timber', target: 18, floor: 12, absoluteMin: 8 },
-	{ productCategory: 'roofing', target: 25, floor: 18, absoluteMin: 12 },
-	{
-		productCategory: 'specialty_custom',
-		target: 38,
-		floor: 25,
-		absoluteMin: 15,
-	},
-]
-
-// ─── Derived freshness helpers ────────────────────────────
-
-function freshnessFor(lastUpdatedAt: string): FreshnessIndicator {
-	const hours = hoursSince(lastUpdatedAt)
-	if (hours < 24) return 'fresh'
-	if (hours < 72) return 'aging'
-	return 'stale'
+function parseSavedQuoteNotes(value: string | null): SupabaseSavedQuoteNotes {
+	if (!value) return {}
+	try {
+		const parsed: unknown = JSON.parse(value)
+		if (!isUnknownRecord(parsed)) return {}
+		const items = Array.isArray(parsed.items)
+			? parsed.items.filter((item): item is SupabaseSavedQuoteLineItem => {
+					if (!isUnknownRecord(item)) return false
+					return (
+						typeof item.productName === 'string' &&
+						typeof item.specification === 'string' &&
+						typeof item.quantity === 'number' &&
+						typeof item.unit === 'string' &&
+						typeof item.supplierCost === 'number'
+					)
+				})
+			: undefined
+		const metadata =
+			typeof parsed.notes === 'string'
+				? parseSavedQuoteMetadata(parsed.notes)
+				: parseSavedQuoteMetadataObject(parsed)
+		return {
+			notes: metadata.specialInstructions,
+			deliveryAddress: metadata.deliveryAddress,
+			deliveryCity: metadata.deliveryCity,
+			deliveryDate: metadata.deliveryDate,
+			deliveryWindow: metadata.deliveryWindow,
+			paymentTerms: metadata.paymentTerms,
+			earlyPaymentDiscount: metadata.earlyPaymentDiscount,
+			coverNote: metadata.coverNote,
+			items,
+		}
+	} catch {
+		return {}
+	}
 }
 
-function isRecentlyOrderedSlug(slug: string): boolean {
-	return db.rfqs
-		.list()
-		.filter((r) => r.status !== 'declined' && r.status !== 'expired')
-		.some((r) => r.items.some((i) => i.productSlug === slug))
+function parseSavedQuoteMetadataObject(
+	parsed: Record<string, unknown>,
+): Omit<SupabaseSavedQuoteNotes, 'items'> & { specialInstructions?: string } {
+	const stringOrNull = (key: string) => {
+		const next = parsed[key]
+		return typeof next === 'string' ? next : null
+	}
+	return {
+		specialInstructions: stringOrNull('specialInstructions') ?? undefined,
+		deliveryAddress: stringOrNull('deliveryAddress'),
+		deliveryCity: stringOrNull('deliveryCity'),
+		deliveryDate: stringOrNull('deliveryDate'),
+		deliveryWindow: stringOrNull('deliveryWindow'),
+		paymentTerms: stringOrNull('paymentTerms'),
+		earlyPaymentDiscount: stringOrNull('earlyPaymentDiscount'),
+		coverNote: stringOrNull('coverNote'),
+	}
 }
 
-// ─── Quote builder data ───────────────────────────────────
+function parseSavedQuoteMetadata(
+	value: string,
+): Omit<SupabaseSavedQuoteNotes, 'items'> & { specialInstructions?: string } {
+	try {
+		const parsed: unknown = JSON.parse(value)
+		if (!isUnknownRecord(parsed)) return { notes: value }
+		const stringOrNull = (key: string) => {
+			const next = parsed[key]
+			return typeof next === 'string' ? next : null
+		}
+		return {
+			specialInstructions: stringOrNull('specialInstructions') ?? undefined,
+			deliveryAddress: stringOrNull('deliveryAddress'),
+			deliveryCity: stringOrNull('deliveryCity'),
+			deliveryDate: stringOrNull('deliveryDate'),
+			deliveryWindow: stringOrNull('deliveryWindow'),
+			paymentTerms: stringOrNull('paymentTerms'),
+			earlyPaymentDiscount: stringOrNull('earlyPaymentDiscount'),
+			coverNote: stringOrNull('coverNote'),
+		}
+	} catch {
+		return { notes: value }
+	}
+}
 
-function buildSuggestedProduct(
-	slug: string,
-	quantity: number,
+function formatSupabaseAddress(
+	address: SupabaseQuoteBuilderAddressRow | null,
+): string {
+	if (!address) return ''
+	return [
+		address.street,
+		address.area,
+		address.city,
+		address.governorate,
+		address.landmark,
+	]
+		.filter((part): part is string => Boolean(part?.trim()))
+		.join(', ')
+}
+
+function buildSupabaseSuggestedProductFromSavedItem(
+	item: SupabaseSavedQuoteLineItem,
+	rfqId: string,
+	index: number,
+	product: SupabaseQuoteBuilderProductRow | null,
+) {
+	const price = product ? productPriceFreshness(product) : null
+	const supplierCost = price?.supplierCost ?? item.supplierCost
+	const fallbackSellPrice = item.sellPrice ?? supplierCost
+	const marginPercent =
+		item.marginPercent ??
+		computeMarginFromSellPrice(item.supplierCost, fallbackSellPrice)
+	const sellPrice = product
+		? computeSellPriceFromMargin(supplierCost, marginPercent)
+		: fallbackSellPrice
+	return {
+		id: item.id ?? `sp-${rfqId}-${index + 1}`,
+		productSlug: product?.slug ?? item.productSlug ?? item.productName,
+		productName: product?.name ?? item.productName,
+		specification:
+			product?.subcategory?.replace(/_/g, ' ') ?? item.specification,
+		supplierName: price?.supplierName ?? '',
+		supplierCost,
+		quantity: item.quantity,
+		unit: product?.unit_of_measure ?? item.unit,
+		freshness: price?.freshness ?? ('fresh' as FreshnessIndicator),
+		priceStatus: price?.priceStatus ?? ('updated' as const),
+		recentlyOrdered: true,
+		lastQuotedAt: price?.lastQuotedAt ?? new Date().toISOString(),
+		category: product?.category ?? item.productCategory ?? '',
+		productCategory: product?.category ?? item.productCategory ?? '',
+		marginPercent,
+		sellPrice,
+	}
+}
+
+async function savedQuoteProductsBySlug(
+	auth: Awaited<ReturnType<typeof getInternalSupabaseClient>>,
+	items: SupabaseSavedQuoteLineItem[],
+): Promise<Map<string, SupabaseQuoteBuilderProductRow>> {
+	const slugs = Array.from(
+		new Set(
+			items
+				.map((item) => item.productSlug)
+				.filter((slug): slug is string => Boolean(slug?.trim())),
+		),
+	)
+	if (slugs.length === 0) return new Map()
+	const { data, error } = await auth.client
+		.from('products')
+		.select(`
+			id,
+			slug,
+			name,
+			category,
+			subcategory,
+			unit_of_measure,
+			price_range_min,
+			price_range_max,
+			updated_at,
+			supplier_product_links (
+				raw_cost,
+				is_primary,
+				last_quoted_at,
+				suppliers (
+					name
+				)
+			)
+		`)
+		.in('slug', slugs)
+		.eq('is_active', true)
+		.neq('availability_status', 'hidden')
+	if (error) throw new Error(error.message)
+	return new Map(
+		((data ?? []) as SupabaseQuoteBuilderProductRow[]).map((product) => [
+			product.slug,
+			product,
+		]),
+	)
+}
+
+function buildSupabaseSuggestedProductFromRequestItem(
+	item: SupabaseQuoteBuilderItemRow,
 	rfqId: string,
 	index: number,
 ) {
-	const product = db.products.findBySlug(slug)
-	if (!product) return null
-	const primary = db.supplierPrices.primaryForProduct(slug)
-	const lastUpdatedAt = primary?.lastQuotedAt ?? new Date(0).toISOString()
-	const freshness = primary
-		? freshnessFor(lastUpdatedAt)
-		: ('missing' as FreshnessIndicator)
-	const priceStatus = freshness === 'fresh' ? 'updated' : 'outdated'
+	const product = firstRelation(item.products)
+	const price = productPriceFreshness(product)
+	const marginPercent = computeMarginFromSellPrice(
+		price.supplierCost,
+		price.sellPrice,
+	)
 	return {
 		id: `sp-${rfqId}-${index + 1}`,
-		productSlug: product.slug,
-		productName: product.name,
-		specification: product.subcategory.replace(/_/g, ' '),
-		supplierName: primary?.supplierName ?? '',
-		supplierCost: bufferCost(primary?.rawCost ?? 0),
-		quantity,
-		unit: product.unit_of_measure,
-		freshness,
-		priceStatus,
-		recentlyOrdered: isRecentlyOrderedSlug(slug),
-		lastQuotedAt: lastUpdatedAt,
-		category: marginCategoryFor(product),
+		productSlug: product?.slug ?? `request-item-${item.id}`,
+		productName: product?.name ?? item.customer_description,
+		specification:
+			product?.subcategory?.replace(/_/g, ' ') ??
+			item.notes ??
+			item.customer_description,
+		supplierName: price.supplierName,
+		supplierCost: price.supplierCost,
+		quantity: Number(item.quantity),
+		unit: product?.unit_of_measure ?? item.unit_of_measure,
+		freshness: price.freshness,
+		priceStatus: price.priceStatus,
+		recentlyOrdered: true,
+		lastQuotedAt: price.lastQuotedAt,
+		category: product?.category ?? '',
+		productCategory: product?.category ?? '',
+		marginPercent,
+		sellPrice: price.sellPrice,
 	}
 }
 
-async function buildQuoteBuilderData(rfqId: string) {
-	const rfq = db.rfqs.get(rfqId)
-	const customer = rfq ? db.customers.findByName(rfq.customerName) : undefined
-	const exchangeRates = await getQuoteBuilderExchangeRates()
+async function buildSupabaseQuoteBuilderData(
+	rfqId: string,
+	exchangeRates: QuoteBuilderExchangeRates,
+) {
+	if (!isUuid(rfqId)) return null
+	const auth = await getInternalSupabaseClient()
+	const marginThresholds = await getSupabaseMarginThresholds(auth)
 
-	// If a draft quote already exists for this rfq, hydrate from it so
-	// saved margins/quantities aren't silently overwritten by the RFQ rebuild.
-	const existingDraft = db.quotes
-		.forRfq(rfqId)
-		.filter((q) => q.status === 'draft')
-		.slice(-1)[0]
-
-	const suggestedProducts = existingDraft
-		? existingDraft.items
-				.map((item, i) => {
-					const base = buildSuggestedProduct(
-						item.productSlug,
-						item.quantity,
-						rfqId,
-						i,
-					)
-					if (!base) return null
-					return {
-						...base,
-						marginPercent: item.marginPercent,
-						sellPrice: item.sellPrice,
-					}
-				})
-				.filter((p): p is NonNullable<typeof p> => p !== null)
-		: rfq
-			? rfq.items
-					.map((item, i) =>
-						buildSuggestedProduct(item.productSlug, item.quantity, rfqId, i),
-					)
-					.filter((p): p is NonNullable<typeof p> => p !== null)
-			: []
-
-	// Real stock lookup per product — Quote builder uses this to drive the
-	// "warehouse" source option with live availability, no mocks. Keyed by
-	// both slug and display name so the client can hit it from either side.
-	const stockBySlug: Record<
-		string,
-		{ available: number; physical: number; reserved: number }
-	> = {}
-	const stockByName: Record<
-		string,
-		{ available: number; physical: number; reserved: number }
-	> = {}
-	const relevantSlugs = new Set<string>()
-	if (rfq) for (const i of rfq.items) relevantSlugs.add(i.productSlug)
-	if (existingDraft)
-		for (const i of existingDraft.items) relevantSlugs.add(i.productSlug)
-	for (const slug of relevantSlugs) {
-		const row = db.stock.forProduct(slug)
-		const physical = row?.stockLevel ?? 0
-		const reserved = row?.reservedLevel ?? 0
-		const entry = {
-			physical,
-			reserved,
-			available: Math.max(0, physical - reserved),
-		}
-		stockBySlug[slug] = entry
-		const product = db.products.findBySlug(slug)
-		if (product) stockByName[product.name] = entry
-	}
-
-	// Real supplier directory pulled from db.suppliers so the sourcing menu
-	// search is backed by actual rows. Scores/categories derive from existing
-	// supplier data (rating, custom badges) — no hardcoded supplier list.
-	const suppliers = db.suppliers.list().map((s) => ({
-		id: s.name, // name is the stable key in the mock DB
-		name: s.name,
-		tier:
-			s.tier === 'preferred'
-				? 'Preferred'
-				: s.tier === 'approved'
-					? 'Approved'
-					: s.tier === 'conditional'
-						? 'Conditional'
-						: 'New',
-		score: Math.round(s.rating * 20), // rating is 0-5, score is 0-100
-		// Category keywords derived from the actual products they supply —
-		// one entry per unique broad category slug.
-		categories: Array.from(
-			new Set(
-				db.supplierPrices
-					.forSupplier(s.name)
-					.map((sp) => db.products.findBySlug(sp.productSlug))
-					.filter((p): p is NonNullable<typeof p> => p !== null)
-					.map((p) => db.products.broadCategoryFor(p).toLowerCase()),
+	const { data, error } = await auth.client
+		.from('quote_requests')
+		.select(`
+			id,
+			status,
+			delivery_date,
+			notes,
+			customers (
+				id,
+				company_name,
+				contact_name,
+				phone,
+				email
 			),
-		),
-	}))
+			customer_addresses (
+				street,
+				area,
+				city,
+				governorate,
+				landmark
+			),
+			quote_request_items (
+				id,
+				customer_description,
+				quantity,
+				unit_of_measure,
+				notes,
+				sort_order,
+				products (
+					id,
+					slug,
+					name,
+					category,
+					subcategory,
+					unit_of_measure,
+					price_range_min,
+					price_range_max,
+					updated_at,
+					supplier_product_links (
+						raw_cost,
+						is_primary,
+						last_quoted_at,
+						suppliers (
+							name
+						)
+					)
+				)
+			)
+		`)
+		.eq('id', rfqId)
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	if (!data) return null
+
+	const request = data as unknown as SupabaseQuoteBuilderRequestRow
+	const { data: draftRows, error: draftError } = await auth.client
+		.from('sales_quote_versions')
+		.select('id, notes')
+		.eq('quote_request_id', rfqId)
+		.eq('status', 'draft')
+		.order('version_number', { ascending: false })
+		.limit(1)
+	if (draftError) throw new Error(draftError.message)
+
+	const savedDraft = draftRows?.[0]
+	const savedNotes = parseSavedQuoteNotes(savedDraft?.notes ?? null)
+	const savedProductBySlug = savedNotes.items
+		? await savedQuoteProductsBySlug(auth, savedNotes.items)
+		: new Map<string, SupabaseQuoteBuilderProductRow>()
+	const suggestedProducts =
+		savedNotes.items && savedNotes.items.length > 0
+			? savedNotes.items.map((item, index) => {
+					const product = item.productSlug
+						? (savedProductBySlug.get(item.productSlug) ?? null)
+						: null
+					return buildSupabaseSuggestedProductFromSavedItem(
+						item,
+						rfqId,
+						index,
+						product,
+					)
+				})
+			: (request.quote_request_items ?? [])
+					.slice()
+					.sort((a, b) => a.sort_order - b.sort_order)
+					.map((item, index) =>
+						buildSupabaseSuggestedProductFromRequestItem(item, rfqId, index),
+					)
+	const customer = firstRelation(request.customers)
+	const address = firstRelation(request.customer_addresses)
+	const deliveryAddress = formatSupabaseAddress(address)
 
 	return {
 		rfqId,
-		rfqStatus: rfq?.status ?? ('submitted' as const),
-		quoteStatus: existingDraft?.status ?? ('draft' as const),
+		rfqStatus: request.status,
+		quoteStatus: 'draft' as const,
 		customer: {
-			// Empty-not-fake: if there's no resolved customer the builder shows
-			// empty headers and the rep fills them in — we never render a
-			// placeholder string that looks real.
-			name: rfq?.customerName ?? customer?.companyName ?? '',
-			tier: rfq?.customerTier ?? customer?.tier ?? ('new' as const),
-			contactName: rfq?.contactName ?? customer?.contactName ?? '',
+			name: customer?.company_name ?? '',
+			tier: 'new' as const,
+			contactName: customer?.contact_name ?? '',
 			phone: customer?.phone ?? '',
 			email: customer?.email ?? '',
-			company: customer?.companyName ?? rfq?.customerName ?? '',
+			company: customer?.company_name ?? '',
 		},
-		// Draft overrides win over the RFQ fallback, so a rep's edit survives
-		// a reload; if neither is set, we fall back to the customer's address.
-		deliveryAddress:
-			existingDraft?.deliveryAddress ??
-			rfq?.deliveryAddress ??
-			customer?.address ??
-			'',
-		deliveryCity:
-			existingDraft?.deliveryCity ?? rfq?.deliveryCity ?? customer?.city ?? '',
-		deliveryDate: existingDraft?.deliveryDate ?? '',
-		deliveryWindow: existingDraft?.deliveryWindow ?? '',
-		specialInstructions: existingDraft?.specialInstructions ?? '',
-		paymentTerms: existingDraft?.paymentTerms ?? '',
-		earlyPaymentDiscount: existingDraft?.earlyPaymentDiscount ?? '',
-		coverNote: existingDraft?.coverNote ?? '',
+		deliveryAddress: savedNotes.deliveryAddress ?? deliveryAddress,
+		deliveryCity: savedNotes.deliveryCity ?? address?.city ?? '',
+		deliveryDate: savedNotes.deliveryDate ?? request.delivery_date ?? '',
+		deliveryWindow: savedNotes.deliveryWindow ?? '',
+		specialInstructions: savedNotes.notes ?? request.notes ?? '',
+		paymentTerms: savedNotes.paymentTerms ?? '',
+		earlyPaymentDiscount: savedNotes.earlyPaymentDiscount ?? '',
+		coverNote: savedNotes.coverNote ?? '',
 		customerCredit: {
-			creditLimit: customer?.creditLimit ?? 0,
-			currentExposure: customer?.currentExposure ?? 0,
-			availableCredit:
-				(customer?.creditLimit ?? 0) - (customer?.currentExposure ?? 0),
-			paymentHistory: customer?.paymentHistory ?? ('good' as const),
+			creditLimit: 0,
+			currentExposure: 0,
+			availableCredit: 0,
+			paymentHistory: 'good' as const,
 		},
 		suggestedProducts,
 		recentPrices: suggestedProducts.map((p) => ({
@@ -312,12 +680,153 @@ async function buildQuoteBuilderData(rfqId: string) {
 			freshness: p.freshness,
 			lastQuotedAt: p.lastQuotedAt,
 		})),
-		stockBySlug,
-		stockByName,
-		suppliers,
-		marginThresholds: MARGIN_THRESHOLDS,
+		stockBySlug: {},
+		stockByName: {},
+		suppliers: [],
+		marginThresholds,
 		exchangeRates,
 	}
+}
+
+async function buildSupabaseManualCustomerQuoteData(
+	rfqId: string,
+	exchangeRates: QuoteBuilderExchangeRates,
+) {
+	if (!rfqId.startsWith('new-')) return null
+	const customerId = rfqId.slice(4)
+	if (!isUuid(customerId)) return null
+	const auth = await getInternalSupabaseClient()
+	const marginThresholds = await getSupabaseMarginThresholds(auth)
+
+	const { data, error } = await auth.client
+		.from('customers')
+		.select(`
+			id,
+			company_name,
+			contact_name,
+			phone,
+			email,
+			customer_addresses (
+				street,
+				area,
+				city,
+				governorate,
+				landmark,
+				is_default
+			)
+		`)
+		.eq('id', customerId)
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	if (!data) return null
+
+	const customer = data as unknown as SupabaseQuoteBuilderCustomerRow & {
+		customer_addresses:
+			| (SupabaseQuoteBuilderAddressRow & { is_default: boolean })[]
+			| null
+	}
+	const address =
+		customer.customer_addresses?.find((candidate) => candidate.is_default) ??
+		customer.customer_addresses?.[0] ??
+		null
+	const deliveryAddress = formatSupabaseAddress(address)
+
+	return {
+		rfqId,
+		rfqStatus: 'submitted' as const,
+		quoteStatus: 'draft' as const,
+		customer: {
+			name: customer.company_name,
+			tier: 'new' as const,
+			contactName: customer.contact_name,
+			phone: customer.phone,
+			email: customer.email ?? '',
+			company: customer.company_name,
+		},
+		deliveryAddress,
+		deliveryCity: address?.city ?? '',
+		deliveryDate: '',
+		deliveryWindow: '',
+		specialInstructions: '',
+		paymentTerms: '',
+		earlyPaymentDiscount: '',
+		coverNote: '',
+		customerCredit: {
+			creditLimit: 0,
+			currentExposure: 0,
+			availableCredit: 0,
+			paymentHistory: 'good' as const,
+		},
+		suggestedProducts: [],
+		recentPrices: [],
+		stockBySlug: {},
+		stockByName: {},
+		suppliers: [],
+		marginThresholds,
+		exchangeRates,
+	}
+}
+
+async function buildEmptyManualQuoteData(
+	rfqId: string,
+	exchangeRates: QuoteBuilderExchangeRates,
+) {
+	if (!rfqId.startsWith('new-')) return null
+	const customerId = rfqId.slice(4)
+	if (isUuid(customerId)) return null
+
+	const auth = await getInternalSupabaseClient()
+	const marginThresholds = await getSupabaseMarginThresholds(auth)
+
+	return {
+		rfqId,
+		rfqStatus: 'submitted' as const,
+		quoteStatus: 'draft' as const,
+		customer: {
+			name: '',
+			tier: 'new' as const,
+			contactName: '',
+			phone: '',
+			email: '',
+			company: '',
+		},
+		deliveryAddress: '',
+		deliveryCity: '',
+		deliveryDate: '',
+		deliveryWindow: '',
+		specialInstructions: '',
+		paymentTerms: '',
+		earlyPaymentDiscount: '',
+		coverNote: '',
+		customerCredit: {
+			creditLimit: 0,
+			currentExposure: 0,
+			availableCredit: 0,
+			paymentHistory: 'good' as const,
+		},
+		suggestedProducts: [],
+		recentPrices: [],
+		stockBySlug: {},
+		stockByName: {},
+		suppliers: [],
+		marginThresholds,
+		exchangeRates,
+	}
+}
+
+async function buildQuoteBuilderData(rfqId: string) {
+	const exchangeRates = await getQuoteBuilderExchangeRates()
+	const supabaseData = await buildSupabaseQuoteBuilderData(rfqId, exchangeRates)
+	if (supabaseData) return supabaseData
+	const manualCustomerData = await buildSupabaseManualCustomerQuoteData(
+		rfqId,
+		exchangeRates,
+	)
+	if (manualCustomerData) return manualCustomerData
+	const emptyManualData = await buildEmptyManualQuoteData(rfqId, exchangeRates)
+	if (emptyManualData) return emptyManualData
+
+	throw new Error('Supabase quote request or customer is required')
 }
 
 // ─── Server Functions ─────────────────────────────────────
@@ -332,6 +841,7 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 				z.object({
 					id: z.string().optional(),
 					productSlug: z.string().optional(),
+					productCategory: z.string().optional(),
 					productName: z.string(),
 					specification: z.string(),
 					quantity: z.number().positive(),
@@ -355,98 +865,118 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const items = data.lineItems
-			.map((li) => {
-				const slug =
-					li.productSlug ?? db.products.findByName(li.productName)?.slug
-				if (!slug) return null
-				return {
-					productSlug: slug,
-					quantity: li.quantity,
-					marginPercent: li.marginPercent,
-					sellPrice: li.sellPrice,
-				}
-			})
-			.filter((x): x is NonNullable<typeof x> => x !== null)
-
-		const avgMargin =
-			items.length > 0
-				? Math.round(
-						(items.reduce((s, i) => s + i.marginPercent, 0) / items.length) *
-							10,
-					) / 10
-				: 0
-
-		// Build a patch from only the fields the caller actually sent, so the
-		// caller can autosave incrementally without clobbering existing values.
-		const overridesPatch: Parameters<typeof db.quotes.update>[1] = {}
-		if (data.deliveryAddress !== undefined)
-			overridesPatch.deliveryAddress = data.deliveryAddress
-		if (data.deliveryCity !== undefined)
-			overridesPatch.deliveryCity = data.deliveryCity
-		if (data.deliveryDate !== undefined)
-			overridesPatch.deliveryDate = data.deliveryDate
-		if (data.deliveryWindow !== undefined)
-			overridesPatch.deliveryWindow = data.deliveryWindow
-		if (data.specialInstructions !== undefined)
-			overridesPatch.specialInstructions = data.specialInstructions
-		if (data.paymentTerms !== undefined)
-			overridesPatch.paymentTerms = data.paymentTerms
-		if (data.earlyPaymentDiscount !== undefined)
-			overridesPatch.earlyPaymentDiscount = data.earlyPaymentDiscount
-		if (data.coverNote !== undefined) overridesPatch.coverNote = data.coverNote
-
-		// 1. Update by explicit quoteId if the row exists
-		if (data.quoteId) {
-			const existing = db.quotes.get(data.quoteId)
-			if (existing) {
-				db.quotes.update(data.quoteId, {
-					items,
-					marginPercent: avgMargin,
-					...overridesPatch,
+		const auth = await getInternalSupabaseClient()
+		const savedQuoteVersion = decodeSupabaseQuoteVersionId(data.quoteId)
+		const supabaseQuoteRequestId =
+			savedQuoteVersion?.quoteRequestId ?? data.rfqId
+		if (isUuid(supabaseQuoteRequestId)) {
+			const { data: quoteRequest, error: requestError } = await auth.client
+				.from('quote_requests')
+				.select('id')
+				.eq('id', supabaseQuoteRequestId)
+				.maybeSingle()
+			if (requestError) throw new Error(requestError.message)
+			if (quoteRequest) {
+				const draftNotes = JSON.stringify({
+					quoteVersionId: savedQuoteVersion?.quoteVersionId ?? null,
+					deliveryAddress: data.deliveryAddress ?? null,
+					deliveryCity: data.deliveryCity ?? null,
+					deliveryDate: data.deliveryDate ?? null,
+					deliveryWindow: data.deliveryWindow ?? null,
+					specialInstructions: data.specialInstructions ?? null,
+					paymentTerms: data.paymentTerms ?? null,
+					earlyPaymentDiscount: data.earlyPaymentDiscount ?? null,
+					coverNote: data.coverNote ?? null,
 				})
-				return { quoteId: existing.id }
+				const { data: version, error: saveError } = await auth.client.rpc(
+					'sales_save_quote_version',
+					{
+						p_order_id: supabaseQuoteRequestId,
+						p_items: data.lineItems,
+						p_notes: draftNotes,
+					},
+				)
+				if (saveError) throw new Error(saveError.message)
+				if (!version?.id) throw new Error('sales_quote_version_not_returned')
+				return {
+					quoteId: encodeSupabaseQuoteVersionId(
+						supabaseQuoteRequestId,
+						version.id,
+					),
+				}
 			}
 		}
 
-		// 2. Update an existing draft for this RFQ if one is already on file
-		const drafts = db.quotes
-			.forRfq(data.rfqId)
-			.filter((q) => q.status === 'draft')
-		if (drafts.length > 0) {
-			const row = drafts[drafts.length - 1]
-			db.quotes.update(row.id, {
-				items,
-				marginPercent: avgMargin,
-				...overridesPatch,
+		const manualCustomerId =
+			data.customerId ??
+			(data.rfqId.startsWith('new-') ? data.rfqId.slice(4) : null)
+		if (manualCustomerId && isUuid(manualCustomerId)) {
+			const productSlugs = Array.from(
+				new Set(
+					data.lineItems
+						.map((item) => item.productSlug)
+						.filter((slug): slug is string => Boolean(slug)),
+				),
+			)
+			const { data: products, error: productError } = await auth.client
+				.from('products')
+				.select('id, slug')
+				.in('slug', productSlugs)
+			if (productError) throw new Error(productError.message)
+			const productBySlug = new Map(
+				((products ?? []) as { id: string; slug: string }[]).map((product) => [
+					product.slug,
+					product.id,
+				]),
+			)
+			const { data: createdRequest, error: manualError } =
+				await auth.client.rpc('create_manual_order', {
+					p_customer_id: manualCustomerId,
+					p_items: data.lineItems.map((item, index) => {
+						const productId = item.productSlug
+							? productBySlug.get(item.productSlug)
+							: undefined
+						return {
+							product_id: productId ?? null,
+							customer_description: item.productName,
+							quantity: item.quantity,
+							unit_of_measure: item.unit,
+							notes: item.specification,
+							sort_order: index + 1,
+							is_unmatched: !productId,
+						}
+					}),
+					p_notes: data.specialInstructions ?? null,
+				})
+			if (manualError) throw new Error(manualError.message)
+			if (!createdRequest?.id) throw new Error('manual_order_not_returned')
+
+			const draftNotes = JSON.stringify({
+				deliveryAddress: data.deliveryAddress ?? null,
+				deliveryCity: data.deliveryCity ?? null,
+				deliveryDate: data.deliveryDate ?? null,
+				deliveryWindow: data.deliveryWindow ?? null,
+				specialInstructions: data.specialInstructions ?? null,
+				paymentTerms: data.paymentTerms ?? null,
+				earlyPaymentDiscount: data.earlyPaymentDiscount ?? null,
+				coverNote: data.coverNote ?? null,
 			})
-			return { quoteId: row.id }
+			const { data: version, error: saveError } = await auth.client.rpc(
+				'sales_save_quote_version',
+				{
+					p_order_id: createdRequest.id,
+					p_items: data.lineItems,
+					p_notes: draftNotes,
+				},
+			)
+			if (saveError) throw new Error(saveError.message)
+			if (!version?.id) throw new Error('sales_quote_version_not_returned')
+			return {
+				quoteId: encodeSupabaseQuoteVersionId(createdRequest.id, version.id),
+			}
 		}
 
-		// 3. Otherwise insert a fresh draft row
-		const rfq = db.rfqs.get(data.rfqId)
-		const customer = data.customerId
-			? db.customers.get(data.customerId)
-			: rfq
-				? db.customers.findByName(rfq.customerName)
-				: undefined
-
-		const row = db.quotes.insert({
-			quoteNumber: `QT-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-			rfqId: data.rfqId,
-			customerId: customer?.id ?? 'cust-unknown',
-			version: 1,
-			status: 'draft',
-			marginPercent: avgMargin,
-			sentAt: null,
-			validUntil: new Date(Date.now() + 14 * 86_400_000).toISOString(),
-			sentVia: null,
-			customerPoNumber: null,
-			previousVersionId: null,
-			items,
-			...overridesPatch,
-		})
-		return { quoteId: row.id }
+		throw new Error('Supabase quote request or customer is required')
 	})
 
 export const getQuoteBuilderData = createServerFn({ method: 'GET' })
@@ -455,15 +985,84 @@ export const getQuoteBuilderData = createServerFn({ method: 'GET' })
 		return await buildQuoteBuilderData(data.rfqId)
 	})
 
+export const recordSalesCallOutcome = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			rfqId: z.string(),
+			outcome: z.enum([
+				'provider_not_configured',
+				'reached_customer',
+				'no_answer',
+				'requested_changes',
+				'customer_canceled',
+			]),
+			notes: z.string().optional(),
+		}),
+	)
+	.handler(async ({ data }) => {
+		if (!isUuid(data.rfqId)) {
+			return {
+				success: false as const,
+				message: 'Call can only be recorded after the quote has a request id.',
+			}
+		}
+		const auth = await getInternalSupabaseClient()
+		const notes = data.notes?.trim() || null
+		const { error } = await auth.client.rpc('sales_record_call_note', {
+			p_order_id: data.rfqId,
+			p_outcome: data.outcome,
+			p_notes: notes,
+		})
+		if (error) throw new Error(error.message)
+		return {
+			success: true as const,
+			message:
+				data.outcome === 'provider_not_configured'
+					? 'Call provider is not configured locally; outcome recorded.'
+					: 'Call outcome recorded.',
+		}
+	})
+
 export const getSalesApprovers = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		return {
-			approvers: db.employees.list().map((e) => ({
-				id: e.id,
-				name: e.name,
-			})),
-		}
+		const auth = await getInternalSupabaseClient()
+		const { data, error } = await auth.client
+			.from('employees')
+			.select('id, full_name, is_ceo, employee_roles(role)')
+			.eq('status', 'active')
+			.order('full_name', { ascending: true })
+		if (error) throw new Error(error.message)
+
+		const approvers = ((data ?? []) as unknown as SupabaseApproverEmployeeRow[])
+			.filter(isSalesApprover)
+			.map((employee) => ({
+				id: employee.id,
+				name: employee.full_name,
+			}))
+
+		return { approvers }
+	})
+
+export const validateSalesApproverCredential = createServerFn({
+	method: 'POST',
+})
+	.inputValidator(
+		z.object({
+			approverId: z.string().min(1),
+			securityMethod: z.enum(['password', 'qr']),
+			securityToken: z.string().min(1),
+		}),
+	)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		return verifyEmployeeCredential({
+			allowedRoles: SALES_APPROVER_ROLES,
+			client: auth.client,
+			employeeId: data.approverId,
+			method: data.securityMethod,
+			password: data.securityToken,
+		})
 	})
 
 // ─── Product Catalog (consumed by the quote builder search menu) ──
@@ -471,29 +1070,51 @@ export const getSalesApprovers = createServerFn({ method: 'GET' })
 export const getProductCatalog = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
+		const auth = await getInternalSupabaseClient()
+		const { data: products, error } = await auth.client
+			.from('products')
+			.select(`
+					id,
+					slug,
+					name,
+					category,
+					subcategory,
+					unit_of_measure,
+					price_range_min,
+					price_range_max,
+					updated_at,
+					supplier_product_links (
+						raw_cost,
+						is_primary,
+						last_quoted_at,
+						suppliers (
+							name
+						)
+					)
+				`)
+			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
+			.order('name', { ascending: true })
+			.limit(500)
+		if (error) throw new Error(error.message)
 		return {
-			products: db.products.list().map((product) => {
-				const primary = db.supplierPrices.primaryForProduct(product.slug)
-				const lastUpdatedAt = primary?.lastQuotedAt ?? new Date(0).toISOString()
-				const freshness = primary
-					? freshnessFor(lastUpdatedAt)
-					: ('missing' as FreshnessIndicator)
-				return {
-					id: product.id,
-					slug: product.slug,
-					name: product.name,
-					specification: product.subcategory.replace(/_/g, ' '),
-					unit: product.unit_of_measure,
-					category: product.category,
-					supplierCost: bufferCost(primary?.rawCost ?? 0),
-					freshness,
-					priceStatus:
-						freshness === 'fresh'
-							? ('updated' as const)
-							: ('outdated' as const),
-					recentlyOrdered: isRecentlyOrderedSlug(product.slug),
-					supplierName: primary?.supplierName ?? '',
-				}
-			}),
+			products: ((products ?? []) as SupabaseQuoteBuilderProductRow[]).map(
+				(product) => {
+					const price = productPriceFreshness(product)
+					return {
+						id: product.id,
+						slug: product.slug,
+						name: product.name,
+						specification: product.subcategory?.replace(/_/g, ' ') ?? '',
+						unit: product.unit_of_measure,
+						category: product.category,
+						supplierCost: price.supplierCost,
+						freshness: price.freshness,
+						priceStatus: price.priceStatus,
+						recentlyOrdered: false,
+						supplierName: price.supplierName,
+					}
+				},
+			),
 		}
 	})

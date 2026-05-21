@@ -30,9 +30,12 @@ interface AdminStore {
 const initialSearch: Record<VolumeId, string> = {
 	customers: '',
 	products: '',
+	categories: '',
 	employees: '',
 	drivers: '',
+	trucks: '',
 	suppliers: '',
+	pricingRules: '',
 }
 
 export const useAdminStore = create<AdminStore>()(

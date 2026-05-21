@@ -9,7 +9,7 @@ import {
 	useRef,
 	useState,
 } from 'react'
-import type { JsonValue } from '../../lib/db/db'
+import type { JsonValue } from '../../lib/db/types'
 import type {
 	SearchExecutiveBrief,
 	SearchModuleSummary,
@@ -27,6 +27,7 @@ import {
 	searchInternalDb,
 } from '../../lib/server/search'
 import { useAIChatStore } from '../../stores/ai-chat'
+import { useInternalStore } from '../../stores/internal'
 import { SlidePanel } from '../shared/SlidePanel'
 
 const searchFrameFadeSeconds = 0.12
@@ -38,6 +39,30 @@ const searchSkeletonIds = [
 	'search-skeleton-5',
 	'search-skeleton-6',
 ] as const
+
+const SOURCE_PANEL_BY_TABLE: Record<string, string> = {
+	activity: 'search',
+	customers: 'sales',
+	dispatch: 'dispatch',
+	drivers: 'dispatch',
+	employees: 'admin',
+	inventory: 'inventory',
+	orders: 'sales',
+	payments: 'finance',
+	support: 'customer-service',
+	suppliers: 'inventory',
+	warehouse: 'warehouse',
+}
+
+const SOURCE_PANEL_LABELS: Record<string, string> = {
+	'customer-service': 'Customer service',
+	dispatch: 'Dispatch',
+	finance: 'Finance',
+	inventory: 'Inventory',
+	sales: 'Sales',
+	search: 'Search',
+	warehouse: 'Warehouse',
+}
 
 function isEditableEventTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false
@@ -56,6 +81,7 @@ type DetailPanelStyle = CSSProperties & {
 export function SearchModule() {
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const reduceMotion = useReducedMotion()
+	const setActiveModule = useInternalStore((s) => s.setActiveModule)
 	const [query, setQuery] = useState('')
 	const debouncedQuery = useDebouncedValue(query, 120)
 	const [activeTableId, setActiveTableId] = useState<string | null>(null)
@@ -232,6 +258,13 @@ export function SearchModule() {
 		ai.send()
 	}
 
+	function openSourcePanel(row: SearchRow) {
+		const moduleId = SOURCE_PANEL_BY_TABLE[row.tableId]
+		if (!moduleId || moduleId === 'search') return
+		setSelectedRow(null)
+		setActiveModule(moduleId)
+	}
+
 	return (
 		<div className="relative h-full min-h-0 overflow-hidden bg-[#010101] text-white">
 			<motion.div
@@ -341,7 +374,11 @@ export function SearchModule() {
 				</AnimatePresence>
 			</motion.div>
 
-			<RowDetailPanel row={selectedRow} onClose={() => setSelectedRow(null)} />
+			<RowDetailPanel
+				row={selectedRow}
+				onClose={() => setSelectedRow(null)}
+				onOpenSourcePanel={openSourcePanel}
+			/>
 		</div>
 	)
 }
@@ -807,15 +844,19 @@ function PreviewFields({ fields }: { fields: SearchPreviewField[] }) {
 function RowDetailPanel({
 	row,
 	onClose,
+	onOpenSourcePanel,
 }: {
 	row: SearchRow | null
 	onClose: () => void
+	onOpenSourcePanel: (row: SearchRow) => void
 }) {
 	const detailStyle: DetailPanelStyle | undefined = row
 		? {
 				'--detail-accent': row.accent,
 			}
 		: undefined
+	const sourcePanel = row ? SOURCE_PANEL_BY_TABLE[row.tableId] : null
+	const sourcePanelLabel = sourcePanel ? SOURCE_PANEL_LABELS[sourcePanel] : null
 
 	return (
 		<SlidePanel
@@ -868,6 +909,15 @@ function RowDetailPanel({
 								/>
 							))}
 						</div>
+						{sourcePanelLabel && sourcePanel !== 'search' && (
+							<button
+								type="button"
+								onClick={() => onOpenSourcePanel(row)}
+								className="mt-5 inline-flex min-h-10 items-center border border-white/[0.09] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white/64 outline-none transition-colors hover:border-white/[0.18] hover:text-white focus-visible:border-white/30"
+							>
+								Open {sourcePanelLabel}
+							</button>
+						)}
 					</div>
 				</div>
 			)}

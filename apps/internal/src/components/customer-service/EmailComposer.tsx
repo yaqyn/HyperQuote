@@ -52,7 +52,9 @@ function deriveFields(
 	switch (action) {
 		case 'reply': {
 			const replyTo_ =
-				replyTo.direction === 'inbound' ? originalFrom : customerEmail
+				replyTo.direction === 'inbound'
+					? originalFrom || customerEmail
+					: customerEmail
 			return {
 				to: replyTo_,
 				cc: '',
@@ -63,7 +65,9 @@ function deriveFields(
 		}
 		case 'reply-all': {
 			const replyTo_ =
-				replyTo.direction === 'inbound' ? originalFrom : customerEmail
+				replyTo.direction === 'inbound'
+					? originalFrom || customerEmail
+					: customerEmail
 			const ccList = [
 				originalCc,
 				replyTo.direction === 'inbound' ? '' : originalFrom,

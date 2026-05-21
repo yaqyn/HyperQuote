@@ -1,20 +1,16 @@
+import type { AuthSession } from '@hyperquote/auth'
+import { hasPermission } from '@hyperquote/auth'
+import { appendSetCookieHeaders } from '@hyperquote/auth/server'
 import type { Session, User } from '@supabase/supabase-js'
 import { describe, expect, it, vi } from 'vitest'
 import {
-	appendSetCookieHeaders,
 	authenticateInternalPassword,
 	getInternalSupabaseConfig,
-	shouldUseInternalDevAuthStub,
 } from '../lib/server/internal-auth-core'
 
 describe('internal auth runtime policy', () => {
-	it('fails closed instead of enabling the dev stub in production without Supabase config', () => {
+	it('fails closed without Supabase config', () => {
 		expect(getInternalSupabaseConfig({})).toBeNull()
-		expect(shouldUseInternalDevAuthStub({}, true)).toBe(false)
-		expect(
-			shouldUseInternalDevAuthStub({ NODE_ENV: 'production' }, false),
-		).toBe(false)
-		expect(shouldUseInternalDevAuthStub({}, false)).toBe(true)
 	})
 
 	it('rejects successful Supabase logins outside the internal pool', async () => {
@@ -79,13 +75,44 @@ describe('internal auth runtime policy', () => {
 		expect(headers.get('set-cookie')).toContain('sb-access-token=one')
 		expect(headers.get('set-cookie')).toContain('sb-refresh-token=two')
 	})
+
+	it('gates internal module permissions from app roles', () => {
+		const sales = mockAuthSession(['sales'])
+		const inventory = mockAuthSession(['inventory'])
+		const customerService = mockAuthSession(['customer_service'])
+		const admin = mockAuthSession(['admin'])
+		const external = mockAuthSession(['sales'], 'external')
+
+		expect(hasPermission(sales, 'sales.read')).toBe(true)
+		expect(hasPermission(sales, 'finance.read')).toBe(false)
+		expect(hasPermission(inventory, 'procurement.read')).toBe(true)
+		expect(hasPermission(inventory, 'warehouse.read')).toBe(false)
+		expect(hasPermission(customerService, 'customer_service.read')).toBe(true)
+		expect(hasPermission(customerService, 'sales.read')).toBe(false)
+		expect(hasPermission(admin, 'dispatch.read')).toBe(true)
+		expect(hasPermission(external, 'sales.read')).toBe(false)
+	})
 })
 
-function mockUser(pool: 'internal' | 'external'): User {
+function mockAuthSession(
+	roles: string[],
+	pool: AuthSession['pool'] = 'internal',
+): AuthSession {
+	const user = mockUser(pool, roles)
+	return {
+		session: { ...mockSession(), user },
+		user,
+		pool,
+		roles,
+		tenantId: null,
+	}
+}
+
+function mockUser(pool: AuthSession['pool'], roles: string[] = []): User {
 	return {
 		id: 'user-1',
 		aud: 'authenticated',
-		app_metadata: { pool },
+		app_metadata: { pool, roles },
 		user_metadata: {},
 		created_at: '2026-01-01T00:00:00.000Z',
 	} as unknown as User

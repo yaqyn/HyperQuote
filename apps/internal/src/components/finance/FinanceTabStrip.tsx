@@ -1,5 +1,5 @@
 import { BookOpen, History, type LucideIcon } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { type FinanceTab, useFinanceStore } from '../../stores/finance'
 
 interface Register {

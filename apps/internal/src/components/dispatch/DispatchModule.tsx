@@ -9,6 +9,8 @@ const DispatchMap = lazy(() =>
 	import('./DispatchMap').then((module) => ({ default: module.DispatchMap })),
 )
 
+const DISPATCH_BOARD_REFRESH_MS = 10_000
+
 export function DispatchModule() {
 	const [panelOpen, setPanelOpen] = useState(true)
 	const selectedQuoteId = useDispatchStore((s) => s.selectedQuoteId)
@@ -17,6 +19,8 @@ export function DispatchModule() {
 	const { data } = useQuery({
 		queryKey: ['dispatch-board'],
 		queryFn: () => getDispatchBoard({ data: {} }),
+		refetchInterval: DISPATCH_BOARD_REFRESH_MS,
+		refetchIntervalInBackground: true,
 		staleTime: 5_000,
 	})
 	const routes = data?.routes ?? []

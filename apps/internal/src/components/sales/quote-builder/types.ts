@@ -4,6 +4,7 @@ import type { FreshnessIndicator, PriceStatus } from '../../../types/sales'
 export interface LineItemFormValues {
 	id: string
 	productSlug: string
+	productCategory: string
 	productName: string
 	specification: string
 	quantity: number

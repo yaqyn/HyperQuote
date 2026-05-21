@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import type { OrderReportStage } from '../../lib/db/db'
+import type { OrderReportStage } from '../../lib/db/types'
 import {
 	getOrderReport,
 	type ResolvedReport,

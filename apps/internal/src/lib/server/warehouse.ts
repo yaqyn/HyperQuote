@@ -1,15 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { TruckRow } from '../db/db'
-import { db } from '../db/db'
 import {
-	getQuoteContext,
-	quoteCustomerSnapshot,
-	quoteDeliverySnapshot,
-	quoteSellTotal,
-	roundedHoursSince,
-	roundMoney,
-} from './order-context'
+	getInternalSupabaseAdminClient,
+	getInternalSupabaseClient,
+	getInternalSupabasePasswordClient,
+} from './_supabase'
+import { verifyEmployeeCredential } from './employee-credentials'
 
 /**
  * Warehouse dock flow — resumable 4-stage wizard per order.
@@ -49,8 +45,6 @@ interface WarehouseSignoff {
 	qualityPass: boolean
 	proofUrl: string
 	securityMethod: SecurityMethod
-	/** The token captured from either a typed password or a scanned QR. */
-	securityToken: string
 	signedAt: string
 }
 
@@ -64,23 +58,7 @@ interface FailedInspection {
 	reason: string
 	proofUrl: string
 	securityMethod: SecurityMethod
-	securityToken: string
 	failedAt: string
-}
-
-export interface WarehouseSection {
-	truckAssignments: TruckAssignment[]
-	/**
-	 * Flipped to true when the advisor explicitly presses "Next → Signoff"
-	 * after loading every item. Derived stage only advances to
-	 * `awaiting_signoff` when this is true — the transition is never
-	 * automatic on the last checkbox.
-	 */
-	advisorMarkedReady: boolean
-	/** Audit trail of prior failed inspections. Append-only. */
-	failedInspections: FailedInspection[]
-	signoff: WarehouseSignoff | null
-	passedAt: string | null
 }
 
 export type WarehouseStage =
@@ -126,162 +104,500 @@ export interface WarehouseOrderDetailView extends WarehouseOrderRowView {
 	failedInspections: FailedInspection[]
 }
 
-/**
- * Mock employee credential. In production this gets replaced with a
- * lookup against db.employees by token → employeeId, validated against
- * their real password hash or QR payload. For now it's a fixed value
- * so the dev experience is predictable: anyone testing the flow types
- * `1234` (password) or scans a badge encoded as `1234`.
- */
-const MOCK_ADVISOR_TOKEN = '1234' as const
-type QuoteRow = NonNullable<ReturnType<typeof db.quotes.get>>
-
-// ─── Helpers ──────────────────────────────────────────────
-
-function readWarehouseSection(rfqId: string): WarehouseSection {
-	const report = db.orderReports.forRfq(rfqId)
-	const raw = (report?.sections.warehouse ?? null) as WarehouseSection | null
-	return {
-		truckAssignments: raw?.truckAssignments ?? [],
-		advisorMarkedReady: raw?.advisorMarkedReady ?? false,
-		failedInspections: raw?.failedInspections ?? [],
-		signoff: raw?.signoff ?? null,
-		passedAt: raw?.passedAt ?? null,
-	}
+interface SupabaseLoadingProductRow {
+	id: string
+	slug: string
+	sku: string
+	name: string
+	unit_of_measure: string
 }
 
-function writeWarehouseSection(rfqId: string, next: WarehouseSection) {
-	db.orderReports.ensureForRfq(rfqId)
-	db.orderReports.appendSection(
-		rfqId,
-		'warehouse',
-		next as unknown as Record<string, unknown>,
+interface SupabaseLoadingItemRow {
+	product_id: string | null
+	customer_description: string
+	quantity: number
+	unit_of_measure: string
+	sort_order: number
+	products: SupabaseLoadingProductRow | SupabaseLoadingProductRow[] | null
+}
+
+interface SupabaseLoadingAddressRow {
+	street: string
+	area: string | null
+	city: string
+	governorate: string
+}
+
+interface SupabaseLoadingCustomerRow {
+	company_name: string
+	status: string
+}
+
+interface SupabaseLoadingRequestRow {
+	id: string
+	request_number: string
+	delivery_date: string | null
+	created_at: string
+	customer_addresses:
+		| SupabaseLoadingAddressRow
+		| SupabaseLoadingAddressRow[]
+		| null
+	quote_request_items: SupabaseLoadingItemRow[] | null
+}
+
+interface SupabaseLoadingOrderRow {
+	id: string
+	order_number: string
+	quote_request_id: string
+	customer_id: string | null
+	status: string
+	total_amount: number
+	created_at: string
+	customers: SupabaseLoadingCustomerRow | SupabaseLoadingCustomerRow[] | null
+	quote_requests: SupabaseLoadingRequestRow | SupabaseLoadingRequestRow[] | null
+}
+
+interface SupabaseLoadingTaskRow {
+	id: string
+	order_id: string
+	advisor_employee_id: string | null
+	status: string
+	proof: Record<string, unknown>
+	rejection_reason: string | null
+	created_at: string
+	updated_at: string
+	orders: SupabaseLoadingOrderRow | SupabaseLoadingOrderRow[] | null
+	employees:
+		| SupabaseWarehouseEmployeeRow
+		| SupabaseWarehouseEmployeeRow[]
+		| null
+}
+
+interface SupabaseLoadingDriverRow {
+	id: string
+	full_name: string
+	status: string
+	vehicle_label: string | null
+}
+
+interface SupabaseLoadingTruckRow {
+	id: string
+	plate_number: string
+	driver_id: string | null
+	capacity_tons: number | null
+	body_type?: string | null
+	status: string
+	drivers: SupabaseLoadingDriverRow | SupabaseLoadingDriverRow[] | null
+}
+
+interface SupabaseLoadingTaskDriverRow {
+	id: string
+	loading_task_id: string
+	driver_id: string
+	truck_id: string | null
+	assigned_items: unknown
+	created_at: string
+	drivers: SupabaseLoadingDriverRow | SupabaseLoadingDriverRow[] | null
+	trucks: SupabaseLoadingTruckRow | SupabaseLoadingTruckRow[] | null
+}
+
+interface SupabaseDriverOnlineRow {
+	driver_id: string
+	status: string
+	last_seen_at: string
+}
+
+interface SupabaseWarehouseEmployeeRoleRow {
+	role: string
+}
+
+interface SupabaseWarehouseEmployeeRow {
+	id: string
+	full_name: string
+	employee_roles: SupabaseWarehouseEmployeeRoleRow[] | null
+}
+
+interface SupabaseTruckView {
+	id: string
+	driverId: string
+	plateNumber: string
+	driverName: string
+	capacityTons: number
+	bodyType: string
+	status: string
+}
+
+const WAREHOUSE_ADVISOR_ROLES = new Set([
+	'admin',
+	'ceo',
+	'dispatch',
+	'warehouse',
+])
+
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isUuid(value: string | undefined): value is string {
+	return Boolean(value && UUID_RE.test(value))
+}
+
+function roundMoney(value: number): number {
+	return Math.round(value * 100) / 100
+}
+
+function roundedHoursSince(iso: string): number {
+	return Math.max(
+		0,
+		Math.round((Date.now() - new Date(iso).getTime()) / 3_600_000),
 	)
 }
 
-function deriveStage(
-	section: WarehouseSection,
-	_totalItems: number,
+function firstRelation<T>(value: T | T[] | null): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value
+}
+
+function parseAssignedItems(value: unknown): string[] {
+	if (!Array.isArray(value)) return []
+	return value.filter((item): item is string => typeof item === 'string')
+}
+
+function isWarehouseAdvisor(row: SupabaseWarehouseEmployeeRow): boolean {
+	return (row.employee_roles ?? []).some((entry) =>
+		WAREHOUSE_ADVISOR_ROLES.has(entry.role),
+	)
+}
+
+function formatSupabaseAddress(address: SupabaseLoadingAddressRow | null) {
+	if (!address) return ''
+	return [address.street, address.area, address.city, address.governorate]
+		.filter((part): part is string => Boolean(part))
+		.join(', ')
+}
+
+function supabaseAdvisorName(
+	row: {
+		employees:
+			| SupabaseWarehouseEmployeeRow
+			| SupabaseWarehouseEmployeeRow[]
+			| null
+	} | null,
+) {
+	return firstRelation(row?.employees ?? null)?.full_name ?? ''
+}
+
+function supabaseDeliveryUrgencyDays(deliveryDate: string | null) {
+	if (!deliveryDate) return 3
+	const today = new Date()
+	today.setHours(0, 0, 0, 0)
+	const target = new Date(`${deliveryDate}T00:00:00`)
+	const diffMs = target.getTime() - today.getTime()
+	return Math.max(0, Math.ceil(diffMs / 86_400_000))
+}
+
+function supabaseLoadingStage(
+	task: SupabaseLoadingTaskRow,
+	assignments: SupabaseLoadingTaskDriverRow[],
 ): WarehouseStage {
-	if (section.passedAt) return 'complete'
-	if (section.signoff) return 'complete'
-	if (section.truckAssignments.length === 0) return 'unstarted'
-	// Stage only advances to signoff after the advisor explicitly confirms
-	// via markReadyForSignoff — "don't advance right away" is the rule.
-	if (section.advisorMarkedReady) return 'awaiting_signoff'
-	return 'loading'
+	if (task.status === 'approved') return 'complete'
+	if (task.proof?.advisor_marked_ready === true) return 'awaiting_signoff'
+	if (task.status === 'loading' || task.status === 'rejected') return 'loading'
+	if (assignments.length > 0) return 'loading'
+	return 'unstarted'
 }
 
-function isWarehouseEligible(quoteId: string): boolean {
-	const quote = db.quotes.get(quoteId)
-	if (!quote || quote.status !== 'accepted') return false
-	if (quote.paymentStatus === 'unpaid') return false
-	const report = db.orderReports.forRfq(quote.rfqId)
-	// Must have been approved by inventory prep (inventory_orders stamped)
-	if (!report?.sections.inventory_orders) return false
-	return true
+async function getWarehouseAdvisor(
+	client: Parameters<typeof verifyEmployeeCredential>[0]['client'],
+	advisorId: string,
+	securityMethod: SecurityMethod,
+	securityToken: string,
+) {
+	const verified = await verifyEmployeeCredential({
+		allowedRoles: WAREHOUSE_ADVISOR_ROLES,
+		client,
+		employeeId: advisorId,
+		method: securityMethod,
+		password: securityToken,
+	})
+	if (!verified.success) return verified
+	return { success: true as const, advisor: verified.employee }
 }
 
-function allQuoteItemsLoaded(
-	quote: QuoteRow,
-	section: WarehouseSection,
-): boolean {
-	const loaded = new Set(section.truckAssignments.flatMap((a) => a.itemsLoaded))
-	return quote.items.every((i) => loaded.has(i.productSlug))
-}
+async function getWarehouseCredentialClient(
+	advisorId: string,
+	securityMethod: SecurityMethod,
+	securityToken: string,
+) {
+	const adminClient = await getInternalSupabaseAdminClient()
+	const advisorCheck = await getWarehouseAdvisor(
+		adminClient,
+		advisorId,
+		securityMethod,
+		securityToken,
+	)
+	if (!advisorCheck.success) return advisorCheck
 
-function getWarehouseAdvisor(advisorId: string, securityToken: string) {
-	const advisor = db.employees.get(advisorId)
-	if (!advisor) {
+	const client = await getInternalSupabasePasswordClient()
+	const { error, data } = await client.auth.signInWithPassword({
+		email: advisorCheck.advisor.email,
+		password: securityToken.trim(),
+	})
+	if (error || !data.user) {
+		return { success: false as const, error: 'Invalid employee password' }
+	}
+	if (
+		data.user.app_metadata?.pool !== 'internal' ||
+		data.user.app_metadata?.employee_id !== advisorCheck.advisor.id
+	) {
 		return {
 			success: false as const,
-			error: 'Advisor not found in directory',
+			error: 'Password belongs to a different account',
 		}
 	}
-	if (securityToken.trim() !== MOCK_ADVISOR_TOKEN) {
-		return {
-			success: false as const,
-			error: 'Wrong credential — check your password or badge',
-		}
-	}
-	return { success: true as const, advisor }
-}
-
-function buildOrderRow(quoteId: string): WarehouseOrderRowView | null {
-	const context = getQuoteContext(quoteId)
-	if (!context) return null
-	const { quote, report } = context
-	if (!isWarehouseEligible(quoteId)) return null
-
-	const section = readWarehouseSection(quote.rfqId)
-	// Once the order has been passed to dispatch, it drops off the warehouse queue.
-	if (section.passedAt) return null
-
-	const loadedCount = new Set(
-		section.truckAssignments.flatMap((a) => a.itemsLoaded),
-	).size
-
-	// Use the inventory_orders.approvedAt if available, otherwise the quote sentAt.
-	const invSection = report?.sections.inventory_orders as
-		| { approvedAt?: string }
-		| undefined
-	const approvedAt =
-		invSection?.approvedAt ?? quote.sentAt ?? new Date().toISOString()
-	const customer = quoteCustomerSnapshot(context, '')
-	const delivery = quoteDeliverySnapshot(context, { preferQuote: true })
 
 	return {
-		quoteId: quote.id,
-		quoteNumber: quote.quoteNumber,
-		customerName: customer.customerName,
-		customerTier: customer.customerTier,
-		deliveryAddress: delivery.deliveryAddress,
-		deliveryCity: delivery.deliveryCity,
-		deliveryUrgencyDays: delivery.deliveryUrgencyDays,
-		itemCount: quote.items.length,
-		totalValue: quoteSellTotal(quote),
-		approvedHoursAgo: roundedHoursSince(approvedAt),
-		stage: deriveStage(section, quote.items.length),
-		loadedCount,
-		truckCount: section.truckAssignments.length,
+		success: true as const,
+		advisor: advisorCheck.advisor,
+		client,
 	}
 }
 
-function buildOrderDetail(quoteId: string): WarehouseOrderDetailView | null {
-	const row = buildOrderRow(quoteId)
-	if (!row) return null
-	const quote = db.quotes.get(quoteId)
-	if (!quote) return null
+async function getSupabaseLoadingData(orderId?: string) {
+	const auth = await getInternalSupabaseClient()
 
-	const section = readWarehouseSection(quote.rfqId)
-	const loadedByTruck = new Map<string, string>() // productSlug → truckId
-	for (const a of section.truckAssignments) {
-		for (const slug of a.itemsLoaded) loadedByTruck.set(slug, a.truckId)
+	let query = auth.client.from('loading_tasks').select(`
+		id,
+		order_id,
+		advisor_employee_id,
+		status,
+		proof,
+		rejection_reason,
+		created_at,
+		updated_at,
+		employees (
+			id,
+			full_name,
+			employee_roles (
+				role
+			)
+		),
+		orders (
+			id,
+			order_number,
+			quote_request_id,
+			customer_id,
+			status,
+			total_amount,
+			created_at,
+			customers (
+				company_name,
+				status
+			),
+			quote_requests (
+				id,
+				request_number,
+				delivery_date,
+				created_at,
+				customer_addresses (
+					street,
+					area,
+					city,
+					governorate
+				),
+				quote_request_items (
+					product_id,
+					customer_description,
+					quantity,
+					unit_of_measure,
+					sort_order,
+					products (
+						id,
+						slug,
+						sku,
+						name,
+						unit_of_measure
+					)
+				)
+			)
+		)
+	`)
+	if (orderId) query = query.eq('order_id', orderId)
+
+	const { data: taskRows, error: taskError } = await query
+	if (taskError) throw new Error(taskError.message)
+	const tasks = (taskRows ?? []) as unknown as SupabaseLoadingTaskRow[]
+	const taskIds = tasks.map((task) => task.id)
+
+	const assignmentsByTask = new Map<string, SupabaseLoadingTaskDriverRow[]>()
+	if (taskIds.length > 0) {
+		const { data: assignmentRows, error: assignmentError } = await auth.client
+			.from('loading_task_drivers')
+			.select(`
+				id,
+				loading_task_id,
+				driver_id,
+				truck_id,
+				assigned_items,
+				created_at,
+				drivers (
+					id,
+					full_name,
+					status,
+					vehicle_label
+				),
+				trucks (
+					id,
+					plate_number,
+					driver_id,
+					capacity_tons,
+					status
+				)
+			`)
+			.in('loading_task_id', taskIds)
+		if (assignmentError) throw new Error(assignmentError.message)
+		for (const assignment of (assignmentRows ??
+			[]) as unknown as SupabaseLoadingTaskDriverRow[]) {
+			const list = assignmentsByTask.get(assignment.loading_task_id) ?? []
+			list.push(assignment)
+			assignmentsByTask.set(assignment.loading_task_id, list)
+		}
 	}
 
-	const items: WarehouseItemView[] = quote.items
-		.map((i) => {
-			const product = db.products.findBySlug(i.productSlug)
-			if (!product) return null
+	return { auth, tasks, assignmentsByTask }
+}
+
+function buildSupabaseTruckAssignment(
+	assignment: SupabaseLoadingTaskDriverRow,
+): TruckAssignment | null {
+	const truck = firstRelation(assignment.trucks)
+	const driver = firstRelation(assignment.drivers)
+	if (!truck || !driver) return null
+	return {
+		truckId: truck.id,
+		plateNumber: truck.plate_number,
+		driverName: driver.full_name,
+		capacityTons: Number(truck.capacity_tons ?? 0),
+		itemsLoaded: parseAssignedItems(assignment.assigned_items),
+		assignedAt: assignment.created_at,
+	}
+}
+
+function buildSupabaseLoadingRow(
+	task: SupabaseLoadingTaskRow,
+	assignments: SupabaseLoadingTaskDriverRow[],
+): WarehouseOrderRowView | null {
+	const order = firstRelation(task.orders)
+	if (!order) return null
+	if (
+		!['inventory_reserved', 'warehouse_loading', 'dispatch_ready'].includes(
+			order.status,
+		)
+	) {
+		return null
+	}
+	const request = firstRelation(order.quote_requests)
+	const customer = firstRelation(order.customers)
+	if (!request || !customer) return null
+	const items = request.quote_request_items ?? []
+	const loaded = new Set(
+		assignments.flatMap((a) => parseAssignedItems(a.assigned_items)),
+	)
+	const address = firstRelation(request.customer_addresses)
+	return {
+		quoteId: order.id,
+		quoteNumber: order.order_number || request.request_number,
+		customerName: customer.company_name,
+		customerTier: customer.status || 'standard',
+		deliveryAddress: formatSupabaseAddress(address),
+		deliveryCity: address?.city ?? '',
+		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
+		itemCount: items.length,
+		totalValue: roundMoney(Number(order.total_amount)),
+		approvedHoursAgo: roundedHoursSince(task.created_at),
+		stage: supabaseLoadingStage(task, assignments),
+		loadedCount: loaded.size,
+		truckCount: assignments.length,
+	}
+}
+
+function buildSupabaseLoadingDetail(
+	task: SupabaseLoadingTaskRow,
+	assignments: SupabaseLoadingTaskDriverRow[],
+): WarehouseOrderDetailView | null {
+	const row = buildSupabaseLoadingRow(task, assignments)
+	const order = firstRelation(task.orders)
+	const request = firstRelation(order?.quote_requests ?? null)
+	if (!row || !order || !request) return null
+	const loadedByTruck = new Map<string, string>()
+	for (const assignment of assignments) {
+		const truck = firstRelation(assignment.trucks)
+		if (!truck) continue
+		for (const slug of parseAssignedItems(assignment.assigned_items)) {
+			loadedByTruck.set(slug, truck.id)
+		}
+	}
+	const items: WarehouseItemView[] = (request.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
+		.map((item) => {
+			const product = firstRelation(item.products)
+			const slug =
+				product?.slug ??
+				item.customer_description
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '')
 			return {
-				productSlug: i.productSlug,
-				productName: product.name,
-				sku: product.sku,
-				unit: product.unit_of_measure,
-				quantity: i.quantity,
-				loadedOnTruckId: loadedByTruck.get(i.productSlug) ?? null,
+				productSlug: slug,
+				productName: product?.name ?? item.customer_description,
+				sku: product?.sku ?? '',
+				unit: product?.unit_of_measure ?? item.unit_of_measure,
+				quantity: Number(item.quantity),
+				loadedOnTruckId: loadedByTruck.get(slug) ?? null,
 			}
 		})
-		.filter((x): x is WarehouseItemView => x !== null)
-
+	const truckAssignments = assignments
+		.map(buildSupabaseTruckAssignment)
+		.filter((assignment): assignment is TruckAssignment => assignment !== null)
+	const advisorName = supabaseAdvisorName(task)
+	const failedInspections: FailedInspection[] =
+		task.status === 'rejected'
+			? [
+					{
+						advisorName,
+						reason: task.rejection_reason ?? '',
+						proofUrl:
+							typeof task.proof?.proof_url === 'string'
+								? task.proof.proof_url
+								: '',
+						securityMethod:
+							task.proof?.security_method === 'qr' ? 'qr' : 'password',
+						failedAt: task.updated_at,
+					},
+				]
+			: []
+	const signoff: WarehouseSignoff | null =
+		task.status === 'approved'
+			? {
+					advisorName,
+					qualityPass: true,
+					proofUrl:
+						typeof task.proof?.proof_url === 'string'
+							? task.proof.proof_url
+							: '',
+					securityMethod:
+						task.proof?.security_method === 'qr' ? 'qr' : 'password',
+					signedAt: task.updated_at,
+				}
+			: null
 	return {
 		...row,
-		rfqId: quote.rfqId,
-		customerPoNumber: quote.customerPoNumber,
+		rfqId: request.id,
+		customerPoNumber: null,
 		items,
-		truckAssignments: section.truckAssignments,
-		signoff: section.signoff,
-		failedInspections: section.failedInspections,
+		truckAssignments,
+		signoff,
+		failedInspections,
 	}
 }
 
@@ -290,123 +606,179 @@ function buildOrderDetail(quoteId: string): WarehouseOrderDetailView | null {
 export const getWarehouseQueue = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const orders = db.quotes
-			.list()
-			.filter((q) => q.status === 'accepted' && q.paymentStatus !== 'unpaid')
-			.map((q) => buildOrderRow(q.id))
-			.filter((o): o is WarehouseOrderRowView => o !== null)
+		const supabaseData = await getSupabaseLoadingData()
+		const orders = supabaseData.tasks
+			.map((task) =>
+				buildSupabaseLoadingRow(
+					task,
+					supabaseData.assignmentsByTask.get(task.id) ?? [],
+				),
+			)
+			.filter((order): order is WarehouseOrderRowView => order !== null)
+			.filter((order) => order.stage !== 'complete')
 			.sort((a, b) => {
-				// In-progress first (loading / awaiting_signoff), then unstarted
-				// by urgency. Complete doesn't appear in the queue at all — it
-				// gets filtered out in buildOrderRow via the passedAt check.
 				const order = {
 					loading: 0,
 					awaiting_signoff: 1,
 					unstarted: 2,
 					complete: 3,
 				} as const
-				if (order[a.stage] !== order[b.stage])
+				if (order[a.stage] !== order[b.stage]) {
 					return order[a.stage] - order[b.stage]
+				}
 				if (a.deliveryUrgencyDays !== b.deliveryUrgencyDays) {
 					return a.deliveryUrgencyDays - b.deliveryUrgencyDays
 				}
 				return b.approvedHoursAgo - a.approvedHoursAgo
 			})
-
-		const totals = {
-			total: orders.length,
-			unstarted: orders.filter((o) => o.stage === 'unstarted').length,
-			loading: orders.filter((o) => o.stage === 'loading').length,
-			awaitingSignoff: orders.filter((o) => o.stage === 'awaiting_signoff')
-				.length,
+		return {
+			orders,
+			totals: {
+				total: orders.length,
+				unstarted: orders.filter((order) => order.stage === 'unstarted').length,
+				loading: orders.filter((order) => order.stage === 'loading').length,
+				awaitingSignoff: orders.filter(
+					(order) => order.stage === 'awaiting_signoff',
+				).length,
+			},
 		}
-
-		return { orders, totals }
 	})
 
 export const getWarehouseOrderDetail = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
-		return buildOrderDetail(data.quoteId)
+		if (!isUuid(data.quoteId)) return null
+		const supabaseData = await getSupabaseLoadingData(data.quoteId)
+		const task = supabaseData.tasks[0]
+		if (!task) return null
+		return buildSupabaseLoadingDetail(
+			task,
+			supabaseData.assignmentsByTask.get(task.id) ?? [],
+		)
 	})
 
 export const getAvailableTrucks = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const all = db.trucks.list()
-		return {
-			trucks: all.map((t: TruckRow) => ({
-				id: t.id,
-				plateNumber: t.plateNumber,
-				driverName: t.driverName,
-				capacityTons: t.capacityTons,
-				bodyType: t.bodyType,
-				status: t.status,
-			})),
+		const auth = await getInternalSupabaseClient()
+		const { data: driverRows, error: driverError } = await auth.client
+			.from('drivers')
+			.select('id, full_name, status, vehicle_label')
+			.eq('status', 'available')
+			.order('full_name', { ascending: true })
+		if (driverError) throw new Error(driverError.message)
+		const drivers = (driverRows ?? []) as unknown as SupabaseLoadingDriverRow[]
+		if (drivers.length === 0) return { trucks: [] }
+		const driverIds = drivers.map((driver) => driver.id)
+		const { data: onlineRows, error: onlineError } = await auth.client
+			.from('driver_online_states')
+			.select('driver_id, status, last_seen_at')
+			.in('driver_id', driverIds)
+		if (onlineError) throw new Error(onlineError.message)
+		const onlineByDriver = new Map<string, SupabaseDriverOnlineRow>()
+		for (const row of (onlineRows ?? []) as SupabaseDriverOnlineRow[]) {
+			onlineByDriver.set(row.driver_id, row)
 		}
+		const { data: truckRows, error: truckError } = await auth.client
+			.from('trucks')
+			.select(`
+				id,
+				plate_number,
+				driver_id,
+				capacity_tons,
+				body_type,
+				status,
+				drivers (
+					id,
+					full_name,
+					status,
+					vehicle_label
+				)
+			`)
+			.eq('status', 'available')
+			.in('driver_id', driverIds)
+			.order('updated_at', { ascending: false })
+		if (truckError) throw new Error(truckError.message)
+		const trucks = (truckRows ?? []) as unknown as SupabaseLoadingTruckRow[]
+		const truckByDriver = new Map<string, SupabaseLoadingTruckRow>()
+		for (const truck of trucks) {
+			if (!truck.driver_id || truckByDriver.has(truck.driver_id)) continue
+			truckByDriver.set(truck.driver_id, truck)
+		}
+		const now = Date.now()
+		const available: SupabaseTruckView[] = []
+		for (const driver of drivers) {
+			const online = onlineByDriver.get(driver.id)
+			if (!online || online.status !== 'online') continue
+			if (now - new Date(online.last_seen_at).getTime() > 15 * 60_000) continue
+			const truck = truckByDriver.get(driver.id)
+			if (!truck) continue
+			available.push({
+				id: truck.id,
+				driverId: driver.id,
+				plateNumber: truck.plate_number,
+				driverName: driver.full_name,
+				capacityTons: Number(truck.capacity_tons ?? 0),
+				bodyType: truck.body_type ?? driver.vehicle_label ?? '',
+				status: truck.status,
+			})
+		}
+		return { trucks: available }
 	})
 
-/**
- * Employee directory used by the warehouse signoff advisor picker.
- * No role filtering yet — HR panel will add that later. For now the
- * full payroll is returned and the dropdown shows everyone.
- */
 export const getWarehouseEmployees = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		return {
-			employees: db.employees.list().map((e) => ({
-				id: e.id,
-				name: e.name,
-				name_ar: e.name_ar,
-			})),
-		}
+		const auth = await getInternalSupabaseClient()
+		const { data, error } = await auth.client
+			.from('employees')
+			.select('id, full_name, employee_roles(role)')
+			.eq('status', 'active')
+			.order('full_name', { ascending: true })
+		if (error) throw new Error(error.message)
+
+		const employees = (
+			(data ?? []) as unknown as SupabaseWarehouseEmployeeRow[]
+		)
+			.filter(isWarehouseAdvisor)
+			.map((employee) => ({
+				id: employee.id,
+				name: employee.full_name,
+				name_ar: employee.full_name,
+			}))
+
+		return { employees }
 	})
 
 // ─── Mutations ────────────────────────────────────────────
 
 export const assignTruckToOrder = createServerFn({ method: 'POST' })
-	.inputValidator(z.object({ quoteId: z.string(), truckId: z.string() }))
+	.inputValidator(
+		z.object({
+			driverId: z.string(),
+			quoteId: z.string(),
+			truckId: z.string(),
+		}),
+	)
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		if (!isWarehouseEligible(data.quoteId)) {
+		if (
+			!isUuid(data.quoteId) ||
+			!isUuid(data.driverId) ||
+			!isUuid(data.truckId)
+		) {
 			return {
 				success: false as const,
-				error: 'Order not ready for warehouse prep',
+				error: 'Order, driver, or truck not found',
 			}
 		}
-		const truck = db.trucks.get(data.truckId)
-		if (!truck) return { success: false as const, error: 'Truck not found' }
-
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff || section.passedAt) {
-			return { success: false as const, error: 'Order already signed off' }
-		}
-		if (section.truckAssignments.some((a) => a.truckId === truck.id)) {
-			return {
-				success: false as const,
-				error: 'Truck already assigned to this order',
-			}
-		}
-
-		const next: WarehouseSection = {
-			...section,
-			truckAssignments: [
-				...section.truckAssignments,
-				{
-					truckId: truck.id,
-					plateNumber: truck.plateNumber,
-					driverName: truck.driverName,
-					capacityTons: truck.capacityTons,
-					itemsLoaded: [],
-					assignedAt: new Date().toISOString(),
-				},
-			],
-		}
-		writeWarehouseSection(quote.rfqId, next)
-		db.trucks.setStatus(truck.id, 'loading')
-		return { success: true as const, quoteId: quote.id }
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('warehouse_assign_loading_driver', {
+			p_driver_id: data.driverId,
+			p_order_id: data.quoteId,
+			p_truck_id: data.truckId,
+		})
+		if (error) return { success: false as const, error: error.message }
+		return { success: true as const, quoteId: data.quoteId }
 	})
 
 export const toggleItemLoaded = createServerFn({ method: 'POST' })
@@ -418,136 +790,48 @@ export const toggleItemLoaded = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff || section.passedAt) {
-			return { success: false as const, error: 'Order already signed off' }
+		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
+			return { success: false as const, error: 'Order or truck not found' }
 		}
-		const targetAssignment = section.truckAssignments.find(
-			(a) => a.truckId === data.truckId,
-		)
-		if (!targetAssignment)
-			return { success: false as const, error: 'Truck not assigned' }
-
-		// Each product can only be on one truck at a time — if it was on a
-		// different truck and the advisor is reassigning, clear the old.
-		const next: WarehouseSection = {
-			...section,
-			truckAssignments: section.truckAssignments.map((a) => {
-				if (a.truckId === data.truckId) {
-					const already = a.itemsLoaded.includes(data.productSlug)
-					return {
-						...a,
-						itemsLoaded: already
-							? a.itemsLoaded.filter((s) => s !== data.productSlug)
-							: [...a.itemsLoaded, data.productSlug],
-					}
-				}
-				// Remove from any other truck so the item has exactly one home
-				return {
-					...a,
-					itemsLoaded: a.itemsLoaded.filter((s) => s !== data.productSlug),
-				}
-			}),
-		}
-		// Toggling a checkbox must NOT auto-advance — if the advisor was
-		// already marked ready and unchecks an item, roll back the ready
-		// flag so the next stage stays gated on every item being loaded.
-		const allLoaded = quote.items.every((i) =>
-			next.truckAssignments.some((a) => a.itemsLoaded.includes(i.productSlug)),
-		)
-		if (!allLoaded && next.advisorMarkedReady) {
-			next.advisorMarkedReady = false
-		}
-		writeWarehouseSection(quote.rfqId, next)
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('warehouse_toggle_loading_item', {
+			p_order_id: data.quoteId,
+			p_product_slug: data.productSlug,
+			p_truck_id: data.truckId,
+		})
+		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})
 
-/**
- * Explicit "Next → Signoff" step. Advances the wizard stage from
- * `loading` to `awaiting_signoff`. Requires every item to already be
- * on a truck. Called from the big Next button on the load screen.
- */
 export const markReadyForSignoff = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff || section.passedAt) {
-			return { success: false as const, error: 'Order already signed off' }
+		if (!isUuid(data.quoteId)) {
+			return { success: false as const, error: 'Order not found' }
 		}
-		// Gate 1: every line item must be on some truck.
-		if (!allQuoteItemsLoaded(quote, section)) {
-			return { success: false as const, error: 'Not every item is loaded yet' }
-		}
-		// Gate 2: every assigned truck must carry at least one item. An empty
-		// truck in the assignment list is a misclick — it either needs items
-		// or it should be removed from the order. Blocking here forces the
-		// advisor to deal with it before moving to signoff.
-		const emptyTruck = section.truckAssignments.find(
-			(a) => a.itemsLoaded.length === 0,
-		)
-		if (emptyTruck) {
-			return {
-				success: false as const,
-				error: `Truck ${emptyTruck.plateNumber} is empty — load items or remove it`,
-			}
-		}
-		const next: WarehouseSection = { ...section, advisorMarkedReady: true }
-		writeWarehouseSection(quote.rfqId, next)
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('warehouse_mark_loading_ready', {
+			p_order_id: data.quoteId,
+		})
+		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})
 
-/**
- * Remove a truck from an order's assignments. Only allowed when the
- * truck currently carries zero items — if it has any, the advisor has
- * to move them first (the checklist already handles the move). Frees
- * the truck back to `available` so it can be picked up by someone else.
- */
 export const removeTruckFromOrder = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string(), truckId: z.string() }))
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff || section.passedAt) {
-			return { success: false as const, error: 'Order already signed off' }
+		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
+			return { success: false as const, error: 'Order or truck not found' }
 		}
-		const target = section.truckAssignments.find(
-			(a) => a.truckId === data.truckId,
-		)
-		if (!target) return { success: false as const, error: 'Truck not assigned' }
-		if (target.itemsLoaded.length > 0) {
-			return {
-				success: false as const,
-				error: 'Truck still has items on it — move them off first',
-			}
-		}
-		const next: WarehouseSection = {
-			...section,
-			truckAssignments: section.truckAssignments.filter(
-				(a) => a.truckId !== data.truckId,
-			),
-			advisorMarkedReady: false,
-		}
-		writeWarehouseSection(quote.rfqId, next)
-		// Put the truck back in the fleet pool so someone else can grab it.
-		const t = db.trucks.get(data.truckId)
-		if (t?.status === 'loading') db.trucks.setStatus(data.truckId, 'available')
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('warehouse_remove_loading_driver', {
+			p_order_id: data.quoteId,
+			p_truck_id: data.truckId,
+		})
+		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})
 
-/**
- * Happy-path signoff — only accepted when the QA pass flag is TRUE.
- * The fail path lives in `logFailedInspection` which bounces the order
- * back to loading instead of committing a locked signoff record.
- *
- * Every signoff requires a security token — either a typed password
- * or a scanned QR payload — so the action is attributable to a real
- * person and not just a name anyone can type in.
- */
 export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
@@ -555,56 +839,40 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 			advisorId: z.string().min(1),
 			proofUrl: z.string().min(1),
 			securityMethod: z.enum(['password', 'qr']),
-			securityToken: z.string().min(4),
+			securityToken: z.string().min(1),
 		}),
 	)
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff) {
-			return { success: false as const, error: 'Already signed off' }
+		if (!isUuid(data.quoteId)) {
+			return { success: false as const, error: 'Order not found' }
 		}
-		// Mock credential check — real system queries the employees table.
-		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
+		const auth = await getInternalSupabaseClient()
+		const advisorCheck = await getWarehouseAdvisor(
+			auth.client,
+			data.advisorId,
+			data.securityMethod,
+			data.securityToken,
+		)
 		if (!advisorCheck.success) return advisorCheck
-		// Gate: every line item must be loaded onto some truck before signoff.
-		if (!allQuoteItemsLoaded(quote, section)) {
-			return { success: false as const, error: 'Not every item is loaded yet' }
-		}
-
-		const next: WarehouseSection = {
-			...section,
-			signoff: {
-				// Name is derived from the employee row, not trusted from the
-				// client — the client only sends the id.
-				advisorName: advisorCheck.advisor.name,
-				qualityPass: true,
-				proofUrl: data.proofUrl.trim(),
-				securityMethod: data.securityMethod,
-				securityToken: data.securityToken.trim(),
-				signedAt: new Date().toISOString(),
+		const supabaseData = await getSupabaseLoadingData(data.quoteId)
+		const task = supabaseData.tasks[0]
+		if (!task) return { success: false as const, error: 'Order not found' }
+		const { error } = await auth.client.rpc('warehouse_approve_loading', {
+			p_loading_task_id: task.id,
+			p_proof: {
+				advisor_id: data.advisorId,
+				proof_url: data.proofUrl.trim(),
+				security_method: data.securityMethod,
 			},
+		})
+		if (error) return { success: false as const, error: error.message }
+		return {
+			completed: true as const,
+			quoteId: data.quoteId,
+			success: true as const,
 		}
-		writeWarehouseSection(quote.rfqId, next)
-		// Signoff locks every assigned truck. They stay dispatched (=busy)
-		// until dispatch marks the order as delivered or retreated — only
-		// then do they return to `available`. This spans the cross-panel
-		// hand-off so two orders can't be loaded onto the same truck.
-		for (const a of section.truckAssignments) {
-			db.trucks.setStatus(a.truckId, 'dispatched')
-		}
-		return { success: true as const }
 	})
 
-/**
- * QA rejection path. Records an audit entry on the warehouse section,
- * clears the `advisorMarkedReady` flag so the derived stage bounces
- * back from `awaiting_signoff` to `loading`, and returns success.
- *
- * Every failed inspection also requires a security token — the retry
- * mustn't be a soft escape hatch that any passer-by can trigger.
- */
 export const logFailedInspection = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
@@ -613,118 +881,66 @@ export const logFailedInspection = createServerFn({ method: 'POST' })
 			reason: z.string().min(3),
 			proofUrl: z.string().min(1),
 			securityMethod: z.enum(['password', 'qr']),
-			securityToken: z.string().min(4),
+			securityToken: z.string().min(1),
 		}),
 	)
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.signoff) {
-			return { success: false as const, error: 'Already signed off' }
+		if (!isUuid(data.quoteId)) {
+			return { success: false as const, error: 'Order not found' }
 		}
-		// Same mock credential gate as the happy path — a failed inspection
-		// is still an audit record that has to be attributable to a person.
-		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
+		const auth = await getInternalSupabaseClient()
+		const advisorCheck = await getWarehouseAdvisor(
+			auth.client,
+			data.advisorId,
+			data.securityMethod,
+			data.securityToken,
+		)
 		if (!advisorCheck.success) return advisorCheck
-		const next: WarehouseSection = {
-			...section,
-			// Append — never mutate prior rows.
-			failedInspections: [
-				...section.failedInspections,
-				{
-					advisorName: advisorCheck.advisor.name,
-					reason: data.reason.trim(),
-					proofUrl: data.proofUrl.trim(),
-					securityMethod: data.securityMethod,
-					securityToken: data.securityToken.trim(),
-					failedAt: new Date().toISOString(),
-				},
-			],
-			// Bounce the wizard back to loading — the advisor can re-inspect,
-			// move items between trucks, unload/reload, and hit Next again.
-			advisorMarkedReady: false,
-		}
-		writeWarehouseSection(quote.rfqId, next)
+		const supabaseData = await getSupabaseLoadingData(data.quoteId)
+		const task = supabaseData.tasks[0]
+		if (!task) return { success: false as const, error: 'Order not found' }
+		const { error } = await auth.client.rpc('warehouse_reject_loading', {
+			p_loading_task_id: task.id,
+			p_proof: {
+				advisor_id: data.advisorId,
+				proof_url: data.proofUrl.trim(),
+				security_method: data.securityMethod,
+			},
+			p_reason: data.reason.trim(),
+		})
+		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})
 
-/**
- * Wipe the warehouse prep state for an order — clears every truck
- * assignment, unchecks every item, drops a pending signoff. Used when
- * something went wrong on the floor and the advisor wants a clean
- * slate. Refuses once the order has already been passed to dispatch,
- * since that's a cross-panel hand-off that a reset can't undo.
- *
- * Does NOT touch the quote, the finance state, or the inventory
- * reservation. The order stays in the warehouse queue at stage
- * `unstarted` and anyone can start prep again.
- */
 export const resetWarehouseOrder = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (section.passedAt) {
-			return {
-				success: false as const,
-				error: 'Order already handed to dispatch — ask dispatch to return it',
-			}
+		if (!isUuid(data.quoteId)) {
+			return { success: false as const, error: 'Order not found' }
 		}
-		// Release every truck tied to this order. Covers both:
-		//   • loading — advisor reset mid-load
-		//   • dispatched — advisor reset after signoff (but before dispatch
-		//     took it), trucks were already locked; put them back.
-		for (const a of section.truckAssignments) {
-			const t = db.trucks.get(a.truckId)
-			if (t?.status === 'loading' || t?.status === 'dispatched') {
-				db.trucks.setStatus(a.truckId, 'available')
-			}
-		}
-		writeWarehouseSection(quote.rfqId, {
-			truckAssignments: [],
-			advisorMarkedReady: false,
-			failedInspections: section.failedInspections ?? [],
-			signoff: null,
-			passedAt: null,
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('warehouse_reset_loading', {
+			p_order_id: data.quoteId,
 		})
+		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})
 
 export const passOrderToDispatch = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
-		const quote = db.quotes.get(data.quoteId)
-		if (!quote) return { success: false as const, error: 'Order not found' }
-		const section = readWarehouseSection(quote.rfqId)
-		if (!section.signoff) {
-			return { success: false as const, error: 'Must sign off before dispatch' }
+		if (!isUuid(data.quoteId)) {
+			return { success: false as const, error: 'Order not found' }
 		}
-		if (section.passedAt) {
-			return { success: false as const, error: 'Already passed to dispatch' }
+		const supabaseData = await getSupabaseLoadingData(data.quoteId)
+		const task = supabaseData.tasks[0]
+		if (!task) return { success: false as const, error: 'Order not found' }
+		if (task.status !== 'approved') {
+			return {
+				success: false as const,
+				error: 'Must sign off before dispatch',
+			}
 		}
-		const next: WarehouseSection = {
-			...section,
-			passedAt: new Date().toISOString(),
-		}
-		writeWarehouseSection(quote.rfqId, next)
-		// Advance the report's currentStage so dispatch picks it up.
-		db.orderReports.appendSection(
-			quote.rfqId,
-			'warehouse',
-			next as unknown as Record<string, unknown>,
-		)
-		// Clear any prior returned section so dispatch's filter
-		// (`!sections.returned`) doesn't block the re-dispatched order.
-		// The return audit is preserved in the warehouse section's
-		// failedInspections array for history.
-		const report = db.orderReports.forRfq(quote.rfqId)
-		if (report?.sections.returned) {
-			delete report.sections.returned
-		}
-		// Trucks stay `dispatched` — they were locked at signoff and stay
-		// busy until dispatch marks the order as delivered or retreated.
 		return { success: true as const }
 	})
 
@@ -777,67 +993,264 @@ export interface ReceivingDealDetailView extends ReceivingDealRowView {
 	}[]
 }
 
-function buildReceivingRow(dealId: string): ReceivingDealRowView | null {
-	const deal = db.deals.list().find((d) => d.id === dealId)
-	if (!deal) return null
-	if (deal.paymentStatus === 'unpaid') return null
-	if (deal.status === 'delivered' || deal.status === 'closed') return null
-	// Drop off the queue once every item has been received.
-	const pending = deal.items.filter((i) => !i.received)
-	if (pending.length === 0) return null
-	const headline = db.products.findBySlug(deal.items[0]?.productSlug ?? '')
+interface SupabaseReceivingProductRow {
+	id: string
+	slug: string
+	sku: string
+	name: string
+	unit_of_measure: string
+}
+
+interface SupabaseReceivingSupplierRow {
+	id: string
+	name: string
+	status: string
+}
+
+interface SupabaseReceivingRefillRow {
+	id: string
+	product_id: string
+	supplier_id: string
+	quantity: number
+	unit_cost: number
+	status: string
+	created_at: string
+	products: SupabaseReceivingProductRow | SupabaseReceivingProductRow[] | null
+	suppliers:
+		| SupabaseReceivingSupplierRow
+		| SupabaseReceivingSupplierRow[]
+		| null
+}
+
+interface SupabaseReceivingTaskRow {
+	id: string
+	refill_request_id: string
+	advisor_employee_id: string | null
+	status: string
+	proof: Record<string, unknown>
+	rejection_reason: string | null
+	created_at: string
+	updated_at: string
+	refill_requests:
+		| SupabaseReceivingRefillRow
+		| SupabaseReceivingRefillRow[]
+		| null
+	employees:
+		| SupabaseWarehouseEmployeeRow
+		| SupabaseWarehouseEmployeeRow[]
+		| null
+}
+
+interface SupabaseReceivingPaymentRow {
+	refill_request_id: string
+	amount: number
+	payment_fraction: number
+	created_at: string
+}
+
+interface SupabaseReceivingTaskItemRow {
+	receiving_task_id: string
+	product_id: string
+	received_quantity: number
+}
+
+function receivingPaymentStatus(
+	totalDue: number,
+	payments: SupabaseReceivingPaymentRow[],
+) {
+	const amountPaid = payments.reduce(
+		(sum, payment) => sum + Number(payment.amount),
+		0,
+	)
+	if (
+		amountPaid >= totalDue ||
+		payments.some((payment) => Number(payment.payment_fraction) >= 1)
+	) {
+		return 'paid'
+	}
+	return amountPaid > 0 ? 'partial' : 'unpaid'
+}
+
+function buildSupabaseReceivingRow(
+	task: SupabaseReceivingTaskRow,
+	payments: SupabaseReceivingPaymentRow[],
+	items: SupabaseReceivingTaskItemRow[],
+): ReceivingDealRowView | null {
+	const refill = firstRelation(task.refill_requests)
+	if (!refill || refill.status !== 'warehouse_receiving') return null
+	if (task.status === 'approved') return null
+	const product = firstRelation(refill.products)
+	const supplier = firstRelation(refill.suppliers)
+	if (!product || !supplier) return null
+	const totalDue = roundMoney(
+		Number(refill.quantity) * Number(refill.unit_cost),
+	)
+	const receivedCount =
+		task.status === 'approved' ||
+		items.some((item) => item.product_id === product.id)
+			? 1
+			: 0
+	const previousAttemptCount = task.status === 'rejected' ? 1 : 0
 	return {
-		dealId: deal.id,
-		supplierName: deal.supplierName,
-		itemCount: deal.items.length,
-		receivedCount: deal.items.filter((i) => i.received).length,
-		pendingCount: pending.length,
-		totalDue: roundMoney(deal.totalDue),
-		paymentStatus: deal.paymentStatus,
-		createdHoursAgo: roundedHoursSince(deal.createdAt),
-		headlineProductName: headline?.name ?? deal.items[0]?.productSlug ?? '—',
-		previousAttemptCount: deal.receivingAttempts.length,
+		dealId: refill.id,
+		supplierName: supplier.name,
+		itemCount: 1,
+		receivedCount,
+		pendingCount: receivedCount > 0 ? 0 : 1,
+		totalDue,
+		paymentStatus: receivingPaymentStatus(totalDue, payments),
+		createdHoursAgo: roundedHoursSince(refill.created_at),
+		headlineProductName: product.name,
+		previousAttemptCount,
 	}
 }
 
-function buildReceivingDetail(dealId: string): ReceivingDealDetailView | null {
-	const row = buildReceivingRow(dealId)
-	if (!row) return null
-	const deal = db.deals.list().find((d) => d.id === dealId)
-	if (!deal) return null
-	const items: ReceivingItemView[] = deal.items.map((i) => {
-		const product = db.products.findBySlug(i.productSlug)
-		return {
-			productSlug: i.productSlug,
-			productName: product?.name ?? i.productSlug,
-			sku: product?.sku ?? '',
-			unit: product?.unit_of_measure ?? '',
-			agreedQty: i.agreedQty,
-			agreedRawCost: i.agreedRawCost,
-			lineTotal: roundMoney(i.agreedQty * i.agreedRawCost),
-			received: i.received,
-			receivedAt: i.receivedAt,
+function buildSupabaseReceivingDetail(
+	task: SupabaseReceivingTaskRow,
+	payments: SupabaseReceivingPaymentRow[],
+	items: SupabaseReceivingTaskItemRow[],
+): ReceivingDealDetailView | null {
+	const row = buildSupabaseReceivingRow(task, payments, items)
+	const refill = firstRelation(task.refill_requests)
+	const product = firstRelation(refill?.products ?? null)
+	if (!row || !refill || !product) return null
+	const receivedItem = items.find((item) => item.product_id === product.id)
+	const previousAttempts =
+		task.status === 'rejected'
+			? [
+					{
+						attemptedAt: task.updated_at,
+						advisorName: supabaseAdvisorName(task),
+						acceptedCount: 0,
+						rejectedCount: 1,
+						rejectionReason: task.rejection_reason,
+					},
+				]
+			: []
+	return {
+		...row,
+		items: [
+			{
+				productSlug: product.slug,
+				productName: product.name,
+				sku: product.sku,
+				unit: product.unit_of_measure,
+				agreedQty: Number(refill.quantity),
+				agreedRawCost: Number(refill.unit_cost),
+				lineTotal: roundMoney(
+					Number(refill.quantity) * Number(refill.unit_cost),
+				),
+				received: Boolean(receivedItem) || task.status === 'approved',
+				receivedAt: receivedItem ? task.updated_at : null,
+			},
+		],
+		previousAttempts,
+	}
+}
+
+async function getSupabaseReceivingData(
+	dealId?: string,
+	client?: Parameters<typeof verifyEmployeeCredential>[0]['client'],
+) {
+	const auth = client ? { client } : await getInternalSupabaseClient()
+
+	let query = auth.client
+		.from('receiving_tasks')
+		.select(`
+			id,
+			refill_request_id,
+			advisor_employee_id,
+			status,
+			proof,
+			rejection_reason,
+			created_at,
+			updated_at,
+			employees (
+				id,
+				full_name,
+				employee_roles (
+					role
+				)
+			),
+			refill_requests (
+				id,
+				product_id,
+				supplier_id,
+				quantity,
+				unit_cost,
+				status,
+				created_at,
+				products (
+					id,
+					slug,
+					sku,
+					name,
+					unit_of_measure
+				),
+				suppliers (
+					id,
+					name,
+					status
+				)
+			)
+		`)
+		.in('status', ['pending', 'rejected'])
+
+	if (dealId) query = query.eq('refill_request_id', dealId)
+
+	const { data: taskRows, error: taskError } = await query
+	if (taskError) throw new Error(taskError.message)
+	const tasks = (taskRows ?? []) as unknown as SupabaseReceivingTaskRow[]
+	const refillIds = tasks.map((task) => task.refill_request_id)
+	const taskIds = tasks.map((task) => task.id)
+
+	const paymentsByRefill = new Map<string, SupabaseReceivingPaymentRow[]>()
+	if (refillIds.length > 0) {
+		const { data: paymentRows, error: paymentError } = await auth.client
+			.from('supplier_payments')
+			.select('refill_request_id, amount, payment_fraction, created_at')
+			.in('refill_request_id', refillIds)
+			.eq('status', 'recorded')
+		if (paymentError) throw new Error(paymentError.message)
+		for (const payment of (paymentRows ??
+			[]) as SupabaseReceivingPaymentRow[]) {
+			const list = paymentsByRefill.get(payment.refill_request_id) ?? []
+			list.push(payment)
+			paymentsByRefill.set(payment.refill_request_id, list)
 		}
-	})
-	const previousAttempts = deal.receivingAttempts.map((a) => ({
-		attemptedAt: a.attemptedAt,
-		advisorName: a.advisorName,
-		acceptedCount: a.acceptedSlugs.length,
-		rejectedCount: a.rejectedSlugs.length,
-		rejectionReason: a.rejectionReason,
-	}))
-	return { ...row, items, previousAttempts }
+	}
+
+	const itemsByTask = new Map<string, SupabaseReceivingTaskItemRow[]>()
+	if (taskIds.length > 0) {
+		const { data: itemRows, error: itemError } = await auth.client
+			.from('receiving_task_items')
+			.select('receiving_task_id, product_id, received_quantity')
+			.in('receiving_task_id', taskIds)
+		if (itemError) throw new Error(itemError.message)
+		for (const item of (itemRows ?? []) as SupabaseReceivingTaskItemRow[]) {
+			const list = itemsByTask.get(item.receiving_task_id) ?? []
+			list.push(item)
+			itemsByTask.set(item.receiving_task_id, list)
+		}
+	}
+
+	return { auth, tasks, paymentsByRefill, itemsByTask }
 }
 
 export const getReceivingQueue = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const deals = db.deals
-			.list()
-			.map((d) => buildReceivingRow(d.id))
-			.filter((d): d is ReceivingDealRowView => d !== null)
+		const supabaseData = await getSupabaseReceivingData()
+		const deals = supabaseData.tasks
+			.map((task) =>
+				buildSupabaseReceivingRow(
+					task,
+					supabaseData.paymentsByRefill.get(task.refill_request_id) ?? [],
+					supabaseData.itemsByTask.get(task.id) ?? [],
+				),
+			)
+			.filter((deal): deal is ReceivingDealRowView => deal !== null)
 			.sort((a, b) => {
-				// Deals with previous failed attempts surface first — chase them
 				if (a.previousAttemptCount !== b.previousAttemptCount) {
 					return b.previousAttemptCount - a.previousAttemptCount
 				}
@@ -856,7 +1269,15 @@ export const getReceivingQueue = createServerFn({ method: 'GET' })
 export const getReceivingDealDetail = createServerFn({ method: 'GET' })
 	.inputValidator(z.object({ dealId: z.string() }))
 	.handler(async ({ data }) => {
-		return buildReceivingDetail(data.dealId)
+		if (!isUuid(data.dealId)) return null
+		const supabaseData = await getSupabaseReceivingData(data.dealId)
+		const task = supabaseData.tasks[0]
+		if (!task) return null
+		return buildSupabaseReceivingDetail(
+			task,
+			supabaseData.paymentsByRefill.get(task.refill_request_id) ?? [],
+			supabaseData.itemsByTask.get(task.id) ?? [],
+		)
 	})
 
 /**
@@ -881,40 +1302,53 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 			rejectionReason: z.string().optional(),
 			proofUrl: z.string().min(1),
 			securityMethod: z.enum(['password', 'qr']),
-			securityToken: z.string().min(4),
+			securityToken: z.string().min(1),
 		}),
 	)
 	.handler(async ({ data }) => {
-		const deal = db.deals.list().find((d) => d.id === data.dealId)
-		if (!deal) return { success: false as const, error: 'Deal not found' }
-		if (deal.paymentStatus === 'unpaid') {
+		if (!isUuid(data.dealId)) {
+			return { success: false as const, error: 'Deal not found' }
+		}
+		const actionAuth = await getWarehouseCredentialClient(
+			data.advisorId,
+			data.securityMethod,
+			data.securityToken,
+		)
+		if (!actionAuth.success) return actionAuth
+
+		const supabaseData = await getSupabaseReceivingData(
+			data.dealId,
+			actionAuth.client,
+		)
+		const task = supabaseData.tasks[0]
+		if (!task) return { success: false as const, error: 'Deal not found' }
+		const detail = buildSupabaseReceivingDetail(
+			task,
+			supabaseData.paymentsByRefill.get(task.refill_request_id) ?? [],
+			supabaseData.itemsByTask.get(task.id) ?? [],
+		)
+		if (!detail) return { success: false as const, error: 'Deal not found' }
+
+		const pendingSlugs = new Set(
+			detail.items
+				.filter((item) => !item.received)
+				.map((item) => item.productSlug),
+		)
+		const accepted = data.decisions.filter(
+			(decision) => pendingSlugs.has(decision.productSlug) && decision.accepted,
+		)
+		const rejected = data.decisions.filter(
+			(decision) =>
+				pendingSlugs.has(decision.productSlug) && !decision.accepted,
+		)
+		if (accepted.length + rejected.length === 0) {
 			return {
 				success: false as const,
-				error: 'Finance must pay at least a partial before warehouse receives',
+				error: 'No pending items were decided',
 			}
 		}
-		if (deal.status === 'delivered' || deal.status === 'closed') {
-			return { success: false as const, error: 'Deal already closed' }
-		}
-		const advisorCheck = getWarehouseAdvisor(data.advisorId, data.securityToken)
-		if (!advisorCheck.success) return advisorCheck
-
-		// Decisions are only allowed for items that are still pending.
-		const pendingSlugs = new Set(
-			deal.items.filter((i) => !i.received).map((i) => i.productSlug),
-		)
-		const acceptedSlugs: string[] = []
-		const rejectedSlugs: string[] = []
-		for (const d of data.decisions) {
-			if (!pendingSlugs.has(d.productSlug)) continue
-			if (d.accepted) acceptedSlugs.push(d.productSlug)
-			else rejectedSlugs.push(d.productSlug)
-		}
-		if (acceptedSlugs.length + rejectedSlugs.length === 0) {
-			return { success: false as const, error: 'No pending items were decided' }
-		}
 		if (
-			rejectedSlugs.length > 0 &&
+			rejected.length > 0 &&
 			(!data.rejectionReason || data.rejectionReason.trim().length < 3)
 		) {
 			return {
@@ -923,41 +1357,69 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 			}
 		}
 
-		// Commit: flip received on accepted, bump stock, append audit.
-		const nowIso = new Date().toISOString()
-		for (const item of deal.items) {
-			if (acceptedSlugs.includes(item.productSlug)) {
-				item.received = true
-				item.receivedAt = nowIso
-				db.stock.adjust(item.productSlug, item.agreedQty)
+		const proof = {
+			proof_url: data.proofUrl.trim(),
+			security_method: data.securityMethod,
+			advisor_id: data.advisorId,
+		}
+		if (rejected.length > 0) {
+			const { error } = await actionAuth.client.rpc(
+				'warehouse_reject_receiving',
+				{
+					p_receiving_task_id: task.id,
+					p_reason: data.rejectionReason?.trim() ?? '',
+					p_proof: proof,
+				},
+			)
+			if (error) throw new Error(error.message)
+			return {
+				success: true as const,
+				dealId: data.dealId,
+				fullyReceived: false,
+				acceptedCount: 0,
+				rejectedCount: rejected.length,
 			}
 		}
-		deal.receivingAttempts = [
-			...deal.receivingAttempts,
-			{
-				attemptedAt: nowIso,
-				advisorId: data.advisorId,
-				advisorName: advisorCheck.advisor.name,
-				acceptedSlugs,
-				rejectedSlugs,
-				rejectionReason: data.rejectionReason?.trim() || null,
-				proofUrl: data.proofUrl.trim(),
-				securityMethod: data.securityMethod,
-				securityToken: data.securityToken.trim(),
-			},
-		]
-		// Auto-advance to delivered when everything is in.
-		const allReceived = deal.items.every((i) => i.received)
-		if (allReceived) {
-			deal.status = 'delivered'
-			deal.fullyReceivedAt = nowIso
+
+		const product = firstRelation(
+			firstRelation(task.refill_requests)?.products ?? null,
+		)
+		if (!product) return { success: false as const, error: 'Deal not found' }
+		const acceptedItems = accepted
+			.map((decision) =>
+				detail.items.find((item) => item.productSlug === decision.productSlug),
+			)
+			.filter((item): item is ReceivingItemView => item !== undefined)
+		if (acceptedItems.length === 0) {
+			return {
+				success: false as const,
+				error: 'No pending items were decided',
+			}
 		}
 
+		const { error: insertError } = await actionAuth.client
+			.from('receiving_task_items')
+			.insert(
+				acceptedItems.map((item) => ({
+					receiving_task_id: task.id,
+					product_id: product.id,
+					received_quantity: item.agreedQty,
+				})),
+			)
+		if (insertError) throw new Error(insertError.message)
+		const { error } = await actionAuth.client.rpc(
+			'warehouse_approve_receiving',
+			{
+				p_receiving_task_id: task.id,
+				p_proof: proof,
+			},
+		)
+		if (error) throw new Error(error.message)
 		return {
 			success: true as const,
-			dealId: deal.id,
-			fullyReceived: allReceived,
-			acceptedCount: acceptedSlugs.length,
-			rejectedCount: rejectedSlugs.length,
+			dealId: data.dealId,
+			fullyReceived: true,
+			acceptedCount: acceptedItems.length,
+			rejectedCount: 0,
 		}
 	})

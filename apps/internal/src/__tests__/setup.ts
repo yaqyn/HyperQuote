@@ -11,6 +11,11 @@ import { vi } from 'vitest'
 vi.stubEnv('VITE_SUPABASE_URL', 'https://test.supabase.co')
 vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'test-anon-key')
 
+Object.defineProperty(globalThis, 'localStorage', {
+	configurable: true,
+	value: window.localStorage,
+})
+
 /**
  * Factory for mock AuthSession objects.
  * Defaults to internal pool with admin role.

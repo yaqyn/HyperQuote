@@ -72,6 +72,9 @@ export function useVolumeEditor<TRow, TDraft>({
 	}
 
 	function showSavedDraft(nextDraft: TDraft, id: string) {
+		const state = useAdminStore.getState()
+		if (state.editorMode === null) return
+		if (state.editorMode !== 'create' && state.selectedEntryId !== id) return
 		setDraft(nextDraft)
 		openEditor('view', id)
 	}
@@ -99,11 +102,13 @@ export function VolumeEditorFooter({
 	onSave,
 	onCancel,
 	onDelete,
+	saveDisabled = false,
 }: {
 	mode: EditorMode | null
 	id: string | null | undefined
 	isSaving: boolean
 	isDeleting: boolean
+	saveDisabled?: boolean
 	onEdit: () => void
 	onSave: () => void
 	onCancel: () => void
@@ -120,7 +125,11 @@ export function VolumeEditorFooter({
 					</LinkAction>
 				)}
 				{(mode === 'edit' || mode === 'create') && (
-					<LinkAction tone="primary" onClick={onSave} disabled={isSaving}>
+					<LinkAction
+						tone="primary"
+						onClick={onSave}
+						disabled={isSaving || saveDisabled}
+					>
 						{t('actions.save')}
 					</LinkAction>
 				)}

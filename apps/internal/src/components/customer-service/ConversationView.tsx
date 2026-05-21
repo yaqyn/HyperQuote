@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
+	AlertTriangle,
 	ArrowLeft,
 	CheckCircle2,
 	Clock,
+	Link2,
 	Mail,
 	MessageCircle,
 	PenLine,
@@ -10,7 +12,11 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { updateConversationStatus } from '../../lib/server/customer-service'
+import {
+	assignConversation,
+	linkConversationToCustomer,
+	updateConversationStatus,
+} from '../../lib/server/customer-service'
 import { useSupportStore } from '../../stores/customer-service'
 import type { Conversation, Message } from '../../types/customer-service'
 import {
@@ -63,8 +69,13 @@ export function ConversationView({
 	const [emailReplyTo, setEmailReplyTo] = useState<Message | null>(null)
 	const [emailAction, setEmailAction] = useState<EmailAction | null>(null)
 	const [composerOpen, setComposerOpen] = useState(false)
+	const [isLinkingCustomer, setIsLinkingCustomer] = useState(false)
+	const [linkError, setLinkError] = useState<string | null>(null)
 
 	const isEmail = conversation.channel === 'email'
+	const isWhatsApp = conversation.channel === 'whatsapp'
+	const canLinkCustomer =
+		isWhatsApp && conversation.customer.recordType === 'external'
 	const isActive =
 		conversation.status !== 'closed' && conversation.status !== 'resolved'
 	const conversationId = conversation.id
@@ -74,6 +85,8 @@ export function ConversationView({
 		setComposerOpen(false)
 		setEmailReplyTo(null)
 		setEmailAction(null)
+		setLinkError(null)
+		setIsLinkingCustomer(false)
 		if (!conversationId || !isEmail || !isActive) return
 	}, [conversationId, isEmail, isActive])
 
@@ -132,6 +145,43 @@ export function ConversationView({
 		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
 	}, [conversation.id, queryClient, setSelected])
 
+	const handleStatusChange = useCallback(
+		async (status: 'open' | 'closed') => {
+			if (status === 'closed') setSelected(null)
+			await updateConversationStatus({
+				data: { conversationId: conversation.id, status },
+			})
+			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+		},
+		[conversation.id, queryClient, setSelected],
+	)
+
+	const handleAssign = useCallback(async () => {
+		await assignConversation({ data: { conversationId: conversation.id } })
+		await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+	}, [conversation.id, queryClient])
+
+	const handleLinkCustomer = useCallback(async () => {
+		if (isLinkingCustomer) return
+		setIsLinkingCustomer(true)
+		setLinkError(null)
+		try {
+			await linkConversationToCustomer({
+				data: { conversationId: conversation.id },
+			})
+			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
+		} catch (error) {
+			const message =
+				error instanceof Error &&
+				error.message.includes('support_customer_phone_not_found')
+					? 'No active customer matches this WhatsApp phone.'
+					: 'Customer was not linked. Confirm the phone and try again.'
+			setLinkError(message)
+		} finally {
+			setIsLinkingCustomer(false)
+		}
+	}, [conversation.id, isLinkingCustomer, queryClient])
+
 	const customerName =
 		i18n.language === 'ar'
 			? conversation.customer.nameAr
@@ -141,6 +191,11 @@ export function ConversationView({
 			? conversation.customer.companyAr
 			: conversation.customer.company
 	const showEmailComposer = isEmail && isActive && composerOpen
+	const conversationLabel = isEmail
+		? 'Email conversation'
+		: isWhatsApp
+			? 'WhatsApp conversation'
+			: 'Live chat'
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
@@ -182,6 +237,19 @@ export function ConversationView({
 							<CheckCircle2 size={17} strokeWidth={2.1} />
 						</button>
 					)}
+					{canLinkCustomer && (
+						<button
+							type="button"
+							onClick={() => {
+								void handleLinkCustomer()
+							}}
+							disabled={isLinkingCustomer}
+							aria-label="Link WhatsApp conversation to customer"
+							className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:opacity-50"
+						>
+							<Link2 size={17} strokeWidth={2.1} />
+						</button>
+					)}
 				</div>
 
 				<div className="hidden lg:block">
@@ -198,9 +266,7 @@ export function ConversationView({
 									)
 								}
 							>
-								{conversation.channel === 'email'
-									? 'Email conversation'
-									: 'Live chat'}
+								{conversationLabel}
 							</EmployeeStatusPill>
 							<EmployeeStatusPill tone="neutral">
 								{conversation.ticketId ?? 'No ticket yet'}
@@ -227,17 +293,56 @@ export function ConversationView({
 						</div>
 
 						<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:shrink-0 lg:justify-end">
-							{isActive && !isEmail && (
+							{!conversation.assignedTo && (
 								<EmployeeActionButton
 									onClick={() => {
-										void handleResolve()
+										void handleAssign()
 									}}
-									aria-label={t('status.resolved')}
+									aria-label="Assign conversation to me"
+									tone="neutral"
+									size="sm"
+									leading={<UserRound size={14} strokeWidth={2.2} />}
+								>
+									Assign to me
+								</EmployeeActionButton>
+							)}
+							{canLinkCustomer && (
+								<EmployeeActionButton
+									onClick={() => {
+										void handleLinkCustomer()
+									}}
+									disabled={isLinkingCustomer}
+									aria-label="Link WhatsApp conversation to customer"
+									tone="neutral"
+									size="sm"
+									leading={<Link2 size={14} strokeWidth={2.2} />}
+								>
+									{isLinkingCustomer ? 'Linking' : 'Link customer'}
+								</EmployeeActionButton>
+							)}
+							{isActive ? (
+								<EmployeeActionButton
+									onClick={() => {
+										void handleStatusChange('closed')
+									}}
+									aria-label="Close support conversation"
 									tone="success"
 									size="sm"
 									leading={<CheckCircle2 size={14} strokeWidth={2.2} />}
 								>
-									Sign off chat
+									{isEmail ? 'Close ticket' : 'Close chat'}
+								</EmployeeActionButton>
+							) : (
+								<EmployeeActionButton
+									onClick={() => {
+										void handleStatusChange('open')
+									}}
+									aria-label="Reopen support conversation"
+									tone="primary"
+									size="sm"
+									leading={<PenLine size={14} strokeWidth={2.2} />}
+								>
+									Reopen
 								</EmployeeActionButton>
 							)}
 							<EmployeeActionButton
@@ -281,6 +386,16 @@ export function ConversationView({
 					<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
 						Opened {formatCreatedAt(conversation.createdAt)}
 					</p>
+					{linkError && (
+						<div className="mt-3">
+							<EmployeeStatusPill
+								tone="danger"
+								leading={<AlertTriangle size={13} strokeWidth={2.2} />}
+							>
+								{linkError}
+							</EmployeeStatusPill>
+						</div>
+					)}
 				</div>
 			</div>
 

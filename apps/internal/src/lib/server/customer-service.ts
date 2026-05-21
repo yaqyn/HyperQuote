@@ -5,77 +5,187 @@ import type {
 	Customer,
 	InboxMetrics,
 } from '../../types/customer-service'
-import {
-	type ConversationRow,
-	type CustomerRow,
-	db,
-	type JsonObject,
-	type MessageRow,
-} from '../db/db'
+import type { JsonObject } from '../db/types'
+import { getInternalSupabaseClient } from './_supabase'
 
-// ─── Customer from DB row ─────────────────────────────────────────────────────
+type SupportEntityRef =
+	| { kind: 'ticket'; id: string }
+	| { kind: 'conversation'; id: string }
+	| { kind: 'local'; id: string }
 
-/** Arabic company names — keyed by DB id */
-const ARABIC_NAMES: Record<string, { name: string; company: string }> = {
-	'cust-001': { name: 'حسام الدين', company: 'النور للإنشاءات' },
-	'cust-003': { name: 'مصطفى السيد', company: 'بناة الأهرام' },
-	'cust-006': { name: 'ريم عبد العزيز', company: 'المعادي للهندسة' },
+interface SupabaseSupportCustomerRow {
+	id: string
+	company_name: string
+	contact_name: string
+	phone: string
+	email: string | null
+	created_at: string
 }
 
-function customerFromRow(row: CustomerRow): Customer {
-	const ar = ARABIC_NAMES[row.id]
+interface SupabaseAssignedEmployeeRow {
+	id: string
+	full_name: string
+	user_id: string | null
+}
+
+interface SupabaseSupportTicketRow {
+	id: string
+	reference: string
+	customer_id: string | null
+	requester_name: string | null
+	requester_email: string
+	requester_phone: string | null
+	subject: string
+	status: 'open' | 'pending' | 'closed'
+	source: string
+	assigned_employee_id: string | null
+	created_at: string
+	updated_at: string
+	customers: SupabaseSupportCustomerRow | SupabaseSupportCustomerRow[] | null
+	employees: SupabaseAssignedEmployeeRow | SupabaseAssignedEmployeeRow[] | null
+}
+
+interface SupabaseSupportConversationRow {
+	id: string
+	customer_id: string | null
+	channel: 'email' | 'whatsapp'
+	external_thread_id: string | null
+	phone: string | null
+	email: string | null
+	status: 'open' | 'closed'
+	assigned_employee_id: string | null
+	created_at: string
+	updated_at: string
+	customers: SupabaseSupportCustomerRow | SupabaseSupportCustomerRow[] | null
+	employees: SupabaseAssignedEmployeeRow | SupabaseAssignedEmployeeRow[] | null
+}
+
+interface SupabaseSupportMessageRow {
+	id: string
+	ticket_id: string | null
+	conversation_id: string | null
+	sender_type: 'customer' | 'employee' | 'system' | 'external'
+	sender_user_id: string | null
+	channel: 'email' | 'whatsapp' | 'portal' | 'website'
+	body: string
+	external_message_id: string | null
+	provider_status?: string
+	provider_error?: string | null
+	metadata?: Record<string, unknown>
+	created_at: string
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value ?? null
+}
+
+function supportRef(id: string): SupportEntityRef {
+	if (id.startsWith('ticket:')) return { kind: 'ticket', id: id.slice(7) }
+	if (id.startsWith('conversation:')) {
+		return { kind: 'conversation', id: id.slice(13) }
+	}
+	return { kind: 'local', id }
+}
+
+function supportChannel(channel: string): ChannelType {
+	if (channel === 'whatsapp') return 'whatsapp'
+	if (channel === 'email' || channel === 'website' || channel === 'portal') {
+		return 'email'
+	}
+	return 'live'
+}
+
+function ticketStatus(status: SupabaseSupportTicketRow['status']) {
+	return status
+}
+
+function conversationStatus(status: SupabaseSupportConversationRow['status']) {
+	return status
+}
+
+function priorityForSupport(subject: string) {
+	const text = subject.toLowerCase()
+	if (text.includes('delivery') || text.includes('damaged'))
+		return 'high' as const
+	if (text.includes('billing') || text.includes('urgent'))
+		return 'urgent' as const
+	return 'medium' as const
+}
+
+function fallbackCustomer(input: {
+	id: string
+	name: string | null
+	email: string | null
+	phone: string | null
+	createdAt: string
+}): Customer {
+	const displayName =
+		input.name || input.phone || input.email || 'Unlinked contact'
 	return {
-		id: row.id,
-		name: row.contactName,
-		nameAr: ar?.name ?? row.contactName,
-		email: row.email,
-		phone: row.phone,
-		company: row.companyName,
-		companyAr: ar?.company ?? row.companyName,
-		totalConversations: row.orderCount,
-		firstContactAt: row.joinedAt,
-		satisfactionAvg:
-			row.paymentHistory === 'excellent'
-				? 4.6
-				: row.paymentHistory === 'good'
-					? 4.0
-					: 3.2,
+		id: input.id,
+		recordType: 'external',
+		name: displayName,
+		nameAr: displayName,
+		email: input.email,
+		phone: input.phone,
+		company: 'Unlinked support contact',
+		companyAr: 'Unlinked support contact',
+		totalConversations: 0,
+		firstContactAt: input.createdAt,
+		satisfactionAvg: null,
 	}
 }
 
-function getCustomer(id: string): Customer {
-	const row = db.customers.get(id)
-	if (!row) throw new Error(`Customer ${id} not found in DB`)
-	return customerFromRow(row)
-}
-
-// ─── Conversation row → API shape ──────────────────────────────────────────────
-
-function rowToConversation(row: ConversationRow): Conversation {
-	const customer = getCustomer(row.customerId)
-	const lastMessage = row.messages[row.messages.length - 1]
-	const unreadCount = row.messages.filter((m) => !m.read).length
-
+function supabaseCustomerFromRow(
+	row: SupabaseSupportCustomerRow | null,
+	fallback: Parameters<typeof fallbackCustomer>[0],
+): Customer {
+	if (!row) return fallbackCustomer(fallback)
 	return {
 		id: row.id,
-		customer,
-		channel: row.channel,
-		status: row.status,
-		priority: row.priority,
-		subject: row.subject,
-		lastMessagePreview: lastMessage?.content.split('\n')[0] ?? '',
-		lastMessageAt: lastMessage?.timestamp ?? row.createdAt,
-		unreadCount,
-		assignedTo: row.assignedTo,
-		assignedToName: row.assignedToName,
-		tags: row.tags,
-		messages: row.messages,
-		linkedOrders: row.linkedOrders,
-		linkedQuotes: row.linkedQuotes,
-		createdAt: row.createdAt,
-		ticketId: row.ticketId,
-		slaDeadline: row.slaDeadline,
-		slaBreached: row.slaBreached,
+		recordType: 'customer',
+		name: row.contact_name,
+		nameAr: row.contact_name,
+		email: row.email,
+		phone: row.phone,
+		company: row.company_name,
+		companyAr: row.company_name,
+		totalConversations: 0,
+		firstContactAt: row.created_at,
+		satisfactionAvg: null,
+	}
+}
+
+function supabaseMessageFromRow(
+	row: SupabaseSupportMessageRow,
+	customer: Customer,
+	employeeNameByUserId: Map<string, string>,
+): Conversation['messages'][number] {
+	const inbound =
+		row.sender_type === 'customer' || row.sender_type === 'external'
+	const providerStatus = row.provider_status ?? 'recorded'
+	const employeeName = row.sender_user_id
+		? employeeNameByUserId.get(row.sender_user_id)
+		: null
+	return {
+		id: row.id,
+		conversationId: row.ticket_id
+			? `ticket:${row.ticket_id}`
+			: `conversation:${row.conversation_id}`,
+		channel: supportChannel(row.channel),
+		direction: inbound ? 'inbound' : 'outbound',
+		content: row.body,
+		senderName: inbound ? customer.name : (employeeName ?? 'Employee'),
+		timestamp: row.created_at,
+		attachments: [],
+		read: !inbound,
+		metadata: {
+			...(row.metadata ?? {}),
+			externalMessageId: row.external_message_id,
+			providerStatus,
+			providerError: row.provider_error ?? null,
+		},
 	}
 }
 
@@ -92,17 +202,286 @@ function computeMetrics(conversations: Conversation[]): InboxMetrics {
 	)
 	const withSla = conversations.filter((c) => c.slaDeadline !== null)
 	const compliant = withSla.filter((c) => !c.slaBreached)
+	const responseMinutes = conversations.flatMap((conversation) => {
+		const sorted = [...conversation.messages].sort(
+			(a, b) =>
+				new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+		)
+		const values: number[] = []
+		let lastInboundAt: string | null = null
+		for (const message of sorted) {
+			if (message.direction === 'inbound') {
+				lastInboundAt = message.timestamp
+				continue
+			}
+			if (!lastInboundAt) continue
+			const delta =
+				new Date(message.timestamp).getTime() -
+				new Date(lastInboundAt).getTime()
+			if (Number.isFinite(delta) && delta >= 0) {
+				values.push(Math.round(delta / 60_000))
+				lastInboundAt = null
+			}
+		}
+		return values
+	})
+	const avgResponseMinutes =
+		responseMinutes.length > 0
+			? Math.round(
+					responseMinutes.reduce((sum, value) => sum + value, 0) /
+						responseMinutes.length,
+				)
+			: 0
 
 	return {
 		openCount: open.length,
 		pendingCount: pending.length,
 		urgentCount: urgent.length,
-		avgResponseMinutes: 4,
+		avgResponseMinutes,
 		slaCompliancePercent:
 			withSla.length > 0
 				? Math.round((compliant.length / withSla.length) * 100)
-				: 100,
+				: 0,
 	}
+}
+
+async function getSupabaseConversations() {
+	const auth = await getInternalSupabaseClient()
+
+	const [
+		{ data: ticketRows, error: ticketError },
+		{ data: conversationRows, error: conversationError },
+	] = await Promise.all([
+		auth.client
+			.from('support_tickets')
+			.select(`
+					id,
+					reference,
+					customer_id,
+					requester_name,
+					requester_email,
+					requester_phone,
+					subject,
+					status,
+					source,
+					assigned_employee_id,
+					created_at,
+					updated_at,
+					customers (
+						id,
+						company_name,
+						contact_name,
+						phone,
+						email,
+						created_at
+					),
+					employees (
+						id,
+						full_name,
+						user_id
+					)
+				`)
+			.order('created_at', { ascending: false }),
+		auth.client
+			.from('support_conversations')
+			.select(`
+					id,
+					customer_id,
+					channel,
+					external_thread_id,
+					phone,
+					email,
+					status,
+					assigned_employee_id,
+					created_at,
+					updated_at,
+					customers (
+						id,
+						company_name,
+						contact_name,
+						phone,
+						email,
+						created_at
+					),
+					employees (
+						id,
+						full_name,
+						user_id
+					)
+				`)
+			.order('created_at', { ascending: false }),
+	])
+	if (ticketError) throw new Error(ticketError.message)
+	if (conversationError) throw new Error(conversationError.message)
+
+	const tickets = (ticketRows ?? []) as unknown as SupabaseSupportTicketRow[]
+	const supportConversations = (conversationRows ??
+		[]) as unknown as SupabaseSupportConversationRow[]
+	const ticketIds = tickets.map((ticket) => ticket.id)
+	const conversationIds = supportConversations.map(
+		(conversation) => conversation.id,
+	)
+
+	const ticketMessagesById = new Map<string, SupabaseSupportMessageRow[]>()
+	if (ticketIds.length > 0) {
+		const { data: rows, error } = await auth.client
+			.from('support_messages')
+			.select(
+				'id, ticket_id, conversation_id, sender_type, sender_user_id, channel, body, external_message_id, provider_status, provider_error, metadata, created_at',
+			)
+			.in('ticket_id', ticketIds)
+			.order('created_at', { ascending: true })
+		if (error) throw new Error(error.message)
+		for (const message of (rows ??
+			[]) as unknown as SupabaseSupportMessageRow[]) {
+			if (!message.ticket_id) continue
+			const list = ticketMessagesById.get(message.ticket_id) ?? []
+			list.push(message)
+			ticketMessagesById.set(message.ticket_id, list)
+		}
+	}
+
+	const conversationMessagesById = new Map<
+		string,
+		SupabaseSupportMessageRow[]
+	>()
+	if (conversationIds.length > 0) {
+		const { data: rows, error } = await auth.client
+			.from('support_messages')
+			.select(
+				'id, ticket_id, conversation_id, sender_type, sender_user_id, channel, body, external_message_id, provider_status, provider_error, metadata, created_at',
+			)
+			.in('conversation_id', conversationIds)
+			.order('created_at', { ascending: true })
+		if (error) throw new Error(error.message)
+		for (const message of (rows ??
+			[]) as unknown as SupabaseSupportMessageRow[]) {
+			if (!message.conversation_id) continue
+			const list = conversationMessagesById.get(message.conversation_id) ?? []
+			list.push(message)
+			conversationMessagesById.set(message.conversation_id, list)
+		}
+	}
+
+	const senderUserIds = Array.from(
+		new Set(
+			[
+				...Array.from(ticketMessagesById.values()).flat(),
+				...Array.from(conversationMessagesById.values()).flat(),
+			]
+				.map((message) => message.sender_user_id)
+				.filter((id): id is string => Boolean(id)),
+		),
+	)
+	const employeeNameByUserId = new Map<string, string>()
+	if (senderUserIds.length > 0) {
+		const { data: rows, error } = await auth.client
+			.from('employees')
+			.select('user_id, full_name')
+			.in('user_id', senderUserIds)
+		if (error) throw new Error(error.message)
+		for (const row of (rows ?? []) as Array<{
+			user_id: string | null
+			full_name: string
+		}>) {
+			if (row.user_id) employeeNameByUserId.set(row.user_id, row.full_name)
+		}
+	}
+
+	const ticketConversations: Conversation[] = tickets.map((ticket) => {
+		const customer = supabaseCustomerFromRow(firstRelation(ticket.customers), {
+			id: `ticket:${ticket.id}:external`,
+			name: ticket.requester_name,
+			email: ticket.requester_email,
+			phone: ticket.requester_phone,
+			createdAt: ticket.created_at,
+		})
+		const messages = (ticketMessagesById.get(ticket.id) ?? []).map((message) =>
+			supabaseMessageFromRow(message, customer, employeeNameByUserId),
+		)
+		const lastMessage = messages[messages.length - 1]
+		const assignedEmployee = firstRelation(ticket.employees)
+		return {
+			id: `ticket:${ticket.id}`,
+			customer,
+			channel: 'email',
+			status: ticketStatus(ticket.status),
+			priority: priorityForSupport(ticket.subject),
+			subject: ticket.subject,
+			lastMessagePreview: lastMessage?.content.split('\n')[0] ?? ticket.subject,
+			lastMessageAt: lastMessage?.timestamp ?? ticket.updated_at,
+			unreadCount: messages.filter((message) => !message.read).length,
+			assignedTo: ticket.assigned_employee_id,
+			assignedToName: assignedEmployee?.full_name ?? null,
+			tags: [ticket.source],
+			messages,
+			linkedOrders: [],
+			linkedQuotes: [],
+			createdAt: ticket.created_at,
+			ticketId: ticket.reference,
+			slaDeadline: new Date(
+				new Date(ticket.created_at).getTime() + 24 * 60 * 60_000,
+			).toISOString(),
+			slaBreached:
+				ticket.status !== 'closed' &&
+				Date.now() - new Date(ticket.created_at).getTime() > 24 * 60 * 60_000,
+		}
+	})
+
+	const whatsappConversations: Conversation[] = supportConversations.map(
+		(conversation) => {
+			const customer = supabaseCustomerFromRow(
+				firstRelation(conversation.customers),
+				{
+					id: `conversation:${conversation.id}:external`,
+					name: conversation.phone,
+					email: conversation.email,
+					phone: conversation.phone,
+					createdAt: conversation.created_at,
+				},
+			)
+			const messages = (
+				conversationMessagesById.get(conversation.id) ?? []
+			).map((message) =>
+				supabaseMessageFromRow(message, customer, employeeNameByUserId),
+			)
+			const lastMessage = messages[messages.length - 1]
+			const assignedEmployee = firstRelation(conversation.employees)
+			return {
+				id: `conversation:${conversation.id}`,
+				customer,
+				channel:
+					conversation.channel === 'whatsapp'
+						? ('whatsapp' as const)
+						: ('live' as const),
+				status: conversationStatus(conversation.status),
+				priority: 'medium',
+				subject: `${conversation.channel === 'whatsapp' ? 'WhatsApp' : 'Support'} conversation${conversation.phone ? ` · ${conversation.phone}` : ''}`,
+				lastMessagePreview:
+					lastMessage?.content.split('\n')[0] ?? 'No messages yet',
+				lastMessageAt: lastMessage?.timestamp ?? conversation.updated_at,
+				unreadCount: messages.filter((message) => !message.read).length,
+				assignedTo: conversation.assigned_employee_id,
+				assignedToName: assignedEmployee?.full_name ?? null,
+				tags: [conversation.channel],
+				messages,
+				linkedOrders: [],
+				linkedQuotes: [],
+				createdAt: conversation.created_at,
+				ticketId: null,
+				slaDeadline: new Date(
+					new Date(conversation.created_at).getTime() + 2 * 60 * 60_000,
+				).toISOString(),
+				slaBreached:
+					conversation.status !== 'closed' &&
+					Date.now() - new Date(conversation.created_at).getTime() >
+						2 * 60 * 60_000,
+			}
+		},
+	)
+
+	const conversations = [...whatsappConversations, ...ticketConversations]
+	return { conversations, metrics: computeMetrics(conversations) }
 }
 
 // ─── Server Functions ─────────────────────────────────────────────────────────
@@ -112,12 +491,8 @@ export const getConversations = createServerFn({ method: 'GET' }).handler(
 		conversations: Conversation[]
 		metrics: InboxMetrics
 	}> => {
-		const rows = db.conversations.list()
-		const conversations = rows.map(rowToConversation)
-		return {
-			conversations,
-			metrics: computeMetrics(conversations),
-		}
+		const supabaseConversations = await getSupabaseConversations()
+		return supabaseConversations
 	},
 )
 
@@ -133,33 +508,100 @@ export const sendReply = createServerFn({ method: 'POST' })
 	)
 	.handler(
 		async ({ data }): Promise<{ success: boolean; messageId: string }> => {
-			const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-			const message: MessageRow = {
-				id: messageId,
-				conversationId: data.conversationId,
-				channel: data.channel,
-				direction: 'outbound',
-				content: data.content,
-				senderName: data.senderName ?? 'Support Agent',
-				timestamp: new Date().toISOString(),
-				attachments: [],
-				read: true,
-				metadata: data.metadata ?? {},
+			const auth = await getInternalSupabaseClient()
+			const ref = supportRef(data.conversationId)
+			if (ref.kind === 'local')
+				throw new Error('Supabase support record required')
+			if (ref.kind === 'ticket') {
+				const { data: message, error } = await auth.client.rpc(
+					'send_support_reply',
+					{
+						p_body: data.content,
+						p_channel: data.channel === 'whatsapp' ? 'whatsapp' : 'email',
+						p_metadata: data.metadata ?? {},
+						p_ticket_id: ref.id,
+					},
+				)
+				if (error) throw new Error(error.message)
+				return { success: true, messageId: message.id }
 			}
-			db.conversations.addMessage(data.conversationId, message)
-			return { success: true, messageId }
+			const { data: message, error } = await auth.client.rpc(
+				'send_support_conversation_reply',
+				{
+					p_body: data.content,
+					p_channel: data.channel === 'email' ? 'email' : 'whatsapp',
+					p_conversation_id: ref.id,
+				},
+			)
+			if (error) throw new Error(error.message)
+			return { success: true, messageId: message.id }
 		},
 	)
 
 export const updateConversationStatus = createServerFn({ method: 'POST' })
 	.inputValidator((d: { conversationId: string; status: string }) => d)
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
-		// Emails are permanent threads — never resolve/close them
-		const conv = db.conversations.get(data.conversationId)
-		if (conv?.channel === 'email') return { success: false }
-		const row = db.conversations.updateStatus(
-			data.conversationId,
-			data.status as Conversation['status'],
+		const auth = await getInternalSupabaseClient()
+		const ref = supportRef(data.conversationId)
+		if (ref.kind === 'local')
+			throw new Error('Supabase support record required')
+		if (ref.kind === 'ticket') {
+			const status =
+				data.status === 'closed' || data.status === 'resolved'
+					? 'closed'
+					: data.status === 'pending'
+						? 'pending'
+						: 'open'
+			const { error } = await auth.client.rpc('set_support_ticket_status', {
+				p_status: status,
+				p_ticket_id: ref.id,
+			})
+			if (error) throw new Error(error.message)
+			return { success: true }
+		}
+		const status =
+			data.status === 'closed' || data.status === 'resolved' ? 'closed' : 'open'
+		const { error } = await auth.client.rpc('set_support_conversation_status', {
+			p_conversation_id: ref.id,
+			p_status: status,
+		})
+		if (error) throw new Error(error.message)
+		return { success: true }
+	})
+
+export const assignConversation = createServerFn({ method: 'POST' })
+	.inputValidator((d: { conversationId: string }) => d)
+	.handler(async ({ data }): Promise<{ success: boolean }> => {
+		const auth = await getInternalSupabaseClient()
+		const ref = supportRef(data.conversationId)
+		if (ref.kind === 'local')
+			throw new Error('Supabase support record required')
+		const { error } =
+			ref.kind === 'ticket'
+				? await auth.client.rpc('assign_support_ticket', {
+						p_ticket_id: ref.id,
+					})
+				: await auth.client.rpc('assign_support_conversation', {
+						p_conversation_id: ref.id,
+					})
+		if (error) throw new Error(error.message)
+		return { success: true }
+	})
+
+export const linkConversationToCustomer = createServerFn({ method: 'POST' })
+	.inputValidator((d: { conversationId: string }) => d)
+	.handler(async ({ data }): Promise<{ success: boolean }> => {
+		const auth = await getInternalSupabaseClient()
+		const ref = supportRef(data.conversationId)
+		if (ref.kind !== 'conversation') {
+			throw new Error('WhatsApp support conversation required')
+		}
+		const { error } = await auth.client.rpc(
+			'link_support_conversation_to_customer',
+			{
+				p_conversation_id: ref.id,
+			},
 		)
-		return { success: !!row }
+		if (error) throw new Error(error.message)
+		return { success: true }
 	})

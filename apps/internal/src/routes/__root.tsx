@@ -7,7 +7,7 @@ import {
 	useRouterState,
 } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { I18nProvider } from 'react-aria-components'
+import { I18nProvider } from 'react-aria-components/I18nProvider'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import '../lib/i18n'
 import { registerInternalServiceWorker } from '../lib/pwa'

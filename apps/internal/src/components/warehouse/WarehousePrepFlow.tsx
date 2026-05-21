@@ -431,6 +431,27 @@ function LoadStage({
 
 	return (
 		<div className="flex min-h-full flex-col gap-6">
+			{order.failedInspections.length > 0 && (
+				<motion.div
+					initial={{ opacity: 0, y: 6 }}
+					animate={{ opacity: 1, y: 0 }}
+					className="border-[3px] border-[#CC3300] bg-[#FFF4F0] px-5 py-3"
+				>
+					<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[#CC3300]">
+						Previous failed inspections · {order.failedInspections.length}
+					</p>
+					<p className="mt-1 text-[11px] text-black/60">
+						Most recent:{' '}
+						<span className="font-semibold">
+							{
+								order.failedInspections[order.failedInspections.length - 1]
+									.reason
+							}
+						</span>
+					</p>
+				</motion.div>
+			)}
+
 			{/* Assigned trucks strip */}
 			{order.truckAssignments.length > 0 && (
 				<section ref={assignedTrucksRef}>
@@ -649,8 +670,14 @@ function TruckPicker({
 	})
 
 	const mutation = useMutation({
-		mutationFn: (truckId: string) =>
-			assignTruckToOrder({ data: { quoteId: order.quoteId, truckId } }),
+		mutationFn: (input: { driverId: string; truckId: string }) =>
+			assignTruckToOrder({
+				data: {
+					driverId: input.driverId,
+					quoteId: order.quoteId,
+					truckId: input.truckId,
+				},
+			}),
 		onSuccess: (res) => {
 			if (res.success) {
 				qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
@@ -669,8 +696,7 @@ function TruckPicker({
 			<div className="hidden lg:block">
 				<SectionHeading index="01" title="Choose truck" />
 				<p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
-					Only available trucks show up here. The admin panel (coming soon) is
-					where new trucks land.
+					Only online available drivers with a usable truck asset show up here.
 				</p>
 			</div>
 			<motion.div
@@ -684,14 +710,16 @@ function TruckPicker({
 			>
 				{trucks.length === 0 && (
 					<div className="col-span-full border-y-2 border-x-0 border-dashed border-black/20 px-4 py-4 text-center font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.14em] text-black/45 lg:border-[3px] lg:px-5 lg:py-6 lg:text-[11px] lg:tracking-[0.18em]">
-						No trucks available right now
+						No online drivers with an available truck right now
 					</div>
 				)}
 				{trucks.map((t) => (
 					<motion.button
 						key={t.id}
 						type="button"
-						onClick={() => mutation.mutate(t.id)}
+						onClick={() =>
+							mutation.mutate({ driverId: t.driverId, truckId: t.id })
+						}
 						disabled={mutation.isPending}
 						variants={{
 							hidden: { opacity: 0, y: 10 },
@@ -879,7 +907,8 @@ function SignoffStage({
 			}
 			qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
 			qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
-			onChange()
+			if ('completed' in res && res.completed === true) onExit()
+			else onChange()
 		},
 		onError: (e: Error) => setError(e.message),
 	})
@@ -911,7 +940,7 @@ function SignoffStage({
 	})
 
 	const nameOk = advisorId !== null
-	const tokenOk = securityToken.trim().length >= 4
+	const tokenOk = securityToken.trim().length > 0
 	const proofOk = proofUrl.trim().length > 0
 	const reasonOk = failReason.trim().length >= 3
 

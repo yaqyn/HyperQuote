@@ -7,6 +7,7 @@ import type { ChannelType } from '../../types/customer-service'
 const CODES: Record<ChannelType, string> = {
 	email: 'EML',
 	live: 'LIV',
+	whatsapp: 'WSP',
 }
 
 interface ChannelCodeProps {

@@ -5,6 +5,7 @@ import {
 	ChevronDown,
 	CircleAlert,
 	FileText,
+	Package,
 	Upload,
 } from 'lucide-react'
 import {
@@ -175,6 +176,7 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 		!!data &&
 		!!selectedSupplier &&
 		parsedDraft !== null &&
+		parsedDraft > 0 &&
 		priceChanged &&
 		!quoteMutation.isPending
 	const proofEssayLength = proofEssay.trim().length
@@ -184,8 +186,8 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 	const canSave = canContinueToProof && panelStep === 'proof' && proofOk
 	const saveBlockReason = !selectedSupplier
 		? 'Choose a supplier first.'
-		: parsedDraft === null
-			? 'Enter a valid supplier cost.'
+		: parsedDraft === null || parsedDraft <= 0
+			? 'Enter a supplier cost greater than zero.'
 			: !priceChanged
 				? 'Change the supplier cost before saving.'
 				: panelStep === 'proof' && !proofOk
@@ -277,15 +279,22 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 								)}
 
 								<PanelSection title="Step 1 · Supplier" />
-								<SupplierMenuButton
-									suppliers={data.suppliers}
-									unit={data.unit}
-									selectedSupplier={selectedSupplier}
-									bestSupplierId={bestSupplierId}
-									isOpen={supplierMenuOpen}
-									onToggle={() => setSupplierMenuOpen((open) => !open)}
-									onSelect={(supplierId) => setSelectedSupplierId(supplierId)}
-								/>
+								{data.suppliers.length === 0 ? (
+									<EmptyPanelNote>
+										No supplier specialty covers this material yet. Add one in
+										Admin before recording a supplier price.
+									</EmptyPanelNote>
+								) : (
+									<SupplierMenuButton
+										suppliers={data.suppliers}
+										unit={data.unit}
+										selectedSupplier={selectedSupplier}
+										bestSupplierId={bestSupplierId}
+										isOpen={supplierMenuOpen}
+										onToggle={() => setSupplierMenuOpen((open) => !open)}
+										onSelect={(supplierId) => setSelectedSupplierId(supplierId)}
+									/>
+								)}
 
 								{selectedSupplier && (
 									<>
@@ -367,11 +376,20 @@ function PricePanelHeader({
 	return (
 		<header className="shrink-0 border-b border-[var(--rule-soft)] px-4 py-2.5 sm:px-6 lg:py-5">
 			<div className="hidden gap-4 lg:flex">
-				<img
-					src={data.image}
-					alt={data.name}
-					className="h-16 w-16 shrink-0 rounded-md border border-[var(--rule-soft)] object-cover"
-				/>
+				{data.image ? (
+					<img
+						src={data.image}
+						alt={data.name}
+						className="h-16 w-16 shrink-0 rounded-md border border-[var(--rule-soft)] object-cover"
+					/>
+				) : (
+					<div
+						aria-hidden="true"
+						className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-[var(--rule-soft)] bg-[var(--folio)] text-[var(--ink-ghost)]"
+					>
+						<Package size={20} />
+					</div>
+				)}
 				<div className="min-w-0 flex-1">
 					<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-mid)]">
 						Update price
@@ -475,6 +493,14 @@ function PanelSection({ title }: { title: string }) {
 				{title}
 			</span>
 			<span aria-hidden="true" className="h-px flex-1 bg-[var(--rule-soft)]" />
+		</div>
+	)
+}
+
+function EmptyPanelNote({ children }: { children: ReactNode }) {
+	return (
+		<div className="rounded-md border border-[var(--rule-soft)] bg-black/[0.018] px-3 py-3 font-[family-name:var(--font-archivo)] text-[12px] leading-5 text-[var(--ink-mid)]">
+			{children}
 		</div>
 	)
 }
@@ -835,7 +861,7 @@ function ProofSubmissionStep({
 							{pdfName || 'Upload supplier PDF proof'}
 						</span>
 						<span className="text-[11px] text-[var(--ink-mid)]">
-							PDF only. The selected filename is attached to this mock record.
+							PDF only. The selected filename is attached to this price record.
 						</span>
 					</button>
 					<input

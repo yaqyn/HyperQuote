@@ -2,7 +2,7 @@ import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AtSign, Bell, CheckCircle2, Clock, Truck } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { useKeyboardScope } from '../../hooks/useKeyboardScope'
 import {

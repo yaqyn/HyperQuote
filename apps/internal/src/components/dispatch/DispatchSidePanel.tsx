@@ -115,9 +115,17 @@ export function DispatchSidePanel({
 						animate={{ x: 0 }}
 						exit={reduce ? undefined : { x: '100%' }}
 						transition={{ type: 'spring', stiffness: 280, damping: 34 }}
-						className="dispatch-theme dispatch-paper absolute inset-0 z-10 flex w-full flex-col lg:inset-y-0 lg:start-auto lg:end-0 lg:w-[440px] lg:border-s lg:border-[var(--rule-soft)] lg:shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)]"
+						className="dispatch-theme dispatch-paper dispatch-side-panel absolute z-30 flex flex-col lg:border-s lg:border-[var(--rule-soft)] lg:shadow-[-24px_0_60px_-20px_rgba(20,15,10,0.28)]"
 						style={{ color: 'var(--ink)' }}
 					>
+						<button
+							type="button"
+							aria-label="Collapse dispatch panel"
+							onClick={onToggle}
+							className="absolute end-3 top-3 z-20 hidden h-9 w-9 items-center justify-center rounded-md border border-black/[0.08] bg-[var(--paper)] text-[var(--ink-mid)] transition-colors hover:border-[var(--motion)]/30 hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--motion)]/30 lg:flex"
+						>
+							<X aria-hidden="true" size={15} />
+						</button>
 						<DispatchMobileBar
 							mode={mode}
 							hasDetail={selectedQuoteId !== null}
@@ -170,7 +178,7 @@ function EdgeHandle({ onToggle }: { onToggle: () => void }) {
 			leading={<MapPinned aria-hidden="true" size={15} />}
 			aria-label="Open dispatch panel"
 			onClick={onToggle}
-			className="dispatch-theme absolute end-4 bottom-4 z-20 shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)] lg:end-3 lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
+			className="dispatch-theme absolute end-4 bottom-4 z-30 shadow-[-8px_0_20px_-6px_rgba(20,15,10,0.2)] lg:end-3 lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
 		>
 			Dispatch
 		</EmployeeActionButton>
@@ -410,6 +418,7 @@ function OrderBand({
 	const truckCount = route.trucks.length
 	const itemCount = route.items.length
 	const leadTruck = route.trucks[0]
+	const leadDeliveryLabel = deliveryStatusLabel(leadTruck?.deliveryStatus)
 	const driverFirst = leadTruck?.driverName?.split(' ')[0]?.toLowerCase() ?? ''
 	const urgency =
 		route.deliveryUrgencyDays <= 0
@@ -420,10 +429,24 @@ function OrderBand({
 	// Crude progress: how many km traversed vs delivery distance. We don't
 	// know the origin so we approximate by squared distance driver→delivery
 	// and clamp to 0–1 so overdue routes still read as "moving".
-	const dLat = route.deliveryLat - route.driverLat
-	const dLng = route.deliveryLng - route.driverLng
-	const remaining = Math.sqrt(dLat * dLat + dLng * dLng)
-	const progressPct = Math.max(0, Math.min(1, 1 - remaining / 0.8)) * 100
+	const hasProgressCoordinates =
+		route.deliveryLat !== null &&
+		route.deliveryLng !== null &&
+		route.driverLat !== null &&
+		route.driverLng !== null
+	let remaining = 0
+	if (hasProgressCoordinates) {
+		const deliveryLat = route.deliveryLat ?? 0
+		const deliveryLng = route.deliveryLng ?? 0
+		const driverLat = route.driverLat ?? 0
+		const driverLng = route.driverLng ?? 0
+		const dLat = deliveryLat - driverLat
+		const dLng = deliveryLng - driverLng
+		remaining = Math.sqrt(dLat * dLat + dLng * dLng)
+	}
+	const progressPct = hasProgressCoordinates
+		? Math.max(0, Math.min(1, 1 - remaining / 0.8)) * 100
+		: 0
 	return (
 		<motion.article
 			role="button"
@@ -628,7 +651,7 @@ function OrderBand({
 					}
 					className="max-lg:px-2 max-lg:py-1 max-lg:text-[11px] sm:w-full"
 				>
-					{route.isOverdue ? 'Needs attention' : 'On route'}
+					{route.isOverdue ? 'Needs attention' : leadDeliveryLabel}
 				</EmployeeStatusPill>
 				{leadTruck?.plateNumber && (
 					<span
@@ -708,17 +731,29 @@ function OrderDetail({
 			{/* Desktop title. Mobile carries the title in the back bar. */}
 			<div className="hidden px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:block lg:px-8">
 				<div className="flex min-w-0 items-center gap-2">
-					<h2
-						className="min-w-0 break-words font-[family-name:var(--font-literata)] animate-sovereign-rise"
-						style={{
-							fontSize: '24px',
-							fontWeight: 500,
-							color: 'var(--ink)',
-							lineHeight: 1.1,
-						}}
-					>
-						{route.customerName}
-					</h2>
+					<div className="min-w-0">
+						<h2
+							className="min-w-0 break-words font-[family-name:var(--font-literata)] animate-sovereign-rise"
+							style={{
+								fontSize: '24px',
+								fontWeight: 500,
+								color: 'var(--ink)',
+								lineHeight: 1.1,
+							}}
+						>
+							{route.customerName}
+						</h2>
+						<p
+							className="mt-1 font-[family-name:var(--font-plex-mono)] tabular-nums"
+							style={{
+								fontSize: '10px',
+								color: 'var(--ink-mid)',
+								letterSpacing: '0.08em',
+							}}
+						>
+							{route.quoteNumber}
+						</p>
+					</div>
 					{route.isOverdue && (
 						<span
 							role="img"
@@ -772,8 +807,25 @@ function OrderDetail({
 										letterSpacing: '0.08em',
 									}}
 								>
-									{t.plateNumber} · {t.capacityTons}t
+									{t.plateNumber} · {t.capacityTons}t ·{' '}
+									{deliveryStatusLabel(t.deliveryStatus)}
 								</p>
+								{t.locationRecordedAt && (
+									<p
+										className="mt-0.5 font-[family-name:var(--font-plex-mono)] tabular-nums"
+										style={{
+											fontSize: '9px',
+											color: 'var(--ink-ghost)',
+											letterSpacing: '0.08em',
+										}}
+									>
+										live location ·{' '}
+										{new Date(t.locationRecordedAt).toLocaleTimeString([], {
+											hour: '2-digit',
+											minute: '2-digit',
+										})}
+									</p>
+								)}
 							</div>
 							<a
 								href={`tel:${t.driverPhone}`}
@@ -799,6 +851,18 @@ function OrderDetail({
 								style={{ fontSize: '13px', color: 'var(--ink-soft)' }}
 							>
 								{item.productName}
+								{item.truckPlateNumber && item.driverName ? (
+									<span
+										className="mt-1 block font-[family-name:var(--font-plex-mono)] tabular-nums"
+										style={{
+											fontSize: '10px',
+											color: 'var(--ink-mid)',
+											letterSpacing: '0.08em',
+										}}
+									>
+										{item.truckPlateNumber} · {item.driverName}
+									</span>
+								) : null}
 							</span>
 							<span
 								className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums"
@@ -912,8 +976,8 @@ function FleetView({ reduce }: { reduce: boolean | null }) {
 					/>
 				) : drivers.length === 0 ? (
 					<EmptyVoid
-						text="No fleet registered"
-						sub="Trucks show up once the motor pool is provisioned."
+						text="No drivers registered"
+						sub="Drivers show up once they are provisioned in Admin."
 					/>
 				) : (
 					<>
@@ -1013,7 +1077,7 @@ function SovereignFleet({
 							lineHeight: 1.3,
 						}}
 					>
-						{dispatched === 1 ? 'truck' : 'trucks'} currently on route
+						{dispatched === 1 ? 'driver' : 'drivers'} currently on route
 					</p>
 					<p
 						className="mt-1.5 font-[family-name:var(--font-plex-mono)] tabular-nums animate-sovereign-rise"
@@ -1078,7 +1142,7 @@ function DriverGroup({
 				/>
 			</div>
 			{drivers.map((d, i) => (
-				<DriverBand key={d.truckId} driver={d} index={i} reduce={reduce} />
+				<DriverBand key={d.driverId} driver={d} index={i} reduce={reduce} />
 			))}
 		</section>
 	)
@@ -1097,7 +1161,10 @@ function DriverBand({
 	const isDispatched = driver.status === 'dispatched'
 	const isAvailable = driver.status === 'available'
 	const numericId =
-		driver.truckId.replace(/\D/g, '').padStart(2, '0').slice(-2) || '—'
+		driver.driverId.replace(/\D/g, '').padStart(2, '0').slice(-2) || '—'
+	const truckLabel = driver.truckId
+		? `${driver.plateNumber} · ${driver.capacityTons}t`
+		: 'No truck asset'
 
 	return (
 		<motion.div
@@ -1151,7 +1218,7 @@ function DriverBand({
 							letterSpacing: '0.06em',
 						}}
 					>
-						{driver.plateNumber} · {driver.capacityTons}t
+						{truckLabel}
 					</span>
 					{driver.assignedCustomerName && driver.assignedQuoteId && (
 						<>
@@ -1166,6 +1233,21 @@ function DriverBand({
 							>
 								{driver.assignedCustomerName.toLowerCase()}
 							</button>
+							{driver.assignedDeliveryStatus && (
+								<>
+									<span style={{ color: 'var(--ink-ghost)', fontSize: '9px' }}>
+										·
+									</span>
+									<span
+										className="font-[family-name:var(--font-archivo)] italic"
+										style={{ fontSize: '10px', color: 'var(--ink-mid)' }}
+									>
+										{deliveryStatusLabel(
+											driver.assignedDeliveryStatus,
+										).toLowerCase()}
+									</span>
+								</>
+							)}
 						</>
 					)}
 				</div>
@@ -1199,6 +1281,15 @@ function driverStatusLabel(status: string): string {
 	if (status === 'maintenance') return 'Maintenance'
 	if (status === 'loading') return 'Loading'
 	return 'Unavailable'
+}
+
+function deliveryStatusLabel(status: string | null | undefined): string {
+	if (status === 'accepted') return 'Driver accepted'
+	if (status === 'in_transit') return 'En route'
+	if (status === 'arrived') return 'Arrived'
+	if (status === 'completed') return 'Delivered'
+	if (status === 'rejected') return 'Returned'
+	return 'Handoff ready'
 }
 
 // ─── Mode toggle ────────────────────────────────────────
@@ -1269,13 +1360,13 @@ function ConfirmDialog({
 	const [securityToken, setSecurityToken] = useState('')
 	const [proofUrl, setProofUrl] = useState('')
 	const [error, setError] = useState<string | null>(null)
-	const tokenOk = securityToken.trim().length >= 4
+	const tokenOk = securityToken.trim().length > 0
 
 	const ready =
 		advisorId !== null &&
 		(isDelivered || reason.trim().length >= 3) &&
 		tokenOk &&
-		proofUrl.trim().length > 0
+		(isDelivered || proofUrl.trim().length > 0)
 
 	const invalidateAll = () => {
 		for (const k of [
@@ -1435,10 +1526,8 @@ function ConfirmDialog({
 					</DialogField>
 				)}
 
-				{tokenOk && (
-					<DialogField
-						label={`Proof of ${isDelivered ? 'delivery' : 'return'}`}
-					>
+				{tokenOk && !isDelivered && (
+					<DialogField label="Proof of return">
 						<HairlineInput
 							value={proofUrl}
 							onChange={setProofUrl}

@@ -8,7 +8,7 @@
 		"build": "vite build",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
-		"test": "vitest run",
+		"test": "NODE_OPTIONS=--localstorage-file=/tmp/hyperquote-internal-vitest-localstorage vitest run",
 		"preview": "vite preview",
 		"deploy": "vite build && rm -f dist/server/.dev.vars && wrangler deploy --config dist/server/wrangler.json",
 		"cf-typegen": "wrangler types"

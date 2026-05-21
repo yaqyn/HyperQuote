@@ -7,7 +7,9 @@ import {
 	Minimize2,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Button, DialogTrigger, Popover } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { DialogTrigger } from 'react-aria-components/Dialog'
+import { Popover } from 'react-aria-components/Popover'
 import {
 	DispatchAction,
 	DispatchBody,

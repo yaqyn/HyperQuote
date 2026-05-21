@@ -12,10 +12,13 @@ import {
 	cancelDealFromFinance,
 	cancelOrderFromFinance,
 	type FinanceDealView,
+	type FinanceFollowUpView,
 	type FinanceOrderView,
 	getFinanceInbox,
+	recordDealFollowUp,
 	recordDealFullPayment,
 	recordDealPartialPayment,
+	recordOrderFollowUp,
 	recordOrderFullPayment,
 	recordOrderPartialPayment,
 } from '../../lib/server/finance'
@@ -23,7 +26,7 @@ import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
-import { formatRoundedEgp } from '../shared/formatters'
+import { formatDecimalEgp } from '../shared/formatters'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface FinancePaymentPanelProps {
@@ -35,6 +38,48 @@ interface FinancePaymentPanelProps {
 
 type Mode = 'order' | 'deal'
 type Stage = 'preview' | 'confirm' | 'cancel'
+type FollowUpChannel = 'phone' | 'whatsapp' | 'email' | 'bank' | 'other'
+type FollowUpState = 'open' | 'waiting' | 'closed'
+
+const DEFAULT_FOLLOW_UP_STATE: FollowUpState = 'open'
+const FOLLOW_UP_CHANNEL_OPTIONS: { id: FollowUpChannel; label: string }[] = [
+	{ id: 'phone', label: 'Phone' },
+	{ id: 'whatsapp', label: 'WhatsApp' },
+	{ id: 'email', label: 'Email' },
+	{ id: 'bank', label: 'Bank' },
+	{ id: 'other', label: 'Other' },
+]
+const FOLLOW_UP_STATE_OPTIONS: { id: FollowUpState; label: string }[] = [
+	{ id: 'open', label: 'Open' },
+	{ id: 'waiting', label: 'Waiting' },
+	{ id: 'closed', label: 'Closed' },
+]
+
+function defaultFollowUpDueAt(): string {
+	const due = new Date()
+	due.setDate(due.getDate() + 1)
+	due.setHours(10, 0, 0, 0)
+	return due.toISOString().slice(0, 16)
+}
+
+function parseFollowUpChannel(value: string): FollowUpChannel {
+	return (
+		FOLLOW_UP_CHANNEL_OPTIONS.find((entry) => entry.id === value)?.id ?? 'other'
+	)
+}
+
+function parseFollowUpState(value: string): FollowUpState {
+	return (
+		FOLLOW_UP_STATE_OPTIONS.find((entry) => entry.id === value)?.id ?? 'open'
+	)
+}
+
+function formatFollowUpDate(value: string): string {
+	return new Date(value).toLocaleString('en-EG', {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	})
+}
 
 export function FinancePaymentPanel({
 	isOpen,
@@ -90,6 +135,15 @@ export function FinancePaymentPanel({
 	const [cancelReason, setCancelReason] = useState('')
 	const [cancelNote, setCancelNote] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const [followUpChannel, setFollowUpChannel] =
+		useState<FollowUpChannel>('phone')
+	const [followUpOutcome, setFollowUpOutcome] = useState('')
+	const [followUpNotes, setFollowUpNotes] = useState('')
+	const [followUpState, setFollowUpState] = useState<FollowUpState>(
+		DEFAULT_FOLLOW_UP_STATE,
+	)
+	const [followUpDueAt, setFollowUpDueAt] = useState(defaultFollowUpDueAt)
+	const [followUpMessage, setFollowUpMessage] = useState<string | null>(null)
 	const paymentNextStepRef = useRef<HTMLDivElement | null>(null)
 
 	useEffect(() => {
@@ -100,6 +154,12 @@ export function FinancePaymentPanel({
 		setCancelNote('')
 		setError(null)
 		setPayMode('partial')
+		setFollowUpChannel('phone')
+		setFollowUpOutcome('')
+		setFollowUpNotes('')
+		setFollowUpState(DEFAULT_FOLLOW_UP_STATE)
+		setFollowUpDueAt(defaultFollowUpDueAt())
+		setFollowUpMessage(null)
 	}, [isOpen])
 
 	const mutation = useMutation({
@@ -178,8 +238,45 @@ export function FinancePaymentPanel({
 		onError: (e: Error) => setError(e.message),
 	})
 
+	const followUpMutation = useMutation({
+		mutationFn: async () => {
+			const payload = {
+				contactChannel: followUpChannel,
+				outcome: followUpOutcome.trim(),
+				notes: followUpNotes.trim(),
+				followUpState,
+				followUpDueAt,
+			}
+			if (mode === 'order' && orderId) {
+				return recordOrderFollowUp({ data: { ...payload, quoteId: orderId } })
+			}
+			if (mode === 'deal' && dealId) {
+				return recordDealFollowUp({ data: { ...payload, dealId } })
+			}
+			throw new Error('invalid target')
+		},
+		onSuccess: (res) => {
+			if (!res.success) {
+				setError(res.error)
+				return
+			}
+			queryClient.invalidateQueries({ queryKey: ['finance-inbox'] })
+			setFollowUpOutcome('')
+			setFollowUpNotes('')
+			setFollowUpState(DEFAULT_FOLLOW_UP_STATE)
+			setFollowUpDueAt(defaultFollowUpDueAt())
+			setFollowUpMessage('Follow-up saved')
+			setError(null)
+		},
+		onError: (e: Error) => setError(e.message),
+	})
+
 	const proofOk = proofFilename.trim().length > 0
 	const cancelReasonOk = cancelReason.trim().length >= 3
+	const followUpOk =
+		followUpOutcome.trim().length >= 2 &&
+		followUpNotes.trim().length >= 5 &&
+		followUpDueAt.trim().length > 0
 	const panelName =
 		mode === 'order' ? (order?.customerName ?? '') : (deal?.supplierName ?? '')
 	const panelReference =
@@ -279,6 +376,35 @@ export function FinancePaymentPanel({
 									amountPaid={row.amountPaid}
 									partialPaidAt={row.partialPaidAt}
 									proof={row.partialProofUrl}
+									recordedBy={row.partialRecordedByName}
+								/>
+							)}
+
+							<LatestFollowUp followUp={row.latestFollowUp} />
+
+							{!isTerminal && stage === 'preview' && (
+								<FollowUpForm
+									mode={mode}
+									channel={followUpChannel}
+									setChannel={setFollowUpChannel}
+									outcome={followUpOutcome}
+									setOutcome={(value) => {
+										setFollowUpOutcome(value)
+										setFollowUpMessage(null)
+									}}
+									notes={followUpNotes}
+									setNotes={(value) => {
+										setFollowUpNotes(value)
+										setFollowUpMessage(null)
+									}}
+									state={followUpState}
+									setState={setFollowUpState}
+									dueAt={followUpDueAt}
+									setDueAt={setFollowUpDueAt}
+									isPending={followUpMutation.isPending}
+									canSave={followUpOk}
+									message={followUpMessage}
+									onSave={() => followUpMutation.mutate()}
 								/>
 							)}
 
@@ -463,7 +589,7 @@ function TotalCell({
 					letterSpacing: '-0.015em',
 				}}
 			>
-				{formatRoundedEgp(value)}
+				{formatDecimalEgp(value)}
 				<span
 					className="ms-1 font-[family-name:var(--font-jetbrains-mono)] uppercase"
 					style={{
@@ -607,7 +733,7 @@ function PayModePicker({
 											: 'var(--color-text)',
 									}}
 								>
-									{formatRoundedEgp(entry.amount)}
+									{formatDecimalEgp(entry.amount)}
 								</span>
 							</div>
 							<span
@@ -655,7 +781,7 @@ function AmountDisplay({
 						fontFeatureSettings: '"tnum" on, "lnum" on',
 					}}
 				>
-					{formatRoundedEgp(amount)}
+					{formatDecimalEgp(amount)}
 				</span>
 				<span
 					className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
@@ -688,10 +814,12 @@ function PreviousPartial({
 	amountPaid,
 	partialPaidAt,
 	proof,
+	recordedBy,
 }: {
 	amountPaid: number
 	partialPaidAt: string | null
 	proof: string
+	recordedBy: string | null
 }) {
 	return (
 		<div className="mt-4 border-t-2 border-[var(--color-border)] pt-3 sm:border-t-0 sm:border-l-2 sm:pt-0 sm:pl-3">
@@ -713,10 +841,11 @@ function PreviousPartial({
 					letterSpacing: '-0.004em',
 				}}
 			>
-				{formatRoundedEgp(amountPaid)} EGP ·{' '}
+				{formatDecimalEgp(amountPaid)} EGP ·{' '}
 				{partialPaidAt
 					? new Date(partialPaidAt).toLocaleDateString('en-EG')
 					: '—'}
+				{recordedBy ? ` · by ${recordedBy}` : ''}
 			</p>
 			<p
 				className="mt-0.5 break-all font-[family-name:var(--font-jetbrains-mono)]"
@@ -729,6 +858,267 @@ function PreviousPartial({
 				proof · {proof}
 			</p>
 		</div>
+	)
+}
+
+// ─── Follow-up notes ─────────────────────────────────────
+
+function LatestFollowUp({
+	followUp,
+}: {
+	followUp: FinanceFollowUpView | null
+}) {
+	if (!followUp) return null
+	return (
+		<div className="mt-5 rounded-md border border-black/[0.08] bg-black/[0.02] px-3 py-3 dark:border-white/[0.1] dark:bg-white/[0.04]">
+			<div className="flex flex-wrap items-baseline justify-between gap-2">
+				<span
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+					style={{
+						fontSize: '10.5px',
+						letterSpacing: '0.1em',
+						color: 'var(--color-text-subtle)',
+					}}
+				>
+					Latest follow-up
+				</span>
+				<span
+					className="font-[family-name:var(--font-jetbrains-mono)] uppercase"
+					style={{
+						fontSize: '9.5px',
+						letterSpacing: '0.14em',
+						color: 'var(--color-primary)',
+					}}
+				>
+					{followUp.followUpState}
+				</span>
+			</div>
+			<p
+				className="mt-2 font-[family-name:var(--font-bricolage)]"
+				style={{
+					fontSize: '12.5px',
+					color: 'var(--color-text)',
+					lineHeight: 1.45,
+				}}
+			>
+				{followUp.outcome} · {followUp.notes}
+			</p>
+			<p
+				className="mt-2 font-[family-name:var(--font-jetbrains-mono)]"
+				style={{
+					fontSize: '10.5px',
+					color: 'var(--color-text-subtle)',
+					letterSpacing: '0.03em',
+				}}
+			>
+				{followUp.contactChannel} · due{' '}
+				{formatFollowUpDate(followUp.followUpDueAt)}
+			</p>
+		</div>
+	)
+}
+
+function FollowUpForm({
+	mode,
+	channel,
+	setChannel,
+	outcome,
+	setOutcome,
+	notes,
+	setNotes,
+	state,
+	setState,
+	dueAt,
+	setDueAt,
+	isPending,
+	canSave,
+	message,
+	onSave,
+}: {
+	mode: Mode | null
+	channel: FollowUpChannel
+	setChannel: (value: FollowUpChannel) => void
+	outcome: string
+	setOutcome: (value: string) => void
+	notes: string
+	setNotes: (value: string) => void
+	state: FollowUpState
+	setState: (value: FollowUpState) => void
+	dueAt: string
+	setDueAt: (value: string) => void
+	isPending: boolean
+	canSave: boolean
+	message: string | null
+	onSave: () => void
+}) {
+	return (
+		<section className="mt-6 border-y border-[var(--color-border)] py-4">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<span
+						className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+						style={{
+							fontSize: '11px',
+							letterSpacing: '0.1em',
+							color: 'var(--color-text-subtle)',
+						}}
+					>
+						{mode === 'deal' ? 'Supplier contact' : 'Customer call'}
+					</span>
+					<p
+						className="mt-1 font-[family-name:var(--font-bricolage)]"
+						style={{
+							fontSize: '11.5px',
+							color: 'var(--color-text-muted)',
+							lineHeight: 1.4,
+						}}
+					>
+						Separate from payment proof
+					</p>
+				</div>
+				<EmployeeActionButton
+					tone="neutral"
+					size="sm"
+					leading={<ReceiptText aria-hidden="true" size={14} />}
+					disabled={!canSave || isPending}
+					onClick={onSave}
+				>
+					{isPending ? 'Saving...' : 'Save follow-up'}
+				</EmployeeActionButton>
+			</div>
+
+			<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<label
+					htmlFor="finance-follow-up-channel"
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+					style={{
+						fontSize: '10.5px',
+						letterSpacing: '0.1em',
+						color: 'var(--color-text-subtle)',
+					}}
+				>
+					Channel
+					<select
+						id="finance-follow-up-channel"
+						value={channel}
+						onChange={(event) =>
+							setChannel(parseFollowUpChannel(event.target.value))
+						}
+						className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+						style={{ fontSize: '13.5px' }}
+					>
+						{FOLLOW_UP_CHANNEL_OPTIONS.map((option) => (
+							<option key={option.id} value={option.id}>
+								{option.label}
+							</option>
+						))}
+					</select>
+				</label>
+
+				<label
+					htmlFor="finance-follow-up-state"
+					className="font-[family-name:var(--font-archivo)] font-semibold uppercase"
+					style={{
+						fontSize: '10.5px',
+						letterSpacing: '0.1em',
+						color: 'var(--color-text-subtle)',
+					}}
+				>
+					State
+					<select
+						id="finance-follow-up-state"
+						value={state}
+						onChange={(event) =>
+							setState(parseFollowUpState(event.target.value))
+						}
+						className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+						style={{ fontSize: '13.5px' }}
+					>
+						{FOLLOW_UP_STATE_OPTIONS.map((option) => (
+							<option key={option.id} value={option.id}>
+								{option.label}
+							</option>
+						))}
+					</select>
+				</label>
+			</div>
+
+			<label
+				htmlFor="finance-follow-up-due"
+				className="mt-4 block font-[family-name:var(--font-archivo)] font-semibold uppercase"
+				style={{
+					fontSize: '10.5px',
+					letterSpacing: '0.1em',
+					color: 'var(--color-text-subtle)',
+				}}
+			>
+				Follow-up due
+			</label>
+			<input
+				id="finance-follow-up-due"
+				type="datetime-local"
+				value={dueAt}
+				onChange={(event) => setDueAt(event.target.value)}
+				className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+				style={{ fontSize: '13.5px' }}
+			/>
+
+			<label
+				htmlFor="finance-follow-up-outcome"
+				className="mt-4 block font-[family-name:var(--font-archivo)] font-semibold uppercase"
+				style={{
+					fontSize: '10.5px',
+					letterSpacing: '0.1em',
+					color: 'var(--color-text-subtle)',
+				}}
+			>
+				Outcome
+			</label>
+			<input
+				id="finance-follow-up-outcome"
+				type="text"
+				value={outcome}
+				onChange={(event) => setOutcome(event.target.value)}
+				placeholder={
+					mode === 'deal'
+						? 'e.g. supplier will confirm bank advice'
+						: 'e.g. customer promised transfer'
+				}
+				className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+				style={{ fontSize: '13.5px' }}
+			/>
+
+			<label
+				htmlFor="finance-follow-up-notes"
+				className="mt-4 block font-[family-name:var(--font-archivo)] font-semibold uppercase"
+				style={{
+					fontSize: '10.5px',
+					letterSpacing: '0.1em',
+					color: 'var(--color-text-subtle)',
+				}}
+			>
+				Notes
+			</label>
+			<textarea
+				id="finance-follow-up-notes"
+				value={notes}
+				onChange={(event) => setNotes(event.target.value)}
+				placeholder="record the call details and next action"
+				rows={3}
+				className="mt-2 min-h-[86px] w-full resize-none rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-2 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+				style={{ fontSize: '13.5px', lineHeight: 1.45 }}
+			/>
+
+			{message && (
+				<EmployeeStatusPill
+					tone="success"
+					leading={<CheckCircle2 aria-hidden="true" size={14} />}
+					className="mt-3"
+				>
+					{message}
+				</EmployeeStatusPill>
+			)}
+		</section>
 	)
 }
 
@@ -907,7 +1297,7 @@ function ConfirmReview({
 						letterSpacing: '-0.012em',
 					}}
 				>
-					{formatRoundedEgp(amount)} EGP
+					{formatDecimalEgp(amount)} EGP
 				</dd>
 				<dt
 					className="font-[family-name:var(--font-bricolage)]"
@@ -1012,7 +1402,7 @@ function PanelFooter({
 	const actionLabel =
 		stage === 'preview'
 			? 'Review payment'
-			: `Record ${formatRoundedEgp(amountThisStep)} EGP`
+			: `Record ${formatDecimalEgp(amountThisStep)} EGP`
 
 	return (
 		<footer className="shrink-0 border-t border-[var(--color-border)] px-4 py-4 sm:px-6 lg:px-8">

@@ -5,9 +5,13 @@ import {
 	type InventoryProductView,
 } from '../../../lib/server/inventory'
 import { useProcurementStore } from '../../../stores/procurement'
-import { EmployeeSearchField } from '../../shared/EmployeeControls'
+import {
+	EmployeeActionButton,
+	EmployeeSearchField,
+} from '../../shared/EmployeeControls'
 import { formatCompactHours } from '../../shared/formatters'
 import { ProductDetailModal } from './ProductDetailModal'
+import { SupplierBatchPricePanel } from './SupplierBatchPricePanel'
 
 // Freshness tone drives the right-gutter mark on each entry.
 function toneFor(
@@ -33,6 +37,7 @@ export function InventoryView() {
 
 	const [search, setSearch] = useState('')
 	const [detailSlug, setDetailSlug] = useState<string | null>(null)
+	const [batchPanelOpen, setBatchPanelOpen] = useState(false)
 
 	const filtered = useMemo(() => {
 		if (!data) return []
@@ -100,7 +105,11 @@ export function InventoryView() {
 	return (
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
 			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-4 pb-16 sm:px-6 lg:px-8">
-				<DeskToolbar search={search} setSearch={setSearch} />
+				<DeskToolbar
+					search={search}
+					setSearch={setSearch}
+					onOpenBatch={() => setBatchPanelOpen(true)}
+				/>
 
 				{filtered.length > 0 ? (
 					<div className="-mx-4 mt-4 overflow-hidden border-y border-[var(--rule-soft)] bg-[var(--folio)] sm:mx-0 sm:rounded-md sm:border">
@@ -125,6 +134,10 @@ export function InventoryView() {
 				slug={detailSlug}
 				onClose={() => setDetailSlug(null)}
 			/>
+			<SupplierBatchPricePanel
+				isOpen={batchPanelOpen}
+				onClose={() => setBatchPanelOpen(false)}
+			/>
 		</div>
 	)
 }
@@ -134,19 +147,24 @@ export function InventoryView() {
 function DeskToolbar({
 	search,
 	setSearch,
+	onOpenBatch,
 }: {
 	search: string
 	setSearch: (s: string) => void
+	onOpenBatch: () => void
 }) {
 	return (
-		<div className="pb-2">
+		<div className="flex flex-col gap-3 pb-2 lg:flex-row lg:items-center">
 			<EmployeeSearchField
 				value={search}
 				onChange={setSearch}
 				label="Search prices"
 				placeholder="Search product, SKU, or supplier"
-				className="max-w-3xl"
+				className="max-w-3xl lg:flex-1"
 			/>
+			<EmployeeActionButton tone="neutral" size="sm" onClick={onOpenBatch}>
+				Supplier call
+			</EmployeeActionButton>
 		</div>
 	)
 }
@@ -218,6 +236,12 @@ function PriceEntry({
 					<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-5 text-[var(--ink)]">
 						{product.name}
 					</h3>
+					<p className="mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+						{product.supplierName}
+						{product.allSupplierNames.length > 1
+							? ` +${product.allSupplierNames.length - 1} suppliers`
+							: ''}
+					</p>
 				</button>
 
 				<button
@@ -233,6 +257,18 @@ function PriceEntry({
 						style={{ color: toneColor }}
 					>
 						{formatCompactHours(product.hoursSinceUpdate)} ago
+					</span>
+					<span
+						className="rounded-sm px-1.5 py-0.5 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.08em]"
+						style={{
+							backgroundColor:
+								product.priceStatus === 'updated'
+									? 'rgba(10,92,46,0.08)'
+									: 'rgba(204,51,0,0.08)',
+							color: toneColor,
+						}}
+					>
+						{product.priceStatus}
 					</span>
 				</button>
 

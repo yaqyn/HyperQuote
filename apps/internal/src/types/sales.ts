@@ -1,5 +1,5 @@
 // Sales domain types — contracts for the entire sales module
-// Margin thresholds are ALWAYS fetched from pricing_rules table, NEVER hardcoded
+// Margin thresholds are always fetched from pricing_rules.
 
 // ─── RFQ ───────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ type RFQStatus =
 
 export interface RFQ {
 	id: string
+	requestNumber?: string
 	customerName: string
 	customerTier: CustomerTier
 	estimatedValue: number
@@ -33,6 +34,7 @@ export interface RFQ {
 	deliveryCity?: string
 	contactName?: string
 	hasOutdatedPrices?: boolean
+	source?: 'local' | 'supabase'
 }
 
 // ─── Quote ─────────────────────────────────────────────────
@@ -65,41 +67,66 @@ export type FreshnessIndicator = 'fresh' | 'aging' | 'stale' | 'missing'
  */
 export type PriceStatus = 'updated' | 'outdated'
 
-export interface QuoteItem {
-	id: string
-	productName: string
-	specification: string
-	quantity: number
-	unit: string
-	supplierCost: number // buffered cost (raw + 2.5%), NEVER raw supplier invoice cost
-	marginPercent: number
-	sellPrice: number
-	lineTotal: number
-	freshnessIndicator: FreshnessIndicator
-	priceStatus: PriceStatus
-	recentlyOrdered: boolean
-	supplierName: string
-	customerCounterPrice: number | null
-}
-
-export interface QuoteVersion {
-	id: string
-	quoteNumber: string
-	version: number
-	status: QuoteStatus
-	total: number
-	marginPercent: number
-	createdAt: string
-	changes: string
-}
-
 // ─── Margin ────────────────────────────────────────────────
 
 export interface MarginThresholds {
+	active?: boolean
+	categorySlug: string | null
+	productSlug: string | null
 	productCategory: string
-	target: number // fetched from pricing_rules, NOT hardcoded
-	floor: number // fetched from pricing_rules, NOT hardcoded
-	absoluteMin: number // fetched from pricing_rules, NOT hardcoded
+	bonus: number
+	target: number
+	floor: number
+	absoluteMin: number
+}
+
+export const DEFAULT_MARGIN_THRESHOLDS: MarginThresholds = {
+	absoluteMin: 20,
+	bonus: 20,
+	categorySlug: null,
+	floor: 20,
+	productCategory: 'all',
+	productSlug: null,
+	target: 20,
+}
+
+export function resolveMarginThreshold(
+	thresholds: MarginThresholds[],
+	scope: { categorySlug?: string | null; productSlug?: string | null },
+): MarginThresholds {
+	const categorySlug = scope.categorySlug ?? null
+	const productSlug = scope.productSlug ?? null
+	const productRule =
+		productSlug && categorySlug
+			? thresholds.find(
+					(rule) =>
+						rule.active !== false &&
+						rule.categorySlug === categorySlug &&
+						rule.productSlug === productSlug,
+				)
+			: null
+	if (productRule) return productRule
+
+	const categoryRule = categorySlug
+		? thresholds.find(
+				(rule) =>
+					rule.active !== false &&
+					rule.categorySlug === categorySlug &&
+					rule.productSlug == null,
+			)
+		: null
+	if (categoryRule) return categoryRule
+
+	return (
+		thresholds.find(
+			(rule) =>
+				rule.active !== false &&
+				rule.categorySlug == null &&
+				rule.productSlug == null,
+		) ??
+		thresholds.find((rule) => rule.active !== false) ??
+		DEFAULT_MARGIN_THRESHOLDS
+	)
 }
 
 // ─── Priority Score ────────────────────────────────────────

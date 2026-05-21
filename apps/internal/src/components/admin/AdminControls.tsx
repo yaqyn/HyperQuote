@@ -1,18 +1,14 @@
 import { Check, ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
-import {
-	Button as AriaButton,
-	Input as AriaInput,
-	Label,
-	ListBox,
-	ListBoxItem,
-	NumberField,
-	Popover,
-	Select,
-	SelectValue,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components/Button'
+import { Input as AriaInput } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { NumberField } from 'react-aria-components/NumberField'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
@@ -37,7 +33,7 @@ interface TextControlProps {
 	placeholder?: string
 	readOnly?: boolean
 	ariaLabel: string
-	type?: 'text' | 'email' | 'tel'
+	type?: 'text' | 'email' | 'tel' | 'password'
 }
 
 export function TextControl({

@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import { getInternalSupabaseClient } from './_supabase'
 
 export interface Notification {
 	id: string
@@ -11,65 +12,69 @@ export interface Notification {
 	actionUrl?: string
 }
 
-/**
- * Fetch notifications for the current user.
- * Returns mock data for development -- will query notifications table with RLS in Phase 16+.
- */
+function mapNotificationType(value: string): Notification['type'] {
+	if (
+		value === 'mention' ||
+		value === 'approval' ||
+		value === 'sla' ||
+		value === 'delivery'
+	) {
+		return value
+	}
+	return 'system'
+}
+
 export const getNotifications = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<Notification[]> => {
-		const now = new Date()
-		const today = now.toISOString()
-		const yesterday = new Date(now.getTime() - 86400000).toISOString()
-		const older = new Date(now.getTime() - 86400000 * 3).toISOString()
+		const { client, user } = await getInternalSupabaseClient()
+		const { data, error } = await client
+			.from('notifications')
+			.select('id, type, title, body, read, target_type, target_id, created_at')
+			.eq('user_id', user.id)
+			.order('created_at', { ascending: false })
+			.limit(30)
 
-		return [
-			{
-				id: 'notif-1',
-				type: 'approval',
-				title: 'Quote #QR-2024-0847 awaiting approval',
-				body: 'Ahmed Hassan submitted a quote for EGP 245,000. Requires manager approval.',
-				createdAt: today,
-				readAt: null,
-				actionUrl: '/internal/sales/quotes/QR-2024-0847',
-			},
-			{
-				id: 'notif-2',
-				type: 'sla',
-				title: 'SLA warning: Quote #QR-2024-0839',
-				body: '3 hours remaining on 4-hour SLA. No supplier response yet.',
-				createdAt: yesterday,
-				readAt: null,
-				actionUrl: '/internal/procurement/quotes/QR-2024-0839',
-			},
-			{
-				id: 'notif-3',
-				type: 'delivery',
-				title: 'Delivery DEL-0412 completed',
-				body: 'Driver Mohamed confirmed delivery at Nasr City site. POD attached.',
-				createdAt: older,
-				readAt: older,
-				actionUrl: '/internal/dispatch/deliveries/DEL-0412',
-			},
-		]
+		if (error) throw new Error(error.message)
+
+		return (data ?? []).map((row) => ({
+			id: row.id,
+			type: mapNotificationType(row.type),
+			title: row.title,
+			body: row.body,
+			createdAt: row.created_at,
+			readAt: row.read ? row.created_at : null,
+			actionUrl:
+				row.target_type && row.target_id
+					? `/internal/${row.target_type}/${row.target_id}`
+					: undefined,
+		}))
 	},
 )
 
-/**
- * Mark a single notification as read.
- * Mock implementation -- will UPDATE notifications SET read_at = now() in Phase 16+.
- */
 export const markNotificationRead = createServerFn({ method: 'POST' })
-	.inputValidator(z.object({ id: z.string() }))
-	.handler(async ({ data: _input }) => {
+	.inputValidator(z.object({ id: z.string().uuid() }))
+	.handler(async ({ data: input }) => {
+		const { client, user } = await getInternalSupabaseClient()
+		const { error } = await client
+			.from('notifications')
+			.update({ read: true })
+			.eq('id', input.id)
+			.eq('user_id', user.id)
+
+		if (error) throw new Error(error.message)
 		return { success: true as const }
 	})
 
-/**
- * Mark all notifications as read for the current user.
- * Mock implementation -- will UPDATE notifications SET read_at = now() WHERE user_id = ... in Phase 16+.
- */
 export const markAllRead = createServerFn({ method: 'POST' }).handler(
 	async () => {
+		const { client, user } = await getInternalSupabaseClient()
+		const { error } = await client
+			.from('notifications')
+			.update({ read: true })
+			.eq('user_id', user.id)
+			.eq('read', false)
+
+		if (error) throw new Error(error.message)
 		return { success: true as const }
 	},
 )

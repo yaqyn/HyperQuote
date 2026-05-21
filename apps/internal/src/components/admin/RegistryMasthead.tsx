@@ -1,13 +1,25 @@
-import { BookMarked, BookOpen, CheckCircle2, Plus } from 'lucide-react'
+import {
+	BookMarked,
+	BookOpen,
+	CheckCircle2,
+	Download,
+	Plus,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { VolumeDefinition } from '../../types/admin'
-import { EmployeeStatusPill } from '../shared/EmployeeControls'
+import {
+	EmployeeActionButton,
+	EmployeeStatusPill,
+} from '../shared/EmployeeControls'
 
 interface RegistryMastheadProps {
 	volume: VolumeDefinition
 	entryCount: number
 	onOpenVolumes?: () => void
 	onNewEntry?: (() => void) | null
+	onExport?: (() => void) | null
+	isExporting?: boolean
+	exportStatus?: string | null
 }
 
 /**
@@ -19,6 +31,9 @@ export function RegistryMasthead({
 	entryCount,
 	onOpenVolumes,
 	onNewEntry,
+	onExport,
+	isExporting = false,
+	exportStatus,
 }: RegistryMastheadProps) {
 	const { t } = useTranslation('admin')
 
@@ -42,16 +57,29 @@ export function RegistryMasthead({
 						{t(volume.labelKey)}
 					</span>
 				</button>
-				{onNewEntry && !volume.readOnly && (
-					<button
-						type="button"
-						onClick={onNewEntry}
-						aria-label={t('actions.new')}
-						className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)] text-white outline-none transition-colors hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
-					>
-						<Plus aria-hidden="true" size={15} strokeWidth={2.2} />
-					</button>
-				)}
+				<div className="flex shrink-0 items-center gap-2">
+					{onExport && (
+						<button
+							type="button"
+							onClick={onExport}
+							disabled={isExporting}
+							aria-label={t('actions.export')}
+							className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-text)] outline-none transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:opacity-45 dark:hover:bg-white/[0.04]"
+						>
+							<Download aria-hidden="true" size={15} strokeWidth={2.2} />
+						</button>
+					)}
+					{onNewEntry && !volume.readOnly && (
+						<button
+							type="button"
+							onClick={onNewEntry}
+							aria-label={t('actions.new')}
+							className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)] text-white outline-none transition-colors hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+						>
+							<Plus aria-hidden="true" size={15} strokeWidth={2.2} />
+						</button>
+					)}
+				</div>
 			</header>
 
 			<header className="hidden border-b border-black/[0.06] px-4 pb-5 pt-20 dark:border-white/[0.08] sm:px-6 sm:pb-6 lg:block lg:px-12 lg:pb-7 lg:pt-8">
@@ -73,6 +101,11 @@ export function RegistryMasthead({
 							{t('masthead.metaReadOnly')}
 						</EmployeeStatusPill>
 					)}
+					{exportStatus && (
+						<EmployeeStatusPill tone="success">
+							{exportStatus}
+						</EmployeeStatusPill>
+					)}
 				</div>
 
 				<h1 className="mt-4 break-words font-[family-name:var(--font-bricolage)] text-[32px] font-semibold leading-[1.05] text-[var(--color-text)] sm:text-[38px] lg:text-[44px]">
@@ -82,6 +115,19 @@ export function RegistryMasthead({
 				<p className="mt-3 max-w-[62ch] font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed text-[var(--color-text-muted)]">
 					{t(volume.subtitleKey)}
 				</p>
+				{onExport && (
+					<div className="mt-5">
+						<EmployeeActionButton
+							onClick={onExport}
+							disabled={isExporting}
+							tone="neutral"
+							size="sm"
+							leading={<Download size={14} strokeWidth={2.2} />}
+						>
+							{isExporting ? t('actions.exporting') : t('actions.export')}
+						</EmployeeActionButton>
+					</div>
+				)}
 			</header>
 		</>
 	)

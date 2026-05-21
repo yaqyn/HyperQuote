@@ -6,16 +6,16 @@ import {
 } from '@internationalized/date'
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { Button as AriaButton } from 'react-aria-components/Button'
 import {
-	Button as AriaButton,
 	Calendar,
 	CalendarCell,
 	CalendarGrid,
 	CalendarGridBody,
 	CalendarGridHeader,
 	CalendarHeaderCell,
-	Heading,
-} from 'react-aria-components'
+} from 'react-aria-components/Calendar'
+import { Heading } from 'react-aria-components/Dialog'
 import { createPortal } from 'react-dom'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -64,6 +64,7 @@ interface DeliveryTermsProps {
 	highlightDate?: boolean
 	datePickerOpenSignal?: number
 	onAddressPress: () => void
+	onAddressChange: (address: string) => void
 	totalWeightTons: number
 	leadTimeDays?: number
 }
@@ -73,6 +74,7 @@ export function DeliveryTerms({
 	highlightDate = false,
 	datePickerOpenSignal = 0,
 	onAddressPress,
+	onAddressChange,
 	totalWeightTons,
 	leadTimeDays = 3,
 }: DeliveryTermsProps) {
@@ -158,6 +160,31 @@ export function DeliveryTerms({
 					}
 				/>
 			</div>
+
+			<label
+				htmlFor="delivery-address-manual"
+				className="mt-3 block border-t border-[var(--color-border)] pt-3"
+			>
+				<span className="block font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+					Manual address
+				</span>
+				<textarea
+					id="delivery-address-manual"
+					value={deliveryAddress}
+					onChange={(event) => onAddressChange(event.target.value)}
+					placeholder="Paste the delivery address"
+					rows={2}
+					wrap="soft"
+					className="mt-2 block min-h-16 w-full resize-none overflow-hidden rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/65 focus:border-[var(--color-primary)]/45 focus:ring-2 focus:ring-[var(--color-primary)]/20"
+					style={{
+						fontSize: '13px',
+						lineHeight: 1.45,
+						letterSpacing: '0',
+						overflowWrap: 'anywhere',
+						wordBreak: 'break-word',
+					}}
+				/>
+			</label>
 
 			<div className="mt-3 border-t border-[var(--color-border)] pt-3">
 				<Controller

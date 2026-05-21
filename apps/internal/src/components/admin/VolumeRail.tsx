@@ -3,8 +3,11 @@ import { BookOpen, CheckCircle2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import {
+	adminListCategories,
 	adminListCustomers,
+	adminListDrivers,
 	adminListEmployees,
+	adminListPricingRules,
 	adminListProducts,
 	adminListSuppliers,
 	adminListTrucks,
@@ -31,17 +34,29 @@ function useVolumeCounts(): Record<VolumeId, VolumeCountState> {
 		queryKey: ['admin', 'products'],
 		queryFn: () => adminListProducts(),
 	})
+	const categories = useQuery({
+		queryKey: ['admin', 'categories'],
+		queryFn: () => adminListCategories(),
+	})
 	const employees = useQuery({
 		queryKey: ['admin', 'employees'],
 		queryFn: () => adminListEmployees(),
 	})
 	const drivers = useQuery({
 		queryKey: ['admin', 'drivers'],
+		queryFn: () => adminListDrivers(),
+	})
+	const trucks = useQuery({
+		queryKey: ['admin', 'trucks'],
 		queryFn: () => adminListTrucks(),
 	})
 	const suppliers = useQuery({
 		queryKey: ['admin', 'suppliers'],
 		queryFn: () => adminListSuppliers(),
+	})
+	const pricingRules = useQuery({
+		queryKey: ['admin', 'pricingRules'],
+		queryFn: () => adminListPricingRules(),
 	})
 
 	return {
@@ -55,6 +70,11 @@ function useVolumeCounts(): Record<VolumeId, VolumeCountState> {
 			isLoading: products.isPending,
 			isError: products.isError,
 		},
+		categories: {
+			count: categories.data?.length ?? null,
+			isLoading: categories.isPending,
+			isError: categories.isError,
+		},
 		employees: {
 			count: employees.data?.length ?? null,
 			isLoading: employees.isPending,
@@ -65,10 +85,20 @@ function useVolumeCounts(): Record<VolumeId, VolumeCountState> {
 			isLoading: drivers.isPending,
 			isError: drivers.isError,
 		},
+		trucks: {
+			count: trucks.data?.length ?? null,
+			isLoading: trucks.isPending,
+			isError: trucks.isError,
+		},
 		suppliers: {
 			count: suppliers.data?.length ?? null,
 			isLoading: suppliers.isPending,
 			isError: suppliers.isError,
+		},
+		pricingRules: {
+			count: pricingRules.data?.length ?? null,
+			isLoading: pricingRules.isPending,
+			isError: pricingRules.isError,
 		},
 	}
 }

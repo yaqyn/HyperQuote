@@ -2,7 +2,7 @@
 //
 // The admin module is an ops-facing console for direct maintenance of
 // records that other internal panels rely on: customers, products,
-// employees, drivers, and suppliers.
+// employees, drivers, trucks, and suppliers.
 //
 // Volumes are the organizing metaphor: each volume is one table in
 // the registry. The UI surfaces them as roman-numeraled entries in a
@@ -15,9 +15,12 @@ export type AdminKey = ParseKeys<'admin'>
 export type VolumeId =
 	| 'customers'
 	| 'products'
+	| 'categories'
 	| 'employees'
 	| 'drivers'
+	| 'trucks'
 	| 'suppliers'
+	| 'pricingRules'
 
 export interface VolumeDefinition {
 	id: VolumeId
@@ -52,24 +55,45 @@ export const VOLUMES: VolumeDefinition[] = [
 		readOnly: false,
 	},
 	{
-		id: 'employees',
+		id: 'categories',
 		roman: 'III',
+		labelKey: 'volumes.categories.title',
+		subtitleKey: 'volumes.categories.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'employees',
+		roman: 'IV',
 		labelKey: 'volumes.employees.title',
 		subtitleKey: 'volumes.employees.subtitle',
 		readOnly: false,
 	},
 	{
 		id: 'drivers',
-		roman: 'IV',
+		roman: 'V',
 		labelKey: 'volumes.drivers.title',
 		subtitleKey: 'volumes.drivers.subtitle',
 		readOnly: false,
 	},
 	{
+		id: 'trucks',
+		roman: 'VI',
+		labelKey: 'volumes.trucks.title',
+		subtitleKey: 'volumes.trucks.subtitle',
+		readOnly: false,
+	},
+	{
 		id: 'suppliers',
-		roman: 'V',
+		roman: 'VII',
 		labelKey: 'volumes.suppliers.title',
 		subtitleKey: 'volumes.suppliers.subtitle',
+		readOnly: false,
+	},
+	{
+		id: 'pricingRules',
+		roman: 'VIII',
+		labelKey: 'volumes.pricingRules.title',
+		subtitleKey: 'volumes.pricingRules.subtitle',
 		readOnly: false,
 	},
 ]

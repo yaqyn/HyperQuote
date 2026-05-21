@@ -1,11 +1,13 @@
-import type { CatalogProduct } from '@hyperquote/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Package } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+	type AdminProduct,
+	type AdminProductPayload,
 	adminCreateProduct,
 	adminDeleteProduct,
+	adminListCategories,
 	adminListProducts,
 	adminUpdateProduct,
 } from '../../../lib/server/admin'
@@ -21,9 +23,10 @@ import {
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
+import { useAdminExport } from './useAdminExport'
 import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
-type ProductDraft = Omit<CatalogProduct, 'id'> & { id?: string }
+type ProductDraft = AdminProductPayload & { id?: string }
 
 interface ProductsVolumeProps {
 	onOpenVolumes: () => void
@@ -31,26 +34,62 @@ interface ProductsVolumeProps {
 
 function blankProduct(): ProductDraft {
 	return {
-		slug: '',
-		sku: '',
 		name: '',
 		name_ar: '',
-		description: '',
-		description_ar: '',
 		category: '',
-		subcategory: '',
 		brand: null,
 		manufacturer: '',
-		specifications: {},
-		unit_of_measure: 'piece',
+		cost: 0,
+		isVisible: true,
 		weight_kg: 0,
-		price_range_min: 0,
-		price_range_max: 0,
-		price_tier: 'budget',
-		availability_status: 'available',
-		tags: [],
-		is_stockable: true,
+		unit_of_measure: 'piece',
+		unit_of_measure_ar: 'قطعة',
+		description: '',
+		description_ar: '',
+		lowStockThreshold: 0,
+		goodStockThreshold: 0,
 		pictureUrl: null,
+	}
+}
+
+function productToDraft(row: AdminProduct): ProductDraft {
+	return {
+		id: row.id,
+		name: row.name,
+		name_ar: row.name_ar,
+		category: row.category,
+		brand: row.brand,
+		manufacturer: row.manufacturer,
+		cost: row.cost,
+		isVisible: row.isVisible,
+		weight_kg: row.weight_kg,
+		unit_of_measure: row.unit_of_measure,
+		unit_of_measure_ar: row.unit_of_measure_ar,
+		description: row.description,
+		description_ar: row.description_ar,
+		lowStockThreshold: row.lowStockThreshold,
+		goodStockThreshold: row.goodStockThreshold,
+		pictureUrl: row.pictureUrl ?? null,
+	}
+}
+
+function draftToPayload(draft: ProductDraft): AdminProductPayload {
+	return {
+		name: draft.name,
+		name_ar: draft.name_ar,
+		category: draft.category,
+		brand: draft.brand,
+		manufacturer: draft.manufacturer,
+		cost: draft.cost,
+		isVisible: draft.isVisible,
+		weight_kg: draft.weight_kg,
+		unit_of_measure: draft.unit_of_measure,
+		unit_of_measure_ar: draft.unit_of_measure_ar,
+		description: draft.description,
+		description_ar: draft.description_ar,
+		lowStockThreshold: draft.lowStockThreshold,
+		goodStockThreshold: draft.goodStockThreshold,
+		pictureUrl: draft.pictureUrl,
 	}
 }
 
@@ -58,6 +97,8 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	const { t } = useTranslation('admin')
 	const qc = useQueryClient()
 	const volume = getVolume('products')
+	const { exportStatus, isExporting, requestExport } =
+		useAdminExport('products')
 
 	const {
 		data: products = [],
@@ -66,6 +107,10 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	} = useQuery({
 		queryKey: ['admin', 'products'],
 		queryFn: () => adminListProducts(),
+	})
+	const { data: categories = [] } = useQuery({
+		queryKey: ['admin', 'categories'],
+		queryFn: () => adminListCategories(),
 	})
 
 	const {
@@ -82,78 +127,73 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	} = useVolumeEditor({
 		rows: products,
 		blankDraft: blankProduct,
-		rowToDraft: (row) => ({ ...row }),
+		rowToDraft: productToDraft,
 		rowId: (row) => row.id,
 		draftId: (row) => row.id,
 	})
 
 	const createMutation = useMutation({
-		mutationFn: (payload: Omit<CatalogProduct, 'id'>) =>
-			adminCreateProduct({
-				data: {
-					...payload,
-					specifications: { ...payload.specifications },
-					pictureUrl: payload.pictureUrl ?? null,
-				},
-			}),
+		mutationFn: (payload: AdminProductPayload) =>
+			adminCreateProduct({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'products'] })
-			showSavedDraft({ ...created }, created.id)
+			showSavedDraft(productToDraft(created), created.id)
 		},
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (
-			payload: { id: string } & Partial<Omit<CatalogProduct, 'id'>>,
-		) =>
-			adminUpdateProduct({
-				data: {
-					...payload,
-					...(payload.specifications
-						? { specifications: { ...payload.specifications } }
-						: {}),
-				},
-			}),
+		mutationFn: (payload: { id: string } & Partial<AdminProductPayload>) =>
+			adminUpdateProduct({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'products'] })
-			showSavedDraft({ ...updated }, updated.id)
+			showSavedDraft(productToDraft(updated), updated.id)
 		},
 	})
 
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => adminDeleteProduct({ data: { id } }),
+		mutationFn: (payload: { id: string; reason: string }) =>
+			adminDeleteProduct({ data: payload }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['admin', 'products'] })
 			handleClose()
 		},
 	})
 
-	function handleSave() {
-		if (!draft) return
-		// Normalize optional fields before submit — the server expects a full payload.
-		const payload: Omit<CatalogProduct, 'id'> = {
-			slug: draft.slug,
-			sku: draft.sku,
-			name: draft.name,
-			name_ar: draft.name_ar,
-			description: draft.description,
-			description_ar: draft.description_ar,
-			category: draft.category,
-			subcategory: draft.subcategory,
-			brand: draft.brand,
-			manufacturer: draft.manufacturer,
-			specifications: draft.specifications,
-			unit_of_measure: draft.unit_of_measure,
-			weight_kg: draft.weight_kg,
-			price_range_min: draft.price_range_min,
-			price_range_max: draft.price_range_max,
-			price_tier: draft.price_tier,
-			availability_status: draft.availability_status,
-			tags: draft.tags,
-			is_stockable: draft.is_stockable,
-			pictureUrl: draft.pictureUrl ?? null,
+	const categoryOptions = useMemo(() => {
+		const options = categories
+			.filter(
+				(category) => category.isActive || category.slug === draft?.category,
+			)
+			.map((category) => ({
+				value: category.slug,
+				label: category.parentSlug
+					? `${category.name} · ${category.parentSlug}`
+					: category.name,
+			}))
+		if (
+			draft?.category &&
+			!options.some((option) => option.value === draft.category)
+		) {
+			options.unshift({ value: draft.category, label: draft.category })
 		}
+		return options
+	}, [categories, draft?.category])
 
+	useEffect(() => {
+		if (!draft || readOnly || draft.category || categoryOptions.length === 0) {
+			return
+		}
+		setDraft({ ...draft, category: categoryOptions[0].value })
+	}, [categoryOptions, draft, readOnly, setDraft])
+
+	const thresholdInvalid = Boolean(
+		draft && draft.goodStockThreshold < draft.lowStockThreshold,
+	)
+	const missingCategory = categoryOptions.length === 0
+
+	function handleSave() {
+		if (!draft || thresholdInvalid || missingCategory) return
+		const payload = draftToPayload(draft)
 		if (mode === 'create') {
 			createMutation.mutate(payload)
 		} else if (mode === 'edit' && draft.id) {
@@ -168,28 +208,15 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			!window.confirm(t('actions.confirmDelete'))
 		)
 			return
-		deleteMutation.mutate(draft.id)
+		const reason =
+			typeof window === 'undefined'
+				? null
+				: window.prompt('Reason for deactivating this product')
+		if (!reason || reason.trim().length < 8) return
+		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
 	}
 
-	const priceTierOptions: Array<{
-		value: CatalogProduct['price_tier']
-		label: string
-	}> = [
-		{ value: 'budget', label: 'Budget' },
-		{ value: 'mid_range', label: 'Mid-range' },
-		{ value: 'premium', label: 'Premium' },
-	]
-	const availabilityOptions: Array<{
-		value: CatalogProduct['availability_status']
-		label: string
-	}> = [
-		{ value: 'available', label: 'Available' },
-		{ value: 'low_stock', label: 'Low stock' },
-		{ value: 'out_of_stock', label: 'Out of stock' },
-		{ value: 'hidden', label: 'Hidden' },
-	]
-
-	const columns: ColumnDef<CatalogProduct>[] = [
+	const columns: ColumnDef<AdminProduct>[] = [
 		{
 			key: 'thumb',
 			labelKey: 'volumes.products.columns.thumb',
@@ -228,35 +255,37 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			render: (r) => <>{r.unit_of_measure}</>,
 		},
 		{
-			key: 'sku',
-			labelKey: 'volumes.products.columns.sku',
-			width: '110px',
-			mono: true,
-			mobileRole: 'detail',
-			render: (r) => <>{r.sku}</>,
-		},
-		{
-			key: 'price',
-			labelKey: 'volumes.products.columns.price',
-			width: 'minmax(140px, 1fr)',
+			key: 'cost',
+			labelKey: 'volumes.products.columns.cost',
+			width: 'minmax(120px, 1fr)',
 			align: 'end',
 			mono: true,
 			mobileRole: 'detail',
+			render: (r) => <>{r.cost.toLocaleString()} EGP</>,
+		},
+		{
+			key: 'visibility',
+			labelKey: 'volumes.products.columns.visibility',
+			width: '110px',
+			mobileRole: 'detail',
 			render: (r) => (
-				<span>
-					{r.price_range_min.toLocaleString()} –{' '}
-					{r.price_range_max.toLocaleString()}
-				</span>
+				<StatusTag
+					label={
+						r.isVisible ? t('editor.values.visible') : t('editor.values.hidden')
+					}
+					tone={r.isVisible ? 'primary' : 'muted'}
+				/>
 			),
 		},
 	]
 
-	const filter = (r: CatalogProduct, q: string) =>
+	const filter = (r: AdminProduct, q: string) =>
 		r.name.toLowerCase().includes(q) ||
 		r.name_ar.includes(q) ||
 		r.category.toLowerCase().includes(q) ||
-		r.sku.toLowerCase().includes(q) ||
-		r.slug.toLowerCase().includes(q)
+		r.unit_of_measure_ar.includes(q) ||
+		(r.brand?.toLowerCase().includes(q) ?? false) ||
+		r.manufacturer.toLowerCase().includes(q)
 
 	return (
 		<>
@@ -265,6 +294,9 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 				entryCount={products.length}
 				onOpenVolumes={onOpenVolumes}
 				onNewEntry={handleNew}
+				onExport={requestExport}
+				isExporting={isExporting}
+				exportStatus={exportStatus}
 			/>
 			<EntityIndex
 				volume="products"
@@ -290,6 +322,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 							id={draft.id}
 							isSaving={createMutation.isPending || updateMutation.isPending}
 							isDeleting={deleteMutation.isPending}
+							saveDisabled={thresholdInvalid || missingCategory}
 							onEdit={handleEdit}
 							onSave={handleSave}
 							onCancel={handleCancel}
@@ -300,9 +333,8 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			>
 				{draft && (
 					<div className="space-y-6">
-						{/* Picture preview + URL — sits above all other fields */}
 						<PictureField
-							value={draft.pictureUrl ?? null}
+							value={draft.pictureUrl}
 							onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
 							readOnly={readOnly}
 							altText={draft.name || t('editor.fields.name')}
@@ -318,7 +350,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 								ariaLabel={t('editor.fields.name')}
 							/>
 						</Field>
-						<Field label={t('editor.fields.nameAr')}>
+						<Field label={t('editor.fields.nameAr')} required>
 							<TextControl
 								value={draft.name_ar}
 								onChange={(v) => setDraft({ ...draft, name_ar: v })}
@@ -326,42 +358,24 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 								ariaLabel={t('editor.fields.nameAr')}
 							/>
 						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.sku')} required>
-								<TextControl
-									value={draft.sku}
-									onChange={(v) => setDraft({ ...draft, sku: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.sku')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.slug')} required>
-								<TextControl
-									value={draft.slug}
-									onChange={(v) => setDraft({ ...draft, slug: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.slug')}
-								/>
-							</Field>
-						</div>
 
 						<Section title={t('editor.section.taxonomy')} />
 						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 							<Field label={t('editor.fields.category')} required>
-								<TextControl
-									value={draft.category}
-									onChange={(v) => setDraft({ ...draft, category: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.category')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.subcategory')}>
-								<TextControl
-									value={draft.subcategory}
-									onChange={(v) => setDraft({ ...draft, subcategory: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.subcategory')}
-								/>
+								{categoryOptions.length > 0 ? (
+									<SelectControl
+										value={draft.category}
+										onChange={(v) => setDraft({ ...draft, category: v })}
+										options={categoryOptions}
+										readOnly={readOnly}
+										ariaLabel={t('editor.fields.category')}
+									/>
+								) : (
+									<StatusTag
+										label={t('editor.values.categoryRequired')}
+										tone="muted"
+									/>
+								)}
 							</Field>
 							<Field label={t('editor.fields.brand')}>
 								<TextControl
@@ -383,58 +397,38 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 
 						<Section title={t('editor.section.commercial')} />
 						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.priceRangeMin')}>
+							<Field label={t('editor.fields.cost')} required>
 								<NumberControl
-									value={draft.price_range_min}
-									onChange={(v) => setDraft({ ...draft, price_range_min: v })}
+									value={draft.cost}
+									onChange={(v) => setDraft({ ...draft, cost: v })}
 									readOnly={readOnly}
-									ariaLabel={t('editor.fields.priceRangeMin')}
+									ariaLabel={t('editor.fields.cost')}
 									min={0}
 									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.priceRangeMax')}>
-								<NumberControl
-									value={draft.price_range_max}
-									onChange={(v) => setDraft({ ...draft, price_range_max: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.priceRangeMax')}
-									min={0}
-									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.priceTier')}>
-								<SelectControl
-									value={draft.price_tier}
-									onChange={(v) => setDraft({ ...draft, price_tier: v })}
-									options={priceTierOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.priceTier')}
 								/>
 							</Field>
 							<Field label={t('editor.fields.availabilityStatus')}>
 								{readOnly ? (
-									<div>
-										<StatusTag
-											label={draft.availability_status}
-											tone={
-												draft.availability_status === 'available'
-													? 'primary'
-													: draft.availability_status === 'low_stock'
-														? 'neutral'
-														: 'muted'
-											}
-										/>
-									</div>
-								) : (
-									<SelectControl
-										value={draft.availability_status}
-										onChange={(v) =>
-											setDraft({ ...draft, availability_status: v })
+									<StatusTag
+										label={
+											draft.isVisible
+												? t('editor.values.visible')
+												: t('editor.values.hidden')
 										}
-										options={availabilityOptions}
-										readOnly={false}
-										ariaLabel={t('editor.fields.availabilityStatus')}
+										tone={draft.isVisible ? 'primary' : 'muted'}
+									/>
+								) : (
+									<Toggle
+										isSelected={draft.isVisible}
+										onChange={(checked) =>
+											setDraft({ ...draft, isVisible: checked })
+										}
+										label={
+											draft.isVisible
+												? t('editor.values.visible')
+												: t('editor.values.hidden')
+										}
+										aria-label={t('editor.fields.availabilityStatus')}
 									/>
 								)}
 							</Field>
@@ -442,14 +436,6 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 
 						<Section title={t('editor.section.specifications')} />
 						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.unitOfMeasure')} required>
-								<TextControl
-									value={draft.unit_of_measure}
-									onChange={(v) => setDraft({ ...draft, unit_of_measure: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.unitOfMeasure')}
-								/>
-							</Field>
 							<Field label={t('editor.fields.weightKg')}>
 								<NumberControl
 									value={draft.weight_kg}
@@ -461,24 +447,56 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 									suffix="kg"
 								/>
 							</Field>
-						</div>
-						<Field label={t('editor.fields.isStockable')}>
-							{readOnly ? (
-								<span className="block font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)]">
-									{draft.is_stockable ? '✓' : '—'}
-								</span>
-							) : (
-								<Toggle
-									isSelected={draft.is_stockable}
-									onChange={(checked) =>
-										setDraft({ ...draft, is_stockable: checked })
-									}
-									aria-label={t('editor.fields.isStockable')}
+							<Field label={t('editor.fields.unitOfMeasure')} required>
+								<TextControl
+									value={draft.unit_of_measure}
+									onChange={(v) => setDraft({ ...draft, unit_of_measure: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.unitOfMeasure')}
 								/>
-							)}
-						</Field>
+							</Field>
+							<Field label={t('editor.fields.unitOfMeasureAr')} required>
+								<TextControl
+									value={draft.unit_of_measure_ar}
+									onChange={(v) =>
+										setDraft({ ...draft, unit_of_measure_ar: v })
+									}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.unitOfMeasureAr')}
+								/>
+							</Field>
+						</div>
 
-						<Field label={t('editor.fields.description')}>
+						<Section title={t('editor.section.stock')} />
+						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+							<Field label={t('editor.fields.lowStockThreshold')}>
+								<NumberControl
+									value={draft.lowStockThreshold}
+									onChange={(v) => setDraft({ ...draft, lowStockThreshold: v })}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.lowStockThreshold')}
+									min={0}
+								/>
+							</Field>
+							<Field label={t('editor.fields.goodStockThreshold')}>
+								<NumberControl
+									value={draft.goodStockThreshold}
+									onChange={(v) =>
+										setDraft({ ...draft, goodStockThreshold: v })
+									}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.goodStockThreshold')}
+									min={0}
+								/>
+								{thresholdInvalid && !readOnly && (
+									<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] text-red-700 dark:text-red-300">
+										{t('editor.values.goodStockThresholdInvalid')}
+									</p>
+								)}
+							</Field>
+						</div>
+
+						<Field label={t('editor.fields.description')} required>
 							<TextAreaControl
 								value={draft.description}
 								onChange={(v) => setDraft({ ...draft, description: v })}
@@ -487,31 +505,13 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 								rows={3}
 							/>
 						</Field>
-						<Field label={t('editor.fields.descriptionAr')}>
+						<Field label={t('editor.fields.descriptionAr')} required>
 							<TextAreaControl
 								value={draft.description_ar}
 								onChange={(v) => setDraft({ ...draft, description_ar: v })}
 								readOnly={readOnly}
 								ariaLabel={t('editor.fields.descriptionAr')}
 								rows={3}
-							/>
-						</Field>
-
-						<Field label={t('editor.fields.tags')}>
-							<TextControl
-								value={draft.tags.join(', ')}
-								onChange={(v) =>
-									setDraft({
-										...draft,
-										tags: v
-											.split(',')
-											.map((tag) => tag.trim())
-											.filter(Boolean),
-									})
-								}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.tags')}
-								placeholder="tag, tag, tag"
 							/>
 						</Field>
 					</div>
@@ -541,7 +541,6 @@ function PictureField({
 
 	return (
 		<div className="space-y-3">
-			{/* Preview — aspect-ratio locked so the layout never jumps */}
 			<div
 				className="relative overflow-hidden rounded-md border border-[var(--color-border)] bg-black/[0.02] dark:bg-white/[0.02]"
 				style={{ aspectRatio: '16 / 9' }}
@@ -566,7 +565,6 @@ function PictureField({
 				)}
 			</div>
 
-			{/* URL input — switches to readonly text in view mode */}
 			<div className="block">
 				<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
 					{label}
@@ -580,7 +578,7 @@ function PictureField({
 						}}
 						readOnly={readOnly}
 						ariaLabel={label}
-						placeholder="https://…"
+						placeholder="https://..."
 					/>
 				</div>
 			</div>

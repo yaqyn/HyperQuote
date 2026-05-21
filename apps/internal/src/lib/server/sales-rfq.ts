@@ -2,76 +2,255 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { RFQ } from '../../types/sales'
 import { calculatePriorityScore } from '../../types/sales'
-import { db, hoursSince } from '../db/db'
+import { mapSupabaseRfqStatusForSales } from '../sales-rfq-status'
+import { getInternalSupabaseClient } from './_supabase'
 
-// ─── Projection helpers ──────────────────────────────────
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-/**
- * The outdated-prices warning only makes sense BEFORE a quote is built.
- * Once an RFQ is evaluated, its prices are locked into the quote — the
- * report carries those snapshots, not live supplier_prices.
- */
-const PRE_QUOTE_STATUSES = new Set([
-	'submitted',
-	'assigned',
-	'awaiting_clarification',
-])
-
-function hasOutdatedPrices(rfqId: string): boolean {
-	const rfq = db.rfqs.get(rfqId)
-	if (!rfq) return false
-	if (!PRE_QUOTE_STATUSES.has(rfq.status)) return false
-
-	// Once the rep starts a draft we trust their working set — items they
-	// removed should stop counting against freshness, items they kept become
-	// the new staleness check. Falls back to the original RFQ item list when
-	// no draft exists yet (still in the inbox, not opened).
-	const drafts = db.quotes
-		.forRfq(rfqId)
-		.filter((q) => q.status !== 'accepted' && q.status !== 'declined')
-	const slugs =
-		drafts.length > 0
-			? drafts.flatMap((q) => q.items.map((i) => i.productSlug))
-			: rfq.items.map((i) => i.productSlug)
-
-	if (slugs.length === 0) return false
-	for (const slug of slugs) {
-		const primary = db.supplierPrices.primaryForProduct(slug)
-		if (!primary) return true
-		if (hoursSince(primary.lastQuotedAt) >= 24) return true
-	}
-	return false
+function isUuid(value: string): boolean {
+	return UUID_RE.test(value)
 }
 
-/** Shape every DB row into the RFQ surface type the UI expects. */
-function projectRfq(row: ReturnType<typeof db.rfqs.list>[number]): RFQ {
-	const ageHours = Math.max(0, hoursSince(row.createdAt))
-	const previewItems = row.items
-		.slice(0, 3)
-		.map((i) => db.products.findBySlug(i.productSlug)?.name)
-		.filter((n): n is string => !!n)
+function hoursSince(value: string): number {
+	const parsed = new Date(value).getTime()
+	if (!Number.isFinite(parsed)) return Number.POSITIVE_INFINITY
+	return (Date.now() - parsed) / 3_600_000
+}
+
+interface SupabaseCustomerRow {
+	company_name: string
+	contact_name: string
+}
+
+interface SupabaseProductRow {
+	name: string
+	price_range_max: number | null
+	price_range_min: number | null
+	updated_at: string
+	supplier_product_links: SupabaseSupplierLinkRow[] | null
+}
+
+interface SupabaseSupplierLinkRow {
+	raw_cost: number | null
+	is_primary: boolean
+	last_quoted_at: string | null
+}
+
+interface SupabaseQuoteRequestItemRow {
+	customer_description: string
+	quantity: number
+	products: SupabaseProductRow | SupabaseProductRow[] | null
+}
+
+interface SupabaseQuoteRequestRow {
+	id: string
+	request_number: string
+	status: string
+	assigned_employee_id: string | null
+	created_at: string
+	submitted_at: string | null
+	delivery_date: string | null
+	eligible_at: string
+	urgency: string
+	customers: SupabaseCustomerRow | SupabaseCustomerRow[] | null
+	quote_request_items: SupabaseQuoteRequestItemRow[] | null
+}
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value
+}
+
+function positivePrice(value: number | null | undefined): number | null {
+	const numeric = Number(value ?? 0)
+	return Number.isFinite(numeric) && numeric > 0 ? numeric : null
+}
+
+function primarySupplierLink(
+	links: SupabaseSupplierLinkRow[] | null,
+): SupabaseSupplierLinkRow | null {
+	if (!links || links.length === 0) return null
+	return links.find((link) => link.is_primary) ?? links[0] ?? null
+}
+
+function productHasOutdatedPrice(product: SupabaseProductRow | null): boolean {
+	const primaryLink = primarySupplierLink(
+		product?.supplier_product_links ?? null,
+	)
+	const hasPrice =
+		positivePrice(primaryLink?.raw_cost) !== null ||
+		positivePrice(product?.price_range_min) !== null ||
+		positivePrice(product?.price_range_max) !== null
+	if (!hasPrice) return true
+	const lastQuotedAt =
+		primaryLink?.last_quoted_at ??
+		product?.updated_at ??
+		new Date(0).toISOString()
+	return hoursSince(lastQuotedAt) >= 24
+}
+
+function productEstimatedUnitPrice(product: SupabaseProductRow | null): number {
+	const primaryLink = primarySupplierLink(
+		product?.supplier_product_links ?? null,
+	)
+	return (
+		positivePrice(product?.price_range_max) ??
+		positivePrice(product?.price_range_min) ??
+		positivePrice(primaryLink?.raw_cost) ??
+		1000
+	)
+}
+
+function deliveryUrgencyDays(deliveryDate: string | null): number {
+	if (!deliveryDate) return 14
+	const diff = new Date(deliveryDate).getTime() - Date.now()
+	return Math.max(0, Math.ceil(diff / 86_400_000))
+}
+
+function supabaseQueueEnteredAt(row: SupabaseQuoteRequestRow): string {
+	const timestamps = [row.created_at, row.submitted_at]
+	if (row.status === 'submitted') timestamps.push(row.eligible_at)
+	const latest = timestamps
+		.filter((value): value is string => Boolean(value))
+		.map((value) => new Date(value).getTime())
+		.filter((value) => Number.isFinite(value))
+		.sort((a, b) => b - a)[0]
+	return latest ? new Date(latest).toISOString() : row.created_at
+}
+
+function projectSupabaseRfq(row: SupabaseQuoteRequestRow): RFQ | null {
+	const status = mapSupabaseRfqStatusForSales(row)
+	if (!status) return null
+
+	const customer = firstRelation(row.customers)
+	const items = row.quote_request_items ?? []
+	const queueEnteredAt = supabaseQueueEnteredAt(row)
+	const ageHours = Math.max(0, hoursSince(queueEnteredAt))
+	const urgencyDays = deliveryUrgencyDays(row.delivery_date)
+	const estimatedValue = items.reduce(
+		(sum, item) =>
+			sum +
+			Number(item.quantity) *
+				productEstimatedUnitPrice(firstRelation(item.products)),
+		0,
+	)
 
 	return {
 		id: row.id,
-		customerName: row.customerName,
-		customerTier: row.customerTier,
-		estimatedValue: row.estimatedValue,
+		requestNumber: row.request_number,
+		customerName: customer?.company_name ?? 'Customer',
+		customerTier: 'new',
+		estimatedValue,
 		priorityScore: calculatePriorityScore(
-			row.customerTier,
-			row.estimatedValue,
+			'new',
+			estimatedValue,
 			ageHours,
-			row.deliveryUrgency,
+			urgencyDays,
 		),
-		lineItemCount: row.items.length,
-		status: row.status,
-		assignedRep: row.assignedRep,
-		createdAt: row.createdAt,
-		slaDeadline: row.slaDeadline,
-		deliveryUrgency: row.deliveryUrgency,
-		previewItems,
-		deliveryCity: row.deliveryCity,
-		contactName: row.contactName,
-		hasOutdatedPrices: hasOutdatedPrices(row.id),
+		lineItemCount: items.length,
+		status,
+		assignedRep: row.assigned_employee_id,
+		createdAt: queueEnteredAt,
+		slaDeadline: new Date(
+			new Date(queueEnteredAt).getTime() + 24 * 60 * 60 * 1000,
+		).toISOString(),
+		deliveryUrgency: urgencyDays,
+		previewItems: items.slice(0, 3).map((item) => {
+			const product = firstRelation(item.products)
+			return product?.name ?? item.customer_description
+		}),
+		contactName: customer?.contact_name ?? '',
+		hasOutdatedPrices: items.some((item) =>
+			productHasOutdatedPrice(firstRelation(item.products)),
+		),
+		source: 'supabase',
+	}
+}
+
+async function getSupabaseRFQQueue(input: {
+	status?: string
+	assignedTo?: string
+	page: number
+	limit: number
+}) {
+	const auth = await getInternalSupabaseClient()
+	if (!auth) return null
+	const { data: currentEmployeeId, error: employeeError } =
+		await auth.client.rpc('current_employee_id')
+	if (employeeError) throw new Error(employeeError.message)
+
+	let query = auth.client
+		.from('quote_requests')
+		.select(`
+			id,
+			request_number,
+			status,
+			assigned_employee_id,
+			created_at,
+			submitted_at,
+			delivery_date,
+			eligible_at,
+			urgency,
+			customers (
+				company_name,
+				contact_name
+			),
+			quote_request_items (
+				customer_description,
+				quantity,
+				products (
+					name,
+					price_range_min,
+					price_range_max,
+					updated_at,
+					supplier_product_links (
+						raw_cost,
+						is_primary,
+						last_quoted_at
+					)
+				)
+			)
+		`)
+		.neq('status', 'draft')
+		.order('created_at', { ascending: true })
+
+	if (input.status) {
+		query = query.eq('status', input.status)
+		if (input.status === 'submitted') {
+			query = query.lte('eligible_at', new Date().toISOString())
+		}
+		if (input.status === 'assigned' && currentEmployeeId) {
+			query = query.eq('assigned_employee_id', currentEmployeeId)
+		}
+	} else if (currentEmployeeId) {
+		query = query.or(
+			`status.neq.assigned,assigned_employee_id.eq.${currentEmployeeId}`,
+		)
+	} else {
+		query = query.neq('status', 'assigned')
+	}
+
+	const { data, error } = await query
+	if (error) throw new Error(error.message)
+
+	// Supabase nested select inference does not preserve relation cardinality
+	// for this projection, so normalize the server boundary explicitly.
+	let rfqs = ((data ?? []) as unknown as SupabaseQuoteRequestRow[])
+		.map(projectSupabaseRfq)
+		.filter((rfq): rfq is RFQ => rfq !== null)
+	if (input.assignedTo) {
+		rfqs = rfqs.filter((rfq) => rfq.assignedRep === input.assignedTo)
+	}
+	rfqs.sort(
+		(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+	)
+	const start = (input.page - 1) * input.limit
+
+	return {
+		rfqs: rfqs.slice(start, start + input.limit),
+		total: rfqs.length,
+		avgResponseTime: 0,
 	}
 }
 
@@ -83,45 +262,11 @@ export const getRFQQueue = createServerFn({ method: 'GET' })
 			status: z.string().optional(),
 			assignedTo: z.string().optional(),
 			page: z.number().default(1),
-			limit: z.number().default(50),
+			limit: z.number().default(500),
 		}),
 	)
 	.handler(async ({ data: input }) => {
-		// Revert any saved orders whose timer has expired
-		const now = Date.now()
-		for (const rfq of db.rfqs.list()) {
-			if (
-				rfq.status === 'saved' &&
-				rfq.savedUntil &&
-				new Date(rfq.savedUntil).getTime() <= now
-			) {
-				rfq.status = 'submitted'
-				rfq.savedUntil = null
-			}
-		}
-		const rows = db.rfqs.list()
-		let rfqs = rows.map(projectRfq)
-		if (input.status) rfqs = rfqs.filter((r) => r.status === input.status)
-		if (input.assignedTo)
-			rfqs = rfqs.filter((r) => r.assignedRep === input.assignedTo)
-		rfqs.sort((a, b) => b.priorityScore - a.priorityScore)
-		const start = (input.page - 1) * input.limit
-		const responseAges = rows
-			.filter((rfq) => rfq.assignedRep !== null)
-			.map((rfq) => hoursSince(rfq.createdAt))
-		const avgResponseTime =
-			responseAges.length > 0
-				? Math.round(
-						(responseAges.reduce((sum, age) => sum + age, 0) /
-							responseAges.length) *
-							10,
-					) / 10
-				: 0
-		return {
-			rfqs: rfqs.slice(start, start + input.limit),
-			total: rfqs.length,
-			avgResponseTime,
-		}
+		return getSupabaseRFQQueue(input)
 	})
 
 export const declineRFQ = createServerFn({ method: 'POST' })
@@ -137,9 +282,16 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		db.rfqs.updateStatus(data.rfqId, 'declined')
-		db.orderReports.ensureForRfq(data.rfqId)
-		db.orderReports.markCanceled(data.rfqId, data.reason, data.note ?? null)
+		if (!isUuid(data.rfqId)) {
+			throw new Error('Supabase quote request id is required')
+		}
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('sales_reject_order', {
+			p_order_id: data.rfqId,
+			p_reason: data.reason,
+			p_proof: data.note?.trim() ? { note: data.note.trim() } : {},
+		})
+		if (error) throw new Error(error.message)
 		return {
 			success: true,
 			rfqId: data.rfqId,
@@ -150,10 +302,76 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 		}
 	})
 
+export const cancelRFQ = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			rfqId: z.string(),
+			reason: z.string().trim().min(3),
+			note: z.string().optional(),
+		}),
+	)
+	.handler(async ({ data }) => {
+		const reason = data.reason.trim()
+		const note = data.note?.trim() || undefined
+		if (!isUuid(data.rfqId)) {
+			throw new Error('Supabase quote request id is required')
+		}
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('sales_cancel_order', {
+			p_order_id: data.rfqId,
+			p_reason: reason,
+			p_proof: note ? { note } : {},
+		})
+		if (error) throw new Error(error.message)
+		return {
+			success: true,
+			rfqId: data.rfqId,
+			status: 'declined' as const,
+			reason,
+			note: note ?? null,
+			canceledAt: new Date().toISOString(),
+		}
+	})
+
+export const claimSalesOrder = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ rfqId: z.string() }))
+	.handler(async ({ data }) => {
+		if (!isUuid(data.rfqId)) {
+			throw new Error('Supabase quote request id is required')
+		}
+		const auth = await getInternalSupabaseClient()
+		const { data: claimed, error } = await auth.client.rpc(
+			'sales_claim_order',
+			{
+				p_order_id: data.rfqId,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return {
+			success: true,
+			rfqId: claimed?.id ?? data.rfqId,
+			status: 'assigned' as const,
+		}
+	})
+
+export const claimNextSalesOrder = createServerFn({ method: 'POST' }).handler(
+	async () => {
+		const auth = await getInternalSupabaseClient()
+		const { data: claimed, error } = await auth.client.rpc(
+			'claim_next_sales_order',
+		)
+		if (error) throw new Error(error.message)
+		return {
+			rfqId: claimed?.id ?? null,
+			status: claimed?.status ?? null,
+			success: true,
+		}
+	},
+)
+
 /**
- * Save/hold an RFQ for later. Changes status to 'saved'.
- * After `returnInMinutes`, a real system would schedule a job to revert to 'submitted'.
- * Action is recorded in the order report.
+ * Pause an assigned RFQ and return it to the submitted queue after the hold.
+ * The RPC clears assignment immediately and uses eligible_at for queue timing.
  */
 export const saveRFQForLater = createServerFn({ method: 'POST' })
 	.inputValidator(
@@ -163,18 +381,23 @@ export const saveRFQForLater = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const rfq = db.rfqs.get(data.rfqId)
-		if (rfq) {
-			rfq.status = 'saved'
-			rfq.savedUntil = new Date(
-				Date.now() + data.returnInMinutes * 60_000,
-			).toISOString()
+		if (!isUuid(data.rfqId)) {
+			throw new Error('Supabase quote request id is required')
 		}
-		db.orderReports.ensureForRfq(data.rfqId)
+		const auth = await getInternalSupabaseClient()
+		const { data: updated, error } = await auth.client.rpc(
+			'sales_save_and_requeue',
+			{
+				p_order_id: data.rfqId,
+				p_note: null,
+				p_return_minutes: data.returnInMinutes,
+			},
+		)
+		if (error) throw new Error(error.message)
 		return {
 			success: true,
 			rfqId: data.rfqId,
-			status: 'saved' as const,
-			returnsAt: rfq?.savedUntil ?? null,
+			status: 'submitted' as const,
+			returnsAt: updated?.eligible_at ?? null,
 		}
 	})

@@ -37,7 +37,21 @@
 				"category": "Category",
 				"unit": "Unit",
 				"sku": "SKU",
-				"price": "Price range"
+				"price": "Price range",
+				"cost": "Cost",
+				"visibility": "Visibility"
+			}
+		},
+		"categories": {
+			"title": "Categories",
+			"subtitle": "Catalog families and market taxonomy",
+			"columns": {
+				"thumb": " ",
+				"name": "Name",
+				"slug": "Slug",
+				"parent": "Parent",
+				"description": "Description",
+				"status": "Status"
 			}
 		},
 		"employees": {
@@ -46,17 +60,29 @@
 			"columns": {
 				"id": "ID",
 				"name": "Name",
-				"nameAr": "Arabic name",
+				"email": "Email",
+				"roles": "Roles",
+				"status": "Status",
 				"phone": "Phone"
 			}
 		},
 		"drivers": {
 			"title": "Drivers",
-			"subtitle": "Trucks on the dock and the drivers behind the wheel",
+			"subtitle": "Driver people, app access, and operating status",
+			"columns": {
+				"name": "Name",
+				"email": "Email",
+				"phone": "Phone",
+				"vehicle": "Vehicle",
+				"status": "Status"
+			}
+		},
+		"trucks": {
+			"title": "Trucks",
+			"subtitle": "Fleet assets, capacity, body type, and driver assignment",
 			"columns": {
 				"plate": "Plate",
 				"driver": "Driver",
-				"phone": "Phone",
 				"capacity": "Capacity",
 				"body": "Body",
 				"status": "Status"
@@ -68,30 +94,60 @@
 			"columns": {
 				"name": "Name",
 				"tier": "Tier",
+				"status": "Status",
 				"paymentTerms": "Terms",
 				"rating": "Rating",
-				"items": "Items",
+				"specialties": "Specialty",
 				"phone": "Phone"
+			}
+		},
+		"pricingRules": {
+			"title": "Pricing Rules",
+			"subtitle": "Margin controls used by quote building",
+			"columns": {
+				"scope": "Scope",
+				"category": "Category",
+				"product": "Product",
+				"bonus": "Bonus",
+				"target": "Target",
+				"floor": "Floor",
+				"absolute": "Minimum",
+				"status": "Status"
 			}
 		}
 	},
-	"items": {
-		"title": "Items sold",
-		"loading": "Loading supplier items",
-		"error": "Supplier items could not load",
-		"empty": "No items yet.",
-		"add": "Add item",
-		"remove": "Remove item",
-		"confirmRemove": "Remove this item from the supplier?",
-		"togglePrimary": "Toggle primary supplier",
-		"saveFirst": "Save the supplier first to add items",
-		"productsLoading": "Loading product list",
-		"productsError": "Product list could not load",
+	"customerSubrecords": {
+		"saveFirst": "Save the customer first to manage addresses and projects",
+		"addresses": "Addresses",
+		"projects": "Projects",
+		"addAddress": "Add address",
+		"addProject": "Add project",
+		"addressError": "Customer addresses could not load",
+		"projectError": "Customer projects could not load",
+		"noAddresses": "No addresses yet.",
+		"noProjects": "No projects yet.",
+		"loading": "Loading records",
+		"default": "Default",
+		"archived": "Archived",
+		"archive": "Archive"
+	},
+	"specialties": {
+		"title": "Specialty",
+		"loading": "Loading supplier specialties",
+		"error": "Supplier specialties could not load",
+		"empty": "No specialties yet.",
+		"add": "Add specialty",
+		"remove": "Remove specialty",
+		"confirmRemove": "Remove this specialty from the supplier?",
+		"saveFirst": "Save the supplier first to add specialties",
+		"catalogLoading": "Loading categories and products",
+		"catalogError": "Categories or products could not load",
+		"noCategories": "No active categories yet.",
+		"duplicate": "This specialty already exists.",
+		"allProducts": "All",
 		"columns": {
-			"product": "Product",
-			"cost": "Cost",
-			"lead": "Lead",
-			"minQty": "Min qty"
+			"category": "Category",
+			"product": "Product"
 		}
 	},
 	"search": {
@@ -105,6 +161,8 @@
 		"save": "Save",
 		"cancel": "Cancel",
 		"delete": "Delete",
+		"export": "Export",
+		"exporting": "Exporting…",
 		"confirmDelete": "Delete this entry?",
 		"close": "Close"
 	},
@@ -123,8 +181,11 @@
 			"assignment": "Assignment",
 			"vehicle": "Vehicle",
 			"taxonomy": "Taxonomy",
+			"scope": "Scope",
 			"specifications": "Specifications",
-			"badges": "Badges"
+			"stock": "Stock thresholds",
+			"badges": "Badges",
+			"customerRecords": "Customer records"
 		},
 		"fields": {
 			"companyName": "Company name",
@@ -132,9 +193,23 @@
 			"status": "Status",
 			"contactName": "Contact",
 			"phone": "Phone",
+			"password": "Password",
 			"email": "Email",
 			"address": "Address",
+			"profilePhotoUrl": "Profile photo URL",
+			"tradeLicenseStatus": "Trade license",
+			"createdByEmployee": "Created by employee",
+			"addressLabel": "Address label",
+			"street": "Street",
+			"area": "Area",
 			"city": "City",
+			"governorate": "Governorate",
+			"landmark": "Landmark",
+			"addressPhone": "Address phone",
+			"postalCode": "Postal code",
+			"latitude": "Latitude",
+			"longitude": "Longitude",
+			"isDefaultAddress": "Default address",
 			"creditLimit": "Credit limit",
 			"currentExposure": "Current exposure",
 			"orderCount": "Order count",
@@ -146,7 +221,11 @@
 			"nameAr": "Name (Arabic)",
 			"plateNumber": "Plate number",
 			"driverName": "Driver name",
+			"driverEmail": "Driver email",
+			"driverPassword": "Driver password",
 			"driverPhone": "Driver phone",
+			"vehicleLabel": "Vehicle label",
+			"assignedDriver": "Assigned driver",
 			"capacityTons": "Capacity (tons)",
 			"bodyType": "Body type",
 			"supplierName": "Supplier name",
@@ -155,10 +234,13 @@
 			"customBadges": "Custom badges",
 			"category": "Category",
 			"subcategory": "Subcategory",
+			"subcategoryAr": "Subcategory (Arabic)",
 			"sku": "SKU",
 			"slug": "Slug",
 			"unitOfMeasure": "Unit of measure",
+			"unitOfMeasureAr": "Unit of measure (Arabic)",
 			"weightKg": "Weight (kg)",
+			"cost": "Cost",
 			"priceRangeMin": "Price min",
 			"priceRangeMax": "Price max",
 			"priceTier": "Price tier",
@@ -169,7 +251,31 @@
 			"descriptionAr": "Description (Arabic)",
 			"tags": "Tags",
 			"isStockable": "Stockable",
-			"pictureUrl": "Picture URL"
+			"pictureUrl": "Picture URL",
+			"imageUrls": "Image URLs",
+			"specificationsJson": "Specifications JSON",
+			"specificationsJsonAr": "Specifications JSON (Arabic)",
+			"lowStockThreshold": "Low below",
+			"goodStockThreshold": "Good from",
+			"roles": "Roles",
+			"isCeo": "CEO search access",
+			"parentId": "Parent category",
+			"active": "Active",
+			"notes": "Notes",
+			"projectName": "Project name",
+			"productCategory": "Product category",
+			"pricingCategory": "Pricing category",
+			"pricingProduct": "Pricing product",
+			"bonusMargin": "Bonus margin",
+			"targetMargin": "Target margin",
+			"floorMargin": "Floor margin",
+			"absoluteMinMargin": "Absolute minimum margin"
+		},
+		"values": {
+			"visible": "Shown",
+			"hidden": "Hidden",
+			"categoryRequired": "Add a category first",
+			"goodStockThresholdInvalid": "Good stock must be greater than or equal to the low-stock threshold."
 		},
 		"enums": {
 			"tier": { "A": "A", "B": "B", "C": "C", "new": "New" },
@@ -190,6 +296,24 @@
 				"approved": "Approved",
 				"conditional": "Conditional",
 				"new": "New"
+			},
+			"supplierStatus": {
+				"active": "Active",
+				"inactive": "Inactive",
+				"blocked": "Blocked"
+			},
+			"tradeLicense": {
+				"not_uploaded": "Not uploaded",
+				"under_review": "Under review",
+				"approved": "Approved",
+				"rejected": "Rejected"
+			},
+			"driverStatus": {
+				"invited": "Invited",
+				"available": "Available",
+				"on_delivery": "On delivery",
+				"offline": "Offline",
+				"disabled": "Disabled"
 			},
 			"truckStatus": {
 				"available": "Available",

@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from '../db/db'
+import type { JsonObject, JsonValue } from '../db/types'
 
 function isJsonValue(value: unknown): value is JsonValue {
 	if (value === null) return true

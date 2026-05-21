@@ -8,7 +8,9 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import {
-	approveOrderForWarehouse,
+	type ActiveRefillSummary,
+	type CustomerOrderView,
+	fillOrderForWarehouse,
 	getCustomerOrderDetail,
 	type OrderLineItemView,
 } from '../../../lib/server/orders'
@@ -16,10 +18,12 @@ import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../../shared/EmployeeControls'
+import { formatDecimalEgp } from '../../shared/formatters'
 import { RefillPanel } from '../stock/RefillPanel'
 
 interface OrderPrepViewProps {
 	quoteId: string
+	initialOrder: CustomerOrderView | null
 	onBack: () => void
 }
 
@@ -29,23 +33,37 @@ function formatUrgency(days: number): string {
 	return `${days} days`
 }
 
-export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
+export function OrderPrepView({
+	quoteId,
+	initialOrder,
+	onBack,
+}: OrderPrepViewProps) {
 	const qc = useQueryClient()
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['customer-order-detail', quoteId],
-		queryFn: () => getCustomerOrderDetail({ data: { quoteId } }),
+		queryFn: async () =>
+			(await getCustomerOrderDetail({ data: { quoteId } })) ?? initialOrder,
+		initialData: initialOrder ?? undefined,
 		staleTime: 10_000,
 	})
 
 	const [refillSlug, setRefillSlug] = useState<string | null>(null)
+	const [fillError, setFillError] = useState<string | null>(null)
 
-	const approveMutation = useMutation({
-		mutationFn: approveOrderForWarehouse,
-		onSuccess: () => {
+	const fillMutation = useMutation({
+		mutationFn: fillOrderForWarehouse,
+		onSuccess: (result) => {
+			if (!result.success) {
+				setFillError(result.error)
+				return
+			}
 			qc.invalidateQueries({ queryKey: ['customer-orders'] })
 			qc.invalidateQueries({ queryKey: ['customer-order-detail', quoteId] })
 			qc.invalidateQueries({ queryKey: ['stock-overview'] })
 			onBack()
+		},
+		onError: () => {
+			setFillError('Order could not be reserved. Refresh and try again.')
 		},
 	})
 
@@ -57,7 +75,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 						Order prep could not load.
 					</p>
 					<p className="mt-1 text-[12px] text-[var(--color-text-subtle)]">
-						Return to orders and reopen this one before approving it.
+						Return to orders and reopen this one before filling it.
 					</p>
 					<EmployeeActionButton
 						tone="neutral"
@@ -85,8 +103,10 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 
 	const shortages = data.items.filter((item) => item.status === 'shortage')
 	const readyItems = data.items.filter((item) => item.status === 'ready')
-	const approveOrder = () =>
-		approveMutation.mutate({ data: { quoteId: data.quoteId } })
+	const fillOrder = () => {
+		setFillError(null)
+		fillMutation.mutate({ data: { quoteId: data.quoteId } })
+	}
 
 	return (
 		<div className="compendium-theme flex h-full flex-col bg-[var(--folio)] text-[var(--ink)]">
@@ -179,15 +199,20 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 				<div className="flex flex-col gap-3">
 					<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-mid)]">
 						{data.allReady
-							? 'All order lines are available. Inventory can release this order to warehouse.'
+							? 'All order lines are available. Fill this order to reserve stock and release it to warehouse.'
 							: `Refill ${shortages.length} short item${shortages.length === 1 ? '' : 's'} before warehouse release.`}
 					</p>
+					{fillError && (
+						<p className="font-[family-name:var(--font-archivo)] text-[12px] text-[var(--compendium-attention)]">
+							{fillError}
+						</p>
+					)}
 					<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
 						<EmployeeActionButton
 							tone="neutral"
 							leading={<ArrowLeft size={14} strokeWidth={2.4} />}
 							onClick={onBack}
-							disabled={approveMutation.isPending}
+							disabled={fillMutation.isPending}
 							aria-label="Back to orders"
 						>
 							Back
@@ -195,7 +220,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 						<EmployeeActionButton
 							tone="success"
 							leading={
-								approveMutation.isPending ? (
+								fillMutation.isPending ? (
 									<Loader2
 										size={13}
 										strokeWidth={2.5}
@@ -205,11 +230,11 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 									<CheckCircle2 size={14} strokeWidth={2.5} />
 								)
 							}
-							disabled={!data.allReady || approveMutation.isPending}
-							onClick={approveOrder}
+							disabled={!data.allReady || fillMutation.isPending}
+							onClick={fillOrder}
 							fullWidthOnMobile
 						>
-							Approve for warehouse
+							Fill order
 						</EmployeeActionButton>
 					</div>
 				</div>
@@ -219,6 +244,7 @@ export function OrderPrepView({ quoteId, onBack }: OrderPrepViewProps) {
 				productSlug={refillSlug}
 				onClose={() => {
 					setRefillSlug(null)
+					qc.invalidateQueries({ queryKey: ['customer-orders'] })
 					qc.invalidateQueries({ queryKey: ['customer-order-detail', quoteId] })
 				}}
 			/>
@@ -282,6 +308,8 @@ function ShortageRow({
 	onRefill: () => void
 }) {
 	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
+	const activeRefills = item.activeRefills
+	const hasActiveRefills = activeRefills.length > 0
 	return (
 		<li
 			className={`border-b border-[var(--rule-soft)] last:border-b-0 ${rowTone}`}
@@ -302,17 +330,63 @@ function ShortageRow({
 					unit={item.unit}
 					tone="attention"
 				/>
-				<EmployeeActionButton
-					size="sm"
-					leading={<PackagePlus size={13} strokeWidth={2.4} />}
-					onClick={onRefill}
-					fullWidthOnMobile
-				>
-					Refill
-				</EmployeeActionButton>
+				<div className="min-w-0 space-y-2">
+					<EmployeeActionButton
+						size="sm"
+						tone={hasActiveRefills ? 'neutral' : 'primary'}
+						leading={
+							hasActiveRefills ? (
+								<CheckCircle2 size={13} strokeWidth={2.4} />
+							) : (
+								<PackagePlus size={13} strokeWidth={2.4} />
+							)
+						}
+						onClick={onRefill}
+						fullWidthOnMobile
+					>
+						{hasActiveRefills ? 'Refill again' : 'Contact supplier'}
+					</EmployeeActionButton>
+					{hasActiveRefills && (
+						<FinanceRefillNote refills={activeRefills} unit={item.unit} />
+					)}
+				</div>
 			</div>
 		</li>
 	)
+}
+
+function FinanceRefillNote({
+	refills,
+	unit,
+}: {
+	refills: ActiveRefillSummary[]
+	unit: string
+}) {
+	const pendingQuantity = refills.reduce(
+		(total, refill) => total + refill.quantity,
+		0,
+	)
+	return (
+		<div className="max-w-[22rem] space-y-1 font-[family-name:var(--font-archivo)] text-[11px] leading-4 text-[var(--ink-mid)] md:text-end">
+			<p className="font-semibold text-[var(--ink)]">
+				{pendingQuantity.toLocaleString('en-EG')} {unit} pending
+			</p>
+			<p>Sent to finance.</p>
+			<ul className="space-y-1">
+				{refills.map((refill) => (
+					<li key={refill.id}>
+						{refill.supplierName} · {refill.quantity.toLocaleString('en-EG')}{' '}
+						{unit} · {formatDecimalEgp(refill.unitCost)} EGP/unit ·{' '}
+						{formatRefillStatus(refill.status)}
+					</li>
+				))}
+			</ul>
+		</div>
+	)
+}
+
+function formatRefillStatus(status: string): string {
+	return status.replaceAll('_', ' ')
 }
 
 function ReadyRow({ item, index }: { item: OrderLineItemView; index: number }) {

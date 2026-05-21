@@ -1,13 +1,9 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { ButtonProps as AriaButtonProps } from 'react-aria-components'
-import {
-	Button as AriaButton,
-	Dialog,
-	Heading,
-	Modal,
-	ModalOverlay,
-} from 'react-aria-components'
+import type { ButtonProps as AriaButtonProps } from 'react-aria-components/Button'
+import { Button as AriaButton } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 
 /**
  * DispatchDialog — the single shared frame for every modal in the app.

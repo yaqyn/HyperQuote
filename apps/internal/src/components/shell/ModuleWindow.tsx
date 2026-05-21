@@ -194,7 +194,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 	}, [moduleId, onClose, saveWindowState])
 
 	useEffect(() => {
-		if (!isOpen || !immersive) return
+		if (!isOpen) return
 		const handler = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
 				event.preventDefault()
@@ -203,7 +203,7 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 		}
 		document.addEventListener('keydown', handler)
 		return () => document.removeEventListener('keydown', handler)
-	}, [isOpen, immersive, handleClose])
+	}, [isOpen, handleClose])
 
 	return (
 		<GlassWindow

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
+import { useInternalRealtimeSync } from '../hooks/useInternalRealtimeSync'
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
 import { InternalAuthProvider } from '../lib/internal-auth'
 import { useInternalStore } from '../stores/internal'
@@ -19,17 +20,11 @@ import { useNotificationStore } from '../stores/notifications'
 
 const getAuthSession = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<AuthSession> => {
-		const {
-			createInternalDevAuthSession,
-			getInternalSupabaseConfig,
-			shouldUseInternalDevAuthStub,
-		} = await import('../lib/server/internal-auth-core')
-		const config = getInternalSupabaseConfig(process.env)
+		const { resolveSupabaseWorkerConfig } = await import(
+			'@hyperquote/auth/server'
+		)
+		const config = await resolveSupabaseWorkerConfig(process.env)
 		if (!config) {
-			if (shouldUseInternalDevAuthStub(process.env, import.meta.env.PROD)) {
-				return createInternalDevAuthSession()
-			}
-
 			const { redirect } = await import('@tanstack/react-router')
 			throw redirect({ to: '/login' })
 		}
@@ -169,6 +164,9 @@ function InternalLayout() {
 	// Supabase Realtime notifications
 	useRealtimeNotifications({
 		userId: auth.user.id,
+		enabled: !!import.meta.env.VITE_SUPABASE_URL,
+	})
+	useInternalRealtimeSync({
 		enabled: !!import.meta.env.VITE_SUPABASE_URL,
 	})
 

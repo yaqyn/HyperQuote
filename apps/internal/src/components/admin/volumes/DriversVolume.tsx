@@ -1,38 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import type { TruckRow } from '../../../lib/db/db'
+import type { DriverRow } from '../../../lib/db/types'
 import {
-	adminCreateTruck,
-	adminDeleteTruck,
-	adminListTrucks,
-	adminUpdateTruck,
+	adminCreateDriver,
+	adminDeleteDriver,
+	adminListDrivers,
+	adminUpdateDriver,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
-import {
-	NumberControl,
-	SelectControl,
-	StatusTag,
-	TextControl,
-} from '../AdminControls'
+import { SelectControl, StatusTag, TextControl } from '../AdminControls'
 import { EntityEditor, Field, Section } from '../EntityEditor'
 import { type ColumnDef, EntityIndex } from '../EntityIndex'
 import { RegistryMasthead } from '../RegistryMasthead'
 import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
 
-type TruckDraft = Omit<TruckRow, 'id'> & { id?: string }
+type DriverDraft = Omit<DriverRow, 'id' | 'createdAt'> & {
+	id?: string
+	createdAt?: string
+	password?: string
+}
+
+type DriverPayload = Omit<DriverDraft, 'id' | 'createdAt' | 'userId'>
 
 interface DriversVolumeProps {
 	onOpenVolumes: () => void
 }
 
-function blankTruck(): TruckDraft {
+function blankDriver(): DriverDraft {
 	return {
-		plateNumber: '',
-		driverName: '',
-		driverPhone: '',
-		capacityTons: 0,
-		bodyType: 'flatbed',
-		status: 'available',
+		userId: null,
+		fullName: '',
+		email: '',
+		phone: '',
+		password: '',
+		status: 'offline',
+		vehicleLabel: '',
 	}
 }
 
@@ -42,12 +44,12 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 	const volume = getVolume('drivers')
 
 	const {
-		data: trucks = [],
-		isError: trucksError,
-		isPending: trucksPending,
+		data: drivers = [],
+		isError: driversError,
+		isPending: driversPending,
 	} = useQuery({
 		queryKey: ['admin', 'drivers'],
-		queryFn: () => adminListTrucks(),
+		queryFn: () => adminListDrivers(),
 	})
 
 	const {
@@ -62,47 +64,61 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 		handleCancel,
 		showSavedDraft,
 	} = useVolumeEditor({
-		rows: trucks,
-		blankDraft: blankTruck,
-		rowToDraft: (row) => ({ ...row }),
+		rows: drivers,
+		blankDraft: blankDriver,
+		rowToDraft: (row) => ({ ...row, password: '' }),
 		rowId: (row) => row.id,
 		draftId: (row) => row.id,
 	})
 
 	const createMutation = useMutation({
-		mutationFn: (payload: Omit<TruckRow, 'id'>) =>
-			adminCreateTruck({ data: payload }),
+		mutationFn: (payload: DriverPayload) =>
+			adminCreateDriver({ data: payload }),
 		onSuccess: (created) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'drivers'] })
-			showSavedDraft({ ...created }, created.id)
+			showSavedDraft({ ...created, password: '' }, created.id)
 		},
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (payload: { id: string } & Partial<Omit<TruckRow, 'id'>>) =>
-			adminUpdateTruck({ data: payload }),
+		mutationFn: (payload: { id: string } & Partial<DriverPayload>) =>
+			adminUpdateDriver({ data: payload }),
 		onSuccess: (updated) => {
 			qc.invalidateQueries({ queryKey: ['admin', 'drivers'] })
-			showSavedDraft({ ...updated }, updated.id)
+			qc.invalidateQueries({ queryKey: ['admin', 'trucks'] })
+			showSavedDraft({ ...updated, password: '' }, updated.id)
 		},
 	})
 
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => adminDeleteTruck({ data: { id } }),
+		mutationFn: (payload: { id: string; reason: string }) =>
+			adminDeleteDriver({ data: payload }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['admin', 'drivers'] })
+			qc.invalidateQueries({ queryKey: ['admin', 'trucks'] })
 			handleClose()
 		},
 	})
 
+	function driverPayloadFromDraft(value: DriverDraft): DriverPayload {
+		return {
+			fullName: value.fullName,
+			email: value.email,
+			phone: value.phone,
+			password: value.password?.trim() ? value.password : undefined,
+			status: value.status,
+			vehicleLabel: value.vehicleLabel?.trim() ? value.vehicleLabel : null,
+		}
+	}
+
 	function handleSave() {
 		if (!draft) return
+		if (passwordTooShort) return
+		const payload = driverPayloadFromDraft(draft)
 		if (mode === 'create') {
-			const { id: _id, ...payload } = draft
 			createMutation.mutate(payload)
 		} else if (mode === 'edit' && draft.id) {
-			const { id, ...patch } = draft
-			updateMutation.mutate({ id, ...patch })
+			updateMutation.mutate({ id: draft.id, ...payload })
 		}
 	}
 
@@ -113,42 +129,42 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 			!window.confirm(t('actions.confirmDelete'))
 		)
 			return
-		deleteMutation.mutate(draft.id)
+		const reason =
+			typeof window === 'undefined'
+				? null
+				: window.prompt('Reason for disabling this driver')
+		if (!reason || reason.trim().length < 8) return
+		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
 	}
 
-	const bodyOptions: Array<{ value: TruckRow['bodyType']; label: string }> = [
-		{ value: 'flatbed', label: t('editor.enums.bodyType.flatbed') },
-		{ value: 'curtain-side', label: t('editor.enums.bodyType.curtain-side') },
-		{ value: 'box', label: t('editor.enums.bodyType.box') },
-		{ value: 'tipper', label: t('editor.enums.bodyType.tipper') },
+	const statusOptions: Array<{ value: DriverRow['status']; label: string }> = [
+		{ value: 'invited', label: t('editor.enums.driverStatus.invited') },
+		{ value: 'available', label: t('editor.enums.driverStatus.available') },
+		{ value: 'on_delivery', label: t('editor.enums.driverStatus.on_delivery') },
+		{ value: 'offline', label: t('editor.enums.driverStatus.offline') },
+		{ value: 'disabled', label: t('editor.enums.driverStatus.disabled') },
 	]
 
-	const statusOptions: Array<{ value: TruckRow['status']; label: string }> = [
-		{ value: 'available', label: t('editor.enums.truckStatus.available') },
-		{ value: 'loading', label: t('editor.enums.truckStatus.loading') },
-		{ value: 'dispatched', label: t('editor.enums.truckStatus.dispatched') },
-		{ value: 'maintenance', label: t('editor.enums.truckStatus.maintenance') },
-	]
-
-	const columns: ColumnDef<TruckRow>[] = [
+	const columns: ColumnDef<DriverRow>[] = [
 		{
-			key: 'plate',
-			labelKey: 'volumes.drivers.columns.plate',
-			width: '120px',
-			mono: true,
-			mobileRole: 'detail',
-			render: (r) => (
-				<span className="text-[var(--color-text)]">{r.plateNumber}</span>
-			),
-		},
-		{
-			key: 'driver',
-			labelKey: 'volumes.drivers.columns.driver',
-			width: 'minmax(140px, 1.4fr)',
+			key: 'name',
+			labelKey: 'volumes.drivers.columns.name',
+			width: 'minmax(180px, 1.5fr)',
 			mobileRole: 'primary',
 			render: (r) => (
 				<span className="break-words font-semibold text-[var(--color-text)]">
-					{r.driverName}
+					{r.fullName}
+				</span>
+			),
+		},
+		{
+			key: 'email',
+			labelKey: 'volumes.drivers.columns.email',
+			width: 'minmax(190px, 1.4fr)',
+			mobileRole: 'detail',
+			render: (r) => (
+				<span className="break-words text-[var(--color-text-muted)]">
+					{r.email ?? '—'}
 				</span>
 			),
 		},
@@ -158,47 +174,27 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 			width: 'minmax(120px, 1fr)',
 			mono: true,
 			mobileRole: 'detail',
-			render: (r) => <>{r.driverPhone}</>,
+			render: (r) => <>{r.phone}</>,
 		},
 		{
-			key: 'capacity',
-			labelKey: 'volumes.drivers.columns.capacity',
-			width: '100px',
-			mono: true,
-			align: 'end',
+			key: 'vehicle',
+			labelKey: 'volumes.drivers.columns.vehicle',
+			width: 'minmax(120px, 1fr)',
 			mobileRole: 'detail',
-			render: (r) => (
-				<span>
-					{r.capacityTons}
-					<span className="ml-1 text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-						t
-					</span>
-				</span>
-			),
-		},
-		{
-			key: 'body',
-			labelKey: 'volumes.drivers.columns.body',
-			width: '120px',
-			mobileRole: 'detail',
-			render: (r) => (
-				<span className="text-[var(--color-text-muted)]">
-					{t(`editor.enums.bodyType.${r.bodyType}`)}
-				</span>
-			),
+			render: (r) => <>{r.vehicleLabel ?? '—'}</>,
 		},
 		{
 			key: 'status',
 			labelKey: 'volumes.drivers.columns.status',
-			width: '140px',
+			width: '130px',
 			mobileRole: 'detail',
 			render: (r) => (
 				<StatusTag
-					label={t(`editor.enums.truckStatus.${r.status}`)}
+					label={t(`editor.enums.driverStatus.${r.status}`)}
 					tone={
 						r.status === 'available'
 							? 'primary'
-							: r.status === 'maintenance'
+							: r.status === 'disabled'
 								? 'muted'
 								: 'neutral'
 					}
@@ -207,30 +203,40 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 		},
 	]
 
-	const filter = (r: TruckRow, q: string) =>
-		r.plateNumber.toLowerCase().includes(q) ||
-		r.driverName.toLowerCase().includes(q) ||
-		r.driverPhone.includes(q) ||
+	const filter = (r: DriverRow, q: string) =>
+		r.fullName.toLowerCase().includes(q) ||
+		(r.email?.toLowerCase().includes(q) ?? false) ||
+		r.phone.includes(q) ||
+		(r.vehicleLabel?.toLowerCase().includes(q) ?? false) ||
 		r.id.toLowerCase().includes(q)
+	const passwordTooShort =
+		Boolean(draft?.password?.trim()) &&
+		(draft?.password?.trim().length ?? 0) < 6
+	const mutationError =
+		createMutation.error instanceof Error
+			? createMutation.error.message
+			: updateMutation.error instanceof Error
+				? updateMutation.error.message
+				: null
 
 	return (
 		<>
 			<RegistryMasthead
 				volume={volume}
-				entryCount={trucks.length}
+				entryCount={drivers.length}
 				onOpenVolumes={onOpenVolumes}
 				onNewEntry={handleNew}
 			/>
 			<EntityIndex
 				volume="drivers"
-				rows={trucks}
+				rows={drivers}
 				columns={columns}
 				rowKey={(r) => r.id}
 				onRowSelect={handleRowSelect}
 				onNewEntry={handleNew}
 				filter={filter}
-				isLoading={trucksPending}
-				isError={trucksError}
+				isLoading={driversPending}
+				isError={driversError}
 			/>
 
 			<EntityEditor
@@ -249,43 +255,68 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 							onSave={handleSave}
 							onCancel={handleCancel}
 							onDelete={handleDelete}
+							saveDisabled={passwordTooShort}
 						/>
 					) : null
 				}
 			>
 				{draft && (
 					<div className="space-y-6">
-						<Section title={t('editor.section.vehicle')} />
-						<Field label={t('editor.fields.plateNumber')} required>
+						<Section title={t('editor.section.identity')} />
+						<Field label={t('editor.fields.driverName')} required>
 							<TextControl
-								value={draft.plateNumber}
-								onChange={(v) => setDraft({ ...draft, plateNumber: v })}
+								value={draft.fullName}
+								onChange={(v) => setDraft({ ...draft, fullName: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.plateNumber')}
+								ariaLabel={t('editor.fields.driverName')}
 							/>
 						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.bodyType')}>
-								<SelectControl
-									value={draft.bodyType}
-									onChange={(v) => setDraft({ ...draft, bodyType: v })}
-									options={bodyOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.bodyType')}
+						<Field label={t('editor.fields.driverEmail')} required>
+							<TextControl
+								value={draft.email ?? ''}
+								onChange={(v) => setDraft({ ...draft, email: v || null })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.driverEmail')}
+								type="email"
+							/>
+						</Field>
+						<Field label={t('editor.fields.driverPhone')} required>
+							<TextControl
+								value={draft.phone}
+								onChange={(v) => setDraft({ ...draft, phone: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.driverPhone')}
+								type="tel"
+							/>
+						</Field>
+						{!readOnly && (
+							<Field
+								label={t('editor.fields.driverPassword')}
+								required={mode === 'create'}
+							>
+								<TextControl
+									value={draft.password ?? ''}
+									onChange={(v) => setDraft({ ...draft, password: v })}
+									readOnly={false}
+									ariaLabel={t('editor.fields.driverPassword')}
+									type="password"
 								/>
+								{passwordTooShort && (
+									<p className="mt-1.5 text-xs text-[#B91C1C]" role="alert">
+										Driver passwords must be at least 6 characters.
+									</p>
+								)}
 							</Field>
-							<Field label={t('editor.fields.capacityTons')}>
-								<NumberControl
-									value={draft.capacityTons}
-									onChange={(v) => setDraft({ ...draft, capacityTons: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.capacityTons')}
-									min={0}
-									step={0.5}
-									suffix="t"
-								/>
-							</Field>
-						</div>
+						)}
+
+						{mutationError && (
+							<p
+								className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
+								role="alert"
+							>
+								{mutationError}
+							</p>
+						)}
 
 						<Section title={t('editor.section.operational')} />
 						<Field label={t('editor.fields.status')}>
@@ -297,23 +328,14 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 								ariaLabel={t('editor.fields.status')}
 							/>
 						</Field>
-
-						<Section title={t('editor.section.contact')} />
-						<Field label={t('editor.fields.driverName')} required>
+						<Field label={t('editor.fields.vehicleLabel')}>
 							<TextControl
-								value={draft.driverName}
-								onChange={(v) => setDraft({ ...draft, driverName: v })}
+								value={draft.vehicleLabel ?? ''}
+								onChange={(v) =>
+									setDraft({ ...draft, vehicleLabel: v || null })
+								}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.driverName')}
-							/>
-						</Field>
-						<Field label={t('editor.fields.driverPhone')} required>
-							<TextControl
-								value={draft.driverPhone}
-								onChange={(v) => setDraft({ ...draft, driverPhone: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.driverPhone')}
-								type="tel"
+								ariaLabel={t('editor.fields.vehicleLabel')}
 							/>
 						</Field>
 					</div>

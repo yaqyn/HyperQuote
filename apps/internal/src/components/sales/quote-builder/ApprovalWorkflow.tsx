@@ -1,6 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { getSalesApprovers } from '../../../lib/server/sales-quotes'
+import {
+	getSalesApprovers,
+	validateSalesApproverCredential,
+} from '../../../lib/server/sales-quotes'
 import type { MarginThresholds } from '../../../types/sales'
 
 interface ApprovalWorkflowProps {
@@ -241,6 +244,7 @@ export function ApprovalWorkflow({
 	const [securityMethod, setSecurityMethod] =
 		useState<SecurityMethod>('password')
 	const [credentialToken, setCredentialToken] = useState('')
+	const [approvalError, setApprovalError] = useState<string | null>(null)
 
 	const { chain, summaryLabel } = determineApprovalChain(
 		marginPercent,
@@ -258,11 +262,31 @@ export function ApprovalWorkflow({
 	const approvers = approversData?.approvers ?? []
 	const selectedApprover = approvers.find((a) => a.id === selectedApproverId)
 	const showApproverScrollCue = approvers.length > 4
-	const hasCredential =
-		securityMethod === 'password'
-			? credentialToken.trim().length > 0
-			: credentialToken === 'qr-placeholder'
-	const canApprove = !!selectedApprover && hasCredential
+	const credentialReady = credentialToken.trim().length > 0
+	const approveMutation = useMutation({
+		mutationFn: () => {
+			if (!selectedApprover) throw new Error('Select an approving manager')
+			return validateSalesApproverCredential({
+				data: {
+					approverId: selectedApprover.id,
+					securityMethod,
+					securityToken: credentialToken.trim(),
+				},
+			})
+		},
+		onSuccess: (result) => {
+			if (!result.success) {
+				setApprovalError(result.error)
+				return
+			}
+			setCredentialToken('')
+			setApprovalError(null)
+			onStatusChange?.('approved')
+		},
+		onError: (error: Error) => setApprovalError(error.message),
+	})
+	const canApprove =
+		!!selectedApprover && credentialReady && !approveMutation.isPending
 
 	// Notify parent of send-blocked state
 	useEffect(() => {
@@ -344,7 +368,10 @@ export function ApprovalWorkflow({
 												<button
 													key={approver.id}
 													type="button"
-													onClick={() => setSelectedApproverId(approver.id)}
+													onClick={() => {
+														setSelectedApproverId(approver.id)
+														setApprovalError(null)
+													}}
 													className={`min-w-0 rounded-md border px-3 py-3 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 														selected
 															? 'border-[var(--color-primary)] bg-[var(--color-primary)]/[0.07]'
@@ -388,6 +415,7 @@ export function ApprovalWorkflow({
 											onClick={() => {
 												setSecurityMethod(method)
 												setCredentialToken('')
+												setApprovalError(null)
 											}}
 											className={`h-9 rounded-sm px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 												securityMethod === method
@@ -408,38 +436,49 @@ export function ApprovalWorkflow({
 										<input
 											type="password"
 											value={credentialToken}
-											onChange={(event) =>
+											onChange={(event) => {
 												setCredentialToken(event.target.value)
-											}
+												setApprovalError(null)
+											}}
 											placeholder="Type password to sign"
 											autoComplete="off"
 											className="mt-2 h-11 w-full min-w-0 border-0 border-b border-[var(--color-border)] bg-transparent px-0 font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus-visible:border-[var(--color-primary)]"
 										/>
 									</label>
 								) : (
-									<button
-										type="button"
-										onClick={() => setCredentialToken('qr-placeholder')}
-										className={`mt-3 flex min-h-20 w-full items-center justify-center rounded-md border border-dashed px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
-											credentialToken === 'qr-placeholder'
-												? 'border-emerald-500/50 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-400'
-												: 'border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/[0.05]'
-										}`}
-									>
-										{credentialToken === 'qr-placeholder'
-											? 'QR signature captured'
-											: 'Scan manager QR'}
-									</button>
+									<label className="mt-3 block">
+										<span className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase text-[var(--color-text-subtle)]">
+											Manager badge token
+										</span>
+										<input
+											type="text"
+											value={credentialToken}
+											onChange={(event) => {
+												setCredentialToken(event.target.value)
+												setApprovalError(null)
+											}}
+											placeholder="Scan configured badge"
+											autoComplete="off"
+											className="mt-2 h-11 w-full min-w-0 border-0 border-b border-[var(--color-border)] bg-transparent px-0 font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus-visible:border-[var(--color-primary)]"
+										/>
+									</label>
+								)}
+								{approvalError && (
+									<p className="mt-3 font-[family-name:var(--font-archivo)] text-[11px] text-red-600 dark:text-red-400">
+										{approvalError}
+									</p>
 								)}
 							</div>
 
 							<button
 								type="button"
 								disabled={!canApprove}
-								onClick={() => onStatusChange?.('approved')}
+								onClick={() => approveMutation.mutate()}
 								className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-[var(--color-text)] px-4 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase text-[var(--color-surface)] outline-none transition-colors hover:bg-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:bg-transparent disabled:text-[var(--color-text-subtle)]"
 							>
-								Sign manager approval
+								{approveMutation.isPending
+									? 'Checking manager'
+									: 'Sign manager approval'}
 							</button>
 						</div>
 					)}

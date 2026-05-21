@@ -1,13 +1,14 @@
 import { Search, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 
 interface SearchMenuProps {
 	isOpen: boolean
 	onClose: () => void
 	placeholder?: string
 	onEnter?: (search: string) => void
+	onSearchChange?: (search: string) => void
 	/** Optional side rail rendered to the left of the results. Categories,
 	 *  filters, anything the caller needs for a composed browser. */
 	sidebar?: ReactNode
@@ -36,6 +37,7 @@ export function SearchMenu({
 	onClose,
 	placeholder = 'Search…',
 	onEnter,
+	onSearchChange,
 	sidebar,
 	searchTools,
 	resultStatus,
@@ -52,11 +54,12 @@ export function SearchMenu({
 		if (isOpen) {
 			const t = setTimeout(() => inputRef.current?.focus(), 100)
 			setSearch('')
+			onSearchChange?.('')
 			setActiveIndex(0)
 			shouldScrollActiveRef.current = false
 			return () => clearTimeout(t)
 		}
-	}, [isOpen])
+	}, [isOpen, onSearchChange])
 
 	const getItems = () =>
 		Array.from(
@@ -115,7 +118,9 @@ export function SearchMenu({
 								type="text"
 								value={search}
 								onChange={(e) => {
-									setSearch(e.target.value)
+									const nextSearch = e.target.value
+									setSearch(nextSearch)
+									onSearchChange?.(nextSearch)
 									setActiveIndex(0)
 									shouldScrollActiveRef.current = false
 								}}

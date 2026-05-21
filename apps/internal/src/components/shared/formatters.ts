@@ -1,12 +1,11 @@
-export function formatRoundedEgp(value: number): string {
-	return Math.round(value).toLocaleString('en-EG')
-}
-
 export function formatDecimalEgp(
 	value: number,
 	minimumFractionDigits = 2,
 ): string {
-	return value.toLocaleString('en-EG', { minimumFractionDigits })
+	return value.toLocaleString('en-EG', {
+		maximumFractionDigits: minimumFractionDigits,
+		minimumFractionDigits,
+	})
 }
 
 export function formatRelativeHoursAgo(

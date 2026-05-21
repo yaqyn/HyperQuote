@@ -35,23 +35,5 @@ export function InternalShortcuts({
 		})
 	}
 
-	// Escape: close the whole module window. We no longer try to close the sales quote builder
-	// as a first step — sales auto-loads the head of the pipeline into
-	// `editingRfqId` the moment it's cleared, so closing the quote
-	// builder on Escape just re-opened it on the next render, trapping
-	// the user in the panel. The quote builder has its own internal
-	// dismissal gestures; Escape on the shell walks straight out.
-	useShortcut(
-		'Escape',
-		() => {
-			if (activeModule) {
-				onCloseActiveModule()
-			}
-		},
-		{
-			enabled: scope !== 'input' && activeModule !== null,
-		},
-	)
-
 	return null
 }

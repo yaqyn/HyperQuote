@@ -1,12 +1,22 @@
 import { create } from 'zustand'
 
+interface SalesNewQuoteCustomer {
+	id: string
+	name: string
+	address?: string
+	companyName?: string
+	contactName?: string
+	email?: string | null
+	phone?: string
+}
+
 interface SalesStore {
 	editingRfqId: string | null
-	newQuoteCustomer: { id: string; name: string } | null
+	newQuoteCustomer: SalesNewQuoteCustomer | null
 	newQuoteRequestId: number
 	statusDialogRequestId: number
 	setEditingRfqId: (id: string | null) => void
-	setNewQuoteCustomer: (c: { id: string; name: string } | null) => void
+	setNewQuoteCustomer: (c: SalesNewQuoteCustomer | null) => void
 	requestNewQuote: () => void
 	requestStatusDialog: () => void
 	// True when the quote builder is showing (either editing an RFQ or creating a new quote).

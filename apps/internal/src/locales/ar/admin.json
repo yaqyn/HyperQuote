@@ -32,7 +32,21 @@
 				"category": "الفئة",
 				"unit": "الوحدة",
 				"sku": "رمز المنتج",
-				"price": "نطاق السعر"
+				"price": "نطاق السعر",
+				"cost": "التكلفة",
+				"visibility": "الظهور"
+			}
+		},
+		"categories": {
+			"title": "الفئات",
+			"subtitle": "عائلات الكتالوج وتصنيف السوق",
+			"columns": {
+				"thumb": " ",
+				"name": "الاسم",
+				"slug": "المعرّف النصي",
+				"parent": "الأصل",
+				"description": "الوصف",
+				"status": "الحالة"
 			}
 		},
 		"employees": {
@@ -41,17 +55,29 @@
 			"columns": {
 				"id": "المعرّف",
 				"name": "الاسم",
-				"nameAr": "الاسم بالعربية",
+				"email": "البريد الإلكتروني",
+				"roles": "الأدوار",
+				"status": "الحالة",
 				"phone": "الهاتف"
 			}
 		},
 		"drivers": {
 			"title": "السائقون",
-			"subtitle": "الشاحنات على الرصيف، والسائقون خلف المقود",
+			"subtitle": "أشخاص السائقين وصلاحية التطبيق وحالة التشغيل",
+			"columns": {
+				"name": "الاسم",
+				"email": "البريد الإلكتروني",
+				"phone": "الهاتف",
+				"vehicle": "المركبة",
+				"status": "الحالة"
+			}
+		},
+		"trucks": {
+			"title": "الشاحنات",
+			"subtitle": "أصول الأسطول والسعة ونوع الجسم وإسناد السائق",
 			"columns": {
 				"plate": "اللوحة",
 				"driver": "السائق",
-				"phone": "الهاتف",
 				"capacity": "السعة",
 				"body": "نوع الجسم",
 				"status": "الحالة"
@@ -63,26 +89,60 @@
 			"columns": {
 				"name": "الاسم",
 				"tier": "المستوى",
+				"status": "الحالة",
 				"paymentTerms": "شروط الدفع",
 				"rating": "التقييم",
-				"items": "الأصناف",
+				"specialties": "التخصص",
 				"phone": "الهاتف"
+			}
+		},
+		"pricingRules": {
+			"title": "قواعد التسعير",
+			"subtitle": "ضوابط الهامش المستخدمة في بناء العروض",
+			"columns": {
+				"scope": "النطاق",
+				"category": "الفئة",
+				"product": "المنتج",
+				"bonus": "المكافأة",
+				"target": "المستهدف",
+				"floor": "الأدنى",
+				"absolute": "الحد الأدنى",
+				"status": "الحالة"
 			}
 		}
 	},
-	"items": {
-		"title": "الأصناف المُباعة",
-		"empty": "لا توجد أصناف بعد.",
-		"add": "إضافة صنف",
-		"remove": "حذف الصنف",
-		"confirmRemove": "هل تريد حذف هذا الصنف من المورد؟",
-		"togglePrimary": "تبديل المورد الأساسي",
-		"saveFirst": "احفظ المورد أولاً لإضافة الأصناف",
+	"customerSubrecords": {
+		"saveFirst": "احفظ العميل أولاً لإدارة العناوين والمشاريع",
+		"addresses": "العناوين",
+		"projects": "المشاريع",
+		"addAddress": "إضافة عنوان",
+		"addProject": "إضافة مشروع",
+		"addressError": "تعذر تحميل عناوين العميل",
+		"projectError": "تعذر تحميل مشاريع العميل",
+		"noAddresses": "لا توجد عناوين بعد.",
+		"noProjects": "لا توجد مشاريع بعد.",
+		"loading": "جار تحميل السجلات",
+		"default": "افتراضي",
+		"archived": "مؤرشف",
+		"archive": "أرشفة"
+	},
+	"specialties": {
+		"title": "التخصص",
+		"loading": "جار تحميل تخصصات المورد",
+		"error": "تعذر تحميل تخصصات المورد",
+		"empty": "لا توجد تخصصات بعد.",
+		"add": "إضافة تخصص",
+		"remove": "حذف التخصص",
+		"confirmRemove": "هل تريد حذف هذا التخصص من المورد؟",
+		"saveFirst": "احفظ المورد أولاً لإضافة التخصصات",
+		"catalogLoading": "جار تحميل الفئات والمنتجات",
+		"catalogError": "تعذر تحميل الفئات أو المنتجات",
+		"noCategories": "لا توجد فئات فعالة بعد.",
+		"duplicate": "هذا التخصص موجود بالفعل.",
+		"allProducts": "الكل",
 		"columns": {
-			"product": "المنتج",
-			"cost": "التكلفة",
-			"lead": "المهلة",
-			"minQty": "أدنى كمية"
+			"category": "الفئة",
+			"product": "المنتج"
 		}
 	},
 	"search": {
@@ -94,6 +154,8 @@
 		"save": "حفظ",
 		"cancel": "إلغاء",
 		"delete": "حذف",
+		"export": "تصدير",
+		"exporting": "جار التصدير…",
 		"confirmDelete": "حذف هذا القيد؟",
 		"close": "إغلاق"
 	},
@@ -112,8 +174,11 @@
 			"assignment": "الإسناد",
 			"vehicle": "المركبة",
 			"taxonomy": "التصنيف",
+			"scope": "النطاق",
 			"specifications": "المواصفات",
-			"badges": "الشارات"
+			"stock": "حدود المخزون",
+			"badges": "الشارات",
+			"customerRecords": "سجلات العميل"
 		},
 		"fields": {
 			"companyName": "اسم الشركة",
@@ -121,9 +186,23 @@
 			"status": "الحالة",
 			"contactName": "الشخص المسؤول",
 			"phone": "الهاتف",
+			"password": "كلمة المرور",
 			"email": "البريد الإلكتروني",
 			"address": "العنوان",
+			"profilePhotoUrl": "رابط صورة الملف",
+			"tradeLicenseStatus": "الرخصة التجارية",
+			"createdByEmployee": "أُنشئ بواسطة",
+			"addressLabel": "اسم العنوان",
+			"street": "الشارع",
+			"area": "المنطقة",
 			"city": "المدينة",
+			"governorate": "المحافظة",
+			"landmark": "علامة مميزة",
+			"addressPhone": "هاتف العنوان",
+			"postalCode": "الرمز البريدي",
+			"latitude": "خط العرض",
+			"longitude": "خط الطول",
+			"isDefaultAddress": "العنوان الافتراضي",
 			"creditLimit": "حد الائتمان",
 			"currentExposure": "الانكشاف الحالي",
 			"orderCount": "عدد الطلبات",
@@ -135,7 +214,11 @@
 			"nameAr": "الاسم (عربي)",
 			"plateNumber": "رقم اللوحة",
 			"driverName": "اسم السائق",
+			"driverEmail": "بريد السائق",
+			"driverPassword": "كلمة مرور السائق",
 			"driverPhone": "هاتف السائق",
+			"vehicleLabel": "وصف المركبة",
+			"assignedDriver": "السائق المسند",
 			"capacityTons": "السعة (طن)",
 			"bodyType": "نوع الجسم",
 			"supplierName": "اسم المورد",
@@ -144,10 +227,13 @@
 			"customBadges": "شارات مخصصة",
 			"category": "الفئة",
 			"subcategory": "الفئة الفرعية",
+			"subcategoryAr": "الفئة الفرعية (عربي)",
 			"sku": "رمز المنتج",
 			"slug": "الرابط المختصر",
 			"unitOfMeasure": "وحدة القياس",
+			"unitOfMeasureAr": "وحدة القياس (عربي)",
 			"weightKg": "الوزن (كجم)",
+			"cost": "التكلفة",
 			"priceRangeMin": "أدنى سعر",
 			"priceRangeMax": "أعلى سعر",
 			"priceTier": "مستوى السعر",
@@ -158,7 +244,31 @@
 			"descriptionAr": "الوصف (عربي)",
 			"tags": "الوسوم",
 			"isStockable": "قابل للتخزين",
-			"pictureUrl": "رابط الصورة"
+			"pictureUrl": "رابط الصورة",
+			"imageUrls": "روابط الصور",
+			"specificationsJson": "المواصفات JSON",
+			"specificationsJsonAr": "المواصفات JSON (عربي)",
+			"lowStockThreshold": "منخفض أقل من",
+			"goodStockThreshold": "جيد من",
+			"roles": "الأدوار",
+			"isCeo": "صلاحية بحث المدير التنفيذي",
+			"parentId": "الفئة الأصل",
+			"active": "نشط",
+			"notes": "ملاحظات",
+			"projectName": "اسم المشروع",
+			"productCategory": "فئة المنتج",
+			"pricingCategory": "فئة التسعير",
+			"pricingProduct": "منتج التسعير",
+			"bonusMargin": "هامش المكافأة",
+			"targetMargin": "الهامش المستهدف",
+			"floorMargin": "أدنى هامش",
+			"absoluteMinMargin": "الحد الأدنى المطلق للهامش"
+		},
+		"values": {
+			"visible": "ظاهر",
+			"hidden": "مخفي",
+			"categoryRequired": "أضف فئة أولًا",
+			"goodStockThresholdInvalid": "حد الجيد يجب أن يكون أكبر من أو مساويًا لحد المخزون المنخفض."
 		},
 		"enums": {
 			"tier": { "A": "أ", "B": "ب", "C": "ج", "new": "جديد" },
@@ -179,6 +289,24 @@
 				"approved": "معتمد",
 				"conditional": "مشروط",
 				"new": "جديد"
+			},
+			"supplierStatus": {
+				"active": "نشط",
+				"inactive": "غير نشط",
+				"blocked": "محظور"
+			},
+			"tradeLicense": {
+				"not_uploaded": "لم تُرفع",
+				"under_review": "قيد المراجعة",
+				"approved": "معتمدة",
+				"rejected": "مرفوضة"
+			},
+			"driverStatus": {
+				"invited": "مدعو",
+				"available": "متاح",
+				"on_delivery": "في توصيل",
+				"offline": "غير متصل",
+				"disabled": "معطل"
 			},
 			"truckStatus": {
 				"available": "متاح",

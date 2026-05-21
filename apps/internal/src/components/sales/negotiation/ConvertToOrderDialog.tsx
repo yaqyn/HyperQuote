@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Checkbox } from 'react-aria-components'
+import { Checkbox } from 'react-aria-components/Checkbox'
 import { useTranslation } from 'react-i18next'
 import { convertQuoteToOrder } from '../../../lib/server/sales-pipeline'
 import {

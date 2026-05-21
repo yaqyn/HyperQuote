@@ -1,5 +1,7 @@
-import { resolveSupabaseBrowserConfig } from '@hyperquote/auth'
-import { createClient } from '@supabase/supabase-js'
+import {
+	createSupabaseBrowserClient,
+	resolveSupabaseBrowserConfig,
+} from '@hyperquote/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useNotificationStore } from '../stores/notifications'
@@ -25,7 +27,11 @@ export function useRealtimeNotifications({
 		const config = resolveSupabaseBrowserConfig(import.meta.env)
 		if (!enabled || !config) return
 
-		const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey)
+		const supabase = createSupabaseBrowserClient(
+			config.supabaseUrl,
+			config.supabaseAnonKey,
+			config.cookieName,
+		)
 
 		const channel = supabase
 			.channel(`notifications:${userId}`)

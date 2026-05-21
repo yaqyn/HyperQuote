@@ -1,14 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import {
-	Button,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { declineRFQ } from '../../../lib/server/sales-rfq'
 import {
 	DispatchAction,
@@ -100,6 +96,7 @@ export function DeclineRFQDialog({
 								Reason <span className="text-[#B3261E]">required</span>
 							</Label>
 							<Select
+								aria-label="Decline reason"
 								selectedKey={reason}
 								onSelectionChange={(k) => setReason(k as DeclineReason)}
 								className="w-full mt-1.5"
@@ -120,7 +117,10 @@ export function DeclineRFQDialog({
 									aria-label="Decline reason"
 									className="w-[calc(100vw-32px)] max-w-[var(--trigger-width)] border border-black/80 bg-[var(--color-surface)] shadow-lg dark:border-white/85 lg:w-[var(--trigger-width)]"
 								>
-									<ListBox className="p-1 outline-none">
+									<ListBox
+										aria-label="Decline reasons"
+										className="p-1 outline-none"
+									>
 										{DECLINE_REASONS.map((r) => (
 											<ListBoxItem
 												key={r.value}
@@ -167,6 +167,13 @@ export function DeclineRFQDialog({
 							</p>
 						)}
 					</div>
+				)}
+				{mutation.isError && (
+					<p className="mt-4 rounded-md border border-[#B3261E]/30 bg-[#B3261E]/10 px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-[#B3261E]">
+						{mutation.error instanceof Error
+							? mutation.error.message
+							: 'Decline failed.'}
+					</p>
 				)}
 			</DispatchBody>
 
