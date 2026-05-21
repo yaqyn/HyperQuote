@@ -37,6 +37,7 @@ const ACCOUNTS = {
 
 const SUMMARY_VIEWS = [
 	'ceo_order_summary',
+	'ceo_quote_request_summary',
 	'ceo_customer_summary',
 	'ceo_finance_summary',
 	'ceo_inventory_summary',
@@ -45,7 +46,15 @@ const SUMMARY_VIEWS = [
 	'ceo_driver_summary',
 	'ceo_support_summary',
 	'ceo_supplier_summary',
+	'ceo_employee_summary',
 	'ceo_activity_summary',
+] as const
+
+const SEARCH_VTABLES = [
+	'ceo_search_order_vtable',
+	'ceo_search_quote_request_vtable',
+	'ceo_search_warehouse_vtable',
+	'ceo_search_receiving_vtable',
 ] as const
 
 test('CEO Search reads summary views, audits queries, links to source panels, and stays read-only', async ({
@@ -73,6 +82,17 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 			.select('*', { count: 'exact', head: true })
 		expect(error, `${view} CEO read`).toBeNull()
 		expect(count ?? 0, `${view} should have final-flow data`).toBeGreaterThan(0)
+	}
+
+	for (const view of SEARCH_VTABLES) {
+		const { count, error } = await ceoClient
+			.from(view)
+			.select('*', { count: 'exact', head: true })
+		expect(error, `${view} CEO read`).toBeNull()
+		expect(
+			count ?? 0,
+			`${view} should have searchable business rows`,
+		).toBeGreaterThan(0)
 	}
 
 	const salesSearchRead = await salesClient
@@ -155,7 +175,8 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 
 	await page.getByRole('button', { name: /Sales/i }).first().click()
 	await expect(page.locator('body')).toContainText('Orders')
-	await expect(page.locator('body')).toContainText('Customers')
+	await expect(page.locator('body')).toContainText('Submitted orders')
+	await expect(page.locator('body')).toContainText('Accepted orders')
 	await page.getByRole('button', { name: /^Back$/i }).click()
 
 	const queryStartedAt = Date.now()
@@ -167,7 +188,7 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 	await page
 		.locator('button')
 		.filter({ hasText: 'Local Cairo Contractors' })
-		.filter({ hasText: 'Type customer' })
+		.filter({ hasText: 'Customers' })
 		.first()
 		.click()
 	await expect(

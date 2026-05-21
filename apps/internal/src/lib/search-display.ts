@@ -87,6 +87,7 @@ const sourceLabels: Record<string, string> = {
 	customer_order: 'Customer order',
 	customer_payment: 'Customer receipt',
 	quote_request: 'Quote request',
+	receiving_task: 'Warehouse receiving',
 	supplier_payment: 'Supplier payment',
 	ticket: 'Support ticket',
 }
@@ -286,8 +287,12 @@ function humanLabel(key: string): string {
 		payment_terms: 'Payment terms',
 		phone: 'Phone',
 		plate_number: 'Truck',
+		product_name: 'Product',
+		quantity: 'Quantity',
 		rating: 'Rating',
+		receiving_status: 'Receiving status',
 		rejection_reason: 'Rejection reason',
+		refill_status: 'Refill status',
 		request_number: 'Request',
 		requester: 'Requester',
 		reserved_quantity: 'Reserved',
@@ -444,6 +449,17 @@ export function buildSearchPreviewFields(
 				previewField('Updated', formatDateTime(metadata.updated_at)),
 			)
 		case 'warehouse':
+			if (stringValue(metadata, 'source') === 'receiving_task') {
+				return fields(
+					previewField('Product', stringValue(metadata, 'product_name')),
+					previewField('Supplier', stringValue(metadata, 'supplier_name')),
+					previewField('Stage', stage(row)),
+					previewField(
+						'Quantity',
+						formatNumber(numberValue(metadata, 'quantity')),
+					),
+				)
+			}
 			return fields(
 				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Stage', stage(row)),
@@ -613,6 +629,32 @@ export function buildSearchDetailFields(
 				detailField('Last stock update', formatDateTime(metadata.updated_at)),
 			)
 		case 'warehouse':
+			if (stringValue(metadata, 'source') === 'receiving_task') {
+				return details(
+					detailField('Receiving task', row.title),
+					detailField('Product', stringValue(metadata, 'product_name')),
+					detailField('Supplier', stringValue(metadata, 'supplier_name')),
+					detailField('Stage', stage(row)),
+					detailField(
+						'Receiving status',
+						metadataStatus(row, 'receiving_status'),
+					),
+					detailField('Advisor', stringValue(metadata, 'advisor_name')),
+					detailField(
+						'Quantity',
+						formatNumber(numberValue(metadata, 'quantity')),
+					),
+					detailField(
+						'Unit cost',
+						formatMoney(numberValue(metadata, 'unit_cost')),
+					),
+					detailField(
+						'Rejection reason',
+						stringValue(metadata, 'rejection_reason'),
+					),
+					detailField('Last update', formatDateTime(metadata.updated_at)),
+				)
+			}
 			return details(
 				detailField('Order', row.title),
 				detailField('Customer', stringValue(metadata, 'company_name')),
@@ -719,6 +761,15 @@ export function buildSearchSummaryNote(
 				`${formatNumber(numberValue(metadata, 'minimum_quantity')) ?? '0'} minimum`,
 			].join(' - ')
 		case 'warehouse':
+			if (stringValue(metadata, 'source') === 'receiving_task') {
+				return [
+					stage(row),
+					stringValue(metadata, 'product_name'),
+					stringValue(metadata, 'supplier_name'),
+				]
+					.filter(Boolean)
+					.join(' - ')
+			}
 			return [stage(row), stringValue(metadata, 'company_name')]
 				.filter(Boolean)
 				.join(' - ')
@@ -933,7 +984,13 @@ function isWarehouseLoading(row: SearchDisplayIndexRow): boolean {
 }
 
 function isWarehouseReceiving(row: SearchDisplayIndexRow): boolean {
-	return row.entity_type === 'warehouse' && rowStatusKey(row) === 'receiving'
+	if (row.entity_type !== 'warehouse') return false
+	if (
+		stringValue(metadataObject(row.metadata), 'source') === 'receiving_task'
+	) {
+		return !isWarehouseRejected(row)
+	}
+	return rowStatusKey(row) === 'receiving'
 }
 
 function isPaidFinanceRow(row: SearchDisplayIndexRow): boolean {

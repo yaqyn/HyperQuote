@@ -41,6 +41,7 @@ interface SearchResultGroup {
 	tableId: SearchTableId
 	label: string
 	accent: string
+	rowCount: number
 	rows: SearchResultRow[]
 }
 
@@ -52,6 +53,8 @@ export interface SearchTableSummary {
 }
 
 export interface SearchTableView extends SearchTableSummary {
+	loadedRowCount: number
+	rowLimit: number
 	rows: SearchRow[]
 }
 

@@ -83,7 +83,9 @@ export function SearchModule() {
 	const reduceMotion = useReducedMotion()
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
 	const [query, setQuery] = useState('')
+	const trimmedQuery = query.trim()
 	const debouncedQuery = useDebouncedValue(query, 120)
+	const trimmedDebouncedQuery = debouncedQuery.trim()
 	const [activeTableId, setActiveTableId] = useState<string | null>(null)
 	const [activeSummaryId, setActiveSummaryId] =
 		useState<SearchSummaryModuleId | null>(null)
@@ -94,8 +96,9 @@ export function SearchModule() {
 		boolean | null
 	>(null)
 	const searchQuery = useQuery({
-		queryKey: ['internal-search', debouncedQuery],
-		queryFn: () => searchInternalDb({ data: { query: debouncedQuery } }),
+		queryKey: ['internal-search', trimmedDebouncedQuery],
+		queryFn: () => searchInternalDb({ data: { query: trimmedDebouncedQuery } }),
+		enabled: trimmedDebouncedQuery.length > 0,
 		placeholderData: keepPreviousData,
 		staleTime: 5_000,
 	})
@@ -131,7 +134,6 @@ export function SearchModule() {
 		return () => window.clearTimeout(id)
 	}, [])
 
-	const trimmedQuery = query.trim()
 	const hasContent =
 		trimmedQuery.length > 0 ||
 		activeTableId !== null ||
@@ -413,7 +415,7 @@ function SearchBox({
 						query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
 					}`}
 					style={{
-						caretColor: 'transparent',
+						caretColor: 'rgba(255,255,255,0.82)',
 						letterSpacing: '0',
 						lineHeight: 1,
 					}}
@@ -679,7 +681,11 @@ function SearchResults({
 					<section key={group.tableId}>
 						<GroupLabel>
 							{group.label}{' '}
-							<span className="text-white/25">{group.rows.length}</span>
+							<span className="text-white/25">
+								{group.rowCount > group.rows.length
+									? `${group.rows.length} of ${group.rowCount}`
+									: group.rowCount}
+							</span>
 						</GroupLabel>
 						<div className="mt-3 flex flex-col gap-1.5">
 							{group.rows.map((row) => (
@@ -718,6 +724,10 @@ function TableView({
 	if (isLoading) return <StatusLine>Loading table</StatusLine>
 	if (isError || !table)
 		return <StatusLine tone="danger">Table did not load</StatusLine>
+	const countLabel =
+		table.rowCount > table.loadedRowCount
+			? `Showing latest ${table.loadedRowCount.toLocaleString('en-EG')} of ${table.rowCount.toLocaleString('en-EG')}`
+			: `${table.rowCount.toLocaleString('en-EG')} rows`
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
@@ -735,7 +745,7 @@ function TableView({
 						{table.label}
 					</p>
 					<p className="mt-0.5 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/32">
-						{table.rowCount} rows
+						{countLabel}
 					</p>
 				</div>
 			</div>

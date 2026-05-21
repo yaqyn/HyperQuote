@@ -136,6 +136,16 @@ describe('Search display formatting', () => {
 				minimum_quantity: 10,
 				updated_at: '2026-05-01T08:00:00Z',
 			}),
+			row('warehouse', 'ORD-LOADING', 'loading'),
+			row('warehouse', 'Receiving - Wood', 'receiving', {
+				product_name: 'Wood',
+				quantity: 8,
+				source: 'receiving_task',
+				supplier_name: 'Delta Supplies',
+			}),
+			row('warehouse', 'ORD-REJECTED', 'rejected', {
+				rejection_reason: 'Truck missing documents',
+			}),
 			row('payment', 'customer_payment', 'unpaid'),
 			row('payment', 'supplier_payment', 'partial'),
 			row('payment', 'customer_payment', 'paid'),
@@ -165,6 +175,11 @@ describe('Search display formatting', () => {
 			['Inventory orders', 0],
 			['Needs update', 1],
 			['Low stock', 1],
+		])
+		expect(counts('warehouse', rows)).toEqual([
+			['Loading', 1],
+			['Receiving', 1],
+			['Rejected', 1],
 		])
 		expect(counts('finance', rows)).toEqual([
 			['Customer receivables', 1],

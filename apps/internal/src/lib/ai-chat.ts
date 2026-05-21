@@ -32,6 +32,8 @@ interface SearchAiRow {
 	title: string
 	subtitle: string | null
 	metadata: Record<string, unknown> | null
+	sort_at?: string | null
+	search_text?: string | null
 }
 
 interface SearchAiAnswer {
@@ -73,6 +75,10 @@ const SEARCH_ENTITY_KEYWORDS: Record<string, string[]> = {
 	support: ['support', 'ticket', 'tickets', 'customer service'],
 	warehouse: ['warehouse', 'loading', 'receiving'],
 }
+const SEARCH_AI_ENTITY_LIMIT = 8
+const SEARCH_AI_ENTITY_TYPES = Object.keys(SEARCH_ENTITY_READ_ENTITIES)
+const SEARCH_AI_ROW_SELECT =
+	'entity_type, entity_id, title, subtitle, metadata, sort_at, search_text'
 
 async function* textStream(text: string): AsyncGenerator<StreamChunk> {
 	const runId = crypto.randomUUID()
@@ -255,15 +261,7 @@ async function buildSearchAiAnswer(
 	userText: string,
 ): Promise<SearchAiAnswer> {
 	const query = searchQueryFromPrompt(userText)
-	const { data, error } = await client
-		.from('ceo_search_index')
-		.select('entity_type, entity_id, title, subtitle, metadata')
-		.limit(500)
-	if (error) throw new Error(error.message)
-
-	const rows = ((data ?? []) as SearchAiRow[]).filter((row) =>
-		searchRowMatches(row, query),
-	)
+	const rows = await fetchSearchAiRows(client, query)
 	const grouped = groupSearchRows(rows)
 	const readEntities = [
 		'ceo_search_index',
@@ -285,7 +283,7 @@ async function buildSearchAiAnswer(
 	for (const [entityType, entityRows] of Object.entries(grouped)) {
 		lines.push(`${entityLabel(entityType)}: ${entityRows.length}`)
 		for (const row of entityRows.slice(0, 3)) {
-			const subtitle = row.subtitle ? ` — ${row.subtitle}` : ''
+			const subtitle = row.subtitle ? ` - ${row.subtitle}` : ''
 			lines.push(`- ${row.title}${subtitle}`)
 		}
 	}
@@ -296,27 +294,50 @@ async function buildSearchAiAnswer(
 	}
 }
 
-function searchQueryFromPrompt(userText: string): string {
-	return userText.replace(/^search internal database for:\s*/i, '').trim()
+async function fetchSearchAiRows(
+	client: NonNullable<
+		Awaited<ReturnType<typeof getInternalSupabaseClient>>
+	>['client'],
+	query: string,
+): Promise<SearchAiRow[]> {
+	const requestedTypes = requestedSearchEntityTypes(query)
+	const entityTypes =
+		requestedTypes.size > 0
+			? Array.from(requestedTypes)
+			: SEARCH_AI_ENTITY_TYPES
+	const tokens = searchTokens(query)
+	const typeTokens = keywordTokensForEntityTypes(requestedTypes)
+	const searchTokensToApply =
+		requestedTypes.size > 0
+			? tokens.filter((token) => !typeTokens.has(token))
+			: tokens
+
+	const rowGroups = await Promise.all(
+		entityTypes.map(async (entityType) => {
+			let request = client
+				.from('ceo_search_index')
+				.select(SEARCH_AI_ROW_SELECT)
+				.eq('entity_type', entityType)
+				.order('sort_at', { ascending: false })
+				.order('title', { ascending: true })
+				.limit(SEARCH_AI_ENTITY_LIMIT)
+			if (searchTokensToApply.length > 0) {
+				request = request.or(
+					searchTokensToApply
+						.map((token) => `search_text.ilike.${searchPattern(token)}`)
+						.join(','),
+				)
+			}
+			const { data, error } = await request
+			if (error) throw new Error(error.message)
+			return (data ?? []) as SearchAiRow[]
+		}),
+	)
+	return rowGroups.flat()
 }
 
-function searchRowMatches(row: SearchAiRow, query: string): boolean {
-	if (!query) return true
-	const requestedTypes = requestedSearchEntityTypes(query)
-	if (requestedTypes.size > 0 && requestedTypes.has(row.entity_type))
-		return true
-	const haystack = [
-		row.entity_type,
-		row.entity_id,
-		row.title,
-		row.subtitle,
-		JSON.stringify(row.metadata ?? {}),
-	]
-		.filter(Boolean)
-		.join(' ')
-		.toLowerCase()
-	const tokens = searchTokens(query)
-	return tokens.length === 0 || tokens.some((token) => haystack.includes(token))
+function searchQueryFromPrompt(userText: string): string {
+	return userText.replace(/^search internal database for:\s*/i, '').trim()
 }
 
 function requestedSearchEntityTypes(query: string): Set<string> {
@@ -349,6 +370,22 @@ const STOP_WORDS = new Set([
 	'about',
 	'from',
 ])
+
+function keywordTokensForEntityTypes(entityTypes: Set<string>): Set<string> {
+	const tokens = new Set<string>()
+	for (const entityType of entityTypes) {
+		for (const keyword of SEARCH_ENTITY_KEYWORDS[entityType] ?? []) {
+			for (const token of searchTokens(keyword)) {
+				tokens.add(token)
+			}
+		}
+	}
+	return tokens
+}
+
+function searchPattern(value: string): string {
+	return `%${value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+}
 
 function groupSearchRows(rows: SearchAiRow[]): Record<string, SearchAiRow[]> {
 	const grouped: Record<string, SearchAiRow[]> = {}

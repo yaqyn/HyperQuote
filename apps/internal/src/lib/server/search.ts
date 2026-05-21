@@ -127,10 +127,21 @@ const MODULE_LABELS: Record<SearchSummaryModuleId, string> = {
 
 const SEARCH_ROW_SELECT =
 	'entity_type, entity_id, title, subtitle, metadata, sort_at, search_text'
-const SEARCH_RESULT_LIMIT = 220
+const SEARCH_RESULT_GROUP_LIMIT = 8
 const SEARCH_TABLE_LIMIT = 500
-const SEARCH_SUMMARY_LIMIT = 5000
+const SEARCH_SUMMARY_ENTITY_LIMIT = 5000
 const SEARCH_PAGE_SIZE = 1000
+const SEARCH_SUMMARY_MODULES = Object.keys(
+	MODULE_TABLES,
+) as SearchSummaryModuleId[]
+const SUMMARY_ENTITY_TYPES: Record<SearchSummaryModuleId, string[]> = {
+	sales: ['order'],
+	inventory: ['order', 'inventory'],
+	warehouse: ['warehouse'],
+	finance: ['payment'],
+	dispatch: ['dispatch', 'driver'],
+	'customer-service': ['support'],
+}
 
 async function requireSearchClient() {
 	const { getInternalSupabaseClient } = await import('./_supabase')
@@ -199,9 +210,10 @@ function filteredSearchQuery(
 
 async function fetchSearchRows(
 	options: FetchSearchRowsOptions = {},
+	providedClient?: SearchClient,
 ): Promise<SearchIndexRow[]> {
-	const client = await requireSearchClient()
-	const limit = options.limit ?? SEARCH_RESULT_LIMIT
+	const client = providedClient ?? (await requireSearchClient())
+	const limit = options.limit ?? SEARCH_RESULT_GROUP_LIMIT
 	const rows: SearchIndexRow[] = []
 
 	for (let from = 0; from < limit; from += SEARCH_PAGE_SIZE) {
@@ -219,13 +231,36 @@ async function fetchSearchRows(
 	return rows
 }
 
-async function recordSearchQuery(input: {
-	query: string
-	resultCount: number
-	tableCount: number
-}) {
+async function countSearchRows(
+	options: FetchSearchRowsOptions = {},
+	providedClient?: SearchClient,
+): Promise<number> {
+	const client = providedClient ?? (await requireSearchClient())
+	let query = client
+		.from('ceo_search_index')
+		.select('entity_id', { count: 'exact', head: true })
+	if (options.entityType) {
+		query = query.eq('entity_type', options.entityType)
+	}
+	const search = options.search?.trim()
+	if (search) {
+		query = query.ilike('search_text', searchPattern(search))
+	}
+	const { count, error } = await query
+	if (error) throw new Error(error.message)
+	return count ?? 0
+}
+
+async function recordSearchQuery(
+	input: {
+		query: string
+		resultCount: number
+		tableCount: number
+	},
+	providedClient?: SearchClient,
+) {
 	if (!input.query.trim()) return
-	const client = await requireSearchClient()
+	const client = providedClient ?? (await requireSearchClient())
 	const { error } = await client.rpc('record_search_query_executed', {
 		p_context: { source: 'internal_search_panel' },
 		p_query: input.query,
@@ -235,58 +270,124 @@ async function recordSearchQuery(input: {
 	if (error) throw new Error(error.message)
 }
 
-function tableSummaries(rows: SearchIndexRow[]): SearchTableSummary[] {
-	return SEARCH_TABLES.map((table) => ({
+async function tableSummariesForSearch(
+	search: string,
+	client: SearchClient,
+): Promise<SearchTableSummary[]> {
+	const trimmedSearch = search.trim()
+	const counts = await Promise.all(
+		SEARCH_TABLES.map((table) =>
+			countSearchRows(
+				{
+					entityType: table.entityType,
+					search: trimmedSearch || undefined,
+				},
+				client,
+			),
+		),
+	)
+	return SEARCH_TABLES.map((table, index) => ({
 		tableId: table.tableId,
 		label: table.label,
 		accent: table.accent,
-		rowCount: rows.filter((row) => row.entity_type === table.entityType).length,
+		rowCount: counts[index] ?? 0,
 	}))
+}
+
+function uniqueEntityTypes(entityTypes: readonly string[]): string[] {
+	return Array.from(new Set(entityTypes))
+}
+
+async function fetchRowsForEntityTypes(
+	entityTypes: readonly string[],
+	client: SearchClient,
+	limit: number,
+	search?: string,
+): Promise<SearchIndexRow[]> {
+	const rowGroups = await Promise.all(
+		uniqueEntityTypes(entityTypes).map((entityType) =>
+			fetchSearchRows(
+				{
+					entityType,
+					limit,
+					search,
+				},
+				client,
+			),
+		),
+	)
+	return rowGroups.flat()
+}
+
+async function fetchSummaryRowsForModule(
+	moduleId: SearchSummaryModuleId,
+	client: SearchClient,
+): Promise<SearchIndexRow[]> {
+	return fetchRowsForEntityTypes(
+		SUMMARY_ENTITY_TYPES[moduleId],
+		client,
+		SEARCH_SUMMARY_ENTITY_LIMIT,
+	)
 }
 
 export const searchInternalDb = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ query: z.string() }))
 	.handler(async ({ data }): Promise<SearchResponse> => {
 		const query = data.query.trim()
-		const rows = await fetchSearchRows({
-			limit: query ? SEARCH_RESULT_LIMIT : SEARCH_SUMMARY_LIMIT,
-			search: query,
-		})
-		const tables = tableSummaries(rows)
+		const client = await requireSearchClient()
+		const tables = await tableSummariesForSearch(query, client)
 		const lowerQuery = query.toLowerCase()
 		const tableMatches = lowerQuery
 			? tables.filter((table) => table.label.toLowerCase().includes(lowerQuery))
 			: tables
 
-		const results: SearchResultGroup[] = []
-		for (const table of SEARCH_TABLES) {
-			const matched = rows
-				.filter((row) => row.entity_type === table.entityType)
-				.slice(0, 8)
-				.map((row): SearchResultRow | null => {
-					const searchRow = toSearchRow(row)
-					if (!searchRow) return null
-					return { ...searchRow, matchedFields: matchedFields(row, query) }
-				})
-				.filter((row): row is SearchResultRow => row !== null)
-			if (matched.length > 0) {
-				results.push({
+		const resultGroups = await Promise.all(
+			SEARCH_TABLES.map(async (table) => {
+				const rows = query
+					? await fetchSearchRows(
+							{
+								entityType: table.entityType,
+								limit: SEARCH_RESULT_GROUP_LIMIT,
+								search: query,
+							},
+							client,
+						)
+					: []
+				const matched = rows
+					.map((row): SearchResultRow | null => {
+						const searchRow = toSearchRow(row)
+						if (!searchRow) return null
+						return { ...searchRow, matchedFields: matchedFields(row, query) }
+					})
+					.filter((row): row is SearchResultRow => row !== null)
+				if (matched.length === 0) return null
+				const summary = tables.find(
+					(candidate) => candidate.tableId === table.tableId,
+				)
+				return {
 					tableId: table.tableId,
 					label: table.label,
 					accent: table.accent,
+					rowCount: summary?.rowCount ?? matched.length,
 					rows: matched,
-				})
-			}
-		}
+				}
+			}),
+		)
+		const results = resultGroups.filter(
+			(group): group is SearchResultGroup => group !== null,
+		)
 
-		await recordSearchQuery({
-			query,
-			resultCount: results.reduce(
-				(count, group) => count + group.rows.length,
-				0,
-			),
-			tableCount: results.length,
-		})
+		await recordSearchQuery(
+			{
+				query,
+				resultCount: results.reduce(
+					(count, group) => count + group.rowCount,
+					0,
+				),
+				tableCount: results.length,
+			},
+			client,
+		)
 
 		return { query, tables, tableMatches, results }
 	})
@@ -296,12 +397,16 @@ export const listSearchTable = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<SearchTableView> => {
 		const table = tableConfig(data.tableId)
 		if (!table) throw new Error(`Unknown search table: ${data.tableId}`)
-		const [rows, summaryRows] = await Promise.all([
-			fetchSearchRows({
-				entityType: table.entityType,
-				limit: SEARCH_TABLE_LIMIT,
-			}),
-			fetchSearchRows({ limit: SEARCH_SUMMARY_LIMIT }),
+		const client = await requireSearchClient()
+		const [rows, rowCount] = await Promise.all([
+			fetchSearchRows(
+				{
+					entityType: table.entityType,
+					limit: SEARCH_TABLE_LIMIT,
+				},
+				client,
+			),
+			countSearchRows({ entityType: table.entityType }, client),
 		])
 		const tableRows = rows
 			.map(toSearchRow)
@@ -310,9 +415,9 @@ export const listSearchTable = createServerFn({ method: 'POST' })
 			tableId: table.tableId,
 			label: table.label,
 			accent: table.accent,
-			rowCount: summaryRows.filter(
-				(row) => row.entity_type === table.entityType,
-			).length,
+			rowCount,
+			loadedRowCount: tableRows.length,
+			rowLimit: SEARCH_TABLE_LIMIT,
 			rows: tableRows,
 		}
 	})
@@ -320,11 +425,18 @@ export const listSearchTable = createServerFn({ method: 'POST' })
 export const getSearchExecutiveBrief = createServerFn({
 	method: 'GET',
 }).handler(async (): Promise<SearchExecutiveBrief> => {
-	const rows = await fetchSearchRows()
+	const client = await requireSearchClient()
+	const rows = await fetchRowsForEntityTypes(
+		SEARCH_SUMMARY_MODULES.flatMap(
+			(moduleId) => SUMMARY_ENTITY_TYPES[moduleId],
+		),
+		client,
+		SEARCH_SUMMARY_ENTITY_LIMIT,
+	)
 	return {
 		generatedAt: new Date().toISOString(),
-		modules: (Object.keys(MODULE_TABLES) as SearchSummaryModuleId[]).map(
-			(moduleId) => buildModuleSummary(moduleId, rows),
+		modules: SEARCH_SUMMARY_MODULES.map((moduleId) =>
+			buildModuleSummary(moduleId, rows),
 		),
 	}
 })
@@ -335,8 +447,10 @@ export const getSearchModuleSummary = createServerFn({ method: 'POST' })
 		if (!(data.moduleId in MODULE_TABLES)) {
 			throw new Error(`Unknown search summary: ${data.moduleId}`)
 		}
-		const rows = await fetchSearchRows()
-		return buildModuleSummary(data.moduleId as SearchSummaryModuleId, rows)
+		const client = await requireSearchClient()
+		const moduleId = data.moduleId as SearchSummaryModuleId
+		const rows = await fetchSummaryRowsForModule(moduleId, client)
+		return buildModuleSummary(moduleId, rows)
 	})
 
 function buildModuleSummary(
