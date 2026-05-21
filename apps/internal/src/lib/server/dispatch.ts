@@ -686,6 +686,37 @@ async function getDispatchAdvisorProof(
 	}
 }
 
+interface DispatchTerminalProofInput {
+	quoteId: string
+	advisorId: string
+	proofUrl?: string
+	securityMethod: 'password' | 'qr'
+	securityToken: string
+}
+
+async function getDispatchTerminalProof(
+	data: DispatchTerminalProofInput,
+	proofSource?: string,
+) {
+	if (!isUuid(data.quoteId)) {
+		return { success: false as const, error: 'Order not found' }
+	}
+	const auth = await getInternalSupabaseClient()
+	const advisorProof = await getDispatchAdvisorProof(auth.client, {
+		advisorId: data.advisorId,
+		proofSource,
+		proofUrl: data.proofUrl,
+		securityMethod: data.securityMethod,
+		securityToken: data.securityToken,
+	})
+	if (!advisorProof.success) return advisorProof
+	return {
+		success: true as const,
+		client: auth.client,
+		proof: advisorProof.proof,
+	}
+}
+
 // ─── Server functions ────────────────────────────────────
 
 export const getDispatchBoard = createServerFn({ method: 'GET' })
@@ -887,22 +918,18 @@ export const markOrderDelivered = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		if (!isUuid(data.quoteId)) {
-			return { success: false, error: 'Order not found' }
-		}
-		const auth = await getInternalSupabaseClient()
-		const advisorProof = await getDispatchAdvisorProof(auth.client, {
-			advisorId: data.advisorId,
-			proofSource: 'advisor_credential',
-			proofUrl: data.proofUrl,
-			securityMethod: data.securityMethod,
-			securityToken: data.securityToken,
-		})
-		if (!advisorProof.success) return advisorProof
-		const { error } = await auth.client.rpc('dispatch_complete_loaded_order', {
-			p_order_id: data.quoteId,
-			p_proof: advisorProof.proof,
-		})
+		const terminalProof = await getDispatchTerminalProof(
+			data,
+			'advisor_credential',
+		)
+		if (!terminalProof.success) return terminalProof
+		const { error } = await terminalProof.client.rpc(
+			'dispatch_complete_loaded_order',
+			{
+				p_order_id: data.quoteId,
+				p_proof: terminalProof.proof,
+			},
+		)
 		if (error) return { success: false, error: error.message }
 		return { success: true }
 	})
@@ -919,22 +946,16 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }): Promise<{ success: boolean; error?: string }> => {
-		if (!isUuid(data.quoteId)) {
-			return { success: false, error: 'Order not found' }
-		}
-		const auth = await getInternalSupabaseClient()
-		const advisorProof = await getDispatchAdvisorProof(auth.client, {
-			advisorId: data.advisorId,
-			proofUrl: data.proofUrl,
-			securityMethod: data.securityMethod,
-			securityToken: data.securityToken,
-		})
-		if (!advisorProof.success) return advisorProof
-		const { error } = await auth.client.rpc('dispatch_return_loaded_order', {
-			p_order_id: data.quoteId,
-			p_reason: data.reason.trim(),
-			p_proof: advisorProof.proof,
-		})
+		const terminalProof = await getDispatchTerminalProof(data)
+		if (!terminalProof.success) return terminalProof
+		const { error } = await terminalProof.client.rpc(
+			'dispatch_return_loaded_order',
+			{
+				p_order_id: data.quoteId,
+				p_reason: data.reason.trim(),
+				p_proof: terminalProof.proof,
+			},
+		)
 		if (error) return { success: false, error: error.message }
 		return { success: true }
 	})

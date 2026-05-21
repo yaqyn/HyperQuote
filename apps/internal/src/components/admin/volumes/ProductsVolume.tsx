@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Package } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	type AdminProduct,
@@ -22,6 +21,7 @@ import {
 } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
+import { CatalogPictureField, CatalogThumbnail } from './CatalogImageControls'
 import { useAdminExport } from './useAdminExport'
 import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
@@ -221,7 +221,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			labelKey: 'volumes.products.columns.thumb',
 			width: '44px',
 			mobileRole: 'media',
-			render: (r) => <Thumbnail src={r.pictureUrl} alt={r.name} />,
+			render: (r) => <CatalogThumbnail src={r.pictureUrl} alt={r.name} />,
 		},
 		{
 			key: 'name',
@@ -316,7 +316,7 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 		>
 			{draft && (
 				<div className="space-y-6">
-					<PictureField
+					<CatalogPictureField
 						value={draft.pictureUrl}
 						onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
 						readOnly={readOnly}
@@ -496,97 +496,5 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 				</div>
 			)}
 		</VolumeWorkspace>
-	)
-}
-
-// ─── Picture field ─────────────────────────────────────────
-
-function PictureField({
-	value,
-	onChange,
-	readOnly,
-	altText,
-	label,
-}: {
-	value: string | null
-	onChange: (v: string | null) => void
-	readOnly: boolean
-	altText: string
-	label: string
-}) {
-	const [failed, setFailed] = useState(false)
-	const hasUrl = Boolean(value?.trim())
-
-	return (
-		<div className="space-y-3">
-			<div
-				className="relative overflow-hidden rounded-md border border-[var(--color-border)] bg-black/[0.02] dark:bg-white/[0.02]"
-				style={{ aspectRatio: '16 / 9' }}
-			>
-				{hasUrl && !failed && value ? (
-					<img
-						src={value}
-						alt={altText}
-						loading="lazy"
-						decoding="async"
-						onError={() => setFailed(true)}
-						onLoad={() => setFailed(false)}
-						className="absolute inset-0 w-full h-full object-cover"
-					/>
-				) : (
-					<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--color-text-subtle)]">
-						<Package size={22} strokeWidth={1.5} />
-						<span className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.11em]">
-							{failed ? 'unreachable' : 'no image'}
-						</span>
-					</div>
-				)}
-			</div>
-
-			<div className="block">
-				<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
-					{label}
-				</span>
-				<div className="block mt-1.5">
-					<TextControl
-						value={value ?? ''}
-						onChange={(v) => {
-							setFailed(false)
-							onChange(v.trim() ? v : null)
-						}}
-						readOnly={readOnly}
-						ariaLabel={label}
-						placeholder="https://..."
-					/>
-				</div>
-			</div>
-		</div>
-	)
-}
-
-function Thumbnail({
-	src,
-	alt,
-}: {
-	src: string | null | undefined
-	alt: string
-}) {
-	const [failed, setFailed] = useState(false)
-	if (!src || failed) {
-		return (
-			<span className="inline-flex items-center justify-center w-7 h-7 rounded-sm border border-[var(--color-border)] bg-black/[0.03] dark:bg-white/[0.03] text-[var(--color-text-subtle)]">
-				<Package size={12} strokeWidth={1.5} />
-			</span>
-		)
-	}
-	return (
-		<img
-			src={src}
-			alt={alt}
-			loading="lazy"
-			decoding="async"
-			onError={() => setFailed(true)}
-			className="w-7 h-7 rounded-sm object-cover border border-[var(--color-border)]"
-		/>
 	)
 }

@@ -59,6 +59,18 @@ function getDraftFingerprint(items: DraftCartItem[], globalNote: string) {
 	})
 }
 
+function drawerContentMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -8 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 8 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.18,
+			ease: SNAP_EASE,
+		},
+	}
+}
+
 export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const { t, i18n } = useTranslation('portal')
 	const shouldReduceMotion = useReducedMotion()
@@ -82,6 +94,10 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const [searchOpen, setSearchOpen] = useState(false)
 	const formattedItemCount = items.length.toLocaleString(
 		isAr ? 'ar-EG' : 'en-EG',
+	)
+	const contentMotion = useMemo(
+		() => drawerContentMotion(shouldReduceMotion),
+		[shouldReduceMotion],
 	)
 	const quoteRequestItems = useMemo(
 		() => toDraftQuoteRequestItemPayloads(items, { isArabic: isAr }),
@@ -316,13 +332,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 									{items.length === 0 ? (
 										<motion.div
 											key="empty"
-											initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
-											animate={{ opacity: 1, y: 0 }}
-											exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
-											transition={{
-												duration: shouldReduceMotion ? 0.01 : 0.18,
-												ease: SNAP_EASE,
-											}}
+											{...contentMotion}
 											className="flex flex-1 flex-col items-center justify-center px-8 text-center"
 										>
 											<FilePenLine
@@ -341,13 +351,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 										<motion.form
 											key="items"
 											onSubmit={handleSubmit}
-											initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
-											animate={{ opacity: 1, y: 0 }}
-											exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
-											transition={{
-												duration: shouldReduceMotion ? 0.01 : 0.18,
-												ease: SNAP_EASE,
-											}}
+											{...contentMotion}
 											className="flex min-h-0 flex-1 flex-col"
 										>
 											<div className="flex-1 overflow-y-auto">
