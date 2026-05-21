@@ -66,24 +66,28 @@ export function toDraftQuoteRequestItemPayloads(
 	items: DraftCartItem[],
 	options: { isArabic: boolean },
 ): DraftQuoteRequestItemPayload[] {
-	return sanitizeDraftQuoteItems(items).map((item, index) => {
-		const productId = UUID_RE.test(item.productId) ? item.productId : undefined
-		const customerDescription =
-			options.isArabic && item.nameAr ? item.nameAr : item.name
-		const notes = item.note.trim()
+	return sanitizeDraftQuoteItems(items)
+		.filter((item) => item.quantity > 0)
+		.map((item, index) => {
+			const productId = UUID_RE.test(item.productId)
+				? item.productId
+				: undefined
+			const customerDescription =
+				options.isArabic && item.nameAr ? item.nameAr : item.name
+			const notes = item.note.trim()
 
-		return {
-			productId,
-			customerDescription,
-			quantity: item.quantity,
-			unitOfMeasure: item.unitOfMeasure,
-			unitOfMeasureAr: item.unitOfMeasureAr,
-			notes: notes || undefined,
-			sortOrder: index,
-			matchConfidence: productId ? 1 : undefined,
-			isUnmatched: !productId,
-		}
-	})
+			return {
+				productId,
+				customerDescription,
+				quantity: item.quantity,
+				unitOfMeasure: item.unitOfMeasure,
+				unitOfMeasureAr: item.unitOfMeasureAr,
+				notes: notes || undefined,
+				sortOrder: index,
+				matchConfidence: productId ? 1 : undefined,
+				isUnmatched: !productId,
+			}
+		})
 }
 
 function normalizeDraftCartItem(
@@ -152,7 +156,11 @@ function normalizeDraftCartItem(
 		record.uomAr,
 		unitOfMeasure === FALLBACK_UNIT ? FALLBACK_UNIT_AR : unitOfMeasure,
 	)
-	const quantity = positiveQuantity(record.quantity, record.qty, record.amount)
+	const quantity = nonNegativeQuantity(
+		record.quantity,
+		record.qty,
+		record.amount,
+	)
 
 	return {
 		productId,
@@ -185,7 +193,7 @@ function textFrom(...values: unknown[]): string {
 	return ''
 }
 
-function positiveQuantity(...values: unknown[]): number {
+function nonNegativeQuantity(...values: unknown[]): number {
 	for (const value of values) {
 		const numberValue =
 			typeof value === 'number'
@@ -193,8 +201,8 @@ function positiveQuantity(...values: unknown[]): number {
 				: typeof value === 'string'
 					? Number(value)
 					: Number.NaN
-		if (Number.isFinite(numberValue) && numberValue > 0) {
-			return Math.max(1, Math.floor(numberValue))
+		if (Number.isFinite(numberValue) && numberValue >= 0) {
+			return Math.max(0, Math.floor(numberValue))
 		}
 	}
 	return 1

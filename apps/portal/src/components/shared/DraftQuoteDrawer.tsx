@@ -3,14 +3,12 @@ import {
 	Check,
 	ChevronUp,
 	FilePenLine,
-	Files,
-	Minus,
+	FileText,
 	Package,
 	PanelRightClose,
 	Plus,
 	Save,
 	Search,
-	Trash2,
 	X,
 } from 'lucide-react'
 import {
@@ -45,20 +43,22 @@ const SNAP_EASE = cubicBezier(0.16, 1, 0.3, 1)
 function getDraftFingerprint(items: DraftCartItem[], globalNote: string) {
 	return JSON.stringify({
 		globalNote: globalNote.trim(),
-		items: items.map((item, index) => ({
-			category: item.category,
-			categoryName: item.categoryName,
-			categoryNameAr: item.categoryNameAr,
-			imageUrl: item.imageUrl,
-			name: item.name,
-			nameAr: item.nameAr,
-			note: item.note.trim(),
-			productId: item.productId,
-			quantity: item.quantity,
-			sortOrder: index,
-			unitOfMeasure: item.unitOfMeasure,
-			unitOfMeasureAr: item.unitOfMeasureAr,
-		})),
+		items: items
+			.filter((item) => item.quantity > 0)
+			.map((item, index) => ({
+				category: item.category,
+				categoryName: item.categoryName,
+				categoryNameAr: item.categoryNameAr,
+				imageUrl: item.imageUrl,
+				name: item.name,
+				nameAr: item.nameAr,
+				note: item.note.trim(),
+				productId: item.productId,
+				quantity: item.quantity,
+				sortOrder: index,
+				unitOfMeasure: item.unitOfMeasure,
+				unitOfMeasureAr: item.unitOfMeasureAr,
+			})),
 	})
 }
 
@@ -126,7 +126,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		[globalNote, items],
 	)
 	const isDraftSaved =
-		items.length > 0 && savedDraftFingerprint === draftFingerprint
+		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
 
 	const submitMutation = useMutation({
 		mutationFn: () =>
@@ -386,31 +386,92 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																		: '',
 																].join(' ')}
 															>
-																<div className="flex items-start gap-3">
+																<div className="flex min-w-0 items-center gap-3">
 																	{item.imageUrl ? (
 																		<img
 																			src={item.imageUrl}
 																			alt=""
 																			loading="lazy"
 																			decoding="async"
-																			className="h-10 w-10 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
+																			className="h-11 w-11 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
 																		/>
 																	) : (
 																		<div
 																			aria-hidden="true"
-																			className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]"
+																			className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]"
 																		>
 																			<Package size={15} />
 																		</div>
 																	)}
 																	<div className="min-w-0 flex-1">
-																		<p className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--p-text)]">
+																		<p className="truncate text-[13px] font-medium leading-snug text-[var(--p-text)]">
 																			{itemName}
 																		</p>
-																		<p className="mt-1 text-[12px] text-[var(--p-text-muted)]">
-																			{categoryLabel} · {unitLabel}
+																		<p className="mt-1 truncate text-[11px] text-[var(--p-text-muted)]">
+																			{categoryLabel}
 																		</p>
 																	</div>
+																	<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
+																		<span className="sr-only">
+																			{t('market.quantity')}
+																		</span>
+																		<input
+																			type="number"
+																			inputMode="numeric"
+																			min={0}
+																			value={item.quantity}
+																			onKeyDown={(event) => {
+																				if (
+																					item.quantity !== 0 ||
+																					!/^\d$/.test(event.key)
+																				) {
+																					return
+																				}
+																				event.preventDefault()
+																				updateQuantity(
+																					item.productId,
+																					Number(event.key),
+																				)
+																			}}
+																			onPaste={(event) => {
+																				if (item.quantity !== 0) return
+																				const pastedValue = event.clipboardData
+																					.getData('text')
+																					.trim()
+																				if (!/^\d+$/.test(pastedValue)) return
+																				event.preventDefault()
+																				updateQuantity(
+																					item.productId,
+																					Number.parseInt(pastedValue, 10),
+																				)
+																			}}
+																			onChange={(event) => {
+																				const rawValue =
+																					event.currentTarget.value.trim()
+																				if (rawValue === '') {
+																					updateQuantity(item.productId, 0)
+																					return
+																				}
+																				const next = Number.parseInt(
+																					rawValue,
+																					10,
+																				)
+																				if (
+																					Number.isFinite(next) &&
+																					next >= 0
+																				) {
+																					updateQuantity(item.productId, next)
+																				}
+																			}}
+																			className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																			style={{
+																				fontVariantNumeric: 'tabular-nums',
+																			}}
+																		/>
+																		<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
+																			{unitLabel}
+																		</span>
+																	</label>
 																	<motion.button
 																		type="button"
 																		onClick={() => remove(item.productId)}
@@ -422,71 +483,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																				: { scale: 0.92 }
 																		}
 																	>
-																		<Trash2 size={15} strokeWidth={1.7} />
-																	</motion.button>
-																</div>
-
-																<div className="mt-2.5 flex h-10 items-center overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]">
-																	<motion.button
-																		type="button"
-																		onClick={() =>
-																			updateQuantity(
-																				item.productId,
-																				item.quantity - 1,
-																			)
-																		}
-																		className="flex h-full w-11 shrink-0 items-center justify-center border-e border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-																		aria-label={t('market.decreaseQuantity')}
-																		whileTap={
-																			shouldReduceMotion
-																				? undefined
-																				: { scale: 0.94 }
-																		}
-																	>
-																		<Minus size={14} strokeWidth={1.8} />
-																	</motion.button>
-																	<div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3">
-																		<input
-																			type="number"
-																			inputMode="numeric"
-																			min={1}
-																			value={item.quantity}
-																			onChange={(event) => {
-																				const next = Number.parseInt(
-																					event.currentTarget.value,
-																					10,
-																				)
-																				if (!Number.isNaN(next)) {
-																					updateQuantity(item.productId, next)
-																				}
-																			}}
-																			className="h-full w-16 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-																			style={{
-																				fontVariantNumeric: 'tabular-nums',
-																			}}
-																			aria-label={t('market.quantity')}
-																		/>
-																		<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
-																			{unitLabel}
-																		</span>
-																	</div>
-																	<motion.button
-																		type="button"
-																		onClick={() =>
-																			updateQuantity(
-																				item.productId,
-																				item.quantity + 1,
-																			)
-																		}
-																		className="flex h-full w-11 shrink-0 items-center justify-center border-s border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-																		aria-label={t('market.increaseQuantity')}
-																		whileTap={
-																			shouldReduceMotion
-																				? undefined
-																				: { scale: 0.94 }
-																		}
-																	>
-																		<Plus size={14} strokeWidth={1.8} />
+																		<X size={15} strokeWidth={1.8} />
 																	</motion.button>
 																</div>
 															</motion.div>
@@ -576,7 +573,9 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													<motion.button
 														type="submit"
 														disabled={
-															submitMutation.isPending || saveMutation.isPending
+															quoteRequestItems.length === 0 ||
+															submitMutation.isPending ||
+															saveMutation.isPending
 														}
 														className="flex h-11 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
 														whileTap={
@@ -602,7 +601,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															shouldReduceMotion ? undefined : { scale: 0.94 }
 														}
 													>
-														<Files size={17} strokeWidth={1.8} />
+														<FileText size={17} strokeWidth={1.8} />
 													</motion.button>
 													<motion.button
 														type="button"
@@ -620,6 +619,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 														disabled={
 															submitMutation.isPending ||
 															saveMutation.isPending ||
+															quoteRequestItems.length === 0 ||
 															isDraftSaved
 														}
 														title={

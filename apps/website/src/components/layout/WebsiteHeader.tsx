@@ -9,11 +9,10 @@ import {
 	ExternalLink,
 	Eye,
 	FilePenLine,
-	Files,
+	FileText,
 	LogOut,
 	Menu,
 	MessageCircle,
-	Minus,
 	Package,
 	PanelRightClose,
 	Plus,
@@ -424,8 +423,7 @@ export function WebsiteHeader() {
 														key={item.productId}
 														className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
 													>
-														{/* Name + remove */}
-														<div className="flex items-start gap-3">
+														<div className="flex min-w-0 items-center gap-3">
 															{item.imageUrl && (
 																<img
 																	src={item.imageUrl}
@@ -438,69 +436,73 @@ export function WebsiteHeader() {
 																	to="/market/$productSlug"
 																	params={{ productSlug: item.slug }}
 																	onClick={() => setCartOpen(false)}
-																	className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
+																	className="block truncate text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
 																>
 																	{isAr && item.nameAr
 																		? item.nameAr
 																		: item.name}
 																</Link>
 															</div>
-															<button
-																type="button"
-																onClick={() => remove(item.productId)}
-																className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5"
-																aria-label={t('cart.remove')}
-															>
-																<X size={13} />
-															</button>
-														</div>
-
-														{/* Unified stepper — matches product page */}
-														<div className="flex items-center rounded-xl border border-[var(--color-text)]/[0.06] bg-[var(--color-surface)] overflow-hidden mt-3 h-10">
-															<button
-																type="button"
-																onClick={() =>
-																	updateQuantity(
-																		item.productId,
-																		item.quantity - 1,
-																	)
-																}
-																aria-label={t('cart.decreaseQuantity')}
-																className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]"
-															>
-																<Minus size={13} />
-															</button>
-															<div className="flex flex-1 items-center justify-center gap-2">
+															<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
+																<span className="sr-only">
+																	{t('product.quantityLabel')}
+																</span>
 																<input
-																	aria-label={t('product.quantityLabel')}
 																	type="number"
+																	inputMode="numeric"
 																	value={item.quantity}
-																	onChange={(e) => {
-																		const v = parseInt(e.target.value, 10)
-																		if (!Number.isNaN(v) && v >= 0)
-																			updateQuantity(item.productId, v)
+																	onKeyDown={(event) => {
+																		if (
+																			item.quantity !== 0 ||
+																			!/^\d$/.test(event.key)
+																		) {
+																			return
+																		}
+																		event.preventDefault()
+																		updateQuantity(
+																			item.productId,
+																			Number(event.key),
+																		)
 																	}}
-																	className="w-12 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-																	min={1}
+																	onPaste={(event) => {
+																		if (item.quantity !== 0) return
+																		const pastedValue = event.clipboardData
+																			.getData('text')
+																			.trim()
+																		if (!/^\d+$/.test(pastedValue)) return
+																		event.preventDefault()
+																		updateQuantity(
+																			item.productId,
+																			Number.parseInt(pastedValue, 10),
+																		)
+																	}}
+																	onChange={(e) => {
+																		const rawValue = e.target.value.trim()
+																		if (rawValue === '') {
+																			updateQuantity(item.productId, 0)
+																			return
+																		}
+																		const v = Number.parseInt(rawValue, 10)
+																		if (Number.isFinite(v) && v >= 0) {
+																			updateQuantity(item.productId, v)
+																		}
+																	}}
+																	className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																	min={0}
 																/>
-																<span className="text-[12px] text-[var(--color-text-subtle)]">
+																<span className="min-w-0 truncate text-[12px] text-[var(--color-text-subtle)]">
 																	{isAr && item.unitOfMeasureAr
 																		? item.unitOfMeasureAr
 																		: item.unitOfMeasure}
 																</span>
-															</div>
+															</label>
 															<button
 																type="button"
-																onClick={() =>
-																	updateQuantity(
-																		item.productId,
-																		item.quantity + 1,
-																	)
-																}
-																aria-label={t('cart.increaseQuantity')}
-																className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]"
+																onClick={() => remove(item.productId)}
+																className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-error)]"
+																aria-label={t('cart.remove')}
 															>
-																<Plus size={13} />
+																<X size={15} strokeWidth={1.8} />
 															</button>
 														</div>
 													</div>
@@ -1070,11 +1072,28 @@ function CartSubmit({
 	)
 	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
+	const activeItems = useMemo(
+		() => items.filter((item) => item.quantity > 0),
+		[items],
+	)
+	const quoteRequestItems = useMemo(
+		() =>
+			activeItems.map((item, index) => ({
+				productId: item.productId,
+				customerDescription: item.name,
+				quantity: item.quantity,
+				unitOfMeasure: item.unitOfMeasure,
+				unitOfMeasureAr: item.unitOfMeasureAr,
+				notes: item.note || undefined,
+				sortOrder: index,
+			})),
+		[activeItems],
+	)
 	const draftFingerprint = useMemo(
 		() =>
 			JSON.stringify({
 				globalNote: globalNote.trim(),
-				items: items.map((item, index) => ({
+				items: activeItems.map((item, index) => ({
 					imageUrl: item.imageUrl,
 					name: item.name,
 					nameAr: item.nameAr,
@@ -1086,10 +1105,10 @@ function CartSubmit({
 					unitOfMeasureAr: item.unitOfMeasureAr,
 				})),
 			}),
-		[globalNote, items],
+		[activeItems, globalNote],
 	)
 	const isDraftSaved =
-		items.length > 0 && savedDraftFingerprint === draftFingerprint
+		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
@@ -1171,7 +1190,7 @@ function CartSubmit({
 
 	if (step === 'submit') {
 		async function handleSubmitQuote() {
-			if (items.length === 0 || loadingAction) return
+			if (quoteRequestItems.length === 0 || loadingAction) return
 			setLoadingAction('submit')
 			setAuthSuccessVisible(false)
 			setError(null)
@@ -1179,15 +1198,7 @@ function CartSubmit({
 				const result = await submitWebsiteQuoteRequest({
 					data: {
 						draftId: savedDraftId ?? undefined,
-						items: items.map((item, index) => ({
-							productId: item.productId,
-							customerDescription: item.name,
-							quantity: item.quantity,
-							unitOfMeasure: item.unitOfMeasure,
-							unitOfMeasureAr: item.unitOfMeasureAr,
-							notes: item.note || undefined,
-							sortOrder: index,
-						})),
+						items: quoteRequestItems,
 						name: draftName.trim() || persistedDraftName || defaultDraftName,
 						notes: globalNote.trim() || undefined,
 						idempotencyKey: crypto.randomUUID(),
@@ -1225,7 +1236,8 @@ function CartSubmit({
 		}
 
 		async function handleConfirmSaveDraft() {
-			if (items.length === 0 || loadingAction || isDraftSaved) return
+			if (quoteRequestItems.length === 0 || loadingAction || isDraftSaved)
+				return
 			const nextName = draftName.trim() || defaultDraftName
 			setLoadingAction('save')
 			setAuthSuccessVisible(false)
@@ -1234,15 +1246,7 @@ function CartSubmit({
 				const result = await saveWebsiteQuoteDraft({
 					data: {
 						draftId: savedDraftId ?? undefined,
-						items: items.map((item, index) => ({
-							productId: item.productId,
-							customerDescription: item.name,
-							quantity: item.quantity,
-							unitOfMeasure: item.unitOfMeasure,
-							unitOfMeasureAr: item.unitOfMeasureAr,
-							notes: item.note || undefined,
-							sortOrder: index,
-						})),
+						items: quoteRequestItems,
 						name: nextName,
 						notes: globalNote.trim() || undefined,
 					},
@@ -1400,7 +1404,7 @@ function CartSubmit({
 					<motion.button
 						type="button"
 						onClick={handleSubmitQuote}
-						disabled={loadingAction !== null}
+						disabled={loadingAction !== null || quoteRequestItems.length === 0}
 						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
 						whileTap={
 							shouldReduceMotion || loadingAction !== null
@@ -1429,7 +1433,7 @@ function CartSubmit({
 							ease: CART_DRAWER_EASE,
 						}}
 					>
-						<Files size={16} strokeWidth={1.8} />
+						<FileText size={16} strokeWidth={1.8} />
 					</motion.button>
 					<motion.button
 						type="button"
@@ -1442,7 +1446,11 @@ function CartSubmit({
 							setDraftName(savedDraftId ? persistedDraftName : '')
 							setDraftNameEntryOpen(true)
 						}}
-						disabled={loadingAction !== null || isDraftSaved}
+						disabled={
+							loadingAction !== null ||
+							quoteRequestItems.length === 0 ||
+							isDraftSaved
+						}
 						title={isDraftSaved ? persistedDraftName : undefined}
 						className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors disabled:pointer-events-none ${
 							draftNameEntryOpen && !isDraftSaved

@@ -87,4 +87,27 @@ describe('draft quote cart recovery', () => {
 			},
 		])
 	})
+
+	it('keeps zero as an editable cart quantity but omits it from submit payloads', () => {
+		const productId = '33333333-3333-4333-8333-333333333333'
+		const snapshot = sanitizeDraftQuoteSnapshot({
+			items: [
+				{
+					category: 'material',
+					categoryName: 'Material',
+					imageUrl: '',
+					name: 'Editable zero',
+					productId,
+					quantity: 0,
+					slug: 'editable-zero',
+					unitOfMeasure: 'piece',
+				},
+			],
+		})
+
+		expect(snapshot.items[0]?.quantity).toBe(0)
+		expect(
+			toDraftQuoteRequestItemPayloads(snapshot.items, { isArabic: false }),
+		).toEqual([])
+	})
 })

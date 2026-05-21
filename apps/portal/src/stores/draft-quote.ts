@@ -45,14 +45,15 @@ export const useDraftQuoteStore = create<DraftQuoteState>()(
 					items: state.items.filter((i) => i.productId !== productId),
 				})),
 			updateQuantity: (productId, quantity) =>
-				set((state) => ({
-					items:
-						quantity <= 0
-							? state.items.filter((i) => i.productId !== productId)
-							: state.items.map((i) =>
-									i.productId === productId ? { ...i, quantity } : i,
-								),
-				})),
+				set((state) => {
+					if (!Number.isFinite(quantity)) return state
+					const nextQuantity = Math.max(0, Math.floor(quantity))
+					return {
+						items: state.items.map((i) =>
+							i.productId === productId ? { ...i, quantity: nextQuantity } : i,
+						),
+					}
+				}),
 			updateNote: (productId, note) =>
 				set((state) => ({
 					items: state.items.map((i) =>
