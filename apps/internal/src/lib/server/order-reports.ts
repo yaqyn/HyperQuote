@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { JsonObject, OrderReportStage } from '../db/types'
 import { computeMarginFromSellPrice } from '../pricing-math'
+import { formatSupabaseAddress } from './address-format'
 
 /**
  * Reads the living report for an RFQ/order. The response is a fully
@@ -206,21 +207,6 @@ function parseSavedVersionNotes(
 		deliveryCity: metadata ? stringOrNull(metadata.deliveryCity) : undefined,
 		items: items.length > 0 ? items : undefined,
 	}
-}
-
-function formatSupabaseAddress(
-	address: SupabaseReportAddressRow | null,
-): string {
-	if (!address) return ''
-	return [
-		address.street,
-		address.area,
-		address.city,
-		address.governorate,
-		address.landmark,
-	]
-		.filter((part): part is string => Boolean(part?.trim()))
-		.join(', ')
 }
 
 function deliveryUrgencyDays(deliveryDate: string | null): number {

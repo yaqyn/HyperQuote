@@ -80,7 +80,7 @@ export interface MarginThresholds {
 	absoluteMin: number
 }
 
-export const DEFAULT_MARGIN_THRESHOLDS: MarginThresholds = {
+const DEFAULT_MARGIN_THRESHOLDS: MarginThresholds = {
 	absoluteMin: 20,
 	bonus: 20,
 	categorySlug: null,

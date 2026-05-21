@@ -18,10 +18,9 @@ import {
 	TextControl,
 } from '../AdminControls'
 import { CustomerSubrecords } from '../CustomerSubrecords'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type CustomerDraft = Omit<CustomerRow, 'id' | 'joinedAt'> & {
 	id?: string
@@ -303,331 +302,312 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 	}
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={customers.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-			/>
-			<EntityIndex
-				volume="customers"
-				rows={customers}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={customersPending}
-				isError={customersError}
-			/>
-
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="customers"
+			rows={customers}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={customersPending}
+			isError={customersError}
+			onOpenVolumes={onOpenVolumes}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.companyName')} required>
+						<TextControl
+							value={draft.companyName}
+							onChange={(v) => setDraft({ ...draft, companyName: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.companyName')}
 						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.companyName')} required>
-							<TextControl
-								value={draft.companyName}
-								onChange={(v) => setDraft({ ...draft, companyName: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.companyName')}
-							/>
-						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.tier')}>
-								<SelectControl
-									value={draft.tier}
-									onChange={(v) => setDraft({ ...draft, tier: v })}
-									options={tierOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.tier')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.status')}>
-								<SelectControl
-									value={draft.status}
-									onChange={(v) => setDraft({ ...draft, status: v })}
-									options={statusOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.status')}
-								/>
-							</Field>
-						</div>
-						<Field label={t('editor.fields.profilePhotoUrl')}>
-							<TextControl
-								value={draft.profilePhotoUrl ?? ''}
-								onChange={(v) =>
-									setDraft({ ...draft, profilePhotoUrl: v || null })
-								}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.profilePhotoUrl')}
-								placeholder="https://..."
-							/>
-						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.tradeLicenseStatus')}>
-								<SelectControl
-									value={draft.tradeLicenseStatus}
-									onChange={(v) =>
-										setDraft({ ...draft, tradeLicenseStatus: v })
-									}
-									options={tradeLicenseOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.tradeLicenseStatus')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.createdByEmployee')}>
-								<SelectControl
-									value={draft.createdByEmployeeId ?? ''}
-									onChange={(v) =>
-										setDraft({ ...draft, createdByEmployeeId: v || null })
-									}
-									options={employeeOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.createdByEmployee')}
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.contact')} />
-						<Field label={t('editor.fields.contactName')} required>
-							<TextControl
-								value={draft.contactName}
-								onChange={(v) => setDraft({ ...draft, contactName: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.contactName')}
-							/>
-						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.phone')} required>
-								<TextControl
-									value={draft.phone}
-									onChange={(v) => setDraft({ ...draft, phone: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.phone')}
-									type="tel"
-								/>
-							</Field>
-							<Field label={t('editor.fields.email')}>
-								<TextControl
-									value={draft.email ?? ''}
-									onChange={(v) => setDraft({ ...draft, email: v || null })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.email')}
-									type="email"
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.address')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.addressLabel')}>
-								<TextControl
-									value={draft.addressLabel}
-									onChange={(v) => setDraft({ ...draft, addressLabel: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.addressLabel')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.addressPhone')}>
-								<TextControl
-									value={draft.addressPhone}
-									onChange={(v) => setDraft({ ...draft, addressPhone: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.addressPhone')}
-									type="tel"
-								/>
-							</Field>
-						</div>
-						<Field label={t('editor.fields.street')} required>
-							<TextAreaControl
-								value={draft.street}
-								onChange={(v) => setDraft({ ...draft, street: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.street')}
-								rows={2}
-							/>
-						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.area')}>
-								<TextControl
-									value={draft.area}
-									onChange={(v) => setDraft({ ...draft, area: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.area')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.city')} required>
-								<TextControl
-									value={draft.city}
-									onChange={(v) => setDraft({ ...draft, city: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.city')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.governorate')} required>
-								<TextControl
-									value={draft.governorate}
-									onChange={(v) => setDraft({ ...draft, governorate: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.governorate')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.postalCode')}>
-								<TextControl
-									value={draft.postalCode}
-									onChange={(v) => setDraft({ ...draft, postalCode: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.postalCode')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.latitude')}>
-								<TextControl
-									value={draft.latitude?.toString() ?? ''}
-									onChange={(v) =>
-										setDraft({ ...draft, latitude: coordinateFromInput(v) })
-									}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.latitude')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.longitude')}>
-								<TextControl
-									value={draft.longitude?.toString() ?? ''}
-									onChange={(v) =>
-										setDraft({ ...draft, longitude: coordinateFromInput(v) })
-									}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.longitude')}
-								/>
-							</Field>
-						</div>
-						<Field label={t('editor.fields.landmark')}>
-							<TextAreaControl
-								value={draft.landmark}
-								onChange={(v) => setDraft({ ...draft, landmark: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.landmark')}
-								rows={2}
-							/>
-						</Field>
-						<Field label={t('editor.fields.isDefaultAddress')}>
-							{readOnly ? (
-								<StatusTag
-									label={draft.isDefault ? 'Default' : 'Secondary'}
-									tone={draft.isDefault ? 'primary' : 'neutral'}
-								/>
-							) : (
-								<Toggle
-									isSelected={draft.isDefault}
-									onChange={(checked) =>
-										setDraft({ ...draft, isDefault: checked })
-									}
-									aria-label={t('editor.fields.isDefaultAddress')}
-								/>
-							)}
-						</Field>
-
-						<Section title={t('editor.section.commercial')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.creditLimit')}>
-								<NumberControl
-									value={draft.creditLimit}
-									onChange={(v) => setDraft({ ...draft, creditLimit: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.creditLimit')}
-									min={0}
-									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.currentExposure')}>
-								<NumberControl
-									value={draft.currentExposure}
-									onChange={(v) => setDraft({ ...draft, currentExposure: v })}
-									readOnly={true}
-									ariaLabel={t('editor.fields.currentExposure')}
-									min={0}
-									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.orderCount')}>
-								<NumberControl
-									value={draft.orderCount}
-									onChange={(v) => setDraft({ ...draft, orderCount: v })}
-									readOnly={true}
-									ariaLabel={t('editor.fields.orderCount')}
-									min={0}
-								/>
-							</Field>
-							<Field label={t('editor.fields.lifetimeValue')}>
-								<NumberControl
-									value={draft.lifetimeValue}
-									onChange={(v) => setDraft({ ...draft, lifetimeValue: v })}
-									readOnly={true}
-									ariaLabel={t('editor.fields.lifetimeValue')}
-									min={0}
-									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.avgMargin')}>
-								<NumberControl
-									value={draft.avgMargin}
-									onChange={(v) => setDraft({ ...draft, avgMargin: v })}
-									readOnly={true}
-									ariaLabel={t('editor.fields.avgMargin')}
-									suffix="%"
-									step={0.1}
-								/>
-							</Field>
-							<Field label={t('editor.fields.paymentHistory')}>
-								<SelectControl
-									value={draft.paymentHistory}
-									onChange={(v) => setDraft({ ...draft, paymentHistory: v })}
-									options={paymentOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.paymentHistory')}
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.assignment')} />
-						<Field label={t('editor.fields.assignedSalesRep')}>
+					</Field>
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.tier')}>
 							<SelectControl
-								value={draft.assignedSalesRep ?? ''}
-								onChange={(v) =>
-									setDraft({ ...draft, assignedSalesRep: v || null })
-								}
-								options={salesRepOptions}
+								value={draft.tier}
+								onChange={(v) => setDraft({ ...draft, tier: v })}
+								options={tierOptions}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.assignedSalesRep')}
+								ariaLabel={t('editor.fields.tier')}
 							/>
 						</Field>
-
-						<Section title={t('editor.section.customerRecords')} />
-						<CustomerSubrecords customerId={draft.id} readOnly={readOnly} />
+						<Field label={t('editor.fields.status')}>
+							<SelectControl
+								value={draft.status}
+								onChange={(v) => setDraft({ ...draft, status: v })}
+								options={statusOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.status')}
+							/>
+						</Field>
 					</div>
-				)}
-			</EntityEditor>
-		</>
+					<Field label={t('editor.fields.profilePhotoUrl')}>
+						<TextControl
+							value={draft.profilePhotoUrl ?? ''}
+							onChange={(v) =>
+								setDraft({ ...draft, profilePhotoUrl: v || null })
+							}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.profilePhotoUrl')}
+							placeholder="https://..."
+						/>
+					</Field>
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.tradeLicenseStatus')}>
+							<SelectControl
+								value={draft.tradeLicenseStatus}
+								onChange={(v) => setDraft({ ...draft, tradeLicenseStatus: v })}
+								options={tradeLicenseOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.tradeLicenseStatus')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.createdByEmployee')}>
+							<SelectControl
+								value={draft.createdByEmployeeId ?? ''}
+								onChange={(v) =>
+									setDraft({ ...draft, createdByEmployeeId: v || null })
+								}
+								options={employeeOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.createdByEmployee')}
+							/>
+						</Field>
+					</div>
+
+					<Section title={t('editor.section.contact')} />
+					<Field label={t('editor.fields.contactName')} required>
+						<TextControl
+							value={draft.contactName}
+							onChange={(v) => setDraft({ ...draft, contactName: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.contactName')}
+						/>
+					</Field>
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.phone')} required>
+							<TextControl
+								value={draft.phone}
+								onChange={(v) => setDraft({ ...draft, phone: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.phone')}
+								type="tel"
+							/>
+						</Field>
+						<Field label={t('editor.fields.email')}>
+							<TextControl
+								value={draft.email ?? ''}
+								onChange={(v) => setDraft({ ...draft, email: v || null })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.email')}
+								type="email"
+							/>
+						</Field>
+					</div>
+
+					<Section title={t('editor.section.address')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.addressLabel')}>
+							<TextControl
+								value={draft.addressLabel}
+								onChange={(v) => setDraft({ ...draft, addressLabel: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.addressLabel')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.addressPhone')}>
+							<TextControl
+								value={draft.addressPhone}
+								onChange={(v) => setDraft({ ...draft, addressPhone: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.addressPhone')}
+								type="tel"
+							/>
+						</Field>
+					</div>
+					<Field label={t('editor.fields.street')} required>
+						<TextAreaControl
+							value={draft.street}
+							onChange={(v) => setDraft({ ...draft, street: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.street')}
+							rows={2}
+						/>
+					</Field>
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.area')}>
+							<TextControl
+								value={draft.area}
+								onChange={(v) => setDraft({ ...draft, area: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.area')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.city')} required>
+							<TextControl
+								value={draft.city}
+								onChange={(v) => setDraft({ ...draft, city: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.city')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.governorate')} required>
+							<TextControl
+								value={draft.governorate}
+								onChange={(v) => setDraft({ ...draft, governorate: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.governorate')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.postalCode')}>
+							<TextControl
+								value={draft.postalCode}
+								onChange={(v) => setDraft({ ...draft, postalCode: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.postalCode')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.latitude')}>
+							<TextControl
+								value={draft.latitude?.toString() ?? ''}
+								onChange={(v) =>
+									setDraft({ ...draft, latitude: coordinateFromInput(v) })
+								}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.latitude')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.longitude')}>
+							<TextControl
+								value={draft.longitude?.toString() ?? ''}
+								onChange={(v) =>
+									setDraft({ ...draft, longitude: coordinateFromInput(v) })
+								}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.longitude')}
+							/>
+						</Field>
+					</div>
+					<Field label={t('editor.fields.landmark')}>
+						<TextAreaControl
+							value={draft.landmark}
+							onChange={(v) => setDraft({ ...draft, landmark: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.landmark')}
+							rows={2}
+						/>
+					</Field>
+					<Field label={t('editor.fields.isDefaultAddress')}>
+						{readOnly ? (
+							<StatusTag
+								label={draft.isDefault ? 'Default' : 'Secondary'}
+								tone={draft.isDefault ? 'primary' : 'neutral'}
+							/>
+						) : (
+							<Toggle
+								isSelected={draft.isDefault}
+								onChange={(checked) =>
+									setDraft({ ...draft, isDefault: checked })
+								}
+								aria-label={t('editor.fields.isDefaultAddress')}
+							/>
+						)}
+					</Field>
+
+					<Section title={t('editor.section.commercial')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.creditLimit')}>
+							<NumberControl
+								value={draft.creditLimit}
+								onChange={(v) => setDraft({ ...draft, creditLimit: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.creditLimit')}
+								min={0}
+								suffix="EGP"
+							/>
+						</Field>
+						<Field label={t('editor.fields.currentExposure')}>
+							<NumberControl
+								value={draft.currentExposure}
+								onChange={(v) => setDraft({ ...draft, currentExposure: v })}
+								readOnly={true}
+								ariaLabel={t('editor.fields.currentExposure')}
+								min={0}
+								suffix="EGP"
+							/>
+						</Field>
+						<Field label={t('editor.fields.orderCount')}>
+							<NumberControl
+								value={draft.orderCount}
+								onChange={(v) => setDraft({ ...draft, orderCount: v })}
+								readOnly={true}
+								ariaLabel={t('editor.fields.orderCount')}
+								min={0}
+							/>
+						</Field>
+						<Field label={t('editor.fields.lifetimeValue')}>
+							<NumberControl
+								value={draft.lifetimeValue}
+								onChange={(v) => setDraft({ ...draft, lifetimeValue: v })}
+								readOnly={true}
+								ariaLabel={t('editor.fields.lifetimeValue')}
+								min={0}
+								suffix="EGP"
+							/>
+						</Field>
+						<Field label={t('editor.fields.avgMargin')}>
+							<NumberControl
+								value={draft.avgMargin}
+								onChange={(v) => setDraft({ ...draft, avgMargin: v })}
+								readOnly={true}
+								ariaLabel={t('editor.fields.avgMargin')}
+								suffix="%"
+								step={0.1}
+							/>
+						</Field>
+						<Field label={t('editor.fields.paymentHistory')}>
+							<SelectControl
+								value={draft.paymentHistory}
+								onChange={(v) => setDraft({ ...draft, paymentHistory: v })}
+								options={paymentOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.paymentHistory')}
+							/>
+						</Field>
+					</div>
+
+					<Section title={t('editor.section.assignment')} />
+					<Field label={t('editor.fields.assignedSalesRep')}>
+						<SelectControl
+							value={draft.assignedSalesRep ?? ''}
+							onChange={(v) =>
+								setDraft({ ...draft, assignedSalesRep: v || null })
+							}
+							options={salesRepOptions}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.assignedSalesRep')}
+						/>
+					</Field>
+
+					<Section title={t('editor.section.customerRecords')} />
+					<CustomerSubrecords customerId={draft.id} readOnly={readOnly} />
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }

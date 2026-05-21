@@ -378,15 +378,27 @@ async function upsertCustomer(supabase, userId) {
 }
 
 async function ensureLocalSubmittedQuoteRequest(supabase, customerId, userId) {
-	const { data: product, error: productError } = await supabase
-		.from('products')
-		.select('id, name, name_ar, unit_of_measure, unit_of_measure_ar')
-		.eq('slug', 'portland-cement-cemi-42-5n')
-		.single()
-	if (productError || !product) {
-		throw new Error(
-			productError?.message ?? 'Failed to load local seed product',
-		)
+	const preferredProduct = await mustReturnMaybe(
+		supabase
+			.from('products')
+			.select('id, name, name_ar, unit_of_measure, unit_of_measure_ar')
+			.eq('slug', 'portland-cement-cemi-42-5n')
+			.maybeSingle(),
+	)
+	const product =
+		preferredProduct ??
+		(await mustReturnMaybe(
+			supabase
+				.from('products')
+				.select('id, name, name_ar, unit_of_measure, unit_of_measure_ar')
+				.eq('is_active', true)
+				.neq('availability_status', 'hidden')
+				.order('created_at', { ascending: true })
+				.limit(1)
+				.maybeSingle(),
+		))
+	if (!product) {
+		throw new Error('Failed to load an active local seed product')
 	}
 
 	const notes = 'Local submitted order for portal smoke'
@@ -786,5 +798,11 @@ async function must(promise) {
 async function mustReturn(promise) {
 	const { data, error } = await promise
 	if (error || !data) throw new Error(error?.message ?? 'Expected database row')
+	return data
+}
+
+async function mustReturnMaybe(promise) {
+	const { data, error } = await promise
+	if (error) throw new Error(error.message)
 	return data
 }

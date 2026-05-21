@@ -11,7 +11,6 @@ import type {
 	DriverRow,
 	JsonObject,
 	JsonValue,
-	SupplierPriceRow,
 	SupplierRow,
 	TruckRow,
 } from '../db/types'
@@ -298,23 +297,6 @@ interface SupabaseSupplierRow {
 	rating: number | string
 	custom_badges: string[]
 	created_at: string
-}
-
-interface SupabaseSupplierProductLinkRow {
-	id: string
-	created_at: string
-	raw_cost: number | string
-	lead_time_days: number
-	min_order_qty: number | string
-	last_quoted_at: string | null
-	is_primary: boolean
-	notes: string | null
-	products: { slug: string } | { slug: string }[] | null
-	supplier_id: string
-	suppliers:
-		| { id: string; name: string }
-		| { id: string; name: string }[]
-		| null
 }
 
 interface SupabaseSupplierSpecialtyRow {
@@ -690,23 +672,6 @@ function supabaseSupplierToAdmin(row: SupabaseSupplierRow): SupplierRow {
 		customBadges: row.custom_badges ?? [],
 		notes: row.notes,
 		joinedAt: row.created_at,
-	}
-}
-
-function supabaseSupplierItemToAdmin(
-	row: SupabaseSupplierProductLinkRow,
-): SupplierPriceRow {
-	return {
-		id: row.id,
-		isPrimary: row.is_primary,
-		lastQuotedAt: row.last_quoted_at ?? row.created_at,
-		leadTimeDays: row.lead_time_days,
-		minOrderQty: numeric(row.min_order_qty),
-		notes: row.notes,
-		productSlug: firstRelation(row.products)?.slug ?? '',
-		rawCost: numeric(row.raw_cost),
-		supplierId: row.supplier_id,
-		supplierName: firstRelation(row.suppliers)?.name ?? '',
 	}
 }
 
@@ -3310,156 +3275,4 @@ export const adminExportData = createServerFn({ method: 'POST' })
 		)
 		if (error) throw new Error(error.message)
 		return payload as AdminExportResult
-	})
-
-// ─── Supplier items (supplier_prices sub-table) ──────────
-
-const SupplierItemPayload = z.object({
-	supplierId: z.string().uuid(),
-	productSlug: z.string().min(1),
-	rawCost: z.number().min(0),
-	leadTimeDays: z.number().int().min(0),
-	minOrderQty: z.number().int().min(0),
-	isPrimary: z.boolean(),
-	notes: z.string().nullable(),
-})
-
-export const adminListSupplierItems = createServerFn({ method: 'GET' })
-	.inputValidator(z.object({ supplierId: z.string().uuid() }))
-	.handler(async ({ data }): Promise<SupplierPriceRow[]> => {
-		await getAdminSupabaseClient(false)
-		const service = await getInternalSupabaseAdminClient()
-		const { data: rows, error } = await service
-			.from('supplier_product_links')
-			.select(
-				'id, supplier_id, created_at, raw_cost, lead_time_days, min_order_qty, last_quoted_at, is_primary, notes, products(slug), suppliers(id, name)',
-			)
-			.eq('supplier_id', data.supplierId)
-			.order('created_at', { ascending: false })
-		if (error) throw new Error(error.message)
-		return ((rows ?? []) as unknown as SupabaseSupplierProductLinkRow[]).map(
-			supabaseSupplierItemToAdmin,
-		)
-	})
-
-export const adminAddSupplierItem = createServerFn({ method: 'POST' })
-	.inputValidator(SupplierItemPayload)
-	.handler(async ({ data }): Promise<SupplierPriceRow> => {
-		await getAdminSupabaseClient()
-		const service = await getInternalSupabaseAdminClient()
-		const [
-			{ data: supplier, error: supplierError },
-			{ data: products, error: productError },
-		] = await Promise.all([
-			service.from('suppliers').select('id').eq('id', data.supplierId).single(),
-			service
-				.from('products')
-				.select('id')
-				.eq('slug', data.productSlug)
-				.limit(1),
-		])
-		if (supplierError) throw new Error(supplierError.message)
-		if (productError) throw new Error(productError.message)
-		const supplierId = supplier?.id
-		const productId = products?.[0]?.id
-		if (!supplierId) throw new Error(`Supplier ${data.supplierId} not found`)
-		if (!productId) throw new Error(`Product ${data.productSlug} not found`)
-
-		const { data: row, error } = await service
-			.from('supplier_product_links')
-			.insert({
-				is_primary: data.isPrimary,
-				lead_time_days: data.leadTimeDays,
-				min_order_qty: data.minOrderQty,
-				notes: data.notes,
-				product_id: productId,
-				raw_cost: data.rawCost,
-				supplier_id: supplierId,
-			})
-			.select(
-				'id, supplier_id, created_at, raw_cost, lead_time_days, min_order_qty, last_quoted_at, is_primary, notes, products(slug), suppliers(id, name)',
-			)
-			.single()
-		if (error || !row) {
-			throw new Error(error?.message ?? 'Failed to create supplier item')
-		}
-		await recordAdminAudit({
-			action: 'admin_record_created',
-			details: { product_slug: data.productSlug, scope: 'supplier_items' },
-			entityId: row.id,
-			entityType: 'supplier_product_link',
-			reason: 'Admin supplier item create via internal panel',
-		})
-		return supabaseSupplierItemToAdmin(
-			row as unknown as SupabaseSupplierProductLinkRow,
-		)
-	})
-
-export const adminUpdateSupplierItem = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			id: z.string(),
-			rawCost: z.number().min(0).optional(),
-			leadTimeDays: z.number().int().min(0).optional(),
-			minOrderQty: z.number().int().min(0).optional(),
-			isPrimary: z.boolean().optional(),
-			notes: z.string().nullable().optional(),
-		}),
-	)
-	.handler(async ({ data }): Promise<SupplierPriceRow> => {
-		const { id, ...patch } = data
-		await getAdminSupabaseClient()
-		const service = await getInternalSupabaseAdminClient()
-		const linkPatch: Record<string, unknown> = {}
-		if (patch.rawCost !== undefined) {
-			linkPatch.raw_cost = patch.rawCost
-			linkPatch.last_quoted_at = new Date().toISOString()
-		}
-		if (patch.leadTimeDays !== undefined) {
-			linkPatch.lead_time_days = patch.leadTimeDays
-		}
-		if (patch.minOrderQty !== undefined)
-			linkPatch.min_order_qty = patch.minOrderQty
-		if (patch.isPrimary !== undefined) linkPatch.is_primary = patch.isPrimary
-		if (patch.notes !== undefined) linkPatch.notes = patch.notes
-		const { data: row, error } = await service
-			.from('supplier_product_links')
-			.update(linkPatch)
-			.eq('id', id)
-			.select(
-				'id, supplier_id, created_at, raw_cost, lead_time_days, min_order_qty, last_quoted_at, is_primary, notes, products(slug), suppliers(id, name)',
-			)
-			.single()
-		if (error || !row)
-			throw new Error(error?.message ?? `Supplier item ${id} not found`)
-		await recordAdminAudit({
-			action: 'admin_record_updated',
-			details: { changed_keys: Object.keys(patch), scope: 'supplier_items' },
-			entityId: id,
-			entityType: 'supplier_product_link',
-			reason: 'Admin supplier item update via internal panel',
-		})
-		return supabaseSupplierItemToAdmin(
-			row as unknown as SupabaseSupplierProductLinkRow,
-		)
-	})
-
-export const adminRemoveSupplierItem = createServerFn({ method: 'POST' })
-	.inputValidator(z.object({ id: z.string() }))
-	.handler(async ({ data }): Promise<{ ok: boolean }> => {
-		await getAdminSupabaseClient()
-		const service = await getInternalSupabaseAdminClient()
-		const { error } = await service
-			.from('supplier_product_links')
-			.delete()
-			.eq('id', data.id)
-		if (error) throw new Error(error.message)
-		await recordAdminAudit({
-			action: 'admin_record_deactivated',
-			details: { scope: 'supplier_items' },
-			entityId: data.id,
-			entityType: 'supplier_product_link',
-			reason: 'Admin supplier item delete via internal panel',
-		})
-		return { ok: true }
 	})

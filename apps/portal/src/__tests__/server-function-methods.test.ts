@@ -28,11 +28,7 @@ const mutatingServerFunctions = [
 	},
 	{
 		file: 'lib/server/deliveries.ts',
-		exports: [
-			'getDeliverySecret',
-			'confirmDropShipDelivery',
-			'disputeDropShipDelivery',
-		],
+		exports: ['getDeliverySecret'],
 	},
 	{
 		file: 'lib/server/notifications.ts',

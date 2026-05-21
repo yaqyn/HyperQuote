@@ -5,6 +5,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import { serializeUnavailableItemsError } from '../unavailable-quote-items'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
 	insertQuoteRequestItems,
@@ -15,7 +16,7 @@ import {
 // Input Schemas
 // ============================================================================
 
-const submitQuoteRequestInput = z.object({
+const quoteRequestDraftInput = z.object({
 	draftId: z.string().uuid().optional(),
 	items: z.array(quoteRequestItemInputSchema).min(1),
 	deliveryAddressId: z.string().uuid().optional(),
@@ -24,20 +25,14 @@ const submitQuoteRequestInput = z.object({
 	notes: z.string().optional(),
 	projectId: z.string().uuid().optional(),
 	attachmentUrls: z.array(z.string()).optional(),
+})
+
+const submitQuoteRequestInput = quoteRequestDraftInput.extend({
 	approvalRequired: z.boolean().optional(),
 	idempotencyKey: z.string().uuid(),
 })
 
-const saveDraftInput = z.object({
-	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInputSchema).min(1),
-	deliveryAddressId: z.string().uuid().optional(),
-	deliveryDate: z.string().optional(),
-	name: z.string().max(120).optional(),
-	notes: z.string().optional(),
-	projectId: z.string().uuid().optional(),
-	attachmentUrls: z.array(z.string()).optional(),
-})
+const saveDraftInput = quoteRequestDraftInput
 
 interface QuoteRequestUpdate {
 	approval_required?: boolean
@@ -47,12 +42,6 @@ interface QuoteRequestUpdate {
 	draft_name?: string | null
 	notes?: string | null
 	project_id?: string | null
-}
-
-export const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
-
-function serializeUnavailableItemsError(names: string[]) {
-	return `${UNAVAILABLE_QUOTE_ITEMS_ERROR}${JSON.stringify(names)}`
 }
 
 function normalizeDraftName(value: string | undefined): string | null {

@@ -29,19 +29,6 @@ export interface SupplierRow {
 	joinedAt: string
 }
 
-export interface SupplierPriceRow {
-	id: string
-	productSlug: string
-	supplierId: string
-	supplierName: string
-	rawCost: number
-	leadTimeDays: number
-	minOrderQty: number
-	lastQuotedAt: string
-	isPrimary: boolean
-	notes: string | null
-}
-
 export interface CustomerRow {
 	id: string
 	userId: string | null

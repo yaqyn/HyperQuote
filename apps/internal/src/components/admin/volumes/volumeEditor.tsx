@@ -1,8 +1,20 @@
-import { type Dispatch, type SetStateAction, useState } from 'react'
+import {
+	type Dispatch,
+	type ReactNode,
+	type SetStateAction,
+	useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAdminStore } from '../../../stores/admin'
-import type { EditorMode } from '../../../types/admin'
+import type {
+	EditorMode,
+	VolumeDefinition,
+	VolumeId,
+} from '../../../types/admin'
 import { LinkAction } from '../AdminControls'
+import { EntityEditor } from '../EntityEditor'
+import { type ColumnDef, EntityIndex } from '../EntityIndex'
+import { RegistryMasthead } from '../RegistryMasthead'
 
 interface UseVolumeEditorOptions<TRow, TDraft> {
 	rows: TRow[]
@@ -93,7 +105,7 @@ export function useVolumeEditor<TRow, TDraft>({
 	}
 }
 
-export function VolumeEditorFooter({
+function VolumeEditorFooter({
 	mode,
 	id,
 	isSaving,
@@ -142,6 +154,118 @@ export function VolumeEditorFooter({
 					{t('actions.delete')}
 				</LinkAction>
 			)}
+		</>
+	)
+}
+
+interface VolumeWorkspaceProps<TRow> {
+	volume: VolumeDefinition
+	volumeId: VolumeId
+	rows: TRow[]
+	columns: ColumnDef<TRow>[]
+	rowKey: (row: TRow) => string
+	onRowSelect: (row: TRow) => void
+	onNewEntry: (() => void) | null
+	filter: (row: TRow, query: string) => boolean
+	isLoading?: boolean
+	isError?: boolean
+	topNote?: ReactNode
+	onOpenVolumes: () => void
+	onExport?: (() => void) | null
+	isExporting?: boolean
+	exportStatus?: string | null
+	mode: EditorMode | null
+	hasDraft: boolean
+	idLabel?: string | null
+	footerId?: string | null
+	isSaving: boolean
+	isDeleting: boolean
+	saveDisabled?: boolean
+	onClose: () => void
+	onEdit: () => void
+	onSave: () => void
+	onCancel: () => void
+	onDelete: () => void
+	children: ReactNode
+}
+
+export function VolumeWorkspace<TRow>({
+	volume,
+	volumeId,
+	rows,
+	columns,
+	rowKey,
+	onRowSelect,
+	onNewEntry,
+	filter,
+	isLoading,
+	isError,
+	topNote,
+	onOpenVolumes,
+	onExport,
+	isExporting,
+	exportStatus,
+	mode,
+	hasDraft,
+	idLabel,
+	footerId,
+	isSaving,
+	isDeleting,
+	saveDisabled,
+	onClose,
+	onEdit,
+	onSave,
+	onCancel,
+	onDelete,
+	children,
+}: VolumeWorkspaceProps<TRow>) {
+	return (
+		<>
+			<RegistryMasthead
+				volume={volume}
+				entryCount={rows.length}
+				onOpenVolumes={onOpenVolumes}
+				onNewEntry={onNewEntry}
+				onExport={onExport}
+				isExporting={isExporting}
+				exportStatus={exportStatus}
+			/>
+			<EntityIndex
+				volume={volumeId}
+				rows={rows}
+				columns={columns}
+				rowKey={rowKey}
+				onRowSelect={onRowSelect}
+				onNewEntry={onNewEntry}
+				filter={filter}
+				isLoading={isLoading}
+				isError={isError}
+				topNote={topNote}
+			/>
+
+			<EntityEditor
+				isOpen={mode !== null}
+				onClose={onClose}
+				mode={mode}
+				idLabel={idLabel ?? null}
+				footer={
+					hasDraft ? (
+						<VolumeEditorFooter
+							mode={mode}
+							id={footerId ?? idLabel}
+							isSaving={isSaving}
+							isDeleting={isDeleting}
+							saveDisabled={saveDisabled}
+							onEdit={onEdit}
+							onSave={onSave}
+							onCancel={onCancel}
+							onDelete={onDelete}
+						/>
+					) : null
+				}
+			>
+				{children}
+			</EntityEditor>
 		</>
 	)
 }

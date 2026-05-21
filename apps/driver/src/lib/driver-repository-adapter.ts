@@ -1,9 +1,9 @@
-import { resolveSupabaseBrowserConfig } from '@hyperquote/auth'
 import type { DriverRepository } from './driver-repository'
+import { resolveDriverSupabaseConfig } from './supabase-config'
 import { createSupabaseDriverRepository } from './supabase-driver-repository'
 
 function createDriverRepository(): DriverRepository {
-	const config = resolveSupabaseBrowserConfig(import.meta.env)
+	const config = resolveDriverSupabaseConfig()
 	if (!config) {
 		throw new Error('Supabase is required for the driver app')
 	}

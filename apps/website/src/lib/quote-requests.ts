@@ -3,7 +3,7 @@ import {
 	createSupabaseServerClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { logWebsiteServerError } from './server-log'
@@ -36,6 +36,8 @@ const saveWebsiteQuoteDraftInput = z.object({
 	notes: z.string().max(2000).optional(),
 })
 
+type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInput>
+
 const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
 
 function serializeUnavailableItemsError(names: string[]) {
@@ -65,7 +67,7 @@ function normalizeDraftName(value: string | undefined): string | null {
 	return name || null
 }
 
-async function getAuthenticatedClient() {
+const getAuthenticatedClient = createServerOnlyFn(async () => {
 	const config = await resolveSupabaseWorkerConfig(process.env)
 	if (!config) return { error: 'not_configured' as const }
 
@@ -98,12 +100,74 @@ async function getAuthenticatedClient() {
 		responseHeaders,
 		user,
 	}
-}
+})
 
-type WebsiteSupabaseClient = Exclude<
+type AuthenticatedClient = Exclude<
 	Awaited<ReturnType<typeof getAuthenticatedClient>>,
 	{ error: unknown }
->['client']
+>
+
+type WebsiteSupabaseClient = AuthenticatedClient['client']
+
+function validProductId(productId: string | undefined): string | null {
+	return productId && UUID_RE.test(productId) ? productId : null
+}
+
+function quoteRequestItemRows(
+	quoteRequestId: string,
+	items: QuoteRequestItemInput[],
+) {
+	return items.map((item) => {
+		const productId = validProductId(item.productId)
+		return {
+			quote_request_id: quoteRequestId,
+			product_id: productId,
+			customer_description: item.customerDescription,
+			quantity: item.quantity,
+			unit_of_measure: item.unitOfMeasure,
+			unit_of_measure_ar: item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
+			notes: item.notes ?? null,
+			match_confidence: productId ? 1 : null,
+			sort_order: item.sortOrder,
+			is_unmatched: !productId,
+		}
+	})
+}
+
+async function replaceQuoteRequestItems(
+	client: WebsiteSupabaseClient,
+	quoteRequestId: string,
+	items: QuoteRequestItemInput[],
+) {
+	const { error: deleteError } = await client
+		.from('quote_request_items')
+		.delete()
+		.eq('quote_request_id', quoteRequestId)
+
+	if (deleteError) throw deleteError
+
+	await insertQuoteRequestItems(client, quoteRequestId, items)
+}
+
+async function insertQuoteRequestItems(
+	client: WebsiteSupabaseClient,
+	quoteRequestId: string,
+	items: QuoteRequestItemInput[],
+) {
+	const { error } = await client
+		.from('quote_request_items')
+		.insert(quoteRequestItemRows(quoteRequestId, items))
+
+	if (error) throw error
+}
+
+const appendAuthCookies = createServerOnlyFn((auth: AuthenticatedClient) => {
+	appendSetCookieHeaders(
+		getResponse().headers,
+		auth.responseCookies.values(),
+		auth.responseHeaders.entries(),
+	)
+})
 
 async function assertQuoteRequestItemsOrderable(
 	client: WebsiteSupabaseClient,
@@ -111,9 +175,10 @@ async function assertQuoteRequestItemsOrderable(
 ) {
 	const productIds = [
 		...new Set(
-			items.flatMap((item) =>
-				item.productId && UUID_RE.test(item.productId) ? [item.productId] : [],
-			),
+			items.flatMap((item) => {
+				const productId = validProductId(item.productId)
+				return productId ? [productId] : []
+			}),
 		),
 	]
 	if (productIds.length === 0) return
@@ -135,13 +200,12 @@ async function assertQuoteRequestItemsOrderable(
 			)
 			.map((product) => product.id),
 	)
-	const unavailableItems = items.flatMap((item) =>
-		item.productId &&
-		UUID_RE.test(item.productId) &&
-		!orderableIds.has(item.productId)
+	const unavailableItems = items.flatMap((item) => {
+		const productId = validProductId(item.productId)
+		return productId && !orderableIds.has(productId)
 			? [item.customerDescription]
-			: [],
-	)
+			: []
+	})
 
 	if (unavailableItems.length > 0) {
 		throw new Error(serializeUnavailableItemsError(unavailableItems))
@@ -193,11 +257,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						if (submitError) throw submitError
 					}
 
-					appendSetCookieHeaders(
-						getResponse().headers,
-						auth.responseCookies.values(),
-						auth.responseHeaders.entries(),
-					)
+					await appendAuthCookies(auth)
 					return {
 						success: true,
 						requestId: existing.data.id,
@@ -223,36 +283,11 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						throw draftError ?? new Error('Quote draft update failed')
 					}
 
-					const { error: deleteItemsError } = await auth.client
-						.from('quote_request_items')
-						.delete()
-						.eq('quote_request_id', input.draftId)
-
-					if (deleteItemsError) throw deleteItemsError
-
-					const { error: itemsError } = await auth.client
-						.from('quote_request_items')
-						.insert(
-							input.items.map((item) => ({
-								quote_request_id: input.draftId,
-								product_id:
-									item.productId && UUID_RE.test(item.productId)
-										? item.productId
-										: null,
-								customer_description: item.customerDescription,
-								quantity: item.quantity,
-								unit_of_measure: item.unitOfMeasure,
-								unit_of_measure_ar:
-									item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
-								notes: item.notes ?? null,
-								match_confidence:
-									item.productId && UUID_RE.test(item.productId) ? 1 : null,
-								sort_order: item.sortOrder,
-								is_unmatched: !(item.productId && UUID_RE.test(item.productId)),
-							})),
-						)
-
-					if (itemsError) throw itemsError
+					await replaceQuoteRequestItems(
+						auth.client,
+						input.draftId,
+						input.items,
+					)
 
 					const { error: submitError } = await auth.client.rpc(
 						'customer_submit_saved_quote_request',
@@ -264,11 +299,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					if (submitError) throw submitError
 
-					appendSetCookieHeaders(
-						getResponse().headers,
-						auth.responseCookies.values(),
-						auth.responseHeaders.entries(),
-					)
+					await appendAuthCookies(auth)
 
 					return {
 						success: true,
@@ -296,29 +327,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 					throw requestError ?? new Error('Quote request insert failed')
 				}
 
-				const { error: itemsError } = await auth.client
-					.from('quote_request_items')
-					.insert(
-						input.items.map((item) => ({
-							quote_request_id: requestRow.id,
-							product_id:
-								item.productId && UUID_RE.test(item.productId)
-									? item.productId
-									: null,
-							customer_description: item.customerDescription,
-							quantity: item.quantity,
-							unit_of_measure: item.unitOfMeasure,
-							unit_of_measure_ar:
-								item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
-							notes: item.notes ?? null,
-							match_confidence:
-								item.productId && UUID_RE.test(item.productId) ? 1 : null,
-							sort_order: item.sortOrder,
-							is_unmatched: !(item.productId && UUID_RE.test(item.productId)),
-						})),
-					)
-
-				if (itemsError) throw itemsError
+				await insertQuoteRequestItems(auth.client, requestRow.id, input.items)
 
 				const { error: submitError } = await auth.client.rpc(
 					'customer_submit_saved_quote_request',
@@ -330,11 +339,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 				if (submitError) throw submitError
 
-				appendSetCookieHeaders(
-					getResponse().headers,
-					auth.responseCookies.values(),
-					auth.responseHeaders.entries(),
-				)
+				await appendAuthCookies(auth)
 
 				return {
 					success: true,
@@ -398,36 +403,11 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						throw updateError ?? new Error('Quote draft update failed')
 					}
 
-					const { error: deleteError } = await auth.client
-						.from('quote_request_items')
-						.delete()
-						.eq('quote_request_id', input.draftId)
-
-					if (deleteError) throw deleteError
-
-					const { error: itemsError } = await auth.client
-						.from('quote_request_items')
-						.insert(
-							input.items.map((item) => ({
-								quote_request_id: input.draftId,
-								product_id:
-									item.productId && UUID_RE.test(item.productId)
-										? item.productId
-										: null,
-								customer_description: item.customerDescription,
-								quantity: item.quantity,
-								unit_of_measure: item.unitOfMeasure,
-								unit_of_measure_ar:
-									item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
-								notes: item.notes ?? null,
-								match_confidence:
-									item.productId && UUID_RE.test(item.productId) ? 1 : null,
-								sort_order: item.sortOrder,
-								is_unmatched: !(item.productId && UUID_RE.test(item.productId)),
-							})),
-						)
-
-					if (itemsError) throw itemsError
+					await replaceQuoteRequestItems(
+						auth.client,
+						input.draftId,
+						input.items,
+					)
 
 					const { error: activityError } = await auth.client.rpc(
 						'customer_record_quote_request_draft_saved',
@@ -443,11 +423,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 
 					if (activityError) throw activityError
 
-					appendSetCookieHeaders(
-						getResponse().headers,
-						auth.responseCookies.values(),
-						auth.responseHeaders.entries(),
-					)
+					await appendAuthCookies(auth)
 
 					return {
 						success: true,
@@ -474,29 +450,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 					throw requestError ?? new Error('Quote draft insert failed')
 				}
 
-				const { error: itemsError } = await auth.client
-					.from('quote_request_items')
-					.insert(
-						input.items.map((item) => ({
-							quote_request_id: requestRow.id,
-							product_id:
-								item.productId && UUID_RE.test(item.productId)
-									? item.productId
-									: null,
-							customer_description: item.customerDescription,
-							quantity: item.quantity,
-							unit_of_measure: item.unitOfMeasure,
-							unit_of_measure_ar:
-								item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
-							notes: item.notes ?? null,
-							match_confidence:
-								item.productId && UUID_RE.test(item.productId) ? 1 : null,
-							sort_order: item.sortOrder,
-							is_unmatched: !(item.productId && UUID_RE.test(item.productId)),
-						})),
-					)
-
-				if (itemsError) throw itemsError
+				await insertQuoteRequestItems(auth.client, requestRow.id, input.items)
 
 				const { error: activityError } = await auth.client.rpc(
 					'customer_record_quote_request_draft_saved',
@@ -512,11 +466,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 
 				if (activityError) throw activityError
 
-				appendSetCookieHeaders(
-					getResponse().headers,
-					auth.responseCookies.values(),
-					auth.responseHeaders.entries(),
-				)
+				await appendAuthCookies(auth)
 
 				return {
 					success: true,

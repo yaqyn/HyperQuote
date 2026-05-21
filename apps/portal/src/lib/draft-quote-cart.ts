@@ -35,7 +35,7 @@ export interface DraftQuoteRequestItemPayload {
 	isUnmatched?: boolean
 }
 
-export function sanitizeDraftQuoteItems(value: unknown): DraftCartItem[] {
+function sanitizeDraftQuoteItems(value: unknown): DraftCartItem[] {
 	if (!Array.isArray(value)) return []
 
 	const usedIds = new Set<string>()

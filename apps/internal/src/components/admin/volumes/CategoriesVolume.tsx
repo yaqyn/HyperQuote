@@ -13,11 +13,10 @@ import {
 import { getVolume } from '../../../types/admin'
 import { Toggle } from '../../ui/Toggle'
 import { StatusTag, TextAreaControl, TextControl } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type CategoryDraft = AdminCategoryPayload & { id?: string }
 
@@ -199,125 +198,108 @@ export function CategoriesVolume({ onOpenVolumes }: CategoriesVolumeProps) {
 		r.description_ar.includes(q)
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={categories.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-				onExport={requestExport}
-				isExporting={isExporting}
-				exportStatus={exportStatus}
-			/>
-			<EntityIndex
-				volume="categories"
-				rows={categories}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={categoriesPending}
-				isError={categoriesError}
-			/>
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="categories"
+			rows={categories}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={categoriesPending}
+			isError={categoriesError}
+			onOpenVolumes={onOpenVolumes}
+			onExport={requestExport}
+			isExporting={isExporting}
+			exportStatus={exportStatus}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<PictureField
+						value={draft.pictureUrl}
+						onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
+						readOnly={readOnly}
+						altText={draft.name || t('editor.fields.name')}
+						label={t('editor.fields.pictureUrl')}
+					/>
 
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
-						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<PictureField
-							value={draft.pictureUrl}
-							onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.name')} required>
+						<TextControl
+							value={draft.name}
+							onChange={(v) => setDraft({ ...draft, name: v })}
 							readOnly={readOnly}
-							altText={draft.name || t('editor.fields.name')}
-							label={t('editor.fields.pictureUrl')}
+							ariaLabel={t('editor.fields.name')}
 						/>
+					</Field>
+					<Field label={t('editor.fields.nameAr')} required>
+						<TextControl
+							value={draft.name_ar}
+							onChange={(v) => setDraft({ ...draft, name_ar: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.nameAr')}
+						/>
+					</Field>
 
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.name')} required>
-							<TextControl
-								value={draft.name}
-								onChange={(v) => setDraft({ ...draft, name: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.name')}
+					<Section title={t('editor.section.commercial')} />
+					<Field label={t('editor.fields.availabilityStatus')}>
+						{readOnly ? (
+							<StatusTag
+								label={
+									draft.isActive
+										? t('editor.values.visible')
+										: t('editor.values.hidden')
+								}
+								tone={draft.isActive ? 'primary' : 'muted'}
 							/>
-						</Field>
-						<Field label={t('editor.fields.nameAr')} required>
-							<TextControl
-								value={draft.name_ar}
-								onChange={(v) => setDraft({ ...draft, name_ar: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.nameAr')}
+						) : (
+							<Toggle
+								isSelected={draft.isActive}
+								onChange={(checked) =>
+									setDraft({ ...draft, isActive: checked })
+								}
+								label={
+									draft.isActive
+										? t('editor.values.visible')
+										: t('editor.values.hidden')
+								}
+								aria-label={t('editor.fields.availabilityStatus')}
 							/>
-						</Field>
+						)}
+					</Field>
 
-						<Section title={t('editor.section.commercial')} />
-						<Field label={t('editor.fields.availabilityStatus')}>
-							{readOnly ? (
-								<StatusTag
-									label={
-										draft.isActive
-											? t('editor.values.visible')
-											: t('editor.values.hidden')
-									}
-									tone={draft.isActive ? 'primary' : 'muted'}
-								/>
-							) : (
-								<Toggle
-									isSelected={draft.isActive}
-									onChange={(checked) =>
-										setDraft({ ...draft, isActive: checked })
-									}
-									label={
-										draft.isActive
-											? t('editor.values.visible')
-											: t('editor.values.hidden')
-									}
-									aria-label={t('editor.fields.availabilityStatus')}
-								/>
-							)}
-						</Field>
-
-						<Field label={t('editor.fields.description')} required>
-							<TextAreaControl
-								value={draft.description}
-								onChange={(v) => setDraft({ ...draft, description: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.description')}
-								rows={3}
-							/>
-						</Field>
-						<Field label={t('editor.fields.descriptionAr')} required>
-							<TextAreaControl
-								value={draft.description_ar}
-								onChange={(v) => setDraft({ ...draft, description_ar: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.descriptionAr')}
-								rows={3}
-							/>
-						</Field>
-					</div>
-				)}
-			</EntityEditor>
-		</>
+					<Field label={t('editor.fields.description')} required>
+						<TextAreaControl
+							value={draft.description}
+							onChange={(v) => setDraft({ ...draft, description: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.description')}
+							rows={3}
+						/>
+					</Field>
+					<Field label={t('editor.fields.descriptionAr')} required>
+						<TextAreaControl
+							value={draft.description_ar}
+							onChange={(v) => setDraft({ ...draft, description_ar: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.descriptionAr')}
+							rows={3}
+						/>
+					</Field>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }
 

@@ -35,14 +35,14 @@ export type OrderDeliveryStatus =
 	| 'completed'
 	| 'rejected'
 
-export type OrderDeliveryStage =
+type OrderDeliveryStage =
 	| 'confirmed'
 	| 'being_prepared'
 	| 'out_for_delivery'
 	| 'delivered'
 	| 'invoice_generated'
 
-export interface OrderDeliveryMapPoint {
+interface OrderDeliveryMapPoint {
 	lat: number
 	lng: number
 }

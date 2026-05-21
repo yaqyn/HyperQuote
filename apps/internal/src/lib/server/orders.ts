@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getInternalSupabaseClient } from './_supabase'
+import { formatSupabaseAddress } from './address-format'
 
 /**
  * Customer orders arriving at inventory prep. Each row represents a won
@@ -144,21 +145,6 @@ interface SupabaseOrderRefillRow {
 function firstRelation<T>(value: T | T[] | null): T | null {
 	if (Array.isArray(value)) return value[0] ?? null
 	return value
-}
-
-function formatSupabaseAddress(
-	address: SupabaseOrderAddressRow | null,
-): string {
-	if (!address) return ''
-	return [
-		address.street,
-		address.area,
-		address.city,
-		address.governorate,
-		address.landmark,
-	]
-		.filter((part): part is string => Boolean(part?.trim()))
-		.join(', ')
 }
 
 function deliveryUrgencyDays(deliveryDate: string | null): number {

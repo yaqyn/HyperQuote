@@ -9,10 +9,9 @@ import {
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
 import { SelectControl, StatusTag, TextControl } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type DriverDraft = Omit<DriverRow, 'id' | 'createdAt'> & {
 	id?: string
@@ -220,127 +219,108 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 				: null
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={drivers.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-			/>
-			<EntityIndex
-				volume="drivers"
-				rows={drivers}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={driversPending}
-				isError={driversError}
-			/>
-
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
-							saveDisabled={passwordTooShort}
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="drivers"
+			rows={drivers}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={driversPending}
+			isError={driversError}
+			onOpenVolumes={onOpenVolumes}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			saveDisabled={passwordTooShort}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.driverName')} required>
+						<TextControl
+							value={draft.fullName}
+							onChange={(v) => setDraft({ ...draft, fullName: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.driverName')}
 						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.driverName')} required>
+					</Field>
+					<Field label={t('editor.fields.driverEmail')} required>
+						<TextControl
+							value={draft.email ?? ''}
+							onChange={(v) => setDraft({ ...draft, email: v || null })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.driverEmail')}
+							type="email"
+						/>
+					</Field>
+					<Field label={t('editor.fields.driverPhone')} required>
+						<TextControl
+							value={draft.phone}
+							onChange={(v) => setDraft({ ...draft, phone: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.driverPhone')}
+							type="tel"
+						/>
+					</Field>
+					{!readOnly && (
+						<Field
+							label={t('editor.fields.driverPassword')}
+							required={mode === 'create'}
+						>
 							<TextControl
-								value={draft.fullName}
-								onChange={(v) => setDraft({ ...draft, fullName: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.driverName')}
+								value={draft.password ?? ''}
+								onChange={(v) => setDraft({ ...draft, password: v })}
+								readOnly={false}
+								ariaLabel={t('editor.fields.driverPassword')}
+								type="password"
 							/>
+							{passwordTooShort && (
+								<p className="mt-1.5 text-xs text-[#B91C1C]" role="alert">
+									Driver passwords must be at least 6 characters.
+								</p>
+							)}
 						</Field>
-						<Field label={t('editor.fields.driverEmail')} required>
-							<TextControl
-								value={draft.email ?? ''}
-								onChange={(v) => setDraft({ ...draft, email: v || null })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.driverEmail')}
-								type="email"
-							/>
-						</Field>
-						<Field label={t('editor.fields.driverPhone')} required>
-							<TextControl
-								value={draft.phone}
-								onChange={(v) => setDraft({ ...draft, phone: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.driverPhone')}
-								type="tel"
-							/>
-						</Field>
-						{!readOnly && (
-							<Field
-								label={t('editor.fields.driverPassword')}
-								required={mode === 'create'}
-							>
-								<TextControl
-									value={draft.password ?? ''}
-									onChange={(v) => setDraft({ ...draft, password: v })}
-									readOnly={false}
-									ariaLabel={t('editor.fields.driverPassword')}
-									type="password"
-								/>
-								{passwordTooShort && (
-									<p className="mt-1.5 text-xs text-[#B91C1C]" role="alert">
-										Driver passwords must be at least 6 characters.
-									</p>
-								)}
-							</Field>
-						)}
+					)}
 
-						{mutationError && (
-							<p
-								className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
-								role="alert"
-							>
-								{mutationError}
-							</p>
-						)}
+					{mutationError && (
+						<p
+							className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
+							role="alert"
+						>
+							{mutationError}
+						</p>
+					)}
 
-						<Section title={t('editor.section.operational')} />
-						<Field label={t('editor.fields.status')}>
-							<SelectControl
-								value={draft.status}
-								onChange={(v) => setDraft({ ...draft, status: v })}
-								options={statusOptions}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.status')}
-							/>
-						</Field>
-						<Field label={t('editor.fields.vehicleLabel')}>
-							<TextControl
-								value={draft.vehicleLabel ?? ''}
-								onChange={(v) =>
-									setDraft({ ...draft, vehicleLabel: v || null })
-								}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.vehicleLabel')}
-							/>
-						</Field>
-					</div>
-				)}
-			</EntityEditor>
-		</>
+					<Section title={t('editor.section.operational')} />
+					<Field label={t('editor.fields.status')}>
+						<SelectControl
+							value={draft.status}
+							onChange={(v) => setDraft({ ...draft, status: v })}
+							options={statusOptions}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.status')}
+						/>
+					</Field>
+					<Field label={t('editor.fields.vehicleLabel')}>
+						<TextControl
+							value={draft.vehicleLabel ?? ''}
+							onChange={(v) => setDraft({ ...draft, vehicleLabel: v || null })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.vehicleLabel')}
+						/>
+					</Field>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }

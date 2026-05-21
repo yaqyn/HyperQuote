@@ -20,11 +20,10 @@ import {
 	TextAreaControl,
 	TextControl,
 } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type ProductDraft = AdminProductPayload & { id?: string }
 
@@ -288,236 +287,215 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 		r.manufacturer.toLowerCase().includes(q)
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={products.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-				onExport={requestExport}
-				isExporting={isExporting}
-				exportStatus={exportStatus}
-			/>
-			<EntityIndex
-				volume="products"
-				rows={products}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={productsPending}
-				isError={productsError}
-			/>
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="products"
+			rows={products}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={productsPending}
+			isError={productsError}
+			onOpenVolumes={onOpenVolumes}
+			onExport={requestExport}
+			isExporting={isExporting}
+			exportStatus={exportStatus}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			saveDisabled={thresholdInvalid || missingCategory}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<PictureField
+						value={draft.pictureUrl}
+						onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
+						readOnly={readOnly}
+						altText={draft.name || t('editor.fields.name')}
+						label={t('editor.fields.pictureUrl')}
+					/>
 
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							saveDisabled={thresholdInvalid || missingCategory}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
-						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<PictureField
-							value={draft.pictureUrl}
-							onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.name')} required>
+						<TextControl
+							value={draft.name}
+							onChange={(v) => setDraft({ ...draft, name: v })}
 							readOnly={readOnly}
-							altText={draft.name || t('editor.fields.name')}
-							label={t('editor.fields.pictureUrl')}
+							ariaLabel={t('editor.fields.name')}
 						/>
+					</Field>
+					<Field label={t('editor.fields.nameAr')} required>
+						<TextControl
+							value={draft.name_ar}
+							onChange={(v) => setDraft({ ...draft, name_ar: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.nameAr')}
+						/>
+					</Field>
 
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.name')} required>
+					<Section title={t('editor.section.taxonomy')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.category')} required>
+							{categoryOptions.length > 0 ? (
+								<SelectControl
+									value={draft.category}
+									onChange={(v) => setDraft({ ...draft, category: v })}
+									options={categoryOptions}
+									readOnly={readOnly}
+									ariaLabel={t('editor.fields.category')}
+								/>
+							) : (
+								<StatusTag
+									label={t('editor.values.categoryRequired')}
+									tone="muted"
+								/>
+							)}
+						</Field>
+						<Field label={t('editor.fields.brand')}>
 							<TextControl
-								value={draft.name}
-								onChange={(v) => setDraft({ ...draft, name: v })}
+								value={draft.brand ?? ''}
+								onChange={(v) => setDraft({ ...draft, brand: v || null })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.name')}
+								ariaLabel={t('editor.fields.brand')}
 							/>
 						</Field>
-						<Field label={t('editor.fields.nameAr')} required>
+						<Field label={t('editor.fields.manufacturer')}>
 							<TextControl
-								value={draft.name_ar}
-								onChange={(v) => setDraft({ ...draft, name_ar: v })}
+								value={draft.manufacturer}
+								onChange={(v) => setDraft({ ...draft, manufacturer: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.nameAr')}
-							/>
-						</Field>
-
-						<Section title={t('editor.section.taxonomy')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.category')} required>
-								{categoryOptions.length > 0 ? (
-									<SelectControl
-										value={draft.category}
-										onChange={(v) => setDraft({ ...draft, category: v })}
-										options={categoryOptions}
-										readOnly={readOnly}
-										ariaLabel={t('editor.fields.category')}
-									/>
-								) : (
-									<StatusTag
-										label={t('editor.values.categoryRequired')}
-										tone="muted"
-									/>
-								)}
-							</Field>
-							<Field label={t('editor.fields.brand')}>
-								<TextControl
-									value={draft.brand ?? ''}
-									onChange={(v) => setDraft({ ...draft, brand: v || null })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.brand')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.manufacturer')}>
-								<TextControl
-									value={draft.manufacturer}
-									onChange={(v) => setDraft({ ...draft, manufacturer: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.manufacturer')}
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.commercial')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.cost')} required>
-								<NumberControl
-									value={draft.cost}
-									onChange={(v) => setDraft({ ...draft, cost: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.cost')}
-									min={0}
-									suffix="EGP"
-								/>
-							</Field>
-							<Field label={t('editor.fields.availabilityStatus')}>
-								{readOnly ? (
-									<StatusTag
-										label={
-											draft.isVisible
-												? t('editor.values.visible')
-												: t('editor.values.hidden')
-										}
-										tone={draft.isVisible ? 'primary' : 'muted'}
-									/>
-								) : (
-									<Toggle
-										isSelected={draft.isVisible}
-										onChange={(checked) =>
-											setDraft({ ...draft, isVisible: checked })
-										}
-										label={
-											draft.isVisible
-												? t('editor.values.visible')
-												: t('editor.values.hidden')
-										}
-										aria-label={t('editor.fields.availabilityStatus')}
-									/>
-								)}
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.specifications')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.weightKg')}>
-								<NumberControl
-									value={draft.weight_kg}
-									onChange={(v) => setDraft({ ...draft, weight_kg: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.weightKg')}
-									min={0}
-									step={0.1}
-									suffix="kg"
-								/>
-							</Field>
-							<Field label={t('editor.fields.unitOfMeasure')} required>
-								<TextControl
-									value={draft.unit_of_measure}
-									onChange={(v) => setDraft({ ...draft, unit_of_measure: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.unitOfMeasure')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.unitOfMeasureAr')} required>
-								<TextControl
-									value={draft.unit_of_measure_ar}
-									onChange={(v) =>
-										setDraft({ ...draft, unit_of_measure_ar: v })
-									}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.unitOfMeasureAr')}
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.stock')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.lowStockThreshold')}>
-								<NumberControl
-									value={draft.lowStockThreshold}
-									onChange={(v) => setDraft({ ...draft, lowStockThreshold: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.lowStockThreshold')}
-									min={0}
-								/>
-							</Field>
-							<Field label={t('editor.fields.goodStockThreshold')}>
-								<NumberControl
-									value={draft.goodStockThreshold}
-									onChange={(v) =>
-										setDraft({ ...draft, goodStockThreshold: v })
-									}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.goodStockThreshold')}
-									min={0}
-								/>
-								{thresholdInvalid && !readOnly && (
-									<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] text-red-700 dark:text-red-300">
-										{t('editor.values.goodStockThresholdInvalid')}
-									</p>
-								)}
-							</Field>
-						</div>
-
-						<Field label={t('editor.fields.description')} required>
-							<TextAreaControl
-								value={draft.description}
-								onChange={(v) => setDraft({ ...draft, description: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.description')}
-								rows={3}
-							/>
-						</Field>
-						<Field label={t('editor.fields.descriptionAr')} required>
-							<TextAreaControl
-								value={draft.description_ar}
-								onChange={(v) => setDraft({ ...draft, description_ar: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.descriptionAr')}
-								rows={3}
+								ariaLabel={t('editor.fields.manufacturer')}
 							/>
 						</Field>
 					</div>
-				)}
-			</EntityEditor>
-		</>
+
+					<Section title={t('editor.section.commercial')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.cost')} required>
+							<NumberControl
+								value={draft.cost}
+								onChange={(v) => setDraft({ ...draft, cost: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.cost')}
+								min={0}
+								suffix="EGP"
+							/>
+						</Field>
+						<Field label={t('editor.fields.availabilityStatus')}>
+							{readOnly ? (
+								<StatusTag
+									label={
+										draft.isVisible
+											? t('editor.values.visible')
+											: t('editor.values.hidden')
+									}
+									tone={draft.isVisible ? 'primary' : 'muted'}
+								/>
+							) : (
+								<Toggle
+									isSelected={draft.isVisible}
+									onChange={(checked) =>
+										setDraft({ ...draft, isVisible: checked })
+									}
+									label={
+										draft.isVisible
+											? t('editor.values.visible')
+											: t('editor.values.hidden')
+									}
+									aria-label={t('editor.fields.availabilityStatus')}
+								/>
+							)}
+						</Field>
+					</div>
+
+					<Section title={t('editor.section.specifications')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.weightKg')}>
+							<NumberControl
+								value={draft.weight_kg}
+								onChange={(v) => setDraft({ ...draft, weight_kg: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.weightKg')}
+								min={0}
+								step={0.1}
+								suffix="kg"
+							/>
+						</Field>
+						<Field label={t('editor.fields.unitOfMeasure')} required>
+							<TextControl
+								value={draft.unit_of_measure}
+								onChange={(v) => setDraft({ ...draft, unit_of_measure: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.unitOfMeasure')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.unitOfMeasureAr')} required>
+							<TextControl
+								value={draft.unit_of_measure_ar}
+								onChange={(v) => setDraft({ ...draft, unit_of_measure_ar: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.unitOfMeasureAr')}
+							/>
+						</Field>
+					</div>
+
+					<Section title={t('editor.section.stock')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.lowStockThreshold')}>
+							<NumberControl
+								value={draft.lowStockThreshold}
+								onChange={(v) => setDraft({ ...draft, lowStockThreshold: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.lowStockThreshold')}
+								min={0}
+							/>
+						</Field>
+						<Field label={t('editor.fields.goodStockThreshold')}>
+							<NumberControl
+								value={draft.goodStockThreshold}
+								onChange={(v) => setDraft({ ...draft, goodStockThreshold: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.goodStockThreshold')}
+								min={0}
+							/>
+							{thresholdInvalid && !readOnly && (
+								<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] text-red-700 dark:text-red-300">
+									{t('editor.values.goodStockThresholdInvalid')}
+								</p>
+							)}
+						</Field>
+					</div>
+
+					<Field label={t('editor.fields.description')} required>
+						<TextAreaControl
+							value={draft.description}
+							onChange={(v) => setDraft({ ...draft, description: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.description')}
+							rows={3}
+						/>
+					</Field>
+					<Field label={t('editor.fields.descriptionAr')} required>
+						<TextAreaControl
+							value={draft.description_ar}
+							onChange={(v) => setDraft({ ...draft, description_ar: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.descriptionAr')}
+							rows={3}
+						/>
+					</Field>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }
 

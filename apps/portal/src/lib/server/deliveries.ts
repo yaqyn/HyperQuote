@@ -6,6 +6,12 @@ import QRCode from 'qrcode'
 import { z } from 'zod'
 import type { OrderDeliveryStatus, OrderStatus } from '../../types/order'
 import { getAuthenticatedPortalCustomer } from './_supabase'
+import {
+	firstRelation,
+	imageUrlForProduct,
+	loadCategoryImageMap,
+	mapOrderStatus,
+} from './order-utils'
 
 export type DeliveryStage =
 	| 'confirmed'
@@ -29,7 +35,7 @@ interface DeliveryDocument {
 	createdAt: string
 }
 
-export interface DeliveryContact {
+interface DeliveryContact {
 	id: string
 	label: string
 	value: string
@@ -145,21 +151,7 @@ export interface OrderDetailResult {
 	closure?: OrderClosureInfo
 }
 
-export interface PODDetails {
-	photos: string[]
-	deadline: string
-	status: 'pending' | 'confirmed' | 'disputed' | 'auto_confirmed'
-	autoConfirmDeadline: string
-}
-
 const getOrderDetailInput = z.object({ orderId: z.string().uuid() })
-const confirmDropShipInput = z.object({ deliveryId: z.string().uuid() })
-const disputeDropShipInput = z.object({
-	deliveryId: z.string().uuid(),
-	reason: z.string().min(1),
-	notes: z.string().optional(),
-})
-const getPODDetailsInput = z.object({ deliveryId: z.string().uuid() })
 const getDeliverySecretInput = z.object({ orderId: z.string().uuid() })
 
 const mapPointSchema = z.object({
@@ -268,31 +260,6 @@ interface DocumentRow {
 	created_at: string
 }
 
-interface DeliveryProofRow {
-	id: string
-	proof_type: string
-	proof_path: string | null
-	created_at: string
-}
-
-function firstRelation<T>(value: T | T[] | null): T | null {
-	if (Array.isArray(value)) return value[0] ?? null
-	return value
-}
-
-function firstImageUrl(imageUrls: string[] | null | undefined): string {
-	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
-}
-
-function imageUrlForProduct(
-	product: ProductRow | null,
-	categoryImages: Map<string, string>,
-): string {
-	const productImage = firstImageUrl(product?.image_urls)
-	if (productImage) return productImage
-	return product?.category ? (categoryImages.get(product.category) ?? '') : ''
-}
-
 function categorySlugsFromQuoteRequestItems(
 	items: QuoteRequestItemRow[] | null,
 ): string[] {
@@ -302,58 +269,6 @@ function categorySlugsFromQuoteRequestItems(
 		if (product?.category) slugs.add(product.category)
 	}
 	return [...slugs]
-}
-
-async function loadCategoryImages(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-	slugs: string[],
-): Promise<Map<string, string>> {
-	const uniqueSlugs = [...new Set(slugs.filter(Boolean))]
-	if (uniqueSlugs.length === 0) return new Map()
-
-	const { data, error } = await supabase
-		.from('categories')
-		.select('slug, image_url')
-		.in('slug', uniqueSlugs)
-		.eq('is_active', true)
-
-	if (error) throw new Error(error.message)
-
-	return new Map(
-		(data ?? []).flatMap((category) =>
-			category.image_url ? [[category.slug, category.image_url]] : [],
-		),
-	)
-}
-
-function mapOrderStatus(status: string): OrderStatus {
-	switch (status) {
-		case 'draft':
-		case 'submitted':
-		case 'quote_ready':
-		case 'negotiating':
-		case 'accepted':
-		case 'order_confirmed':
-		case 'being_prepared':
-		case 'out_for_delivery':
-		case 'delivered':
-		case 'expired':
-		case 'cancelled':
-		case 'rejected':
-			return status
-		case 'confirmed_for_inventory':
-			return 'order_confirmed'
-		case 'inventory_reserved':
-		case 'warehouse_loading':
-		case 'dispatch_ready':
-			return 'being_prepared'
-		case 'dispatch_assigned':
-			return 'out_for_delivery'
-		default:
-			return 'submitted'
-	}
 }
 
 function stageFromStatus(status: string): DeliveryStage {
@@ -653,7 +568,7 @@ export const getOrderDetail = createServerFn({ method: 'GET' })
 				customerId,
 				linkedOrder?.order_number ?? null,
 			)
-			const categoryImages = await loadCategoryImages(
+			const categoryImages = await loadCategoryImageMap(
 				supabase,
 				categorySlugsFromQuoteRequestItems(row.quote_request_items),
 			)
@@ -704,7 +619,7 @@ export const getOrderDetail = createServerFn({ method: 'GET' })
 			if (activityError) throw new Error(activityError.message)
 		}
 
-		const categoryImages = await loadCategoryImages(
+		const categoryImages = await loadCategoryImageMap(
 			supabase,
 			categorySlugsFromQuoteRequestItems(
 				itemRows as unknown as QuoteRequestItemRow[],
@@ -741,57 +656,4 @@ export const getDeliverySecret = createServerFn({ method: 'POST' })
 		})
 
 		return { ...secret, qrCodeDataUrl }
-	})
-
-export const confirmDropShipDelivery = createServerFn({ method: 'POST' })
-	.inputValidator(confirmDropShipInput)
-	.handler(async (): Promise<{ success: boolean }> => {
-		await getAuthenticatedPortalCustomer()
-		throw new Error('Customer delivery confirmation is not configured')
-	})
-
-export const disputeDropShipDelivery = createServerFn({ method: 'POST' })
-	.inputValidator(disputeDropShipInput)
-	.handler(async (): Promise<{ success: boolean }> => {
-		await getAuthenticatedPortalCustomer()
-		throw new Error('Customer delivery dispute is not configured')
-	})
-
-export const getPODDetails = createServerFn({ method: 'GET' })
-	.inputValidator(getPODDetailsInput)
-	.handler(async ({ data: input }): Promise<PODDetails> => {
-		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-		const { data: delivery, error: deliveryError } = await supabase
-			.from('deliveries')
-			.select('id, status, completed_at, updated_at, orders!inner(customer_id)')
-			.eq('id', input.deliveryId)
-			.eq('orders.customer_id', customerId)
-			.order('created_at', { ascending: false })
-			.limit(1)
-			.maybeSingle()
-
-		if (deliveryError) throw new Error(deliveryError.message)
-		if (!delivery) throw new Error('Delivery proof is not available')
-
-		const { data: proofs, error: proofsError } = await supabase
-			.from('delivery_proofs')
-			.select('id, proof_type, proof_path, created_at')
-			.eq('delivery_id', delivery.id)
-			.order('created_at', { ascending: false })
-
-		if (proofsError) throw new Error(proofsError.message)
-
-		const photos = ((proofs ?? []) as DeliveryProofRow[])
-			.filter((proof) => proof.proof_type === 'photo' && proof.proof_path)
-			.map((proof) => proof.proof_path as string)
-		const confirmed =
-			delivery.status === 'completed' || delivery.status === 'delivered'
-		const deadline = delivery.completed_at ?? ''
-
-		return {
-			photos,
-			deadline,
-			status: confirmed ? 'confirmed' : 'pending',
-			autoConfirmDeadline: deadline,
-		}
 	})

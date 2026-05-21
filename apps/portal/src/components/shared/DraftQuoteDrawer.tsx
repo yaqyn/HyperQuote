@@ -27,6 +27,7 @@ import {
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { saveDraft, submitQuoteRequest } from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
+import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { ProductQuantitySearchRow } from './ProductQuantitySearchRow'
 
@@ -37,7 +38,6 @@ type DraftQuoteDrawerProps = {
 
 const DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
 const SNAP_EASE = cubicBezier(0.16, 1, 0.3, 1)
-const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
 
 function getDraftFingerprint(items: DraftCartItem[], globalNote: string) {
 	return JSON.stringify({
@@ -57,28 +57,6 @@ function getDraftFingerprint(items: DraftCartItem[], globalNote: string) {
 			unitOfMeasureAr: item.unitOfMeasureAr,
 		})),
 	})
-}
-
-function unavailableItemNamesFromError(error: unknown): string[] {
-	const message =
-		error instanceof Error
-			? error.message
-			: typeof error === 'string'
-				? error
-				: ''
-	const markerIndex = message.indexOf(UNAVAILABLE_QUOTE_ITEMS_ERROR)
-	if (markerIndex < 0) return []
-
-	try {
-		const parsed = JSON.parse(
-			message.slice(markerIndex + UNAVAILABLE_QUOTE_ITEMS_ERROR.length),
-		)
-		return Array.isArray(parsed)
-			? parsed.filter((item): item is string => typeof item === 'string')
-			: []
-	} catch {
-		return []
-	}
 }
 
 export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {

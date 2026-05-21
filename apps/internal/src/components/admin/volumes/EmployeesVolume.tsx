@@ -11,11 +11,10 @@ import {
 import { getVolume } from '../../../types/admin'
 import { Toggle } from '../../ui/Toggle'
 import { SelectControl, StatusTag, TextControl } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type EmployeeDraft = Omit<AdminEmployeeRow, 'id'> & {
 	id?: string
@@ -229,150 +228,130 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 		r.id.toLowerCase().includes(q)
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={employees.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-				onExport={requestExport}
-				isExporting={isExporting}
-				exportStatus={exportStatus}
-			/>
-			<EntityIndex
-				volume="employees"
-				rows={employees}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={employeesPending}
-				isError={employeesError}
-			/>
-
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="employees"
+			rows={employees}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={employeesPending}
+			isError={employeesError}
+			onOpenVolumes={onOpenVolumes}
+			onExport={requestExport}
+			isExporting={isExporting}
+			exportStatus={exportStatus}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.name')} required>
+						<TextControl
+							value={draft.name}
+							onChange={(v) => setDraft({ ...draft, name: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.name')}
 						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.name')} required>
+					</Field>
+					<Section title={t('editor.section.contact')} />
+					<Field label={t('editor.fields.email')} required>
+						<TextControl
+							value={draft.email}
+							onChange={(v) => setDraft({ ...draft, email: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.email')}
+							type="email"
+						/>
+					</Field>
+					<Field label={t('editor.fields.phone')} required>
+						<TextControl
+							value={draft.phone}
+							onChange={(v) => setDraft({ ...draft, phone: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.phone')}
+							type="tel"
+						/>
+					</Field>
+					{!readOnly && (
+						<Field
+							label={t('editor.fields.password')}
+							required={mode === 'create'}
+						>
 							<TextControl
-								value={draft.name}
-								onChange={(v) => setDraft({ ...draft, name: v })}
+								value={draft.password ?? ''}
+								onChange={(v) => setDraft({ ...draft, password: v })}
 								readOnly={readOnly}
-								ariaLabel={t('editor.fields.name')}
+								ariaLabel={t('editor.fields.password')}
+								type="password"
 							/>
 						</Field>
-						<Section title={t('editor.section.contact')} />
-						<Field label={t('editor.fields.email')} required>
-							<TextControl
-								value={draft.email}
-								onChange={(v) => setDraft({ ...draft, email: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.email')}
-								type="email"
-							/>
-						</Field>
-						<Field label={t('editor.fields.phone')} required>
-							<TextControl
-								value={draft.phone}
-								onChange={(v) => setDraft({ ...draft, phone: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.phone')}
-								type="tel"
-							/>
-						</Field>
-						{!readOnly && (
-							<Field
-								label={t('editor.fields.password')}
-								required={mode === 'create'}
-							>
-								<TextControl
-									value={draft.password ?? ''}
-									onChange={(v) => setDraft({ ...draft, password: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.password')}
-									type="password"
-								/>
-							</Field>
-						)}
+					)}
 
-						<Section title={t('editor.section.assignment')} />
-						<Field label={t('editor.fields.status')}>
-							<SelectControl
-								value={draft.status}
-								onChange={(v) => setDraft({ ...draft, status: v })}
-								options={statusOptions}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.status')}
+					<Section title={t('editor.section.assignment')} />
+					<Field label={t('editor.fields.status')}>
+						<SelectControl
+							value={draft.status}
+							onChange={(v) => setDraft({ ...draft, status: v })}
+							options={statusOptions}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.status')}
+						/>
+					</Field>
+					<Field label={t('editor.fields.roles')}>
+						{readOnly ? (
+							<span className="flex flex-wrap gap-1.5">
+								{draft.roles.length ? (
+									draft.roles.map((role) => (
+										<StatusTag key={role} label={role} tone="neutral" />
+									))
+								) : (
+									<StatusTag label="No roles" tone="muted" />
+								)}
+							</span>
+						) : (
+							<div className="grid gap-2 sm:grid-cols-2">
+								{employeeRoleOptions.map((role) => (
+									<RoleSwitch
+										key={role.value}
+										label={role.label}
+										isSelected={draft.roles.includes(role.value)}
+										onPress={() =>
+											toggleRole(role.value, !draft.roles.includes(role.value))
+										}
+									/>
+								))}
+							</div>
+						)}
+					</Field>
+					<Field label={t('editor.fields.isCeo')}>
+						{readOnly ? (
+							<StatusTag
+								label={draft.isCeo ? 'CEO access' : 'Standard employee'}
+								tone={draft.isCeo ? 'primary' : 'neutral'}
 							/>
-						</Field>
-						<Field label={t('editor.fields.roles')}>
-							{readOnly ? (
-								<span className="flex flex-wrap gap-1.5">
-									{draft.roles.length ? (
-										draft.roles.map((role) => (
-											<StatusTag key={role} label={role} tone="neutral" />
-										))
-									) : (
-										<StatusTag label="No roles" tone="muted" />
-									)}
-								</span>
-							) : (
-								<div className="grid gap-2 sm:grid-cols-2">
-									{employeeRoleOptions.map((role) => (
-										<RoleSwitch
-											key={role.value}
-											label={role.label}
-											isSelected={draft.roles.includes(role.value)}
-											onPress={() =>
-												toggleRole(
-													role.value,
-													!draft.roles.includes(role.value),
-												)
-											}
-										/>
-									))}
-								</div>
-							)}
-						</Field>
-						<Field label={t('editor.fields.isCeo')}>
-							{readOnly ? (
-								<StatusTag
-									label={draft.isCeo ? 'CEO access' : 'Standard employee'}
-									tone={draft.isCeo ? 'primary' : 'neutral'}
-								/>
-							) : (
-								<Toggle
-									isSelected={draft.isCeo}
-									onChange={(checked) => setDraft({ ...draft, isCeo: checked })}
-									aria-label={t('editor.fields.isCeo')}
-								/>
-							)}
-						</Field>
-					</div>
-				)}
-			</EntityEditor>
-		</>
+						) : (
+							<Toggle
+								isSelected={draft.isCeo}
+								onChange={(checked) => setDraft({ ...draft, isCeo: checked })}
+								aria-label={t('editor.fields.isCeo')}
+							/>
+						)}
+					</Field>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }
 

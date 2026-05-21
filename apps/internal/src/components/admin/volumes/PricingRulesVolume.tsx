@@ -12,11 +12,10 @@ import {
 import { getVolume } from '../../../types/admin'
 import { Toggle } from '../../ui/Toggle'
 import { NumberControl, SelectControl, StatusTag } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type PricingRuleDraft = Omit<
 	AdminPricingRuleRow,
@@ -325,152 +324,132 @@ export function PricingRulesVolume({ onOpenVolumes }: PricingRulesVolumeProps) {
 			.includes(q)
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={rules.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-				onExport={requestExport}
-				isExporting={isExporting}
-				exportStatus={exportStatus}
-			/>
-			<EntityIndex
-				volume="pricingRules"
-				rows={rules}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={isPending}
-				isError={isError}
-			/>
-
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={
-					draft
-						? scopeLabel(draft, categoryNameBySlug, productNameBySlug)
-						: null
-				}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={isPersistedGlobalRule(draft) ? null : draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
-							saveDisabled={saveDisabled}
-						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<Section title={t('editor.section.scope')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.pricingCategory')} required>
-								<SelectControl
-									value={draft.categorySlug ?? ALL_SCOPE}
-									onChange={setCategorySlug}
-									options={categoryOptions}
-									readOnly={readOnly || isPersistedGlobalRule(draft)}
-									ariaLabel={t('editor.fields.pricingCategory')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.pricingProduct')} required>
-								<SelectControl
-									value={draft.productSlug ?? ALL_SCOPE}
-									onChange={setProductSlug}
-									options={productOptions}
-									readOnly={
-										readOnly ||
-										isPersistedGlobalRule(draft) ||
-										!draft.categorySlug
-									}
-									ariaLabel={t('editor.fields.pricingProduct')}
-								/>
-							</Field>
-						</div>
-						{mode === 'create' && !draft.categorySlug && !draft.productSlug ? (
-							<p className="text-[12px] leading-relaxed text-[var(--color-text-subtle)]">
-								New entries are exceptions. Edit the Global default row to
-								change the all-products margin.
-							</p>
-						) : null}
-
-						<Section title={t('editor.section.commercial')} />
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-3">
-							<Field label={t('editor.fields.bonusMargin')}>
-								<NumberControl
-									value={draft.bonusMargin}
-									onChange={(v) => setDraft({ ...draft, bonusMargin: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.bonusMargin')}
-									min={0}
-									max={99}
-									step={0.1}
-									suffix="%"
-								/>
-							</Field>
-							<Field label={t('editor.fields.targetMargin')}>
-								<NumberControl
-									value={draft.targetMargin}
-									onChange={(v) => setDraft({ ...draft, targetMargin: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.targetMargin')}
-									min={0}
-									max={99}
-									step={0.1}
-									suffix="%"
-								/>
-							</Field>
-							<Field label={t('editor.fields.floorMargin')}>
-								<NumberControl
-									value={draft.floorMargin}
-									onChange={(v) => setDraft({ ...draft, floorMargin: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.floorMargin')}
-									min={0}
-									max={99}
-									step={0.1}
-									suffix="%"
-								/>
-							</Field>
-						</div>
-						{draft.floorMargin > draft.targetMargin ||
-						draft.targetMargin > draft.bonusMargin ? (
-							<p className="text-[12px] leading-relaxed text-[var(--color-danger)]">
-								Margins must be ordered as Bonus ≥ Target ≥ Floor.
-							</p>
-						) : null}
-						<Field label={t('editor.fields.active')}>
-							{readOnly ? (
-								<StatusTag
-									label={draft.active ? 'Active' : 'Inactive'}
-									tone={draft.active ? 'primary' : 'muted'}
-								/>
-							) : (
-								<Toggle
-									isSelected={draft.active}
-									onChange={(checked) =>
-										setDraft({ ...draft, active: checked })
-									}
-									aria-label={t('editor.fields.active')}
-								/>
-							)}
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="pricingRules"
+			rows={rules}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={isPending}
+			isError={isError}
+			onOpenVolumes={onOpenVolumes}
+			onExport={requestExport}
+			isExporting={isExporting}
+			exportStatus={exportStatus}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={
+				draft ? scopeLabel(draft, categoryNameBySlug, productNameBySlug) : null
+			}
+			footerId={draft && isPersistedGlobalRule(draft) ? null : draft?.id}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			saveDisabled={saveDisabled}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<Section title={t('editor.section.scope')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.pricingCategory')} required>
+							<SelectControl
+								value={draft.categorySlug ?? ALL_SCOPE}
+								onChange={setCategorySlug}
+								options={categoryOptions}
+								readOnly={readOnly || isPersistedGlobalRule(draft)}
+								ariaLabel={t('editor.fields.pricingCategory')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.pricingProduct')} required>
+							<SelectControl
+								value={draft.productSlug ?? ALL_SCOPE}
+								onChange={setProductSlug}
+								options={productOptions}
+								readOnly={
+									readOnly ||
+									isPersistedGlobalRule(draft) ||
+									!draft.categorySlug
+								}
+								ariaLabel={t('editor.fields.pricingProduct')}
+							/>
 						</Field>
 					</div>
-				)}
-			</EntityEditor>
-		</>
+					{mode === 'create' && !draft.categorySlug && !draft.productSlug ? (
+						<p className="text-[12px] leading-relaxed text-[var(--color-text-subtle)]">
+							New entries are exceptions. Edit the Global default row to change
+							the all-products margin.
+						</p>
+					) : null}
+
+					<Section title={t('editor.section.commercial')} />
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-3">
+						<Field label={t('editor.fields.bonusMargin')}>
+							<NumberControl
+								value={draft.bonusMargin}
+								onChange={(v) => setDraft({ ...draft, bonusMargin: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.bonusMargin')}
+								min={0}
+								max={99}
+								step={0.1}
+								suffix="%"
+							/>
+						</Field>
+						<Field label={t('editor.fields.targetMargin')}>
+							<NumberControl
+								value={draft.targetMargin}
+								onChange={(v) => setDraft({ ...draft, targetMargin: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.targetMargin')}
+								min={0}
+								max={99}
+								step={0.1}
+								suffix="%"
+							/>
+						</Field>
+						<Field label={t('editor.fields.floorMargin')}>
+							<NumberControl
+								value={draft.floorMargin}
+								onChange={(v) => setDraft({ ...draft, floorMargin: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.floorMargin')}
+								min={0}
+								max={99}
+								step={0.1}
+								suffix="%"
+							/>
+						</Field>
+					</div>
+					{draft.floorMargin > draft.targetMargin ||
+					draft.targetMargin > draft.bonusMargin ? (
+						<p className="text-[12px] leading-relaxed text-[var(--color-danger)]">
+							Margins must be ordered as Bonus ≥ Target ≥ Floor.
+						</p>
+					) : null}
+					<Field label={t('editor.fields.active')}>
+						{readOnly ? (
+							<StatusTag
+								label={draft.active ? 'Active' : 'Inactive'}
+								tone={draft.active ? 'primary' : 'muted'}
+							/>
+						) : (
+							<Toggle
+								isSelected={draft.active}
+								onChange={(checked) => setDraft({ ...draft, active: checked })}
+								aria-label={t('editor.fields.active')}
+							/>
+						)}
+					</Field>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }
 

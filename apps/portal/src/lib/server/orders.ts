@@ -7,7 +7,6 @@ import type {
 	Order,
 	OrderDeliveryTracking,
 	OrderItem,
-	OrderStatus,
 	OrderType,
 } from '../../types/order'
 import { getAuthenticatedPortalCustomer } from './_supabase'
@@ -16,6 +15,12 @@ import {
 	getCustomerDeliveryTracking,
 	getEffectiveOrderStatus,
 } from './deliveries'
+import {
+	firstRelation,
+	imageUrlForProduct,
+	loadCategoryImageMap,
+	mapOrderStatus,
+} from './order-utils'
 
 interface ProductRow {
 	id: string
@@ -65,24 +70,6 @@ interface QuoteRequestRow {
 	orders: LinkedOrderRow | LinkedOrderRow[] | null
 }
 
-function firstRelation<T>(value: T | T[] | null): T | null {
-	if (Array.isArray(value)) return value[0] ?? null
-	return value
-}
-
-function firstImageUrl(imageUrls: string[] | null | undefined): string {
-	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
-}
-
-function imageUrlForProduct(
-	product: ProductRow | null,
-	categoryImages: Map<string, string>,
-): string {
-	const productImage = firstImageUrl(product?.image_urls)
-	if (productImage) return productImage
-	return product?.category ? (categoryImages.get(product.category) ?? '') : ''
-}
-
 function categorySlugsFromQuoteRequests(rows: QuoteRequestRow[]): string[] {
 	const slugs = new Set<string>()
 	for (const row of rows) {
@@ -92,58 +79,6 @@ function categorySlugsFromQuoteRequests(rows: QuoteRequestRow[]): string[] {
 		}
 	}
 	return [...slugs]
-}
-
-async function loadCategoryImages(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-	slugs: string[],
-): Promise<Map<string, string>> {
-	const uniqueSlugs = [...new Set(slugs.filter(Boolean))]
-	if (uniqueSlugs.length === 0) return new Map()
-
-	const { data, error } = await supabase
-		.from('categories')
-		.select('slug, image_url')
-		.in('slug', uniqueSlugs)
-		.eq('is_active', true)
-
-	if (error) throw new Error(error.message)
-
-	return new Map(
-		(data ?? []).flatMap((category) =>
-			category.image_url ? [[category.slug, category.image_url]] : [],
-		),
-	)
-}
-
-function mapOrderStatus(status: string): OrderStatus {
-	switch (status) {
-		case 'draft':
-		case 'submitted':
-		case 'quote_ready':
-		case 'negotiating':
-		case 'accepted':
-		case 'order_confirmed':
-		case 'being_prepared':
-		case 'out_for_delivery':
-		case 'delivered':
-		case 'expired':
-		case 'cancelled':
-		case 'rejected':
-			return status
-		case 'confirmed_for_inventory':
-			return 'order_confirmed'
-		case 'inventory_reserved':
-		case 'warehouse_loading':
-		case 'dispatch_ready':
-			return 'being_prepared'
-		case 'dispatch_assigned':
-			return 'out_for_delivery'
-		default:
-			return 'submitted'
-	}
 }
 
 function mapOrderType(
@@ -326,7 +261,7 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 		// Supabase nested select inference does not preserve one-to-one relation
 		// cardinality here, so normalize the result at the boundary.
 		const rows = (data ?? []) as unknown as QuoteRequestRow[]
-		const categoryImages = await loadCategoryImages(
+		const categoryImages = await loadCategoryImageMap(
 			supabase,
 			categorySlugsFromQuoteRequests(rows),
 		)

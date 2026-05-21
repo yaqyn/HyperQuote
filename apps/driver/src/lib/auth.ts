@@ -1,8 +1,6 @@
-import {
-	createSupabaseBrowserClient,
-	resolveSupabaseBrowserConfig,
-} from '@hyperquote/auth'
+import { createSupabaseBrowserClient } from '@hyperquote/auth'
 import { z } from 'zod'
+import { resolveDriverSupabaseConfig } from './supabase-config'
 
 export const loginSchema = z.object({
 	email: z.string().trim().email(),
@@ -34,7 +32,7 @@ export async function authenticateDriver(
 	const parsed = loginSchema.safeParse(values)
 	if (!parsed.success) return { ok: false, error: 'invalid_credentials' }
 
-	const config = resolveSupabaseBrowserConfig(import.meta.env)
+	const config = resolveDriverSupabaseConfig()
 	if (!config) return { ok: false, error: 'unexpected' }
 
 	try {
@@ -74,7 +72,7 @@ export async function authenticateDriver(
 }
 
 export async function getCurrentDriverSession(): Promise<DriverAuthSession | null> {
-	const config = resolveSupabaseBrowserConfig(import.meta.env)
+	const config = resolveDriverSupabaseConfig()
 	if (!config) return null
 
 	const client = createSupabaseBrowserClient(
@@ -91,7 +89,7 @@ export async function getCurrentDriverSession(): Promise<DriverAuthSession | nul
 }
 
 export async function signOutDriver(): Promise<void> {
-	const config = resolveSupabaseBrowserConfig(import.meta.env)
+	const config = resolveDriverSupabaseConfig()
 	if (!config) return
 
 	const client = createSupabaseBrowserClient(

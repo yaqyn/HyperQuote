@@ -654,6 +654,38 @@ async function getDispatchAdvisor(
 	return { success: true as const, advisor: verified.employee }
 }
 
+async function getDispatchAdvisorProof(
+	client: Parameters<typeof getDispatchAdvisor>[0],
+	credential: {
+		advisorId: string
+		securityMethod: 'password' | 'qr'
+		securityToken: string
+		proofUrl?: string
+		proofSource?: string
+	},
+) {
+	const advisorCheck = await getDispatchAdvisor(
+		client,
+		credential.advisorId,
+		credential.securityMethod,
+		credential.securityToken,
+	)
+	if (!advisorCheck.success) return advisorCheck
+
+	const baseProof = {
+		advisor_id: credential.advisorId,
+		advisor_name: advisorCheck.advisor.name,
+		proof_url: credential.proofUrl?.trim() ?? null,
+		security_method: credential.securityMethod,
+	}
+	return {
+		success: true as const,
+		proof: credential.proofSource
+			? { ...baseProof, proof_source: credential.proofSource }
+			: baseProof,
+	}
+}
+
 // ─── Server functions ────────────────────────────────────
 
 export const getDispatchBoard = createServerFn({ method: 'GET' })
@@ -859,22 +891,17 @@ export const markOrderDelivered = createServerFn({ method: 'POST' })
 			return { success: false, error: 'Order not found' }
 		}
 		const auth = await getInternalSupabaseClient()
-		const advisorCheck = await getDispatchAdvisor(
-			auth.client,
-			data.advisorId,
-			data.securityMethod,
-			data.securityToken,
-		)
-		if (!advisorCheck.success) return advisorCheck
+		const advisorProof = await getDispatchAdvisorProof(auth.client, {
+			advisorId: data.advisorId,
+			proofSource: 'advisor_credential',
+			proofUrl: data.proofUrl,
+			securityMethod: data.securityMethod,
+			securityToken: data.securityToken,
+		})
+		if (!advisorProof.success) return advisorProof
 		const { error } = await auth.client.rpc('dispatch_complete_loaded_order', {
 			p_order_id: data.quoteId,
-			p_proof: {
-				advisor_id: data.advisorId,
-				advisor_name: advisorCheck.advisor.name,
-				proof_source: 'advisor_credential',
-				proof_url: data.proofUrl?.trim() ?? null,
-				security_method: data.securityMethod,
-			},
+			p_proof: advisorProof.proof,
 		})
 		if (error) return { success: false, error: error.message }
 		return { success: true }
@@ -896,22 +923,17 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 			return { success: false, error: 'Order not found' }
 		}
 		const auth = await getInternalSupabaseClient()
-		const advisorCheck = await getDispatchAdvisor(
-			auth.client,
-			data.advisorId,
-			data.securityMethod,
-			data.securityToken,
-		)
-		if (!advisorCheck.success) return advisorCheck
+		const advisorProof = await getDispatchAdvisorProof(auth.client, {
+			advisorId: data.advisorId,
+			proofUrl: data.proofUrl,
+			securityMethod: data.securityMethod,
+			securityToken: data.securityToken,
+		})
+		if (!advisorProof.success) return advisorProof
 		const { error } = await auth.client.rpc('dispatch_return_loaded_order', {
 			p_order_id: data.quoteId,
 			p_reason: data.reason.trim(),
-			p_proof: {
-				advisor_id: data.advisorId,
-				advisor_name: advisorCheck.advisor.name,
-				proof_url: data.proofUrl.trim(),
-				security_method: data.securityMethod,
-			},
+			p_proof: advisorProof.proof,
 		})
 		if (error) return { success: false, error: error.message }
 		return { success: true }

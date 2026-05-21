@@ -15,15 +15,14 @@ import {
 	TextAreaControl,
 	TextControl,
 } from '../AdminControls'
-import { EntityEditor, Field, Section } from '../EntityEditor'
-import { type ColumnDef, EntityIndex } from '../EntityIndex'
-import { RegistryMasthead } from '../RegistryMasthead'
+import { Field, Section } from '../EntityEditor'
+import type { ColumnDef } from '../EntityIndex'
 import {
 	SupplierSpecialties,
 	useSupplierSpecialtyCount,
 } from '../SupplierItems'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeEditorFooter } from './volumeEditor'
+import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
 
 type SupplierDraft = Omit<SupplierRow, 'id' | 'joinedAt'> & {
 	id?: string
@@ -242,160 +241,143 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 		(r.phone?.includes(q) ?? false)
 
 	return (
-		<>
-			<RegistryMasthead
-				volume={volume}
-				entryCount={suppliers.length}
-				onOpenVolumes={onOpenVolumes}
-				onNewEntry={handleNew}
-				onExport={requestExport}
-				isExporting={isExporting}
-				exportStatus={exportStatus}
-			/>
-			<EntityIndex
-				volume="suppliers"
-				rows={suppliers}
-				columns={columns}
-				rowKey={(r) => r.id}
-				onRowSelect={handleRowSelect}
-				onNewEntry={handleNew}
-				filter={filter}
-				isLoading={suppliersPending}
-				isError={suppliersError}
-			/>
-
-			<EntityEditor
-				isOpen={mode !== null}
-				onClose={handleClose}
-				mode={mode}
-				idLabel={draft?.id ?? null}
-				footer={
-					draft ? (
-						<VolumeEditorFooter
-							mode={mode}
-							id={draft.id}
-							isSaving={createMutation.isPending || updateMutation.isPending}
-							isDeleting={deleteMutation.isPending}
-							onEdit={handleEdit}
-							onSave={handleSave}
-							onCancel={handleCancel}
-							onDelete={handleDelete}
-						/>
-					) : null
-				}
-			>
-				{draft && (
-					<div className="space-y-6">
-						<Section title={t('editor.section.identity')} />
-						<Field label={t('editor.fields.supplierName')} required>
-							<TextControl
-								value={draft.name}
-								onChange={(v) => setDraft({ ...draft, name: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.supplierName')}
-							/>
-						</Field>
-						<Field label={t('editor.fields.email')}>
-							<TextControl
-								value={draft.email ?? ''}
-								onChange={(v) => setDraft({ ...draft, email: v || null })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.email')}
-								type="email"
-							/>
-						</Field>
-						<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-							<Field label={t('editor.fields.tier')}>
-								<SelectControl
-									value={draft.tier}
-									onChange={(v) => setDraft({ ...draft, tier: v })}
-									options={tierOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.tier')}
-								/>
-							</Field>
-							<Field label={t('editor.fields.rating')}>
-								<NumberControl
-									value={draft.rating}
-									onChange={(v) => setDraft({ ...draft, rating: v })}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.rating')}
-									min={0}
-									max={5}
-									step={0.1}
-									suffix="/ 5"
-								/>
-							</Field>
-							<Field label={t('editor.fields.status')}>
-								<SelectControl
-									value={draft.status}
-									onChange={(v) => setDraft({ ...draft, status: v })}
-									options={statusOptions}
-									readOnly={readOnly}
-									ariaLabel={t('editor.fields.status')}
-								/>
-							</Field>
-						</div>
-
-						<Section title={t('editor.section.commercial')} />
-						<Field label={t('editor.fields.paymentTerms')}>
-							<TextControl
-								value={draft.paymentTerms}
-								onChange={(v) => setDraft({ ...draft, paymentTerms: v })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.paymentTerms')}
-								placeholder="e.g. Net 30"
-							/>
-						</Field>
-
-						<Section title={t('editor.section.contact')} />
-						<Field label={t('editor.fields.phone')}>
-							<TextControl
-								value={draft.phone ?? ''}
-								onChange={(v) => setDraft({ ...draft, phone: v || null })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.phone')}
-								type="tel"
-							/>
-						</Field>
-						<Field label={t('editor.fields.notes')}>
-							<TextAreaControl
-								value={draft.notes ?? ''}
-								onChange={(v) => setDraft({ ...draft, notes: v || null })}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.notes')}
-								rows={3}
-							/>
-						</Field>
-
-						<Section title={t('editor.section.badges')} />
-						<Field label={t('editor.fields.customBadges')}>
-							<TextControl
-								value={draft.customBadges.join(', ')}
-								onChange={(v) =>
-									setDraft({
-										...draft,
-										customBadges: v
-											.split(',')
-											.map((b) => b.trim())
-											.filter(Boolean),
-									})
-								}
-								readOnly={readOnly}
-								ariaLabel={t('editor.fields.customBadges')}
-								placeholder="badge, badge, badge"
-							/>
-						</Field>
-
-						<Section title={t('specialties.title')} />
-						<SupplierSpecialties
-							supplierId={draft.id ?? null}
+		<VolumeWorkspace
+			volume={volume}
+			volumeId="suppliers"
+			rows={suppliers}
+			columns={columns}
+			rowKey={(r) => r.id}
+			onRowSelect={handleRowSelect}
+			onNewEntry={handleNew}
+			filter={filter}
+			isLoading={suppliersPending}
+			isError={suppliersError}
+			onOpenVolumes={onOpenVolumes}
+			onExport={requestExport}
+			isExporting={isExporting}
+			exportStatus={exportStatus}
+			mode={mode}
+			hasDraft={Boolean(draft)}
+			idLabel={draft?.id ?? null}
+			isSaving={createMutation.isPending || updateMutation.isPending}
+			isDeleting={deleteMutation.isPending}
+			onClose={handleClose}
+			onEdit={handleEdit}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onDelete={handleDelete}
+		>
+			{draft && (
+				<div className="space-y-6">
+					<Section title={t('editor.section.identity')} />
+					<Field label={t('editor.fields.supplierName')} required>
+						<TextControl
+							value={draft.name}
+							onChange={(v) => setDraft({ ...draft, name: v })}
 							readOnly={readOnly}
+							ariaLabel={t('editor.fields.supplierName')}
 						/>
+					</Field>
+					<Field label={t('editor.fields.email')}>
+						<TextControl
+							value={draft.email ?? ''}
+							onChange={(v) => setDraft({ ...draft, email: v || null })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.email')}
+							type="email"
+						/>
+					</Field>
+					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+						<Field label={t('editor.fields.tier')}>
+							<SelectControl
+								value={draft.tier}
+								onChange={(v) => setDraft({ ...draft, tier: v })}
+								options={tierOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.tier')}
+							/>
+						</Field>
+						<Field label={t('editor.fields.rating')}>
+							<NumberControl
+								value={draft.rating}
+								onChange={(v) => setDraft({ ...draft, rating: v })}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.rating')}
+								min={0}
+								max={5}
+								step={0.1}
+								suffix="/ 5"
+							/>
+						</Field>
+						<Field label={t('editor.fields.status')}>
+							<SelectControl
+								value={draft.status}
+								onChange={(v) => setDraft({ ...draft, status: v })}
+								options={statusOptions}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.status')}
+							/>
+						</Field>
 					</div>
-				)}
-			</EntityEditor>
-		</>
+
+					<Section title={t('editor.section.commercial')} />
+					<Field label={t('editor.fields.paymentTerms')}>
+						<TextControl
+							value={draft.paymentTerms}
+							onChange={(v) => setDraft({ ...draft, paymentTerms: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.paymentTerms')}
+							placeholder="e.g. Net 30"
+						/>
+					</Field>
+
+					<Section title={t('editor.section.contact')} />
+					<Field label={t('editor.fields.phone')}>
+						<TextControl
+							value={draft.phone ?? ''}
+							onChange={(v) => setDraft({ ...draft, phone: v || null })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.phone')}
+							type="tel"
+						/>
+					</Field>
+					<Field label={t('editor.fields.notes')}>
+						<TextAreaControl
+							value={draft.notes ?? ''}
+							onChange={(v) => setDraft({ ...draft, notes: v || null })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.notes')}
+							rows={3}
+						/>
+					</Field>
+
+					<Section title={t('editor.section.badges')} />
+					<Field label={t('editor.fields.customBadges')}>
+						<TextControl
+							value={draft.customBadges.join(', ')}
+							onChange={(v) =>
+								setDraft({
+									...draft,
+									customBadges: v
+										.split(',')
+										.map((b) => b.trim())
+										.filter(Boolean),
+								})
+							}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.customBadges')}
+							placeholder="badge, badge, badge"
+						/>
+					</Field>
+
+					<Section title={t('specialties.title')} />
+					<SupplierSpecialties
+						supplierId={draft.id ?? null}
+						readOnly={readOnly}
+					/>
+				</div>
+			)}
+		</VolumeWorkspace>
 	)
 }
 

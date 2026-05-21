@@ -3934,6 +3934,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -3966,6 +3967,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -4209,6 +4211,7 @@ export type Database = {
 							customer_id: string | null
 							delivery_address_id: string | null
 							delivery_date: string | null
+							draft_name: string | null
 							eligible_at: string
 							id: string
 							idempotency_key: string | null
@@ -4241,6 +4244,7 @@ export type Database = {
 							customer_id: string | null
 							delivery_address_id: string | null
 							delivery_date: string | null
+							draft_name: string | null
 							eligible_at: string
 							id: string
 							idempotency_key: string | null
@@ -5044,6 +5048,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -5076,6 +5081,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -5147,6 +5153,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -5179,6 +5186,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null

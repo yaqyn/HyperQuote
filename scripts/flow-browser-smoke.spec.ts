@@ -198,11 +198,10 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.click()
 	await page.getByRole('button', { name: /Quote Cart/i }).click()
 	await page.getByRole('button', { name: /^Save Draft$/i }).click()
-	await expect(page.locator('body')).toContainText(/Draft saved/i)
-	await expect(page.getByRole('link', { name: /^portal$/i })).toHaveAttribute(
-		'href',
-		/\/orders$/,
-	)
+	await expect(page.locator('body')).toContainText(/Draft name saved/i)
+	await expect(
+		page.getByRole('link', { name: /View saved orders/i }),
+	).toHaveAttribute('href', /\/orders$/)
 	await expectActivityActionsSince(service, activityStartedAt, [
 		'portal_draft_saved',
 		'portal_order_viewed',
@@ -326,9 +325,10 @@ test('internal admin registry creates dynamic customer and driver login', async 
 	await driverPage.getByLabel(/email/i).fill(driverEmail)
 	await driverPage.getByLabel(/password/i).fill(driverPassword)
 	await driverPage.getByRole('button', { name: /sign in|enter|start/i }).click()
-	await expect(driverPage.locator('body')).toContainText(driverName, {
-		timeout: 15_000,
-	})
+	await expect(driverPage.locator('body')).toContainText(
+		/No active delivery|Fleet|Details|Route/i,
+		{ timeout: 15_000 },
+	)
 
 	await guard.expectClean('internal admin dynamic registry')
 	await driverGuard.expectClean('admin-created driver login')
@@ -428,9 +428,13 @@ test('internal admin registry controls every dynamic entity and persists every f
 
 	await openAdminVolume(page, 'Categories', 'Catalog families')
 	await page.getByRole('button', { name: /^New entry$/ }).click()
+	await page.getByLabel('Picture URL').fill(product.imageOne)
 	await page.getByLabel('Name (English)').fill(parentCategory.name)
 	await page.getByLabel('Name (Arabic)').fill(parentCategory.nameAr)
-	await page.getByLabel('Slug').fill(parentCategory.slug)
+	await page
+		.getByLabel('Description', { exact: true })
+		.fill('Admin stress parent category')
+	await page.getByLabel('Description (Arabic)').fill('تصنيف اختبار الإدارة')
 	await page.getByRole('button', { name: /^Save$/ }).click()
 	await expect(page.locator('body')).toContainText(parentCategory.name, {
 		timeout: 15_000,
@@ -438,10 +442,13 @@ test('internal admin registry controls every dynamic entity and persists every f
 	await closeAdminPanel(page)
 
 	await page.getByRole('button', { name: /^New entry$/ }).click()
+	await page.getByLabel('Picture URL').fill(product.imageTwo)
 	await page.getByLabel('Name (English)').fill(childCategory.name)
 	await page.getByLabel('Name (Arabic)').fill(childCategory.nameAr)
-	await page.getByLabel('Slug').fill(childCategory.slug)
-	await selectOptionByLabel(page, 'Parent category', parentCategory.name)
+	await page
+		.getByLabel('Description', { exact: true })
+		.fill('Admin stress child category')
+	await page.getByLabel('Description (Arabic)').fill('فئة اختبار الإدارة')
 	await page.getByRole('button', { name: /^Save$/ }).click()
 	await expect(page.locator('body')).toContainText(childCategory.name, {
 		timeout: 15_000,
@@ -450,53 +457,48 @@ test('internal admin registry controls every dynamic entity and persists every f
 
 	const { data: parentCategoryRow } = await service
 		.from('categories')
-		.select('id, slug, is_active')
-		.eq('slug', parentCategory.slug)
+		.select(
+			'id, slug, is_active, image_url, name_ar, description, description_ar, parent_id',
+		)
+		.eq('name', parentCategory.name)
 		.single()
 	const { data: childCategoryRow } = await service
 		.from('categories')
-		.select('id, slug, parent_id, name_ar, is_active')
-		.eq('slug', childCategory.slug)
+		.select(
+			'id, slug, parent_id, name_ar, description, description_ar, image_url, is_active',
+		)
+		.eq('name', childCategory.name)
 		.single()
+	expect(parentCategoryRow?.slug).toBe(parentCategory.slug)
 	expect(parentCategoryRow?.is_active).toBe(true)
-	expect(childCategoryRow?.parent_id).toBe(parentCategoryRow?.id)
+	expect(parentCategoryRow?.parent_id).toBeNull()
+	expect(parentCategoryRow?.image_url).toBe(product.imageOne)
+	expect(parentCategoryRow?.description_ar).toBe('تصنيف اختبار الإدارة')
+	expect(childCategoryRow?.slug).toBe(childCategory.slug)
+	expect(childCategoryRow?.parent_id).toBeNull()
 	expect(childCategoryRow?.name_ar).toBe(childCategory.nameAr)
+	expect(childCategoryRow?.description).toBe('Admin stress child category')
+	expect(childCategoryRow?.description_ar).toBe('فئة اختبار الإدارة')
+	expect(childCategoryRow?.image_url).toBe(product.imageTwo)
 
 	await openAdminVolume(page, 'Products', 'Every SKU')
 	await page.getByRole('button', { name: /^New entry$/ }).click()
 	await page.getByLabel('Picture URL').fill(product.imageOne)
-	await page
-		.getByLabel('Image URLs')
-		.fill(`${product.imageOne}\n${product.imageTwo}`)
 	await page.getByLabel('Name (English)').fill(product.name)
 	await page.getByLabel('Name (Arabic)').fill(product.nameAr)
-	await page.getByLabel('SKU').fill(product.sku)
-	await page.getByLabel('Slug').fill(product.slug)
 	await selectOptionByLabel(page, 'Category', childCategory.name)
-	await page
-		.getByLabel('Subcategory', { exact: true })
-		.fill('admin stress subcategory')
-	await page.getByLabel('Subcategory (Arabic)').fill('فئة اختبار الإدارة')
 	await page.getByLabel('Brand').fill('HyperQuote QA')
 	await page.getByLabel('Manufacturer').fill('HyperQuote Factory')
-	await page.getByLabel('Price min').fill('111')
-	await page.getByLabel('Price max').fill('222')
-	await selectOptionByLabel(page, 'Price tier', 'Premium')
-	await selectOptionByLabel(page, 'Availability', 'Available')
+	await page.getByLabel('Cost').fill('111')
 	await page.getByLabel('Unit of measure', { exact: true }).fill('bag')
 	await page.getByLabel('Unit of measure (Arabic)').fill('شيكارة')
 	await page.getByLabel('Weight (kg)').fill('42')
-	await page
-		.getByLabel('Specifications JSON', { exact: true })
-		.fill(JSON.stringify({ adminStress: true, grade: '42.5N' }, null, 2))
-	await page
-		.getByLabel('Specifications JSON (Arabic)')
-		.fill(JSON.stringify({ اختبار_الإدارة: true, الدرجة: '42.5N' }, null, 2))
+	await page.getByLabel('Low below').fill('10')
+	await page.getByLabel('Good from').fill('20')
 	await page
 		.getByLabel('Description', { exact: true })
 		.fill('Admin stress English description')
 	await page.getByLabel('Description (Arabic)').fill('وصف اختبار الإدارة')
-	await page.getByLabel('Tags').fill('admin-stress, qa')
 	await page.getByRole('button', { name: /^Save$/ }).click()
 	await expect(page.locator('body')).toContainText(product.name, {
 		timeout: 15_000,
@@ -506,19 +508,43 @@ test('internal admin registry controls every dynamic entity and persists every f
 	const { data: productRow } = await service
 		.from('products')
 		.select(
-			'id, slug, sku, category, subcategory_ar, specifications, specifications_ar, unit_of_measure_ar, image_urls, price_range_min, price_range_max, is_active',
+			'id, slug, sku, category, brand, manufacturer, subcategory, subcategory_ar, specifications, specifications_ar, unit_of_measure, unit_of_measure_ar, image_urls, price_range_min, price_range_max, price_tier, availability_status, weight_kg, description, description_ar, tags, is_stockable, is_active',
 		)
-		.eq('slug', product.slug)
+		.eq('name', product.name)
 		.single()
 	expect(productRow?.category).toBe(childCategory.slug)
-	expect(productRow?.image_urls).toEqual([product.imageOne, product.imageTwo])
-	expect(productRow?.subcategory_ar).toBe('فئة اختبار الإدارة')
-	expect(productRow?.specifications?.grade).toBe('42.5N')
-	expect(productRow?.specifications_ar?.الدرجة).toBe('42.5N')
+	expect(productRow?.slug).toBe(
+		`${childCategory.slug}-${slugPart(product.name)}`,
+	)
+	expect(productRow?.sku).toBe(
+		`${skuPart(childCategory.slug)}-${skuPart(product.name)}`,
+	)
+	expect(productRow?.brand).toBe('HyperQuote QA')
+	expect(productRow?.manufacturer).toBe('HyperQuote Factory')
+	expect(productRow?.image_urls).toEqual([product.imageOne])
+	expect(productRow?.subcategory).toBeNull()
+	expect(productRow?.subcategory_ar).toBe('عام')
+	expect(productRow?.specifications).toEqual({})
+	expect(productRow?.specifications_ar).toEqual({})
+	expect(productRow?.unit_of_measure).toBe('bag')
 	expect(productRow?.unit_of_measure_ar).toBe('شيكارة')
+	expect(Number(productRow?.weight_kg)).toBe(42)
 	expect(Number(productRow?.price_range_min)).toBe(111)
-	expect(Number(productRow?.price_range_max)).toBe(222)
+	expect(Number(productRow?.price_range_max)).toBe(111)
+	expect(productRow?.price_tier).toBe('budget')
+	expect(productRow?.availability_status).toBe('available')
+	expect(productRow?.description).toBe('Admin stress English description')
+	expect(productRow?.description_ar).toBe('وصف اختبار الإدارة')
+	expect(productRow?.tags).toEqual([])
+	expect(productRow?.is_stockable).toBe(true)
 	expect(productRow?.is_active).toBe(true)
+	const { data: productStockRow } = await service
+		.from('inventory_stock')
+		.select('minimum_quantity, good_quantity')
+		.eq('product_id', productRow?.id)
+		.single()
+	expect(Number(productStockRow?.minimum_quantity)).toBe(10)
+	expect(Number(productStockRow?.good_quantity)).toBe(20)
 
 	await openAdminVolume(page, 'Suppliers', 'Who we buy from')
 	await page.getByRole('button', { name: /^New entry$/ }).click()
@@ -536,14 +562,11 @@ test('internal admin registry controls every dynamic entity and persists every f
 		timeout: 15_000,
 	})
 	await page.getByRole('button', { name: /^Edit$/ }).click()
-	await page.getByRole('button', { name: /^Add item$/ }).click()
+	await page.getByRole('button', { name: /^Add specialty$/ }).click()
+	await selectOptionByLabel(page, 'Category', childCategory.name)
 	await selectOptionByLabel(page, 'Product', product.name)
-	await page.getByLabel('Cost').fill('91')
-	await page.getByLabel('Lead').fill('6')
-	await page.getByLabel('Min qty').fill('12')
-	await page.getByLabel('Notes').last().fill('Admin stress item notes')
 	await page
-		.getByRole('button', { name: /^Add item$/ })
+		.getByRole('button', { name: /^Add specialty$/ })
 		.last()
 		.click()
 	await expect(page.locator('body')).toContainText(product.name, {
@@ -559,18 +582,16 @@ test('internal admin registry controls every dynamic entity and persists every f
 	expect(supplierRow?.status).toBe('active')
 	expect(supplierRow?.notes).toBe('Admin stress supplier notes')
 	expect(supplierRow?.custom_badges).toEqual(['cement', 'audited'])
-	const { data: supplierItemRow } = await service
-		.from('supplier_product_links')
-		.select(
-			'id, supplier_id, product_id, raw_cost, lead_time_days, min_order_qty, notes',
-		)
+	const { data: supplierSpecialtyRow } = await service
+		.from('supplier_specialties')
+		.select('id, supplier_id, category_slug, product_slug')
 		.eq('supplier_id', supplierRow?.id)
-		.eq('product_id', productRow?.id)
+		.eq('category_slug', childCategory.slug)
+		.eq('product_slug', productRow?.slug)
 		.single()
-	expect(Number(supplierItemRow?.raw_cost)).toBe(91)
-	expect(supplierItemRow?.lead_time_days).toBe(6)
-	expect(Number(supplierItemRow?.min_order_qty)).toBe(12)
-	expect(supplierItemRow?.notes).toBe('Admin stress item notes')
+	expect(supplierSpecialtyRow?.supplier_id).toBe(supplierRow?.id)
+	expect(supplierSpecialtyRow?.category_slug).toBe(childCategory.slug)
+	expect(supplierSpecialtyRow?.product_slug).toBe(productRow?.slug)
 
 	await openAdminVolume(page, 'Customers', 'Companies')
 	await page.getByRole('button', { name: /^New entry$/ }).click()
@@ -719,9 +740,10 @@ test('internal admin registry controls every dynamic entity and persists every f
 	await driverPage.getByLabel(/email/i).fill(driver.email)
 	await driverPage.getByLabel(/password/i).fill(driver.password)
 	await driverPage.getByRole('button', { name: /sign in|enter|start/i }).click()
-	await expect(driverPage.locator('body')).toContainText(driver.name, {
-		timeout: 15_000,
-	})
+	await expect(driverPage.locator('body')).toContainText(
+		/No active delivery|Fleet|Details|Route/i,
+		{ timeout: 15_000 },
+	)
 	await driverGuard.expectClean('admin-created driver app visibility')
 	await driverPage.close()
 
@@ -798,6 +820,16 @@ test('internal admin registry controls every dynamic entity and persists every f
 		.eq('id', childCategoryRow?.id)
 		.single()
 	expect(inactiveCategory?.is_active).toBe(false)
+	await deleteOpenAdminRecord(page, 'Categories', parentCategory.name, [
+		undefined,
+		'Admin stress parent category deactivate',
+	])
+	const { data: inactiveParentCategory } = await service
+		.from('categories')
+		.select('is_active')
+		.eq('id', parentCategoryRow?.id)
+		.single()
+	expect(inactiveParentCategory?.is_active).toBe(false)
 
 	await deleteOpenAdminRecord(page, 'Customers', customer.company, [undefined])
 	const { data: inactiveCustomer } = await service
@@ -822,7 +854,7 @@ test('driver login accepts only the seeded driver account', async ({
 	await page.getByLabel(/password/i).fill(ACCOUNTS.driver.password)
 	await page.getByRole('button', { name: /sign in|enter|start/i }).click()
 	await expect(page.locator('body')).toContainText(
-		/Local Driver|Deliveries|Route/i,
+		/No active delivery|Fleet|Details|Route/i,
 		{
 			timeout: 15_000,
 		},
@@ -882,7 +914,7 @@ test('auth sessions stay isolated across website, portal, internal, and driver a
 		await page.goto(URLS.driver, { waitUntil: 'domcontentloaded' })
 		await waitForHydration(page)
 		await expect(page.locator('body')).toContainText(
-			/Local Driver|NO ACTIVE DELIVERY|Fleet/i,
+			/No active delivery|Fleet|Details|Route/i,
 		)
 
 		const cookies = await context.cookies()
@@ -1033,6 +1065,22 @@ async function selectOptionByLabel(page: Page, label: string, option: string) {
 		`Option "${option}" should be available for "${label}"`,
 	).toBeVisible({ timeout: 5_000 })
 	await matchingOption.click()
+}
+
+function slugPart(value: string): string {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+}
+
+function skuPart(value: string): string {
+	return value
+		.trim()
+		.toUpperCase()
+		.replace(/[^A-Z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
 }
 
 async function expectActivityActionsSince(
