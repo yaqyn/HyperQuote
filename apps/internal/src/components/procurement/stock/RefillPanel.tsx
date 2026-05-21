@@ -10,6 +10,10 @@ import {
 	sanitizeIntQty,
 } from '../../../lib/inputs'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
+import {
 	createDeal,
 	getRefillProductDetail,
 	type StockStatus,
@@ -67,6 +71,10 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		queryFn: () =>
 			getRefillProductDetail({ data: { slug: productSlug ?? '' } }),
 		enabled: isOpen && !!productSlug,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [selectedSupplierRowId, setSelectedSupplierRowId] = useState<

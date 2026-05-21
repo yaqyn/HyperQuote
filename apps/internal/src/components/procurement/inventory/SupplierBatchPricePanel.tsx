@@ -7,6 +7,10 @@ import {
 	sanitizeCost,
 } from '../../../lib/inputs'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
+import {
 	getSupplierBatchPriceOptions,
 	updateSupplierQuoteBatch,
 } from '../../../lib/server/inventory'
@@ -34,7 +38,10 @@ export function SupplierBatchPricePanel({
 		queryKey: ['supplier-batch-price-options'],
 		queryFn: () => getSupplierBatchPriceOptions(),
 		enabled: isOpen,
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const selectedSupplier = useMemo(

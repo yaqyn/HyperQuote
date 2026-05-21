@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	getReceivingQueue,
 	getWarehouseQueue,
 } from '../../lib/server/warehouse'
@@ -17,12 +21,18 @@ export function WarehouseTabSwitch() {
 	const { data: loadingData } = useQuery({
 		queryKey: ['warehouse-queue'],
 		queryFn: () => getWarehouseQueue({ data: {} }),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const { data: receivingData } = useQuery({
 		queryKey: ['warehouse-receiving-queue'],
 		queryFn: () => getReceivingQueue({ data: {} }),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	return (

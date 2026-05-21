@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
 import { getInventoryOverview } from '../../lib/server/inventory'
 import { getCustomerOrdersList } from '../../lib/server/orders'
 import { getStockOverview } from '../../lib/server/stock'
@@ -8,17 +12,26 @@ export function useProcurementOverview() {
 	const stockQuery = useQuery({
 		queryKey: ['stock-overview'],
 		queryFn: () => getStockOverview({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const inventoryQuery = useQuery({
 		queryKey: ['inventory-overview'],
 		queryFn: () => getInventoryOverview({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const ordersQuery = useQuery({
 		queryKey: ['customer-orders'],
 		queryFn: () => getCustomerOrdersList({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const totals = useMemo(() => {

@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useReducedMotion } from 'motion/react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	getReceivingQueue,
 	type ReceivingDealRowView,
 } from '../../lib/server/warehouse'
@@ -24,7 +28,10 @@ export function WarehouseReceivingQueue() {
 	const { data, isLoading } = useQuery({
 		queryKey: ['warehouse-receiving-queue'],
 		queryFn: () => getReceivingQueue({ data: {} }),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const selectedDealId = useWarehouseStore((s) => s.selectedDealId)

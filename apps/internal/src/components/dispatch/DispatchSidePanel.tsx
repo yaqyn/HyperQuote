@@ -28,6 +28,12 @@ import {
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import {
+	INTERNAL_DIRECTORY_REFETCH_MS,
+	INTERNAL_DIRECTORY_STALE_MS,
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	type DispatchBoardTotals,
 	type DispatchDriverView,
 	type DispatchRouteView,
@@ -205,7 +211,10 @@ function DispatchMobileBar({
 			return getDispatchRouteDetail({ data: { quoteId } })
 		},
 		enabled: hasDetail && quoteId !== null,
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	return (
@@ -263,7 +272,10 @@ function OrdersView({ reduce }: { reduce: boolean | null }) {
 	const { data, isError, isLoading } = useQuery({
 		queryKey: ['dispatch-board'],
 		queryFn: () => getDispatchBoard({ data: {} }),
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const setSelectedQuoteId = useDispatchStore((s) => s.setSelectedQuoteId)
 
@@ -688,7 +700,10 @@ function OrderDetail({
 	const { data: route, isLoading } = useQuery({
 		queryKey: ['dispatch-route', quoteId],
 		queryFn: () => getDispatchRouteDetail({ data: { quoteId } }),
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [showDelivered, setShowDelivered] = useState(false)
@@ -945,7 +960,10 @@ function FleetView({ reduce }: { reduce: boolean | null }) {
 	const { data, isError, isLoading } = useQuery({
 		queryKey: ['dispatch-drivers'],
 		queryFn: () => getDispatchDrivers({ data: {} }),
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const drivers = data?.drivers ?? []
 	const dispatched = drivers.filter((d) => d.status === 'dispatched')
@@ -1349,7 +1367,10 @@ function ConfirmDialog({
 	const { data: employeesData } = useQuery({
 		queryKey: ['dispatch-employees'],
 		queryFn: () => getWarehouseEmployeesForDispatch({ data: {} }),
-		staleTime: 60_000,
+		refetchInterval: INTERNAL_DIRECTORY_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_DIRECTORY_STALE_MS,
 	})
 	const employees = employeesData?.employees ?? []
 

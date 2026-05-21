@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useState } from 'react'
 import { ClientOnly } from '../../lib/client-only'
+import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
 import { getDispatchBoard } from '../../lib/server/dispatch'
 import { useDispatchStore } from '../../stores/dispatch'
 import { DispatchSidePanel } from './DispatchSidePanel'
@@ -8,8 +12,6 @@ import { DispatchSidePanel } from './DispatchSidePanel'
 const DispatchMap = lazy(() =>
 	import('./DispatchMap').then((module) => ({ default: module.DispatchMap })),
 )
-
-const DISPATCH_BOARD_REFRESH_MS = 10_000
 
 export function DispatchModule() {
 	const [panelOpen, setPanelOpen] = useState(true)
@@ -19,9 +21,10 @@ export function DispatchModule() {
 	const { data } = useQuery({
 		queryKey: ['dispatch-board'],
 		queryFn: () => getDispatchBoard({ data: {} }),
-		refetchInterval: DISPATCH_BOARD_REFRESH_MS,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
 		refetchIntervalInBackground: true,
-		staleTime: 5_000,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 	const routes = data?.routes ?? []
 

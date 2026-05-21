@@ -12,6 +12,10 @@ import { Button } from 'react-aria-components/Button'
 import { DialogTrigger } from 'react-aria-components/Dialog'
 import { Popover } from 'react-aria-components/Popover'
 import { useTranslation } from 'react-i18next'
+import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
 import { MODULES } from '../../lib/modules'
 import { validateCurrentInternalPassword } from '../../lib/server/internal-auth'
 import { getUrgentItems } from '../../lib/server/urgent-items'
@@ -198,7 +202,10 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const { data: urgentData } = useQuery({
 		queryKey: ['urgent-items'],
 		queryFn: () => getUrgentItems(),
-		staleTime: 60_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	useEffect(() => {

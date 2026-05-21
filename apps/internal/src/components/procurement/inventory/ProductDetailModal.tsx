@@ -21,6 +21,10 @@ import {
 	PRICE_PROOF_ESSAY_MIN,
 	sanitizeCost,
 } from '../../../lib/inputs'
+import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
 import type {
 	PriceProofInput,
 	QuoteFreshness,
@@ -99,7 +103,10 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 		queryKey: ['inventory-product-detail', slug],
 		queryFn: () => getInventoryProductDetail({ data: { slug: slug ?? '' } }),
 		enabled: isOpen && !!slug,
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	useEffect(() => {

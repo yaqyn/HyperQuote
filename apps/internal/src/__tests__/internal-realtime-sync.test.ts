@@ -39,6 +39,16 @@ describe('internalRealtimeQueryKeysForTable', () => {
 		expect(keys).toContain('quote-builder-data')
 	})
 
+	it('refreshes inventory order readiness when stock changes', () => {
+		const keys = keyNamesForTable('inventory_stock')
+
+		expect(keys).toContain('stock-overview')
+		expect(keys).toContain('inventory-overview')
+		expect(keys).toContain('customer-orders')
+		expect(keys).toContain('customer-order-detail')
+		expect(keys).toContain('warehouse-queue')
+	})
+
 	it('refreshes warehouse and dispatch when loaded order state changes', () => {
 		const keys = keyNamesForTable('loading_tasks')
 
@@ -46,6 +56,15 @@ describe('internalRealtimeQueryKeysForTable', () => {
 		expect(keys).toContain('warehouse-order')
 		expect(keys).toContain('dispatch-board')
 		expect(keys).toContain('dispatch-route')
+	})
+
+	it('refreshes warehouse and dispatch when driver availability changes', () => {
+		const keys = keyNamesForTable('driver_online_states')
+
+		expect(keys).toContain('dispatch-drivers')
+		expect(keys).toContain('dispatch-board')
+		expect(keys).toContain('warehouse-trucks')
+		expect(keys).toContain('warehouse-queue')
 	})
 
 	it('refreshes dispatch views when driver GPS locations change', () => {

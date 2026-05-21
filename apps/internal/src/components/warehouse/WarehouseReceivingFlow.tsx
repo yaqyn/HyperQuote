@@ -2,6 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+	INTERNAL_DIRECTORY_REFETCH_MS,
+	INTERNAL_DIRECTORY_STALE_MS,
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	getReceivingDealDetail,
 	type getReceivingQueue,
 	getWarehouseEmployees,
@@ -119,13 +125,19 @@ function FlowInner({ dealId }: { dealId: string }) {
 	const { data: deal, isLoading } = useQuery({
 		queryKey: ['warehouse-receiving-deal', dealId],
 		queryFn: () => getReceivingDealDetail({ data: { dealId } }),
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const { data: employeesData } = useQuery({
 		queryKey: ['warehouse-employees'],
 		queryFn: () => getWarehouseEmployees({ data: {} }),
-		staleTime: 60_000,
+		refetchInterval: INTERNAL_DIRECTORY_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_DIRECTORY_STALE_MS,
 	})
 	const employees = employeesData?.employees ?? []
 

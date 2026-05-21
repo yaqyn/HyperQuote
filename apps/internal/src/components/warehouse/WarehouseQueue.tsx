@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	getWarehouseQueue,
 	type WarehouseOrderRowView,
 	type WarehouseStage,
@@ -25,7 +29,10 @@ export function WarehouseQueue() {
 	const { data, isLoading } = useQuery({
 		queryKey: ['warehouse-queue'],
 		queryFn: () => getWarehouseQueue({ data: {} }),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const selectedQuoteId = useWarehouseStore((s) => s.selectedQuoteId)

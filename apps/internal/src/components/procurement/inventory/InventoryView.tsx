@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
+import {
 	getInventoryOverview,
 	type InventoryProductView,
 } from '../../../lib/server/inventory'
@@ -32,7 +36,10 @@ export function InventoryView() {
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['inventory-overview'],
 		queryFn: () => getInventoryOverview({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [search, setSearch] = useState('')

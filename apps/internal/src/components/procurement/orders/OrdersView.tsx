@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
+import {
 	type CustomerOrderView,
 	getCustomerOrdersList,
 } from '../../../lib/server/orders'
@@ -19,7 +23,10 @@ export function OrdersView() {
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['customer-orders'],
 		queryFn: () => getCustomerOrdersList({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [search, setSearch] = useState('')

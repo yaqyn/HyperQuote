@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
 import { getConversations } from '../../lib/server/customer-service'
 import { useSupportStore } from '../../stores/customer-service'
 import { EmployeeStatusPill } from '../shared/EmployeeControls'
@@ -29,7 +33,10 @@ export function CustomerServiceModule() {
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['support-inbox'],
 		queryFn: () => getConversations(),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const conversations = data?.conversations ?? []

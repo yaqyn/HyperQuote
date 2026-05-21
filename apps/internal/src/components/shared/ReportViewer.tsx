@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import type { OrderReportStage } from '../../lib/db/types'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	getOrderReport,
 	type ResolvedReport,
 } from '../../lib/server/order-reports'
@@ -48,7 +52,10 @@ export function ReportViewerModal({ rfqId, onClose }: ReportViewerModalProps) {
 		queryKey: ['order-report', rfqId],
 		queryFn: () => getOrderReport({ data: { rfqId: rfqId ?? '' } }),
 		enabled: !!rfqId,
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const show = !!rfqId && !!data && !isLoading

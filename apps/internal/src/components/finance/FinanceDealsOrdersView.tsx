@@ -9,6 +9,10 @@ import {
 import type { ReactNode, Ref } from 'react'
 import { useMemo, useRef, useState } from 'react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	type FinanceDealView,
 	type FinanceOrderView,
 	getFinanceInbox,
@@ -58,7 +62,10 @@ export function FinanceDealsOrdersView() {
 	const { data, isError, isLoading } = useQuery({
 		queryKey: ['finance-inbox'],
 		queryFn: () => getFinanceInbox({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [ledgerDirection, setLedgerDirection] =

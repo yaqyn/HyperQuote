@@ -7,6 +7,12 @@ import {
 } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+	INTERNAL_DIRECTORY_REFETCH_MS,
+	INTERNAL_DIRECTORY_STALE_MS,
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	assignTruckToOrder,
 	getAvailableTrucks,
 	getWarehouseEmployees,
@@ -102,7 +108,10 @@ function PrepFlowInner({ quoteId }: { quoteId: string }) {
 	const { data: order, isLoading } = useQuery({
 		queryKey: ['warehouse-order', quoteId],
 		queryFn: () => getWarehouseOrderDetail({ data: { quoteId } }),
-		staleTime: 5_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const setSelectedQuoteId = useWarehouseStore((s) => s.setSelectedQuoteId)
@@ -666,7 +675,10 @@ function TruckPicker({
 	const { data } = useQuery({
 		queryKey: ['warehouse-trucks'],
 		queryFn: () => getAvailableTrucks({ data: {} }),
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const mutation = useMutation({
@@ -882,7 +894,10 @@ function SignoffStage({
 	const { data: employeesData } = useQuery({
 		queryKey: ['warehouse-employees'],
 		queryFn: () => getWarehouseEmployees({ data: {} }),
-		staleTime: 60_000,
+		refetchInterval: INTERNAL_DIRECTORY_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_DIRECTORY_STALE_MS,
 	})
 	const employees = employeesData?.employees ?? []
 	const selectedAdvisor = employees.find((e) => e.id === advisorId) ?? null

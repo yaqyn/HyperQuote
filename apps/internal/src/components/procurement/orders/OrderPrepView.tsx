@@ -8,6 +8,10 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../../lib/internal-live-query'
+import {
 	type ActiveRefillSummary,
 	type CustomerOrderView,
 	fillOrderForWarehouse,
@@ -44,7 +48,10 @@ export function OrderPrepView({
 		queryFn: async () =>
 			(await getCustomerOrderDetail({ data: { quoteId } })) ?? initialOrder,
 		initialData: initialOrder ?? undefined,
-		staleTime: 10_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const [refillSlug, setRefillSlug] = useState<string | null>(null)

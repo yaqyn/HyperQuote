@@ -9,6 +9,10 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+	INTERNAL_LIVE_REFETCH_MS,
+	INTERNAL_LIVE_STALE_MS,
+} from '../../lib/internal-live-query'
+import {
 	cancelDealFromFinance,
 	cancelOrderFromFinance,
 	type FinanceDealView,
@@ -91,7 +95,10 @@ export function FinancePaymentPanel({
 	const { data } = useQuery({
 		queryKey: ['finance-inbox'],
 		queryFn: () => getFinanceInbox({ data: {} }),
-		staleTime: 30_000,
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
 	const mode: Mode | null = orderId ? 'order' : dealId ? 'deal' : null
