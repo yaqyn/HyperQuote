@@ -3,7 +3,6 @@ import {
 	AlertTriangle,
 	ArrowLeft,
 	ChevronDown,
-	ChevronUp,
 	CircleCheck,
 	Copy,
 	ExternalLink,
@@ -18,6 +17,7 @@ import {
 	Plus,
 	Save,
 	ShoppingCart,
+	StickyNote,
 	Store,
 	X,
 } from 'lucide-react'
@@ -1291,7 +1291,7 @@ function CartSubmit({
 		}
 
 		return (
-			<div className="border-t border-[var(--color-border)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+			<div className="relative border-t border-[var(--color-border)] px-4 pt-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 				<AnimatePresence initial={false}>
 					{authSuccessVisible && (
 						<motion.div
@@ -1340,43 +1340,55 @@ function CartSubmit({
 						</motion.div>
 					)}
 				</AnimatePresence>
-				<button
+				<motion.button
 					type="button"
 					onClick={() => setNotesOpen((value) => !value)}
-					className="flex h-10 w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)]/45"
+					className={`absolute -top-5 end-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--color-base)] shadow-sm transition-colors ${
+						notesOpen
+							? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+							: 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
+					}`}
+					aria-label={t('cart.notes')}
 					aria-expanded={notesOpen}
+					aria-pressed={notesOpen}
+					whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+					transition={{
+						duration: shouldReduceMotion ? 0.01 : 0.16,
+						ease: CART_DRAWER_EASE,
+					}}
 				>
-					<span className="truncate">{t('cart.notes')}</span>
-					<ChevronUp
-						size={16}
-						strokeWidth={1.8}
-						className={`shrink-0 text-[var(--color-text-muted)] transition-transform ${
-							notesOpen ? 'rotate-180' : ''
-						}`}
-					/>
-				</button>
+					<StickyNote size={16} strokeWidth={1.8} />
+				</motion.button>
 				<AnimatePresence initial={false}>
 					{notesOpen && (
-						<motion.label
+						<motion.div
 							key="cart-notes"
-							className="mt-2 block"
-							initial={{ opacity: 0, height: 0 }}
-							animate={{ opacity: 1, height: 'auto' }}
-							exit={{ opacity: 0, height: 0 }}
+							className="overflow-hidden"
+							initial={{
+								height: 0,
+								y: shouldReduceMotion ? 0 : 14,
+							}}
+							animate={{ height: 'auto', y: 0 }}
+							exit={{
+								height: 0,
+								y: shouldReduceMotion ? 0 : 14,
+							}}
 							transition={{
-								duration: shouldReduceMotion ? 0.01 : 0.18,
+								duration: shouldReduceMotion ? 0.01 : 0.22,
 								ease: CART_DRAWER_EASE,
 							}}
 						>
-							<span className="sr-only">{t('cart.notes')}</span>
-							<textarea
-								value={globalNote}
-								onChange={(event) => setGlobalNote(event.currentTarget.value)}
-								rows={3}
-								placeholder={t('cart.notesPlaceholder')}
-								className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-							/>
-						</motion.label>
+							<label className="block pb-2">
+								<span className="sr-only">{t('cart.notes')}</span>
+								<textarea
+									value={globalNote}
+									onChange={(event) => setGlobalNote(event.currentTarget.value)}
+									rows={3}
+									placeholder={t('cart.notesPlaceholder')}
+									className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+								/>
+							</label>
+						</motion.div>
 					)}
 				</AnimatePresence>
 

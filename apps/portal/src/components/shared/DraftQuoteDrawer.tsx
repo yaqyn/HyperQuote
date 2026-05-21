@@ -1,7 +1,6 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
 import {
 	Check,
-	ChevronUp,
 	FilePenLine,
 	FileText,
 	Package,
@@ -9,6 +8,7 @@ import {
 	Plus,
 	Save,
 	Search,
+	StickyNote,
 	X,
 } from 'lucide-react'
 import {
@@ -492,50 +492,58 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 												</AnimatePresence>
 											</div>
 
-											<div className="shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:px-5 md:pb-4">
-												<button
+											<div className="relative shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-5 md:px-5 md:pb-4">
+												<motion.button
 													type="button"
 													onClick={() => setNotesOpen((value) => !value)}
-													className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+													className={`absolute -top-5 end-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:end-5 ${
+														notesOpen
+															? 'border-[var(--p-accent)] text-[var(--p-accent)]'
+															: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
+													}`}
+													aria-label={t('market.cartNotesLabel')}
 													aria-expanded={notesOpen}
+													aria-pressed={notesOpen}
+													whileTap={
+														shouldReduceMotion ? undefined : { scale: 0.94 }
+													}
 												>
-													<span className="truncate">
-														{t('market.cartNotesLabel')}
-													</span>
-													<ChevronUp
-														size={16}
-														strokeWidth={1.8}
-														className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
-															notesOpen ? 'rotate-180' : ''
-														}`}
-													/>
-												</button>
+													<StickyNote size={17} strokeWidth={1.8} />
+												</motion.button>
 												<AnimatePresence initial={false}>
 													{notesOpen && (
-														<motion.label
+														<motion.div
 															key="cart-notes"
-															className="mt-2 block"
-															initial={{ opacity: 0, height: 0 }}
-															animate={{ opacity: 1, height: 'auto' }}
-															exit={{ opacity: 0, height: 0 }}
+															className="overflow-hidden"
+															initial={{
+																height: 0,
+																y: shouldReduceMotion ? 0 : 14,
+															}}
+															animate={{ height: 'auto', y: 0 }}
+															exit={{
+																height: 0,
+																y: shouldReduceMotion ? 0 : 14,
+															}}
 															transition={{
-																duration: shouldReduceMotion ? 0.01 : 0.18,
+																duration: shouldReduceMotion ? 0.01 : 0.22,
 																ease: SNAP_EASE,
 															}}
 														>
-															<span className="sr-only">
-																{t('market.cartNotesLabel')}
-															</span>
-															<textarea
-																value={globalNote}
-																onChange={(event) =>
-																	setGlobalNote(event.currentTarget.value)
-																}
-																rows={3}
-																placeholder={t('market.cartNotesPlaceholder')}
-																className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-															/>
-														</motion.label>
+															<label className="block pb-2">
+																<span className="sr-only">
+																	{t('market.cartNotesLabel')}
+																</span>
+																<textarea
+																	value={globalNote}
+																	onChange={(event) =>
+																		setGlobalNote(event.currentTarget.value)
+																	}
+																	rows={3}
+																	placeholder={t('market.cartNotesPlaceholder')}
+																	className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+																/>
+															</label>
+														</motion.div>
 													)}
 												</AnimatePresence>
 
