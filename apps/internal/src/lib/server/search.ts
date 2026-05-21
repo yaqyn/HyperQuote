@@ -254,25 +254,6 @@ async function countSearchRows(
 	return count ?? 0
 }
 
-async function recordSearchQuery(
-	input: {
-		query: string
-		resultCount: number
-		tableCount: number
-	},
-	providedClient?: SearchClient,
-) {
-	if (!input.query.trim()) return
-	const client = providedClient ?? (await requireSearchClient())
-	const { error } = await client.rpc('record_search_query_executed', {
-		p_context: { source: 'internal_search_panel' },
-		p_query: input.query,
-		p_result_count: input.resultCount,
-		p_table_count: input.tableCount,
-	})
-	if (error) throw new Error(error.message)
-}
-
 async function tableSummariesForSearch(
 	search: string,
 	client: SearchClient,
@@ -378,18 +359,6 @@ export const searchInternalDb = createServerFn({ method: 'POST' })
 		)
 		const results = resultGroups.filter(
 			(group): group is SearchResultGroup => group !== null,
-		)
-
-		await recordSearchQuery(
-			{
-				query,
-				resultCount: results.reduce(
-					(count, group) => count + group.rowCount,
-					0,
-				),
-				tableCount: results.length,
-			},
-			client,
 		)
 
 		return { query, tables, tableMatches, results }

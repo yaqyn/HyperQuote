@@ -57,7 +57,7 @@ const SEARCH_VTABLES = [
 	'ceo_search_receiving_vtable',
 ] as const
 
-test('CEO Search reads summary views, audits queries, links to source panels, and stays read-only', async ({
+test('CEO Search reads summary views, links to source panels, and stays read-only', async ({
 	browser,
 }) => {
 	test.setTimeout(240_000)
@@ -207,7 +207,6 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 	await expect(page.locator('body')).toContainText('Accepted orders')
 	await page.getByRole('button', { name: /^Back$/i }).click()
 
-	const queryStartedAt = Date.now()
 	await searchInput.fill('Local Cairo')
 	await expect(page.locator('body')).toContainText('Local Cairo Contractors', {
 		timeout: 20_000,
@@ -229,34 +228,14 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 	await guard.expectClean('internal CEO search browser')
 	await context.close()
 
-	await expect
-		.poll(
-			async () => {
-				const { data, error } = await service
-					.from('activity_events')
-					.select('id, actor_employee_id, details, created_at')
-					.eq('action', 'search_query_executed')
-					.gte('created_at', auditStartedAt)
-					.order('created_at', { ascending: false })
-					.limit(10)
-				if (error) return `error:${error.message}`
-				const match = (data ?? []).find((event) => {
-					const details = event.details as Record<string, unknown>
-					return (
-						typeof event.actor_employee_id === 'string' &&
-						typeof event.created_at === 'string' &&
-						new Date(event.created_at).getTime() >= queryStartedAt &&
-						details.query === 'Local Cairo' &&
-						details.source === 'internal_search_panel' &&
-						Number(details.result_count) > 0 &&
-						Number(details.table_count) > 0
-					)
-				})
-				return match ? 'ok' : 'missing'
-			},
-			{ timeout: 20_000 },
-		)
-		.toBe('ok')
+	const { count: searchActivityCount, error: searchActivityError } =
+		await service
+			.from('activity_events')
+			.select('id', { count: 'exact', head: true })
+			.eq('action', 'search_query_executed')
+			.gte('created_at', auditStartedAt)
+	expect(searchActivityError).toBeNull()
+	expect(searchActivityCount ?? 0).toBe(0)
 
 	const salesContext = await browser.newContext({
 		viewport: { height: 900, width: 1280 },
