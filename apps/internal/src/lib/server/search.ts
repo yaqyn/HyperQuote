@@ -7,6 +7,7 @@ import {
 	buildSearchPreviewFields,
 	buildSearchSummaryBuckets,
 	buildSearchSummaryNote,
+	buildSearchSummarySections,
 	type SearchDisplayIndexRow,
 } from '../search-display'
 import { searchPattern, searchTokens } from '../search-query'
@@ -136,12 +137,12 @@ const SEARCH_SUMMARY_MODULES = Object.keys(
 	MODULE_TABLES,
 ) as SearchSummaryModuleId[]
 const SUMMARY_ENTITY_TYPES: Record<SearchSummaryModuleId, string[]> = {
-	sales: ['order'],
-	inventory: ['order', 'inventory'],
-	warehouse: ['warehouse'],
-	finance: ['payment'],
+	sales: ['order', 'customer'],
+	inventory: ['inventory', 'order', 'supplier'],
+	warehouse: ['warehouse', 'inventory'],
+	finance: ['payment', 'order'],
 	dispatch: ['dispatch', 'driver'],
-	'customer-service': ['support'],
+	'customer-service': ['support', 'customer'],
 }
 
 async function requireSearchClient() {
@@ -429,13 +430,17 @@ function buildModuleSummary(
 	moduleId: SearchSummaryModuleId,
 	rows: SearchIndexRow[],
 ): SearchModuleSummary {
-	const buckets = buildSearchSummaryBuckets(moduleId, rows)
-	const sections = buckets.map((bucket) => {
+	const points = buildSearchSummaryBuckets(moduleId, rows).map((bucket) => ({
+		id: bucket.id,
+		label: bucket.label,
+		count: bucket.rows.length,
+	}))
+	const sections = buildSearchSummarySections(moduleId, rows).map((section) => {
 		return {
-			id: bucket.id,
-			label: bucket.label,
-			count: bucket.rows.length,
-			rows: bucket.rows.slice(0, 5).flatMap((row) => {
+			id: section.id,
+			label: section.label,
+			count: section.rows.length,
+			rows: section.rows.flatMap((row) => {
 				const searchRow = toSearchRow(row)
 				if (!searchRow) return []
 				return [
@@ -454,11 +459,7 @@ function buildModuleSummary(
 	return {
 		moduleId,
 		moduleLabel: MODULE_LABELS[moduleId],
-		points: sections.map((section) => ({
-			id: section.id,
-			label: section.label,
-			count: section.count,
-		})),
+		points,
 		sections,
 	}
 }

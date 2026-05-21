@@ -73,6 +73,7 @@ const statusLabels: Record<string, string> = {
 	quoted: 'Quoted',
 	quoting: 'Quoting',
 	receiving: 'Receiving',
+	recorded: 'Recorded',
 	rejected: 'Rejected',
 	reviewing: 'Reviewing',
 	resolved: 'Resolved',
@@ -81,6 +82,8 @@ const statusLabels: Record<string, string> = {
 	ticket: 'Support ticket',
 	under_review: 'Under review',
 	unpaid: 'Unpaid',
+	voided: 'Voided',
+	warehouse_receiving: 'Warehouse receiving',
 }
 
 const sourceLabels: Record<string, string> = {
@@ -328,6 +331,8 @@ function humanLabel(key: string): string {
 		driver_status: 'Driver status',
 		draft_name: 'Draft name',
 		email: 'Email',
+		follow_up_notes: 'Follow-up notes',
+		follow_up_outcome: 'Follow-up outcome',
 		follow_up_due_at: 'Follow-up due',
 		follow_up_state: 'Follow-up state',
 		good_quantity: 'Good from',
@@ -342,7 +347,9 @@ function humanLabel(key: string): string {
 		on_hand_quantity: 'On hand',
 		order_number: 'Order',
 		order_status: 'Order status',
+		amount_paid: 'Paid',
 		payment_fraction: 'Payment portion',
+		payment_status: 'Payment status',
 		payment_terms: 'Payment terms',
 		phone: 'Phone',
 		plate_number: 'Truck',
@@ -358,6 +365,7 @@ function humanLabel(key: string): string {
 		receiving_status: 'Receiving status',
 		request_items: 'Requested items',
 		rejection_reason: 'Rejection reason',
+		remaining_due: 'Remaining',
 		refill_status: 'Refill status',
 		request_number: 'Request',
 		requester: 'Requester',
@@ -379,8 +387,10 @@ function humanLabel(key: string): string {
 		target: 'Target',
 		tier: 'Tier',
 		title: 'Title',
+		total_due: 'Total due',
 		total_amount: 'Value',
 		trade_license_status: 'Trade license',
+		unit_of_measure: 'Unit',
 		urgency: 'Urgency',
 		updated_at: 'Updated',
 		vehicle_label: 'Vehicle',
@@ -424,6 +434,32 @@ function isQuoteRequestOrder(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'order' &&
 		stringValue(metadataObject(row.metadata), 'source') === 'quote_request'
+	)
+}
+
+function quantityWithUnit(
+	value: number | null,
+	unit: string | null,
+): string | null {
+	const formatted = formatNumber(value)
+	if (!formatted) return null
+	return unit ? `${formatted} ${unit}` : formatted
+}
+
+function financeSide(row: SearchDisplayIndexRow): string | null {
+	const metadata = metadataObject(row.metadata)
+	const sourceKey = normalizeToken(stringValue(metadata, 'source') ?? row.title)
+	if (sourceKey.includes('customer')) return 'Customer'
+	if (sourceKey.includes('supplier')) return 'Supplier'
+	return formatSource(sourceKey)
+}
+
+function financePaymentStatus(row: SearchDisplayIndexRow): string | null {
+	const metadata = metadataObject(row.metadata)
+	return formatStatus(
+		stringValue(metadata, 'payment_status') ??
+			stringValue(metadata, 'status') ??
+			row.subtitle,
 	)
 }
 
@@ -517,26 +553,59 @@ export function buildSearchPreviewFields(
 			)
 		case 'payment':
 			return fields(
-				previewField('Source', formatSource(row.title)),
-				previewField('Stage', stage(row)),
+				previewField('Side', financeSide(row)),
+				previewField('Payment status', financePaymentStatus(row)),
+				previewField(
+					'Remaining',
+					formatMoney(numberValue(metadata, 'remaining_due')),
+				),
+				previewField(
+					'Total due',
+					formatMoney(numberValue(metadata, 'total_due')),
+				),
+				previewField('Paid', formatMoney(numberValue(metadata, 'amount_paid'))),
 				previewField('Amount', formatMoney(numberValue(metadata, 'amount'))),
 				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Supplier', stringValue(metadata, 'supplier_name')),
-				previewField('Recorded by', stringValue(metadata, 'recorded_by')),
+				previewField(
+					'Order',
+					stringValue(metadata, 'order_number') ??
+						stringValue(metadata, 'request_number'),
+				),
+				previewField(
+					'Product',
+					stringValue(metadata, 'product_name') ??
+						stringValue(metadata, 'item_summary'),
+				),
 			)
-		case 'inventory':
+		case 'inventory': {
+			const unit = stringValue(metadata, 'unit_of_measure')
 			return fields(
 				previewField('SKU', stringValue(metadata, 'sku')),
+				previewField('Unit', unit),
+				previewField(
+					'On hand',
+					quantityWithUnit(numberValue(metadata, 'on_hand_quantity'), unit),
+				),
 				previewField(
 					'Available',
-					formatNumber(numberValue(metadata, 'available_quantity')),
+					quantityWithUnit(numberValue(metadata, 'available_quantity'), unit),
 				),
 				previewField(
 					'Reserved',
-					formatNumber(numberValue(metadata, 'reserved_quantity')),
+					quantityWithUnit(numberValue(metadata, 'reserved_quantity'), unit),
+				),
+				previewField(
+					'Minimum',
+					quantityWithUnit(numberValue(metadata, 'minimum_quantity'), unit),
+				),
+				previewField(
+					'Good from',
+					quantityWithUnit(numberValue(metadata, 'good_quantity'), unit),
 				),
 				previewField('Suppliers', stringValue(metadata, 'preferred_suppliers')),
 			)
+		}
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return fields(
@@ -634,6 +703,7 @@ export function buildSearchDisplayTitle(row: SearchDisplayIndexRow): string {
 		case 'activity':
 			return formatActivityTitle(row)
 		case 'payment':
+			if (!row.title.includes('_') || row.title.includes(' ')) return row.title
 			return formatSource(row.title) ?? row.title
 		default:
 			return row.title
@@ -748,8 +818,17 @@ export function buildSearchDetailFields(
 			)
 		case 'payment':
 			return details(
-				detailField('Payment source', formatSource(row.title)),
-				detailField('Stage', stage(row)),
+				detailField('Finance side', financeSide(row)),
+				detailField('Payment status', financePaymentStatus(row)),
+				detailField(
+					'Total due',
+					formatMoney(numberValue(metadata, 'total_due')),
+				),
+				detailField('Paid', formatMoney(numberValue(metadata, 'amount_paid'))),
+				detailField(
+					'Remaining',
+					formatMoney(numberValue(metadata, 'remaining_due')),
+				),
 				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
 				detailField(
 					'Payment portion',
@@ -759,38 +838,63 @@ export function buildSearchDetailFields(
 				detailField('Customer', stringValue(metadata, 'company_name')),
 				detailField('Supplier', stringValue(metadata, 'supplier_name')),
 				detailField('Product', stringValue(metadata, 'product_name')),
+				detailField('Items', stringValue(metadata, 'item_summary')),
+				detailField(
+					'Quantity',
+					quantityWithUnit(
+						numberValue(metadata, 'quantity'),
+						stringValue(metadata, 'unit_of_measure'),
+					),
+				),
 				detailField('Recorded by', stringValue(metadata, 'recorded_by')),
+				detailField('Last payment', formatDateTime(metadata.last_payment_at)),
+				detailField(
+					'Follow-up state',
+					formatStatus(stringValue(metadata, 'follow_up_state')),
+				),
+				detailField('Follow-up due', formatDateTime(metadata.follow_up_due_at)),
+				detailField(
+					'Follow-up outcome',
+					stringValue(metadata, 'follow_up_outcome'),
+				),
+				detailField(
+					'Follow-up notes',
+					stringValue(metadata, 'follow_up_notes'),
+				),
 				detailField('Recorded', formatDateTime(metadata.created_at)),
 			)
-		case 'inventory':
+		case 'inventory': {
+			const unit = stringValue(metadata, 'unit_of_measure')
 			return details(
 				detailField('Product', row.title),
 				detailField('SKU', stringValue(metadata, 'sku')),
 				detailField('Category', row.subtitle),
 				detailField('Brand', stringValue(metadata, 'brand')),
+				detailField('Unit', unit),
 				detailField('Suppliers', stringValue(metadata, 'preferred_suppliers')),
 				detailField(
 					'On hand',
-					formatNumber(numberValue(metadata, 'on_hand_quantity')),
+					quantityWithUnit(numberValue(metadata, 'on_hand_quantity'), unit),
 				),
 				detailField(
 					'Reserved',
-					formatNumber(numberValue(metadata, 'reserved_quantity')),
+					quantityWithUnit(numberValue(metadata, 'reserved_quantity'), unit),
 				),
 				detailField(
 					'Available',
-					formatNumber(numberValue(metadata, 'available_quantity')),
+					quantityWithUnit(numberValue(metadata, 'available_quantity'), unit),
 				),
 				detailField(
 					'Minimum required',
-					formatNumber(numberValue(metadata, 'minimum_quantity')),
+					quantityWithUnit(numberValue(metadata, 'minimum_quantity'), unit),
 				),
 				detailField(
 					'Good from',
-					formatNumber(numberValue(metadata, 'good_quantity')),
+					quantityWithUnit(numberValue(metadata, 'good_quantity'), unit),
 				),
 				detailField('Last stock update', formatDateTime(metadata.updated_at)),
 			)
+		}
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return details(
@@ -1030,12 +1134,28 @@ export function buildSearchSummaryNote(
 				.filter(Boolean)
 				.join(' - ')
 		case 'payment':
-			return [formatSource(row.title), stage(row)].filter(Boolean).join(' - ')
-		case 'inventory':
 			return [
-				`${formatNumber(numberValue(metadata, 'available_quantity')) ?? '0'} available`,
-				`${formatNumber(numberValue(metadata, 'minimum_quantity')) ?? '0'} minimum`,
-			].join(' - ')
+				financeSide(row),
+				financePaymentStatus(row),
+				stringValue(metadata, 'company_name') ??
+					stringValue(metadata, 'supplier_name'),
+				formatMoney(numberValue(metadata, 'remaining_due'))
+					? `${formatMoney(numberValue(metadata, 'remaining_due'))} remaining`
+					: null,
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'inventory': {
+			const unit = stringValue(metadata, 'unit_of_measure')
+			return [
+				`${quantityWithUnit(numberValue(metadata, 'on_hand_quantity'), unit) ?? '0'} on hand`,
+				`${quantityWithUnit(numberValue(metadata, 'available_quantity'), unit) ?? '0'} available`,
+				`${quantityWithUnit(numberValue(metadata, 'minimum_quantity'), unit) ?? '0'} minimum`,
+				stringValue(metadata, 'preferred_suppliers'),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		}
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return [
@@ -1184,6 +1304,55 @@ export function buildSearchSummaryBuckets(
 	}
 }
 
+export function buildSearchSummarySections(
+	moduleId: SearchSummaryModuleId,
+	rows: SearchDisplayIndexRow[],
+): SearchSummaryBucket[] {
+	switch (moduleId) {
+		case 'sales':
+			return [
+				entitySection('sales-orders', 'Orders', rows, 'order'),
+				entitySection('sales-customers', 'Customers', rows, 'customer'),
+			]
+		case 'inventory':
+			return [
+				entitySection('inventory-items', 'Inventory items', rows, 'inventory'),
+				bucket('inventory-orders', 'Inventory orders', rows, isInventoryOrder),
+				entitySection('inventory-suppliers', 'Suppliers', rows, 'supplier'),
+			]
+		case 'warehouse':
+			return [
+				entitySection('warehouse-tasks', 'Warehouse tasks', rows, 'warehouse'),
+				entitySection(
+					'warehouse-stock-levels',
+					'Stock levels',
+					rows,
+					'inventory',
+				),
+			]
+		case 'finance':
+			return [
+				entitySection('finance-inbox', 'Finance inbox', rows, 'payment'),
+				bucket(
+					'finance-customer-orders',
+					'Customer orders',
+					rows,
+					isFinanceOrder,
+				),
+			]
+		case 'dispatch':
+			return [
+				entitySection('dispatch-deliveries', 'Deliveries', rows, 'dispatch'),
+				entitySection('dispatch-fleet', 'Fleet', rows, 'driver'),
+			]
+		case 'customer-service':
+			return [
+				entitySection('support-cases', 'Support cases', rows, 'support'),
+				entitySection('support-customers', 'Customers', rows, 'customer'),
+			]
+	}
+}
+
 function bucket(
 	id: string,
 	label: string,
@@ -1193,12 +1362,40 @@ function bucket(
 	return { id, label, rows: rows.filter(predicate) }
 }
 
+function entitySection(
+	id: string,
+	label: string,
+	rows: SearchDisplayIndexRow[],
+	entityType: string,
+): SearchSummaryBucket {
+	return {
+		id,
+		label,
+		rows: rows.filter((row) => row.entity_type === entityType),
+	}
+}
+
 function rowStatusKey(row: SearchDisplayIndexRow): string {
 	return normalizeToken(row.subtitle)
 }
 
 function rowSourceKey(row: SearchDisplayIndexRow): string {
 	return normalizeToken(row.title)
+}
+
+function rowMetadataSourceKey(row: SearchDisplayIndexRow): string {
+	return (
+		normalizeToken(stringValue(metadataObject(row.metadata), 'source')) ||
+		rowSourceKey(row)
+	)
+}
+
+function rowPaymentStatusKey(row: SearchDisplayIndexRow): string {
+	return normalizeToken(
+		stringValue(metadataObject(row.metadata), 'payment_status') ??
+			stringValue(metadataObject(row.metadata), 'status') ??
+			row.subtitle,
+	)
 }
 
 function isStatusOneOf(
@@ -1258,7 +1455,12 @@ function isLowStock(row: SearchDisplayIndexRow): boolean {
 	const metadata = metadataObject(row.metadata)
 	const available = numberValue(metadata, 'available_quantity')
 	const minimum = numberValue(metadata, 'minimum_quantity')
-	return available !== null && minimum !== null && available <= minimum
+	return (
+		available !== null &&
+		minimum !== null &&
+		minimum > 0 &&
+		available <= minimum
+	)
 }
 
 function isWarehouseRejected(row: SearchDisplayIndexRow): boolean {
@@ -1271,11 +1473,11 @@ function isWarehouseRejected(row: SearchDisplayIndexRow): boolean {
 }
 
 function isWarehouseLoading(row: SearchDisplayIndexRow): boolean {
-	return (
-		row.entity_type === 'warehouse' &&
-		rowStatusKey(row) === 'loading' &&
-		!isWarehouseRejected(row)
-	)
+	if (row.entity_type !== 'warehouse' || isWarehouseRejected(row)) return false
+	if (stringValue(metadataObject(row.metadata), 'source') === 'loading_task') {
+		return true
+	}
+	return ['approved', 'loading', 'pending'].includes(rowStatusKey(row))
 }
 
 function isWarehouseReceiving(row: SearchDisplayIndexRow): boolean {
@@ -1291,14 +1493,14 @@ function isWarehouseReceiving(row: SearchDisplayIndexRow): boolean {
 function isPaidFinanceRow(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'payment' &&
-		isStatusOneOf(row, ['completed', 'paid', 'settled'])
+		['completed', 'paid', 'settled'].includes(rowPaymentStatusKey(row))
 	)
 }
 
 function isCustomerReceivable(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'payment' &&
-		rowSourceKey(row) === 'customer_payment' &&
+		rowMetadataSourceKey(row) === 'customer_payment' &&
 		!isPaidFinanceRow(row)
 	)
 }
@@ -1306,8 +1508,16 @@ function isCustomerReceivable(row: SearchDisplayIndexRow): boolean {
 function isSupplierPayable(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'payment' &&
-		rowSourceKey(row) === 'supplier_payment' &&
+		rowMetadataSourceKey(row) === 'supplier_payment' &&
 		!isPaidFinanceRow(row)
+	)
+}
+
+function isFinanceOrder(row: SearchDisplayIndexRow): boolean {
+	return (
+		row.entity_type === 'order' &&
+		!isQuoteRequestOrder(row) &&
+		!isRejectedOrder(row)
 	)
 }
 

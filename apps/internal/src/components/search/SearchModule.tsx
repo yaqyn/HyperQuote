@@ -621,7 +621,7 @@ function SummaryRowButton({
 						{entry.note}
 					</span>
 				)}
-				<PreviewFields fields={entry.preview} />
+				<PreviewFields fields={entry.preview} limit={6} />
 			</span>
 			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/30 sm:self-end sm:text-end">
 				{entry.tableLabel}
@@ -838,8 +838,14 @@ function ResultButton({
 	)
 }
 
-function PreviewFields({ fields }: { fields: SearchPreviewField[] }) {
-	const visible = fields.filter((field) => field.value !== null).slice(0, 4)
+function PreviewFields({
+	fields,
+	limit = 4,
+}: {
+	fields: SearchPreviewField[]
+	limit?: number
+}) {
+	const visible = fields.filter((field) => field.value !== null).slice(0, limit)
 	if (visible.length === 0) return null
 	return (
 		<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
