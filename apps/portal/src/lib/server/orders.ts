@@ -239,6 +239,7 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 					quantity,
 					unit_of_measure,
 					unit_of_measure_ar,
+					notes,
 					sort_order,
 					products (
 						id,
@@ -338,11 +339,12 @@ const QUOTE_REQUEST_SELECT = `
 export const deleteOrder = createServerFn({ method: 'POST' })
 	.inputValidator(deleteOrderInput)
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedPortalCustomer()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { data: deletedDraft, error } = await supabase
 			.from('quote_requests')
 			.delete()
 			.eq('id', data.orderId)
+			.eq('customer_id', customerId)
 			.eq('status', 'draft')
 			.select('id')
 			.maybeSingle()

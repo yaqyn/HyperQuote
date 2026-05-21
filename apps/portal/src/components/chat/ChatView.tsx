@@ -1,9 +1,10 @@
-import { motion } from 'motion/react'
-import { useMemo } from 'react'
+import { ArrowLeft, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
-import { SavedDraftsPanel } from '../shared/SavedDraftsPanel'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
+import { ChatDraftsPanel } from './ChatDraftsPanel'
 import { ChatInput } from './ChatInput'
 import { ChatMessages } from './ChatMessages'
 import { SuggestionChips } from './SuggestionChips'
@@ -15,6 +16,7 @@ interface ChatViewProps {
 export function ChatView({ locale }: ChatViewProps) {
 	const { t } = useTranslation('portal')
 	const chat = usePortalChat()
+	const [draftPanelOpen, setDraftPanelOpen] = useState(false)
 
 	const realMessages = useMemo(
 		() => chat.messages.filter((m) => m.content.trim().length > 0),
@@ -33,16 +35,26 @@ export function ChatView({ locale }: ChatViewProps) {
 						title={t('chat.writingPlaceholder')}
 						className="mx-auto w-full max-w-[820px]"
 						action={
-							hasMessages ? (
+							<div className="flex items-center gap-2">
+								{hasMessages ? (
+									<button
+										type="button"
+										onClick={() => chat.clear()}
+										className="office-quiet"
+										aria-label={newPageLabel}
+									>
+										{newPageLabel}
+									</button>
+								) : null}
 								<button
 									type="button"
-									onClick={() => chat.clear()}
-									className="office-quiet"
-									aria-label={newPageLabel}
+									onClick={() => setDraftPanelOpen(true)}
+									className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] lg:hidden"
+									aria-label={t('chat.openDrafts')}
 								>
-									{newPageLabel}
+									<ArrowLeft size={17} strokeWidth={1.8} />
 								</button>
-							) : null
+							</div>
 						}
 					/>
 				</header>
@@ -77,8 +89,51 @@ export function ChatView({ locale }: ChatViewProps) {
 				</motion.div>
 			</div>
 			<aside className="relative z-[2] hidden min-h-0 border-s border-[var(--p-border)] lg:flex">
-				<SavedDraftsPanel className="w-full" />
+				<ChatDraftsPanel
+					className="w-full"
+					onDraftPrompt={(prompt) => chat.sendMessage(prompt)}
+				/>
 			</aside>
+			<AnimatePresence>
+				{draftPanelOpen && (
+					<motion.div
+						key="mobile-drafts-panel"
+						className="fixed inset-0 z-50 bg-black/35 lg:hidden"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.16 }}
+						onClick={() => setDraftPanelOpen(false)}
+					>
+						<motion.aside
+							className="absolute end-0 top-0 flex h-full w-[min(100vw,420px)] max-w-full border-s border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
+							initial={{ x: '100%' }}
+							animate={{ x: 0 }}
+							exit={{ x: '100%' }}
+							transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+							onClick={(event) => event.stopPropagation()}
+						>
+							<ChatDraftsPanel
+								className="w-full"
+								onDraftPrompt={(prompt) => {
+									chat.sendMessage(prompt)
+									setDraftPanelOpen(false)
+								}}
+								headerAction={
+									<button
+										type="button"
+										onClick={() => setDraftPanelOpen(false)}
+										className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+										aria-label={t('chat.closeDrafts')}
+									>
+										<X size={16} strokeWidth={1.8} />
+									</button>
+								}
+							/>
+						</motion.aside>
+					</motion.div>
+				)}
+			</AnimatePresence>
 		</div>
 	)
 }
