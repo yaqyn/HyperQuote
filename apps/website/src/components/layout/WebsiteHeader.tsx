@@ -82,18 +82,6 @@ function cartItemMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
-function cartNotesMotion(shouldReduceMotion: boolean | null) {
-	return {
-		animate: { maxHeight: 112 },
-		exit: { maxHeight: 0 },
-		initial: { maxHeight: 0 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.2,
-			ease: CART_DRAWER_EASE,
-		},
-	}
-}
-
 function useDelayedVisibility(visible: boolean, delayMs = 160) {
 	const [ready, setReady] = useState(false)
 
@@ -1412,7 +1400,15 @@ function CartSubmit({
 		}
 
 		return (
-			<div className="relative border-t border-[var(--color-border)] px-4 pt-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+			<motion.div
+				initial={false}
+				animate={{ paddingTop: notesOpen ? 124 : 20 }}
+				transition={{
+					duration: shouldReduceMotion ? 0.01 : 0.2,
+					ease: CART_DRAWER_EASE,
+				}}
+				className="relative border-t border-[var(--color-border)] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3"
+			>
 				<AnimatePresence initial={false}>
 					{authSuccessVisible && (
 						<motion.div
@@ -1484,23 +1480,19 @@ function CartSubmit({
 					{notesOpen && (
 						<motion.div
 							key="cart-notes"
-							className="overflow-hidden"
-							{...cartNotesMotion(shouldReduceMotion)}
+							className="absolute inset-x-4 top-5"
+							{...cartRevealMotion(shouldReduceMotion)}
 						>
-							<div className="overflow-hidden">
-								<label className="block pb-2">
-									<span className="sr-only">{t('cart.notes')}</span>
-									<textarea
-										value={globalNote}
-										onChange={(event) =>
-											setGlobalNote(event.currentTarget.value)
-										}
-										rows={3}
-										placeholder={t('cart.notesPlaceholder')}
-										className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-									/>
-								</label>
-							</div>
+							<label className="block">
+								<span className="sr-only">{t('cart.notes')}</span>
+								<textarea
+									value={globalNote}
+									onChange={(event) => setGlobalNote(event.currentTarget.value)}
+									rows={3}
+									placeholder={t('cart.notesPlaceholder')}
+									className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+								/>
+							</label>
 						</motion.div>
 					)}
 				</AnimatePresence>
@@ -1649,7 +1641,7 @@ function CartSubmit({
 				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
 					{t('cart.submitHint')}
 				</p>
-			</div>
+			</motion.div>
 		)
 	}
 

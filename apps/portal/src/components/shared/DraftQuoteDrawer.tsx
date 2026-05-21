@@ -86,18 +86,6 @@ function drawerRevealMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
-function drawerNotesMotion(shouldReduceMotion: boolean | null) {
-	return {
-		animate: { maxHeight: 112 },
-		exit: { maxHeight: 0 },
-		initial: { maxHeight: 0 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.2,
-			ease: SNAP_EASE,
-		},
-	}
-}
-
 function useDelayedVisibility(visible: boolean, delayMs = 160) {
 	const [ready, setReady] = useState(false)
 
@@ -545,7 +533,15 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 												</AnimatePresence>
 											</div>
 
-											<div className="relative shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-5 md:px-5 md:pb-4">
+											<motion.div
+												initial={false}
+												animate={{ paddingTop: notesOpen ? 128 : 20 }}
+												transition={{
+													duration: shouldReduceMotion ? 0.01 : 0.2,
+													ease: SNAP_EASE,
+												}}
+												className="relative shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-5 md:pb-4"
+											>
 												<motion.button
 													type="button"
 													onClick={() => setNotesOpen((value) => !value)}
@@ -567,27 +563,23 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													{notesOpen && (
 														<motion.div
 															key="cart-notes"
-															className="overflow-hidden"
-															{...drawerNotesMotion(shouldReduceMotion)}
+															className="absolute inset-x-4 top-5 md:inset-x-5"
+															{...drawerRevealMotion(shouldReduceMotion)}
 														>
-															<div className="overflow-hidden">
-																<label className="block pb-2">
-																	<span className="sr-only">
-																		{t('market.cartNotesLabel')}
-																	</span>
-																	<textarea
-																		value={globalNote}
-																		onChange={(event) =>
-																			setGlobalNote(event.currentTarget.value)
-																		}
-																		rows={3}
-																		placeholder={t(
-																			'market.cartNotesPlaceholder',
-																		)}
-																		className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-																	/>
-																</label>
-															</div>
+															<label className="block">
+																<span className="sr-only">
+																	{t('market.cartNotesLabel')}
+																</span>
+																<textarea
+																	value={globalNote}
+																	onChange={(event) =>
+																		setGlobalNote(event.currentTarget.value)
+																	}
+																	rows={3}
+																	placeholder={t('market.cartNotesPlaceholder')}
+																	className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+																/>
+															</label>
 														</motion.div>
 													)}
 												</AnimatePresence>
@@ -753,7 +745,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 														)}
 													</motion.button>
 												</div>
-											</div>
+											</motion.div>
 										</motion.form>
 									)}
 								</AnimatePresence>
