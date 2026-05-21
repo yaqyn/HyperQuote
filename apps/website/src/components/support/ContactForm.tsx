@@ -2,18 +2,14 @@ import { standardSchemaResolver } from '@hyperquote/forms'
 import { Check, Info, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useState } from 'react'
-import {
-	TextField as AriaTextField,
-	Button,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
-	SelectValue,
-	TextArea,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField as AriaTextField } from 'react-aria-components/TextField'
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -76,6 +72,10 @@ type ContactTextName = Extract<
 	keyof ContactFormData,
 	'name' | 'email' | 'message'
 >
+
+type ContactFormProps = {
+	onSubmitted?: () => void
+}
 
 function ContactTextField({
 	control,
@@ -140,9 +140,10 @@ function ContactTextField({
 	)
 }
 
-export function ContactForm() {
+export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 	const { t } = useTranslation('website')
 	const [submitted, setSubmitted] = useState(false)
+	const [ticketReference, setTicketReference] = useState<string | null>(null)
 	const [submitting, setSubmitting] = useState(false)
 
 	const form = useForm<ContactFormData>({
@@ -195,8 +196,21 @@ export function ContactForm() {
 		setSubmitting(true)
 		setError(null)
 		try {
-			await submitContactForm({ data: submitData })
+			const result = await submitContactForm({ data: submitData })
+			if ('error' in result) {
+				setError(
+					result.error === 'rate_limited'
+						? t(
+								'support.form.rateLimited',
+								'Too many support requests. Please wait a minute and try again.',
+							)
+						: t('support.form.error'),
+				)
+				return
+			}
+			setTicketReference(result.ticketId)
 			setSubmitted(true)
+			onSubmitted?.()
 		} catch {
 			setError(t('support.form.error'))
 		} finally {
@@ -218,6 +232,11 @@ export function ContactForm() {
 				<p className="text-center text-[16px] font-bold">
 					{t('support.form.success')}
 				</p>
+				{ticketReference && (
+					<p className="font-[family-name:var(--font-mono)] text-[12px] opacity-60">
+						{ticketReference}
+					</p>
+				)}
 			</motion.div>
 		)
 	}
@@ -225,6 +244,7 @@ export function ContactForm() {
 	return (
 		<form
 			onSubmit={form.handleSubmit(onSubmit)}
+			noValidate
 			className="mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8"
 		>
 			<ContactTextField

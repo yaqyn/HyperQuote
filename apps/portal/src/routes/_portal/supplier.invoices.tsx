@@ -3,7 +3,7 @@
  * Reads optional ?poId search param to pre-select PO in invoice form.
  */
 import { createFileRoute } from '@tanstack/react-router'
-import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { InvoiceForm } from '../../components/supplier/InvoiceForm'

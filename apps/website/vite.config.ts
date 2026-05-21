@@ -28,6 +28,9 @@ export default defineConfig({
 			},
 		},
 	},
+	resolve: {
+		dedupe: ['react', 'react-dom'],
+	},
 	plugins: [
 		cloudflare({ viteEnvironment: { name: 'ssr' } }),
 		tailwindcss(),

@@ -5,15 +5,15 @@
  */
 
 import { Download, Eye } from 'lucide-react'
+import { Button } from 'react-aria-components/Button'
 import {
-	Button,
 	Cell,
 	Column,
 	Row,
 	Table,
 	TableBody,
 	TableHeader,
-} from 'react-aria-components'
+} from 'react-aria-components/Table'
 import { useTranslation } from 'react-i18next'
 import type { Document } from '../../types/document'
 

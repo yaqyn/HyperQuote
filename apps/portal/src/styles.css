@@ -52,7 +52,7 @@ textarea,
 @theme {
 	--font-sans: "Inter", system-ui, sans-serif;
 	--font-arabic: "Tajawal", system-ui, sans-serif;
-	--font-mono: "Geist Mono", ui-monospace, monospace;
+	--font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
 	--spacing: 0.25rem;
 	--radius-none: 0px;
 	--radius-sm: 4px;
@@ -476,7 +476,7 @@ input::placeholder {
 }
 
 .atelier-mono {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 .atelier-vignette {
@@ -634,7 +634,7 @@ input::placeholder {
 }
 
 .auth-story-eyebrow {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 11px;
 	line-height: 1.4;
 	letter-spacing: 0.14em;
@@ -1138,7 +1138,7 @@ input::placeholder {
 }
 
 .auth-field-label {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	line-height: 1.3;
 	letter-spacing: 0.14em;
@@ -1163,7 +1163,7 @@ input::placeholder {
 
 .auth-country-code {
 	flex-shrink: 0;
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 14px;
 	color: var(--atelier-ink-muted);
 }
@@ -1498,7 +1498,7 @@ input::placeholder {
 }
 
 .voice-mono {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-feature-settings: "tnum" 1;
 }
 
@@ -1620,7 +1620,7 @@ input::placeholder {
 
 /* Small caps meta (dates, page numbers, labels) */
 .office-meta {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	letter-spacing: 0.18em;
 	text-transform: uppercase;
@@ -1686,7 +1686,7 @@ input::placeholder {
 	justify-content: center;
 	gap: 12px;
 	padding: 8px 0;
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 11px;
 	letter-spacing: 0.2em;
 	text-transform: uppercase;
@@ -1727,7 +1727,7 @@ input::placeholder {
 
 /* Quiet command — no em-dashes, just mono small caps muted */
 .office-quiet {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 11px;
 	letter-spacing: 0.2em;
 	text-transform: uppercase;
@@ -1893,7 +1893,7 @@ input::placeholder {
 	border-block-end: 1px solid var(--p-rule-strong);
 }
 .ledger-section-label {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	font-weight: 500;
 	letter-spacing: 0.32em;
@@ -1901,7 +1901,7 @@ input::placeholder {
 	color: var(--p-text);
 }
 .ledger-section-count {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	letter-spacing: 0.18em;
 	color: var(--p-text-faint);
@@ -1944,7 +1944,7 @@ input::placeholder {
 
 /* Margin number — Roman/sequence prefix in mono, faint */
 .ledger-margin-no {
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	letter-spacing: 0.18em;
 	color: var(--p-text-faint);
@@ -2019,7 +2019,7 @@ input::placeholder {
 	align-items: center;
 	gap: 8px;
 	padding: 4px 0;
-	font-family: "Geist Mono", ui-monospace, monospace;
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 	font-size: 10px;
 	letter-spacing: 0.22em;
 	text-transform: uppercase;

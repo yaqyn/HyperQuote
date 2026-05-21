@@ -1,5 +1,4 @@
-import type { ParseKeys } from 'i18next'
-import { Check, Plus, X } from 'lucide-react'
+import { Check, Package, Plus, X } from 'lucide-react'
 import {
 	AnimatePresence,
 	cubicBezier,
@@ -20,7 +19,10 @@ export type ProductQuantitySearchRowProduct = {
 	name: string
 	nameAr: string
 	category: string
+	categoryName: string
+	categoryNameAr: string
 	unitOfMeasure: string
+	unitOfMeasureAr: string
 	imageUrl: string
 }
 
@@ -33,7 +35,6 @@ type ProductQuantitySearchRowProps = {
 	onCancelEditor: () => void
 	onSetQuantity: (quantity: number) => void
 	size?: 'compact' | 'comfortable'
-	fallbackImageUrl?: string
 }
 
 const ROW_EASE = cubicBezier(0.22, 1, 0.36, 1)
@@ -47,7 +48,6 @@ export function ProductQuantitySearchRow({
 	onCancelEditor,
 	onSetQuantity,
 	size = 'compact',
-	fallbackImageUrl,
 }: ProductQuantitySearchRowProps) {
 	const { t } = useTranslation('portal')
 	const shouldReduceMotion = useReducedMotion()
@@ -57,12 +57,14 @@ export function ProductQuantitySearchRow({
 	const quantityInputRef = useRef<HTMLInputElement | null>(null)
 	const comfortable = size === 'comfortable'
 	const name = isAr ? product.nameAr : product.name
-	const categoryLabel = t(
-		`market.cat.${product.category}` as ParseKeys<'portal'>,
-		{
-			defaultValue: product.category.replace(/_/g, ' '),
-		},
-	)
+	const categoryLabel =
+		isAr && product.categoryNameAr
+			? product.categoryNameAr
+			: product.categoryName
+	const unitLabel =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 	const focusQuantityInput = useCallback((input: HTMLInputElement | null) => {
 		if (!input) return
 		input.focus({ preventScroll: true })
@@ -111,6 +113,8 @@ export function ProductQuantitySearchRow({
 	const validQuantity = Number.parseInt(draftQuantity.trim(), 10) > 0
 	const formattedQuantity = quantity.toLocaleString(isAr ? 'ar-EG' : 'en-EG')
 
+	const imageSize = comfortable ? 'h-12 w-12' : 'h-11 w-11'
+
 	return (
 		<motion.div
 			layout
@@ -126,16 +130,28 @@ export function ProductQuantitySearchRow({
 				comfortable ? 'p-3' : 'p-2.5',
 			].join(' ')}
 		>
-			<img
-				src={product.imageUrl || fallbackImageUrl}
-				alt=""
-				loading="lazy"
-				decoding="async"
-				className={[
-					'shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]',
-					comfortable ? 'h-12 w-12' : 'h-11 w-11',
-				].join(' ')}
-			/>
+			{product.imageUrl ? (
+				<img
+					src={product.imageUrl}
+					alt=""
+					loading="lazy"
+					decoding="async"
+					className={[
+						'shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]',
+						imageSize,
+					].join(' ')}
+				/>
+			) : (
+				<div
+					aria-hidden="true"
+					className={[
+						'flex shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]',
+						imageSize,
+					].join(' ')}
+				>
+					<Package size={comfortable ? 18 : 16} />
+				</div>
+			)}
 			<div className="min-w-0 flex-1">
 				<p
 					className={[
@@ -146,7 +162,7 @@ export function ProductQuantitySearchRow({
 					{name}
 				</p>
 				<p className="mt-1 truncate text-[12px] text-[var(--p-text-muted)]">
-					{categoryLabel} · {product.unitOfMeasure}
+					{categoryLabel} · {unitLabel}
 				</p>
 			</div>
 			<div

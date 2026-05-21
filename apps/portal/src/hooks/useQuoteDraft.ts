@@ -55,6 +55,7 @@ export function useQuoteDraft() {
 				store.setDeliveryAddressId(draft.deliveryAddressId)
 			if (draft.deliveryDate) store.setDeliveryDate(draft.deliveryDate)
 			if (draft.notes) store.setNotes(draft.notes)
+			if (draft.attachments?.length) store.setAttachments(draft.attachments)
 			if (draft.draftId) store.setDraftId(draft.draftId)
 		}
 
@@ -72,6 +73,7 @@ export function useQuoteDraft() {
 				deliveryAddressId: state.deliveryAddressId,
 				deliveryDate: state.deliveryDate,
 				notes: state.notes,
+				attachments: state.attachments,
 				draftId: state.draftId,
 			})
 		}, LOCAL_SAVE_INTERVAL)

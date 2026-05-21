@@ -1,29 +1,23 @@
 /**
- * Address ComboBox with saved addresses and inline creation.
- * First-time users: auto-expands the address form (no ComboBox shown).
- * Returning users: ComboBox with "Add New Address" option at bottom.
+ * Address picker with saved addresses and inline creation.
+ * First-time users: auto-expands the address form.
+ * Returning users: select a saved address or add another one.
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPin, Plus } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
+import { Button as AriaButton, Button } from 'react-aria-components/Button'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
 import {
-	Button as AriaButton,
-	Button,
-	ComboBox,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
 	ListBoxItem as SelectItem,
 	ListBox as SelectListBox,
-	Popover as SelectPopover,
-	SelectValue,
-	TextField,
-} from 'react-aria-components'
+} from 'react-aria-components/ListBox'
+import { Popover as SelectPopover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import {
 	type CustomerAddress,
@@ -261,11 +255,10 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
 // AddressComboBox
 // ============================================================================
 
-const ADD_NEW_ID = '__add_new__'
-
 export function AddressComboBox() {
 	const { t } = useTranslation('portal')
 	const queryClient = useQueryClient()
+	const addressSelectId = useId()
 	const setDeliveryAddressId = useQuoteBuilderStore(
 		(s) => s.setDeliveryAddressId,
 	)
@@ -273,7 +266,6 @@ export function AddressComboBox() {
 
 	const [showNewForm, setShowNewForm] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
-	const [inputValue, setInputValue] = useState('')
 
 	const { data: addresses = [], isLoading } = useQuery({
 		queryKey: ['customerAddresses'],
@@ -291,7 +283,6 @@ export function AddressComboBox() {
 			setIsSaving(false)
 			setShowNewForm(false)
 			setDeliveryAddressId(address.id)
-			setInputValue(address.label || address.street)
 			// Invalidate addresses query to include the new one
 			queryClient.invalidateQueries({ queryKey: ['customerAddresses'] })
 		},
@@ -315,70 +306,51 @@ export function AddressComboBox() {
 
 	return (
 		<div>
-			<ComboBox
-				inputValue={inputValue}
-				onInputChange={setInputValue}
-				selectedKey={deliveryAddressId}
-				onSelectionChange={(key) => {
-					if (key === ADD_NEW_ID) {
-						setShowNewForm(true)
-						setInputValue('')
-						return
-					}
-					setShowNewForm(false)
-					setDeliveryAddressId(key as string)
-					const addr = addresses.find((a) => a.id === key)
-					if (addr) setInputValue(addr.label || addr.street)
-				}}
-				className="flex flex-col gap-1"
-				menuTrigger="focus"
-			>
-				<Label className="text-[13px] font-medium text-[var(--color-text-muted)]">
+			<div className="flex flex-col gap-1">
+				<label
+					htmlFor={addressSelectId}
+					className="text-[13px] font-medium text-[var(--color-text-muted)]"
+				>
 					{t('quoteBuilder.deliveryAddress', 'Delivery Address')}
-				</Label>
+				</label>
 				<div className="relative">
 					<MapPin
 						size={16}
 						className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none"
 					/>
-					<Input
-						className="w-full h-10 ps-9 pe-3 rounded-lg border border-[var(--color-border)] bg-transparent text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] transition-colors"
-						placeholder={t(
-							'quoteBuilder.selectAddress',
-							'Search or select an address...',
-						)}
-					/>
-				</div>
-				<Popover className="w-[var(--trigger-width)] rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg max-h-60 overflow-auto z-50">
-					<ListBox className="p-1 outline-none">
+					<select
+						id={addressSelectId}
+						value={deliveryAddressId ?? ''}
+						disabled={isLoading}
+						onChange={(event) => {
+							setShowNewForm(false)
+							setDeliveryAddressId(event.currentTarget.value)
+						}}
+						className="w-full h-10 ps-9 pe-9 rounded-lg border border-[var(--color-border)] bg-transparent text-sm text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] transition-colors disabled:opacity-60"
+					>
+						<option value="" disabled>
+							{isLoading
+								? t('common.loading', 'Loading...')
+								: t(
+										'quoteBuilder.selectAddress',
+										'Search or select an address...',
+									)}
+						</option>
 						{addresses.map((addr) => (
-							<ListBoxItem
-								key={addr.id}
-								id={addr.id}
-								textValue={addr.label || addr.street}
-								className="px-3 py-2 rounded cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] selected:bg-[var(--color-primary)]/10"
-							>
-								<div className="text-sm font-medium text-[var(--color-text)]">
-									{addr.label || addr.street}
-								</div>
-								<div className="text-[13px] text-[var(--color-text-muted)]">
-									{addr.street} - {addr.area}, {addr.city}
-								</div>
-							</ListBoxItem>
+							<option key={addr.id} value={addr.id}>
+								{addr.label || addr.street} - {addr.area}, {addr.city}
+							</option>
 						))}
-						<ListBoxItem
-							id={ADD_NEW_ID}
-							textValue={t('quoteBuilder.addNewAddress', 'Add New Address')}
-							className="px-3 py-2 rounded cursor-pointer outline-none hover:bg-[var(--color-surface)] focus:bg-[var(--color-surface)] text-[var(--color-primary)] flex items-center gap-2 border-t border-[var(--color-border)] mt-1 pt-2"
-						>
-							<Plus size={14} />
-							<span className="text-sm font-medium">
-								{t('quoteBuilder.addNewAddress', 'Add New Address')}
-							</span>
-						</ListBoxItem>
-					</ListBox>
-				</Popover>
-			</ComboBox>
+					</select>
+				</div>
+				<Button
+					onPress={() => setShowNewForm(true)}
+					className="mt-2 inline-flex h-9 items-center gap-2 self-start rounded-lg border border-[var(--color-border)] px-3 text-sm text-[var(--color-primary)] transition-colors hover:bg-[var(--color-surface)]"
+				>
+					<Plus size={14} />
+					{t('quoteBuilder.addNewAddress', 'Add New Address')}
+				</Button>
+			</div>
 
 			{/* Selected address preview */}
 			{selectedAddress && !showNewForm && (

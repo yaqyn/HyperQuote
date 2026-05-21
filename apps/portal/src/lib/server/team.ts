@@ -1,92 +1,53 @@
 /**
- * Team management server functions.
- * Multi-user team with email + magic link invitation flow.
- * Owner-only: invite, remove, change role, transfer ownership.
- * Dev mode fallback when Supabase not configured.
+ * Team management server functions backed by Supabase.
  */
-
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { TeamMember } from '../../types/settings'
 import {
 	getAuthenticatedPortalCustomer,
 	getAuthenticatedSupabase,
-	isSupabaseConfigured,
 } from './_supabase'
 
-// ============================================================================
-// Mock data
-// ============================================================================
+type DbTeamRole = 'owner' | 'admin' | 'member'
 
-function getMockTeamMembers(): TeamMember[] {
-	return [
-		{
-			id: 'member-1',
-			name: 'Ahmed Hassan',
-			email: 'ahmed@example.com',
-			phone: '+201234567890',
-			role: 'approver',
-			isOwner: true,
-			joinedAt: '2025-06-15T10:00:00Z',
-		},
-		{
-			id: 'member-2',
-			name: 'Sara Mohamed',
-			email: 'sara@example.com',
-			phone: '+201098765432',
-			role: 'buyer',
-			isOwner: false,
-			joinedAt: '2025-09-20T14:30:00Z',
-		},
-		{
-			id: 'member-3',
-			name: 'Karim Ali',
-			email: 'karim@example.com',
-			phone: undefined,
-			role: 'site_manager',
-			isOwner: false,
-			joinedAt: '2026-01-10T09:00:00Z',
-		},
-	]
+function toUiRole(role: string): TeamMember['role'] {
+	if (role === 'owner' || role === 'admin') return 'approver'
+	return 'buyer'
 }
 
-// ============================================================================
-// getTeamMembers
-// ============================================================================
+function toDbRole(role: TeamMember['role']): DbTeamRole {
+	return role === 'buyer' ? 'member' : 'admin'
+}
 
 export const getTeamMembers = createServerFn().handler(
 	async (): Promise<TeamMember[]> => {
-		if (!isSupabaseConfigured()) {
-			return getMockTeamMembers()
-		}
-
-		const { supabase } = await getAuthenticatedSupabase()
-
+		const { session, supabase } = await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('team_members')
-			.select('id, name, email, phone, role, is_owner, joined_at')
-			.order('is_owner', { ascending: false })
-			.order('joined_at', { ascending: true })
+			.select('id, user_id, role, created_at')
+			.order('created_at', { ascending: true })
 
 		if (error) throw new Error(error.message)
 
-		return (data ?? []).map((m) => ({
-			id: m.id,
-			name: m.name,
-			email: m.email,
-			phone: m.phone,
-			role: m.role,
-			isOwner: m.is_owner,
-			joinedAt: m.joined_at,
-		}))
+		return (data ?? []).map((member) => {
+			const isCurrentUser = member.user_id === session.user.id
+			const email = isCurrentUser
+				? (session.user.email ?? member.user_id)
+				: member.user_id
+			return {
+				id: member.id,
+				name: email,
+				email,
+				role: toUiRole(member.role),
+				isOwner: member.role === 'owner',
+				joinedAt: member.created_at,
+			}
+		})
 	},
 )
 
-// ============================================================================
-// inviteTeamMember — email + magic link flow per CONTEXT.md Section 2.17
-// ============================================================================
-
-export const inviteTeamMember = createServerFn()
+export const inviteTeamMember = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			email: z.string().email(),
@@ -94,22 +55,13 @@ export const inviteTeamMember = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ inviteId: string }> => {
-		if (!isSupabaseConfigured()) {
-			return { inviteId: crypto.randomUUID() }
-		}
-
-		const { customerId, session, supabase } =
-			await getAuthenticatedPortalCustomer()
-
-		// Create invite record and send magic link to email
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('team_invites')
 			.insert({
 				customer_id: customerId,
 				email: input.email,
-				role: input.role,
-				invited_by: session.user.id,
-				token: crypto.randomUUID(),
+				role: toDbRole(input.role),
 			})
 			.select('id')
 			.single()
@@ -117,40 +69,23 @@ export const inviteTeamMember = createServerFn()
 		if (error || !data) {
 			throw new Error(error?.message ?? 'Failed to create invite')
 		}
-
-		// In production: send magic link email to portal.hyperquote.net/join?token={uuid}
-
 		return { inviteId: data.id }
 	})
 
-// ============================================================================
-// removeTeamMember
-// ============================================================================
-
-export const removeTeamMember = createServerFn()
+export const removeTeamMember = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ memberId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { error } = await supabase
 			.from('team_members')
 			.delete()
 			.eq('id', input.memberId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})
 
-// ============================================================================
-// changeTeamMemberRole
-// ============================================================================
-
-export const changeTeamMemberRole = createServerFn()
+export const changeTeamMemberRole = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			memberId: z.string(),
@@ -158,27 +93,17 @@ export const changeTeamMemberRole = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { error } = await supabase
 			.from('team_members')
-			.update({ role: input.newRole })
+			.update({ role: toDbRole(input.newRole) })
 			.eq('id', input.memberId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})
 
-// ============================================================================
-// transferOwnership — requires OTP confirmation
-// ============================================================================
-
-export const transferOwnership = createServerFn()
+export const transferOwnership = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			memberId: z.string(),
@@ -186,28 +111,11 @@ export const transferOwnership = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
-		const { supabase, session } = await getAuthenticatedSupabase()
-
-		// Verify OTP before proceeding
-		const { error: otpError } = await supabase.auth.verifyOtp({
-			phone: session.user.phone ?? '',
-			token: input.otpCode,
-			type: 'sms',
-		})
-
-		if (otpError) throw new Error('Invalid OTP code')
-
-		// Transfer ownership
+		const { supabase } = await getAuthenticatedSupabase()
 		const { error } = await supabase.rpc('transfer_team_ownership', {
-			current_owner_id: session.user.id,
-			new_owner_id: input.memberId,
+			p_member_id: input.memberId,
 		})
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})

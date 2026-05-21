@@ -11,28 +11,28 @@ import {
 	today,
 } from '@internationalized/date'
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import { Button } from 'react-aria-components/Button'
 import {
-	Button,
 	Calendar,
 	CalendarCell,
 	CalendarGrid,
 	CalendarGridBody,
 	CalendarGridHeader,
 	CalendarHeaderCell,
-	DateInput,
-	DatePicker,
-	DateSegment,
-	Dialog,
-	Group,
-	Heading,
-	Label,
-	Popover,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+} from 'react-aria-components/Calendar'
+import { DateInput, DateSegment } from 'react-aria-components/DateField'
+import { DatePicker } from 'react-aria-components/DatePicker'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Group } from 'react-aria-components/Group'
+import { Label } from 'react-aria-components/Label'
+import { Popover } from 'react-aria-components/Popover'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import { isDateUnavailable } from '../../../lib/business-days'
+import { toQuoteDraftPayload } from '../../../lib/quote-request-payload'
+import { saveDraft } from '../../../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 import { AddressComboBox } from './AddressComboBox'
 import { AttachmentUpload } from './AttachmentUpload'
@@ -51,6 +51,10 @@ export function DetailsStep() {
 	const setStep = useQuoteBuilderStore((s) => s.setStep)
 	const setDeliveryDate = useQuoteBuilderStore((s) => s.setDeliveryDate)
 	const setNotes = useQuoteBuilderStore((s) => s.setNotes)
+	const [draftFeedback, setDraftFeedback] = useState<'saved' | 'error' | null>(
+		null,
+	)
+	const [savingDraft, setSavingDraft] = useState(false)
 
 	const BackArrow = isRTL ? ArrowRight : ArrowLeft
 	const PrevChevron = isRTL ? ChevronRight : ChevronLeft
@@ -74,6 +78,25 @@ export function DetailsStep() {
 	)
 
 	const canContinue = !!deliveryAddressId
+
+	const handleSaveDraft = useCallback(async () => {
+		setSavingDraft(true)
+		setDraftFeedback(null)
+		try {
+			const state = useQuoteBuilderStore.getState()
+			const result = await saveDraft({
+				data: toQuoteDraftPayload(state),
+			})
+			if (result.draftId && !state.draftId) {
+				useQuoteBuilderStore.getState().setDraftId(result.draftId)
+			}
+			setDraftFeedback('saved')
+		} catch {
+			setDraftFeedback('error')
+		} finally {
+			setSavingDraft(false)
+		}
+	}, [])
 
 	return (
 		<div className="max-w-2xl mx-auto space-y-6 px-6 py-4">
@@ -220,13 +243,38 @@ export function DetailsStep() {
 					{t('quoteBuilder.back', 'Back')}
 				</Button>
 
-				<Button
-					onPress={() => setStep(3)}
-					isDisabled={!canContinue}
-					className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-				>
-					{t('quoteBuilder.continue', 'Continue')}
-				</Button>
+				<div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+					{draftFeedback && (
+						<span
+							role={draftFeedback === 'error' ? 'alert' : 'status'}
+							className={`text-[13px] ${
+								draftFeedback === 'error'
+									? 'text-[#B91C1C]'
+									: 'text-[var(--color-text-muted)]'
+							}`}
+						>
+							{draftFeedback === 'error'
+								? t('quoteBuilder.draftSaveFailed')
+								: t('quoteBuilder.draftSaved')}
+						</span>
+					)}
+					<Button
+						onPress={handleSaveDraft}
+						isDisabled={savingDraft}
+						className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+					>
+						{savingDraft
+							? t('quoteBuilder.savingDraft')
+							: t('quoteBuilder.saveAsDraft')}
+					</Button>
+					<Button
+						onPress={() => setStep(3)}
+						isDisabled={!canContinue}
+						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+					>
+						{t('quoteBuilder.continue', 'Continue')}
+					</Button>
+				</div>
 			</div>
 		</div>
 	)

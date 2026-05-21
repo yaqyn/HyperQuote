@@ -1,18 +1,13 @@
 import { EmptyState } from '@hyperquote/ui/feedback/EmptyState'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import type { ParseKeys } from 'i18next'
 import { AlertTriangle, ChevronsUpDown, SearchX } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useCallback, useMemo } from 'react'
-import {
-	Button,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { Pagination } from '../../../components/market/Pagination'
@@ -22,6 +17,7 @@ import {
 	type SearchEntry,
 } from '../../../components/shared/SearchDropdown'
 import { getPublicCatalog, type PublicProduct } from '../../../lib/catalog'
+import { isAbortedRouteLoad } from '../../../lib/route-loader'
 
 // ── Search schema ──
 // category and price_tier come as comma-separated strings in the URL,
@@ -55,18 +51,26 @@ function parsePriceTiers(s?: string): PriceTierParam[] {
 export const Route = createFileRoute('/_website/market/')({
 	validateSearch: marketSearchSchema,
 	loaderDeps: ({ search }) => search,
-	loader: ({ deps }) =>
-		getPublicCatalog({
-			data: {
-				category: splitParam(deps.category),
-				availability: deps.availability || 'all',
-				priceTier: parsePriceTiers(deps.price_tier),
-				search: deps.q,
-				sort: deps.sort || 'relevance',
-				page: deps.page || 1,
-				limit: 24,
-			},
-		}),
+	loader: async ({ deps, abortController }) => {
+		try {
+			return await getPublicCatalog({
+				data: {
+					category: splitParam(deps.category),
+					availability: deps.availability || 'all',
+					priceTier: parsePriceTiers(deps.price_tier),
+					search: deps.q,
+					sort: deps.sort || 'relevance',
+					page: deps.page || 1,
+					limit: 24,
+				},
+			})
+		} catch (error) {
+			if (isAbortedRouteLoad(error, abortController.signal)) {
+				return { categories: [], items: [], total: 0, hasMore: false }
+			}
+			throw error
+		}
+	},
 	head: () => ({
 		meta: [
 			{ title: 'Market — HyperQuote' },
@@ -81,15 +85,6 @@ export const Route = createFileRoute('/_website/market/')({
 	errorComponent: MarketError,
 })
 
-const CATEGORIES = [
-	'cement',
-	'steel',
-	'aggregates',
-	'bricks',
-	'timber',
-	'finishing',
-] as const
-
 const SORT_OPTIONS = [
 	{ id: 'relevance', labelKey: 'market.sortRelevance' },
 	{ id: 'name', labelKey: 'market.sortName' },
@@ -97,13 +92,31 @@ const SORT_OPTIONS = [
 	{ id: 'availability', labelKey: 'market.sortAvailability' },
 ] as const
 
+function unitLabelFor(product: PublicProduct, locale: 'ar' | 'en') {
+	return locale === 'ar' && product.unit_of_measure_ar
+		? product.unit_of_measure_ar
+		: product.unit_of_measure
+}
+
+function categoryLabelFor(
+	slug: string,
+	categories: Array<{ slug: string; name: string; name_ar: string }>,
+	locale: 'ar' | 'en',
+) {
+	const category = categories.find((item) => item.slug === slug)
+	if (!category) return slug.replace(/_/g, ' ')
+	return locale === 'ar' && category.name_ar ? category.name_ar : category.name
+}
+
 // ── Market Search ──
 
 function MarketSearch({
 	items: catalogItems,
+	categories,
 	onSearch,
 }: {
 	items: PublicProduct[]
+	categories: Array<{ slug: string; name: string; name_ar: string }>
 	onSearch: (q: string) => void
 }) {
 	const { t, i18n } = useTranslation('website')
@@ -114,12 +127,8 @@ function MarketSearch({
 		() =>
 			catalogItems.map((p) => {
 				const name = locale === 'ar' ? p.name_ar || p.name : p.name
-				const category = t(`categories.${p.category}` as ParseKeys<'website'>, {
-					defaultValue: p.category.replace(/_/g, ' '),
-				})
-				const unit = t(`units.${p.unit_of_measure}` as ParseKeys<'website'>, {
-					defaultValue: p.unit_of_measure,
-				})
+				const category = categoryLabelFor(p.category, categories, locale)
+				const unit = unitLabelFor(p, locale)
 				const description =
 					(locale === 'ar' ? p.description_ar : p.description) ?? ''
 				const brand = p.brand ?? ''
@@ -134,7 +143,7 @@ function MarketSearch({
 					href: `/market/${p.slug}`,
 				}
 			}),
-		[catalogItems, locale, t],
+		[catalogItems, categories, locale],
 	)
 
 	const handleSelect = useCallback(
@@ -162,7 +171,8 @@ function MarketSearch({
 // ── Main Page ──
 
 function MarketPage() {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
+	const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
 	const data = Route.useLoaderData()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
@@ -199,6 +209,7 @@ function MarketPage() {
 						<div className="mx-auto w-full max-w-[520px] lg:mx-0 lg:w-[420px]">
 							<MarketSearch
 								items={data.items}
+								categories={data.categories}
 								onSearch={(q) => nav({ q: q || undefined })}
 							/>
 						</div>
@@ -211,23 +222,24 @@ function MarketPage() {
 				<div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 overflow-hidden px-4 sm:px-6 lg:flex-row lg:px-12">
 					<div className="w-full min-w-0 lg:flex-1">
 						<div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-							{CATEGORIES.map((cat) => {
-								const isActive = categories.includes(cat)
+							{data.categories.map((category) => {
+								const isActive = categories.includes(category.slug)
+								const label =
+									locale === 'ar' && category.name_ar
+										? category.name_ar
+										: category.name || category.slug.replace(/_/g, ' ')
 								return (
 									<button
-										key={cat}
+										key={category.slug}
 										type="button"
-										onClick={() => toggleCategory(cat)}
+										onClick={() => toggleCategory(category.slug)}
 										className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
 											isActive
 												? 'bg-[var(--color-text)] text-[var(--color-base)]'
 												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
 										}`}
 									>
-										{t(
-											`marketPreview.categories.${cat}` as ParseKeys<'website'>,
-											{ defaultValue: cat },
-										)}
+										{label}
 									</button>
 								)
 							})}
@@ -309,7 +321,16 @@ function MarketPage() {
 								className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
 							>
 								{data.items.map((item: PublicProduct) => (
-									<ProductCard key={item.id} product={item} variant="grid" />
+									<ProductCard
+										key={item.id}
+										product={item}
+										variant="grid"
+										categoryLabel={categoryLabelFor(
+											item.category,
+											data.categories,
+											locale,
+										)}
+									/>
 								))}
 							</motion.div>
 

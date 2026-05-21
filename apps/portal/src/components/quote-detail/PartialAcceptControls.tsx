@@ -1,16 +1,12 @@
 import type { ParseKeys } from 'i18next'
 import { Check, ChevronDown } from 'lucide-react'
-import {
-	Button as AriaButton,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	NumberField,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components/Button'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { NumberField } from 'react-aria-components/NumberField'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { useTranslation } from 'react-i18next'
 import { useQuoteActionsStore } from '../../stores/quote-actions'
 import type { QuoteItem, RejectReason } from '../../types/quote'

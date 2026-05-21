@@ -14,16 +14,16 @@ export interface Document {
 	id: string
 	/** Document type category */
 	type: DocumentType
-	/** Document reference number (e.g., INV-2026-00142) -- display in Geist Mono */
+	/** Persisted document reference number -- display in readable tabular sans */
 	reference: string
 	/** Human-readable document title */
 	title: string
 	/** ISO date string of document creation */
 	date: string
-	/** Formatted file size (e.g., "2.4 MB") -- display in Geist Mono */
+	/** Formatted file size (e.g., "2.4 MB") -- display in readable tabular sans */
 	fileSize: string
 	/** Pre-signed download URL (null if not yet available) */
 	downloadUrl: string | null
-	/** Related order reference (e.g., ORD-2026-00042) */
+	/** Persisted related order reference */
 	relatedOrderRef: string | null
 }

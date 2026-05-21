@@ -1,18 +1,36 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
 	ArrowLeft,
+	ChevronDown,
+	CircleCheck,
+	ExternalLink,
+	LogOut,
 	Menu,
 	MessageCircle,
 	Minus,
+	PanelRightClose,
 	Plus,
 	ShoppingCart,
+	Store,
 	X,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 import { useScrolled } from '../../hooks/useScrolled'
-import { sendOTP } from '../../lib/auth'
+import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
+import { sendOTP, signOutWebsiteAccount } from '../../lib/auth'
+import { getPortalHref } from '../../lib/portal-url'
+import {
+	saveWebsiteQuoteDraft,
+	submitWebsiteQuoteRequest,
+} from '../../lib/quote-requests'
 import {
 	EGYPT_COUNTRY_CODE,
 	EGYPT_MOBILE_REGEX,
@@ -28,18 +46,43 @@ import { LanguageToggle } from './LanguageToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { ThemeToggle } from './ThemeToggle'
 
+const CART_DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
+
 export function WebsiteHeader() {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
+	const isAr = i18n.language === 'ar'
 	const scrolled = useScrolled(8)
+	const shouldReduceMotion = useReducedMotion()
 	const [mobileNavOpen, setMobileNavOpen] = useState(false)
 	const [cartOpen, setCartOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, updateQuantity, remove } = useQuoteCart()
+	const [submittedReference, setSubmittedReference] = useState<string | null>(
+		null,
+	)
 	const navigateTo = useNavigate()
 	const routerState = useRouterState()
 	const isHome = routerState.location.pathname === '/'
 	const wasHome = useRef(isHome)
 	const [introDone, setIntroDone] = useState(!isHome)
+	const { accountState, refreshAccountState } = useWebsiteAccountState()
+
+	useEffect(() => {
+		if (items.length > 0 && submittedReference) {
+			setSubmittedReference(null)
+		}
+	}, [items.length, submittedReference])
+
+	useEffect(() => {
+		if (!cartOpen || !submittedReference) return
+		const timer = window.setTimeout(() => setCartOpen(false), 3000)
+		return () => window.clearTimeout(timer)
+	}, [cartOpen, submittedReference])
+
+	useEffect(() => {
+		if (cartOpen || !submittedReference) return
+		setSubmittedReference(null)
+	}, [cartOpen, submittedReference])
 
 	useEffect(() => {
 		if (isHome) {
@@ -236,13 +279,24 @@ export function WebsiteHeader() {
 					</button>
 
 					<span className="hidden md:block w-px h-4 bg-[var(--color-border)] ms-2" />
-					<button
-						type="button"
-						onClick={() => navigateTo({ to: '/login' })}
-						className="hidden md:inline-flex items-center justify-center w-[100px] ms-2 text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-					>
-						{t('login.step1.heading')}
-					</button>
+					{accountState.authenticated ? (
+						<WebsiteAccountMenu
+							companyName={accountState.companyName}
+							onSignOut={async () => {
+								await signOutWebsiteAccount()
+								window.dispatchEvent(new Event('hyperquote-account-updated'))
+								await refreshAccountState()
+							}}
+						/>
+					) : (
+						<button
+							type="button"
+							onClick={() => navigateTo({ to: '/login' })}
+							className="hidden md:inline-flex items-center justify-center w-[100px] ms-2 text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+						>
+							{t('login.step1.heading')}
+						</button>
+					)}
 					<button
 						type="button"
 						onClick={() => setMobileNavOpen(true)}
@@ -254,132 +308,174 @@ export function WebsiteHeader() {
 				</div>
 			</header>
 
-			{/* Cart dropdown panel */}
-			{cartOpen && (
-				<>
-					<button
-						type="button"
-						aria-label={t('a11y.close')}
-						className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px]"
-						onClick={() => setCartOpen(false)}
-					/>
-					<div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden border border-[var(--color-text)]/[0.06] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] md:inset-auto md:top-16 md:right-4 md:max-h-[calc(100dvh-5rem)] md:w-[420px] md:rounded-2xl">
-						{/* Header */}
-						<div className="flex items-center justify-between px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 md:pt-5">
-							<span className="text-[15px] font-semibold text-[var(--color-text)]">
-								{t('cart.title')}
-							</span>
-							<button
-								type="button"
-								onClick={() => setCartOpen(false)}
-								className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors"
-							>
-								<X size={15} />
-							</button>
-						</div>
-
-						{/* Items */}
-						{items.length === 0 ? (
-							<div className="flex flex-1 flex-col items-center justify-center px-8 pb-10 pt-4 text-center md:block md:flex-none md:px-5 md:pb-6">
-								<p className="text-[13px] text-[var(--color-text-muted)] mb-4">
-									{t('cart.empty')}
-								</p>
-								<Link
-									to="/market"
-									onClick={() => setCartOpen(false)}
-									className="text-[13px] font-medium text-[var(--color-primary)]"
-								>
-									{t('cart.browseCta')}
-								</Link>
-							</div>
-						) : (
-							<>
-								<div className="flex-1 overflow-y-auto">
-									{items.map((item, idx) => (
-										<div
-											key={item.productId}
-											className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
+			{/* Cart drawer */}
+			<AnimatePresence>
+				{cartOpen && (
+					<>
+						<motion.button
+							key="cart-backdrop"
+							type="button"
+							aria-label={t('a11y.close')}
+							className="fixed inset-0 z-45 bg-black/20"
+							onClick={() => setCartOpen(false)}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
+						/>
+						<motion.div
+							key="cart-drawer"
+							className="fixed inset-y-0 right-0 z-50 flex h-[100dvh] w-[min(100vw,420px)] flex-col overflow-hidden border-s border-[var(--color-text)]/[0.06] bg-[var(--color-base)] shadow-[0_24px_80px_rgba(0,0,0,0.12)] will-change-transform md:top-4 md:right-4 md:bottom-4 md:h-auto md:rounded-2xl"
+							initial={{
+								opacity: shouldReduceMotion ? 1 : 0,
+								x: shouldReduceMotion ? 0 : '100%',
+							}}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{
+								opacity: shouldReduceMotion ? 1 : 0,
+								x: shouldReduceMotion ? 0 : '100%',
+							}}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.26,
+								ease: CART_DRAWER_EASE,
+							}}
+						>
+							{submittedReference ? (
+								<CartSuccessMessage reference={submittedReference} />
+							) : (
+								<>
+									{/* Header */}
+									<div className="flex items-center justify-between px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 md:pt-5">
+										<span className="text-[15px] font-semibold text-[var(--color-text)]">
+											{t('cart.title')}
+										</span>
+										<button
+											type="button"
+											onClick={() => setCartOpen(false)}
+											className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors"
 										>
-											{/* Name + remove */}
-											<div className="flex items-start gap-3">
-												{item.imageUrl && (
-													<img
-														src={item.imageUrl}
-														alt=""
-														className="h-11 w-11 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
-													/>
-												)}
-												<div className="min-w-0 flex-1">
-													<Link
-														to="/market/$productSlug"
-														params={{ productSlug: item.slug }}
-														onClick={() => setCartOpen(false)}
-														className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
-													>
-														{item.name}
-													</Link>
-												</div>
-												<button
-													type="button"
-													onClick={() => remove(item.productId)}
-													className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5"
-													aria-label={t('cart.remove')}
-												>
-													<X size={13} />
-												</button>
-											</div>
+											<PanelRightClose size={16} strokeWidth={1.8} />
+										</button>
+									</div>
 
-											{/* Unified stepper — matches product page */}
-											<div className="flex items-center rounded-xl border border-[var(--color-text)]/[0.06] bg-[var(--color-surface)] overflow-hidden mt-3 h-10">
-												<button
-													type="button"
-													onClick={() =>
-														updateQuantity(item.productId, item.quantity - 1)
-													}
-													className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]"
-												>
-													<Minus size={13} />
-												</button>
-												<div className="flex flex-1 items-center justify-center gap-2">
-													<input
-														type="number"
-														value={item.quantity}
-														onChange={(e) => {
-															const v = parseInt(e.target.value, 10)
-															if (!Number.isNaN(v) && v >= 0)
-																updateQuantity(item.productId, v)
-														}}
-														className="w-12 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-														min={1}
-													/>
-													<span className="text-[12px] text-[var(--color-text-subtle)]">
-														{t(
-															`units.${item.unitOfMeasure}`,
-															item.unitOfMeasure,
-														)}
-													</span>
-												</div>
-												<button
-													type="button"
-													onClick={() =>
-														updateQuantity(item.productId, item.quantity + 1)
-													}
-													className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]"
-												>
-													<Plus size={13} />
-												</button>
-											</div>
+									{/* Items */}
+									{items.length === 0 ? (
+										<div className="flex flex-1 flex-col items-center justify-center px-8 pb-10 pt-4 text-center md:block md:flex-none md:px-5 md:pb-6">
+											<p className="text-[13px] text-[var(--color-text-muted)] mb-4">
+												{t('cart.empty')}
+											</p>
+											<Link
+												to="/market"
+												onClick={() => setCartOpen(false)}
+												className="text-[13px] font-medium text-[var(--color-primary)]"
+											>
+												{t('cart.browseCta')}
+											</Link>
 										</div>
-									))}
-								</div>
+									) : (
+										<>
+											<div className="flex-1 overflow-y-auto">
+												{items.map((item, idx) => (
+													<div
+														key={item.productId}
+														className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
+													>
+														{/* Name + remove */}
+														<div className="flex items-start gap-3">
+															{item.imageUrl && (
+																<img
+																	src={item.imageUrl}
+																	alt=""
+																	className="h-11 w-11 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
+																/>
+															)}
+															<div className="min-w-0 flex-1">
+																<Link
+																	to="/market/$productSlug"
+																	params={{ productSlug: item.slug }}
+																	onClick={() => setCartOpen(false)}
+																	className="line-clamp-2 text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
+																>
+																	{isAr && item.nameAr
+																		? item.nameAr
+																		: item.name}
+																</Link>
+															</div>
+															<button
+																type="button"
+																onClick={() => remove(item.productId)}
+																className="text-[var(--color-text-subtle)] hover:text-[var(--color-error)] transition-colors shrink-0 mt-0.5"
+																aria-label={t('cart.remove')}
+															>
+																<X size={13} />
+															</button>
+														</div>
 
-								{/* Submit / Inline Auth */}
-								<CartSubmit itemCount={items.length} />
-							</>
-						)}
-					</div>
-				</>
-			)}
+														{/* Unified stepper — matches product page */}
+														<div className="flex items-center rounded-xl border border-[var(--color-text)]/[0.06] bg-[var(--color-surface)] overflow-hidden mt-3 h-10">
+															<button
+																type="button"
+																onClick={() =>
+																	updateQuantity(
+																		item.productId,
+																		item.quantity - 1,
+																	)
+																}
+																aria-label={t('cart.decreaseQuantity')}
+																className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-e border-[var(--color-text)]/[0.06]"
+															>
+																<Minus size={13} />
+															</button>
+															<div className="flex flex-1 items-center justify-center gap-2">
+																<input
+																	aria-label={t('product.quantityLabel')}
+																	type="number"
+																	value={item.quantity}
+																	onChange={(e) => {
+																		const v = parseInt(e.target.value, 10)
+																		if (!Number.isNaN(v) && v >= 0)
+																			updateQuantity(item.productId, v)
+																	}}
+																	className="w-12 bg-transparent text-center font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																	min={1}
+																/>
+																<span className="text-[12px] text-[var(--color-text-subtle)]">
+																	{isAr && item.unitOfMeasureAr
+																		? item.unitOfMeasureAr
+																		: item.unitOfMeasure}
+																</span>
+															</div>
+															<button
+																type="button"
+																onClick={() =>
+																	updateQuantity(
+																		item.productId,
+																		item.quantity + 1,
+																	)
+																}
+																aria-label={t('cart.increaseQuantity')}
+																className="w-10 h-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors border-s border-[var(--color-text)]/[0.06]"
+															>
+																<Plus size={13} />
+															</button>
+														</div>
+													</div>
+												))}
+											</div>
+
+											{/* Submit / Inline Auth */}
+											<CartSubmit
+												itemCount={items.length}
+												onSubmitted={setSubmittedReference}
+											/>
+										</>
+									)}
+								</>
+							)}
+						</motion.div>
+					</>
+				)}
+			</AnimatePresence>
 
 			<MobileNavOverlay
 				isOpen={mobileNavOpen}
@@ -397,28 +493,281 @@ const RESEND_COOLDOWN = 30
 
 type CartAuthStep = 'submit' | 'phone' | 'otp'
 
-function CartSubmit({ itemCount }: { itemCount: number }) {
+function WebsiteAccountMenu({
+	companyName,
+	onSignOut,
+}: {
+	companyName: string | null
+	onSignOut: () => Promise<void>
+}) {
 	const { t } = useTranslation('website')
+	const [open, setOpen] = useState(false)
+	const [signingOut, setSigningOut] = useState(false)
+	const menuRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		if (!open) return
+
+		function closeOnOutsideClick(event: MouseEvent) {
+			if (!menuRef.current?.contains(event.target as Node)) {
+				setOpen(false)
+			}
+		}
+
+		document.addEventListener('mousedown', closeOnOutsideClick)
+		return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+	}, [open])
+
+	async function handleSignOut() {
+		if (signingOut) return
+		setSigningOut(true)
+		try {
+			await onSignOut()
+			setOpen(false)
+		} finally {
+			setSigningOut(false)
+		}
+	}
+
+	return (
+		<div ref={menuRef} className="relative hidden md:block ms-2">
+			<button
+				type="button"
+				onClick={() => setOpen((value) => !value)}
+				aria-haspopup="menu"
+				aria-expanded={open}
+				className="inline-flex h-9 min-w-[112px] items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+			>
+				<span>{t('nav.account')}</span>
+				<ChevronDown
+					size={14}
+					className={`transition-transform ${open ? 'rotate-180' : ''}`}
+					aria-hidden="true"
+				/>
+			</button>
+			{open && (
+				<div
+					role="menu"
+					aria-label={t('nav.account')}
+					className="absolute end-0 top-full mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#151515]/95 p-1 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+				>
+					{companyName && (
+						<p className="truncate px-3 py-2 text-[11px] font-medium text-white/45">
+							{companyName}
+						</p>
+					)}
+					<Link
+						role="menuitem"
+						to="/market"
+						onClick={() => setOpen(false)}
+						className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-start text-[13px] font-medium text-white/70 transition-colors hover:bg-white/8 hover:text-white"
+					>
+						<Store size={15} strokeWidth={1.8} aria-hidden="true" />
+						<span>{t('nav.market')}</span>
+					</Link>
+					<a
+						role="menuitem"
+						href={getPortalHref()}
+						onClick={() => setOpen(false)}
+						className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-start text-[13px] font-medium text-white/70 transition-colors hover:bg-white/8 hover:text-white"
+					>
+						<ExternalLink size={15} strokeWidth={1.8} aria-hidden="true" />
+						<span>{t('nav.portal')}</span>
+					</a>
+					<button
+						role="menuitem"
+						type="button"
+						onClick={handleSignOut}
+						disabled={signingOut}
+						className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-start text-[13px] font-medium text-white/70 transition-colors hover:bg-white/8 hover:text-white disabled:opacity-50"
+					>
+						<LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
+						<span>{t('nav.signOut')}</span>
+					</button>
+				</div>
+			)}
+		</div>
+	)
+}
+
+function CartSuccessMessage({ reference }: { reference: string }) {
+	const { t } = useTranslation('website')
+	const shouldReduceMotion = useReducedMotion()
+
+	return (
+		<motion.div
+			key="cart-submit-success"
+			role="status"
+			aria-live="assertive"
+			className="flex flex-1 flex-col items-center justify-center px-8 text-center"
+			initial={{
+				opacity: 0,
+				y: shouldReduceMotion ? 0 : 10,
+				scale: shouldReduceMotion ? 1 : 0.98,
+			}}
+			animate={{ opacity: 1, y: 0, scale: 1 }}
+			exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
+			transition={{
+				duration: shouldReduceMotion ? 0.01 : 0.22,
+				ease: CART_DRAWER_EASE,
+			}}
+		>
+			<motion.div
+				className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-success)]/12 text-[var(--color-success)] ring-1 ring-inset ring-[var(--color-success)]/20"
+				initial={{ scale: shouldReduceMotion ? 1 : 0.82 }}
+				animate={{ scale: 1 }}
+				transition={{
+					duration: shouldReduceMotion ? 0.01 : 0.28,
+					ease: CART_DRAWER_EASE,
+				}}
+			>
+				<CircleCheck size={30} strokeWidth={1.8} aria-hidden="true" />
+			</motion.div>
+			<h3 className="text-[19px] font-semibold text-[var(--color-text)]">
+				{t('cart.submitSuccess')}
+			</h3>
+			<p className="mt-3 max-w-[300px] text-[13px] leading-6 text-[var(--color-text-muted)]">
+				{t('cart.submitSuccessBody')}
+			</p>
+			<p className="mt-4 font-mono text-[12px] text-[var(--color-text-subtle)]">
+				{reference}
+			</p>
+			<p className="mt-5 text-[11px] text-[var(--color-text-subtle)]">
+				{t('cart.autoClose')}
+			</p>
+		</motion.div>
+	)
+}
+
+function CartSubmit({
+	itemCount,
+	onSubmitted,
+}: {
+	itemCount: number
+	onSubmitted: (reference: string) => void
+}) {
+	const { t } = useTranslation('website')
+	const navigateTo = useNavigate()
+	const shouldReduceMotion = useReducedMotion()
 	const [step, setStep] = useState<CartAuthStep>('submit')
 	const [phone, setPhone] = useState('')
 	const [code, setCode] = useState<string[]>(() => emptyOtpCode())
 	const [error, setError] = useState<string | null>(null)
-	const [loading, setLoading] = useState(false)
+	const [loadingAction, setLoadingAction] = useState<
+		'submit' | 'save' | 'rename' | 'auth' | null
+	>(null)
+	const [authSuccessVisible, setAuthSuccessVisible] = useState(false)
 	const { resendCountdown, setResendCountdown } = useResendCountdown(0)
 	const phoneRef = useRef<HTMLInputElement>(null)
 	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+	const authSuccessRef = useRef<HTMLDivElement>(null)
+	const { clear, globalNote, items } = useQuoteCart()
+	const [savedDraftFingerprint, setSavedDraftFingerprint] = useState<
+		string | null
+	>(null)
+	const [savedDraftId, setSavedDraftId] = useState<string | null>(null)
+	const defaultDraftName = t('cart.defaultDraftName')
+	const [draftName, setDraftName] = useState(defaultDraftName)
+	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
+	const draftFingerprint = useMemo(
+		() =>
+			JSON.stringify({
+				globalNote: globalNote.trim(),
+				items: items.map((item, index) => ({
+					imageUrl: item.imageUrl,
+					name: item.name,
+					nameAr: item.nameAr,
+					note: item.note.trim(),
+					productId: item.productId,
+					quantity: item.quantity,
+					sortOrder: index,
+					unitOfMeasure: item.unitOfMeasure,
+					unitOfMeasureAr: item.unitOfMeasureAr,
+				})),
+			}),
+		[globalNote, items],
+	)
+	const isDraftSaved =
+		items.length > 0 && savedDraftFingerprint === draftFingerprint
+	const savedOrdersHref = `${getPortalHref().replace(/\/$/, '')}/orders`
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
 		if (step === 'otp') otpRefs.current[0]?.focus()
 	}, [step])
 
+	useEffect(() => {
+		if (step === 'submit' && authSuccessVisible) {
+			authSuccessRef.current?.focus()
+		}
+	}, [authSuccessVisible, step])
+
+	useEffect(() => {
+		if (
+			step !== 'submit' ||
+			!savedDraftId ||
+			!isDraftSaved ||
+			loadingAction !== null
+		) {
+			return
+		}
+		const nextName = draftName.trim() || defaultDraftName
+		if (nextName === persistedDraftName) return
+
+		const timer = window.setTimeout(async () => {
+			setLoadingAction('rename')
+			setError(null)
+			try {
+				const result = await saveWebsiteQuoteDraft({
+					data: {
+						draftId: savedDraftId,
+						items: items.map((item, index) => ({
+							productId: item.productId,
+							customerDescription: item.name,
+							quantity: item.quantity,
+							unitOfMeasure: item.unitOfMeasure,
+							unitOfMeasureAr: item.unitOfMeasureAr,
+							notes: item.note || undefined,
+							sortOrder: index,
+						})),
+						name: nextName,
+						notes: globalNote || undefined,
+					},
+				})
+				if (result.success) {
+					setPersistedDraftName(nextName)
+					window.dispatchEvent(new Event('hyperquote-account-updated'))
+					return
+				}
+				setError(t('cart.draftRenameFailed'))
+			} catch {
+				setError(t('cart.draftRenameFailed'))
+			} finally {
+				setLoadingAction(null)
+			}
+		}, 650)
+
+		return () => window.clearTimeout(timer)
+	}, [
+		defaultDraftName,
+		draftName,
+		globalNote,
+		isDraftSaved,
+		items,
+		loadingAction,
+		persistedDraftName,
+		savedDraftId,
+		step,
+		t,
+	])
+
 	async function handleSendOTP() {
 		if (!EGYPT_MOBILE_REGEX.test(phone)) {
 			setError(t('login.phoneInvalid'))
 			return
 		}
-		setLoading(true)
+		setLoadingAction('auth')
+		setAuthSuccessVisible(false)
 		setError(null)
 		try {
 			const result = await sendOTP({ data: { phone, method: 'whatsapp' } })
@@ -435,13 +784,13 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 		} catch {
 			setError(t('login.sendFailed'))
 		} finally {
-			setLoading(false)
+			setLoadingAction(null)
 		}
 	}
 
 	const submitCode = useCallback(
 		async (digits: string[]) => {
-			setLoading(true)
+			setLoadingAction('auth')
 			setError(null)
 			try {
 				const result = await verifyOtpCode(phone, digits)
@@ -451,15 +800,22 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					resetOtpCode(otpRefs, setCode)
 					return
 				}
-				window.location.reload()
+				if (result.result.needsAccount) {
+					navigateTo({ to: '/login' })
+					return
+				}
+				window.dispatchEvent(new Event('hyperquote-account-updated'))
+				setAuthSuccessVisible(true)
+				setStep('submit')
+				resetOtpCode(otpRefs, setCode)
 			} catch {
 				setError(t('login.wrongCode'))
 				resetOtpCode(otpRefs, setCode)
 			} finally {
-				setLoading(false)
+				setLoadingAction(null)
 			}
 		},
-		[phone, t],
+		[phone, t, navigateTo],
 	)
 
 	async function handleResend() {
@@ -473,15 +829,232 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 	}
 
 	if (step === 'submit') {
+		async function handleSubmitQuote() {
+			if (items.length === 0 || loadingAction) return
+			setLoadingAction('submit')
+			setAuthSuccessVisible(false)
+			setError(null)
+			try {
+				const result = await submitWebsiteQuoteRequest({
+					data: {
+						draftId: savedDraftId ?? undefined,
+						items: items.map((item, index) => ({
+							productId: item.productId,
+							customerDescription: item.name,
+							quantity: item.quantity,
+							unitOfMeasure: item.unitOfMeasure,
+							unitOfMeasureAr: item.unitOfMeasureAr,
+							notes: item.note || undefined,
+							sortOrder: index,
+						})),
+						name: draftName,
+						notes: globalNote || undefined,
+						idempotencyKey: crypto.randomUUID(),
+					},
+				})
+				if (result.success) {
+					onSubmitted(result.reference)
+					clear()
+					setSavedDraftId(null)
+					window.dispatchEvent(new Event('hyperquote-account-updated'))
+					return
+				}
+				if (result.error === 'items_unavailable') {
+					setError(
+						t('cart.unavailableItems', {
+							items: result.unavailableItems?.join(', ') || defaultDraftName,
+						}),
+					)
+					return
+				}
+				if (
+					result.error === 'not_authenticated' ||
+					result.error === 'customer_required'
+				) {
+					setAuthSuccessVisible(false)
+					setStep('phone')
+					return
+				}
+				setError(t('cart.submitFailed'))
+			} catch {
+				setError(t('cart.submitFailed'))
+			} finally {
+				setLoadingAction(null)
+			}
+		}
+
+		async function handleSaveDraft() {
+			if (items.length === 0 || loadingAction || isDraftSaved) return
+			setLoadingAction('save')
+			setAuthSuccessVisible(false)
+			setError(null)
+			try {
+				const result = await saveWebsiteQuoteDraft({
+					data: {
+						draftId: savedDraftId ?? undefined,
+						items: items.map((item, index) => ({
+							productId: item.productId,
+							customerDescription: item.name,
+							quantity: item.quantity,
+							unitOfMeasure: item.unitOfMeasure,
+							unitOfMeasureAr: item.unitOfMeasureAr,
+							notes: item.note || undefined,
+							sortOrder: index,
+						})),
+						name: draftName,
+						notes: globalNote || undefined,
+					},
+				})
+				if (result.success) {
+					const nextName = draftName.trim() || defaultDraftName
+					setDraftName(nextName)
+					setPersistedDraftName(nextName)
+					setSavedDraftId(result.requestId)
+					setSavedDraftFingerprint(draftFingerprint)
+					window.dispatchEvent(new Event('hyperquote-account-updated'))
+					return
+				}
+				if (
+					result.error === 'not_authenticated' ||
+					result.error === 'customer_required'
+				) {
+					setAuthSuccessVisible(false)
+					setStep('phone')
+					return
+				}
+				setError(t('cart.saveDraftFailed'))
+			} catch {
+				setError(t('cart.saveDraftFailed'))
+			} finally {
+				setLoadingAction(null)
+			}
+		}
+
 		return (
 			<div className="border-t border-[var(--color-border)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
-				<button
-					type="button"
-					onClick={() => setStep('phone')}
-					className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
+				<AnimatePresence initial={false}>
+					{authSuccessVisible && (
+						<motion.div
+							ref={authSuccessRef}
+							tabIndex={-1}
+							role="status"
+							aria-live="polite"
+							className="mb-3 rounded-xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-success)]/35"
+							initial={{
+								opacity: 0,
+								y: shouldReduceMotion ? 0 : 8,
+								scale: shouldReduceMotion ? 1 : 0.98,
+							}}
+							animate={{ opacity: 1, y: 0, scale: 1 }}
+							exit={{
+								opacity: 0,
+								y: shouldReduceMotion ? 0 : -6,
+								scale: shouldReduceMotion ? 1 : 0.98,
+							}}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.2,
+								ease: CART_DRAWER_EASE,
+							}}
+						>
+							<div className="flex items-start gap-2.5">
+								<motion.span
+									initial={{ scale: shouldReduceMotion ? 1 : 0.8 }}
+									animate={{ scale: 1 }}
+									transition={{
+										duration: shouldReduceMotion ? 0.01 : 0.22,
+										ease: CART_DRAWER_EASE,
+									}}
+									className="mt-0.5 shrink-0 text-[var(--color-success)]"
+								>
+									<CircleCheck size={17} strokeWidth={1.8} aria-hidden="true" />
+								</motion.span>
+								<div className="min-w-0 text-start">
+									<p className="text-[13px] font-semibold text-[var(--color-text)]">
+										{t('cart.authSuccessTitle')}
+									</p>
+									<p className="mt-0.5 text-[11px] leading-5 text-[var(--color-text-muted)]">
+										{t('cart.authSuccessBody')}
+									</p>
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+				{isDraftSaved ? (
+					<label className="mb-2 block">
+						<span className="mb-1.5 block text-center text-[11px] font-medium text-[var(--color-text-muted)]">
+							{t('cart.draftNameLabel')}
+						</span>
+						<input
+							type="text"
+							value={draftName}
+							onChange={(event) => setDraftName(event.currentTarget.value)}
+							onBlur={() => {
+								const nextName = draftName.trim() || defaultDraftName
+								setDraftName(nextName)
+							}}
+							maxLength={120}
+							aria-label={t('cart.draftNameLabel')}
+							placeholder={defaultDraftName}
+							className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-center text-[14px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+						/>
+						<p className="mt-1.5 text-center text-[11px] text-[var(--color-text-subtle)]">
+							{loadingAction === 'rename'
+								? t('cart.draftNameSaving')
+								: t('cart.draftNameSaved')}
+						</p>
+					</label>
+				) : (
+					<motion.button
+						type="button"
+						onClick={handleSaveDraft}
+						disabled={loadingAction !== null}
+						className="mb-2 h-10 w-full rounded-lg border border-[var(--color-border)] text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-60"
+						whileTap={
+							shouldReduceMotion || loadingAction !== null
+								? undefined
+								: { scale: 0.985 }
+						}
+						transition={{
+							duration: shouldReduceMotion ? 0.01 : 0.16,
+							ease: CART_DRAWER_EASE,
+						}}
+					>
+						{loadingAction === 'save'
+							? t('cart.savingDraft')
+							: t('cart.saveDraft')}
+					</motion.button>
+				)}
+				<a
+					href={savedOrdersHref}
+					className="mb-2 flex h-9 w-full items-center justify-center rounded-lg text-[13px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
 				>
-					{t('cart.submit')} — {t('cart.itemCount', { count: itemCount })}
-				</button>
+					{t('cart.viewSavedOrders')}
+				</a>
+				<motion.button
+					type="button"
+					onClick={handleSubmitQuote}
+					disabled={loadingAction !== null}
+					className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
+					whileTap={
+						shouldReduceMotion || loadingAction !== null
+							? undefined
+							: { scale: 0.985 }
+					}
+					transition={{
+						duration: shouldReduceMotion ? 0.01 : 0.16,
+						ease: CART_DRAWER_EASE,
+					}}
+				>
+					{loadingAction === 'submit'
+						? t('cart.submitting')
+						: `${t('cart.submit')} — ${t('cart.itemCount', { count: itemCount })}`}
+				</motion.button>
+				{error && (
+					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
+						{error}
+					</p>
+				)}
 				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
 					{t('cart.submitHint')}
 				</p>
@@ -524,10 +1097,10 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 				<button
 					type="button"
 					onClick={handleSendOTP}
-					disabled={loading}
+					disabled={loadingAction !== null}
 					className="mt-3 w-full h-9 rounded-lg bg-[#25D366] text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
 				>
-					{loading ? (
+					{loadingAction === 'auth' ? (
 						<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 					) : (
 						<>
@@ -567,7 +1140,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 				onCodeChange={setCode}
 				onComplete={submitCode}
 				inputRefs={otpRefs}
-				disabled={loading}
+				disabled={loadingAction !== null}
 				ariaLabel={(index) => t('login.otpDigit', { n: index + 1 })}
 				variant="compact"
 			/>
@@ -576,7 +1149,7 @@ function CartSubmit({ itemCount }: { itemCount: number }) {
 					{error}
 				</p>
 			)}
-			{loading && (
+			{loadingAction === 'auth' && (
 				<div className="mt-2 flex justify-center">
 					<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)]" />
 				</div>

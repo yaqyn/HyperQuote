@@ -16,10 +16,18 @@ export interface QuoteItem {
 	customerDescription: string
 	quantity: number
 	unitOfMeasure: string
+	unitOfMeasureAr?: string
 	notes?: string
 	matchConfidence?: number
 	sortOrder: number
 	isUnmatched: boolean
+}
+
+export interface QuoteAttachment {
+	name: string
+	size: number
+	type: string
+	url: string
 }
 
 interface QuoteBuilderState {
@@ -30,7 +38,7 @@ interface QuoteBuilderState {
 	deliveryAddressId: string | null
 	deliveryDate: string | null
 	notes: string
-	attachments: File[]
+	attachments: QuoteAttachment[]
 	isDirty: boolean
 }
 
@@ -45,7 +53,7 @@ interface QuoteBuilderActions {
 	setDeliveryAddressId: (id: string | null) => void
 	setDeliveryDate: (date: string | null) => void
 	setNotes: (notes: string) => void
-	setAttachments: (files: File[]) => void
+	setAttachments: (files: QuoteAttachment[]) => void
 	setDraftId: (id: string | null) => void
 	reset: () => void
 }
@@ -141,6 +149,7 @@ export const useQuoteBuilderStore = create<QuoteBuilderStore>()(
 				deliveryAddressId: state.deliveryAddressId,
 				deliveryDate: state.deliveryDate,
 				notes: state.notes,
+				attachments: state.attachments,
 				isDirty: state.isDirty,
 			}),
 		},

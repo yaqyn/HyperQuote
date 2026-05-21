@@ -1,6 +1,6 @@
 import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ToggleButton } from 'react-aria-components'
+import { ToggleButton } from 'react-aria-components/ToggleButton'
 import { useTranslation } from 'react-i18next'
 import { persistTheme } from '../../lib/theme'
 

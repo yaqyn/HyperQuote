@@ -11,7 +11,7 @@ import {
 	Table,
 	TableBody,
 	TableHeader,
-} from 'react-aria-components'
+} from 'react-aria-components/Table'
 
 interface DataTableProps<T extends Record<string, unknown>> {
 	data: T[]

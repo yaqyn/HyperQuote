@@ -1,10 +1,15 @@
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import {
+	createFileRoute,
+	redirect,
+	useNavigate,
+	useSearch,
+} from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ArrowUpRight, Check, Globe, Moon, Sun } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import whatsappLightUrl from '../../../../essential/brand/whatsapp-light.svg'
@@ -15,6 +20,7 @@ import {
 	claimAccount,
 	createAccount,
 	sendOTP,
+	signInWithEmailPassword,
 	verifyOTP,
 } from '../lib/auth'
 import { type PortalTheme, setPortalTheme } from '../lib/theme'
@@ -31,10 +37,7 @@ export const Route = createFileRoute('/login')({
 	beforeLoad: async () => {
 		const result = await checkSession()
 		if (result.authenticated) {
-			throw new Response(null, {
-				status: 302,
-				headers: { Location: '/' },
-			})
+			throw redirect({ to: '/' })
 		}
 	},
 	component: LoginPage,
@@ -44,12 +47,20 @@ export const Route = createFileRoute('/login')({
 // Types
 // ============================================================================
 
-type AuthStep = 'phone' | 'otp' | 'create' | 'claiming' | 'farewell'
+type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming' | 'farewell'
 type Stage = 'dark' | 'logo' | 'scene' | 'leaving'
+type CreateAuthMethod = 'phone_otp' | 'email_password'
+
+interface EmailProfileDefaults {
+	companyName?: string
+	fullName?: string
+	phone?: string
+}
 const STEP_EASE = cubicBezier(0.2, 0.8, 0.2, 1)
 const INTRO_LOGO_IN_MS = 300
 const INTRO_LOGO_OUT_MS = 1450
 const INTRO_SCENE_IN_MS = 2150
+const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // ============================================================================
 // Login Page
@@ -62,6 +73,10 @@ function LoginPage() {
 	const [step, setStep] = useState<AuthStep>('phone')
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
+	const [createAuthMethod, setCreateAuthMethod] =
+		useState<CreateAuthMethod>('phone_otp')
+	const [emailProfileDefaults, setEmailProfileDefaults] =
+		useState<EmailProfileDefaults>({})
 	const [stage, setStage] = useState<Stage>('dark')
 
 	const setSigningOut = usePortalStore((s) => s.setSigningOut)
@@ -143,6 +158,7 @@ function LoginPage() {
 														<PhoneStep
 															phone={phone}
 															setPhone={setPhone}
+															onEmail={() => setStep('email')}
 															onNext={() => setStep('otp')}
 														/>
 													</StepFrame>
@@ -156,6 +172,8 @@ function LoginPage() {
 																	setClaimableCompany(result.claimableCompany)
 																	setStep('claiming')
 																} else if (result.needsAccount) {
+																	setCreateAuthMethod('phone_otp')
+																	setEmailProfileDefaults({})
 																	setStep('create')
 																} else {
 																	handleAuthComplete()
@@ -165,10 +183,26 @@ function LoginPage() {
 														/>
 													</StepFrame>
 												)}
+												{step === 'email' && (
+													<StepFrame key="email">
+														<EmailPasswordStep
+															onBack={() => setStep('phone')}
+															onComplete={() => handleAuthComplete()}
+															onNeedsAccount={(defaults) => {
+																setCreateAuthMethod('email_password')
+																setEmailProfileDefaults(defaults)
+																setPhone(defaults.phone ?? '')
+																setStep('create')
+															}}
+														/>
+													</StepFrame>
+												)}
 												{step === 'create' && (
 													<StepFrame key="create">
 														<AccountCreationStep
 															phone={phone}
+															method={createAuthMethod}
+															defaults={emailProfileDefaults}
 															onComplete={() => setStep('farewell')}
 														/>
 													</StepFrame>
@@ -420,10 +454,12 @@ function AuthStepIntro({
 function PhoneStep({
 	phone,
 	setPhone,
+	onEmail,
 	onNext,
 }: {
 	phone: string
 	setPhone: (v: string) => void
+	onEmail: () => void
 	onNext: () => void
 }) {
 	const { t } = useTranslation('portal')
@@ -558,6 +594,14 @@ function PhoneStep({
 					) : (
 						t('login.smsFallback')
 					)}
+				</button>
+				<button
+					type="button"
+					onClick={onEmail}
+					disabled={loading}
+					className="atelier-quiet"
+				>
+					{t('login.emailSwitch')}
 				</button>
 			</div>
 		</div>
@@ -779,24 +823,178 @@ function OTPStep({
 }
 
 // ============================================================================
+// Email/password step
+// ============================================================================
+
+function EmailPasswordStep({
+	onBack,
+	onComplete,
+	onNeedsAccount,
+}: {
+	onBack: () => void
+	onComplete: () => void
+	onNeedsAccount: (defaults: EmailProfileDefaults) => void
+}) {
+	const { t } = useTranslation('portal')
+	const [email, setEmail] = useState('')
+	const [password, setPassword] = useState('')
+	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+	const emailRef = useRef<HTMLInputElement | null>(null)
+
+	useEffect(() => {
+		const id = setTimeout(() => emailRef.current?.focus(), 150)
+		return () => clearTimeout(id)
+	}, [])
+
+	async function handleSignIn() {
+		if (!EMAIL_ADDRESS_REGEX.test(email.trim())) {
+			setError(t('login.emailInvalid'))
+			return
+		}
+		if (password.length < 6) {
+			setError(t('login.passwordInvalid'))
+			return
+		}
+		setLoading(true)
+		setError(null)
+		try {
+			const result = await signInWithEmailPassword({
+				data: { email: email.trim(), password },
+			})
+			if (!result.success) {
+				setError(
+					result.error === 'email_not_confirmed'
+						? t('login.emailNotConfirmed')
+						: t('login.emailSignInFailed'),
+				)
+				return
+			}
+			if (result.needsAccount) {
+				onNeedsAccount(result.prefill ?? {})
+				return
+			}
+			onComplete()
+		} catch {
+			setError(t('login.emailSignInFailed'))
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	return (
+		<div className="flex flex-col">
+			<AuthStepIntro
+				heading={t('login.emailSignInHeading')}
+				body={t('login.emailSignInSubtitle')}
+			/>
+
+			<div className="mt-7 flex flex-col gap-5">
+				<AtelierTextField
+					id="atelier-email"
+					inputRef={emailRef}
+					label={t('login.emailLabel')}
+					type="email"
+					value={email}
+					onChange={setEmail}
+					onEnter={handleSignIn}
+				/>
+				<AtelierTextField
+					id="atelier-password"
+					label={t('login.passwordLabel')}
+					type="password"
+					value={password}
+					onChange={setPassword}
+					onEnter={handleSignIn}
+				/>
+			</div>
+
+			{error && (
+				<p role="alert" className="auth-field-error mt-4">
+					{error}
+				</p>
+			)}
+
+			<div className="mt-7 flex flex-col gap-3">
+				<Button
+					onPress={handleSignIn}
+					isDisabled={loading}
+					className="atelier-command"
+				>
+					{loading ? <AtelierDots /> : t('login.emailSignInButton')}
+				</Button>
+				<button type="button" onClick={onBack} className="auth-text-action">
+					{t('login.phoneFirst')}
+				</button>
+			</div>
+		</div>
+	)
+}
+
+const AtelierTextField = ({
+	id,
+	label,
+	type = 'text',
+	value,
+	onChange,
+	onEnter,
+	inputRef,
+}: {
+	id: string
+	label: string
+	type?: 'email' | 'password' | 'tel' | 'text'
+	value: string
+	onChange: (value: string) => void
+	onEnter: () => void
+	inputRef?: React.Ref<HTMLInputElement>
+}) => (
+	<div>
+		<label htmlFor={id} className="auth-field-label">
+			{label}
+		</label>
+		<div className="atelier-rule-line mt-2">
+			<input
+				id={id}
+				ref={inputRef}
+				type={type}
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter') onEnter()
+				}}
+				aria-label={label}
+				className="auth-field-input w-full"
+			/>
+		</div>
+	</div>
+)
+
+// ============================================================================
 // Account creation step
 // ============================================================================
 
 function AccountCreationStep({
 	phone,
+	method,
+	defaults,
 	onComplete,
 }: {
 	phone: string
+	method: CreateAuthMethod
+	defaults: EmailProfileDefaults
 	onComplete: () => void
 }) {
 	const { t } = useTranslation('portal')
 	const [loading, setLoading] = useState(false)
-	const [companyName, setCompanyName] = useState('')
-	const [fullName, setFullName] = useState('')
+	const [companyName, setCompanyName] = useState(defaults.companyName ?? '')
+	const [fullName, setFullName] = useState(defaults.fullName ?? '')
+	const [profilePhone, setProfilePhone] = useState(defaults.phone ?? phone)
 	const [hintNameKey, setHintNameKey] = useState(0)
 	const [hintCompanyKey, setHintCompanyKey] = useState(0)
+	const [hintPhoneKey, setHintPhoneKey] = useState(0)
 	const fullNameRef = useRef<HTMLInputElement | null>(null)
 	const companyRef = useRef<HTMLInputElement | null>(null)
+	const phoneRef = useRef<HTMLInputElement | null>(null)
 
 	useEffect(() => {
 		const id = setTimeout(() => fullNameRef.current?.focus(), 150)
@@ -806,17 +1004,20 @@ function AccountCreationStep({
 	async function handleCreate() {
 		const nameOk = fullName.trim().length > 0
 		const companyOk = companyName.trim().length > 0
+		const phoneOk = /^(10|11|12|15)\d{8}$/.test(profilePhone)
 		if (!nameOk) setHintNameKey((k) => k + 1)
 		if (!companyOk) setHintCompanyKey((k) => k + 1)
-		if (!nameOk || !companyOk) return
+		if (!phoneOk) setHintPhoneKey((k) => k + 1)
+		if (!nameOk || !companyOk || !phoneOk) return
 
 		setLoading(true)
 		try {
 			const result = await createAccount({
 				data: {
-					phone,
+					phone: profilePhone,
 					companyName: companyName.trim(),
 					fullName: fullName.trim(),
+					method,
 				},
 			})
 			if (!result.success) {
@@ -839,6 +1040,40 @@ function AccountCreationStep({
 			/>
 
 			<div className="mt-7 flex flex-col gap-5">
+				{method === 'email_password' && (
+					<div>
+						<label htmlFor="atelier-profile-phone" className="auth-field-label">
+							{t('login.phoneLabel')}
+						</label>
+						<div
+							key={hintPhoneKey}
+							dir="ltr"
+							className={`atelier-rule-line mt-2 flex items-center gap-3 ${hintPhoneKey > 0 ? 'atelier-border-hint' : ''}`}
+						>
+							<span className="auth-country-code">+20</span>
+							<input
+								id="atelier-profile-phone"
+								ref={phoneRef}
+								type="tel"
+								inputMode="numeric"
+								value={profilePhone}
+								onChange={(e) => {
+									let digits = e.target.value.replace(/\D/g, '')
+									if (/^20(10|11|12|15)/.test(digits)) {
+										digits = digits.slice(2)
+									}
+									if (digits.startsWith('0')) digits = digits.slice(1)
+									setProfilePhone(digits.slice(0, 10))
+								}}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') fullNameRef.current?.focus()
+								}}
+								aria-label={t('login.phoneLabel')}
+								className="auth-field-input auth-phone-input min-w-0 flex-1"
+							/>
+						</div>
+					</div>
+				)}
 				<div>
 					<label htmlFor="atelier-name" className="auth-field-label">
 						{t('login.fullName')}

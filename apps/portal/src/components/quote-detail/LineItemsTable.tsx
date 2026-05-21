@@ -7,7 +7,7 @@ import {
 	Table,
 	TableBody,
 	TableHeader,
-} from 'react-aria-components'
+} from 'react-aria-components/Table'
 import { useTranslation } from 'react-i18next'
 import type { QuoteItem } from '../../types/quote'
 
@@ -27,9 +27,10 @@ export function LineItemsTable({
 	renderPartialControls,
 }: LineItemsTableProps) {
 	const { t, i18n } = useTranslation('portal')
-	const { t: tUnit } = useTranslation('units')
 	const isArabic = i18n.language === 'ar'
 	const numberFormatter = new Intl.NumberFormat(isArabic ? 'ar-EG' : 'en')
+	const unitLabel = (item: QuoteItem) =>
+		isArabic && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
 
 	return (
 		<div>
@@ -85,9 +86,7 @@ export function LineItemsTable({
 									{numberFormatter.format(item.quantity)}
 								</Cell>
 								<Cell className="py-3 px-3 text-[var(--color-text-muted)]">
-									{tUnit(item.unitOfMeasure, {
-										defaultValue: item.unitOfMeasure,
-									})}
+									{unitLabel(item)}
 								</Cell>
 								<Cell className="py-3 px-3 text-end">
 									{editable ? (
@@ -148,9 +147,7 @@ export function LineItemsTable({
 								<span className="font-mono text-sm">
 									{numberFormatter.format(item.quantity)}{' '}
 									<span className="text-[13px] text-[var(--color-text-muted)]">
-										{tUnit(item.unitOfMeasure, {
-											defaultValue: item.unitOfMeasure,
-										})}
+										{unitLabel(item)}
 									</span>
 								</span>
 							</div>

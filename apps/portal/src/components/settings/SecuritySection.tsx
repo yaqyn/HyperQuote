@@ -6,7 +6,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { signOutSession } from '../../lib/server/settings'
 import type { ActiveSession } from '../../types/settings'

@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
+import { Dialog } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 
 interface MobileNavOverlayProps {

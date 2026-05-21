@@ -18,7 +18,7 @@ import {
 	useRef,
 	useState,
 } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
 import { useShortcut } from '../../hooks/useShortcut'

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
+import { Dialog } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, displayName, WIZARDS } from '../../content/registry'
 

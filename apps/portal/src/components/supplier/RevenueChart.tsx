@@ -1,6 +1,6 @@
 /**
  * RevenueChart -- Monthly revenue bar chart using Recharts.
- * Blue (#2563EB) bars, Geist Mono axis labels, 300px height.
+ * Blue (#2563EB) bars, readable tabular sans axis labels, 300px height.
  * Only imported in analytics route for bundle isolation.
  */
 import {
@@ -19,7 +19,7 @@ interface RevenueChartProps {
 }
 
 const GEIST_MONO_TICK = {
-	fontFamily: 'Geist Mono, monospace',
+	fontFamily: 'Inter, system-ui, sans-serif',
 	fontSize: 12,
 }
 
@@ -53,7 +53,7 @@ export function RevenueChart({ data, locale }: RevenueChartProps) {
 							`EGP ${tooltipFormatter.format(Number(value ?? 0))}`,
 						]}
 						contentStyle={{
-							fontFamily: 'Geist Mono, monospace',
+							fontFamily: 'Inter, system-ui, sans-serif',
 							fontSize: 12,
 							borderRadius: 8,
 							border: '1px solid var(--color-border)',

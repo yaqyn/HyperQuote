@@ -173,7 +173,6 @@ function DarkAboutContent({
 									draggable={false}
 									animate={{ opacity: lightsOff ? 0.25 : 1 }}
 									transition={{ duration: 0.15, ease: 'easeOut' }}
-									style={{ filter: 'brightness(0)' }}
 								/>
 							</button>
 

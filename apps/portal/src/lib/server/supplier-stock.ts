@@ -1,218 +1,12 @@
 /**
  * Supplier stock & pricing server functions.
- * Product listing, inline updates, bulk price CSV, price history.
- * Dev mode fallback when Supabase not configured.
+ * Supplier-scoped inventory is empty until a real supplier
+ * auth/RLS contract exists.
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { PriceHistoryEntry, SupplierProduct } from '../../types/supplier'
-import { isSupabaseConfigured } from './_supabase'
-
-// ============================================================================
-// Mock data
-// ============================================================================
-
-function getMockProducts(): SupplierProduct[] {
-	const now = new Date()
-	return [
-		{
-			id: 'sp-001',
-			name: 'Portland Cement 50kg',
-			nameAr: 'أسمنت بورتلاندي ٥٠ كجم',
-			sku: 'CEM-50K-001',
-			currentPrice: 85,
-			currency: 'EGP',
-			stockQuantity: 12000,
-			minOrderQuantity: 100,
-			leadTimeDays: null,
-			lastUpdatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-			status: 'active',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-002',
-			name: 'Rebar 12mm',
-			nameAr: 'حديد تسليح ١٢ مم',
-			sku: 'REB-12M-001',
-			currentPrice: 32500,
-			currency: 'EGP',
-			stockQuantity: 450,
-			minOrderQuantity: 5,
-			leadTimeDays: 3,
-			lastUpdatedAt: new Date(
-				now.getTime() - 1 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'active',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-003',
-			name: 'Washed Sand',
-			nameAr: 'رمل مغسول',
-			sku: 'SND-WSH-001',
-			currentPrice: 250,
-			currency: 'EGP',
-			stockQuantity: 5000,
-			minOrderQuantity: 10,
-			leadTimeDays: 1,
-			lastUpdatedAt: new Date(
-				now.getTime() - 48 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'active',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-004',
-			name: 'Gravel 20mm',
-			nameAr: 'زلط ٢٠ مم',
-			sku: 'GRV-20M-001',
-			currentPrice: 280,
-			currency: 'EGP',
-			stockQuantity: 3000,
-			minOrderQuantity: 10,
-			leadTimeDays: 1,
-			lastUpdatedAt: new Date(
-				now.getTime() - 4 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'low_stock',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-005',
-			name: 'Red Bricks',
-			nameAr: 'طوب أحمر',
-			sku: 'BRK-RED-001',
-			currentPrice: 1200,
-			currency: 'EGP',
-			stockQuantity: 0,
-			minOrderQuantity: 1,
-			leadTimeDays: 5,
-			lastUpdatedAt: new Date(
-				now.getTime() - 7 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'out_of_stock',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-006',
-			name: 'Rebar 16mm',
-			nameAr: 'حديد تسليح ١٦ مم',
-			sku: 'REB-16M-001',
-			currentPrice: 34000,
-			currency: 'EGP',
-			stockQuantity: 200,
-			minOrderQuantity: 5,
-			leadTimeDays: 3,
-			lastUpdatedAt: new Date(
-				now.getTime() - 12 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'active',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-007',
-			name: 'Welded Steel Mesh 6mm',
-			nameAr: 'شبك حديد ملحوم ٦ مم',
-			sku: 'MSH-6MM-001',
-			currentPrice: 4500,
-			currency: 'EGP',
-			stockQuantity: 80,
-			minOrderQuantity: null,
-			leadTimeDays: 7,
-			lastUpdatedAt: new Date(
-				now.getTime() - 3 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'active',
-			supplierId: 'sup-001',
-		},
-		{
-			id: 'sp-008',
-			name: 'White Cement 50kg',
-			nameAr: 'أسمنت أبيض ٥٠ كجم',
-			sku: 'CEM-WHT-001',
-			currentPrice: 150,
-			currency: 'EGP',
-			stockQuantity: 500,
-			minOrderQuantity: 50,
-			leadTimeDays: null,
-			lastUpdatedAt: new Date(
-				now.getTime() - 10 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'suppressed',
-			supplierId: 'sup-001',
-		},
-	]
-}
-
-function getMockPriceHistory(): PriceHistoryEntry[] {
-	const now = new Date()
-	return [
-		{
-			id: 'ph-001',
-			productName: 'Portland Cement 50kg',
-			productNameAr: 'أسمنت بورتلاندي ٥٠ كجم',
-			oldPrice: 80,
-			newPrice: 85,
-			changedBy: 'Ahmed Hassan',
-			changedAt: new Date(
-				now.getTime() - 2 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'applied',
-		},
-		{
-			id: 'ph-002',
-			productName: 'Rebar 12mm',
-			productNameAr: 'حديد تسليح ١٢ مم',
-			oldPrice: 31000,
-			newPrice: 32500,
-			changedBy: 'Ahmed Hassan',
-			changedAt: new Date(
-				now.getTime() - 5 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'applied',
-		},
-		{
-			id: 'ph-003',
-			productName: 'Gravel 20mm',
-			productNameAr: 'زلط ٢٠ مم',
-			oldPrice: 270,
-			newPrice: 290,
-			changedBy: 'Mohamed Ali',
-			changedAt: new Date(
-				now.getTime() - 3 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'pending_review',
-		},
-		{
-			id: 'ph-004',
-			productName: 'Red Bricks',
-			productNameAr: 'طوب أحمر',
-			oldPrice: 1100,
-			newPrice: 1350,
-			changedBy: 'Mohamed Ali',
-			changedAt: new Date(
-				now.getTime() - 10 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'rejected',
-		},
-		{
-			id: 'ph-005',
-			productName: 'Washed Sand',
-			productNameAr: 'رمل مغسول',
-			oldPrice: 240,
-			newPrice: 250,
-			changedBy: 'Ahmed Hassan',
-			changedAt: new Date(
-				now.getTime() - 1 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			status: 'applied',
-		},
-	]
-}
-
-// ============================================================================
-// getSupplierProducts
-// ============================================================================
+import { getAuthenticatedSupabase } from './_supabase'
 
 export const getSupplierProducts = createServerFn()
 	.inputValidator(
@@ -223,34 +17,13 @@ export const getSupplierProducts = createServerFn()
 		}),
 	)
 	.handler(
-		async ({
-			data: input,
-		}): Promise<{ products: SupplierProduct[]; total: number }> => {
-			if (!isSupabaseConfigured()) {
-				let products = getMockProducts()
-				if (input.search) {
-					const s = input.search.toLowerCase()
-					products = products.filter(
-						(p) =>
-							p.name.toLowerCase().includes(s) ||
-							p.nameAr.includes(s) ||
-							p.sku.toLowerCase().includes(s),
-					)
-				}
-				return { products, total: products.length }
-			}
-
-			// Mock-backed until supplier product reads are wired to Supabase.
-			const products = getMockProducts()
-			return { products, total: products.length }
+		async (): Promise<{ products: SupplierProduct[]; total: number }> => {
+			await getAuthenticatedSupabase()
+			return { products: [], total: 0 }
 		},
 	)
 
-// ============================================================================
-// updateSupplierStock
-// ============================================================================
-
-export const updateSupplierStock = createServerFn()
+export const updateSupplierStock = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			productId: z.string(),
@@ -259,19 +32,11 @@ export const updateSupplierStock = createServerFn()
 		}),
 	)
 	.handler(async (): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
-		// Mock-backed until stock updates write to Supabase.
-		return { success: true }
+		await getAuthenticatedSupabase()
+		throw new Error('Supplier stock updates are not configured')
 	})
 
-// ============================================================================
-// bulkUpdatePrices
-// ============================================================================
-
-export const bulkUpdatePrices = createServerFn()
+export const bulkUpdatePrices = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			updates: z.array(
@@ -283,22 +48,10 @@ export const bulkUpdatePrices = createServerFn()
 			),
 		}),
 	)
-	.handler(
-		async ({
-			data: input,
-		}): Promise<{ updatedCount: number; errors: string[] }> => {
-			if (!isSupabaseConfigured()) {
-				return { updatedCount: input.updates.length, errors: [] }
-			}
-
-			// Mock-backed until bulk stock updates write to Supabase.
-			return { updatedCount: input.updates.length, errors: [] }
-		},
-	)
-
-// ============================================================================
-// getSupplierPriceHistory
-// ============================================================================
+	.handler(async (): Promise<{ updatedCount: number; errors: string[] }> => {
+		await getAuthenticatedSupabase()
+		throw new Error('Supplier bulk price updates are not configured')
+	})
 
 export const getSupplierPriceHistory = createServerFn()
 	.inputValidator(
@@ -309,13 +62,7 @@ export const getSupplierPriceHistory = createServerFn()
 	)
 	.handler(
 		async (): Promise<{ history: PriceHistoryEntry[]; total: number }> => {
-			if (!isSupabaseConfigured()) {
-				const history = getMockPriceHistory()
-				return { history, total: history.length }
-			}
-
-			// Mock-backed until supplier price history reads are wired to Supabase.
-			const history = getMockPriceHistory()
-			return { history, total: history.length }
+			await getAuthenticatedSupabase()
+			return { history: [], total: 0 }
 		},
 	)

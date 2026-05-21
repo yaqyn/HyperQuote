@@ -1,15 +1,11 @@
 /**
  * Referral program server functions.
  * Get referral stats and generate referral link.
- * Dev mode fallback when Supabase not configured.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 import type { ReferralStats } from '../../types/settings'
-import {
-	getAuthenticatedPortalCustomer,
-	isSupabaseConfigured,
-} from './_supabase'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 
 // ============================================================================
 // getReferralStats
@@ -17,16 +13,6 @@ import {
 
 export const getReferralStats = createServerFn().handler(
 	async (): Promise<ReferralStats> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				totalReferrals: 3,
-				pendingCredits: 500,
-				earnedCredits: 1000,
-				referralCode: 'HQ-REF-A1234',
-				referralLink: 'https://portal.hyperquote.net/signup?ref=HQ-REF-A1234',
-			}
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		// Get referral stats

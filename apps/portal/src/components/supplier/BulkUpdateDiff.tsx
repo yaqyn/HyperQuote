@@ -8,13 +8,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Papa from 'papaparse'
 import { useCallback, useRef, useState } from 'react'
-import {
-	Button,
-	Dialog,
-	Heading,
-	Modal,
-	ModalOverlay,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 
 import {

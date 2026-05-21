@@ -1,16 +1,11 @@
 /**
- * Delivery tracking server functions.
- * Order detail, GPS tracking, POD confirm/dispute.
- * Dev mode fallback when Supabase not configured.
+ * Delivery tracking server functions backed by Supabase.
  */
 import { createServerFn } from '@tanstack/react-start'
+import QRCode from 'qrcode'
 import { z } from 'zod'
-import type { OrderStatus } from '../../types/order'
-import { isSupabaseConfigured } from './_supabase'
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { OrderDeliveryStatus, OrderStatus } from '../../types/order'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 
 export type DeliveryStage =
 	| 'confirmed'
@@ -48,11 +43,16 @@ interface MapPoint {
 
 export interface DeliveryInfo {
 	id: string
+	orderId: string
+	orderNumber: string
+	deliveryNumber: string
+	deliveryStatus: OrderDeliveryStatus
 	driverId: string
 	driverName: string
 	driverPhone: string
 	truckNumber: string
 	vehiclePlate: string
+	orderStatus: string
 	currentStage: DeliveryStage
 	estimatedArrival: string
 	lastUpdated: string
@@ -60,12 +60,18 @@ export interface DeliveryInfo {
 	dispatchContacts: DeliveryContact[]
 	route: {
 		origin: string
-		originLocation: MapPoint
+		originLocation: MapPoint | null
 		destination: string
-		destinationLocation: MapPoint
-		driverLocation: MapPoint
+		destinationLocation: MapPoint | null
+		driverLocation: MapPoint | null
 		distanceKm: number
 	}
+}
+
+export interface DeliverySecret {
+	code: string
+	payload: string
+	qrCodeDataUrl: string
 }
 
 interface OrderAcceptanceInfo {
@@ -123,6 +129,7 @@ export interface OrderDetailResult {
 			productNameAr: string
 			quantity: number
 			unitOfMeasure: string
+			unitOfMeasureAr: string
 			unitPrice: number
 			lineTotal: number
 			imageUrl: string
@@ -145,777 +152,646 @@ export interface PODDetails {
 	autoConfirmDeadline: string
 }
 
-// ============================================================================
-// Mock data for dev mode
-// ============================================================================
+const getOrderDetailInput = z.object({ orderId: z.string().uuid() })
+const confirmDropShipInput = z.object({ deliveryId: z.string().uuid() })
+const disputeDropShipInput = z.object({
+	deliveryId: z.string().uuid(),
+	reason: z.string().min(1),
+	notes: z.string().optional(),
+})
+const getPODDetailsInput = z.object({ deliveryId: z.string().uuid() })
+const getDeliverySecretInput = z.object({ orderId: z.string().uuid() })
 
-const IMG = 'https://websiteassets.hyperquote.net/Images'
-const HOUR = 60 * 60 * 1000
-const DAY = 24 * HOUR
-const LIFECYCLE_STAGES: readonly DeliveryStage[] = [
-	'confirmed',
-	'being_prepared',
-	'out_for_delivery',
-	'delivered',
-] as const
+const mapPointSchema = z.object({
+	lat: z.number(),
+	lng: z.number(),
+})
 
-type OrderLine = OrderDetailResult['order']['items'][number]
-type StageTimestamps = Partial<Record<DeliveryStage, string>>
+const deliveryInfoSchema = z.object({
+	currentStage: z.enum([
+		'confirmed',
+		'being_prepared',
+		'out_for_delivery',
+		'delivered',
+		'invoice_generated',
+	]),
+	deliveryStatus: z.enum([
+		'assigned',
+		'accepted',
+		'in_transit',
+		'arrived',
+		'completed',
+		'rejected',
+	]),
+	deliveryNumber: z.string(),
+	dispatchContacts: z.array(
+		z.object({
+			href: z.string(),
+			id: z.string(),
+			label: z.string(),
+			value: z.string(),
+		}),
+	),
+	driverId: z.string(),
+	driverName: z.string(),
+	driverPhone: z.string(),
+	estimatedArrival: z.string(),
+	hasActivePOD: z.boolean(),
+	id: z.string(),
+	lastUpdated: z.string(),
+	orderStatus: z.string(),
+	orderId: z.string(),
+	orderNumber: z.string(),
+	route: z.object({
+		destination: z.string(),
+		destinationLocation: mapPointSchema.nullable(),
+		distanceKm: z.coerce.number(),
+		driverLocation: mapPointSchema.nullable(),
+		origin: z.string(),
+		originLocation: mapPointSchema.nullable(),
+	}),
+	truckNumber: z.string(),
+	vehiclePlate: z.string(),
+})
 
-interface DetailSeed {
+const deliverySecretSchema = z.object({
+	code: z.string().regex(/^[2-9A-HJ-NP-Z]{8}$/),
+	payload: z.string().min(1),
+})
+
+interface OrderRow {
 	id: string
-	reference: string
-	status: OrderStatus
-	description: string
-	date: string
-	amount: number | null
-	items: OrderLine[]
-	review?: OrderReviewInfo
-	acceptance?: OrderAcceptanceInfo
-	payment?: OrderPaymentInfo
-	delivery?: DeliveryInfo
-	completion?: OrderCompletionInfo
-	closure?: OrderClosureInfo
-	documents: DeliveryDocument[]
+	order_number: string
+	status: string
+	total_amount: number | null
+	created_at: string
+	delivered_at: string | null
+	quote_request_id: string | null
 }
 
-function timeFrom(now: Date, offsetMs: number): string {
-	return new Date(now.getTime() + offsetMs).toISOString()
+interface ProductRow {
+	id: string
+	name: string
+	name_ar: string | null
+	category: string
+	image_urls: string[] | null
 }
 
-function makeLine(
-	id: string,
-	productName: string,
-	productNameAr: string,
-	quantity: number,
-	unitOfMeasure: string,
-	unitPrice: number,
-	imageUrl: string,
-): OrderLine {
-	return {
-		id,
-		productName,
-		productNameAr,
-		quantity,
-		unitOfMeasure,
-		unitPrice,
-		lineTotal: quantity * unitPrice,
-		imageUrl,
+interface QuoteRequestItemRow {
+	id: string
+	product_id: string | null
+	customer_description: string
+	product_name_ar: string
+	quantity: number
+	unit_of_measure: string
+	unit_of_measure_ar: string
+	sort_order: number
+	products: ProductRow | ProductRow[] | null
+}
+
+interface QuoteRequestDetailRow {
+	id: string
+	request_number: string
+	status: string
+	created_at: string
+	submitted_at: string | null
+	notes: string | null
+	quote_request_items: QuoteRequestItemRow[] | null
+	orders: OrderRow | OrderRow[] | null
+}
+
+interface DocumentRow {
+	id: string
+	type: DeliveryDocument['type']
+	title: string
+	download_url: string | null
+	created_at: string
+}
+
+interface DeliveryProofRow {
+	id: string
+	proof_type: string
+	proof_path: string | null
+	created_at: string
+}
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value
+}
+
+function firstImageUrl(imageUrls: string[] | null | undefined): string {
+	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
+}
+
+function imageUrlForProduct(
+	product: ProductRow | null,
+	categoryImages: Map<string, string>,
+): string {
+	const productImage = firstImageUrl(product?.image_urls)
+	if (productImage) return productImage
+	return product?.category ? (categoryImages.get(product.category) ?? '') : ''
+}
+
+function categorySlugsFromQuoteRequestItems(
+	items: QuoteRequestItemRow[] | null,
+): string[] {
+	const slugs = new Set<string>()
+	for (const item of items ?? []) {
+		const product = firstRelation(item.products)
+		if (product?.category) slugs.add(product.category)
+	}
+	return [...slugs]
+}
+
+async function loadCategoryImages(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	slugs: string[],
+): Promise<Map<string, string>> {
+	const uniqueSlugs = [...new Set(slugs.filter(Boolean))]
+	if (uniqueSlugs.length === 0) return new Map()
+
+	const { data, error } = await supabase
+		.from('categories')
+		.select('slug, image_url')
+		.in('slug', uniqueSlugs)
+		.eq('is_active', true)
+
+	if (error) throw new Error(error.message)
+
+	return new Map(
+		(data ?? []).flatMap((category) =>
+			category.image_url ? [[category.slug, category.image_url]] : [],
+		),
+	)
+}
+
+function mapOrderStatus(status: string): OrderStatus {
+	switch (status) {
+		case 'draft':
+		case 'submitted':
+		case 'quote_ready':
+		case 'negotiating':
+		case 'accepted':
+		case 'order_confirmed':
+		case 'being_prepared':
+		case 'out_for_delivery':
+		case 'delivered':
+		case 'expired':
+		case 'cancelled':
+		case 'rejected':
+			return status
+		case 'confirmed_for_inventory':
+			return 'order_confirmed'
+		case 'inventory_reserved':
+		case 'warehouse_loading':
+		case 'dispatch_ready':
+			return 'being_prepared'
+		case 'dispatch_assigned':
+			return 'out_for_delivery'
+		default:
+			return 'submitted'
 	}
 }
 
-function stageForStatus(status: OrderStatus): DeliveryStage {
-	if (status === 'being_prepared') return 'being_prepared'
-	if (status === 'out_for_delivery') return 'out_for_delivery'
+function stageFromStatus(status: string): DeliveryStage {
 	if (status === 'delivered') return 'delivered'
+	if (status === 'dispatch_assigned' || status === 'out_for_delivery') {
+		return 'out_for_delivery'
+	}
+	if (
+		status === 'being_prepared' ||
+		status === 'inventory_reserved' ||
+		status === 'warehouse_loading' ||
+		status === 'dispatch_ready'
+	) {
+		return 'being_prepared'
+	}
 	return 'confirmed'
 }
 
-function timelineLabel(
-	stage: DeliveryStage | 'cancelled' | 'rejected',
-): string {
-	if (stage === 'confirmed') return 'Confirmed'
-	if (stage === 'being_prepared') return 'Being Prepared'
-	if (stage === 'out_for_delivery') return 'Out for Delivery'
-	if (stage === 'delivered') return 'Delivered'
-	if (stage === 'cancelled') return 'Canceled'
-	if (stage === 'rejected') return 'Rejected'
-	return 'Invoice Generated'
+export function getEffectiveOrderStatus(
+	fallbackStatus: OrderStatus,
+	delivery?: Pick<DeliveryInfo, 'currentStage'>,
+): OrderStatus {
+	if (!delivery) return fallbackStatus
+	if (delivery.currentStage === 'delivered') return 'delivered'
+	if (delivery.currentStage === 'out_for_delivery') return 'out_for_delivery'
+	if (delivery.currentStage === 'being_prepared') return 'being_prepared'
+	return fallbackStatus
 }
 
-function buildTimeline(seed: DetailSeed): TimelineStep[] {
-	if (seed.status === 'submitted') {
-		return [
-			{
-				key: 'submitted',
-				label: 'Submitted',
-				status: 'current',
-				timestamp: seed.review?.submittedAt ?? seed.date,
-			},
-		]
-	}
+export async function getCustomerDeliveryTracking(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	orderId: string | null | undefined,
+): Promise<DeliveryInfo | undefined> {
+	if (!orderId) return undefined
 
-	if (!seed.acceptance) return []
+	const { data, error } = await supabase.rpc(
+		'customer_order_delivery_tracking',
+		{ p_order_id: orderId },
+	)
+	if (error) throw new Error(error.message)
+	if (!data) return undefined
 
-	const reachedStage = seed.closure?.reachedStage ?? stageForStatus(seed.status)
-	const currentIndex = LIFECYCLE_STAGES.indexOf(reachedStage)
-	const isTerminal = seed.status === 'cancelled' || seed.status === 'rejected'
-	const timestamps: StageTimestamps = {
-		confirmed: seed.acceptance.acceptedAt,
-		being_prepared: seed.payment?.paidAt,
-		out_for_delivery: seed.delivery?.lastUpdated,
-		delivered: seed.completion?.deliveredAt,
-	}
+	return deliveryInfoSchema.parse(data)
+}
 
-	const steps: TimelineStep[] = LIFECYCLE_STAGES.map((stage, index) => ({
-		key: stage,
-		label: timelineLabel(stage),
-		status: isTerminal
-			? index <= currentIndex
-				? 'completed'
-				: 'future'
-			: index < currentIndex
+function timelineFor(
+	order: OrderRow,
+	statusOverride?: OrderStatus,
+): TimelineStep[] {
+	const stage = stageFromStatus(statusOverride ?? order.status)
+	const orderDate = order.created_at
+	const deliveredAt = order.delivered_at ?? undefined
+	const steps: Array<{
+		key: DeliveryStage
+		label: string
+		timestamp?: string
+	}> = [
+		{ key: 'confirmed', label: 'Confirmed', timestamp: orderDate },
+		{ key: 'being_prepared', label: 'Being prepared' },
+		{ key: 'out_for_delivery', label: 'Out for delivery' },
+		{ key: 'delivered', label: 'Delivered', timestamp: deliveredAt },
+		{ key: 'invoice_generated', label: 'Invoice generated' },
+	]
+	const currentIndex = steps.findIndex((step) => step.key === stage)
+	return steps.map((step, index) => ({
+		key: step.key,
+		label: step.label,
+		status:
+			index < currentIndex
 				? 'completed'
 				: index === currentIndex
 					? 'current'
 					: 'future',
-		timestamp: timestamps[stage],
+		timestamp: step.timestamp,
 	}))
+}
 
-	if (isTerminal && seed.closure) {
-		const terminalKey = seed.closure.type
-		steps.push({
-			key: terminalKey,
-			label: timelineLabel(terminalKey),
-			status: 'current',
-			timestamp: seed.closure.handledAt,
+function mapQuoteRequestItems(
+	itemRows: QuoteRequestItemRow[] | null,
+	categoryImages: Map<string, string>,
+): OrderDetailResult['order']['items'] {
+	return ((itemRows ?? []) as unknown as QuoteRequestItemRow[])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((item) => {
+			const product = firstRelation(item.products)
+			const name = item.customer_description || product?.name || item.id
+			return {
+				id: item.id,
+				productName: name,
+				productNameAr: item.product_name_ar || product?.name_ar || name,
+				quantity: item.quantity,
+				unitOfMeasure: item.unit_of_measure,
+				unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+				unitPrice: 0,
+				lineTotal: 0,
+				imageUrl: imageUrlForProduct(product, categoryImages),
+			}
 		})
-	}
-
-	return steps
 }
 
-function dispatchContacts(): DeliveryContact[] {
-	return [
-		{
-			id: 'dispatch-hotline',
-			label: 'Dispatch hotline',
-			value: '+20 2 2461 0042',
-			href: 'tel:+20224610042',
-		},
-		{
-			id: 'dispatch-whatsapp',
-			label: 'WhatsApp',
-			value: '+20 101 440 0042',
-			href: 'https://wa.me/201014400042',
-		},
-		{
-			id: 'dispatch-email',
-			label: 'Dispatch desk',
-			value: 'dispatch@hyperquote.io',
-			href: 'mailto:dispatch@hyperquote.io',
-		},
-	]
+async function getOrderDocuments(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	customerId: string,
+	orderNumber: string | null,
+) {
+	if (!orderNumber) return []
+
+	const { data: documents, error } = await supabase
+		.from('documents')
+		.select('id, type, title, download_url, created_at')
+		.eq('customer_id', customerId)
+		.eq('related_order_ref', orderNumber)
+		.order('created_at', { ascending: false })
+
+	if (error) throw new Error(error.message)
+
+	return ((documents ?? []) as DocumentRow[]).flatMap((document) =>
+		document.download_url
+			? [
+					{
+						id: document.id,
+						type: document.type,
+						name: document.title,
+						url: document.download_url,
+						createdAt: document.created_at,
+					},
+				]
+			: [],
+	)
 }
 
-function baseDelivery(
-	now: Date,
-	stage: Extract<DeliveryStage, 'out_for_delivery' | 'delivered'>,
-): DeliveryInfo {
-	return {
-		id: stage === 'delivered' ? 'del-004' : 'del-003',
-		driverId: stage === 'delivered' ? 'DRV-104' : 'DRV-317',
-		driverName: stage === 'delivered' ? 'Youssef Samir' : 'Mohamed Ali',
-		driverPhone: stage === 'delivered' ? '+201020004104' : '+201098765432',
-		truckNumber: stage === 'delivered' ? 'TRK-22' : 'TRK-17',
-		vehiclePlate: stage === 'delivered' ? 'د هـ و 7349' : 'أ ب ج 1234',
-		currentStage: stage,
-		estimatedArrival:
-			stage === 'delivered'
-				? timeFrom(now, -18 * HOUR)
-				: timeFrom(now, 25 * 60 * 1000),
-		lastUpdated:
-			stage === 'delivered'
-				? timeFrom(now, -18 * HOUR)
-				: timeFrom(now, -2 * HOUR),
-		hasActivePOD: false,
-		dispatchContacts: dispatchContacts(),
-		route: {
-			origin: 'HyperQuote West Cairo Yard',
-			originLocation: { lat: 30.0129, lng: 31.0243 },
-			destination:
-				stage === 'delivered' ? 'Palm Hills Phase 3' : 'Nasr City Site Gate 4',
-			destinationLocation:
-				stage === 'delivered'
-					? { lat: 30.0309, lng: 30.9976 }
-					: { lat: 30.0131, lng: 31.2089 },
-			driverLocation:
-				stage === 'delivered'
-					? { lat: 30.0309, lng: 30.9976 }
-					: { lat: 30.0444, lng: 31.2357 },
-			distanceKm: stage === 'delivered' ? 18 : 31,
-		},
-	}
-}
+function buildQuoteRequestDetail(
+	row: QuoteRequestDetailRow,
+	documents: DeliveryDocument[],
+	categoryImages: Map<string, string>,
+	delivery?: DeliveryInfo,
+): OrderDetailResult {
+	const linkedOrder = firstRelation(row.orders)
+	const items = mapQuoteRequestItems(row.quote_request_items, categoryImages)
+	const rawOrderStatus = linkedOrder
+		? mapOrderStatus(linkedOrder.status)
+		: mapOrderStatus(row.status)
+	const orderStatus = getEffectiveOrderStatus(rawOrderStatus, delivery)
+	const date = linkedOrder?.created_at ?? row.submitted_at ?? row.created_at
+	const reference = linkedOrder?.order_number ?? row.request_number
+	const description =
+		items
+			.slice(0, 3)
+			.map((item) => item.productName)
+			.join(', ') ||
+		row.notes ||
+		reference
 
-function buildDetail(seed: DetailSeed): OrderDetailResult {
 	return {
 		order: {
-			id: seed.id,
-			reference: seed.reference,
-			status: seed.status,
-			description: seed.description,
-			itemCount: seed.items.length,
-			date: seed.date,
-			amount: seed.amount,
+			id: row.id,
+			reference,
+			status: orderStatus,
+			description,
+			itemCount: items.length,
+			date,
+			amount: linkedOrder?.total_amount ?? null,
 			currency: 'EGP',
-			items: seed.items,
+			items,
 		},
-		timeline: buildTimeline(seed),
-		documents: seed.documents,
-		review: seed.review,
-		acceptance: seed.acceptance,
-		payment: seed.payment,
-		delivery: seed.delivery,
-		completion: seed.completion,
-		closure: seed.closure,
+		timeline: linkedOrder ? timelineFor(linkedOrder, orderStatus) : [],
+		documents,
+		review:
+			orderStatus === 'submitted'
+				? {
+						submittedAt: row.submitted_at ?? row.created_at,
+						message: '',
+					}
+				: undefined,
+		delivery,
+		completion: linkedOrder?.delivered_at
+			? {
+					deliveredAt: linkedOrder.delivered_at,
+					receivedBy: '',
+					proofOfDelivery: '',
+					summaryLines: [],
+					message: '',
+				}
+			: undefined,
 	}
 }
 
-function getMockOrderDetail(orderId: string): OrderDetailResult {
-	const now = new Date()
-	const cement = makeLine(
-		'item-cement',
-		'Portland Cement OPC 42.5N',
-		'اسمنت بورتلاندي عادي',
-		300,
-		'bag',
-		125,
-		`${IMG}/cement.webp`,
+function buildOrderDetail(
+	order: OrderRow,
+	items: OrderDetailResult['order']['items'],
+	documents: DeliveryDocument[],
+	delivery?: DeliveryInfo,
+): OrderDetailResult {
+	const orderStatus = getEffectiveOrderStatus(
+		mapOrderStatus(order.status),
+		delivery,
 	)
-	const rebar = makeLine(
-		'item-rebar',
-		'Steel Rebar 12mm Grade 60',
-		'حديد تسليح ١٢مم',
-		6,
-		'ton',
-		19500,
-		`${IMG}/steel.webp`,
-	)
-	const sand = makeLine(
-		'item-sand',
-		'Washed Sand',
-		'رمل مغسول',
-		40,
-		'm3',
-		450,
-		`${IMG}/Aggregates.webp`,
-	)
-	const plywood = makeLine(
-		'item-plywood',
-		'Plywood 18mm',
-		'خشب أبلكاش ١٨مم',
-		50,
-		'sheet',
-		1600,
-		`${IMG}/wood.webp`,
-	)
-	const paint = makeLine(
-		'item-paint',
-		'Acrylic Paint White 18L',
-		'طلاء أكريليك أبيض ١٨ل',
-		20,
-		'bucket',
-		2100,
-		`${IMG}/finish.webp`,
-	)
-	const adhesive = makeLine(
-		'item-adhesive',
-		'Tile Adhesive 25kg',
-		'لاصق بلاط ٢٥كج',
-		40,
-		'bag',
-		850,
-		`${IMG}/finish.webp`,
-	)
-	const bricks = makeLine(
-		'item-bricks',
-		'Red Clay Brick Standard',
-		'طوب أحمر',
-		10000,
-		'piece',
-		4.5,
-		`${IMG}/bricks.webp`,
-	)
-	const mesh = makeLine(
-		'item-mesh',
-		'Welded Wire Mesh 4mm',
-		'شبك حديد ملحوم ٤مم',
-		100,
-		'sheet',
-		260,
-		`${IMG}/steel.webp`,
-	)
-	const pipe = makeLine(
-		'item-pipe',
-		'PVC Pipe 110mm 6m',
-		'ماسورة PVC ١١٠مم',
-		100,
-		'piece',
-		75,
-		`${IMG}/steel.webp`,
-	)
-	const tile = makeLine(
-		'item-tile',
-		'Ceramic Floor Tile 60x60',
-		'بلاط سيراميك ٦٠×٦٠',
-		200,
-		'sqm',
-		120,
-		`${IMG}/finish.webp`,
-	)
-	const gypsum = makeLine(
-		'item-gypsum',
-		'Gypsum Board 12mm',
-		'ألواح جبس بورد ١٢مم',
-		80,
-		'sheet',
-		137.5,
-		`${IMG}/finish.webp`,
-	)
-
-	const acceptedByMariam: OrderAcceptanceInfo = {
-		employeeName: 'Mariam Hassan',
-		employeeRole: 'Customer success',
-		acceptedAt: timeFrom(now, -10 * HOUR),
-		message:
-			'We accepted your request and started coordinating suppliers. Lyon kept the order clean so our team can move quickly.',
-	}
-	const acceptedByOmar: OrderAcceptanceInfo = {
-		employeeName: 'Omar Nabil',
-		employeeRole: 'Quote operations',
-		acceptedAt: timeFrom(now, -30 * HOUR),
-		message:
-			'Your order is approved. We are holding the quoted quantities while finance confirms payment.',
-	}
-	const acceptedBySara: OrderAcceptanceInfo = {
-		employeeName: 'Sara Ahmed',
-		employeeRole: 'Dispatch coordinator',
-		acceptedAt: timeFrom(now, -58 * HOUR),
-		message:
-			'Request accepted and matched with suppliers. Dispatch is keeping the site window in view.',
-	}
-
-	const paidByTransfer: OrderPaymentInfo = {
-		method: 'Bank transfer',
-		bankName: 'CIB',
-		reference: 'PAY-2026-0142',
-		paidAt: timeFrom(now, -24 * HOUR),
-		paidAmount: 156000,
-		reviewedBy: 'Nadine Adel',
-		reportLines: [
-			'Payment matched the accepted quote total.',
-			'Supplier holds were converted into purchase commitments.',
-			'Warehouse preparation opened for the listed materials.',
-		],
-	}
-	const paidByCredit: OrderPaymentInfo = {
-		method: 'Account credit',
-		bankName: 'HyperQuote credit desk',
-		reference: 'CR-2026-0088',
-		paidAt: timeFrom(now, -50 * HOUR),
-		paidAmount: 108500,
-		reviewedBy: 'Nadine Adel',
-		reportLines: [
-			'Credit limit check passed.',
-			'Material loading report created for dispatch.',
-			'Driver assignment released after warehouse sign-off.',
-		],
-	}
-	const paidByReceipt: OrderPaymentInfo = {
-		method: 'Bank transfer',
-		bankName: 'QNB Alahli',
-		reference: 'PAY-2026-0137',
-		paidAt: timeFrom(now, -6 * DAY),
-		paidAmount: 42500,
-		reviewedBy: 'Karim Fawzy',
-		reportLines: [
-			'Payment cleared against invoice terms.',
-			'All items moved through warehouse loading.',
-			'Delivery note was reconciled with the customer signature.',
-		],
-	}
-
-	const details: Record<string, DetailSeed> = {
-		'sub-001': {
-			id: 'sub-001',
-			reference: 'QR-2026-00042',
-			status: 'submitted',
-			description: 'Portland cement, rebar, sand, steel mesh',
-			date: timeFrom(now, -1 * DAY),
-			amount: null,
-			items: [
-				makeLine(
-					'item-sub-cement',
-					'Portland Cement OPC 42.5N',
-					'اسمنت بورتلاندي عادي',
-					200,
-					'bag',
-					0,
-					`${IMG}/cement.webp`,
-				),
-				makeLine(
-					'item-sub-rebar',
-					'Steel Rebar 12mm Grade 60',
-					'حديد تسليح ١٢مم',
-					8,
-					'ton',
-					0,
-					`${IMG}/steel.webp`,
-				),
-				makeLine(
-					'item-sub-sand',
-					'Washed Sand',
-					'رمل مغسول',
-					30,
-					'm3',
-					0,
-					`${IMG}/Aggregates.webp`,
-				),
-				makeLine(
-					'item-sub-mesh',
-					'Welded Wire Mesh 4mm',
-					'شبك حديد ملحوم ٤مم',
-					50,
-					'sheet',
-					0,
-					`${IMG}/steel.webp`,
-				),
-			],
-			review: {
-				submittedAt: timeFrom(now, -1 * DAY),
-				message: 'We are reviewing the order and we will be in touch soon.',
-			},
-			documents: [],
-		},
-		'sub-002': {
-			id: 'sub-002',
-			reference: 'QR-2026-00038',
-			status: 'submitted',
-			description: 'Washed sand, crushed gravel',
-			date: timeFrom(now, -3 * DAY),
-			amount: null,
-			items: [
-				makeLine(
-					'item-sub-washed-sand',
-					'Washed Sand',
-					'رمل مغسول',
-					100,
-					'm3',
-					0,
-					`${IMG}/Aggregates.webp`,
-				),
-				makeLine(
-					'item-sub-gravel',
-					'Crushed Gravel 20mm',
-					'زلط مجروش ٢٠مم',
-					60,
-					'm3',
-					0,
-					`${IMG}/Aggregates.webp`,
-				),
-			],
-			review: {
-				submittedAt: timeFrom(now, -3 * DAY),
-				message: 'We are reviewing the order and we will be in touch soon.',
-			},
-			documents: [],
-		},
-		'con-001': {
-			id: 'con-001',
-			reference: 'QR-2026-00051',
-			status: 'order_confirmed',
-			description: 'Cement, rebar, washed sand',
-			date: timeFrom(now, -10 * HOUR),
-			amount: 172500,
-			items: [cement, rebar, sand],
-			acceptance: acceptedByMariam,
-			documents: [
-				{
-					id: 'doc-quote-51',
-					type: 'quote_pdf',
-					name: 'Quote QR-2026-00051.pdf',
-					url: '/documents/qr-2026-00051.pdf',
-					createdAt: timeFrom(now, -10 * HOUR),
-				},
-			],
-		},
-		'con-002': {
-			id: 'con-002',
-			reference: 'QR-2026-00050',
-			status: 'being_prepared',
-			description: 'Plywood, paint, tile adhesive',
-			date: timeFrom(now, -30 * HOUR),
-			amount: 156000,
-			items: [plywood, paint, adhesive],
-			acceptance: acceptedByOmar,
-			payment: paidByTransfer,
-			documents: [
-				{
-					id: 'doc-quote-50',
-					type: 'quote_pdf',
-					name: 'Quote QR-2026-00050.pdf',
-					url: '/documents/qr-2026-00050.pdf',
-					createdAt: timeFrom(now, -30 * HOUR),
-				},
-				{
-					id: 'doc-payment-50',
-					type: 'certificate',
-					name: 'Payment receipt PAY-2026-0142.pdf',
-					url: '/documents/pay-2026-0142.pdf',
-					createdAt: timeFrom(now, -24 * HOUR),
-				},
-			],
-		},
-		'con-003': {
-			id: 'con-003',
-			reference: 'QR-2026-00049',
-			status: 'out_for_delivery',
-			description: 'Red bricks, steel mesh, cement',
-			date: timeFrom(now, -58 * HOUR),
-			amount: 108500,
-			items: [bricks, mesh, cement],
-			acceptance: acceptedBySara,
-			payment: paidByCredit,
-			delivery: baseDelivery(now, 'out_for_delivery'),
-			documents: [
-				{
-					id: 'doc-quote-49',
-					type: 'quote_pdf',
-					name: 'Quote QR-2026-00049.pdf',
-					url: '/documents/qr-2026-00049.pdf',
-					createdAt: timeFrom(now, -58 * HOUR),
-				},
-				{
-					id: 'doc-loading-49',
-					type: 'delivery_note',
-					name: 'Loading report TRK-17.pdf',
-					url: '/documents/loading-trk-17.pdf',
-					createdAt: timeFrom(now, -3 * HOUR),
-				},
-			],
-		},
-		'con-004': {
-			id: 'con-004',
-			reference: 'QR-2026-00048',
-			status: 'delivered',
-			description: 'PVC pipes, ceramic tiles, gypsum board',
-			date: timeFrom(now, -7 * DAY),
-			amount: 42500,
-			items: [pipe, tile, gypsum],
-			acceptance: {
-				employeeName: 'Mariam Hassan',
-				employeeRole: 'Customer success',
-				acceptedAt: timeFrom(now, -7 * DAY),
-				message:
-					'Your materials were accepted, prepared, dispatched, and signed off at the site.',
-			},
-			payment: paidByReceipt,
-			delivery: baseDelivery(now, 'delivered'),
-			completion: {
-				deliveredAt: timeFrom(now, -18 * HOUR),
-				receivedBy: 'Hassan Ali',
-				proofOfDelivery: 'POD-2026-0048',
-				message:
-					'Delivery is complete. The signed proof of delivery and final invoice are ready in documents.',
-				summaryLines: [
-					'Three order lines delivered in full.',
-					'No damaged or missing items were reported at handover.',
-					'Final documents are attached for accounting.',
-				],
-			},
-			documents: [
-				{
-					id: 'doc-quote-48',
-					type: 'quote_pdf',
-					name: 'Quote QR-2026-00048.pdf',
-					url: '/documents/qr-2026-00048.pdf',
-					createdAt: timeFrom(now, -7 * DAY),
-				},
-				{
-					id: 'doc-pod-48',
-					type: 'delivery_note',
-					name: 'Proof of delivery POD-2026-0048.pdf',
-					url: '/documents/pod-2026-0048.pdf',
-					createdAt: timeFrom(now, -18 * HOUR),
-				},
-				{
-					id: 'doc-invoice-48',
-					type: 'invoice',
-					name: 'Invoice INV-2026-0048.pdf',
-					url: '/documents/inv-2026-0048.pdf',
-					createdAt: timeFrom(now, -17 * HOUR),
-				},
-			],
-		},
-		'rej-001': {
-			id: 'rej-001',
-			reference: 'QR-2026-00047',
-			status: 'rejected',
-			description: 'Special-order marble tiles',
-			date: timeFrom(now, -3 * DAY),
-			amount: 118000,
-			items: [
-				makeLine(
-					'item-marble',
-					'Carrara Marble Tile 60x60',
-					'بلاط رخام كرارا ٦٠×٦٠',
-					80,
-					'sqm',
-					1475,
-					`${IMG}/finish.webp`,
-				),
-			],
-			acceptance: {
-				employeeName: 'Omar Nabil',
-				employeeRole: 'Quote operations',
-				acceptedAt: timeFrom(now, -3 * DAY),
-				message:
-					'We reviewed the request and checked supplier coverage before making the final call.',
-			},
-			closure: {
-				type: 'rejected',
-				reason:
-					'Supplier coverage could not meet the requested delivery window.',
-				note: 'No payment was collected. The request is closed with the acceptance notes preserved.',
-				handledBy: 'Omar Nabil',
-				handledAt: timeFrom(now, -2.5 * DAY),
-				reachedStage: 'confirmed',
-			},
-			documents: [],
-		},
-		'can-001': {
-			id: 'can-001',
-			reference: 'QR-2026-00046',
-			status: 'cancelled',
-			description: 'Blocks and cement',
-			date: timeFrom(now, -4 * DAY),
-			amount: 37500,
-			items: [cement],
-			acceptance: {
-				employeeName: 'Mariam Hassan',
-				employeeRole: 'Customer success',
-				acceptedAt: timeFrom(now, -4 * DAY),
-				message:
-					'We accepted the request and held the quoted cement before the cancellation came in.',
-			},
-			payment: {
-				method: 'Bank transfer',
-				bankName: 'CIB',
-				reference: 'PAY-2026-0131',
-				paidAt: timeFrom(now, -3.5 * DAY),
-				paidAmount: 37500,
-				reviewedBy: 'Karim Fawzy',
-				reportLines: [
-					'Payment was accepted before warehouse loading.',
-					'Supplier holds were released after cancellation.',
-				],
-			},
-			closure: {
-				type: 'cancelled',
-				reason: 'Customer requested cancellation before loading.',
-				note: 'Refund review is pending with finance. No truck was dispatched.',
-				handledBy: 'Mariam Hassan',
-				handledAt: timeFrom(now, -3 * DAY),
-				reachedStage: 'being_prepared',
-			},
-			documents: [
-				{
-					id: 'doc-cancel-payment-46',
-					type: 'certificate',
-					name: 'Payment receipt PAY-2026-0131.pdf',
-					url: '/documents/pay-2026-0131.pdf',
-					createdAt: timeFrom(now, -3.5 * DAY),
-				},
-			],
-		},
-	}
-
-	const fallback = details['con-003']
-	if (!fallback) throw new Error('Missing mock order detail')
-	return buildDetail(details[orderId] ?? fallback)
-}
-
-function getMockPODDetails(): PODDetails {
-	const now = new Date()
-	const deadline = new Date(now.getTime() + 48 * 60 * 60 * 1000)
-
 	return {
-		photos: [
-			'https://cdn.hyperquote.net/pod/sample-1.jpg',
-			'https://cdn.hyperquote.net/pod/sample-2.jpg',
-			'https://cdn.hyperquote.net/pod/sample-3.jpg',
-		],
-		deadline: deadline.toISOString(),
-		status: 'pending',
-		autoConfirmDeadline: deadline.toISOString(),
+		order: {
+			id: order.quote_request_id ?? order.id,
+			reference: order.order_number,
+			status: orderStatus,
+			description:
+				items
+					.slice(0, 3)
+					.map((item) => item.productName)
+					.join(', ') || order.order_number,
+			itemCount: items.length,
+			date: order.created_at,
+			amount: order.total_amount,
+			currency: 'EGP',
+			items,
+		},
+		timeline: timelineFor(order, orderStatus),
+		documents,
+		delivery,
+		completion: order.delivered_at
+			? {
+					deliveredAt: order.delivered_at,
+					receivedBy: '',
+					proofOfDelivery: '',
+					summaryLines: [],
+					message: '',
+				}
+			: undefined,
 	}
 }
-
-// ============================================================================
-// Input Schemas
-// ============================================================================
-
-const getOrderDetailInput = z.object({
-	orderId: z.string(),
-})
-
-const confirmDropShipDeliveryInput = z.object({
-	deliveryId: z.string(),
-})
-
-const disputeDropShipDeliveryInput = z.object({
-	deliveryId: z.string(),
-	reason: z.string(),
-	photoUrls: z.array(z.string()).optional(),
-})
-
-const getPODDetailsInput = z.object({
-	deliveryId: z.string(),
-})
-
-// ============================================================================
-// getOrderDetail
-// ============================================================================
 
 export const getOrderDetail = createServerFn({ method: 'GET' })
 	.inputValidator(getOrderDetailInput)
-	.handler(async ({ data: input }): Promise<OrderDetailResult> => {
-		if (!isSupabaseConfigured()) {
-			return getMockOrderDetail(input.orderId)
+	.handler(async ({ data: input }): Promise<OrderDetailResult | null> => {
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+
+		const { data: quoteRequest, error: quoteRequestError } = await supabase
+			.from('quote_requests')
+			.select(
+				`
+				id,
+				request_number,
+				status,
+				created_at,
+				submitted_at,
+				notes,
+				quote_request_items (
+					id,
+					product_id,
+					customer_description,
+					product_name_ar,
+					quantity,
+					unit_of_measure,
+					unit_of_measure_ar,
+					sort_order,
+					products (
+						id,
+						name,
+						name_ar,
+						category,
+						image_urls
+					)
+				),
+				orders (
+					id,
+					order_number,
+					status,
+					total_amount,
+					created_at,
+					delivered_at,
+					quote_request_id
+				)
+			`,
+			)
+			.eq('id', input.orderId)
+			.eq('customer_id', customerId)
+			.maybeSingle()
+
+		if (quoteRequestError) throw new Error(quoteRequestError.message)
+		if (quoteRequest) {
+			const row = quoteRequest as unknown as QuoteRequestDetailRow
+			const linkedOrder = firstRelation(row.orders)
+			const { error: activityError } = await supabase.rpc(
+				'customer_record_portal_order_viewed',
+				{
+					p_order_id: linkedOrder?.id ?? null,
+					p_quote_request_id: row.id,
+				},
+			)
+
+			if (activityError) throw new Error(activityError.message)
+
+			const documents = await getOrderDocuments(
+				supabase,
+				customerId,
+				linkedOrder?.order_number ?? null,
+			)
+			const categoryImages = await loadCategoryImages(
+				supabase,
+				categorySlugsFromQuoteRequestItems(row.quote_request_items),
+			)
+			const delivery = await getCustomerDeliveryTracking(
+				supabase,
+				linkedOrder?.id,
+			)
+			return buildQuoteRequestDetail(row, documents, categoryImages, delivery)
 		}
 
-		// Mock-backed until order detail reads are wired to Supabase.
-		return getMockOrderDetail(input.orderId)
+		const { data: order, error: orderError } = await supabase
+			.from('orders')
+			.select(
+				'id, order_number, status, total_amount, created_at, delivered_at, quote_request_id',
+			)
+			.eq('id', input.orderId)
+			.eq('customer_id', customerId)
+			.maybeSingle()
+
+		if (orderError) throw new Error(orderError.message)
+		if (!order) return null
+
+		const [{ data: itemRows, error: itemsError }, documents] =
+			await Promise.all([
+				order.quote_request_id
+					? supabase
+							.from('quote_request_items')
+							.select(
+								'id, product_id, customer_description, product_name_ar, quantity, unit_of_measure, unit_of_measure_ar, sort_order, products(id, name, name_ar, category, image_urls)',
+							)
+							.eq('quote_request_id', order.quote_request_id)
+							.order('sort_order', { ascending: true })
+					: Promise.resolve({ data: [], error: null }),
+				getOrderDocuments(supabase, customerId, order.order_number),
+			])
+
+		if (itemsError) throw new Error(itemsError.message)
+
+		if (order.quote_request_id) {
+			const { error: activityError } = await supabase.rpc(
+				'customer_record_portal_order_viewed',
+				{
+					p_order_id: order.id,
+					p_quote_request_id: order.quote_request_id,
+				},
+			)
+
+			if (activityError) throw new Error(activityError.message)
+		}
+
+		const categoryImages = await loadCategoryImages(
+			supabase,
+			categorySlugsFromQuoteRequestItems(
+				itemRows as unknown as QuoteRequestItemRow[],
+			),
+		)
+
+		const delivery = await getCustomerDeliveryTracking(supabase, order.id)
+
+		return buildOrderDetail(
+			order as OrderRow,
+			mapQuoteRequestItems(
+				itemRows as unknown as QuoteRequestItemRow[],
+				categoryImages,
+			),
+			documents,
+			delivery,
+		)
+	})
+
+export const getDeliverySecret = createServerFn({ method: 'POST' })
+	.inputValidator(getDeliverySecretInput)
+	.handler(async ({ data: input }): Promise<DeliverySecret> => {
+		const { supabase } = await getAuthenticatedPortalCustomer()
+		const { data, error } = await supabase.rpc('customer_get_delivery_secret', {
+			p_order_id: input.orderId,
+		})
+		if (error) throw new Error(error.message)
+
+		const secret = deliverySecretSchema.parse(data)
+		const qrCodeDataUrl = await QRCode.toDataURL(secret.payload, {
+			errorCorrectionLevel: 'M',
+			margin: 1,
+			width: 192,
+		})
+
+		return { ...secret, qrCodeDataUrl }
 	})
 
 export const confirmDropShipDelivery = createServerFn({ method: 'POST' })
-	.inputValidator(confirmDropShipDeliveryInput)
-	.handler(async (): Promise<{ success: boolean; invoiceId?: string }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true, invoiceId: 'INV-2026-00042' }
-		}
-
-		// Mock-backed until drop-ship confirmation writes are wired to Supabase.
-		return { success: true, invoiceId: 'INV-2026-00042' }
+	.inputValidator(confirmDropShipInput)
+	.handler(async (): Promise<{ success: boolean }> => {
+		await getAuthenticatedPortalCustomer()
+		throw new Error('Customer delivery confirmation is not configured')
 	})
-
-// ============================================================================
-// disputeDropShipDelivery
-// ============================================================================
 
 export const disputeDropShipDelivery = createServerFn({ method: 'POST' })
-	.inputValidator(disputeDropShipDeliveryInput)
-	.handler(async (): Promise<{ success: boolean; ticketId: string }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true, ticketId: 'TKT-2026-00015' }
-		}
-
-		// Mock-backed until delivery disputes write POD, ticket, and notification records.
-		return { success: true, ticketId: 'TKT-2026-00015' }
+	.inputValidator(disputeDropShipInput)
+	.handler(async (): Promise<{ success: boolean }> => {
+		await getAuthenticatedPortalCustomer()
+		throw new Error('Customer delivery dispute is not configured')
 	})
-
-// ============================================================================
-// getPODDetails
-// ============================================================================
 
 export const getPODDetails = createServerFn({ method: 'GET' })
 	.inputValidator(getPODDetailsInput)
-	.handler(async (): Promise<PODDetails> => {
-		if (!isSupabaseConfigured()) {
-			return getMockPODDetails()
-		}
+	.handler(async ({ data: input }): Promise<PODDetails> => {
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const { data: delivery, error: deliveryError } = await supabase
+			.from('deliveries')
+			.select('id, status, completed_at, updated_at, orders!inner(customer_id)')
+			.eq('id', input.deliveryId)
+			.eq('orders.customer_id', customerId)
+			.order('created_at', { ascending: false })
+			.limit(1)
+			.maybeSingle()
 
-		// Mock-backed until POD detail reads are wired to Supabase.
-		return getMockPODDetails()
+		if (deliveryError) throw new Error(deliveryError.message)
+		if (!delivery) throw new Error('Delivery proof is not available')
+
+		const { data: proofs, error: proofsError } = await supabase
+			.from('delivery_proofs')
+			.select('id, proof_type, proof_path, created_at')
+			.eq('delivery_id', delivery.id)
+			.order('created_at', { ascending: false })
+
+		if (proofsError) throw new Error(proofsError.message)
+
+		const photos = ((proofs ?? []) as DeliveryProofRow[])
+			.filter((proof) => proof.proof_type === 'photo' && proof.proof_path)
+			.map((proof) => proof.proof_path as string)
+		const confirmed =
+			delivery.status === 'completed' || delivery.status === 'delivered'
+		const deadline = delivery.completed_at ?? ''
+
+		return {
+			photos,
+			deadline,
+			status: confirmed ? 'confirmed' : 'pending',
+			autoConfirmDeadline: deadline,
+		}
 	})

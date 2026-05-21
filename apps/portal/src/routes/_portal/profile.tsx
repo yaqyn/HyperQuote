@@ -6,7 +6,7 @@ import { Camera, Check, Loader2, User } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ChangeEvent } from 'react'
 import { useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 

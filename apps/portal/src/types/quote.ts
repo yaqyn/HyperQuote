@@ -47,6 +47,7 @@ export interface QuoteItem {
 	productNameAr: string
 	quantity: number
 	unitOfMeasure: string
+	unitOfMeasureAr: string
 	unitPrice: number
 	lineTotal: number
 	marginPercent?: number

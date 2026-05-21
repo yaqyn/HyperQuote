@@ -1,365 +1,539 @@
 /**
- * Orders server functions.
- * Customer orders grouped by type: saved, submitted, confirmed.
- * Dev mode fallback when Supabase not configured.
+ * Customer order and quote-request list backed by Supabase.
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { Order } from '../../types/order'
+import type {
+	Order,
+	OrderDeliveryTracking,
+	OrderItem,
+	OrderStatus,
+	OrderType,
+} from '../../types/order'
+import { getAuthenticatedPortalCustomer } from './_supabase'
+import {
+	type DeliveryInfo,
+	getCustomerDeliveryTracking,
+	getEffectiveOrderStatus,
+} from './deliveries'
 
-const IMG = 'https://websiteassets.hyperquote.net/Images'
+interface ProductRow {
+	id: string
+	name: string
+	name_ar: string | null
+	category: string
+	image_urls: string[] | null
+}
 
-function getMockOrders(): Order[] {
-	const now = new Date()
-	return [
-		{
-			id: 'sav-001',
-			type: 'saved',
-			draftSource: 'lyon',
-			name: 'Site A Monthly Supply',
-			items: [
-				{
-					productId: 'prod-cement-opc',
-					productName: 'Portland Cement OPC 42.5N',
-					productNameAr: 'اسمنت بورتلاندي عادي',
-					quantity: 500,
-					unitOfMeasure: 'bag',
-					imageUrl: `${IMG}/cement.webp`,
-					category: 'cement',
-				},
-				{
-					productId: 'prod-rebar-12',
-					productName: 'Steel Rebar 12mm Grade 60',
-					productNameAr: 'حديد تسليح ١٢مم',
-					quantity: 10,
-					unitOfMeasure: 'ton',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'prod-sand-washed',
-					productName: 'Washed Sand',
-					productNameAr: 'رمل مغسول',
-					quantity: 50,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'sand',
-				},
-				{
-					productId: 'prod-gravel-20',
-					productName: 'Crushed Gravel 20mm',
-					productNameAr: 'زلط مجروش ٢٠مم',
-					quantity: 30,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'aggregates',
-				},
-				{
-					productId: 'prod-brick-red',
-					productName: 'Red Clay Brick Standard',
-					productNameAr: 'طوب أحمر',
-					quantity: 5000,
-					unitOfMeasure: 'piece',
-					imageUrl: `${IMG}/bricks.webp`,
-					category: 'bricks',
-				},
-			],
-			itemCount: 5,
-			description: 'Portland Cement, Rebar, Sand, Gravel, Bricks',
-			date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: null,
-			currency: 'EGP',
-		},
-		{
-			id: 'sav-002',
-			type: 'saved',
-			name: 'Emergency Rebar Order',
-			items: [
-				{
-					productId: 'prod-rebar-12',
-					productName: 'Steel Rebar 12mm Grade 60',
-					productNameAr: 'حديد تسليح ١٢مم',
-					quantity: 5,
-					unitOfMeasure: 'ton',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'prod-rebar-16',
-					productName: 'Steel Rebar 16mm Grade 60',
-					productNameAr: 'حديد تسليح ١٦مم',
-					quantity: 3,
-					unitOfMeasure: 'ton',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-			],
-			itemCount: 2,
-			description: 'Rebar 12mm, Rebar 16mm',
-			date: new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: null,
-			currency: 'EGP',
-		},
-		{
-			id: 'sub-001',
-			type: 'submitted',
-			reference: 'QR-2026-00042',
-			items: [
-				{
-					productId: 'prod-cement-opc',
-					productName: 'Portland Cement OPC 42.5N',
-					productNameAr: 'اسمنت بورتلاندي عادي',
-					quantity: 200,
-					unitOfMeasure: 'bag',
-					imageUrl: `${IMG}/cement.webp`,
-					category: 'cement',
-				},
-				{
-					productId: 'prod-rebar-12',
-					productName: 'Steel Rebar 12mm Grade 60',
-					productNameAr: 'حديد تسليح ١٢مم',
-					quantity: 8,
-					unitOfMeasure: 'ton',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'prod-sand-washed',
-					productName: 'Washed Sand',
-					productNameAr: 'رمل مغسول',
-					quantity: 30,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'sand',
-				},
-				{
-					productId: 'prod-mesh-wire',
-					productName: 'Welded Wire Mesh 4mm',
-					productNameAr: 'شبك حديد ملحوم ٤مم',
-					quantity: 50,
-					unitOfMeasure: 'sheet',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-			],
-			itemCount: 4,
-			description: 'Portland Cement, Rebar, Sand, Steel Mesh',
-			date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: null,
-			currency: 'EGP',
-		},
-		{
-			id: 'sub-002',
-			type: 'submitted',
-			reference: 'QR-2026-00038',
-			items: [
-				{
-					productId: 'prod-sand-washed',
-					productName: 'Washed Sand',
-					productNameAr: 'رمل مغسول',
-					quantity: 100,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'sand',
-				},
-				{
-					productId: 'prod-gravel-20',
-					productName: 'Crushed Gravel 20mm',
-					productNameAr: 'زلط مجروش ٢٠مم',
-					quantity: 60,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'aggregates',
-				},
-			],
-			itemCount: 2,
-			description: 'Washed Sand, Gravel',
-			date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: null,
-			currency: 'EGP',
-		},
-		{
-			id: 'con-001',
-			type: 'confirmed',
-			status: 'order_confirmed',
-			reference: 'QR-2026-00051',
-			items: [
-				{
-					productId: 'prod-cement-opc',
-					productName: 'Portland Cement OPC 42.5N',
-					productNameAr: 'اسمنت بورتلاندي عادي',
-					quantity: 300,
-					unitOfMeasure: 'bag',
-					imageUrl: `${IMG}/cement.webp`,
-					category: 'cement',
-				},
-				{
-					productId: 'prod-rebar-12',
-					productName: 'Steel Rebar 12mm Grade 60',
-					productNameAr: 'حديد تسليح ١٢مم',
-					quantity: 6,
-					unitOfMeasure: 'ton',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'prod-sand-washed',
-					productName: 'Washed Sand',
-					productNameAr: 'رمل مغسول',
-					quantity: 40,
-					unitOfMeasure: 'm³',
-					imageUrl: `${IMG}/Aggregates.webp`,
-					category: 'sand',
-				},
-			],
-			itemCount: 3,
-			description: 'Cement, Rebar, Washed Sand',
-			date: new Date(now.getTime() - 0.4 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: 172500,
-			currency: 'EGP',
-		},
-		{
-			id: 'con-002',
-			type: 'confirmed',
-			status: 'being_prepared',
-			reference: 'QR-2026-00050',
-			items: [
-				{
-					productId: 'prod-plywood-18',
-					productName: 'Plywood 18mm',
-					productNameAr: 'خشب أبلكاش ١٨مم',
-					quantity: 50,
-					unitOfMeasure: 'sheet',
-					imageUrl: `${IMG}/wood.webp`,
-					category: 'wood',
-				},
-				{
-					productId: 'prod-paint-white',
-					productName: 'Acrylic Paint White 18L',
-					productNameAr: 'طلاء أكريليك أبيض ١٨ل',
-					quantity: 20,
-					unitOfMeasure: 'bucket',
-					imageUrl: `${IMG}/finish.webp`,
-					category: 'paints',
-				},
-				{
-					productId: 'prod-adhesive-tile',
-					productName: 'Tile Adhesive 25kg',
-					productNameAr: 'لاصق بلاط ٢٥كج',
-					quantity: 40,
-					unitOfMeasure: 'bag',
-					imageUrl: `${IMG}/finish.webp`,
-					category: 'adhesives',
-				},
-			],
-			itemCount: 3,
-			description: 'Plywood, Paint, Tile Adhesive',
-			date: new Date(now.getTime() - 1.2 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: 156000,
-			currency: 'EGP',
-		},
-		{
-			id: 'con-003',
-			type: 'confirmed',
-			status: 'out_for_delivery',
-			reference: 'QR-2026-00049',
-			items: [
-				{
-					productId: 'prod-brick-red',
-					productName: 'Red Clay Brick Standard',
-					productNameAr: 'طوب أحمر',
-					quantity: 10000,
-					unitOfMeasure: 'piece',
-					imageUrl: `${IMG}/bricks.webp`,
-					category: 'bricks',
-				},
-				{
-					productId: 'prod-mesh-wire',
-					productName: 'Welded Wire Mesh 4mm',
-					productNameAr: 'شبك حديد ملحوم ٤مم',
-					quantity: 100,
-					unitOfMeasure: 'sheet',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'reinforcing_steel',
-				},
-				{
-					productId: 'prod-cement-opc',
-					productName: 'Portland Cement OPC 42.5N',
-					productNameAr: 'اسمنت بورتلاندي عادي',
-					quantity: 300,
-					unitOfMeasure: 'bag',
-					imageUrl: `${IMG}/cement.webp`,
-					category: 'cement',
-				},
-			],
-			itemCount: 3,
-			description: 'Red Bricks, Steel Mesh, Cement',
-			date: new Date(now.getTime() - 2.4 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: 108500,
-			currency: 'EGP',
-		},
-		{
-			id: 'con-004',
-			type: 'confirmed',
-			status: 'delivered',
-			reference: 'QR-2026-00048',
-			items: [
-				{
-					productId: 'prod-pvc-pipe',
-					productName: 'PVC Pipe 110mm 6m',
-					productNameAr: 'ماسورة PVC ١١٠مم',
-					quantity: 100,
-					unitOfMeasure: 'piece',
-					imageUrl: `${IMG}/steel.webp`,
-					category: 'plumbing',
-				},
-				{
-					productId: 'prod-tiles-ceramic',
-					productName: 'Ceramic Floor Tile 60×60',
-					productNameAr: 'بلاط سيراميك ٦٠×٦٠',
-					quantity: 200,
-					unitOfMeasure: 'sqm',
-					imageUrl: `${IMG}/finish.webp`,
-					category: 'tiles',
-				},
-				{
-					productId: 'prod-gypsum-board',
-					productName: 'Gypsum Board 12mm',
-					productNameAr: 'ألواح جبس بورد ١٢مم',
-					quantity: 80,
-					unitOfMeasure: 'sheet',
-					imageUrl: `${IMG}/finish.webp`,
-					category: 'drywall',
-				},
-			],
-			itemCount: 3,
-			description: 'PVC Pipes, Ceramic Tiles, Gypsum Board',
-			date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-			amount: 42500,
-			currency: 'EGP',
-		},
+interface QuoteRequestItemRow {
+	id: string
+	product_id: string | null
+	customer_description: string
+	product_name_ar: string
+	quantity: number
+	unit_of_measure: string
+	unit_of_measure_ar: string
+	notes: string | null
+	match_confidence: number | null
+	sort_order: number
+	is_unmatched: boolean
+	products: ProductRow | ProductRow[] | null
+}
+
+interface LinkedOrderRow {
+	id: string
+	order_number: string
+	status: string
+	total_amount: number
+	created_at: string
+}
+
+interface QuoteRequestRow {
+	id: string
+	request_number: string
+	status: string
+	created_at: string
+	submitted_at: string | null
+	draft_name: string | null
+	notes: string | null
+	urgency: string
+	project_id: string | null
+	delivery_address_id: string | null
+	delivery_date: string | null
+	attachment_urls: string[] | null
+	quote_request_items: QuoteRequestItemRow[] | null
+	orders: LinkedOrderRow | LinkedOrderRow[] | null
+}
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value
+}
+
+function firstImageUrl(imageUrls: string[] | null | undefined): string {
+	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
+}
+
+function imageUrlForProduct(
+	product: ProductRow | null,
+	categoryImages: Map<string, string>,
+): string {
+	const productImage = firstImageUrl(product?.image_urls)
+	if (productImage) return productImage
+	return product?.category ? (categoryImages.get(product.category) ?? '') : ''
+}
+
+function categorySlugsFromQuoteRequests(rows: QuoteRequestRow[]): string[] {
+	const slugs = new Set<string>()
+	for (const row of rows) {
+		for (const item of row.quote_request_items ?? []) {
+			const product = firstRelation(item.products)
+			if (product?.category) slugs.add(product.category)
+		}
+	}
+	return [...slugs]
+}
+
+async function loadCategoryImages(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	slugs: string[],
+): Promise<Map<string, string>> {
+	const uniqueSlugs = [...new Set(slugs.filter(Boolean))]
+	if (uniqueSlugs.length === 0) return new Map()
+
+	const { data, error } = await supabase
+		.from('categories')
+		.select('slug, image_url')
+		.in('slug', uniqueSlugs)
+		.eq('is_active', true)
+
+	if (error) throw new Error(error.message)
+
+	return new Map(
+		(data ?? []).flatMap((category) =>
+			category.image_url ? [[category.slug, category.image_url]] : [],
+		),
+	)
+}
+
+function mapOrderStatus(status: string): OrderStatus {
+	switch (status) {
+		case 'draft':
+		case 'submitted':
+		case 'quote_ready':
+		case 'negotiating':
+		case 'accepted':
+		case 'order_confirmed':
+		case 'being_prepared':
+		case 'out_for_delivery':
+		case 'delivered':
+		case 'expired':
+		case 'cancelled':
+		case 'rejected':
+			return status
+		case 'confirmed_for_inventory':
+			return 'order_confirmed'
+		case 'inventory_reserved':
+		case 'warehouse_loading':
+		case 'dispatch_ready':
+			return 'being_prepared'
+		case 'dispatch_assigned':
+			return 'out_for_delivery'
+		default:
+			return 'submitted'
+	}
+}
+
+function mapOrderType(
+	row: QuoteRequestRow,
+	linkedOrder: LinkedOrderRow | null,
+) {
+	if (linkedOrder) return 'confirmed' satisfies OrderType
+	if (row.status === 'draft' || row.status === 'saved') {
+		return 'saved' satisfies OrderType
+	}
+	return 'submitted' satisfies OrderType
+}
+
+function mapOrderItems(
+	items: QuoteRequestItemRow[] | null,
+	categoryImages: Map<string, string>,
+): OrderItem[] {
+	return (items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((item) => {
+			const product = firstRelation(item.products)
+			const snapshotName = item.customer_description.trim()
+			return {
+				productId: item.product_id ?? product?.id ?? item.id,
+				productName: snapshotName || product?.name || item.id,
+				productNameAr:
+					item.product_name_ar || product?.name_ar || snapshotName || item.id,
+				quantity: item.quantity,
+				unitOfMeasure: item.unit_of_measure,
+				unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+				imageUrl: imageUrlForProduct(product, categoryImages),
+				category: product?.category ?? 'unmatched',
+			}
+		})
+}
+
+function toOrderDeliveryTracking(
+	delivery: DeliveryInfo,
+): OrderDeliveryTracking {
+	return {
+		id: delivery.id,
+		orderId: delivery.orderId,
+		orderNumber: delivery.orderNumber,
+		deliveryNumber: delivery.deliveryNumber,
+		deliveryStatus: delivery.deliveryStatus,
+		driverId: delivery.driverId,
+		driverName: delivery.driverName,
+		driverPhone: delivery.driverPhone,
+		currentStage: delivery.currentStage,
+		estimatedArrival: delivery.estimatedArrival,
+		lastUpdated: delivery.lastUpdated,
+		route: delivery.route,
+		truckNumber: delivery.truckNumber,
+		vehiclePlate: delivery.vehiclePlate,
+	}
+}
+
+function isIncomingDelivery(delivery: OrderDeliveryTracking): boolean {
+	return (
+		delivery.currentStage === 'out_for_delivery' &&
+		(delivery.deliveryStatus === 'in_transit' ||
+			delivery.deliveryStatus === 'arrived')
+	)
+}
+
+async function loadDeliveryTrackingByOrderId(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	rows: QuoteRequestRow[],
+): Promise<Map<string, DeliveryInfo>> {
+	const linkedOrderIds = [
+		...new Set(
+			rows
+				.map((row) => firstRelation(row.orders)?.id)
+				.filter((id): id is string => Boolean(id)),
+		),
 	]
+	if (linkedOrderIds.length === 0) return new Map()
+
+	const deliveries = await Promise.all(
+		linkedOrderIds.map(async (orderId) => {
+			const delivery = await getCustomerDeliveryTracking(supabase, orderId)
+			return delivery ? ([orderId, delivery] as const) : null
+		}),
+	)
+
+	return new Map(
+		deliveries.filter(
+			(delivery): delivery is readonly [string, DeliveryInfo] =>
+				delivery !== null,
+		),
+	)
+}
+
+function mapQuoteRequestToOrder(
+	row: QuoteRequestRow,
+	categoryImages: Map<string, string>,
+	delivery?: DeliveryInfo,
+): Order {
+	const linkedOrder = firstRelation(row.orders)
+	const items = mapOrderItems(row.quote_request_items, categoryImages)
+	const type = mapOrderType(row, linkedOrder)
+	const rawStatus = linkedOrder
+		? mapOrderStatus(linkedOrder.status)
+		: mapOrderStatus(row.status)
+	const status = getEffectiveOrderStatus(rawStatus, delivery)
+	const description =
+		items
+			.slice(0, 3)
+			.map((item) => item.productName)
+			.join(', ') ||
+		row.notes ||
+		row.request_number
+
+	return {
+		id: row.id,
+		linkedOrderId: linkedOrder?.id,
+		type,
+		draftSource: type === 'saved' ? 'customer' : undefined,
+		status,
+		delivery: delivery ? toOrderDeliveryTracking(delivery) : undefined,
+		reference: linkedOrder?.order_number ?? row.request_number,
+		name: row.draft_name ?? undefined,
+		items,
+		itemCount: items.length,
+		description,
+		date: row.submitted_at ?? linkedOrder?.created_at ?? row.created_at,
+		amount: linkedOrder?.total_amount ?? null,
+		currency: 'EGP',
+	}
 }
 
 export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
-	async (): Promise<{ orders: Order[] }> => {
-		return { orders: getMockOrders() }
+	async (): Promise<{
+		incomingDeliveries: OrderDeliveryTracking[]
+		orders: Order[]
+	}> => {
+		const { supabase } = await getAuthenticatedPortalCustomer()
+		const { data, error } = await supabase
+			.from('quote_requests')
+			.select(`
+				id,
+				request_number,
+				status,
+				created_at,
+				submitted_at,
+				draft_name,
+				notes,
+				quote_request_items (
+					id,
+					product_id,
+					customer_description,
+					product_name_ar,
+					quantity,
+					unit_of_measure,
+					unit_of_measure_ar,
+					sort_order,
+					products (
+						id,
+						name,
+						name_ar,
+						category,
+						image_urls
+					)
+				),
+				orders (
+					id,
+					order_number,
+					status,
+					total_amount,
+					created_at
+				)
+			`)
+			.order('created_at', { ascending: false })
+
+		if (error) throw new Error(error.message)
+
+		// Supabase nested select inference does not preserve one-to-one relation
+		// cardinality here, so normalize the result at the boundary.
+		const rows = (data ?? []) as unknown as QuoteRequestRow[]
+		const categoryImages = await loadCategoryImages(
+			supabase,
+			categorySlugsFromQuoteRequests(rows),
+		)
+		const deliveryByOrderId = await loadDeliveryTrackingByOrderId(
+			supabase,
+			rows,
+		)
+		const orders = rows.map((row) => {
+			const linkedOrder = firstRelation(row.orders)
+			return mapQuoteRequestToOrder(
+				row,
+				categoryImages,
+				linkedOrder ? deliveryByOrderId.get(linkedOrder.id) : undefined,
+			)
+		})
+		return {
+			incomingDeliveries: orders.flatMap((order) =>
+				order.delivery && isIncomingDelivery(order.delivery)
+					? [order.delivery]
+					: [],
+			),
+			orders,
+		}
 	},
 )
 
-const deleteOrderInput = z.object({ orderId: z.string() })
+const deleteOrderInput = z.object({ orderId: z.string().uuid() })
+const saveOrderAsDraftInput = z.object({ orderId: z.string().uuid() })
+
+const QUOTE_REQUEST_SELECT = `
+	id,
+	request_number,
+	status,
+	created_at,
+	submitted_at,
+	draft_name,
+	notes,
+	urgency,
+	project_id,
+	delivery_address_id,
+	delivery_date,
+	attachment_urls,
+	quote_request_items (
+		id,
+		product_id,
+		customer_description,
+		product_name_ar,
+		quantity,
+		unit_of_measure,
+		unit_of_measure_ar,
+		notes,
+		match_confidence,
+		sort_order,
+		is_unmatched,
+		products (
+			id,
+			name,
+			name_ar,
+			category,
+			image_urls
+		)
+	),
+	orders (
+		id,
+		order_number,
+		status,
+		total_amount,
+		created_at
+	)
+`
 
 export const deleteOrder = createServerFn({ method: 'POST' })
 	.inputValidator(deleteOrderInput)
-	.handler(async (): Promise<{ success: boolean }> => {
+	.handler(async ({ data }): Promise<{ success: boolean }> => {
+		const { supabase } = await getAuthenticatedPortalCustomer()
+		const { data: deletedDraft, error } = await supabase
+			.from('quote_requests')
+			.delete()
+			.eq('id', data.orderId)
+			.eq('status', 'draft')
+			.select('id')
+			.maybeSingle()
+
+		if (error) throw new Error(error.message)
+		if (!deletedDraft) throw new Error('Draft not found or cannot be deleted')
 		return { success: true }
 	})
 
-const submitOrderInput = z.object({ orderId: z.string() })
+async function getSourceQuoteRequest(
+	supabase: Awaited<
+		ReturnType<typeof getAuthenticatedPortalCustomer>
+	>['supabase'],
+	customerId: string,
+	orderId: string,
+) {
+	const { data: quoteRequest, error: quoteRequestError } = await supabase
+		.from('quote_requests')
+		.select(QUOTE_REQUEST_SELECT)
+		.eq('id', orderId)
+		.eq('customer_id', customerId)
+		.maybeSingle()
 
-export const submitOrder = createServerFn({ method: 'POST' })
-	.inputValidator(submitOrderInput)
-	.handler(async (): Promise<{ success: boolean; reference: string }> => {
-		const ref = `QR-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`
-		return { success: true, reference: ref }
-	})
+	if (quoteRequestError) throw new Error(quoteRequestError.message)
+	if (quoteRequest) return quoteRequest as unknown as QuoteRequestRow
+
+	const { data: order, error: orderError } = await supabase
+		.from('orders')
+		.select('quote_request_id')
+		.eq('id', orderId)
+		.eq('customer_id', customerId)
+		.maybeSingle()
+
+	if (orderError) throw new Error(orderError.message)
+	if (!order?.quote_request_id) {
+		throw new Error('Order was not found or cannot be saved as a draft')
+	}
+
+	const { data: linkedQuoteRequest, error: linkedError } = await supabase
+		.from('quote_requests')
+		.select(QUOTE_REQUEST_SELECT)
+		.eq('id', order.quote_request_id)
+		.eq('customer_id', customerId)
+		.single()
+
+	if (linkedError || !linkedQuoteRequest) {
+		throw new Error(linkedError?.message ?? 'Source quote request not found')
+	}
+
+	return linkedQuoteRequest as unknown as QuoteRequestRow
+}
+
+export const saveOrderAsDraft = createServerFn({ method: 'POST' })
+	.inputValidator(saveOrderAsDraftInput)
+	.handler(
+		async ({ data }): Promise<{ draftId: string; reference: string }> => {
+			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+			const source = await getSourceQuoteRequest(
+				supabase,
+				customerId,
+				data.orderId,
+			)
+			const items = (source.quote_request_items ?? []).slice().sort((a, b) => {
+				return a.sort_order - b.sort_order
+			})
+
+			if (items.length === 0) {
+				throw new Error('Cannot save an empty order as a draft')
+			}
+
+			const { data: draft, error: draftError } = await supabase
+				.from('quote_requests')
+				.insert({
+					customer_id: customerId,
+					status: 'draft',
+					urgency: source.urgency,
+					project_id: source.project_id,
+					delivery_address_id: source.delivery_address_id,
+					delivery_date: source.delivery_date,
+					draft_name: source.draft_name,
+					notes: source.notes,
+					attachment_urls: source.attachment_urls ?? [],
+					approval_required: false,
+				})
+				.select(
+					'id, request_number, status, created_at, submitted_at, draft_name, notes',
+				)
+				.single()
+
+			if (draftError || !draft) {
+				throw new Error(draftError?.message ?? 'Failed to save draft')
+			}
+
+			const { error: itemsError } = await supabase
+				.from('quote_request_items')
+				.insert(
+					items.map((item, index) => ({
+						quote_request_id: draft.id,
+						product_id: item.product_id,
+						customer_description: item.customer_description,
+						product_name_ar: item.product_name_ar,
+						quantity: item.quantity,
+						unit_of_measure: item.unit_of_measure,
+						unit_of_measure_ar: item.unit_of_measure_ar || item.unit_of_measure,
+						notes: item.notes,
+						match_confidence: item.match_confidence,
+						sort_order: index,
+						is_unmatched: item.is_unmatched,
+					})),
+				)
+
+			if (itemsError) throw new Error(itemsError.message)
+
+			const sourceOrderId =
+				firstRelation(source.orders)?.id ??
+				(data.orderId === source.id ? null : data.orderId)
+			const { error: activityError } = await supabase.rpc(
+				'customer_record_order_saved_as_draft',
+				{
+					p_draft_quote_request_id: draft.id,
+					p_source: 'portal',
+					p_source_order_id: sourceOrderId,
+					p_source_quote_request_id: source.id,
+				},
+			)
+
+			if (activityError) throw new Error(activityError.message)
+
+			return { draftId: draft.id, reference: draft.request_number }
+		},
+	)

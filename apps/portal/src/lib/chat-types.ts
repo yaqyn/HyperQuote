@@ -1,7 +1,7 @@
 /**
  * Chat type system for portal AI chat.
  * Rich message types, slash commands, quick action chips.
- * Phase 30 swaps mock data with real AI-generated structured content.
+ * Rich content is generated from real AI output or Supabase-scoped context.
  */
 
 // ============================================================================
@@ -14,7 +14,9 @@ export interface ProductCardData {
 	nameAr: string
 	image?: string
 	priceRange: string
+	priceRangeAr: string
 	specs: Record<string, string>
+	specsAr: Record<string, string>
 	available: boolean
 }
 
@@ -34,8 +36,17 @@ export interface ActionButtonData {
 	params?: Record<string, string>
 }
 
-interface MaterialListData {
-	items: { name: string; qty: number; unit: string }[]
+export interface MaterialListData {
+	draftId?: string
+	editRoute?: string
+	reference?: string
+	items: {
+		name: string
+		nameAr?: string
+		qty: number
+		unit: string
+		unitAr?: string
+	}[]
 }
 
 interface DisclaimerData {

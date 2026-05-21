@@ -1,9 +1,4 @@
-/**
- * Step 1: Build List -- tab selector for 4 input methods + persistent product list table.
- * Search & Add is the default tab. Upload/QuickPad/AIAssist are placeholders for Plan 03.
- */
-
-import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import { ProductListTable } from './ProductListTable'
 import { SearchAndAdd } from './SearchAndAdd'

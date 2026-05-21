@@ -7,8 +7,14 @@ import {
 	OrganizationJsonLd,
 	WebsiteJsonLd,
 } from '../../components/shared/JsonLd'
+import { getPublicMarketPreviewCategories } from '../../lib/catalog'
 
 export const Route = createFileRoute('/_website/')({
+	loader: async () => ({
+		marketPreviewCategories: await getPublicMarketPreviewCategories({
+			data: { limit: 6 },
+		}),
+	}),
 	head: () => ({
 		meta: [
 			{ title: 'HyperQuote — Building Materials, Simplified' },
@@ -33,13 +39,15 @@ export const Route = createFileRoute('/_website/')({
 })
 
 function HomePage() {
+	const { marketPreviewCategories } = Route.useLoaderData()
+
 	return (
 		<>
 			<OrganizationJsonLd />
 			<WebsiteJsonLd />
 			<HeroSection />
 			<HowItWorksSection />
-			<MarketPreviewSection />
+			<MarketPreviewSection categories={marketPreviewCategories} />
 			<CTASection />
 		</>
 	)

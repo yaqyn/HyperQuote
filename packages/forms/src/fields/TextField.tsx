@@ -1,10 +1,8 @@
-import {
-	TextField as AriaTextField,
-	FieldError,
-	Input,
-	Label,
-	Text,
-} from 'react-aria-components'
+import { FieldError } from 'react-aria-components/FieldError'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { Text } from 'react-aria-components/Text'
+import { TextField as AriaTextField } from 'react-aria-components/TextField'
 import { Controller, useFormContext } from 'react-hook-form'
 
 interface TextFieldProps {

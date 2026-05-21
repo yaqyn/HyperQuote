@@ -8,13 +8,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
-import {
-	Button,
-	FileTrigger,
-	Input,
-	Label,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { FileTrigger } from 'react-aria-components/FileTrigger'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { TextField } from 'react-aria-components/TextField'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {

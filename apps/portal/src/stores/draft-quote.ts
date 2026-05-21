@@ -1,22 +1,17 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-
-interface DraftItem {
-	productId: string
-	slug: string
-	name: string
-	nameAr: string
-	category: string
-	unitOfMeasure: string
-	quantity: number
-	imageUrl: string
-	note: string
-}
+import { createJSONStorage, persist } from 'zustand/middleware'
+import {
+	type DraftCartItem,
+	sanitizeDraftQuoteSnapshot,
+} from '../lib/draft-quote-cart'
 
 interface DraftQuoteState {
-	items: DraftItem[]
+	items: DraftCartItem[]
 	globalNote: string
-	add: (item: Omit<DraftItem, 'quantity' | 'note'>, quantity?: number) => void
+	add: (
+		item: Omit<DraftCartItem, 'quantity' | 'note'>,
+		quantity?: number,
+	) => void
 	remove: (productId: string) => void
 	updateQuantity: (productId: string, quantity: number) => void
 	updateNote: (productId: string, note: string) => void
@@ -68,7 +63,16 @@ export const useDraftQuoteStore = create<DraftQuoteState>()(
 			clear: () => set({ items: [], globalNote: '' }),
 		}),
 		{
+			merge: (persisted, current) => ({
+				...current,
+				...sanitizeDraftQuoteSnapshot(persisted),
+			}),
 			name: 'hq-draft-quote',
+			partialize: (state) => ({
+				globalNote: state.globalNote,
+				items: state.items,
+			}),
+			storage: createJSONStorage(() => localStorage),
 		},
 	),
 )

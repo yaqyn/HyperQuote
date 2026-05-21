@@ -1,13 +1,9 @@
-import {
-	Button,
-	FieldError,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { FieldError } from 'react-aria-components/FieldError'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { Controller, useFormContext } from 'react-hook-form'
 
 interface SelectFieldProps {

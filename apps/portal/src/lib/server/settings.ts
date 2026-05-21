@@ -1,9 +1,6 @@
 /**
- * Settings server functions.
- * Profile, addresses, projects, notifications, sessions CRUD.
- * Dev mode fallback when Supabase not configured.
+ * Settings server functions backed only by Supabase.
  */
-
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type {
@@ -15,107 +12,12 @@ import type {
 import {
 	getAuthenticatedPortalCustomer,
 	getAuthenticatedSupabase,
-	isSupabaseConfigured,
 } from './_supabase'
-
-// ============================================================================
-// Mock data
-// ============================================================================
-
-function getMockProfile(): CustomerProfile {
-	return {
-		companyName: 'A**** Construction',
-		contactName: 'Ahmed Hassan',
-		phone: '+201234567890',
-		email: 'ahmed@example.com',
-		tradeLicenseStatus: 'under_review',
-		profilePhotoUrl: undefined,
-	}
-}
-
-function getMockAddresses(): Address[] {
-	return [
-		{
-			id: 'addr-1',
-			label: 'Main Office',
-			street: '15 Tahrir Street, Downtown',
-			city: 'Cairo',
-			governorate: 'Cairo',
-			isDefault: true,
-			postalCode: '11511',
-		},
-		{
-			id: 'addr-2',
-			label: 'Warehouse',
-			street: '7 Industrial Zone, 6th of October',
-			city: '6th of October City',
-			governorate: 'Giza',
-			isDefault: false,
-		},
-		{
-			id: 'addr-3',
-			label: 'Site Office',
-			street: '22 El Nasr Road',
-			city: 'Nasr City',
-			governorate: 'Cairo',
-			isDefault: false,
-			postalCode: '11765',
-		},
-	]
-}
-
-function getMockProjects(): Project[] {
-	return [
-		{
-			id: 'proj-1',
-			name: 'New Cairo Villa',
-			description: 'Residential villa project in New Cairo compound',
-			orderCount: 12,
-			createdAt: '2026-01-15T10:00:00Z',
-			archived: false,
-		},
-		{
-			id: 'proj-2',
-			name: 'Maadi Office Renovation',
-			description: undefined,
-			orderCount: 3,
-			createdAt: '2026-03-01T08:30:00Z',
-			archived: false,
-		},
-	]
-}
-
-function getMockSessions(): ActiveSession[] {
-	return [
-		{
-			id: 'session-1',
-			device: 'Chrome on MacOS',
-			lastActive: new Date().toISOString(),
-			location: 'Cairo, Egypt',
-			isCurrent: true,
-		},
-		{
-			id: 'session-2',
-			device: 'Safari on iPhone',
-			lastActive: new Date(Date.now() - 3600000).toISOString(),
-			location: 'Cairo, Egypt',
-			isCurrent: false,
-		},
-	]
-}
-
-// ============================================================================
-// getCustomerProfile
-// ============================================================================
+import { resolveAddressCoordinates } from './address-coordinates'
 
 export const getCustomerProfile = createServerFn().handler(
 	async (): Promise<CustomerProfile> => {
-		if (!isSupabaseConfigured()) {
-			return getMockProfile()
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
 		const { data, error } = await supabase
 			.from('customers')
 			.select(
@@ -139,11 +41,7 @@ export const getCustomerProfile = createServerFn().handler(
 	},
 )
 
-// ============================================================================
-// updateCustomerProfile
-// ============================================================================
-
-export const updateCustomerProfile = createServerFn()
+export const updateCustomerProfile = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			companyName: z.string().optional(),
@@ -152,12 +50,7 @@ export const updateCustomerProfile = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
 		const updateData: Record<string, unknown> = {}
 		if (input.companyName !== undefined)
 			updateData.company_name = input.companyName
@@ -171,97 +64,67 @@ export const updateCustomerProfile = createServerFn()
 			.eq('id', customerId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})
 
-// ============================================================================
-// uploadTradeLicense
-// ============================================================================
-
-export const uploadTradeLicense = createServerFn()
+export const uploadTradeLicense = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ fileUrl: z.string() }))
 	.handler(async (): Promise<{ success: boolean; status: 'under_review' }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true, status: 'under_review' }
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
 		const { error } = await supabase
 			.from('customers')
 			.update({ trade_license_status: 'under_review' })
 			.eq('id', customerId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true, status: 'under_review' }
 	})
 
-// ============================================================================
-// uploadProfilePhoto
-// ============================================================================
-
-export const uploadProfilePhoto = createServerFn()
+export const uploadProfilePhoto = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ fileUrl: z.string() }))
 	.handler(
 		async ({
 			data: input,
 		}): Promise<{ success: boolean; photoUrl: string }> => {
-			if (!isSupabaseConfigured()) {
-				return { success: true, photoUrl: input.fileUrl }
-			}
-
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
 			const { error } = await supabase
 				.from('customers')
 				.update({ profile_photo_url: input.fileUrl })
 				.eq('id', customerId)
 
 			if (error) throw new Error(error.message)
-
 			return { success: true, photoUrl: input.fileUrl }
 		},
 	)
 
-// ============================================================================
-// getAddresses
-// ============================================================================
-
 export const getAddresses = createServerFn().handler(
 	async (): Promise<Address[]> => {
-		if (!isSupabaseConfigured()) {
-			return getMockAddresses()
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { data, error } = await supabase
 			.from('customer_addresses')
-			.select('id, label, street, city, governorate, is_default, postal_code')
+			.select(
+				'id, label, street, city, governorate, is_default, postal_code, latitude, longitude',
+			)
 			.order('is_default', { ascending: false })
 			.order('created_at', { ascending: false })
 
 		if (error) throw new Error(error.message)
 
-		return (data ?? []).map((a) => ({
-			id: a.id,
-			label: a.label ?? '',
-			street: a.street,
-			city: a.city,
-			governorate: a.governorate,
-			isDefault: a.is_default,
-			postalCode: a.postal_code,
+		return (data ?? []).map((address) => ({
+			id: address.id,
+			label: address.label ?? '',
+			street: address.street,
+			city: address.city,
+			governorate: address.governorate,
+			isDefault: address.is_default,
+			latitude: address.latitude === null ? null : Number(address.latitude),
+			longitude: address.longitude === null ? null : Number(address.longitude),
+			postalCode: address.postal_code,
 		}))
 	},
 )
 
-// ============================================================================
-// saveAddress
-// ============================================================================
-
-export const saveAddress = createServerFn()
+export const saveAddress = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			id: z.string().optional(),
@@ -273,22 +136,13 @@ export const saveAddress = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ address: Address }> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				address: {
-					id: input.id ?? crypto.randomUUID(),
-					label: input.label,
-					street: input.street,
-					city: input.city,
-					governorate: input.governorate,
-					isDefault: input.isDefault ?? false,
-				},
-			}
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
-		const payload = {
+		const coordinates = await resolveAddressCoordinates({
+			city: input.city,
+			governorate: input.governorate,
+			street: input.street,
+		})
+		const payload: Record<string, unknown> = {
 			customer_id: customerId,
 			label: input.label,
 			street: input.street,
@@ -296,81 +150,63 @@ export const saveAddress = createServerFn()
 			governorate: input.governorate,
 			is_default: input.isDefault ?? false,
 		}
-
-		let data: Record<string, unknown> | null = null
-		let error: { message: string } | null = null
-
-		if (input.id) {
-			const result = await supabase
-				.from('customer_addresses')
-				.update(payload)
-				.eq('id', input.id)
-				.select('id, label, street, city, governorate, is_default, postal_code')
-				.single()
-			data = result.data
-			error = result.error
-		} else {
-			const result = await supabase
-				.from('customer_addresses')
-				.insert(payload)
-				.select('id, label, street, city, governorate, is_default, postal_code')
-				.single()
-			data = result.data
-			error = result.error
+		if (coordinates.latitude !== null && coordinates.longitude !== null) {
+			payload.latitude = coordinates.latitude
+			payload.longitude = coordinates.longitude
 		}
 
-		if (error || !data) {
+		const query = input.id
+			? supabase
+					.from('customer_addresses')
+					.update(payload)
+					.eq('id', input.id)
+					.select(
+						'id, label, street, city, governorate, is_default, postal_code, latitude, longitude',
+					)
+					.single()
+			: supabase
+					.from('customer_addresses')
+					.insert(payload)
+					.select(
+						'id, label, street, city, governorate, is_default, postal_code, latitude, longitude',
+					)
+					.single()
+
+		const { data, error } = await query
+		if (error || !data)
 			throw new Error(error?.message ?? 'Failed to save address')
-		}
 
 		return {
 			address: {
-				id: data.id as string,
-				label: (data.label as string) ?? '',
-				street: data.street as string,
-				city: data.city as string,
-				governorate: data.governorate as string,
-				isDefault: data.is_default as boolean,
-				postalCode: data.postal_code as string | undefined,
+				id: data.id,
+				label: data.label ?? '',
+				street: data.street,
+				city: data.city,
+				governorate: data.governorate,
+				isDefault: data.is_default,
+				latitude: data.latitude === null ? null : Number(data.latitude),
+				longitude: data.longitude === null ? null : Number(data.longitude),
+				postalCode: data.postal_code,
 			},
 		}
 	})
 
-// ============================================================================
-// deleteAddress
-// ============================================================================
-
-export const deleteAddress = createServerFn()
+export const deleteAddress = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ addressId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { error } = await supabase
 			.from('customer_addresses')
 			.delete()
 			.eq('id', input.addressId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})
 
-// ============================================================================
-// getProjects
-// ============================================================================
-
 export const getProjects = createServerFn().handler(
 	async (): Promise<Project[]> => {
-		if (!isSupabaseConfigured()) {
-			return getMockProjects()
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { data, error } = await supabase
 			.from('projects')
 			.select('id, name, description, order_count, created_at, archived')
@@ -379,22 +215,18 @@ export const getProjects = createServerFn().handler(
 
 		if (error) throw new Error(error.message)
 
-		return (data ?? []).map((p) => ({
-			id: p.id,
-			name: p.name,
-			description: p.description,
-			orderCount: p.order_count ?? 0,
-			createdAt: p.created_at,
-			archived: p.archived ?? false,
+		return (data ?? []).map((project) => ({
+			id: project.id,
+			name: project.name,
+			description: project.description,
+			orderCount: project.order_count ?? 0,
+			createdAt: project.created_at,
+			archived: project.archived ?? false,
 		}))
 	},
 )
 
-// ============================================================================
-// saveProject
-// ============================================================================
-
-export const saveProject = createServerFn()
+export const saveProject = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			id: z.string().optional(),
@@ -403,93 +235,56 @@ export const saveProject = createServerFn()
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ project: Project }> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				project: {
-					id: input.id ?? crypto.randomUUID(),
-					name: input.name,
-					description: input.description,
-					orderCount: 0,
-					createdAt: new Date().toISOString(),
-					archived: false,
-				},
-			}
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-
 		const payload = {
 			customer_id: customerId,
 			name: input.name,
 			description: input.description ?? null,
 		}
 
-		let data: Record<string, unknown> | null = null
-		let error: { message: string } | null = null
+		const query = input.id
+			? supabase
+					.from('projects')
+					.update(payload)
+					.eq('id', input.id)
+					.select('id, name, description, order_count, created_at, archived')
+					.single()
+			: supabase
+					.from('projects')
+					.insert(payload)
+					.select('id, name, description, order_count, created_at, archived')
+					.single()
 
-		if (input.id) {
-			const result = await supabase
-				.from('projects')
-				.update(payload)
-				.eq('id', input.id)
-				.select('id, name, description, order_count, created_at, archived')
-				.single()
-			data = result.data
-			error = result.error
-		} else {
-			const result = await supabase
-				.from('projects')
-				.insert(payload)
-				.select('id, name, description, order_count, created_at, archived')
-				.single()
-			data = result.data
-			error = result.error
-		}
-
-		if (error || !data) {
+		const { data, error } = await query
+		if (error || !data)
 			throw new Error(error?.message ?? 'Failed to save project')
-		}
 
 		return {
 			project: {
-				id: data.id as string,
-				name: data.name as string,
-				description: data.description as string | undefined,
-				orderCount: (data.order_count as number) ?? 0,
-				createdAt: data.created_at as string,
-				archived: (data.archived as boolean) ?? false,
+				id: data.id,
+				name: data.name,
+				description: data.description,
+				orderCount: data.order_count ?? 0,
+				createdAt: data.created_at,
+				archived: data.archived ?? false,
 			},
 		}
 	})
 
-// ============================================================================
-// archiveProject
-// ============================================================================
-
-export const archiveProject = createServerFn()
+export const archiveProject = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ projectId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { error } = await supabase
 			.from('projects')
 			.update({ archived: true })
 			.eq('id', input.projectId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})
 
-// ============================================================================
-// updateNotificationPreferences
-// ============================================================================
-
-export const updateNotificationPreferences = createServerFn()
+export const updateNotificationPreferences = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			preferences: z.array(
@@ -508,33 +303,31 @@ export const updateNotificationPreferences = createServerFn()
 			),
 		}),
 	)
-	.handler(async (): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
+	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const byChannel = new Map<string, boolean>()
+		for (const preference of input.preferences) {
+			byChannel.set(preference.channel, preference.enabled)
 		}
+		const payload = Array.from(byChannel, ([channel, enabled]) => ({
+			customer_id: customerId,
+			channel,
+			enabled,
+		}))
 
-		const { supabase } = await getAuthenticatedSupabase()
-
-		// In production, upsert notification preferences
-		const { error } = await supabase.from('notification_preferences').upsert([])
-
-		if (error) throw new Error(error.message)
+		if (payload.length > 0) {
+			const { error } = await supabase
+				.from('notification_preferences')
+				.upsert(payload, { onConflict: 'customer_id,channel' })
+			if (error) throw new Error(error.message)
+		}
 
 		return { success: true }
 	})
 
-// ============================================================================
-// getActiveSessions
-// ============================================================================
-
 export const getActiveSessions = createServerFn().handler(
 	async (): Promise<ActiveSession[]> => {
-		if (!isSupabaseConfigured()) {
-			return getMockSessions()
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { data, error } = await supabase
 			.from('user_sessions')
 			.select('id, device, last_active, location, is_current')
@@ -542,35 +335,25 @@ export const getActiveSessions = createServerFn().handler(
 
 		if (error) throw new Error(error.message)
 
-		return (data ?? []).map((s) => ({
-			id: s.id,
-			device: s.device,
-			lastActive: s.last_active,
-			location: s.location,
-			isCurrent: s.is_current,
+		return (data ?? []).map((session) => ({
+			id: session.id,
+			device: session.device ?? 'Unknown device',
+			lastActive: session.last_active,
+			location: session.location ?? '',
+			isCurrent: session.is_current,
 		}))
 	},
 )
 
-// ============================================================================
-// signOutSession
-// ============================================================================
-
-export const signOutSession = createServerFn()
+export const signOutSession = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ sessionId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
-
 		const { error } = await supabase
 			.from('user_sessions')
 			.delete()
 			.eq('id', input.sessionId)
 
 		if (error) throw new Error(error.message)
-
 		return { success: true }
 	})

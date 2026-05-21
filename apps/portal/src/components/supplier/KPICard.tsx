@@ -1,6 +1,6 @@
 /**
  * KPICard -- Analytics KPI card with trend indicator.
- * Geist Mono 28px value, trend arrow with green/red color.
+ * readable tabular sans 28px value, trend arrow with green/red color.
  * Formats: currency (EGP), percent, number.
  */
 import { TrendingDown, TrendingUp } from 'lucide-react'

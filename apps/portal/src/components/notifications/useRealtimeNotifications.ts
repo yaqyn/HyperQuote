@@ -4,7 +4,10 @@
  * Invalidates TanStack Query cache on new notifications.
  */
 
-import { resolveSupabaseBrowserConfig } from '@hyperquote/auth'
+import {
+	createSupabaseBrowserClient,
+	resolveSupabaseBrowserConfig,
+} from '@hyperquote/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
@@ -15,7 +18,7 @@ export function useRealtimeNotifications(userId: string | undefined) {
 		if (!userId) return
 		const config = resolveSupabaseBrowserConfig(import.meta.env)
 		if (!config) return
-		const { supabaseUrl, supabaseAnonKey } = config
+		const { cookieName, supabaseAnonKey, supabaseUrl } = config
 
 		let channel: ReturnType<
 			Awaited<
@@ -27,8 +30,11 @@ export function useRealtimeNotifications(userId: string | undefined) {
 		>
 
 		async function setup() {
-			const { createClient } = await import('@supabase/supabase-js')
-			supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+			supabaseClient = createSupabaseBrowserClient(
+				supabaseUrl,
+				supabaseAnonKey,
+				cookieName,
+			)
 
 			channel = supabaseClient
 				.channel(`notifications:${userId}`)

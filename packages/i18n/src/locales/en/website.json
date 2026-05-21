@@ -1,9 +1,12 @@
 {
 	"nav": {
 		"market": "Market",
+		"portal": "Portal",
 		"about": "About",
 		"support": "Support",
-		"docs": "Docs"
+		"docs": "Docs",
+		"account": "Account",
+		"signOut": "Sign out"
 	},
 	"cta": {
 		"getQuote": "Get a Quote",
@@ -73,15 +76,7 @@
 	"marketPreview": {
 		"label": "Catalog",
 		"heading": "Browse by Category",
-		"viewAll": "View All Products",
-		"categories": {
-			"cement": "Cement",
-			"steel": "Steel",
-			"aggregates": "Aggregates",
-			"bricks": "Bricks",
-			"timber": "Timber",
-			"finishing": "Finishing"
-		}
+		"viewAll": "View All Products"
 	},
 	"about": {
 		"label": "About",
@@ -135,8 +130,30 @@
 		"browseCta": "Browse Materials",
 		"clearAll": "Clear",
 		"remove": "Remove item",
+		"decreaseQuantity": "Decrease quantity",
+		"increaseQuantity": "Increase quantity",
 		"addNote": "Add a note",
+		"saveDraft": "Save Draft",
+		"saved": "Saved",
+		"savingDraft": "Saving draft...",
+		"saveDraftFailed": "Could not save this draft. Sign in and try again.",
+		"draftRenameFailed": "Could not rename this draft. Try again.",
+		"defaultDraftName": "Draft",
+		"draftNameLabel": "Draft name",
+		"draftNameSaved": "Draft name saved",
+		"draftNameSaving": "Saving name...",
+		"draftSaved": "Draft saved",
+		"draftSavedBody": "View it in the portal app.",
+		"unavailableItems": "{{items}} is not available.",
+		"viewSavedOrders": "View saved orders",
 		"submit": "Request Quote",
+		"submitting": "Submitting...",
+		"submitFailed": "Could not submit this quote request. Sign in and try again.",
+		"submitSuccess": "Quote request submitted",
+		"submitSuccessBody": "We received your request and will contact you shortly.",
+		"authSuccessTitle": "Account verified",
+		"authSuccessBody": "You're signed in. You can now save this draft or request the quote.",
+		"autoClose": "Closing automatically...",
 		"submitHint": "Free. No commitment. We handle the sourcing.",
 		"itemCount_one": "{{count}} item",
 		"itemCount_other": "{{count}} items",
@@ -505,7 +522,7 @@
 				},
 				"4": {
 					"question": "How do I sign up?",
-					"answer": "Enter your Egyptian mobile number and verify via WhatsApp OTP — no email or password needed. Add your company name and full name to complete registration. The whole process takes under 60 seconds. You can browse the product catalog without an account, but submitting quotes requires sign-in.",
+					"answer": "Enter your Egyptian mobile number and verify via WhatsApp OTP, or use the secondary email/password path and confirm your email before signing in. Add your company name and full name to complete registration. You can browse the product catalog without an account, but submitting quotes requires a confirmed account.",
 					"tag": "account"
 				},
 				"5": {
@@ -549,6 +566,7 @@
 			"submit": "Send",
 			"success": "Sent. We'll respond shortly.",
 			"error": "Something went wrong. Try again.",
+			"rateLimited": "Too many support requests. Please wait a minute and try again.",
 			"subjects": {
 				"general": "General",
 				"quote": "Quote",
@@ -581,7 +599,7 @@
 			}
 		},
 		"cardEyebrow": "Secure sign in",
-		"cardSubtitle": "No password required. We verify your number before opening your workspace.",
+		"cardSubtitle": "Phone OTP is the primary path. Email/password is available as a secondary confirmed-account path.",
 		"step1": {
 			"heading": "Sign In",
 			"subtitle": "Enter the mobile number connected to your company account."
@@ -599,6 +617,25 @@
 		"phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
 		"whatsappCTA": "Verify via WhatsApp",
 		"smsFallback": "Send via SMS",
+		"emailSwitch": "Use email and password",
+		"phoneFirst": "Use phone instead",
+		"emailLabel": "Email",
+		"passwordLabel": "Password",
+		"emailInvalid": "Enter a valid email address",
+		"passwordInvalid": "Password must be at least 6 characters",
+		"profileRequired": "Company name and full name are required",
+		"emailSignInHeading": "Sign in with email.",
+		"emailSignInSubtitle": "Use this only if your email account is already confirmed.",
+		"emailSignUpHeading": "Create an email account.",
+		"emailSignUpSubtitle": "Phone OTP remains the fastest path. Email accounts must be confirmed before they can submit orders.",
+		"emailSignInTab": "Sign in",
+		"emailSignUpTab": "Create",
+		"emailSignInButton": "Sign In",
+		"emailSignUpButton": "Create Account",
+		"emailNotConfirmed": "Confirm your email before signing in.",
+		"emailSignInFailed": "Email or password is incorrect.",
+		"emailSignUpFailed": "Could not create this email account. Try again.",
+		"emailConfirmationSent": "Confirmation email sent. Confirm it, then sign in with your email and password.",
 		"codeSent": "Code sent to",
 		"wrongCode": "Incorrect code. Try again.",
 		"resend": "Resend",

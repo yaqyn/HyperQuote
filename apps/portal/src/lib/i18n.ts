@@ -22,6 +22,19 @@ const resources = {
 	},
 } as const
 
+function detectEarlyLocale(): 'ar' | 'en' {
+	if (typeof localStorage !== 'undefined') {
+		const stored = localStorage.getItem('hq-locale')
+		if (stored === 'ar' || stored === 'en') return stored
+	}
+	if (typeof document !== 'undefined') {
+		if (document.documentElement.dir === 'rtl') return 'ar'
+		const match = document.cookie.match(/hq-locale=(ar|en)/)
+		if (match) return match[1] as 'ar' | 'en'
+	}
+	return 'en'
+}
+
 export function setupI18n(locale: 'ar' | 'en' = 'en') {
 	return setupReactI18n({
 		i18n,
@@ -31,4 +44,4 @@ export function setupI18n(locale: 'ar' | 'en' = 'en') {
 	})
 }
 
-setupI18n('en')
+setupI18n(detectEarlyLocale())

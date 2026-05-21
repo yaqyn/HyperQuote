@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { FileText } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { getSupplierUploadHistory } from '../../lib/server/supplier-catalog'
 

@@ -4,7 +4,8 @@
  * Saves on blur or Enter, flashes green on success, reverts + toasts on error.
  */
 import { useCallback, useRef, useState } from 'react'
-import { Input, NumberField } from 'react-aria-components'
+import { Input } from 'react-aria-components/Input'
+import { NumberField } from 'react-aria-components/NumberField'
 import { useTranslation } from 'react-i18next'
 import { toast } from '../../lib/toast'
 
@@ -50,7 +51,7 @@ export function InlineEditCell({
 			}
 		} catch {
 			setLocalValue(value) // revert
-			toast.success(t('supplier.updateFailed'))
+			toast.error(t('supplier.updateFailed'))
 		} finally {
 			setIsSaving(false)
 		}

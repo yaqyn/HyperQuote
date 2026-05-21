@@ -1,14 +1,8 @@
 import {
 	createSupabaseServerClient,
-	resolveSupabaseServerConfig,
+	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
-import {
-	type BroadCategory,
-	CATALOG_PRODUCTS,
-	type CatalogProduct,
-	getBroadCategory,
-	getCategoryImage,
-} from '@hyperquote/types'
+import type { CatalogProduct } from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -16,15 +10,18 @@ import { logWebsiteServerError } from './server-log'
 
 // ============================================================================
 // Public product shape — what the market pages actually consume.
-// Matches PUBLIC_COLUMNS below plus an `image_urls` fallback for the mock.
 // Specifications are serialization-safe primitives; TanStack Start's server-fn
 // transport rejects nested `unknown`.
 // ============================================================================
 
 type SpecValue = string | number | boolean | null
 export interface PublicProduct
-	extends Omit<CatalogProduct, 'specifications' | 'pictureUrl'> {
+	extends Omit<
+		CatalogProduct,
+		'specifications' | 'specifications_ar' | 'pictureUrl'
+	> {
 	specifications: Record<string, SpecValue>
+	specifications_ar: Record<string, SpecValue>
 	image_urls: string[]
 }
 
@@ -48,45 +45,26 @@ const productBySlugInput = z.object({
 	slug: z.string().min(1),
 })
 
-// ============================================================================
-// Mock catalog — backed by the shared canonical product list
-// (see packages/types/src/catalog.ts). When Supabase is wired up, this
-// dev fallback is bypassed entirely.
-// ============================================================================
+const marketPreviewInput = z.object({
+	limit: z.number().int().min(1).max(12).default(6),
+})
 
-const BROAD_EXPANSION: Record<BroadCategory, string[]> = {
-	cement: ['cement', 'ready_mix_concrete'],
-	steel: [
-		'reinforcing_steel',
-		'structural_steel',
-		'aluminum_profiles',
-		'hardware_fasteners',
-		'pipes_pvc',
-		'pipes_metal',
-		'electrical_cable',
-		'electrical_conduit',
-	],
-	aggregates: ['aggregates', 'sand', 'marble', 'granite'],
-	bricks: ['bricks', 'blocks'],
-	timber: ['lumber', 'plywood', 'insulation', 'waterproofing', 'roofing'],
-	finishing: [
-		'tiles_porcelain',
-		'tiles_ceramic',
-		'paint',
-		'glass',
-		'gypsum_board',
-		'adhesives',
-	],
+export interface PublicMarketPreviewCategory {
+	slug: string
+	name: string
+	name_ar: string
+	description: string
+	description_ar: string
+	imageUrl: string | null
 }
 
-function decorate(product: CatalogProduct): PublicProduct {
-	return {
-		...product,
-		// CatalogProduct.specifications is Record<string, unknown>; the seed data
-		// only ever holds primitives, so normalise to a serialization-safe shape.
-		specifications: product.specifications as Record<string, SpecValue>,
-		image_urls: [getCategoryImage(product.category)],
-	}
+interface PublicCategoryRow {
+	slug: string
+	name: string
+	name_ar: string | null
+	description: string | null
+	description_ar: string | null
+	image_url: string | null
 }
 
 // ============================================================================
@@ -103,10 +81,13 @@ const PUBLIC_COLUMNS = [
 	'description_ar',
 	'category',
 	'subcategory',
+	'subcategory_ar',
 	'brand',
 	'manufacturer',
 	'specifications',
+	'specifications_ar',
 	'unit_of_measure',
+	'unit_of_measure_ar',
 	'weight_kg',
 	'price_range_min',
 	'price_range_max',
@@ -117,9 +98,135 @@ const PUBLIC_COLUMNS = [
 	'is_stockable',
 ].join(', ')
 
-function getSupabaseConfig() {
-	return resolveSupabaseServerConfig(process.env)
+function publicProductSearchFilter(search: string): string | null {
+	const term = search
+		.replace(/[,%*()]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	if (!term) return null
+	const pattern = `*${term}*`
+	return [
+		`name.ilike.${pattern}`,
+		`name_ar.ilike.${pattern}`,
+		`sku.ilike.${pattern}`,
+		`category.ilike.${pattern}`,
+		`subcategory.ilike.${pattern}`,
+		`subcategory_ar.ilike.${pattern}`,
+		`brand.ilike.${pattern}`,
+		`manufacturer.ilike.${pattern}`,
+		`description.ilike.${pattern}`,
+		`description_ar.ilike.${pattern}`,
+	].join(',')
 }
+
+function getSupabaseConfig() {
+	return resolveSupabaseWorkerConfig(process.env)
+}
+
+function firstImageUrl(imageUrls: unknown): string | null {
+	if (!Array.isArray(imageUrls)) return null
+	return imageUrls.find((url) => typeof url === 'string' && url.trim()) ?? null
+}
+
+function publicCategoryMap(categories: PublicCategoryRow[]) {
+	return new Map(categories.map((category) => [category.slug, category]))
+}
+
+function withCategoryImageFallback(
+	product: Record<string, unknown>,
+	categoriesBySlug: Map<string, PublicCategoryRow>,
+): PublicProduct {
+	const categorySlug =
+		typeof product.category === 'string' ? product.category : ''
+	const categoryImage = categoriesBySlug.get(categorySlug)?.image_url ?? null
+	const productImage = firstImageUrl(product.image_urls)
+	return {
+		...product,
+		image_urls: productImage
+			? (product.image_urls as string[])
+			: categoryImage
+				? [categoryImage]
+				: [],
+	} as unknown as PublicProduct
+}
+
+export const getPublicMarketPreviewCategories = createServerFn()
+	.inputValidator(marketPreviewInput)
+	.handler(async ({ data: input }): Promise<PublicMarketPreviewCategory[]> => {
+		const config = await getSupabaseConfig()
+		if (!config) {
+			throw new Error('Supabase is required for website catalog')
+		}
+
+		const request = getRequest()
+		const { client } = createSupabaseServerClient({
+			request,
+			...config,
+		})
+
+		const { data: categoryRows, error: categoryError } = await client
+			.from('categories')
+			.select('slug, name, name_ar, description, description_ar, image_url')
+			.eq('is_active', true)
+			.order('name', { ascending: true })
+			.limit(input.limit)
+
+		if (categoryError) {
+			logWebsiteServerError(
+				'website.catalog.categories.supabase_error',
+				categoryError,
+			)
+			throw new Error('Website catalog categories failed to load')
+		}
+
+		const categories = (categoryRows ?? []).filter(
+			(category) => typeof category.slug === 'string' && category.slug.length,
+		)
+		const slugs = categories.map((category) => category.slug)
+		const imageByCategory = new Map<string, string>()
+
+		if (slugs.length > 0) {
+			const { data: productRows, error: productError } = await client
+				.from('products')
+				.select('category, image_urls')
+				.eq('is_active', true)
+				.neq('availability_status', 'hidden')
+				.in('category', slugs)
+				.order('name', { ascending: true })
+				.limit(slugs.length * 12)
+
+			if (productError) {
+				logWebsiteServerError(
+					'website.catalog.public_catalog.supabase_error',
+					productError,
+				)
+				throw new Error('Website catalog preview failed to load')
+			}
+
+			for (const product of productRows ?? []) {
+				if (
+					typeof product.category !== 'string' ||
+					imageByCategory.has(product.category)
+				) {
+					continue
+				}
+				const imageUrl = Array.isArray(product.image_urls)
+					? product.image_urls.find((url) => typeof url === 'string' && url)
+					: null
+				if (imageUrl) imageByCategory.set(product.category, imageUrl)
+			}
+		}
+
+		return categories.map((category) => ({
+			slug: category.slug,
+			name: category.name,
+			name_ar: category.name_ar ?? '',
+			description: category.description ?? '',
+			description_ar: category.description_ar ?? '',
+			imageUrl:
+				category.image_url ?? imageByCategory.get(category.slug) ?? null,
+		}))
+	})
 
 // ============================================================================
 // getPublicCatalog — paginated, filterable product listing
@@ -128,50 +235,9 @@ function getSupabaseConfig() {
 export const getPublicCatalog = createServerFn()
 	.inputValidator(catalogInput)
 	.handler(async ({ data: input }) => {
-		// Dev fallback: use the shared catalog when no Supabase is configured.
-		const config = getSupabaseConfig()
+		const config = await getSupabaseConfig()
 		if (!config) {
-			let filtered = CATALOG_PRODUCTS.map(decorate)
-
-			if (input.category?.length) {
-				const expandedCats = input.category.flatMap(
-					(c) => BROAD_EXPANSION[c as BroadCategory] ?? [c],
-				)
-				filtered = filtered.filter((p) => expandedCats.includes(p.category))
-			}
-			if (input.availability && input.availability !== 'all') {
-				filtered = filtered.filter(
-					(p) => p.availability_status === input.availability,
-				)
-			}
-			if (input.priceTier?.length) {
-				const tiers = input.priceTier
-				filtered = filtered.filter((p) => tiers.includes(p.price_tier))
-			}
-			if (input.search) {
-				const q = input.search.toLowerCase()
-				filtered = filtered.filter(
-					(p) =>
-						p.name.toLowerCase().includes(q) ||
-						p.category.toLowerCase().includes(q) ||
-						p.brand?.toLowerCase().includes(q),
-				)
-			}
-
-			if (input.sort === 'name') {
-				filtered.sort((a, b) => a.name.localeCompare(b.name))
-			} else if (input.sort === 'category') {
-				filtered.sort((a, b) =>
-					getBroadCategory(a.category).localeCompare(
-						getBroadCategory(b.category),
-					),
-				)
-			} else if (input.sort === 'availability') {
-				filtered.sort((a, b) =>
-					a.availability_status.localeCompare(b.availability_status),
-				)
-			}
-			return { items: filtered, total: filtered.length, hasMore: false }
+			throw new Error('Supabase is required for website catalog')
 		}
 
 		// Production: use Supabase
@@ -181,19 +247,27 @@ export const getPublicCatalog = createServerFn()
 			...config,
 		})
 
+		const categoriesQuery = client
+			.from('categories')
+			.select('slug, name, name_ar, description, description_ar, image_url')
+			.eq('is_active', true)
+			.order('name', { ascending: true })
+
 		let query = client
 			.from('products')
 			.select(PUBLIC_COLUMNS, { count: 'exact' })
 			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
 
-		if (input.category?.length) query = query.in('category', input.category)
+		const categories = input.category ?? []
+		if (categories.length) query = query.in('category', categories)
 		if (input.availability && input.availability !== 'all')
 			query = query.eq('availability_status', input.availability)
 		if (input.priceTier?.length) query = query.in('price_tier', input.priceTier)
-		if (input.search)
-			query = query.textSearch('search_vector', input.search, {
-				type: 'websearch',
-			})
+		if (input.search) {
+			const searchFilter = publicProductSearchFilter(input.search)
+			if (searchFilter) query = query.or(searchFilter)
+		}
 
 		switch (input.sort) {
 			case 'name':
@@ -210,23 +284,42 @@ export const getPublicCatalog = createServerFn()
 		const offset = (input.page - 1) * input.limit
 		query = query.range(offset, offset + input.limit - 1)
 
-		const { data, error, count } = await query
+		const [
+			{ data, error, count },
+			{ data: categoryRows, error: categoryError },
+		] = await Promise.all([query, categoriesQuery])
 
 		if (error) {
 			logWebsiteServerError(
 				'website.catalog.public_catalog.supabase_error',
 				error,
 			)
-			return {
-				items: [] as PublicProduct[],
-				total: 0,
-				hasMore: false,
-			}
+			throw new Error('Website catalog failed to load')
 		}
+		if (categoryError) {
+			logWebsiteServerError(
+				'website.catalog.categories.supabase_error',
+				categoryError,
+			)
+			throw new Error('Website catalog categories failed to load')
+		}
+		const categoriesBySlug = publicCategoryMap(
+			(categoryRows ?? []) as PublicCategoryRow[],
+		)
 
 		// Supabase row shape matches PublicProduct — PUBLIC_COLUMNS is the guard.
 		return {
-			items: (data ?? []) as unknown as PublicProduct[],
+			categories: (categoryRows ?? []).map((category) => ({
+				slug: category.slug,
+				name: category.name,
+				name_ar: category.name_ar ?? '',
+				description: category.description ?? '',
+				description_ar: category.description_ar ?? '',
+				imageUrl: category.image_url ?? null,
+			})),
+			items: ((data ?? []) as unknown as Record<string, unknown>[]).map(
+				(product) => withCategoryImageFallback(product, categoriesBySlug),
+			),
 			total: count ?? 0,
 			hasMore: (count ?? 0) > offset + input.limit,
 		}
@@ -239,10 +332,9 @@ export const getPublicCatalog = createServerFn()
 export const getProductBySlug = createServerFn()
 	.inputValidator(productBySlugInput)
 	.handler(async ({ data: input }) => {
-		const config = getSupabaseConfig()
+		const config = await getSupabaseConfig()
 		if (!config) {
-			const found = CATALOG_PRODUCTS.find((p) => p.slug === input.slug)
-			return found ? decorate(found) : null
+			throw new Error('Supabase is required for website catalog')
 		}
 
 		const request = getRequest()
@@ -256,6 +348,7 @@ export const getProductBySlug = createServerFn()
 			.select(PUBLIC_COLUMNS)
 			.eq('slug', input.slug)
 			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
 			.single()
 
 		if (error || !data) {
@@ -267,7 +360,29 @@ export const getProductBySlug = createServerFn()
 			}
 			return null
 		}
+		const product = data as unknown as Record<string, unknown>
+		const productImage = firstImageUrl(product.image_urls)
+		if (productImage) return product as unknown as PublicProduct
+		const categorySlug =
+			typeof product.category === 'string' ? product.category : null
+		if (!categorySlug) return withCategoryImageFallback(product, new Map())
 
-		// Supabase row shape matches PublicProduct — PUBLIC_COLUMNS is the guard.
-		return data as unknown as PublicProduct
+		const { data: category, error: categoryError } = await client
+			.from('categories')
+			.select('slug, name, name_ar, description, description_ar, image_url')
+			.eq('slug', categorySlug)
+			.eq('is_active', true)
+			.maybeSingle()
+
+		if (categoryError) {
+			logWebsiteServerError(
+				'website.catalog.category_image.supabase_error',
+				categoryError,
+			)
+		}
+
+		return withCategoryImageFallback(
+			product,
+			publicCategoryMap(category ? [category as PublicCategoryRow] : []),
+		)
 	})

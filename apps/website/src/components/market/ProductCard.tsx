@@ -1,6 +1,7 @@
+import { formatWeightKg } from '@hyperquote/i18n'
 import { Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { Plus, Undo2 } from 'lucide-react'
+import { Package, Plus, Undo2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -13,10 +14,14 @@ type Product = PublicProduct
 interface ProductCardProps {
 	product: Product
 	variant: 'grid' | 'list'
+	categoryLabel?: string
 }
 
-const PLACEHOLDER_IMAGE =
-	'https://websiteassets.hyperquote.net/Images/cairo.webp'
+function productUnitLabel(product: Product, locale: 'ar' | 'en') {
+	return locale === 'ar' && product.unit_of_measure_ar
+		? product.unit_of_measure_ar
+		: product.unit_of_measure
+}
 
 function AddPopover({
 	product,
@@ -29,6 +34,7 @@ function AddPopover({
 }) {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
+	const locale = isAr ? 'ar' : 'en'
 	const { add, remove, updateQuantity, items } = useQuoteCart()
 	const existingItem = items.find((i) => i.productId === product.id)
 	const [qtyStr, setQtyStr] = useState(String(existingItem?.quantity ?? 1))
@@ -67,8 +73,10 @@ function AddPopover({
 						productId: product.id,
 						slug: product.slug,
 						name: product.name,
+						nameAr: product.name_ar,
 						category: product.category,
 						unitOfMeasure: product.unit_of_measure,
+						unitOfMeasureAr: product.unit_of_measure_ar,
 						imageUrl: product.image_urls?.[0] ?? null,
 					},
 					qty,
@@ -77,7 +85,8 @@ function AddPopover({
 		}
 	}
 
-	const totalWeight = weight && qty > 0 ? (weight * qty).toFixed(1) : null
+	const totalWeight =
+		weight && qty > 0 ? formatWeightKg(weight * qty, locale) : null
 
 	const [pos, setPos] = useState({ top: 0, left: 0 })
 
@@ -115,6 +124,7 @@ function AddPopover({
 			<div className="relative mb-2">
 				<input
 					ref={inputRef}
+					aria-label={t('product.quantityLabel')}
 					type="text"
 					inputMode="numeric"
 					value={qtyStr}
@@ -134,12 +144,12 @@ function AddPopover({
 					className="w-full h-8 rounded-lg border border-white/15 bg-white/10 ps-2.5 pe-12 font-mono text-[14px] text-white outline-none focus:border-white/40 transition-colors text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 				/>
 				<span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] text-white/40 pointer-events-none">
-					{product.unit_of_measure}
+					{productUnitLabel(product, locale)}
 				</span>
 			</div>
 
 			{totalWeight && (
-				<p className="text-[11px] text-white/40 mb-2">≈ {totalWeight} kg</p>
+				<p className="text-[11px] text-white/40 mb-2">≈ {totalWeight}</p>
 			)}
 
 			<div className="flex items-center gap-2">
@@ -168,16 +178,25 @@ function AddPopover({
 	)
 }
 
-export function ProductCard({ product, variant }: ProductCardProps) {
+export function ProductCard({
+	product,
+	variant,
+	categoryLabel: categoryLabelProp,
+}: ProductCardProps) {
 	const { t, i18n } = useTranslation('website')
 	const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
 	const name = locale === 'ar' ? product.name_ar || product.name : product.name
-	const image = product.image_urls?.[0] || PLACEHOLDER_IMAGE
+	const image = product.image_urls?.[0] ?? null
 	const { items } = useQuoteCart()
 	const existingItem = items.find((i) => i.productId === product.id)
 	const inCart = !!existingItem
 	const cartQty = existingItem?.quantity ?? 0
-	const unit = t(`units.${product.unit_of_measure}`, product.unit_of_measure)
+	const unit = productUnitLabel(product, locale)
+	const categoryLabel =
+		categoryLabelProp ??
+		t(`categories.${product.category}` as ParseKeys<'website'>, {
+			defaultValue: product.category.replace(/_/g, ' '),
+		})
 	const [popoverOpen, setPopoverOpen] = useState(false)
 	const btnRef = useRef<HTMLButtonElement>(null)
 
@@ -194,19 +213,27 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 				params={{ productSlug: product.slug }}
 				className="flex items-center gap-4 py-3 px-4 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/40 transition-colors"
 			>
-				<img
-					src={image}
-					alt={name}
-					className="w-14 h-14 rounded-lg object-cover bg-[var(--color-surface)]"
-					loading="lazy"
-				/>
+				{image ? (
+					<img
+						src={image}
+						alt={name}
+						className="w-14 h-14 rounded-lg object-cover bg-[var(--color-surface)]"
+						loading="lazy"
+					/>
+				) : (
+					<div
+						aria-hidden="true"
+						className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+					>
+						<Package size={18} />
+					</div>
+				)}
 				<div className="flex-1 min-w-0">
 					<p className="text-[14px] font-medium text-[var(--color-text)] line-clamp-1">
 						{name}
 					</p>
 					<p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-						{t(`categories.${product.category}` as ParseKeys<'website'>)} ·{' '}
-						{unit}
+						{categoryLabel} · {unit}
 					</p>
 				</div>
 				<div className="relative">
@@ -248,12 +275,18 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 			className="group block"
 		>
 			<div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[var(--color-surface)] sm:aspect-[3/2]">
-				<img
-					src={image}
-					alt={name}
-					className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
-					loading="lazy"
-				/>
+				{image ? (
+					<img
+						src={image}
+						alt={name}
+						className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
+						loading="lazy"
+					/>
+				) : (
+					<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
+						<Package size={34} />
+					</div>
+				)}
 				<button
 					ref={btnRef}
 					type="button"
@@ -292,7 +325,7 @@ export function ProductCard({ product, variant }: ProductCardProps) {
 					{name}
 				</h3>
 				<p className="mt-1 text-[12px] text-[var(--color-text-muted)] sm:text-[13px]">
-					{t(`categories.${product.category}` as ParseKeys<'website'>)} · {unit}
+					{categoryLabel} · {unit}
 				</p>
 			</div>
 		</Link>

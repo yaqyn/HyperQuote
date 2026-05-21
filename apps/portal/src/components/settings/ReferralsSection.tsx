@@ -6,7 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { getReferralStats } from '../../lib/server/referrals'
 

@@ -2,19 +2,13 @@ import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import type { TFunction } from 'i18next'
 import { ChevronDown, X } from 'lucide-react'
 import { useState } from 'react'
-import {
-	Button as AriaButton,
-	Dialog,
-	Heading,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Modal,
-	ModalOverlay,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button as AriaButton } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { useTranslation } from 'react-i18next'
 import type { QuoteVersion } from '../../types/quote'
 

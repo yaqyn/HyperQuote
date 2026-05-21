@@ -4,22 +4,17 @@
  */
 
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
-import {
-	Button,
-	DateInput,
-	DatePicker,
-	DateSegment,
-	Group,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Popover,
-	Select,
-	SelectValue,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { DateInput, DateSegment } from 'react-aria-components/DateField'
+import { DatePicker } from 'react-aria-components/DatePicker'
+import { Group } from 'react-aria-components/Group'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import type { DeliverySchedule } from '../../types/supplier'
 

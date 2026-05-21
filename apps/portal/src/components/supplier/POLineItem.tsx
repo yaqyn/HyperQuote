@@ -5,18 +5,14 @@
  * "Price Changed" -> NumberField for new price + warning text.
  */
 import { useState } from 'react'
-import {
-	Button,
-	Checkbox,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	NumberField,
-	Popover,
-	Select,
-	SelectValue,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Checkbox } from 'react-aria-components/Checkbox'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { NumberField } from 'react-aria-components/NumberField'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
 import { useTranslation } from 'react-i18next'
 import type { SupplierPOLine } from '../../types/supplier'
 

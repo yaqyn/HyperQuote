@@ -11,7 +11,7 @@ import {
 	MessageCircle,
 	Truck,
 } from 'lucide-react'
-import { ListBoxItem } from 'react-aria-components'
+import { ListBoxItem } from 'react-aria-components/ListBox'
 import type { Notification, NotificationType } from '../../types/notification'
 
 // ============================================================================

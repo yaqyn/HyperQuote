@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { motion } from 'motion/react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { revealUp, viewportOnce } from '../../components/shared/motionVariants'
 import {
@@ -38,6 +38,7 @@ function SupportPage() {
 	const { t, i18n } = useTranslation('website')
 	const isArabic = i18n.language === 'ar'
 	const [expandFaqId, setExpandFaqId] = useState<string | null>(null)
+	const contactHeadingRef = useRef<HTMLDivElement | null>(null)
 	const openWithMessage = useChatWidget((s) => s.openWithMessage)
 
 	const faqItems: SearchEntry[] = useMemo(
@@ -68,6 +69,19 @@ function SupportPage() {
 		},
 		[openWithMessage],
 	)
+
+	const handleContactSubmitted = useCallback(() => {
+		window.requestAnimationFrame(() => {
+			const target = contactHeadingRef.current
+			if (!target) return
+
+			const top = Math.max(
+				0,
+				target.getBoundingClientRect().top + window.scrollY - 96,
+			)
+			window.scrollTo({ top, behavior: 'smooth' })
+		})
+	}, [])
 
 	return (
 		<div className="min-h-screen">
@@ -122,7 +136,11 @@ function SupportPage() {
 				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
-					<div className="mb-10 text-center md:mb-12 lg:mb-14 lg:text-start">
+					<div
+						id="support-contact-heading"
+						ref={contactHeadingRef}
+						className="mb-10 scroll-mt-24 text-center md:mb-12 lg:mb-14 lg:text-start"
+					>
 						<SectionNumber n={1} />
 						<h2 className="mt-3 text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal">
 							{t('support.sectionContact')}
@@ -130,7 +148,7 @@ function SupportPage() {
 					</div>
 
 					<div className="grid grid-cols-1 items-start justify-items-center gap-12 lg:grid-cols-[1fr_1fr] lg:justify-items-stretch lg:gap-24">
-						<ContactForm />
+						<ContactForm onSubmitted={handleContactSubmitted} />
 						<div className="h-px bg-[var(--color-text)] opacity-[0.07] lg:hidden" />
 						<ContactInfo />
 					</div>

@@ -6,6 +6,7 @@ export const quoteRequestItemInputSchema = z.object({
 	customerDescription: z.string().min(1),
 	quantity: z.number().positive(),
 	unitOfMeasure: z.string(),
+	unitOfMeasureAr: z.string().optional(),
 	notes: z.string().optional(),
 	sortOrder: z.number(),
 	matchConfidence: z.number().optional(),
@@ -13,26 +14,73 @@ export const quoteRequestItemInputSchema = z.object({
 })
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInputSchema>
+const productOrderabilityRowSchema = z.object({
+	availability_status: z.string(),
+	id: z.string().uuid(),
+	is_active: z.boolean(),
+})
 
 type AuthedSupabase = Awaited<
 	ReturnType<typeof getAuthenticatedSupabase>
 >['supabase']
 
-function toQuoteRequestItemRow(
+export function toQuoteRequestItemRows(
 	quoteRequestId: string,
-	item: QuoteRequestItemInput,
+	items: QuoteRequestItemInput[],
+	orderableProductIds: ReadonlySet<string>,
 ) {
-	return {
-		quote_request_id: quoteRequestId,
-		product_id: item.productId ?? null,
-		customer_description: item.customerDescription,
-		quantity: item.quantity,
-		unit_of_measure: item.unitOfMeasure,
-		notes: item.notes ?? null,
-		match_confidence: item.matchConfidence ?? null,
-		sort_order: item.sortOrder,
-		is_unmatched: item.isUnmatched ?? false,
-	}
+	return items.map((item) => {
+		const hasOrderableProduct =
+			item.productId !== undefined && orderableProductIds.has(item.productId)
+		const productId = hasOrderableProduct ? item.productId : null
+		const isUnmatched = productId === null
+
+		return {
+			quote_request_id: quoteRequestId,
+			product_id: productId,
+			customer_description: item.customerDescription,
+			quantity: item.quantity,
+			unit_of_measure: item.unitOfMeasure,
+			unit_of_measure_ar: item.unitOfMeasureAr?.trim() || item.unitOfMeasure,
+			notes: item.notes ?? null,
+			match_confidence: isUnmatched ? null : (item.matchConfidence ?? null),
+			sort_order: item.sortOrder,
+			is_unmatched: isUnmatched,
+		}
+	})
+}
+
+async function getOrderableProductIds(
+	supabase: AuthedSupabase,
+	items: QuoteRequestItemInput[],
+) {
+	const productIds = [
+		...new Set(
+			items.flatMap((item) =>
+				item.productId === undefined ? [] : [item.productId],
+			),
+		),
+	]
+	if (productIds.length === 0) return new Set<string>()
+
+	const { data, error } = await supabase
+		.from('products')
+		.select('id, is_active, availability_status')
+		.in('id', productIds)
+
+	if (error) throw new Error(error.message)
+
+	const rows = productOrderabilityRowSchema.array().parse(data ?? [])
+	return new Set(
+		rows
+			.filter(
+				(row) =>
+					row.is_active &&
+					row.availability_status !== 'hidden' &&
+					row.availability_status !== 'out_of_stock',
+			)
+			.map((row) => row.id),
+	)
 }
 
 export async function insertQuoteRequestItems(
@@ -41,10 +89,11 @@ export async function insertQuoteRequestItems(
 	items: QuoteRequestItemInput[],
 ) {
 	if (items.length === 0) return
+	const orderableProductIds = await getOrderableProductIds(supabase, items)
 
 	const { error } = await supabase
 		.from('quote_request_items')
-		.insert(items.map((item) => toQuoteRequestItemRow(quoteRequestId, item)))
+		.insert(toQuoteRequestItemRows(quoteRequestId, items, orderableProductIds))
 
 	if (error) {
 		throw new Error(error.message)

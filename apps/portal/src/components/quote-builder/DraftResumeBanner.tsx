@@ -3,7 +3,7 @@
  * "Continue where you left off?" with Continue and Start Fresh options.
  */
 import { motion } from 'motion/react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 
 interface DraftResumeBannerProps {

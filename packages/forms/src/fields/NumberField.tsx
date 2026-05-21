@@ -1,10 +1,8 @@
-import {
-	NumberField as AriaNumberField,
-	FieldError,
-	Group,
-	Input,
-	Label,
-} from 'react-aria-components'
+import { FieldError } from 'react-aria-components/FieldError'
+import { Group } from 'react-aria-components/Group'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { NumberField as AriaNumberField } from 'react-aria-components/NumberField'
 import { Controller, useFormContext } from 'react-hook-form'
 
 interface NumberFieldProps {

@@ -7,17 +7,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import {
-	Button,
-	Dialog,
-	DialogTrigger,
-	Heading,
-	Label,
-	Modal,
-	ModalOverlay,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog, DialogTrigger, Heading } from 'react-aria-components/Dialog'
+import { Label } from 'react-aria-components/Label'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import type { PODDetails } from '../../lib/server/deliveries'
 import {

@@ -4,7 +4,10 @@
  * Items sorted by confidence ascending (lowest first = needs most attention).
  */
 import { useState } from 'react'
-import { Input, Label, NumberField, TextField } from 'react-aria-components'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { NumberField } from 'react-aria-components/NumberField'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import type { CatalogParsedItem } from '../../types/supplier'
 import { ConfidenceBadge } from './ConfidenceBadge'

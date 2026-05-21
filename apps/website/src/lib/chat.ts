@@ -1,13 +1,18 @@
 import { isAIEnabled, LYON_WEBSITE, streamChat } from '@hyperquote/ai'
+import {
+	createSupabaseServerClient,
+	resolveSupabaseWorkerConfig,
+} from '@hyperquote/auth/server'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 
 // AG-UI events carry `rawEvent?: unknown` and some variants a
 // `providerMetadata?: Record<string, unknown>`. TanStack Start's server-fn
 // transport rejects `unknown` at the return boundary. Restrict to the five
-// lifecycle events the mock emits and strip the `rawEvent` escape hatch so
-// the serialisation signature is precise without a blanket cast.
+// lifecycle events this endpoint returns and strip the `rawEvent` escape hatch
+// so the serialisation signature is precise without a blanket cast.
 type LifecycleType =
 	| 'RUN_STARTED'
 	| 'RUN_FINISHED'
@@ -15,7 +20,7 @@ type LifecycleType =
 	| 'TEXT_MESSAGE_CONTENT'
 	| 'TEXT_MESSAGE_END'
 
-type MockedStreamChunk =
+type WebsiteStreamChunk =
 	Extract<StreamChunk, { type: LifecycleType }> extends infer E
 		? E extends { rawEvent?: unknown }
 			? Omit<E, 'rawEvent'>
@@ -35,66 +40,60 @@ const chatInput = z.object({
 	),
 })
 
-// ============================================================================
-// Mock responses for development — real AI backend in Phase 30
-// ============================================================================
-
-const MOCK_RESPONSES: Record<string, string> = {
-	default:
-		"I'm HyperQuote's assistant. I can help you find building materials, get quotes, and track orders. What are you looking for today?",
-	quote:
-		"I'd be happy to help you get a quote! You can start by telling me what materials you need, or use our Material List Builder for a more detailed request.",
-	price:
-		"We don't publish exact prices -- they depend on quantity, delivery location, and current market conditions. Request a quote and we'll source pricing from multiple suppliers for you.",
-	delivery:
-		'Delivery times depend on your location and the materials ordered. Most orders within Cairo are delivered within 24-48 hours. Would you like to place an order?',
-	cement:
-		'We carry a full range of cement products including Portland CEM I 42.5N, CEM II, and specialty cements. Would you like to see our catalog or get a quote?',
-}
-
-function getMockResponse(userMessage: string): string {
+function publicPolicyRefusal(userMessage: string): string | null {
 	const lower = userMessage.toLowerCase()
 	if (
-		lower.includes('quote') ||
-		lower.includes('\u0639\u0631\u0636 \u0633\u0639\u0631')
-	)
-		return MOCK_RESPONSES.quote
-	if (lower.includes('price') || lower.includes('\u0633\u0639\u0631'))
-		return MOCK_RESPONSES.price
-	if (
-		lower.includes('deliver') ||
-		lower.includes('\u062a\u0648\u0635\u064a\u0644')
-	)
-		return MOCK_RESPONSES.delivery
-	if (
-		lower.includes('cement') ||
-		lower.includes('\u0627\u0633\u0645\u0646\u062a')
-	)
-		return MOCK_RESPONSES.cement
-	return MOCK_RESPONSES.default
+		lower.includes('my order') ||
+		lower.includes('another customer') ||
+		lower.includes('other customer') ||
+		lower.includes('internal') ||
+		lower.includes('driver location') ||
+		lower.includes('supplier cost') ||
+		lower.includes('finance') ||
+		lower.includes('employee')
+	) {
+		return 'I can only answer from public HyperQuote website, docs, and catalog information. Sign in to the portal for your account-specific data.'
+	}
+	return null
 }
 
-// ============================================================================
-// Mock AG-UI stream generator
-// Emits proper AG-UI protocol events that TanStack AI client expects
-// ============================================================================
+function publicWebsiteResponse(userMessage: string): string {
+	const lower = userMessage.toLowerCase()
+	if (lower.includes('what is') && lower.includes('hyperquote')) {
+		return 'HyperQuote helps contractors in Egypt send one building-materials request and get one consolidated quote from multiple suppliers.'
+	}
+	if (
+		lower.includes('market') ||
+		lower.includes('catalog') ||
+		lower.includes('product') ||
+		lower.includes('cement') ||
+		lower.includes('rebar') ||
+		lower.includes('steel')
+	) {
+		return 'You can browse public building-material listings in Market, compare customer-safe catalog details, and request a quote after signing in.'
+	}
+	if (
+		lower.includes('price') ||
+		lower.includes('quote') ||
+		lower.includes('cost')
+	) {
+		return 'Public prices are indicative. Sign in to request a quote so HyperQuote can source current supplier pricing for your quantity and delivery area.'
+	}
+	return 'I can help with public HyperQuote information, Market browsing, quote requests, account signup, and support. Sign in to the portal for account-specific orders or drafts.'
+}
 
-async function* mockAGUIStream(
-	userMessage: string,
-): AsyncGenerator<MockedStreamChunk> {
-	const response = getMockResponse(userMessage)
-	const words = response.split(' ')
+async function* textOnlyStream(
+	text: string,
+): AsyncGenerator<WebsiteStreamChunk> {
 	const runId = crypto.randomUUID()
 	const messageId = crypto.randomUUID()
 
-	// RUN_STARTED
 	yield {
 		type: 'RUN_STARTED' as const,
 		timestamp: Date.now(),
 		runId,
 	}
 
-	// TEXT_MESSAGE_START
 	yield {
 		type: 'TEXT_MESSAGE_START' as const,
 		timestamp: Date.now(),
@@ -102,26 +101,19 @@ async function* mockAGUIStream(
 		role: 'assistant' as const,
 	}
 
-	// TEXT_MESSAGE_CONTENT — token-by-token streaming
-	for (const word of words) {
-		yield {
-			type: 'TEXT_MESSAGE_CONTENT' as const,
-			timestamp: Date.now(),
-			messageId,
-			delta: `${word} `,
-		}
-		// Simulate token delay (50-100ms)
-		await new Promise((r) => setTimeout(r, 50 + Math.random() * 50))
+	yield {
+		type: 'TEXT_MESSAGE_CONTENT' as const,
+		timestamp: Date.now(),
+		messageId,
+		delta: text,
 	}
 
-	// TEXT_MESSAGE_END
 	yield {
 		type: 'TEXT_MESSAGE_END' as const,
 		timestamp: Date.now(),
 		messageId,
 	}
 
-	// RUN_FINISHED
 	yield {
 		type: 'RUN_FINISHED' as const,
 		timestamp: Date.now(),
@@ -133,24 +125,57 @@ async function* mockAGUIStream(
 // ============================================================================
 // chatStreamFn — Server function that returns AG-UI stream chunks as array
 // The stream() adapter in useAIChat wraps this for the useChat hook
-// Phase 30 swaps mockAGUIStream with real AI model call
 // ============================================================================
 
 export const chatStreamFn = createServerFn()
 	.inputValidator(chatInput)
-	.handler(async ({ data: input }): Promise<MockedStreamChunk[]> => {
+	.handler(async ({ data: input }): Promise<WebsiteStreamChunk[]> => {
 		const lastMessage = input.messages[input.messages.length - 1]
-		const chunks: MockedStreamChunk[] = []
+		const userText = lastMessage?.content ?? ''
+		const chunks: WebsiteStreamChunk[] = []
+		const refusal = publicPolicyRefusal(userText)
 
-		if (isAIEnabled()) {
+		if (refusal) {
+			for await (const chunk of textOnlyStream(refusal)) {
+				chunks.push(chunk)
+			}
+		} else if (isAIEnabled()) {
 			for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
-				chunks.push(chunk as MockedStreamChunk)
+				chunks.push(chunk as WebsiteStreamChunk)
 			}
 		} else {
-			for await (const chunk of mockAGUIStream(lastMessage?.content ?? '')) {
+			for await (const chunk of textOnlyStream(
+				publicWebsiteResponse(userText),
+			)) {
 				chunks.push(chunk)
 			}
 		}
 
+		await recordWebsiteAiAudit(userText, chunks).catch(() => undefined)
+
 		return chunks
 	})
+
+async function recordWebsiteAiAudit(
+	userText: string,
+	chunks: WebsiteStreamChunk[],
+) {
+	const config = await resolveSupabaseWorkerConfig(process.env)
+	if (!config) return
+	const request = getRequest()
+	const { client } = createSupabaseServerClient({ request, ...config })
+	const response = chunks
+		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
+		.map((chunk) => chunk.delta)
+		.join('')
+	await client.rpc('record_ai_tool_call', {
+		p_agent_scope: 'website',
+		p_approved_by_user: false,
+		p_input_summary: { prompt: userText.slice(0, 240) },
+		p_output_summary: { response: response.slice(0, 240) },
+		p_read_entities: ['website_index', 'published_catalog'],
+		p_tool_name: 'website_public_chat',
+		p_write_entity_id: null,
+		p_write_entity_type: null,
+	})
+}

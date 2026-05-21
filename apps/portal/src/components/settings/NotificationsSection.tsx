@@ -7,7 +7,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ParseKeys } from 'i18next'
 import { useState } from 'react'
-import { Switch } from 'react-aria-components'
+import { Switch } from 'react-aria-components/Switch'
 import { useTranslation } from 'react-i18next'
 import { updateNotificationPreferences } from '../../lib/server/settings'
 import type { NotificationPreference } from '../../types/settings'

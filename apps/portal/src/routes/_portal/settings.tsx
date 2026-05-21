@@ -207,11 +207,18 @@ function SettingsWindow() {
 							numberFormat={numberFormat}
 							dateFormat={dateFormat}
 							onLocaleChange={(locale) => {
+								localStorage.setItem('hq-locale', locale)
+								const doc = document as unknown as Record<'cookie', string>
+								doc.cookie = `hq-locale=${locale};path=/;max-age=31536000`
 								document.documentElement.setAttribute(
 									'dir',
 									locale === 'ar' ? 'rtl' : 'ltr',
 								)
 								document.documentElement.setAttribute('lang', locale)
+								document.body.className = document.body.className.replace(
+									/font-(sans|arabic)/,
+									locale === 'ar' ? 'font-arabic' : 'font-sans',
+								)
 							}}
 							onThemeChange={setCurrentTheme}
 							onNumberFormatChange={setNumberFormat}

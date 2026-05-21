@@ -10,15 +10,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { EyeOff, Pencil } from 'lucide-react'
+import { Button } from 'react-aria-components/Button'
 import {
-	Button,
 	Cell,
 	Column,
 	Row,
 	Table,
 	TableBody,
 	TableHeader,
-} from 'react-aria-components'
+} from 'react-aria-components/Table'
 import { useTranslation } from 'react-i18next'
 import { updateSupplierStock } from '../../lib/server/supplier-stock'
 import type { SupplierProduct } from '../../types/supplier'

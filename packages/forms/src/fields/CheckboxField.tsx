@@ -1,4 +1,4 @@
-import { Checkbox } from 'react-aria-components'
+import { Checkbox } from 'react-aria-components/Checkbox'
 import { Controller, useFormContext } from 'react-hook-form'
 
 interface CheckboxFieldProps {

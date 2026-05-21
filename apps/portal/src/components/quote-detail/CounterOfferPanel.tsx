@@ -1,12 +1,10 @@
 import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
-import {
-	Checkbox,
-	Input,
-	Label,
-	NumberField,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+import { Checkbox } from 'react-aria-components/Checkbox'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { NumberField } from 'react-aria-components/NumberField'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import { useQuoteActionsStore } from '../../stores/quote-actions'
 

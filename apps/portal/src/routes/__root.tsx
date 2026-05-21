@@ -5,8 +5,9 @@ import {
 	Outlet,
 	Scripts,
 } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 import { useEffect, useState } from 'react'
-import { I18nProvider } from 'react-aria-components'
+import { I18nProvider } from 'react-aria-components/I18nProvider'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { i18n, setupI18n } from '../lib/i18n'
@@ -25,6 +26,11 @@ function detectLocale(request?: Request): 'ar' | 'en' {
 			const stored = localStorage.getItem('hq-locale')
 			if (stored === 'ar' || stored === 'en') return stored
 		}
+		if (typeof document !== 'undefined') {
+			if (document.documentElement.dir === 'rtl') return 'ar'
+			const match = document.cookie.match(/hq-locale=(ar|en)/)
+			if (match) return match[1] as 'ar' | 'en'
+		}
 		return 'en'
 	}
 
@@ -35,24 +41,48 @@ function detectLocale(request?: Request): 'ar' | 'en' {
 	return 'en'
 }
 
-async function getRouteRequest(context: unknown): Promise<Request | undefined> {
+const getServerBootstrap = createServerFn({ method: 'GET' }).handler(
+	async () => {
+		const { getRequest } = await import('@tanstack/react-start/server')
+		const request = getRequest()
+		return {
+			locale: detectLocale(request),
+			theme: detectPortalTheme(request),
+		}
+	},
+)
+
+async function getPortalBootstrap(context: unknown): Promise<{
+	locale: 'ar' | 'en'
+	theme: PortalTheme
+}> {
 	const contextRequest = (context as { request?: unknown }).request
-	if (contextRequest instanceof Request) return contextRequest
-	if (!import.meta.env.SSR) return undefined
+	if (contextRequest instanceof Request) {
+		return {
+			locale: detectLocale(contextRequest),
+			theme: detectPortalTheme(contextRequest),
+		}
+	}
+	if (!import.meta.env.SSR) {
+		return {
+			locale: detectLocale(),
+			theme: detectPortalTheme(),
+		}
+	}
 
 	try {
-		const { getRequest } = await import('@tanstack/react-start/server')
-		return getRequest()
+		return await getServerBootstrap()
 	} catch {
-		return undefined
+		return {
+			locale: detectLocale(),
+			theme: detectPortalTheme(),
+		}
 	}
 }
 
 export const Route = createRootRoute({
 	beforeLoad: async ({ context }) => {
-		const request = await getRouteRequest(context)
-		const locale = detectLocale(request)
-		const theme = detectPortalTheme(request)
+		const { locale, theme } = await getPortalBootstrap(context)
 		await setupI18n(locale)
 		return { locale, theme }
 	},
@@ -61,6 +91,7 @@ export const Route = createRootRoute({
 			{ charSet: 'utf-8' },
 			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
 			{ name: 'title', content: 'HyperQuote' },
+			{ name: 'mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
@@ -110,6 +141,15 @@ function RootComponent() {
 		applyPortalTheme(readStoredPortalTheme() ?? theme)
 	}, [theme])
 
+	useEffect(() => {
+		void setupI18n(locale)
+		document.documentElement.setAttribute('lang', locale)
+		document.documentElement.setAttribute(
+			'dir',
+			locale === 'ar' ? 'rtl' : 'ltr',
+		)
+	}, [locale])
+
 	// Document-level UX guards: disable right-click menu and block Ctrl/Cmd+A
 	// outside text inputs. Attached to document because <body> with interactive
 	// handlers violates a11y linting (static element + interactive role).
@@ -140,7 +180,11 @@ function RootComponent() {
 	}, [])
 
 	return (
-		<html lang={locale} dir="ltr" data-theme={theme}>
+		<html
+			lang={locale}
+			dir={locale === 'ar' ? 'rtl' : 'ltr'}
+			data-theme={theme}
+		>
 			<head>
 				<HeadContent />
 				<meta name="theme-color" content={portalThemeColor(theme)} />

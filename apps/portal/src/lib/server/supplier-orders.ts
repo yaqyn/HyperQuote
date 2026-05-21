@@ -1,286 +1,92 @@
 /**
  * Supplier purchase order server functions.
- * PO listing, confirm/reject, delivery note upload.
- * Dev mode fallback when Supabase not configured.
+ * Supplier-authenticated order handling is not in the v1 backend contract, so
+ * these functions never fabricate purchase orders or confirmations.
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { SupplierPO } from '../../types/supplier'
-import { isSupabaseConfigured } from './_supabase'
-
-// ============================================================================
-// Mock data
-// ============================================================================
-
-function getMockPOs(): SupplierPO[] {
-	const now = new Date()
-	return [
-		{
-			id: 'po-001',
-			reference: 'HQ-2026-0042',
-			status: 'sent',
-			dateReceived: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-			responseDeadline: new Date(
-				now.getTime() + 22 * 60 * 60 * 1000,
-			).toISOString(),
-			items: [
-				{
-					id: 'pol-001',
-					productName: 'Portland Cement 50kg',
-					productNameAr: 'أسمنت بورتلاندي ٥٠ كجم',
-					sku: 'CEM-50K-001',
-					quantityRequested: 500,
-					unitPrice: 85,
-					lineTotal: 42500,
-					confirmed: true,
-				},
-				{
-					id: 'pol-002',
-					productName: 'Rebar 12mm',
-					productNameAr: 'حديد تسليح ١٢ مم',
-					sku: 'REB-12M-001',
-					quantityRequested: 10,
-					unitPrice: 32500,
-					lineTotal: 325000,
-					confirmed: true,
-				},
-			],
-		},
-		{
-			id: 'po-002',
-			reference: 'HQ-2026-0039',
-			status: 'sent',
-			dateReceived: new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString(),
-			responseDeadline: new Date(
-				now.getTime() + 16 * 60 * 60 * 1000,
-			).toISOString(),
-			items: [
-				{
-					id: 'pol-003',
-					productName: 'Washed Sand',
-					productNameAr: 'رمل مغسول',
-					sku: 'SND-WSH-001',
-					quantityRequested: 100,
-					unitPrice: 250,
-					lineTotal: 25000,
-					confirmed: true,
-				},
-				{
-					id: 'pol-004',
-					productName: 'Gravel 20mm',
-					productNameAr: 'زلط ٢٠ مم',
-					sku: 'GRV-20M-001',
-					quantityRequested: 80,
-					unitPrice: 280,
-					lineTotal: 22400,
-					confirmed: true,
-				},
-			],
-		},
-		{
-			id: 'po-003',
-			reference: 'HQ-2026-0035',
-			status: 'confirmed',
-			dateReceived: new Date(
-				now.getTime() - 3 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			responseDeadline: new Date(
-				now.getTime() - 2 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			items: [
-				{
-					id: 'pol-005',
-					productName: 'Red Bricks',
-					productNameAr: 'طوب أحمر',
-					sku: 'BRK-RED-001',
-					quantityRequested: 5000,
-					unitPrice: 1200,
-					lineTotal: 6000000,
-					confirmed: true,
-				},
-			],
-			deliverySchedule: {
-				estimatedShipDate: new Date(
-					now.getTime() + 2 * 24 * 60 * 60 * 1000,
-				).toISOString(),
-				deliveryMethod: 'supplier_delivers',
-				notes: 'Will deliver in 2 batches',
-			},
-		},
-		{
-			id: 'po-004',
-			reference: 'HQ-2026-0028',
-			status: 'shipped',
-			dateReceived: new Date(
-				now.getTime() - 7 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			responseDeadline: new Date(
-				now.getTime() - 6 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			items: [
-				{
-					id: 'pol-006',
-					productName: 'Welded Steel Mesh 6mm',
-					productNameAr: 'شبك حديد ملحوم ٦ مم',
-					sku: 'MSH-6MM-001',
-					quantityRequested: 50,
-					unitPrice: 4500,
-					lineTotal: 225000,
-					confirmed: true,
-				},
-			],
-			deliverySchedule: {
-				estimatedShipDate: new Date(
-					now.getTime() - 1 * 24 * 60 * 60 * 1000,
-				).toISOString(),
-				deliveryMethod: 'supplier_delivers',
-				trackingNumber: 'TRK-2026-8842',
-			},
-		},
-		{
-			id: 'po-005',
-			reference: 'HQ-2026-0020',
-			status: 'delivered',
-			dateReceived: new Date(
-				now.getTime() - 14 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			responseDeadline: new Date(
-				now.getTime() - 13 * 24 * 60 * 60 * 1000,
-			).toISOString(),
-			items: [
-				{
-					id: 'pol-007',
-					productName: 'Portland Cement 50kg',
-					productNameAr: 'أسمنت بورتلاندي ٥٠ كجم',
-					sku: 'CEM-50K-001',
-					quantityRequested: 1000,
-					unitPrice: 80,
-					lineTotal: 80000,
-					confirmed: true,
-				},
-				{
-					id: 'pol-008',
-					productName: 'Rebar 16mm',
-					productNameAr: 'حديد تسليح ١٦ مم',
-					sku: 'REB-16M-001',
-					quantityRequested: 20,
-					unitPrice: 34000,
-					lineTotal: 680000,
-					confirmed: true,
-				},
-			],
-			deliverySchedule: {
-				estimatedShipDate: new Date(
-					now.getTime() - 10 * 24 * 60 * 60 * 1000,
-				).toISOString(),
-				deliveryMethod: 'hyperquote_pickup',
-			},
-		},
-	]
-}
-
-// ============================================================================
-// getSupplierPOs
-// ============================================================================
+import { getAuthenticatedSupabase } from './_supabase'
 
 export const getSupplierPOs = createServerFn()
 	.inputValidator(
 		z.object({
-			status: z.string().optional(),
 			page: z.number(),
 			limit: z.number(),
+			status: z.string().optional(),
 		}),
 	)
 	.handler(
-		async ({
-			data: input,
-		}): Promise<{ purchaseOrders: SupplierPO[]; total: number }> => {
-			if (!isSupabaseConfigured()) {
-				let pos = getMockPOs()
-				if (input.status && input.status !== 'all') {
-					pos = pos.filter((po) => po.status === input.status)
-				}
-				return { purchaseOrders: pos, total: pos.length }
-			}
-
-			// Mock-backed until supplier PO reads are wired to Supabase.
-			const pos = getMockPOs()
-			return { purchaseOrders: pos, total: pos.length }
+		async (): Promise<{ purchaseOrders: SupplierPO[]; total: number }> => {
+			await getAuthenticatedSupabase()
+			return { purchaseOrders: [], total: 0 }
 		},
 	)
 
-// ============================================================================
-// confirmPO
-// ============================================================================
-
-export const confirmPO = createServerFn()
+export const confirmPO = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			poId: z.string(),
-			lines: z.array(
-				z.object({
-					lineId: z.string(),
-					confirmed: z.boolean(),
-					reason: z.string().optional(),
-					partialQuantity: z.number().optional(),
-					newPrice: z.number().optional(),
-				}),
-			),
-			deliverySchedule: z.object({
-				estimatedShipDate: z.string(),
-				deliveryMethod: z.string(),
-				trackingNumber: z.string().optional(),
-				notes: z.string().optional(),
-			}),
+			lineConfirmations: z
+				.array(
+					z.object({
+						lineId: z.string(),
+						confirmed: z.boolean(),
+						partialQuantity: z.number().optional(),
+						newPrice: z.number().optional(),
+						reason: z.string().optional(),
+					}),
+				)
+				.optional(),
+			lines: z
+				.array(
+					z.object({
+						lineId: z.string(),
+						confirmed: z.boolean(),
+						partialQuantity: z.number().optional(),
+						newPrice: z.number().optional(),
+						reason: z.string().optional(),
+					}),
+				)
+				.optional(),
+			deliverySchedule: z
+				.object({
+					estimatedShipDate: z.string(),
+					deliveryMethod: z.enum(['supplier_delivers', 'hyperquote_pickup']),
+					trackingNumber: z.string().optional(),
+					notes: z.string().optional(),
+				})
+				.optional(),
 		}),
 	)
 	.handler(async (): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
-		// Mock-backed until supplier PO confirmations write to Supabase.
-		return { success: true }
+		await getAuthenticatedSupabase()
+		throw new Error('Supplier purchase order confirmation is not configured')
 	})
 
-// ============================================================================
-// rejectPO
-// ============================================================================
-
-export const rejectPO = createServerFn()
+export const rejectPO = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			poId: z.string(),
 			reason: z.string(),
+			notes: z.string().optional(),
 		}),
 	)
 	.handler(async (): Promise<{ success: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { success: true }
-		}
-
-		// Mock-backed until supplier PO rejections write to Supabase.
-		return { success: true }
+		await getAuthenticatedSupabase()
+		throw new Error('Supplier purchase order rejection is not configured')
 	})
 
-// ============================================================================
-// uploadDeliveryNote
-// ============================================================================
-
-export const uploadDeliveryNote = createServerFn()
+export const uploadDeliveryNote = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			poId: z.string(),
 			fileUrl: z.string(),
-			deliveryDate: z.string(),
-			quantity: z.number(),
+			deliveryDate: z.string().optional(),
+			quantity: z.number().optional(),
 		}),
 	)
-	.handler(async (): Promise<{ deliveryNoteId: string }> => {
-		if (!isSupabaseConfigured()) {
-			return { deliveryNoteId: crypto.randomUUID() }
-		}
-
-		// Mock-backed until delivery-note R2 upload and warehouse notification are configured.
-		return { deliveryNoteId: crypto.randomUUID() }
+	.handler(async (): Promise<{ success: boolean }> => {
+		await getAuthenticatedSupabase()
+		throw new Error('Supplier delivery note upload is not configured')
 	})

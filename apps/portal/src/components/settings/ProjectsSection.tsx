@@ -6,17 +6,13 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import {
-	Button,
-	Dialog,
-	Heading,
-	Input,
-	Label,
-	Modal,
-	ModalOverlay,
-	TextArea,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
+import { TextArea } from 'react-aria-components/TextArea'
+import { TextField } from 'react-aria-components/TextField'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { archiveProject, saveProject } from '../../lib/server/settings'

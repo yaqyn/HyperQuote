@@ -1,7 +1,7 @@
 /**
  * ConfidenceBadge -- Color-coded confidence score indicator.
  * High (> 90%): green, Medium (70-90%): yellow, Low (< 70%): red.
- * Uses Geist Mono for percentage display.
+ * Uses readable tabular sans for percentage display.
  */
 
 interface ConfidenceBadgeProps {

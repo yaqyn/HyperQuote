@@ -1,6 +1,7 @@
 import { CurrencyDisplay } from '@hyperquote/ui/display/CurrencyDisplay'
 import { motion } from 'motion/react'
-import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 
 interface AcceptConfirmModalProps {

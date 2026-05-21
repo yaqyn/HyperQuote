@@ -1,11 +1,13 @@
+import { formatWeightKg } from '@hyperquote/i18n'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import type { ParseKeys, TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 import {
 	ArrowLeft,
 	Check,
 	ChevronRight,
 	Copy,
 	MessageSquare,
+	Package,
 	PackageX,
 	Pencil,
 	Share2,
@@ -13,7 +15,11 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Group } from 'react-aria-components/Group'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { NumberField } from 'react-aria-components/NumberField'
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../../../components/shared/SectionReveal'
 import { useChatWidget } from '../../../hooks/useChatWidget'
@@ -24,27 +30,43 @@ import {
 	type PublicProduct,
 } from '../../../lib/catalog'
 import { formatPriceRange } from '../../../lib/price-range'
+import { isAbortedRouteLoad } from '../../../lib/route-loader'
+
+interface PublicCategory {
+	slug: string
+	name: string
+	name_ar: string
+}
 
 export const Route = createFileRoute('/_website/market/$productSlug')({
-	loader: async ({ params }) => {
-		const product = await getProductBySlug({
-			data: { slug: params.productSlug },
-		})
-
-		let relatedProducts: PublicProduct[] = []
-		if (product) {
-			const related = await getPublicCatalog({
-				data: {
-					category: [product.category],
-					limit: 6,
-					page: 1,
-					sort: 'relevance',
-				},
+	loader: async ({ params, abortController }) => {
+		try {
+			const product = await getProductBySlug({
+				data: { slug: params.productSlug },
 			})
-			relatedProducts = related.items.filter((item) => item.id !== product.id)
-		}
 
-		return { product, relatedProducts }
+			let relatedProducts: PublicProduct[] = []
+			let categories: PublicCategory[] = []
+			if (product) {
+				const related = await getPublicCatalog({
+					data: {
+						category: [product.category],
+						limit: 6,
+						page: 1,
+						sort: 'relevance',
+					},
+				})
+				relatedProducts = related.items.filter((item) => item.id !== product.id)
+				categories = related.categories
+			}
+
+			return { product, relatedProducts, categories }
+		} catch (error) {
+			if (isAbortedRouteLoad(error, abortController.signal)) {
+				return { product: null, relatedProducts: [], categories: [] }
+			}
+			throw error
+		}
 	},
 	head: ({ loaderData }) => {
 		const product = loaderData?.product
@@ -73,17 +95,35 @@ export const Route = createFileRoute('/_website/market/$productSlug')({
 const spring = { type: 'spring' as const, stiffness: 200, damping: 20 }
 const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
 
-const FALLBACK_IMAGE = 'https://websiteassets.hyperquote.net/Images/cairo.webp'
+function unitLabelFor(
+	product: Pick<PublicProduct, 'unit_of_measure' | 'unit_of_measure_ar'>,
+	locale: 'ar' | 'en',
+) {
+	return locale === 'ar' && product.unit_of_measure_ar
+		? product.unit_of_measure_ar
+		: product.unit_of_measure
+}
 
-function _formatWeight(kg: number): string {
-	if (kg >= 1000) return `${(kg / 1000).toFixed(kg % 1000 === 0 ? 0 : 1)} t`
-	return `${kg.toFixed(kg % 1 === 0 ? 0 : 1)} kg`
+function specsForLocale(product: PublicProduct, locale: 'ar' | 'en') {
+	return locale === 'ar' && Object.keys(product.specifications_ar ?? {}).length
+		? product.specifications_ar
+		: product.specifications
+}
+
+function categoryLabelFor(
+	slug: string,
+	categories: PublicCategory[],
+	locale: 'ar' | 'en',
+) {
+	const category = categories.find((item) => item.slug === slug)
+	if (!category) return slug.replace(/_/g, ' ')
+	return locale === 'ar' && category.name_ar ? category.name_ar : category.name
 }
 
 // --------------------------------------------------------------------------
 
 function ProductDetailPage() {
-	const { product, relatedProducts } = Route.useLoaderData()
+	const { product, relatedProducts, categories } = Route.useLoaderData()
 	const { t, i18n } = useTranslation('website')
 	const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
 
@@ -109,21 +149,18 @@ function ProductDetailPage() {
 
 	const productName =
 		locale === 'ar' && product.name_ar ? product.name_ar : product.name
-	const images = product.image_urls?.length
-		? product.image_urls
-		: [FALLBACK_IMAGE]
+	const images = product.image_urls ?? []
+	const unitLabel = unitLabelFor(product, locale)
+	const localizedSpecs = specsForLocale(product, locale)
 	const priceRange = formatPriceRange(
 		product.price_range_min,
 		product.price_range_max,
 		product.unit_of_measure,
 		locale,
 		t,
+		unitLabel,
 	)
-	const categoryLabel = String(
-		t(`categories.${product.category}` as ParseKeys<'website'>, {
-			defaultValue: product.category.replace(/_/g, ' '),
-		}),
-	)
+	const categoryLabel = categoryLabelFor(product.category, categories, locale)
 	const availStatus = product.availability_status ?? 'out_of_stock'
 	const availDot =
 		availStatus === 'available'
@@ -247,8 +284,10 @@ function ProductDetailPage() {
 										id: product.id,
 										slug: product.slug,
 										name: product.name,
+										nameAr: product.name_ar,
 										category: product.category,
 										unitOfMeasure: product.unit_of_measure,
+										unitOfMeasureAr: product.unit_of_measure_ar,
 										imageUrl: images[0],
 										weightKg: product.weight_kg,
 									}}
@@ -267,12 +306,12 @@ function ProductDetailPage() {
 										priceRange={priceRange}
 										slug={product.slug}
 										specifications={
-											(product.specifications as Record<string, unknown>) ?? {}
+											(localizedSpecs as Record<string, unknown>) ?? {}
 										}
 										brand={product.brand}
 										manufacturer={product.manufacturer}
 										weightKg={product.weight_kg}
-										unitOfMeasure={product.unit_of_measure}
+										unitOfMeasure={unitLabel}
 									/>
 								</div>
 							</motion.div>
@@ -282,11 +321,9 @@ function ProductDetailPage() {
 
 				{/* Specs */}
 				<SpecsSection
-					specifications={
-						(product.specifications as Record<string, unknown>) ?? {}
-					}
+					specifications={(localizedSpecs as Record<string, unknown>) ?? {}}
 					weightKg={product.weight_kg}
-					unitOfMeasure={product.unit_of_measure}
+					unitOfMeasure={unitLabel}
 					brand={product.brand}
 					manufacturer={product.manufacturer}
 				/>
@@ -301,8 +338,10 @@ function ProductDetailPage() {
 					id: product.id,
 					slug: product.slug,
 					name: product.name,
+					nameAr: product.name_ar,
 					category: product.category,
 					unitOfMeasure: product.unit_of_measure,
+					unitOfMeasureAr: product.unit_of_measure_ar,
 					imageUrl: images[0],
 					weightKg: product.weight_kg,
 				}}
@@ -317,6 +356,7 @@ function ProductDetailPage() {
 
 function ProductImage({ images, name }: { images: string[]; name: string }) {
 	const [activeIndex, setActiveIndex] = useState(0)
+	const activeImage = images[activeIndex]
 
 	return (
 		<motion.div
@@ -327,12 +367,18 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
 		>
 			{/* Main image */}
 			<div className="group aspect-[16/10] overflow-hidden rounded-2xl bg-[var(--color-surface)] lg:aspect-[5/6]">
-				<img
-					src={images[activeIndex]}
-					alt={name}
-					className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-					loading="eager"
-				/>
+				{activeImage ? (
+					<img
+						src={activeImage}
+						alt={name}
+						className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+						loading="eager"
+					/>
+				) : (
+					<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
+						<Package size={42} />
+					</div>
+				)}
 			</div>
 
 			{/* Thumbnails */}
@@ -371,8 +417,10 @@ interface QuoteActionProduct {
 	id: string
 	slug: string
 	name: string
+	nameAr: string
 	category: string
 	unitOfMeasure: string
+	unitOfMeasureAr: string
 	imageUrl: string | null
 	weightKg: number | null
 }
@@ -391,7 +439,8 @@ const _PRESETS: Record<string, number[]> = {
 type QuoteMode = 'idle' | 'selecting' | 'added'
 
 function QuoteAction({ product }: { product: QuoteActionProduct }) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
+	const isAr = i18n.language === 'ar'
 	const { add, remove, items, updateQuantity } = useQuoteCart()
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
@@ -403,7 +452,10 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 		if (cartItem && mode === 'idle') setMode('added')
 	}, [cartItem, mode])
 
-	const unit = t(`units.${product.unitOfMeasure}`, product.unitOfMeasure)
+	const unit =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 
 	const inputRef = useCallback(
 		(el: HTMLInputElement | null) => {
@@ -427,8 +479,10 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 					productId: product.id,
 					slug: product.slug,
 					name: product.name,
+					nameAr: product.nameAr,
 					category: product.category,
 					unitOfMeasure: product.unitOfMeasure,
+					unitOfMeasureAr: product.unitOfMeasureAr,
 					imageUrl: product.imageUrl,
 				},
 				q,
@@ -609,6 +663,7 @@ interface ProductActionsProps {
 function buildProductText(
 	props: ProductActionsProps,
 	t: TFunction<'website'>,
+	locale: 'ar' | 'en',
 ): string {
 	const lines: string[] = [
 		props.productName,
@@ -633,11 +688,11 @@ function buildProductText(
 		specs.push(`${label}: ${String(value)}`)
 	}
 	if (props.weightKg != null)
-		specs.push(`${t('product.specWeight')}: ${props.weightKg} kg`)
-	if (props.unitOfMeasure)
 		specs.push(
-			`${t('product.specUOM')}: ${t(`units.${props.unitOfMeasure}` as ParseKeys<'website'>)}`,
+			`${t('product.specWeight')}: ${formatWeightKg(props.weightKg, locale)}`,
 		)
+	if (props.unitOfMeasure)
+		specs.push(`${t('product.specUOM')}: ${props.unitOfMeasure}`)
 
 	if (specs.length > 0) {
 		lines.push('', '—', ...specs)
@@ -648,11 +703,12 @@ function buildProductText(
 }
 
 function ProductActions(props: ProductActionsProps) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
 	const [copied, setCopied] = useState(false)
 	const openWithMessage = useChatWidget((s) => s.openWithMessage)
+	const locale = i18n.language === 'ar' ? 'ar' : 'en'
 
-	const productText = buildProductText(props, t)
+	const productText = buildProductText(props, t, locale)
 	const productUrl = `https://hyperquote.net/market/${props.slug}`
 
 	const handleShare = async () => {
@@ -756,7 +812,8 @@ function SpecsSection({
 	brand: string | null
 	manufacturer: string | null
 }) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
+	const locale = i18n.language === 'ar' ? 'ar' : 'en'
 
 	const items: { label: string; value: string; mono: boolean }[] = []
 
@@ -781,13 +838,13 @@ function SpecsSection({
 	if (weightKg != null)
 		items.push({
 			label: t('product.specWeight'),
-			value: `${weightKg} kg`,
+			value: formatWeightKg(weightKg, locale),
 			mono: true,
 		})
 	if (unitOfMeasure)
 		items.push({
 			label: t('product.specUOM'),
-			value: t(`units.${unitOfMeasure}`, unitOfMeasure),
+			value: unitOfMeasure,
 			mono: false,
 		})
 
@@ -853,13 +910,15 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 				{products.slice(0, 3).map((product, i) => {
 					const name =
 						locale === 'ar' && product.name_ar ? product.name_ar : product.name
-					const image = product.image_urls?.[0] ?? FALLBACK_IMAGE
+					const image = product.image_urls?.[0] ?? null
+					const unit = unitLabelFor(product, locale)
 					const price = formatPriceRange(
 						product.price_range_min,
 						product.price_range_max,
 						product.unit_of_measure,
 						locale,
 						t,
+						unit,
 					)
 
 					return (
@@ -870,12 +929,18 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 								className="group block"
 							>
 								<div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--color-surface)]">
-									<img
-										src={image}
-										alt={name}
-										className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
-										loading="lazy"
-									/>
+									{image ? (
+										<img
+											src={image}
+											alt={name}
+											className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+											loading="lazy"
+										/>
+									) : (
+										<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
+											<Package size={30} />
+										</div>
+									)}
 								</div>
 								<div className="mt-4 text-center lg:text-start">
 									<h3 className="text-[15px] font-semibold text-[var(--color-text)] line-clamp-2 leading-snug group-hover:text-[var(--color-primary)] transition-colors">
@@ -899,7 +964,8 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 // --------------------------------------------------------------------------
 
 function MobileBar({ product }: { product: QuoteActionProduct }) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
+	const isAr = i18n.language === 'ar'
 	const { add, remove, items, updateQuantity } = useQuoteCart()
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
@@ -910,7 +976,10 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 		if (cartItem && mode === 'idle') setMode('added')
 	}, [cartItem, mode])
 
-	const unit = t(`units.${product.unitOfMeasure}`, product.unitOfMeasure)
+	const unit =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 
 	const mobileInputRef = useCallback(
 		(el: HTMLInputElement | null) => {
@@ -934,8 +1003,10 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 					productId: product.id,
 					slug: product.slug,
 					name: product.name,
+					nameAr: product.nameAr,
 					category: product.category,
 					unitOfMeasure: product.unitOfMeasure,
+					unitOfMeasureAr: product.unitOfMeasureAr,
 					imageUrl: product.imageUrl,
 				},
 				q,

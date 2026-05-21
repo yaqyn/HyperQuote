@@ -1,15 +1,11 @@
 /**
  * Approval workflow server functions.
  * Submit for approval, get pending approvals, approve/request changes.
- * Dev mode fallback when Supabase not configured.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import {
-	getAuthenticatedPortalCustomer,
-	isSupabaseConfigured,
-} from './_supabase'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
 	insertQuoteRequestItems,
 	quoteRequestItemInputSchema,
@@ -33,7 +29,7 @@ const submitForApprovalInput = z.object({
 // submitForApproval
 // ============================================================================
 
-export const submitForApproval = createServerFn()
+export const submitForApproval = createServerFn({ method: 'POST' })
 	.inputValidator(submitForApprovalInput)
 	.handler(
 		async ({
@@ -43,17 +39,6 @@ export const submitForApproval = createServerFn()
 			reference: string
 			approvalId: string
 		}> => {
-			if (!isSupabaseConfigured()) {
-				const mockId = crypto.randomUUID()
-				const year = new Date().getFullYear()
-				const seq = String(Math.floor(Math.random() * 99999)).padStart(5, '0')
-				return {
-					requestId: mockId,
-					reference: `QR-${year}-${seq}`,
-					approvalId: crypto.randomUUID(),
-				}
-			}
-
 			const { customerId, session, supabase } =
 				await getAuthenticatedPortalCustomer()
 
@@ -181,10 +166,6 @@ export const submitForApproval = createServerFn()
 
 export const checkTeamHasApprover = createServerFn().handler(
 	async (): Promise<{ hasApprover: boolean }> => {
-		if (!isSupabaseConfigured()) {
-			return { hasApprover: false }
-		}
-
 		const { customerId, session, supabase } =
 			await getAuthenticatedPortalCustomer()
 

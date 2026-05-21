@@ -6,87 +6,18 @@
  * Step 4: Success confirmation
  *
  * Uses React Aria DropZone + FileTrigger (matching UploadMethod pattern).
- * Dev mode auto-advances step 2 after 2 seconds with mock parsed data.
  */
 
 import { useNavigate } from '@tanstack/react-router'
 import { Upload } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, DropZone, FileTrigger } from 'react-aria-components'
+import { useCallback, useState } from 'react'
+import { Button } from 'react-aria-components/Button'
+import { DropZone } from 'react-aria-components/DropZone'
+import { FileTrigger } from 'react-aria-components/FileTrigger'
 import { useTranslation } from 'react-i18next'
 import { uploadCatalog } from '../../lib/server/supplier-catalog'
 import type { CatalogParsedItem } from '../../types/supplier'
 import { CatalogReview } from './CatalogReview'
-
-// ============================================================================
-// Mock parsed items for dev mode
-// ============================================================================
-
-const MOCK_PARSED_ITEMS: CatalogParsedItem[] = [
-	{
-		id: 'mock-1',
-		productName: 'Portland Cement 50kg',
-		productNameAr:
-			'\u0623\u0633\u0645\u0646\u062a \u0628\u0648\u0631\u062a\u0644\u0627\u0646\u062f\u064a \u0665\u0660 \u0643\u062c\u0645',
-		sku: 'CEM-50K-001',
-		price: 85,
-		quantity: 12000,
-		confidence: 96,
-		originalText: 'Portland Cement OPC 42.5N 50kg bag - EGP 85/bag',
-	},
-	{
-		id: 'mock-2',
-		productName: 'White Cement 50kg',
-		productNameAr:
-			'\u0623\u0633\u0645\u0646\u062a \u0623\u0628\u064a\u0636 \u0665\u0660 \u0643\u062c\u0645',
-		sku: 'CEM-WHT-001',
-		price: 150,
-		quantity: 500,
-		confidence: 92,
-		originalText: 'White Cement 50kg - 150 LE',
-	},
-	{
-		id: 'mock-3',
-		productName: 'Rebar 12mm',
-		productNameAr:
-			'\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0661\u0662 \u0645\u0645',
-		sku: 'REB-12M-001',
-		price: 32500,
-		quantity: 450,
-		confidence: 88,
-		originalText: 'TMT Rebar 12mm - 32,500 EGP/ton',
-	},
-	{
-		id: 'mock-4',
-		productName: 'Washed Sand',
-		productNameAr: '\u0631\u0645\u0644 \u0645\u063a\u0633\u0648\u0644',
-		sku: 'SND-WSH-001',
-		price: 125,
-		quantity: 2000,
-		confidence: 75,
-		originalText: 'Washed Sand per m3 - approx 125',
-	},
-	{
-		id: 'mock-5',
-		productName: 'Steel Mesh',
-		productNameAr: '\u0634\u0628\u0643 \u062d\u062f\u064a\u062f',
-		sku: '',
-		price: 4500,
-		quantity: 80,
-		confidence: 62,
-		originalText: 'Welded mesh 6mm 2.4x6m sheet',
-	},
-	{
-		id: 'mock-6',
-		productName: 'Gravel 20mm',
-		productNameAr: '\u0632\u0644\u0637 \u0662\u0660 \u0645\u0645',
-		sku: 'GRV-20M-001',
-		price: 180,
-		quantity: 1500,
-		confidence: 45,
-		originalText: 'gravel 20mm crushed - 180?',
-	},
-]
 
 // ============================================================================
 // Types
@@ -106,33 +37,25 @@ export function CatalogUploadModal({ locale }: CatalogUploadModalProps) {
 	const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
 	const [isDragOver, setIsDragOver] = useState(false)
 	const [parsedItems, setParsedItems] = useState<CatalogParsedItem[]>([])
-	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-	// Cleanup timer on unmount
-	useEffect(() => {
-		return () => {
-			if (timerRef.current) clearTimeout(timerRef.current)
-		}
-	}, [])
+	const [uploadError, setUploadError] = useState<string | null>(null)
 
 	const handleFileUpload = useCallback(async (file: File) => {
-		// Call server function
+		setUploadError(null)
+		setStep(2)
 		try {
 			await uploadCatalog({
 				data: { fileUrl: URL.createObjectURL(file), fileType: file.type },
 			})
-		} catch {
-			// Ignore upload errors in dev mode
-		}
-
-		// Move to processing step
-		setStep(2)
-
-		// Dev mode: auto-advance after 2 seconds with mock data
-		timerRef.current = setTimeout(() => {
-			setParsedItems(MOCK_PARSED_ITEMS)
+			setParsedItems([])
 			setStep(3)
-		}, 2000)
+		} catch (error) {
+			setUploadError(
+				error instanceof Error
+					? error.message
+					: 'Catalog upload is not configured',
+			)
+			setStep(1)
+		}
 	}, [])
 
 	const handleDrop = useCallback(
@@ -192,6 +115,11 @@ export function CatalogUploadModal({ locale }: CatalogUploadModalProps) {
 						<p className="mt-2 text-[13px] text-[var(--color-text-muted)]">
 							{t('supplier.maxFileSize')}
 						</p>
+						{uploadError ? (
+							<p className="mt-3 max-w-sm text-center text-[13px] text-[var(--color-danger)]">
+								{uploadError}
+							</p>
+						) : null}
 					</DropZone>
 				</div>
 			</div>

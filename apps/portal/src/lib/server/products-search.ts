@@ -1,12 +1,12 @@
 /**
  * Product search server function.
- * Full-text search using PostgreSQL tsvector on products table.
+ * Search only safe public catalog fields.
  * Returns PUBLIC_COLUMNS only -- never cost fields.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { getAuthenticatedSupabase, isSupabaseConfigured } from './_supabase'
+import { getAuthenticatedSupabase } from './_supabase'
 
 // ============================================================================
 // Public columns whitelist -- NEVER expose cost fields to clients
@@ -19,7 +19,10 @@ const PUBLIC_COLUMNS = [
 	'name',
 	'name_ar',
 	'category',
+	'subcategory',
+	'subcategory_ar',
 	'unit_of_measure',
+	'unit_of_measure_ar',
 	'price_range_min',
 	'price_range_max',
 	'availability_status',
@@ -39,7 +42,12 @@ export interface ProductSearchResult {
 	name: string
 	nameAr: string
 	category: string
+	categoryName: string
+	categoryNameAr: string
+	subcategory: string
+	subcategoryAr: string
 	unitOfMeasure: string
+	unitOfMeasureAr: string
 	priceRangeMin: number | null
 	priceRangeMax: number | null
 	availabilityStatus: string
@@ -64,93 +72,91 @@ const getProductCatalogInput = z.object({
 // Helper
 // ============================================================================
 
-function mapProduct(p: Record<string, unknown>): ProductSearchResult {
+function mapProduct(
+	p: Record<string, unknown>,
+	categoriesBySlug: Map<
+		string,
+		{ image_url: string | null; name: string; name_ar: string | null }
+	>,
+): ProductSearchResult {
+	const category = p.category as string
+	const categoryRow = categoriesBySlug.get(category)
+	const imageUrls = (p.image_urls as string[] | null) ?? []
+	const firstProductImage = imageUrls.find(
+		(url) => typeof url === 'string' && url.trim(),
+	)
 	return {
 		id: p.id as string,
 		sku: p.sku as string,
 		slug: p.slug as string,
 		name: p.name as string,
 		nameAr: p.name_ar as string,
-		category: p.category as string,
+		category,
+		categoryName: categoryRow?.name ?? category,
+		categoryNameAr: categoryRow?.name_ar ?? categoryRow?.name ?? category,
+		subcategory: (p.subcategory as string | null) ?? '',
+		subcategoryAr:
+			(p.subcategory_ar as string | null) ??
+			(p.subcategory as string | null) ??
+			'',
 		unitOfMeasure: p.unit_of_measure as string,
+		unitOfMeasureAr: p.unit_of_measure_ar as string,
 		priceRangeMin: (p.price_range_min as number) ?? null,
 		priceRangeMax: (p.price_range_max as number) ?? null,
 		availabilityStatus: p.availability_status as string,
-		imageUrls: (p.image_urls as string[]) ?? [],
+		imageUrls: firstProductImage
+			? imageUrls
+			: categoryRow?.image_url
+				? [categoryRow.image_url]
+				: [],
 	}
 }
 
-// Mock product data for dev mode
-const MOCK_PRODUCTS: ProductSearchResult[] = [
-	{
-		id: 'prod-cement-1',
-		sku: 'CEM-OPC-425N',
-		slug: 'portland-cement-opc-42-5n',
-		name: 'Portland Cement OPC 42.5N',
-		nameAr:
-			'\u0627\u0633\u0645\u0646\u062a \u0628\u0648\u0631\u062a\u0644\u0627\u0646\u062f\u064a \u0639\u0627\u062f\u064a',
-		category: 'cement',
-		unitOfMeasure: 'ton',
-		priceRangeMin: 1800,
-		priceRangeMax: 2200,
-		availabilityStatus: 'available',
-		imageUrls: [],
-	},
-	{
-		id: 'prod-rebar-1',
-		sku: 'STL-RB-16MM',
-		slug: 'steel-rebar-16mm-grade-60',
-		name: 'Steel Rebar 16mm Grade 60',
-		nameAr:
-			'\u062d\u062f\u064a\u062f \u062a\u0633\u0644\u064a\u062d \u0661\u0666\u0645\u0645',
-		category: 'reinforcing_steel',
-		unitOfMeasure: 'ton',
-		priceRangeMin: 38000,
-		priceRangeMax: 42000,
-		availabilityStatus: 'available',
-		imageUrls: [],
-	},
-	{
-		id: 'prod-sand-1',
-		sku: 'AGG-SAND-W',
-		slug: 'washed-sand',
-		name: 'Washed Sand',
-		nameAr: '\u0631\u0645\u0644 \u0645\u063a\u0633\u0648\u0644',
-		category: 'sand',
-		unitOfMeasure: 'cubic_meter',
-		priceRangeMin: 180,
-		priceRangeMax: 250,
-		availabilityStatus: 'available',
-		imageUrls: [],
-	},
-	{
-		id: 'prod-gravel-1',
-		sku: 'AGG-GRV-20',
-		slug: 'crushed-gravel-20mm',
-		name: 'Crushed Gravel 20mm',
-		nameAr:
-			'\u0632\u0644\u0637 \u0645\u062c\u0631\u0648\u0634 \u0662\u0660\u0645\u0645',
-		category: 'aggregates',
-		unitOfMeasure: 'cubic_meter',
-		priceRangeMin: 200,
-		priceRangeMax: 300,
-		availabilityStatus: 'available',
-		imageUrls: [],
-	},
-	{
-		id: 'prod-brick-1',
-		sku: 'BRK-RED-STD',
-		slug: 'red-clay-brick-standard',
-		name: 'Red Clay Brick Standard',
-		nameAr: '\u0637\u0648\u0628 \u0623\u062d\u0645\u0631',
-		category: 'bricks',
-		unitOfMeasure: 'piece',
-		priceRangeMin: 0.8,
-		priceRangeMax: 1.2,
-		availabilityStatus: 'available',
-		imageUrls: [],
-	},
-]
+// ============================================================================
+
+async function getCategoriesBySlug(
+	supabase: Awaited<ReturnType<typeof getAuthenticatedSupabase>>['supabase'],
+) {
+	const { data, error } = await supabase
+		.from('categories')
+		.select('slug, name, name_ar, image_url')
+		.eq('is_active', true)
+	if (error) throw new Error(error.message)
+	return new Map(
+		(
+			(data ?? []) as Array<{
+				slug: string
+				name: string
+				name_ar: string | null
+				image_url: string | null
+			}>
+		).map((category) => [
+			category.slug,
+			{
+				image_url: category.image_url,
+				name: category.name,
+				name_ar: category.name_ar,
+			},
+		]),
+	)
+}
+
+function publicProductSearchFilter(search: string): string | null {
+	const term = search
+		.replace(/[,%*()]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	if (!term) return null
+	const pattern = `*${term}*`
+	return [
+		`name.ilike.${pattern}`,
+		`name_ar.ilike.${pattern}`,
+		`sku.ilike.${pattern}`,
+		`category.ilike.${pattern}`,
+		`subcategory.ilike.${pattern}`,
+		`subcategory_ar.ilike.${pattern}`,
+	].join(',')
+}
 
 // ============================================================================
 // searchProducts
@@ -161,29 +167,22 @@ export const searchProducts = createServerFn()
 	.handler(async ({ data: input }): Promise<ProductSearchResult[]> => {
 		const limit = input.limit ?? 20
 
-		if (!isSupabaseConfigured()) {
-			const lower = input.query.toLowerCase()
-			return MOCK_PRODUCTS.filter(
-				(p) =>
-					p.name.toLowerCase().includes(lower) ||
-					p.nameAr.includes(input.query) ||
-					p.sku.toLowerCase().includes(lower) ||
-					p.category.includes(lower),
-			).slice(0, limit)
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
+		const searchFilter = publicProductSearchFilter(input.query)
 
-		// Full-text search using tsvector
-		const { data, error } = await supabase
-			.from('products')
-			.select(PUBLIC_COLUMNS_SELECT)
-			.textSearch('search_vector', input.query, {
-				type: 'websearch',
-				config: 'english',
-			})
-			.eq('is_active', true)
-			.limit(limit)
+		const [{ data, error }, categoriesBySlug] = await Promise.all([
+			(searchFilter
+				? supabase
+						.from('products')
+						.select(PUBLIC_COLUMNS_SELECT)
+						.or(searchFilter)
+				: supabase.from('products').select(PUBLIC_COLUMNS_SELECT)
+			)
+				.eq('is_active', true)
+				.neq('availability_status', 'hidden')
+				.limit(limit),
+			getCategoriesBySlug(supabase),
+		])
 
 		if (error) throw new Error(error.message)
 
@@ -191,7 +190,7 @@ export const searchProducts = createServerFn()
 		// `Record<string, unknown>[]` — safe to map here because mapProduct
 		// only reads keys that are guaranteed by PUBLIC_COLUMNS.
 		return ((data as unknown as Record<string, unknown>[] | null) ?? []).map(
-			mapProduct,
+			(product) => mapProduct(product, categoriesBySlug),
 		)
 	})
 
@@ -205,22 +204,22 @@ export const getProductCatalog = createServerFn()
 		const limit = input.limit ?? 500
 		const offset = input.offset ?? 0
 
-		if (!isSupabaseConfigured()) {
-			return MOCK_PRODUCTS
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
 
-		const { data, error } = await supabase
-			.from('products')
-			.select(PUBLIC_COLUMNS_SELECT)
-			.eq('is_active', true)
-			.order('name')
-			.range(offset, offset + limit - 1)
+		const [{ data, error }, categoriesBySlug] = await Promise.all([
+			supabase
+				.from('products')
+				.select(PUBLIC_COLUMNS_SELECT)
+				.eq('is_active', true)
+				.neq('availability_status', 'hidden')
+				.order('name')
+				.range(offset, offset + limit - 1),
+			getCategoriesBySlug(supabase),
+		])
 
 		if (error) throw new Error(error.message)
 
 		return ((data as unknown as Record<string, unknown>[] | null) ?? []).map(
-			mapProduct,
+			(product) => mapProduct(product, categoriesBySlug),
 		)
 	})

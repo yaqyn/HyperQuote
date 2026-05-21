@@ -4,27 +4,17 @@
  * the authenticated-client pattern used across every server module.
  */
 
-import { resolveSupabaseServerConfig } from '@hyperquote/auth/server'
+import {
+	resolveSupabaseWorkerConfig,
+	type SupabaseServerRuntimeConfig,
+} from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
 
 /**
- * True when Supabase env vars are set to real values (not placeholders).
- * Callers use this to branch into mock behavior during dev.
- */
-export function isSupabaseConfigured(): boolean {
-	return !!resolveSupabaseServerConfig(process.env)
-}
-
-/**
  * Returns validated Supabase env vars, throwing if not configured.
- * Gate callers on `isSupabaseConfigured()` before invoking so this never throws
- * in dev.
  */
-function getSupabaseEnv(): {
-	supabaseUrl: string
-	supabaseAnonKey: string
-} {
-	const config = resolveSupabaseServerConfig(process.env)
+async function getSupabaseEnv(): Promise<SupabaseServerRuntimeConfig> {
+	const config = await resolveSupabaseWorkerConfig(process.env)
 	if (!config) {
 		throw new Error('Supabase env not configured')
 	}
@@ -33,17 +23,12 @@ function getSupabaseEnv(): {
 
 /**
  * Fetches the current portal session. Throws "Unauthorized" if missing.
- * Server functions should call this after `isSupabaseConfigured()` returns
- * true.
  */
 async function requireSession() {
-	const env = getSupabaseEnv()
-	const session = await getServerSession({
-		supabaseUrl: env.supabaseUrl,
-		supabaseAnonKey: env.supabaseAnonKey,
-	})
+	const env = await getSupabaseEnv()
+	const session = await getServerSession(env)
 	if (!session) throw new Error('Unauthorized')
-	return session
+	return { env, session }
 }
 
 /**
@@ -51,8 +36,7 @@ async function requireSession() {
  * Adds the user's access token as Authorization header so RLS applies.
  */
 export async function getAuthenticatedSupabase() {
-	const session = await requireSession()
-	const env = getSupabaseEnv()
+	const { env, session } = await requireSession()
 	const { createClient } = await import('@supabase/supabase-js')
 	const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
 		global: {

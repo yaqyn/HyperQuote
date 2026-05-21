@@ -1,4 +1,4 @@
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type { QuoteStatus } from '../../types/quote'
 

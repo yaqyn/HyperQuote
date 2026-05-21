@@ -22,8 +22,51 @@ export const Route = createFileRoute('/_portal/support')({
 	component: SupportPage,
 })
 
+const SUPPORT_EMAIL =
+	import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@hyperquote.net'
+const SUPPORT_WHATSAPP_E164 = import.meta.env.VITE_SUPPORT_WHATSAPP_E164 ?? ''
+const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
+type SupportCard = {
+	icon: typeof Mail
+	labelKey: ParseKeys<'portal'>
+	descKey: ParseKeys<'portal'>
+	href?: string
+}
+
 function SupportPage() {
 	const { t } = useTranslation('portal')
+	const serviceCardOptions: Array<SupportCard | null> = [
+		{
+			icon: Mail,
+			labelKey: 'support.contactUs' as const,
+			descKey: 'support.contactDesc' as const,
+			href: `mailto:${SUPPORT_EMAIL}`,
+		},
+		SUPPORT_WHATSAPP_E164
+			? {
+					icon: MessageCircle,
+					labelKey: 'support.liveChat' as const,
+					descKey: 'support.liveChatDesc' as const,
+					href: `https://wa.me/${SUPPORT_WHATSAPP_E164.replace('+', '')}`,
+				}
+			: null,
+		{
+			icon: TicketPlus,
+			labelKey: 'support.submitTicket' as const,
+			descKey: 'support.ticketDesc' as const,
+		},
+		SUPPORT_PHONE_E164
+			? {
+					icon: Phone,
+					labelKey: 'support.directCall' as const,
+					descKey: 'support.callDesc' as const,
+					href: `tel:${SUPPORT_PHONE_E164}`,
+				}
+			: null,
+	]
+	const serviceCards = serviceCardOptions.filter((card): card is SupportCard =>
+		Boolean(card),
+	)
 
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 overflow-auto">
@@ -36,29 +79,15 @@ function SupportPage() {
 
 				{/* Service Grid */}
 				<div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
-					<ServiceCard
-						icon={Mail}
-						labelKey="support.contactUs"
-						descKey="support.contactDesc"
-						href="mailto:support@hyperquote.net"
-					/>
-					<ServiceCard
-						icon={MessageCircle}
-						labelKey="support.liveChat"
-						descKey="support.liveChatDesc"
-						href="https://wa.me/201000000000"
-					/>
-					<ServiceCard
-						icon={TicketPlus}
-						labelKey="support.submitTicket"
-						descKey="support.ticketDesc"
-					/>
-					<ServiceCard
-						icon={Phone}
-						labelKey="support.directCall"
-						descKey="support.callDesc"
-						href="tel:+201000000000"
-					/>
+					{serviceCards.map((card) => (
+						<ServiceCard
+							key={card.labelKey}
+							icon={card.icon}
+							labelKey={card.labelKey}
+							descKey={card.descKey}
+							href={card.href}
+						/>
+					))}
 				</div>
 
 				{/* Resources — wide cards */}

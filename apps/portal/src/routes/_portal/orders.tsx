@@ -5,19 +5,59 @@
  * summary controls, card grids on mobile/tablet, and no horizontal overflow.
  */
 
+import {
+	buildOpenStreetMapTileView,
+	type GeoPoint,
+} from '@hyperquote/ui/maps/osm'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { ChevronDown, Copy, Pencil, Plus, Trash2 } from 'lucide-react'
-import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	ChevronDown,
+	Clock,
+	Copy,
+	MapPin,
+	Navigation,
+	Pencil,
+	Plus,
+	QrCode,
+	Trash2,
+	Truck,
+	X,
+} from 'lucide-react'
+import {
+	lazy,
+	type RefObject,
+	Suspense,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
+import type {
+	IncomingInteractiveMapPoint,
+	IncomingRouteFeatureCollection,
+} from '../../components/orders/IncomingOrdersInteractiveMap'
 import { DraftQuoteTrigger } from '../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
-import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
+import { getDeliverySecret } from '../../lib/server/deliveries'
+import {
+	deleteOrder,
+	getAllCustomerOrders,
+	saveOrderAsDraft,
+} from '../../lib/server/orders'
+import { toast } from '../../lib/toast'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
-import type { Order, OrderStatus, OrderType } from '../../types/order'
+import type {
+	Order,
+	OrderDeliveryTracking,
+	OrderStatus,
+	OrderType,
+} from '../../types/order'
 
 const ordersSearchSchema = z.object({
 	draft: z
@@ -57,9 +97,34 @@ const ORDER_STATUS_LABEL_KEYS: Partial<
 	cancelled: 'tracking.cancelled',
 	rejected: 'tracking.rejected',
 }
+const INCOMING_MAP_WIDTH = 1100
+const INCOMING_MAP_HEIGHT = 430
+const INCOMING_COLORS = [
+	{ driver: '#f97316', destination: '#9a3412' },
+	{ driver: '#2563eb', destination: '#1e3a8a' },
+	{ driver: '#16a34a', destination: '#166534' },
+	{ driver: '#9333ea', destination: '#581c87' },
+	{ driver: '#dc2626', destination: '#7f1d1d' },
+] as const
+const PORTAL_LABEL_CLASS =
+	'text-[11px] font-semibold text-[var(--p-text-faint)]'
 type MarketDraftItem = ReturnType<
 	typeof useDraftQuoteStore.getState
 >['items'][number]
+const IncomingOrdersInteractiveMap = lazy(() =>
+	import('../../components/orders/IncomingOrdersInteractiveMap').then(
+		(module) => ({
+			default: module.IncomingOrdersInteractiveMap,
+		}),
+	),
+)
+
+function canUseInteractiveMap(): boolean {
+	const canvas = document.createElement('canvas')
+	return Boolean(
+		canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl'),
+	)
+}
 
 function OrdersPage() {
 	const { t, i18n } = useTranslation('portal')
@@ -74,15 +139,17 @@ function OrdersPage() {
 	const [collapsedSections, setCollapsedSections] = useState<
 		Record<OrderType, boolean>
 	>({
-		saved: true,
-		submitted: true,
+		saved: false,
+		submitted: false,
 		confirmed: true,
 	})
 
 	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ['customer-orders-all'],
 		queryFn: () => getAllCustomerOrders(),
-		staleTime: 30_000,
+		refetchInterval: 5_000,
+		refetchIntervalInBackground: true,
+		staleTime: 5_000,
 	})
 
 	const grouped = useMemo(() => {
@@ -96,6 +163,7 @@ function OrdersPage() {
 
 	const totalCount =
 		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length
+	const incomingDeliveries = data?.incomingDeliveries ?? []
 	const hasDraft = draftItems.length > 0
 	useEffect(() => {
 		if (draft) {
@@ -197,6 +265,12 @@ function OrdersPage() {
 
 				{!isLoading && !isError && (totalCount > 0 || hasDraft) && (
 					<div className="space-y-8 sm:space-y-10 lg:space-y-12">
+						{incomingDeliveries.length > 0 && (
+							<IncomingOrdersSection
+								deliveries={incomingDeliveries}
+								isAr={isAr}
+							/>
+						)}
 						{hasDraft && (
 							<MarketDraftTile
 								items={draftItems}
@@ -257,7 +331,7 @@ function SummaryTile({
 			className="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2 py-2 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] disabled:cursor-default disabled:opacity-45 sm:min-h-[52px] sm:flex-row sm:justify-start sm:gap-2 sm:px-4 sm:text-start"
 		>
 			<p
-				className="shrink-0 font-mono text-[16px] font-semibold leading-none text-[var(--p-text)] sm:text-[17px]"
+				className="shrink-0 text-[16px] font-semibold leading-none text-[var(--p-text)] sm:text-[17px]"
 				style={{ fontVariantNumeric: 'tabular-nums' }}
 			>
 				{isAr ? count.toLocaleString('ar-EG') : count.toLocaleString('en-EG')}
@@ -295,11 +369,9 @@ function MarketDraftTile({
 								key={item.productId}
 								className="flex min-w-0 items-center gap-2.5"
 							>
-								<img
-									src={item.imageUrl}
+								<OrderItemImage
+									imageUrl={item.imageUrl}
 									alt={itemName}
-									loading="lazy"
-									decoding="async"
 									className="h-9 w-9 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:h-10 sm:w-10"
 								/>
 								<div className="min-w-0 flex-1">
@@ -307,10 +379,13 @@ function MarketDraftTile({
 										{itemName}
 									</p>
 									<p
-										className="font-mono text-[12px] text-[var(--p-text-muted)]"
+										className="text-[12px] font-medium text-[var(--p-text-muted)]"
 										style={{ fontVariantNumeric: 'tabular-nums' }}
 									>
-										{formatQuantity(item.quantity, isAr)} {item.unitOfMeasure}
+										{formatQuantity(item.quantity, isAr)}{' '}
+										{isAr && item.unitOfMeasureAr
+											? item.unitOfMeasureAr
+											: item.unitOfMeasure}
 									</p>
 								</div>
 							</div>
@@ -328,6 +403,586 @@ function MarketDraftTile({
 			</article>
 		</section>
 	)
+}
+
+function IncomingOrdersSection({
+	deliveries,
+	isAr,
+}: {
+	deliveries: OrderDeliveryTracking[]
+	isAr: boolean
+}) {
+	const { t, i18n } = useTranslation('portal')
+	const navigate = useNavigate()
+	const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB'
+
+	return (
+		<section aria-label={t('orders.incoming')} className="scroll-mt-24">
+			<div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]">
+				<header className="border-b border-[var(--p-border)] px-4 py-4 sm:px-5 lg:px-6">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+						<div className="min-w-0">
+							<p className={PORTAL_LABEL_CLASS}>{t('orders.incomingMap')}</p>
+							<h2 className="mt-1 text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
+								{t('orders.incoming')}
+							</h2>
+							<p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--p-text-muted)]">
+								{t('orders.incomingBody', {
+									count: deliveries.length,
+								})}
+							</p>
+						</div>
+						<span
+							className="inline-flex h-9 w-fit items-center gap-2 rounded-full border border-[var(--p-border)] bg-[var(--p-bg)] px-3 text-[12px] font-medium text-[var(--p-text-muted)]"
+							style={{ fontVariantNumeric: 'tabular-nums' }}
+						>
+							<Navigation size={14} strokeWidth={1.8} />
+							{t('orders.incomingCount', {
+								count: isAr
+									? deliveries.length.toLocaleString('ar-EG')
+									: deliveries.length.toLocaleString('en-EG'),
+							})}
+						</span>
+					</div>
+				</header>
+
+				<div className="grid gap-4 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+					<IncomingOrdersMap deliveries={deliveries} />
+					<div className="grid gap-3 md:grid-cols-2">
+						{deliveries.map((delivery, index) => {
+							const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
+							return (
+								<article
+									key={delivery.id}
+									className="grid gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+								>
+									<div className="min-w-0">
+										<div className="flex min-w-0 flex-wrap items-center gap-2">
+											<span
+												aria-hidden="true"
+												className="h-2.5 w-2.5 rounded-full"
+												style={{ backgroundColor: palette.driver }}
+											/>
+											<p className="min-w-0 truncate text-[14px] font-semibold text-[var(--p-text)]">
+												{t('orders.incomingOrder', {
+													reference:
+														delivery.orderNumber || delivery.deliveryNumber,
+												})}
+											</p>
+											<span className="rounded-full border border-[var(--p-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-text-muted)]">
+												{t('tracking.outForDelivery')}
+											</span>
+										</div>
+										<dl className="mt-2 grid gap-1.5 text-[12px] text-[var(--p-text-muted)]">
+											<div className="flex min-w-0 items-center gap-2">
+												<Truck
+													size={14}
+													strokeWidth={1.8}
+													className="shrink-0"
+												/>
+												<span className="truncate">
+													{t('orders.incomingDriver', {
+														name:
+															delivery.driverName || delivery.deliveryNumber,
+													})}
+												</span>
+											</div>
+											<div className="flex min-w-0 items-center gap-2">
+												<MapPin
+													size={14}
+													strokeWidth={1.8}
+													className="shrink-0"
+													style={{ color: palette.destination }}
+												/>
+												<span className="truncate">
+													{t('orders.incomingDestination', {
+														address: delivery.route.destination,
+													})}
+												</span>
+											</div>
+											<div className="flex min-w-0 items-center gap-2">
+												<Clock
+													size={14}
+													strokeWidth={1.8}
+													className="shrink-0"
+												/>
+												<span className="truncate">
+													{t('orders.incomingUpdated', {
+														time: formatTime(delivery.lastUpdated, locale),
+													})}
+												</span>
+											</div>
+										</dl>
+									</div>
+									<IncomingOrderActions
+										delivery={delivery}
+										onView={() =>
+											navigate({
+												to: '/orders/$orderId',
+												params: { orderId: delivery.orderId },
+											})
+										}
+									/>
+								</article>
+							)
+						})}
+					</div>
+				</div>
+			</div>
+		</section>
+	)
+}
+
+function IncomingOrderActions({
+	delivery,
+	onView,
+}: {
+	delivery: OrderDeliveryTracking
+	onView: () => void
+}) {
+	const { t } = useTranslation('portal')
+	const [isSecretOpen, setIsSecretOpen] = useState(false)
+	const secret = useMutation({
+		mutationFn: () =>
+			getDeliverySecret({ data: { orderId: delivery.orderId } }),
+	})
+
+	useEffect(() => {
+		if (!isSecretOpen) return undefined
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') setIsSecretOpen(false)
+		}
+		globalThis.addEventListener('keydown', handleKeyDown)
+		return () => globalThis.removeEventListener('keydown', handleKeyDown)
+	}, [isSecretOpen])
+
+	function handleSecretOpen() {
+		setIsSecretOpen(true)
+		if (!secret.data && !secret.isPending) {
+			secret.mutate()
+		}
+	}
+
+	return (
+		<div className="grid min-w-0 gap-2 sm:w-[300px]">
+			<div className="grid min-w-0 grid-cols-2 gap-2">
+				<button
+					type="button"
+					onClick={onView}
+					className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+				>
+					<span className="truncate">{t('orders.view')}</span>
+				</button>
+				<button
+					type="button"
+					aria-haspopup="dialog"
+					aria-expanded={isSecretOpen}
+					onClick={handleSecretOpen}
+					className="inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)]"
+				>
+					<QrCode aria-hidden="true" size={14} strokeWidth={2} />
+					<span className="truncate">
+						{secret.isPending
+							? t('tracking.secretLoading')
+							: t('tracking.secretAndQr')}
+					</span>
+				</button>
+			</div>
+
+			{isSecretOpen && typeof document !== 'undefined'
+				? createPortal(
+						<div className="fixed inset-0 z-[80] grid place-items-center px-4 py-6">
+							<button
+								type="button"
+								aria-label={t('window.close')}
+								className="absolute inset-0 bg-black/45"
+								onClick={() => setIsSecretOpen(false)}
+							/>
+							<div
+								aria-labelledby={`delivery-secret-${delivery.id}`}
+								aria-modal="true"
+								className="relative z-10 w-full max-w-[440px] overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] shadow-[0_28px_90px_rgba(15,23,42,0.24)]"
+								role="dialog"
+							>
+								<header className="flex items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-4">
+									<div className="min-w-0">
+										<p
+											className={PORTAL_LABEL_CLASS}
+											id={`delivery-secret-${delivery.id}`}
+										>
+											{t('tracking.secretCode')}
+										</p>
+										<p className="mt-1 truncate text-[13px] font-medium text-[var(--p-text-muted)]">
+											{delivery.orderNumber || delivery.deliveryNumber}
+										</p>
+									</div>
+									<button
+										type="button"
+										aria-label={t('window.close')}
+										onClick={() => setIsSecretOpen(false)}
+										className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:text-[var(--p-text)]"
+									>
+										<X aria-hidden="true" size={18} strokeWidth={1.9} />
+									</button>
+								</header>
+
+								{secret.data ? (
+									<div className="grid gap-5 px-5 py-6 text-center sm:px-6">
+										<p
+											className="break-all text-[40px] font-semibold leading-none text-[var(--p-text)] sm:text-[46px]"
+											style={{ fontVariantNumeric: 'tabular-nums' }}
+										>
+											{secret.data.code}
+										</p>
+										<div className="mx-auto grid h-64 w-64 place-items-center rounded-2xl border border-[var(--p-border)] bg-white p-3 sm:h-72 sm:w-72">
+											<img
+												alt={t('tracking.secretQrAlt')}
+												src={secret.data.qrCodeDataUrl}
+												className="h-full w-full object-contain"
+											/>
+										</div>
+									</div>
+								) : (
+									<div className="grid min-h-80 place-items-center px-5 py-6">
+										<p
+											role={secret.isError ? 'alert' : undefined}
+											className={`text-[13px] font-semibold ${
+												secret.isError
+													? 'text-red-700'
+													: 'text-[var(--p-text-muted)]'
+											}`}
+										>
+											{secret.isError
+												? t('tracking.secretUnavailable')
+												: t('tracking.secretLoading')}
+										</p>
+									</div>
+								)}
+							</div>
+						</div>,
+						document.body,
+					)
+				: null}
+		</div>
+	)
+}
+
+function IncomingOrdersMap({
+	deliveries,
+}: {
+	deliveries: OrderDeliveryTracking[]
+}) {
+	const { t } = useTranslation('portal')
+	const [mapFailed, setMapFailed] = useState(false)
+	const [interactiveMapReady, setInteractiveMapReady] = useState<
+		boolean | null
+	>(null)
+	const interactivePoints = useMemo<IncomingInteractiveMapPoint[]>(
+		() =>
+			deliveries.flatMap((delivery, index) => {
+				const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
+				const driverPoint = toGeoPoint(delivery.route.driverLocation)
+				const destinationPoint = toGeoPoint(delivery.route.destinationLocation)
+				const entries: IncomingInteractiveMapPoint[] = []
+				if (driverPoint) {
+					entries.push({
+						caption: t('tracking.driver'),
+						color: palette.driver,
+						icon: 'driver',
+						key: `driver-${delivery.id}`,
+						label: delivery.driverName || delivery.deliveryNumber,
+						point: driverPoint,
+					})
+				}
+				if (destinationPoint) {
+					entries.push({
+						caption: t('tracking.destination'),
+						color: palette.destination,
+						icon: 'destination',
+						key: `destination-${delivery.id}`,
+						label: delivery.route.destination || delivery.deliveryNumber,
+						point: destinationPoint,
+					})
+				}
+				return entries
+			}),
+		[deliveries, t],
+	)
+	const routeLinesGeoJSON: IncomingRouteFeatureCollection = useMemo(
+		() => ({
+			features: deliveries.flatMap((delivery, index) => {
+				const driverPoint = toGeoPoint(delivery.route.driverLocation)
+				const destinationPoint = toGeoPoint(delivery.route.destinationLocation)
+				if (!driverPoint || !destinationPoint) return []
+				return [
+					{
+						geometry: {
+							coordinates: [
+								[driverPoint.lng, driverPoint.lat],
+								[destinationPoint.lng, destinationPoint.lat],
+							],
+							type: 'LineString' as const,
+						},
+						properties: {
+							color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
+							deliveryId: delivery.id,
+						},
+						type: 'Feature' as const,
+					},
+				]
+			}),
+			type: 'FeatureCollection',
+		}),
+		[deliveries],
+	)
+	const mapCenter = interactivePoints[0]?.point ?? null
+	const staticMap = <IncomingStaticMap deliveries={deliveries} />
+	const staticMapOverlay = (
+		<IncomingStaticMap deliveries={deliveries} isOverlay={true} />
+	)
+
+	useEffect(() => {
+		setInteractiveMapReady(canUseInteractiveMap())
+	}, [])
+
+	if (interactiveMapReady && !mapFailed && mapCenter) {
+		return (
+			<Suspense fallback={staticMap}>
+				<IncomingOrdersInteractiveMap
+					center={mapCenter}
+					fallback={staticMapOverlay}
+					onMapFailed={() => setMapFailed(true)}
+					points={interactivePoints}
+					routeLines={routeLinesGeoJSON}
+				/>
+			</Suspense>
+		)
+	}
+
+	return staticMap
+}
+
+function IncomingStaticMap({
+	deliveries,
+	isOverlay = false,
+}: {
+	deliveries: OrderDeliveryTracking[]
+	isOverlay?: boolean
+}) {
+	const { t } = useTranslation('portal')
+	const geoEntries = buildIncomingGeoEntries(deliveries)
+	const mapView = buildOpenStreetMapTileView(
+		geoEntries.map((entry) => entry.point),
+		{
+			height: INCOMING_MAP_HEIGHT,
+			maxZoom: 14,
+			minZoom: 9,
+			padding: 112,
+			width: INCOMING_MAP_WIDTH,
+		},
+	)
+	const mapPositionByKey = new Map(
+		mapView
+			? geoEntries.map((entry, index) => {
+					const projected = mapView.points[index]
+					return [
+						entry.key,
+						projected
+							? {
+									left: (projected.x / mapView.width) * 100,
+									top: (projected.y / mapView.height) * 100,
+								}
+							: null,
+					] as const
+				})
+			: [],
+	)
+	const markers = deliveries.flatMap((delivery, index) => {
+		const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
+		const driverPosition =
+			mapPositionByKey.get(`driver-${delivery.id}`) ??
+			fallbackIncomingPosition(index, 'driver')
+		const destinationPosition =
+			mapPositionByKey.get(`destination-${delivery.id}`) ??
+			fallbackIncomingPosition(index, 'destination')
+
+		return [
+			{
+				caption: t('tracking.driver'),
+				color: palette.driver,
+				icon: 'driver' as const,
+				key: `driver-${delivery.id}`,
+				label: delivery.driverName || delivery.deliveryNumber,
+				position: driverPosition,
+			},
+			{
+				caption: t('tracking.destination'),
+				color: palette.destination,
+				icon: 'destination' as const,
+				key: `destination-${delivery.id}`,
+				label: delivery.route.destination || delivery.deliveryNumber,
+				position: destinationPosition,
+			},
+		]
+	})
+	const lines = deliveries.map((delivery, index) => ({
+		color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
+		destination:
+			mapPositionByKey.get(`destination-${delivery.id}`) ??
+			fallbackIncomingPosition(index, 'destination'),
+		key: delivery.id,
+		origin:
+			mapPositionByKey.get(`driver-${delivery.id}`) ??
+			fallbackIncomingPosition(index, 'driver'),
+	}))
+
+	return (
+		<figure
+			aria-hidden={isOverlay ? 'true' : undefined}
+			className={
+				isOverlay
+					? 'absolute inset-0 overflow-hidden rounded-xl bg-[var(--p-bg)]'
+					: 'relative h-[340px] overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] sm:h-[390px] lg:h-[430px]'
+			}
+		>
+			{mapView ? <IncomingOsmBackdrop mapView={mapView} /> : null}
+			{!mapView && (
+				<div
+					aria-hidden="true"
+					className="absolute inset-0 opacity-80"
+					style={{
+						background:
+							'linear-gradient(90deg, rgba(17,17,17,0.05) 1px, transparent 1px), linear-gradient(0deg, rgba(17,17,17,0.05) 1px, transparent 1px)',
+						backgroundSize: '52px 52px',
+					}}
+				/>
+			)}
+			<svg
+				aria-label={t('orders.incomingMap')}
+				role="img"
+				viewBox="0 0 100 100"
+				className="absolute inset-0 h-full w-full"
+				preserveAspectRatio="none"
+			>
+				<title>{t('orders.incomingMap')}</title>
+				{lines.map((line) => (
+					<line
+						key={line.key}
+						x1={line.origin.left}
+						y1={line.origin.top}
+						x2={line.destination.left}
+						y2={line.destination.top}
+						stroke={line.color}
+						strokeDasharray="4 4"
+						strokeLinecap="round"
+						strokeWidth="0.65"
+						opacity="0.72"
+					/>
+				))}
+			</svg>
+			{markers.map((marker) => (
+				<div
+					key={marker.key}
+					className="absolute z-10 flex max-w-[150px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center"
+					style={{
+						left: `${marker.position.left}%`,
+						top: `${marker.position.top}%`,
+					}}
+				>
+					<span
+						className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white text-white shadow-lg"
+						style={{
+							backgroundColor: marker.color,
+							boxShadow: '0 10px 30px rgba(17, 24, 39, 0.2)',
+						}}
+					>
+						{marker.icon === 'driver' ? (
+							<Truck size={16} strokeWidth={2.1} />
+						) : (
+							<MapPin size={16} strokeWidth={2.1} />
+						)}
+					</span>
+					<span className="max-w-full rounded-lg bg-[rgba(17,24,39,0.82)] px-2 py-1 text-[10px] font-semibold leading-tight text-white shadow-sm">
+						<span className="block truncate">{marker.label}</span>
+						<span className="block truncate text-[9px] font-medium text-white/75">
+							{marker.caption}
+						</span>
+					</span>
+				</div>
+			))}
+		</figure>
+	)
+}
+
+type IncomingMapView = NonNullable<
+	ReturnType<typeof buildOpenStreetMapTileView>
+>
+
+function IncomingOsmBackdrop({ mapView }: { mapView: IncomingMapView }) {
+	return (
+		<svg
+			aria-hidden="true"
+			className="absolute inset-0 h-full w-full opacity-95"
+			preserveAspectRatio="xMidYMid slice"
+			viewBox={`0 0 ${mapView.width} ${mapView.height}`}
+		>
+			{mapView.tiles.map((tile) => (
+				<image
+					height="256"
+					href={tile.href}
+					key={tile.key}
+					opacity="0.86"
+					width="256"
+					x={tile.x}
+					y={tile.y}
+				/>
+			))}
+			<rect
+				fill="rgba(250,250,250,0.24)"
+				height={mapView.height}
+				width={mapView.width}
+				x="0"
+				y="0"
+			/>
+		</svg>
+	)
+}
+
+function buildIncomingGeoEntries(deliveries: OrderDeliveryTracking[]) {
+	return deliveries.flatMap((delivery) => {
+		const entries: Array<{ key: string; point: GeoPoint }> = []
+		const driverPoint = toGeoPoint(delivery.route.driverLocation)
+		const destinationPoint = toGeoPoint(delivery.route.destinationLocation)
+		if (driverPoint) {
+			entries.push({ key: `driver-${delivery.id}`, point: driverPoint })
+		}
+		if (destinationPoint) {
+			entries.push({
+				key: `destination-${delivery.id}`,
+				point: destinationPoint,
+			})
+		}
+		return entries
+	})
+}
+
+function toGeoPoint(point: OrderDeliveryTracking['route']['driverLocation']) {
+	if (!point) return null
+	if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null
+	return { lat: point.lat, lng: point.lng }
+}
+
+function fallbackIncomingPosition(
+	index: number,
+	type: 'destination' | 'driver',
+) {
+	const lane = index % 4
+	const row = Math.floor(index / 4)
+	const left = 16 + lane * 22
+	const topOffset = (row % 3) * 8
+	return type === 'driver'
+		? { left: Math.min(left, 88), top: 28 + topOffset }
+		: { left: Math.min(left + 8, 92), top: 70 + topOffset }
 }
 
 function OrdersSection({
@@ -375,7 +1030,7 @@ function OrdersSection({
 						</span>
 					</span>
 					<span
-						className="shrink-0 font-mono text-[12px] text-[var(--p-text-muted)]"
+						className="shrink-0 text-[12px] font-medium text-[var(--p-text-muted)]"
 						style={{ fontVariantNumeric: 'tabular-nums' }}
 					>
 						{isAr
@@ -432,14 +1087,18 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteOrder({ data: { orderId: order.id } }),
 		onSuccess: () => {
-			queryClient.setQueryData<{ orders: Order[] }>(
-				['customer-orders-all'],
-				(current) =>
-					current
-						? {
-								orders: current.orders.filter((item) => item.id !== order.id),
-							}
-						: current,
+			queryClient.setQueryData<{
+				incomingDeliveries: OrderDeliveryTracking[]
+				orders: Order[]
+			}>(['customer-orders-all'], (current) =>
+				current
+					? {
+							incomingDeliveries: current.incomingDeliveries.filter(
+								(delivery) => delivery.orderId !== order.linkedOrderId,
+							),
+							orders: current.orders.filter((item) => item.id !== order.id),
+						}
+					: current,
 			)
 		},
 	})
@@ -451,23 +1110,16 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 		})
 	}
 
-	function duplicateDraft() {
-		const duplicate: Order = {
-			...order,
-			id: `${order.id}-copy-${Date.now()}`,
-			name: t('orders.copyName', { name: title }),
-			draftSource: 'customer',
-			date: new Date().toISOString(),
-			items: order.items.map((item) => ({ ...item })),
-		}
-		queryClient.setQueryData<{ orders: Order[] }>(
-			['customer-orders-all'],
-			(current) =>
-				current
-					? { orders: [duplicate, ...current.orders] }
-					: { orders: [duplicate] },
-		)
-	}
+	const duplicateMutation = useMutation({
+		mutationFn: () => saveOrderAsDraft({ data: { orderId: order.id } }),
+		onSuccess: (result) => {
+			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
+			toast.success(t('orders.savedAsDraft', { ref: result.reference }))
+		},
+		onError: () => {
+			toast.error(t('orders.saveDraftFailed'))
+		},
+	})
 
 	return (
 		<article className="grid min-w-0 gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors hover:border-[var(--p-border-strong)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
@@ -476,7 +1128,7 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 					<span className="rounded-full border border-[var(--p-border)] bg-[var(--p-input)] px-2.5 py-1 text-[11px] font-medium text-[var(--p-text-muted)]">
 						{sourceLabel}
 					</span>
-					<span className="font-mono text-[11px] text-[var(--p-text-faint)]">
+					<span className="text-[12px] font-medium text-[var(--p-text-faint)]">
 						{t('orders.lastEdited', { date: dateLabel })}
 					</span>
 				</div>
@@ -491,11 +1143,9 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 								key={`${order.id}-${item.productId}`}
 								className="flex max-w-full min-w-0 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] py-1 pe-2 ps-1"
 							>
-								<img
-									src={item.imageUrl}
+								<OrderItemImage
+									imageUrl={item.imageUrl}
 									alt={itemName}
-									loading="lazy"
-									decoding="async"
 									className="h-7 w-7 shrink-0 rounded-md bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
 								/>
 								<span className="min-w-0 truncate text-[12px] text-[var(--p-text)]">
@@ -552,7 +1202,8 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 					</button>
 					<button
 						type="button"
-						onClick={duplicateDraft}
+						onClick={() => duplicateMutation.mutate()}
+						disabled={duplicateMutation.isPending}
 						aria-label={t('orders.duplicate')}
 						className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 					>
@@ -575,6 +1226,10 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
+	const queryClient = useQueryClient()
+	const [savedDraftReference, setSavedDraftReference] = useState<string | null>(
+		null,
+	)
 
 	const isSubmitted = order.type === 'submitted'
 	const title = order.name ?? order.reference ?? order.id
@@ -596,6 +1251,21 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 	function openOrder() {
 		navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
 	}
+
+	const saveDraftMutation = useMutation({
+		mutationFn: () => saveOrderAsDraft({ data: { orderId: order.id } }),
+		onMutate: () => {
+			setSavedDraftReference(null)
+		},
+		onSuccess: (result) => {
+			setSavedDraftReference(result.reference)
+			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
+			toast.success(t('orders.savedAsDraft', { ref: result.reference }))
+		},
+		onError: () => {
+			toast.error(t('orders.saveDraftFailed'))
+		},
+	})
 
 	return (
 		<article className="flex min-w-0 flex-col rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 sm:p-4">
@@ -631,11 +1301,9 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 							key={`${order.id}-${item.productId}`}
 							className="flex min-w-0 items-center gap-2.5"
 						>
-							<img
-								src={item.imageUrl}
+							<OrderItemImage
+								imageUrl={item.imageUrl}
 								alt={itemName}
-								loading="lazy"
-								decoding="async"
 								className="h-9 w-9 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:h-10 sm:w-10"
 							/>
 							<div className="min-w-0 flex-1">
@@ -643,10 +1311,13 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 									{itemName}
 								</p>
 								<p
-									className="font-mono text-[12px] text-[var(--p-text-muted)]"
+									className="text-[12px] font-medium text-[var(--p-text-muted)]"
 									style={{ fontVariantNumeric: 'tabular-nums' }}
 								>
-									{formatQuantity(item.quantity, isAr)} {item.unitOfMeasure}
+									{formatQuantity(item.quantity, isAr)}{' '}
+									{isAr && item.unitOfMeasureAr
+										? item.unitOfMeasureAr
+										: item.unitOfMeasure}
 								</p>
 							</div>
 						</div>
@@ -661,14 +1332,14 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 			)}
 
 			<div className="mt-3 border-t border-[var(--p-border)] pt-3">
-				<div className="grid grid-cols-[minmax(0,1fr)_minmax(108px,0.8fr)] items-center gap-2">
+				<div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
 					<div className="min-w-0">
 						<p className="truncate text-[12px] text-[var(--p-text-muted)]">
 							{t('orders.items', { count: order.itemCount })}
 						</p>
 						{amountLabel && (
 							<p
-								className="mt-0.5 truncate font-mono text-[12px] font-semibold text-[var(--p-text)] sm:text-[13px]"
+								className="mt-0.5 truncate text-[12px] font-semibold text-[var(--p-text)] sm:text-[13px]"
 								style={{ fontVariantNumeric: 'tabular-nums' }}
 							>
 								{amountLabel}
@@ -677,11 +1348,28 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 					</div>
 					<button
 						type="button"
+						onClick={() => saveDraftMutation.mutate()}
+						disabled={saveDraftMutation.isPending}
+						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-[var(--p-border)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-60"
+					>
+						<span className="truncate">
+							{saveDraftMutation.isPending
+								? t('quoteBuilder.savingDraft')
+								: t('orders.saveAsDraft')}
+						</span>
+					</button>
+					<button
+						type="button"
 						onClick={openOrder}
 						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 					>
 						<span className="truncate">{t('orders.view')}</span>
 					</button>
+					{savedDraftReference && (
+						<p className="text-[12px] font-medium text-[var(--p-text-muted)] sm:col-span-3">
+							{t('orders.savedAsDraft', { ref: savedDraftReference })}
+						</p>
+					)}
 				</div>
 			</div>
 		</article>
@@ -759,10 +1447,41 @@ function formatDate(iso: string, isAr: boolean): string {
 	}).format(new Date(iso))
 }
 
+function formatTime(iso: string, locale: string): string {
+	return new Intl.DateTimeFormat(locale, {
+		hour: '2-digit',
+		minute: '2-digit',
+	}).format(new Date(iso))
+}
+
 function formatAmount(order: Order, isAr: boolean): string | null {
 	if (order.amount == null) return null
 	const amount = order.amount.toLocaleString(isAr ? 'ar-EG' : 'en-EG', {
 		maximumFractionDigits: 0,
 	})
 	return `${order.currency} ${amount}`
+}
+
+function OrderItemImage({
+	imageUrl,
+	alt,
+	className,
+}: {
+	imageUrl: string
+	alt: string
+	className: string
+}) {
+	if (!imageUrl) {
+		return <div aria-hidden="true" className={className} />
+	}
+
+	return (
+		<img
+			src={imageUrl}
+			alt={alt}
+			loading="lazy"
+			decoding="async"
+			className={className}
+		/>
+	)
 }

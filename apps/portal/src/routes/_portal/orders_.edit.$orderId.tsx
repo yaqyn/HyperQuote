@@ -25,21 +25,44 @@ import {
 	useReducedMotion,
 } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import {
 	ProductQuantitySearchRow,
 	type ProductQuantitySearchRowProduct,
 } from '../../components/shared/ProductQuantitySearchRow'
 import { getMarketProducts } from '../../lib/server/market'
+import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
 import {
-	deleteOrder,
-	getAllCustomerOrders,
-	submitOrder,
-} from '../../lib/server/orders'
+	saveDraft as saveQuoteRequestDraft,
+	submitQuoteRequest,
+} from '../../lib/server/quote-requests'
 import type { Order, OrderItem } from '../../types/order'
 
 const EDIT_EASE = cubicBezier(0.22, 1, 0.36, 1)
+const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
+
+function unavailableItemNamesFromError(error: unknown): string[] {
+	const message =
+		error instanceof Error
+			? error.message
+			: typeof error === 'string'
+				? error
+				: ''
+	const markerIndex = message.indexOf(UNAVAILABLE_QUOTE_ITEMS_ERROR)
+	if (markerIndex < 0) return []
+
+	try {
+		const parsed = JSON.parse(
+			message.slice(markerIndex + UNAVAILABLE_QUOTE_ITEMS_ERROR.length),
+		)
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === 'string')
+			: []
+	} catch {
+		return []
+	}
+}
 
 function normalizeProductIdentity(value: string): string {
 	return value
@@ -91,6 +114,7 @@ function upsertOrderItemByProduct(
 			productNameAr: product.nameAr,
 			quantity,
 			unitOfMeasure: product.unitOfMeasure,
+			unitOfMeasureAr: product.unitOfMeasureAr,
 			imageUrl: product.imageUrl,
 			category: product.category,
 		})
@@ -104,12 +128,25 @@ function upsertOrderItemByProduct(
 			productNameAr: product.nameAr,
 			quantity,
 			unitOfMeasure: product.unitOfMeasure,
+			unitOfMeasureAr: product.unitOfMeasureAr,
 			imageUrl: product.imageUrl,
 			category: product.category,
 		})
 	}
 
 	return nextItems
+}
+
+function toQuoteRequestItems(items: OrderItem[]) {
+	return items.map((item, index) => ({
+		productId: item.productId,
+		customerDescription: item.productName,
+		quantity: item.quantity,
+		unitOfMeasure: item.unitOfMeasure,
+		unitOfMeasureAr: item.unitOfMeasureAr,
+		sortOrder: index,
+		isUnmatched: false,
+	}))
 }
 
 export const Route = createFileRoute('/_portal/orders_/edit/$orderId')({
@@ -122,6 +159,7 @@ function EditSavedOrder() {
 	const navigate = useNavigate()
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
+	const defaultDraftName = t('market.defaultDraftName')
 	const shouldReduceMotion = useReducedMotion()
 
 	const { data, isLoading, isError } = useQuery({
@@ -136,6 +174,7 @@ function EditSavedOrder() {
 	const [items, setItems] = useState<OrderItem[]>([])
 	const [orderName, setOrderName] = useState('')
 	const [hasChanges, setHasChanges] = useState(false)
+	const [submitError, setSubmitError] = useState<string | null>(null)
 	const [pickerOpen, setPickerOpen] = useState(false)
 	const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -179,14 +218,14 @@ function EditSavedOrder() {
 
 	function buildDraftOrder(nextType: Order['type'] = 'saved'): Order | null {
 		if (!order) return null
-		const nextName = orderName.trim()
+		const nextName = orderName.trim() || defaultDraftName
 		const nextItems = dedupeOrderItems(items.map((item) => ({ ...item })))
 		return {
 			...order,
 			type: nextType,
 			draftSource: nextType === 'saved' ? order.draftSource : undefined,
 			status: nextType === 'saved' ? 'draft' : 'submitted',
-			name: nextName || order.name,
+			name: nextName,
 			items: nextItems,
 			itemCount: nextItems.length,
 			description: nextItems
@@ -210,11 +249,26 @@ function EditSavedOrder() {
 		)
 	}
 
+	const saveMutation = useMutation({
+		mutationFn: (nextOrder: Order) =>
+			saveQuoteRequestDraft({
+				data: {
+					draftId: orderId,
+					items: toQuoteRequestItems(nextOrder.items),
+					name: nextOrder.name,
+				},
+			}),
+		onSuccess: (_result, nextOrder) => {
+			writeOrderToCache(nextOrder)
+			setHasChanges(false)
+		},
+	})
+
 	function saveDraft() {
 		const nextOrder = buildDraftOrder()
 		if (!nextOrder) return
-		writeOrderToCache(nextOrder)
-		setHasChanges(false)
+		setOrderName(nextOrder.name ?? defaultDraftName)
+		saveMutation.mutate(nextOrder)
 	}
 
 	const deleteMutation = useMutation({
@@ -236,7 +290,15 @@ function EditSavedOrder() {
 	})
 
 	const submitMutation = useMutation({
-		mutationFn: () => submitOrder({ data: { orderId } }),
+		mutationFn: () =>
+			submitQuoteRequest({
+				data: {
+					draftId: orderId,
+					items: toQuoteRequestItems(dedupeOrderItems(items)),
+					idempotencyKey: crypto.randomUUID(),
+					name: orderName.trim() || defaultDraftName,
+				},
+			}),
 		onSuccess: (result) => {
 			const nextOrder = buildDraftOrder('submitted')
 			if (nextOrder) {
@@ -247,10 +309,21 @@ function EditSavedOrder() {
 			}
 			navigate({ to: '/orders' })
 		},
+		onError: (error) => {
+			const unavailableItems = unavailableItemNamesFromError(error)
+			setSubmitError(
+				unavailableItems.length > 0
+					? t('orders.unavailableItems', {
+							items: unavailableItems.join(', '),
+						})
+					: t('orders.submitFailed'),
+			)
+		},
 	})
 
 	function submitDraft() {
 		if (items.length === 0 || submitMutation.isPending) return
+		setSubmitError(null)
 		submitMutation.mutate()
 	}
 
@@ -343,6 +416,7 @@ function EditSavedOrder() {
 									onChange={(e) => {
 										setOrderName(e.target.value)
 										setHasChanges(true)
+										setSubmitError(null)
 									}}
 									placeholder={t('orders.orderName')}
 									className="w-full min-w-0 bg-transparent font-sans text-[22px] font-semibold leading-tight tracking-tight text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-muted)] sm:text-[24px]"
@@ -356,10 +430,16 @@ function EditSavedOrder() {
 						<div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
 							<Button
 								onPress={saveDraft}
-								isDisabled={!hasChanges || items.length === 0}
+								isDisabled={
+									!hasChanges || items.length === 0 || saveMutation.isPending
+								}
 								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text-secondary)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:cursor-default disabled:opacity-35 sm:min-w-[112px]"
 							>
-								<Save size={14} strokeWidth={1.6} />
+								{saveMutation.isPending ? (
+									<Spinner />
+								) : (
+									<Save size={14} strokeWidth={1.6} />
+								)}
 								<span className="truncate">{t('orders.save')}</span>
 							</Button>
 							<Button
@@ -375,6 +455,11 @@ function EditSavedOrder() {
 								<span className="truncate">{t('orders.submit')}</span>
 							</Button>
 						</div>
+						{submitError && (
+							<p className="rounded-xl border border-[var(--p-error)]/25 bg-[var(--p-error)]/8 px-3 py-2 text-[12px] font-medium text-[var(--p-error)] sm:basis-full">
+								{submitError}
+							</p>
+						)}
 					</div>
 				</motion.header>
 
@@ -402,12 +487,9 @@ function EditSavedOrder() {
 									transition={transition}
 									className="grid min-w-0 grid-cols-[48px_minmax(0,1fr)_36px] items-center gap-3 px-3 py-3 transition-colors hover:bg-[var(--p-hover)] sm:grid-cols-[48px_minmax(0,1fr)_240px_36px] sm:px-4"
 								>
-									<img
-										src={item.imageUrl}
-										alt=""
+									<OrderItemImage
+										imageUrl={item.imageUrl}
 										className="col-start-1 row-start-1 h-12 w-12 rounded-lg bg-[var(--p-elevated)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:col-auto sm:row-auto"
-										loading="lazy"
-										decoding="async"
 									/>
 
 									<div className="col-start-2 row-start-1 min-w-0 sm:col-auto sm:row-auto">
@@ -415,7 +497,9 @@ function EditSavedOrder() {
 											{isAr ? item.productNameAr : item.productName}
 										</p>
 										<p className="mt-1 truncate text-[12px] text-[var(--p-text-muted)]">
-											{item.unitOfMeasure}
+											{isAr && item.unitOfMeasureAr
+												? item.unitOfMeasureAr
+												: item.unitOfMeasure}
 										</p>
 									</div>
 
@@ -437,7 +521,9 @@ function EditSavedOrder() {
 												onChange={(v) => updateQty(item.productId, v)}
 											/>
 											<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
-												{item.unitOfMeasure}
+												{isAr && item.unitOfMeasureAr
+													? item.unitOfMeasureAr
+													: item.unitOfMeasure}
 											</span>
 										</div>
 										<button
@@ -553,6 +639,7 @@ function QtyInput({
 	quantity: number
 	onChange: (v: number) => void
 }) {
+	const { t } = useTranslation('portal')
 	const [local, setLocal] = useState(String(quantity))
 
 	useEffect(() => {
@@ -563,6 +650,7 @@ function QtyInput({
 		<input
 			type="text"
 			inputMode="numeric"
+			aria-label={t('market.quantity')}
 			value={local}
 			onChange={(e) => {
 				const raw = e.target.value.replace(/[^0-9]/g, '')
@@ -720,7 +808,10 @@ function ProductPicker({
 												id: product.id,
 												name: product.name,
 												nameAr: product.nameAr,
+												categoryName: product.categoryName,
+												categoryNameAr: product.categoryNameAr,
 												unitOfMeasure: product.unitOfMeasure,
+												unitOfMeasureAr: product.unitOfMeasureAr,
 												imageUrl: product.imageUrl,
 												category: product.category,
 											},
@@ -773,6 +864,26 @@ function formatDate(iso: string, isAr: boolean): string {
 		month: 'short',
 		day: 'numeric',
 	}).format(new Date(iso))
+}
+
+function OrderItemImage({
+	imageUrl,
+	className,
+}: {
+	imageUrl: string
+	className: string
+}) {
+	if (!imageUrl) return <div aria-hidden="true" className={className} />
+
+	return (
+		<img
+			src={imageUrl}
+			alt=""
+			className={className}
+			loading="lazy"
+			decoding="async"
+		/>
+	)
 }
 
 // ============================================================================

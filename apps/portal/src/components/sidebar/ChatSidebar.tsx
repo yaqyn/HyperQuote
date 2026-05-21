@@ -11,7 +11,6 @@ import {
 	MessageSquare,
 	Moon,
 	PanelLeft,
-	Plus,
 	ShoppingBag,
 	Star,
 	Sun,
@@ -20,6 +19,7 @@ import {
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { signOutPortalAccount } from '../../lib/auth'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { type Conversation, useChatStore } from '../../stores/chat'
@@ -53,7 +53,6 @@ type NavTarget = (typeof NAV_ITEMS)[number]['to']
 
 export function ChatSidebar({
 	userName,
-	companyName,
 	hasSupplierRole,
 	closeOnNavigate = false,
 }: ChatSidebarProps) {
@@ -74,7 +73,6 @@ export function ChatSidebar({
 		(s) => s.activeConversationId[activeRole],
 	)
 	const loadConversation = useChatStore((s) => s.loadConversation)
-	const clearActive = useChatStore((s) => s.clearActive)
 
 	const favorites = conversations.filter((c) => c.pinned)
 	const recent = conversations.filter((c) => !c.pinned)
@@ -86,20 +84,6 @@ export function ChatSidebar({
 			usePortalStore.getState().setSidebarOpen(false)
 		}
 	}, [closeOnNavigate])
-
-	const handleNewChat = useCallback(() => {
-		clearActive(activeRole)
-		if (closeOnNavigate) {
-			navigate({ to: '/' })
-			closeSidebarAfterNavigate()
-		}
-	}, [
-		clearActive,
-		activeRole,
-		closeOnNavigate,
-		navigate,
-		closeSidebarAfterNavigate,
-	])
 
 	const handleSelect = useCallback(
 		(id: string) => {
@@ -154,43 +138,24 @@ export function ChatSidebar({
 			<div className="relative flex h-full min-h-0 flex-col px-3 py-3 sm:px-4 sm:py-4">
 				<motion.header {...stagger(0)} className="shrink-0">
 					<div className="flex items-center justify-between gap-3">
-						<div className="flex min-w-0 items-center gap-3">
-							<span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] text-[var(--p-accent)] shadow-[var(--p-mark-shadow)]">
-								<span
-									aria-hidden
-									className="absolute inset-1 rounded-xl bg-[var(--p-accent-dim)]"
-								/>
-								<_NibMonogram />
-							</span>
-							<div className="min-w-0">
-								<p className="voice-mono truncate text-[9px] uppercase tracking-[0.26em] text-[var(--p-text-faint)]">
-									{t('sidebar.welcome')}
-								</p>
-								<p className="truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
-									{firstName}
-								</p>
-							</div>
+						<div className="min-w-0">
+							<p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+								{t('sidebar.welcome')}
+							</p>
+							<p className="truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
+								{firstName}
+							</p>
 						</div>
 
-						<div className="flex shrink-0 items-center gap-1">
-							<button
-								type="button"
-								onClick={handleNewChat}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
-								aria-label={t('sidebar.newChat')}
-							>
-								<Plus size={15} strokeWidth={1.8} />
-							</button>
-							<button
-								type="button"
-								onClick={() => usePortalStore.getState().setSidebarOpen(false)}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
-								aria-label={t('sidebar.hide')}
-								aria-keyshortcuts="["
-							>
-								<PanelLeft size={16} strokeWidth={1.5} />
-							</button>
-						</div>
+						<button
+							type="button"
+							onClick={() => usePortalStore.getState().setSidebarOpen(false)}
+							className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
+							aria-label={t('sidebar.hide')}
+							aria-keyshortcuts="["
+						>
+							<PanelLeft size={16} strokeWidth={1.5} />
+						</button>
 					</div>
 				</motion.header>
 
@@ -323,48 +288,10 @@ export function ChatSidebar({
 					{...stagger(4)}
 					className="relative shrink-0 border-t border-[var(--p-border)] pt-3"
 				>
-					<ProfileMenu
-						userName={userName}
-						companyName={companyName}
-						closeOnNavigate={closeOnNavigate}
-					/>
+					<ProfileMenu userName={userName} closeOnNavigate={closeOnNavigate} />
 				</motion.footer>
 			</div>
 		</div>
-	)
-}
-
-/* ============================================================================ */
-
-function _NibMonogram() {
-	return (
-		<svg
-			viewBox="0 0 16 16"
-			width="14"
-			height="14"
-			xmlns="http://www.w3.org/2000/svg"
-			role="img"
-			aria-label="Lyon"
-			className="shrink-0 text-[var(--p-accent)]"
-		>
-			<title>Lyon</title>
-			<path
-				d="M 3.5 1.5 L 13 3.5 L 8 14 Z"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="0.9"
-				strokeLinejoin="round"
-			/>
-			<line
-				x1="8"
-				y1="5.2"
-				x2="8"
-				y2="14"
-				stroke="currentColor"
-				strokeWidth="0.7"
-			/>
-			<circle cx="8" cy="6.2" r="0.85" fill="currentColor" />
-		</svg>
 	)
 }
 
@@ -455,11 +382,9 @@ function ConversationItem({
 
 function ProfileMenu({
 	userName,
-	companyName,
 	closeOnNavigate = false,
 }: {
 	userName: string
-	companyName?: string
 	closeOnNavigate?: boolean
 }) {
 	const { t, i18n } = useTranslation('portal')
@@ -527,10 +452,14 @@ function ProfileMenu({
 		}
 	}
 
-	function handleSignOut() {
+	async function handleSignOut() {
 		setOpen(false)
 		setSigningOut(true)
-		setTimeout(() => navigate({ to: '/login' }), 800)
+		try {
+			await signOutPortalAccount()
+		} finally {
+			setTimeout(() => navigate({ to: '/login', replace: true }), 500)
+		}
 	}
 
 	const menuItems = [
@@ -570,25 +499,17 @@ function ProfileMenu({
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="group flex w-full min-w-0 items-center gap-3 rounded-2xl px-1 py-1.5 text-start transition-colors hover:bg-[var(--p-hover)]"
+				className="group inline-flex h-10 w-10 items-center justify-center rounded-2xl text-start transition-colors hover:bg-[var(--p-hover)]"
+				aria-label={userName}
+				title={userName}
 			>
 				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] text-[14px] font-semibold text-[var(--p-accent)] transition-colors group-hover:border-[var(--p-border-strong)]">
 					{initial}
 				</span>
-				<div className="min-w-0 flex-1">
-					<p className="truncate text-[13px] font-semibold leading-tight text-[var(--p-text)]">
-						{userName}
-					</p>
-					{companyName && (
-						<p className="truncate text-[12px] leading-tight text-[var(--p-text-muted)]">
-							{companyName}
-						</p>
-					)}
-				</div>
 			</button>
 
 			{open && (
-				<div className="absolute inset-x-0 bottom-full mb-3 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
+				<div className="absolute bottom-full start-0 mb-3 w-52 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
 					{menuItems.map((item) => {
 						const Icon = item.icon
 						return (

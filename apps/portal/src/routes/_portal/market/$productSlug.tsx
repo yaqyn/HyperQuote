@@ -5,18 +5,24 @@
  * centered mobile/tablet copy, desktop quote action card, and mobile bottom CTA.
  */
 
+import { formatWeightKg } from '@hyperquote/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
 	ArrowLeft,
 	Check,
 	ChevronRight,
+	Package,
 	Pencil,
 	Plus,
 	Undo2,
 } from 'lucide-react'
 import { type KeyboardEvent, useCallback, useEffect, useState } from 'react'
-import { Button, Group, Input, Label, NumberField } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Group } from 'react-aria-components/Group'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { NumberField } from 'react-aria-components/NumberField'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
 import { getMarketProducts } from '../../../lib/server/market'
@@ -31,6 +37,7 @@ function ProductDetailPage() {
 	const navigate = useNavigate()
 	const { productSlug } = Route.useParams()
 	const isAr = i18n.language === 'ar'
+	const locale = isAr ? 'ar' : 'en'
 
 	const { data: allData, isLoading } = useQuery({
 		queryKey: ['market-products-all'],
@@ -51,13 +58,18 @@ function ProductDetailPage() {
 
 	const productName = isAr ? product.nameAr : product.name
 	const description = isAr ? product.descriptionAr : product.description
-	const categoryLabel = t(`market.cat.${product.category}`, {
-		defaultValue: product.category.replace(/_/g, ' '),
-	})
+	const categoryLabel =
+		isAr && product.categoryNameAr
+			? product.categoryNameAr
+			: product.categoryName
+	const unitLabel =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 
 	const formatPrice = (min: number | null, max: number | null) => {
 		if (min == null && max == null) return null
-		const fmt = new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
+		const fmt = new Intl.NumberFormat(locale === 'ar' ? 'ar-EG' : 'en-EG', {
 			maximumFractionDigits: 0,
 		})
 		if (min != null && max != null)
@@ -67,6 +79,20 @@ function ProductDetailPage() {
 		return null
 	}
 	const priceLabel = formatPrice(product.priceRangeMin, product.priceRangeMax)
+	const specs = [
+		...(product.weightKg != null
+			? [
+					{
+						label: t('market.weight'),
+						value: formatWeightKg(product.weightKg, locale),
+					},
+				]
+			: []),
+		...product.specs.map((spec) => ({
+			label: isAr ? spec.labelAr : spec.label,
+			value: isAr && spec.valueAr ? spec.valueAr : spec.value,
+		})),
+	]
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[var(--p-bg)] pb-40 md:pb-0">
@@ -122,7 +148,7 @@ function ProductDetailPage() {
 									EGP {priceLabel}
 								</p>
 								<span className="font-mono text-[12px] text-[var(--p-text-muted)]">
-									/ {product.unitOfMeasure}
+									/ {unitLabel}
 								</span>
 							</div>
 						)}
@@ -139,7 +165,7 @@ function ProductDetailPage() {
 					</section>
 				</div>
 
-				{product.specs.length > 0 && (
+				{specs.length > 0 && (
 					<section className="mt-10 sm:mt-12 lg:mt-14">
 						<header className="mb-3 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--p-border)] pb-2.5">
 							<h2 className="text-[16px] font-semibold text-[var(--p-text)]">
@@ -147,18 +173,18 @@ function ProductDetailPage() {
 							</h2>
 							<span className="font-mono text-[11px] text-[var(--p-text-faint)]">
 								{isAr
-									? product.specs.length.toLocaleString('ar-EG')
-									: String(product.specs.length).padStart(2, '0')}
+									? specs.length.toLocaleString('ar-EG')
+									: String(specs.length).padStart(2, '0')}
 							</span>
 						</header>
 						<div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-							{product.specs.map((spec) => (
+							{specs.map((spec) => (
 								<div
 									key={spec.label}
 									className="min-w-0 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2.5"
 								>
 									<p className="line-clamp-1 text-[11px] font-medium text-[var(--p-text-muted)]">
-										{isAr ? spec.labelAr : spec.label}
+										{spec.label}
 									</p>
 									<p
 										className="mt-1 break-words font-mono text-[13px] font-medium leading-snug text-[var(--p-text)]"
@@ -198,18 +224,26 @@ function ProductDetailPage() {
 										className="group block text-start"
 									>
 										<div className="aspect-square overflow-hidden rounded-xl bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)]">
-											<img
-												src={rel.imageUrl}
-												alt={relName}
-												loading="lazy"
-												className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
-											/>
+											{rel.imageUrl ? (
+												<img
+													src={rel.imageUrl}
+													alt={relName}
+													loading="lazy"
+													className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+												/>
+											) : (
+												<div className="flex h-full w-full items-center justify-center text-[var(--p-text-faint)]">
+													<Package size={24} />
+												</div>
+											)}
 										</div>
 										<p className="mt-3 line-clamp-2 break-words px-0.5 text-[14px] font-semibold leading-snug text-[var(--p-text)] sm:text-[13px]">
 											{relName}
 										</p>
 										<p className="mt-1 px-0.5 font-mono text-[11px] text-[var(--p-text-muted)]">
-											{rel.unitOfMeasure}
+											{isAr && rel.unitOfMeasureAr
+												? rel.unitOfMeasureAr
+												: rel.unitOfMeasure}
 										</p>
 									</button>
 								)
@@ -232,12 +266,18 @@ function ProductImage({ imageUrl, name }: { imageUrl: string; name: string }) {
 	return (
 		<div className="lg:sticky lg:top-8 lg:self-start">
 			<div className="group aspect-[16/10] overflow-hidden rounded-2xl bg-[var(--p-surface)] ring-1 ring-inset ring-[var(--p-border)] lg:aspect-[5/6]">
-				<img
-					src={imageUrl}
-					alt={name}
-					loading="eager"
-					className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-				/>
+				{imageUrl ? (
+					<img
+						src={imageUrl}
+						alt={name}
+						loading="eager"
+						className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+					/>
+				) : (
+					<div className="flex h-full w-full items-center justify-center text-[var(--p-text-faint)]">
+						<Package size={40} />
+					</div>
+				)}
 			</div>
 		</div>
 	)
@@ -264,7 +304,10 @@ interface ActionProduct {
 	name: string
 	nameAr: string
 	category: string
+	categoryName: string
+	categoryNameAr: string
 	unitOfMeasure: string
+	unitOfMeasureAr: string
 	imageUrl: string
 }
 
@@ -275,12 +318,16 @@ function RecordAction({
 	product: ActionProduct
 	variant?: RecordVariant
 }) {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
 	const { add, remove, items, updateQuantity } = useDraftQuoteStore()
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
 	const [mode, setMode] = useState<RecordMode>(cartItem ? 'added' : 'idle')
 	const isBar = variant === 'bar'
+	const unitLabel =
+		i18n.language === 'ar' && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 	const shellClass = isBar
 		? 'w-full'
 		: 'rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:p-5 lg:p-6'
@@ -315,7 +362,10 @@ function RecordAction({
 					name: product.name,
 					nameAr: product.nameAr,
 					category: product.category,
+					categoryName: product.categoryName,
+					categoryNameAr: product.categoryNameAr,
 					unitOfMeasure: product.unitOfMeasure,
+					unitOfMeasureAr: product.unitOfMeasureAr,
 					imageUrl: product.imageUrl,
 				},
 				q,
@@ -383,7 +433,7 @@ function RecordAction({
 								style={{ fontVariantNumeric: 'tabular-nums' }}
 							/>
 							<span className="min-w-0 truncate text-[13px] font-medium text-[var(--p-text-muted)]">
-								{product.unitOfMeasure}
+								{unitLabel}
 							</span>
 						</div>
 						<Button
@@ -430,7 +480,7 @@ function RecordAction({
 					>
 						{cartItem.quantity}
 					</span>{' '}
-					{product.unitOfMeasure} {t('market.inQuote')}
+					{unitLabel} {t('market.inQuote')}
 				</p>
 			)}
 			<div className="flex items-center gap-2">

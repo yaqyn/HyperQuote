@@ -1,10 +1,10 @@
 /**
  * ProductPerformanceTable -- Sortable top-20 product performance table.
- * React Aria Table with all number columns in Geist Mono.
+ * React Aria Table with all number columns in readable tabular sans.
  * Default sort: revenue descending.
  */
 import { useMemo, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type { ProductPerformance } from '../../types/supplier'
 

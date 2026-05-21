@@ -7,7 +7,7 @@ On the **website**, Lyon operates as a guided discovery tool. It answers questio
 In the **customer portal**, Lyon becomes your primary interaction point. Its capabilities expand significantly:
 
 - **Material ordering** — "I need 400 bags of OPC 50kg cement" translates into a structured material list ready for your review. No forms, no product codes — just describe what you need in plain language.
-- **Status lookups** — "Where is my delivery?" or "What is the status of order HQ-2026-0412?" returns real-time information pulled from the order tracking system.
+- **Status lookups** — "Where is my delivery?" or "What is the status of my order?" returns real-time information pulled from the order tracking system.
 - **Reordering** — "Reorder what I got last month" pulls your previous order, creates an editable draft, and asks for confirmation before submitting.
 - **General questions** — "What are your payment terms?" or "How does the quoting process work?" returns accurate, contextual answers.
 

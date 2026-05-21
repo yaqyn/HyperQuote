@@ -9,16 +9,12 @@
 import { GripVertical, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback } from 'react'
-import {
-	NumberField as AriaNumberField,
-	TextField as AriaTextField,
-	Button,
-	GridList,
-	GridListItem,
-	Group,
-	Input,
-	useDragAndDrop,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { GridList, GridListItem } from 'react-aria-components/GridList'
+import { Group } from 'react-aria-components/Group'
+import { Input } from 'react-aria-components/Input'
+import { NumberField as AriaNumberField } from 'react-aria-components/NumberField'
+import { useDragAndDrop } from 'react-aria-components/useDragAndDrop'
 import { useTranslation } from 'react-i18next'
 import {
 	type QuoteItem,
@@ -55,7 +51,8 @@ const notesInputClass =
 	'h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10 transition-colors'
 
 export function ProductListTable() {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
 	const items = useQuoteBuilderStore((s) => s.items)
 	const removeItem = useQuoteBuilderStore((s) => s.removeItem)
 	const updateItem = useQuoteBuilderStore((s) => s.updateItem)
@@ -135,6 +132,12 @@ export function ProductListTable() {
 		)
 	}
 
+	function unitLabel(item: QuoteItem) {
+		return isAr && item.unitOfMeasureAr
+			? item.unitOfMeasureAr
+			: item.unitOfMeasure
+	}
+
 	function NotesField({
 		item,
 		label,
@@ -149,17 +152,14 @@ export function ProductListTable() {
 		className: string
 	}) {
 		return (
-			<AriaTextField
+			<input
+				type="text"
 				value={item.notes ?? ''}
-				onChange={(val) => onChange(item.id, val)}
 				aria-label={label}
-				className={className}
-			>
-				<Input
-					placeholder={placeholder}
-					className={`${notesInputClass} w-full`}
-				/>
-			</AriaTextField>
+				placeholder={placeholder}
+				onChange={(event) => onChange(item.id, event.currentTarget.value)}
+				className={`${notesInputClass} ${className}`}
+			/>
 		)
 	}
 
@@ -260,7 +260,7 @@ export function ProductListTable() {
 
 									{/* UOM */}
 									<span className="text-[13px] text-[var(--color-text-muted)]">
-										{item.unitOfMeasure}
+										{unitLabel(item)}
 									</span>
 
 									{/* Notes */}
@@ -313,7 +313,7 @@ export function ProductListTable() {
 
 										{/* UOM */}
 										<span className="text-[13px] text-[var(--color-text-muted)] self-center">
-											{item.unitOfMeasure}
+											{unitLabel(item)}
 										</span>
 									</div>
 

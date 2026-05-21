@@ -7,14 +7,9 @@
 
 import { Pencil } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import {
-	Button,
-	Dialog,
-	DialogTrigger,
-	Heading,
-	Modal,
-	ModalOverlay,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog, DialogTrigger, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import { useNeedsApproval } from '../../../hooks/useApproval'
 import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
@@ -31,7 +26,8 @@ interface SubmitResult {
 }
 
 export function ReviewStep() {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
 	const items = useQuoteBuilderStore((s) => s.items)
 	const notes = useQuoteBuilderStore((s) => s.notes)
 	const deliveryDate = useQuoteBuilderStore((s) => s.deliveryDate)
@@ -137,7 +133,10 @@ export function ReviewStep() {
 								{item.customerDescription}
 							</span>
 							<span className="text-sm font-mono text-[var(--color-text-muted)]">
-								{item.quantity} {item.unitOfMeasure}
+								{item.quantity}{' '}
+								{isAr && item.unitOfMeasureAr
+									? item.unitOfMeasureAr
+									: item.unitOfMeasure}
 							</span>
 						</div>
 					))}

@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
 import { useChatWidget } from '../../hooks/useChatWidget'
+import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
+import { getPortalHref } from '../../lib/portal-url'
 import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
@@ -26,6 +28,7 @@ export function HeroSection() {
 	const [stage, setStage] = useState(0)
 	const [mode, setMode] = useState<HeroMode>('hero')
 	const [chatInitialMessage, setChatInitialMessage] = useState('')
+	const { accountState } = useWebsiteAccountState()
 
 	const closeBubble = useChatWidget((s) => s.close)
 	const requestChatRuntime = useChatWidget((s) => s.requestRuntime)
@@ -357,13 +360,22 @@ export function HeroSection() {
 										>
 											{t('cta.browseMarket')}
 										</Link>
-										<button
-											type="button"
-											onClick={() => navigateTo({ to: '/login' })}
-											className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
-										>
-											{t('login.step1.heading')}
-										</button>
+										{accountState.authenticated ? (
+											<a
+												href={getPortalHref()}
+												className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
+											>
+												{t('nav.portal')}
+											</a>
+										) : (
+											<button
+												type="button"
+												onClick={() => navigateTo({ to: '/login' })}
+												className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
+											>
+												{t('login.step1.heading')}
+											</button>
+										)}
 									</div>
 								</motion.div>
 							)}

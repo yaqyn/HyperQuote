@@ -1,19 +1,17 @@
-import type { DateValue } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import {
-	Button,
 	Calendar,
 	CalendarCell,
 	CalendarGrid,
-	DateInput,
-	DatePicker,
-	DateSegment,
-	Dialog,
-	FieldError,
-	Group,
-	Heading,
-	Label,
-	Popover,
-} from 'react-aria-components'
+} from 'react-aria-components/Calendar'
+import type { DateValue } from 'react-aria-components/DateField'
+import { DateInput, DateSegment } from 'react-aria-components/DateField'
+import { DatePicker } from 'react-aria-components/DatePicker'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { FieldError } from 'react-aria-components/FieldError'
+import { Group } from 'react-aria-components/Group'
+import { Label } from 'react-aria-components/Label'
+import { Popover } from 'react-aria-components/Popover'
 import { Controller, useFormContext } from 'react-hook-form'
 
 interface DateFieldProps {

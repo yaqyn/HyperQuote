@@ -6,7 +6,7 @@
  */
 
 import { useNavigate } from '@tanstack/react-router'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type { ActionButtonData } from '../../lib/chat-types'
 

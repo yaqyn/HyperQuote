@@ -1,6 +1,6 @@
 /**
  * Submitted invoices list with React Aria Table.
- * All number columns use Geist Mono (font-mono).
+ * All number columns use readable tabular sans (font-mono).
  * Status badges for 5 invoice statuses.
  */
 
@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ParseKeys } from 'i18next'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { getSupplierInvoices } from '../../lib/server/supplier-invoices'
 import type { SupplierInvoice } from '../../types/supplier'

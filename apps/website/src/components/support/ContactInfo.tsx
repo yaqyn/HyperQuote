@@ -1,47 +1,54 @@
 import { ArrowUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-const PHONE_NUMBER = '+20 123 456 7890'
-const PHONE_RAW = '+201234567890'
-const WHATSAPP_URL = `https://wa.me/${PHONE_RAW.replace('+', '')}`
-const EMAIL = 'support@hyperquote.net'
+const SUPPORT_EMAIL =
+	import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@hyperquote.net'
+const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
+const SUPPORT_PHONE_LABEL =
+	import.meta.env.VITE_SUPPORT_PHONE_LABEL ?? SUPPORT_PHONE_E164
+const SUPPORT_WHATSAPP_E164 = import.meta.env.VITE_SUPPORT_WHATSAPP_E164 ?? ''
 
 export function ContactInfo() {
 	const { t } = useTranslation('website')
+	const whatsappUrl = SUPPORT_WHATSAPP_E164
+		? `https://wa.me/${SUPPORT_WHATSAPP_E164.replace('+', '')}`
+		: null
 
 	return (
 		<div className="mx-auto w-full max-w-[560px] text-center lg:max-w-none lg:pt-2 lg:text-start">
 			{/* ── Channels: data-first, no icons ── */}
 			<div className="flex flex-col">
 				{/* WhatsApp */}
-				<a
-					href={WHATSAPP_URL}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
-				>
-					<div className="min-w-0">
-						<div className="text-[17px] font-semibold tracking-normal sm:text-[18px]">
-							{t('support.whatsappLabel')}
+				{whatsappUrl && (
+					<a
+						href={whatsappUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
+					>
+						<div className="min-w-0">
+							<div className="text-[17px] font-semibold tracking-normal sm:text-[18px]">
+								{t('support.whatsappLabel')}
+							</div>
+							<div className="mt-1 text-[13px] opacity-40">
+								{t('support.whatsappDetail')}
+							</div>
 						</div>
-						<div className="mt-1 text-[13px] opacity-40">
-							{t('support.whatsappDetail')}
-						</div>
-					</div>
-					<ArrowUpRight
-						size={18}
-						className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
-					/>
-				</a>
+						<ArrowUpRight
+							size={18}
+							className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
+						/>
+					</a>
+				)}
 
 				{/* Email */}
 				<a
-					href={`mailto:${EMAIL}`}
+					href={`mailto:${SUPPORT_EMAIL}`}
 					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
 				>
 					<div className="min-w-0">
 						<div className="break-all text-[17px] font-semibold tracking-normal sm:text-[18px]">
-							{EMAIL}
+							{SUPPORT_EMAIL}
 						</div>
 						<div className="mt-1 text-[13px] opacity-40">
 							{t('support.emailLabel')}
@@ -54,23 +61,25 @@ export function ContactInfo() {
 				</a>
 
 				{/* Phone */}
-				<a
-					href={`tel:${PHONE_RAW}`}
-					className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
-				>
-					<div className="min-w-0">
-						<div className="font-[family-name:var(--font-mono)] text-[17px] font-semibold tracking-normal sm:text-[18px]">
-							{PHONE_NUMBER}
+				{SUPPORT_PHONE_E164 && (
+					<a
+						href={`tel:${SUPPORT_PHONE_E164}`}
+						className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.06] py-5 sm:justify-between md:py-6"
+					>
+						<div className="min-w-0">
+							<div className="font-[family-name:var(--font-mono)] text-[17px] font-semibold tracking-normal sm:text-[18px]">
+								{SUPPORT_PHONE_LABEL}
+							</div>
+							<div className="mt-1 font-[family-name:var(--font-sans)] text-[13px] opacity-40">
+								{t('support.phoneLabel')}
+							</div>
 						</div>
-						<div className="mt-1 font-[family-name:var(--font-sans)] text-[13px] opacity-40">
-							{t('support.phoneLabel')}
-						</div>
-					</div>
-					<ArrowUpRight
-						size={18}
-						className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
-					/>
-				</a>
+						<ArrowUpRight
+							size={18}
+							className="hidden shrink-0 opacity-25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-45 sm:block md:opacity-0"
+						/>
+					</a>
+				)}
 			</div>
 
 			{/* ── Address + Hours: inline footer ── */}

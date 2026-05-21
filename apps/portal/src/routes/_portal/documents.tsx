@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { Search, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import {
-	Input,
-	Label,
-	SearchField,
-	Tab,
-	TabList,
-	TabPanel,
-	Tabs,
-} from 'react-aria-components'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { SearchField } from 'react-aria-components/SearchField'
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import { DocumentTable } from '../../components/documents/DocumentTable'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'

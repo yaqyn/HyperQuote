@@ -5,10 +5,17 @@
  * category chips, dense image cards, with portal draft-quote actions retained.
  */
 
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import type { ParseKeys } from 'i18next'
-import { Check, ChevronDown, Plus, Search, Undo2, X } from 'lucide-react'
+import {
+	Check,
+	ChevronDown,
+	Package,
+	Plus,
+	Search,
+	Undo2,
+	X,
+} from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -16,7 +23,9 @@ import { useTranslation } from 'react-i18next'
 import { DraftQuoteTrigger } from '../../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
 import {
+	getMarketCategories,
 	getMarketProducts,
+	type MarketCategory,
 	type MarketProduct,
 } from '../../../lib/server/market'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
@@ -25,27 +34,6 @@ import { usePortalStore } from '../../../stores/portal'
 export const Route = createFileRoute('/_portal/market/')({
 	component: MarketGridPage,
 })
-
-const CATEGORIES = [
-	'cement',
-	'steel',
-	'aggregates',
-	'bricks',
-	'timber',
-	'finishing',
-] as const
-
-const CATEGORY_MAP: Record<string, string[]> = {
-	cement: ['cement', 'concrete'],
-	steel: ['reinforcing_steel', 'structural_steel', 'plumbing', 'electrical'],
-	aggregates: ['aggregates', 'sand'],
-	bricks: ['bricks'],
-	timber: ['wood', 'waterproofing', 'insulation'],
-	finishing: ['paints', 'tiles', 'drywall', 'adhesives'],
-}
-
-const PLACEHOLDER_IMAGE =
-	'https://websiteassets.hyperquote.net/Images/cairo.webp'
 
 function MarketGridPage() {
 	const { t, i18n } = useTranslation('portal')
@@ -57,6 +45,12 @@ function MarketGridPage() {
 	const [searchQuery, setSearchQuery] = useState('')
 	const [debouncedSearch, setDebouncedSearch] = useState('')
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+	const { data: categoryData } = useQuery({
+		queryKey: ['market-categories'],
+		queryFn: () => getMarketCategories(),
+		staleTime: 300_000,
+	})
+	const marketCategories = categoryData?.categories ?? []
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 250)
@@ -64,11 +58,7 @@ function MarketGridPage() {
 	}, [searchQuery])
 
 	const categoryFilter =
-		selectedCategories.length > 0
-			? selectedCategories
-					.flatMap((cat) => CATEGORY_MAP[cat] ?? [cat])
-					.join(',')
-			: undefined
+		selectedCategories.length > 0 ? selectedCategories.join(',') : undefined
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		useInfiniteQuery({
@@ -143,6 +133,7 @@ function MarketGridPage() {
 			/>
 
 			<CategoryStrip
+				categories={marketCategories}
 				selected={selectedCategories}
 				onToggle={toggleCategory}
 				onClearAll={clearFilters}
@@ -295,25 +286,30 @@ function MarketHeader({
 // ---------------------------------------------------------------------------
 
 function CategoryStrip({
+	categories,
 	selected,
 	onToggle,
 	onClearAll,
 }: {
+	categories: MarketCategory[]
 	selected: string[]
 	onToggle: (c: string) => void
 	onClearAll: () => void
 }) {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
 	const isAllActive = selected.length === 0
 	const [menuOpen, setMenuOpen] = useState(false)
 	const menuRef = useRef<HTMLDivElement>(null)
 	const categoryLabels = useMemo(
 		() =>
-			CATEGORIES.map((cat) => ({
-				id: cat,
-				label: t(`market.cat.${cat}` as ParseKeys<'portal'>),
+			categories.map((category) => ({
+				id: category.slug,
+				label: isAr
+					? category.nameAr || category.name || category.slug
+					: category.name || category.slug,
 			})),
-		[t],
+		[categories, isAr],
 	)
 	const selectedLabel = isAllActive
 		? t('market.allEntries')
@@ -485,13 +481,14 @@ function ProductCard({
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const name = isAr ? product.nameAr : product.name
-	const image = product.imageUrl || PLACEHOLDER_IMAGE
-	const categoryLabel = t(
-		`market.cat.${product.category}` as ParseKeys<'portal'>,
-		{
-			defaultValue: product.category.replace(/_/g, ' '),
-		},
-	)
+	const categoryLabel =
+		isAr && product.categoryNameAr
+			? product.categoryNameAr
+			: product.categoryName
+	const unitLabel =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 	const draftItem = useDraftQuoteStore((s) =>
 		s.items.find((i) => i.productId === product.id),
 	)
@@ -529,13 +526,19 @@ function ProductCard({
 					className="block h-full w-full text-start"
 					aria-label={name}
 				>
-					<img
-						src={image}
-						alt={name}
-						loading="lazy"
-						decoding="async"
-						className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]"
-					/>
+					{product.imageUrl ? (
+						<img
+							src={product.imageUrl}
+							alt={name}
+							loading="lazy"
+							decoding="async"
+							className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+						/>
+					) : (
+						<div className="flex h-full w-full items-center justify-center text-[var(--p-text-faint)]">
+							<Package size={32} />
+						</div>
+					)}
 				</button>
 
 				<button
@@ -561,7 +564,7 @@ function ProductCard({
 					{inDraft ? (
 						<span
 							className="min-w-0 truncate px-0.5 text-center font-mono text-[12px] font-semibold leading-none tabular-nums sm:text-[13px]"
-							title={`${draftQuantityLabel} ${product.unitOfMeasure}`}
+							title={`${draftQuantityLabel} ${unitLabel}`}
 						>
 							{draftQuantityLabel}
 						</span>
@@ -593,7 +596,7 @@ function ProductCard({
 					</h2>
 				</button>
 				<p className="mt-1 line-clamp-1 text-[12px] text-[var(--p-text-muted)] sm:text-[13px]">
-					{categoryLabel} · {product.unitOfMeasure}
+					{categoryLabel} · {unitLabel}
 				</p>
 				{formattedPrice && (
 					<p
@@ -625,13 +628,18 @@ function AddPopover({
 	anchorRef: RefObject<HTMLButtonElement | null>
 	onClose: () => void
 }) {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
 	const { add, remove, updateQuantity, items } = useDraftQuoteStore()
 	const existing = items.find((i) => i.productId === product.id)
 	const [qtyStr, setQtyStr] = useState(String(existing?.quantity ?? 1))
 	const qty = parseInt(qtyStr, 10) || 0
 	const inputRef = useRef<HTMLInputElement>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
+	const unitLabel =
+		isAr && product.unitOfMeasureAr
+			? product.unitOfMeasureAr
+			: product.unitOfMeasure
 
 	useEffect(() => {
 		inputRef.current?.select()
@@ -668,7 +676,10 @@ function AddPopover({
 					name: product.name,
 					nameAr: product.nameAr,
 					category: product.category,
+					categoryName: product.categoryName,
+					categoryNameAr: product.categoryNameAr,
 					unitOfMeasure: product.unitOfMeasure,
+					unitOfMeasureAr: product.unitOfMeasureAr,
 					imageUrl: product.imageUrl,
 				},
 				qty,
@@ -746,7 +757,7 @@ function AddPopover({
 					style={{ fontVariantNumeric: 'tabular-nums' }}
 				/>
 				<span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)]">
-					{product.unitOfMeasure}
+					{unitLabel}
 				</span>
 			</div>
 

@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { toQuoteDraftPayload } from '../../lib/quote-request-payload'
 import { saveDraft } from '../../lib/server/quote-requests'
@@ -120,7 +120,8 @@ export function QuoteBuilderFlow() {
 						)}
 						<Button
 							onPress={handleSaveDraft}
-							className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
+							isDisabled={items.length === 0}
+							className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.saveAsDraft')}
 						</Button>

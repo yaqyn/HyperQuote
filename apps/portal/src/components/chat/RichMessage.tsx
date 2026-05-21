@@ -7,6 +7,7 @@
 import { motion } from 'motion/react'
 import type { RichContent } from '../../lib/chat-types'
 import { ActionButton } from './ActionButton'
+import { MaterialList } from './MaterialList'
 import { ProductCard } from './ProductCard'
 import { StatusCard } from './StatusCard'
 
@@ -46,6 +47,17 @@ function RichMessage({ type, data }: RichMessageProps) {
 				<ActionButton
 					data={
 						data as RichContent extends { type: 'action_button'; data: infer D }
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'material_list':
+			content = (
+				<MaterialList
+					data={
+						data as RichContent extends { type: 'material_list'; data: infer D }
 							? D
 							: never
 					}

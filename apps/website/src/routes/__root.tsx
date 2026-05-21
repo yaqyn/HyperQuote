@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useEffect } from 'react'
-import { I18nProvider } from 'react-aria-components'
+import { I18nProvider } from 'react-aria-components/I18nProvider'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import { ChatWidget } from '../components/chat/ChatWidget'
 import { OfflineBanner } from '../components/layout/OfflineBanner'
@@ -50,6 +50,7 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: 'utf-8' },
 			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
+			{ name: 'mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },

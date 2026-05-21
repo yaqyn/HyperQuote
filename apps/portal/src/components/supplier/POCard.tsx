@@ -1,7 +1,7 @@
 /**
  * PO summary card for the supplier inbox list.
- * Shows PO reference (Geist Mono), status, date, deadline with color coding.
- * NEVER shows customer names -- only PO reference (HQ-2026-NNNN).
+ * Shows PO reference (readable tabular sans), status, date, deadline with color coding.
+ * NEVER shows customer names -- only the persisted PO reference.
  */
 
 import { StatusBadge } from '@hyperquote/ui/feedback/StatusBadge'

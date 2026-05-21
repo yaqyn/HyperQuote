@@ -78,3 +78,13 @@ export function formatUnit(
 	const unitLabel = UNIT_MAPS[locale][unit] ?? unit
 	return `${formattedValue} ${unitLabel}`
 }
+
+function roundedWeight(value: number): number {
+	return Number(value.toFixed(value % 1 === 0 ? 0 : 1))
+}
+
+export function formatWeightKg(kg: number, locale: 'ar' | 'en'): string {
+	if (kg >= 1000)
+		return formatUnit(roundedWeight(kg / 1000), 'metric_ton', locale)
+	return formatUnit(roundedWeight(kg), 'kg', locale)
+}

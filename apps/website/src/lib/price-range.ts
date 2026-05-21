@@ -15,6 +15,7 @@ export function formatPriceRange(
 	uom: string,
 	locale: 'ar' | 'en',
 	t: TFunction<'website'>,
+	unitLabel?: string,
 ): string {
 	const price = minPrice ?? maxPrice
 	if (!price) {
@@ -22,7 +23,7 @@ export function formatPriceRange(
 	}
 
 	const formatted = formatCurrency(price, locale)
-	const unit = t(`units.${uom}` as ParseKeys<'website'>)
+	const unit = unitLabel ?? t(`units.${uom}` as ParseKeys<'website'>)
 
 	if (locale === 'ar') {
 		return `من ${formatted}/${unit}`

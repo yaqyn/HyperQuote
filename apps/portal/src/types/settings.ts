@@ -29,6 +29,8 @@ export interface Address {
 	city: string
 	governorate: string
 	isDefault: boolean
+	latitude: number | null
+	longitude: number | null
 	postalCode?: string
 }
 

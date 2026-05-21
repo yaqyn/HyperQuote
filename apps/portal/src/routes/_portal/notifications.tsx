@@ -1,9 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+	createFileRoute,
+	useNavigate,
+	useRouteContext,
+} from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { ListBox } from 'react-aria-components'
+import { ListBox } from 'react-aria-components/ListBox'
 import { useTranslation } from 'react-i18next'
 import { NotificationItem } from '../../components/notifications/NotificationItem'
 import { useRealtimeNotifications } from '../../components/notifications/useRealtimeNotifications'
@@ -58,8 +62,8 @@ function NotificationsWindow() {
 	const knownIdsRef = useRef<Set<string>>(new Set())
 	const [newIds, setNewIds] = useState<Set<string>>(new Set())
 
-	// Mock userId for dev mode
-	const userId = 'dev-user-1'
+	const { auth } = useRouteContext({ from: '/_portal' })
+	const userId = auth?.user.id
 
 	// Real-time subscription
 	useRealtimeNotifications(userId)

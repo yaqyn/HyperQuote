@@ -6,10 +6,11 @@ export const steps: WizardStep[] = [
 		titleKey: 'docs.wizard.gettingStarted.steps.createAccount.title',
 		bodyKey: 'docs.wizard.gettingStarted.steps.createAccount.body',
 		title: 'Create Your Account',
-		body: 'Sign up with your Egyptian mobile number. You will receive a WhatsApp verification code instantly — no email or password required.',
+		body: 'Sign up with your Egyptian mobile number for the primary WhatsApp OTP path, or use email/password as a secondary path after confirming your email.',
 		illustration: 'signup',
 		tip: 'docs.wizard.gettingStarted.steps.createAccount.tip',
-		tipText: 'No email or password needed — just your Egyptian mobile number.',
+		tipText:
+			'Phone OTP is fastest. Email/password accounts must be confirmed before submitting quotes.',
 	},
 	{
 		id: 'verify-phone',

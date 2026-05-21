@@ -7,21 +7,15 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import {
-	Button,
-	Dialog,
-	Heading,
-	Input,
-	Label,
-	ListBox,
-	ListBoxItem,
-	Modal,
-	ModalOverlay,
-	Popover,
-	Select,
-	SelectValue,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
+import { Popover } from 'react-aria-components/Popover'
+import { Select, SelectValue } from 'react-aria-components/Select'
+import { TextField } from 'react-aria-components/TextField'
 import { type Control, Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { deleteAddress, saveAddress } from '../../lib/server/settings'

@@ -1,7 +1,7 @@
 import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { Modal, ModalOverlay } from 'react-aria-components'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../../hooks/chatSession'
 import { useChatWidget } from '../../hooks/useChatWidget'

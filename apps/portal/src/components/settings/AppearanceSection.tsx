@@ -1,10 +1,5 @@
-/**
- * Language & Appearance settings section.
- * "Data is the design" — text buttons with underline for active state.
- * No radio circles, no colored backgrounds.
- * Number format: simple switch, only when Arabic.
- */
-import { Button, Switch } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Switch } from 'react-aria-components/Switch'
 import { useTranslation } from 'react-i18next'
 
 interface AppearanceSectionProps {

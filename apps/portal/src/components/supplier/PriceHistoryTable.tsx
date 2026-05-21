@@ -1,6 +1,6 @@
 /**
  * PriceHistoryTable -- price change history with old/new values, status badges.
- * Shows old price with strikethrough, new price in Geist Mono.
+ * Shows old price with strikethrough, new price in readable tabular sans.
  * Pending review items get a note below the row.
  */
 
@@ -15,7 +15,7 @@ import {
 	Table,
 	TableBody,
 	TableHeader,
-} from 'react-aria-components'
+} from 'react-aria-components/Table'
 import { useTranslation } from 'react-i18next'
 import { getSupplierPriceHistory } from '../../lib/server/supplier-stock'
 import { SupplierPagination } from './SupplierPagination'

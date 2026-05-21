@@ -9,8 +9,6 @@ import { useTranslation } from 'react-i18next'
 import type { ProductCardData } from '../../lib/chat-types'
 import { toArabicIndic } from '../../lib/localized-digits'
 
-const PLACEHOLDER_IMAGE = 'https://cdn.hyperquote.net/placeholder-product.webp'
-
 interface ProductCardProps {
 	data: ProductCardData
 }
@@ -20,18 +18,19 @@ export function ProductCard({ data }: ProductCardProps) {
 	const isArabic = i18n.language === 'ar'
 	const name = isArabic ? data.nameAr : data.name
 	const priceDisplay = isArabic
-		? toArabicIndic(data.priceRange)
+		? toArabicIndic(data.priceRangeAr)
 		: data.priceRange
+	const specs = isArabic ? data.specsAr : data.specs
 
-	const specsSummary = Object.entries(data.specs)
+	const specsSummary = Object.entries(specs)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join(' · ')
 
 	return (
 		<span className="office-swatch mt-2 inline-flex max-w-full">
-			{data.image || PLACEHOLDER_IMAGE ? (
+			{data.image ? (
 				<img
-					src={data.image || PLACEHOLDER_IMAGE}
+					src={data.image}
 					alt=""
 					aria-hidden
 					width={40}

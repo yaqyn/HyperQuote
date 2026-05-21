@@ -7,8 +7,11 @@
 import { Paperclip, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useState } from 'react'
-import { Button, DropZone, FileTrigger } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { DropZone } from 'react-aria-components/DropZone'
+import { FileTrigger } from 'react-aria-components/FileTrigger'
 import { useTranslation } from 'react-i18next'
+import { uploadQuoteAttachment } from '../../../lib/server/quote-attachments'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 
 // ============================================================================
@@ -32,9 +35,10 @@ export function AttachmentUpload() {
 	const [validationMessage, setValidationMessage] = useState<string | null>(
 		null,
 	)
+	const [isUploading, setIsUploading] = useState(false)
 
 	const validateAndAdd = useCallback(
-		(incoming: File[]) => {
+		async (incoming: File[]) => {
 			const current = attachments
 			const remainingSlots = MAX_FILES - current.length
 
@@ -62,7 +66,27 @@ export function AttachmentUpload() {
 			}
 
 			if (valid.length > 0) {
-				setAttachments([...current, ...valid])
+				setIsUploading(true)
+				try {
+					const uploaded = await Promise.all(
+						valid.map(async (file) => {
+							const base64 = await readFileAsBase64(file)
+							return uploadQuoteAttachment({
+								data: {
+									fileName: file.name,
+									contentType: file.type || inferContentType(file.name),
+									size: file.size,
+									base64,
+								},
+							})
+						}),
+					)
+					setAttachments([...current, ...uploaded])
+				} catch {
+					rejectedMessage = t('quoteBuilder.uploadFailed')
+				} finally {
+					setIsUploading(false)
+				}
 			}
 			setValidationMessage(rejectedMessage)
 		},
@@ -113,15 +137,22 @@ export function AttachmentUpload() {
 			>
 				<Upload size={20} className="text-[var(--color-text-muted)]" />
 				<p className="text-sm text-[var(--color-text-muted)]">
-					{t('quoteBuilder.dropFiles')}
+					{isUploading
+						? t('quoteBuilder.uploading')
+						: t('quoteBuilder.dropFiles')}
 				</p>
 				<FileTrigger
 					acceptedFileTypes={ACCEPTED_EXTENSIONS.split(',')}
 					allowsMultiple
 					onSelect={handleSelect}
 				>
-					<Button className="text-sm text-[var(--color-primary)] font-medium hover:underline cursor-pointer outline-none">
-						{t('quoteBuilder.browseFiles')}
+					<Button
+						isDisabled={isUploading}
+						className="text-sm text-[var(--color-primary)] font-medium hover:underline cursor-pointer outline-none disabled:cursor-default disabled:opacity-50"
+					>
+						{isUploading
+							? t('quoteBuilder.uploading')
+							: t('quoteBuilder.browseFiles')}
 					</Button>
 				</FileTrigger>
 			</DropZone>
@@ -136,7 +167,7 @@ export function AttachmentUpload() {
 				<AnimatePresence mode="popLayout">
 					{attachments.map((file, idx) => (
 						<motion.div
-							key={`${file.name}-${file.size}-${file.lastModified}`}
+							key={`${file.url}-${file.name}-${file.size}`}
 							initial={{ opacity: 0, scale: 0.95 }}
 							animate={{ opacity: 1, scale: 1 }}
 							exit={{ opacity: 0, scale: 0.9 }}
@@ -176,4 +207,25 @@ export function AttachmentUpload() {
 			)}
 		</div>
 	)
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => {
+			if (typeof reader.result === 'string') {
+				resolve(reader.result)
+				return
+			}
+			reject(new Error('Unsupported file reader result'))
+		}
+		reader.onerror = () => reject(reader.error ?? new Error('Read failed'))
+		reader.readAsDataURL(file)
+	})
+}
+
+function inferContentType(fileName: string): string {
+	if (/\\.pdf$/i.test(fileName)) return 'application/pdf'
+	if (/\\.png$/i.test(fileName)) return 'image/png'
+	return 'image/jpeg'
 }

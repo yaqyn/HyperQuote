@@ -14,6 +14,7 @@
 		"./glass/GlassWindow": "./src/glass/GlassWindow.tsx",
 		"./glass/GlassElevated": "./src/glass/GlassElevated.tsx",
 		"./logging/redacted-error": "./src/logging/redacted-error.ts",
+		"./maps/osm": "./src/maps/osm.ts",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./brand/LionMark": "./src/brand/LionMark.tsx",
 		"./utils/cn": "./src/utils/cn.ts"

@@ -8,8 +8,8 @@ import { z } from 'zod'
 import {
 	getAuthenticatedPortalCustomer,
 	getAuthenticatedSupabase,
-	isSupabaseConfigured,
 } from './_supabase'
+import { resolveAddressCoordinates } from './address-coordinates'
 
 // ============================================================================
 // Schemas
@@ -40,6 +40,8 @@ export interface CustomerAddress {
 	landmark: string | null
 	phone: string | null
 	isDefault: boolean
+	latitude: number | null
+	longitude: number | null
 }
 
 // ============================================================================
@@ -48,39 +50,12 @@ export interface CustomerAddress {
 
 export const getCustomerAddresses = createServerFn().handler(
 	async (): Promise<CustomerAddress[]> => {
-		if (!isSupabaseConfigured()) {
-			return [
-				{
-					id: 'addr-mock-1',
-					label: 'Main Office',
-					street: '15 Tahrir Street',
-					area: 'Downtown',
-					city: 'Cairo',
-					governorate: 'Cairo',
-					landmark: 'Near Tahrir Square',
-					phone: '+20 2 1234 5678',
-					isDefault: true,
-				},
-				{
-					id: 'addr-mock-2',
-					label: 'Warehouse',
-					street: '7 Industrial Zone',
-					area: '6th of October',
-					city: '6th of October City',
-					governorate: 'Giza',
-					landmark: null,
-					phone: null,
-					isDefault: false,
-				},
-			]
-		}
-
 		const { supabase } = await getAuthenticatedSupabase()
 
 		const { data, error } = await supabase
 			.from('customer_addresses')
 			.select(
-				'id, label, street, area, city, governorate, landmark, phone, is_default',
+				'id, label, street, area, city, governorate, landmark, phone, is_default, latitude, longitude',
 			)
 			.order('is_default', { ascending: false })
 			.order('created_at', { ascending: false })
@@ -97,6 +72,8 @@ export const getCustomerAddresses = createServerFn().handler(
 			landmark: a.landmark,
 			phone: a.phone,
 			isDefault: a.is_default,
+			latitude: a.latitude === null ? null : Number(a.latitude),
+			longitude: a.longitude === null ? null : Number(a.longitude),
 		}))
 	},
 )
@@ -105,24 +82,16 @@ export const getCustomerAddresses = createServerFn().handler(
 // createAddress
 // ============================================================================
 
-export const createAddress = createServerFn()
+export const createAddress = createServerFn({ method: 'POST' })
 	.inputValidator(createAddressInput)
 	.handler(async ({ data: input }): Promise<CustomerAddress> => {
-		if (!isSupabaseConfigured()) {
-			return {
-				id: crypto.randomUUID(),
-				label: input.label ?? null,
-				street: input.street,
-				area: input.area,
-				city: input.city,
-				governorate: input.governorate,
-				landmark: input.landmark ?? null,
-				phone: input.phone ?? null,
-				isDefault: input.isDefault ?? false,
-			}
-		}
-
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const coordinates = await resolveAddressCoordinates({
+			area: input.area,
+			city: input.city,
+			governorate: input.governorate,
+			street: input.street,
+		})
 
 		const { data, error } = await supabase
 			.from('customer_addresses')
@@ -136,9 +105,11 @@ export const createAddress = createServerFn()
 				landmark: input.landmark ?? null,
 				phone: input.phone ?? null,
 				is_default: input.isDefault ?? false,
+				latitude: coordinates.latitude,
+				longitude: coordinates.longitude,
 			})
 			.select(
-				'id, label, street, area, city, governorate, landmark, phone, is_default',
+				'id, label, street, area, city, governorate, landmark, phone, is_default, latitude, longitude',
 			)
 			.single()
 
@@ -156,5 +127,7 @@ export const createAddress = createServerFn()
 			landmark: data.landmark,
 			phone: data.phone,
 			isDefault: data.is_default,
+			latitude: data.latitude === null ? null : Number(data.latitude),
+			longitude: data.longitude === null ? null : Number(data.longitude),
 		}
 	})

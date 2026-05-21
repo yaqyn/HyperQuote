@@ -32,12 +32,30 @@ import { usePortalStore } from '../stores/portal'
  * - direct content string on message
  */
 function extractContent(msg: UIMessage): string {
-	if (msg.parts && msg.parts.length > 0) {
-		return msg.parts
-			.filter((p) => p.type === 'text')
-			.map((p) => (p as { type: 'text'; content: string }).content)
+	const m = msg as unknown as {
+		content?: unknown
+		parts?: unknown
+		text?: unknown
+	}
+	if (Array.isArray(m.parts) && m.parts.length > 0) {
+		return m.parts
+			.map((part: unknown) => {
+				if (typeof part === 'string') return part
+				if (!part || typeof part !== 'object') return ''
+				const p = part as {
+					content?: unknown
+					delta?: unknown
+					text?: unknown
+					type?: unknown
+				}
+				if (p.type !== 'text') return ''
+				const value = p.content ?? p.text ?? p.delta
+				return typeof value === 'string' ? value : ''
+			})
 			.join('')
 	}
+	if (typeof m.content === 'string') return m.content
+	if (typeof m.text === 'string') return m.text
 	return ''
 }
 

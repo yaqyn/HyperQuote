@@ -9,21 +9,15 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { Package, Upload } from 'lucide-react'
 import { useState } from 'react'
-import {
-	Button,
-	Dialog,
-	DropZone,
-	FileTrigger,
-	Input,
-	Label,
-	Modal,
-	ModalOverlay,
-	Tab,
-	TabList,
-	TabPanel,
-	Tabs,
-	TextField,
-} from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Dialog } from 'react-aria-components/Dialog'
+import { DropZone } from 'react-aria-components/DropZone'
+import { FileTrigger } from 'react-aria-components/FileTrigger'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import { POCard } from '../../components/supplier/POCard'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
