@@ -111,6 +111,19 @@ or checkout away changes you did not make.
   committer. Verify local `git config` first and set it if needed.
 - Use small coherent commits when committing is part of the task. Do not commit
   exploratory, broken, or incomplete work unless asked for a checkpoint.
+- After completing a requested code or config change, automatically make a
+  local commit for the coherent task once relevant verification passes, unless
+  the user explicitly says no commit, asks for planning/review only, or the work
+  is exploratory, broken, or incomplete.
+- Before auto-committing, inspect `git status` and the staged diff. Stage only
+  the files that belong to the completed task. If unrelated dirty work exists,
+  leave it unstaged unless the user said `commit all`, `clean`, or equivalent.
+- If unrelated dirty work is discovered while starting a new task, do not mix it
+  into the new task. If it is clearly a completed and verified prior agent
+  change, commit it separately first. If it is user/unknown work, incomplete, or
+  unverified, leave it unstaged unless the user explicitly asks to commit all.
+- Do not auto-push. Pushing still requires an explicit user request or an
+  explicit deploy workflow command such as `push to staging`.
 - Do not add Codex, AI, generated-by, co-author, or agent attribution to
   commits, PRs, releases, or project files unless explicitly asked.
 - Do not amend commits, skip hooks, force-push, hard reset, checkout away work,
