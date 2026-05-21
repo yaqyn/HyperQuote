@@ -19,6 +19,7 @@ type ServerLogEvent =
 	| 'website.catalog.category_image.supabase_error'
 	| 'website.catalog.public_catalog.supabase_error'
 	| 'website.catalog.product_by_slug.supabase_error'
+	| 'website.quote_request.saved_drafts.unexpected_error'
 	| 'website.quote_request.save.unexpected_error'
 	| 'website.quote_request.submit.unexpected_error'
 	| 'website.support.ticket_create_failed'

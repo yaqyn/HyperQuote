@@ -110,6 +110,7 @@ function mapOrderItems(
 				quantity: item.quantity,
 				unitOfMeasure: item.unit_of_measure,
 				unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+				notes: item.notes ?? undefined,
 				imageUrl: imageUrlForProduct(product, categoryImages),
 				category: product?.category ?? 'unmatched',
 			}
@@ -204,6 +205,7 @@ function mapQuoteRequestToOrder(
 		delivery: delivery ? toOrderDeliveryTracking(delivery) : undefined,
 		reference: linkedOrder?.order_number ?? row.request_number,
 		name: row.draft_name ?? undefined,
+		notes: row.notes ?? undefined,
 		items,
 		itemCount: items.length,
 		description,

@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
+import { SavedDraftsPanel } from '../shared/SavedDraftsPanel'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatInput } from './ChatInput'
 import { ChatMessages } from './ChatMessages'
@@ -25,54 +26,59 @@ export function ChatView({ locale }: ChatViewProps) {
 	const newPageLabel = t('chat.newPage', 'New page')
 
 	return (
-		<div className="office-paper relative flex min-h-0 flex-1 flex-col">
-			<header className="relative z-[2] shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-8 sm:pt-5 lg:px-12">
-				<PortalTitleRow
-					title={t('chat.writingPlaceholder')}
-					className="mx-auto w-full max-w-[820px]"
-					action={
-						hasMessages ? (
-							<button
-								type="button"
-								onClick={() => chat.clear()}
-								className="office-quiet"
-								aria-label={newPageLabel}
-							>
-								{newPageLabel}
-							</button>
-						) : null
-					}
-				/>
-			</header>
-			<div className="office-rule mx-5 sm:mx-8 lg:mx-12" />
+		<div className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+			<div className="relative flex min-h-0 flex-col">
+				<header className="relative z-[2] shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-8 sm:pt-5 lg:px-12">
+					<PortalTitleRow
+						title={t('chat.writingPlaceholder')}
+						className="mx-auto w-full max-w-[820px]"
+						action={
+							hasMessages ? (
+								<button
+									type="button"
+									onClick={() => chat.clear()}
+									className="office-quiet"
+									aria-label={newPageLabel}
+								>
+									{newPageLabel}
+								</button>
+							) : null
+						}
+					/>
+				</header>
+				<div className="office-rule mx-5 sm:mx-8 lg:mx-12" />
 
-			{hasMessages ? (
-				<ActiveLedger messages={realMessages} isLoading={chat.isLoading} />
-			) : (
-				<EmptyDesk
-					heading={t('chat.newProject')}
-					isArabic={isArabic}
-					onSuggest={(text) => chat.sendMessage(text)}
-					locale={locale}
-				/>
-			)}
+				{hasMessages ? (
+					<ActiveLedger messages={realMessages} isLoading={chat.isLoading} />
+				) : (
+					<EmptyDesk
+						heading={t('chat.newProject')}
+						isArabic={isArabic}
+						onSuggest={(text) => chat.sendMessage(text)}
+						locale={locale}
+					/>
+				)}
 
-			<motion.div
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{
-					duration: 0.5,
-					delay: hasMessages ? 0.2 : 1.6,
-					ease: 'easeOut',
-				}}
-				className="relative z-[2] shrink-0"
-			>
-				<div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-8 sm:pb-7 sm:pt-5 lg:px-12">
-					<div className="mx-auto w-full max-w-[820px]">
-						<ChatInput chat={chat} />
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					transition={{
+						duration: 0.5,
+						delay: hasMessages ? 0.2 : 1.6,
+						ease: 'easeOut',
+					}}
+					className="relative z-[2] shrink-0"
+				>
+					<div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-8 sm:pb-7 sm:pt-5 lg:px-12">
+						<div className="mx-auto w-full max-w-[820px]">
+							<ChatInput chat={chat} />
+						</div>
 					</div>
-				</div>
-			</motion.div>
+				</motion.div>
+			</div>
+			<aside className="relative z-[2] hidden min-h-0 border-s border-[var(--p-border)] lg:flex">
+				<SavedDraftsPanel className="w-full" />
+			</aside>
 		</div>
 	)
 }

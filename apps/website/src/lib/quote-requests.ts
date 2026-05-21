@@ -38,6 +38,63 @@ const saveWebsiteQuoteDraftInput = z.object({
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInput>
 
+const savedDraftProductRow = z.object({
+	category: z.string(),
+	id: z.string(),
+	image_urls: z.array(z.string()).nullable(),
+	name: z.string(),
+	name_ar: z.string().nullable(),
+})
+
+const savedDraftItemRow = z.object({
+	customer_description: z.string(),
+	id: z.string(),
+	is_unmatched: z.boolean(),
+	notes: z.string().nullable(),
+	product_id: z.string().nullable(),
+	product_name_ar: z.string(),
+	products: z
+		.union([savedDraftProductRow, z.array(savedDraftProductRow)])
+		.nullable(),
+	quantity: z.number(),
+	sort_order: z.number(),
+	unit_of_measure: z.string(),
+	unit_of_measure_ar: z.string(),
+})
+
+const savedDraftRow = z.object({
+	created_at: z.string(),
+	draft_name: z.string().nullable(),
+	id: z.string(),
+	notes: z.string().nullable(),
+	quote_request_items: z.array(savedDraftItemRow).nullable(),
+	request_number: z.string(),
+	updated_at: z.string(),
+})
+
+export interface WebsiteSavedQuoteDraftItem {
+	productId?: string
+	name: string
+	nameAr: string
+	category: string
+	quantity: number
+	unitOfMeasure: string
+	unitOfMeasureAr: string
+	note?: string
+	imageUrl: string | null
+	isUnmatched: boolean
+}
+
+export interface WebsiteSavedQuoteDraft {
+	id: string
+	reference: string
+	name: string | null
+	notes: string | null
+	date: string
+	itemCount: number
+	items: WebsiteSavedQuoteDraftItem[]
+}
+
 const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
 
 function serializeUnavailableItemsError(names: string[]) {
@@ -65,6 +122,52 @@ function normalizeDraftName(value: string | undefined): string | null {
 	if (value === undefined) return null
 	const name = value.trim()
 	return name || null
+}
+
+function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
+	if (Array.isArray(relation)) return relation[0] ?? null
+	return relation ?? null
+}
+
+function mapSavedDraftRow(
+	row: z.infer<typeof savedDraftRow>,
+): WebsiteSavedQuoteDraft {
+	const items = (row.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((item): WebsiteSavedQuoteDraftItem => {
+			const product = firstRelation(item.products)
+			const imageUrl = product?.image_urls?.[0] ?? null
+			return {
+				productId: item.is_unmatched
+					? undefined
+					: (item.product_id ?? undefined),
+				name: item.customer_description || product?.name || item.id,
+				nameAr:
+					item.product_name_ar ||
+					product?.name_ar ||
+					item.customer_description ||
+					item.id,
+				category:
+					product?.category ?? (item.is_unmatched ? 'unmatched' : 'material'),
+				quantity: item.quantity,
+				unitOfMeasure: item.unit_of_measure,
+				unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+				note: item.notes ?? undefined,
+				imageUrl,
+				isUnmatched: item.is_unmatched,
+			}
+		})
+
+	return {
+		id: row.id,
+		reference: row.request_number,
+		name: row.draft_name,
+		notes: row.notes,
+		date: row.updated_at || row.created_at,
+		itemCount: items.length,
+		items,
+	}
 }
 
 const getAuthenticatedClient = createServerOnlyFn(async () => {
@@ -168,6 +271,78 @@ const appendAuthCookies = createServerOnlyFn((auth: AuthenticatedClient) => {
 		auth.responseHeaders.entries(),
 	)
 })
+
+export const getWebsiteSavedQuoteDrafts = createServerFn({
+	method: 'GET',
+}).handler(
+	async (): Promise<
+		| { success: true; drafts: WebsiteSavedQuoteDraft[] }
+		| {
+				success: false
+				error:
+					| 'not_configured'
+					| 'not_authenticated'
+					| 'customer_required'
+					| 'load_failed'
+		  }
+	> => {
+		try {
+			const auth = await getAuthenticatedClient()
+			if ('error' in auth) {
+				return { success: false, error: auth.error ?? 'load_failed' }
+			}
+
+			const { data, error } = await auth.client
+				.from('quote_requests')
+				.select(`
+					id,
+					request_number,
+					draft_name,
+					notes,
+					created_at,
+					updated_at,
+					quote_request_items (
+						id,
+						product_id,
+						customer_description,
+						product_name_ar,
+						quantity,
+						unit_of_measure,
+						unit_of_measure_ar,
+						notes,
+						sort_order,
+						is_unmatched,
+						products (
+							id,
+							category,
+							name,
+							name_ar,
+							image_urls
+						)
+					)
+				`)
+				.eq('customer_id', auth.customerId)
+				.eq('status', 'draft')
+				.order('updated_at', { ascending: false })
+
+			if (error) throw error
+
+			const rows = savedDraftRow.array().parse(data ?? [])
+			await appendAuthCookies(auth)
+
+			return {
+				success: true,
+				drafts: rows.map(mapSavedDraftRow),
+			}
+		} catch (error) {
+			logWebsiteServerError(
+				'website.quote_request.saved_drafts.unexpected_error',
+				error,
+			)
+			return { success: false, error: 'load_failed' }
+		}
+	},
+)
 
 async function assertQuoteRequestItemsOrderable(
 	client: WebsiteSupabaseClient,

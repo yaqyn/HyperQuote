@@ -23,6 +23,7 @@ export interface OrderItem {
 	quantity: number
 	unitOfMeasure: string
 	unitOfMeasureAr: string
+	notes?: string
 	imageUrl: string
 	category: string
 }
@@ -80,6 +81,7 @@ export interface Order {
 	delivery?: OrderDeliveryTracking
 	name?: string
 	reference?: string
+	notes?: string
 	items: OrderItem[]
 	itemCount: number
 	description: string

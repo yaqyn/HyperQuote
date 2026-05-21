@@ -1,15 +1,21 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+	AlertTriangle,
 	ArrowLeft,
 	ChevronDown,
 	CircleCheck,
+	Copy,
 	ExternalLink,
+	Eye,
+	FilePenLine,
 	LogOut,
 	Menu,
 	MessageCircle,
 	Minus,
+	Package,
 	PanelRightClose,
 	Plus,
+	Save,
 	ShoppingCart,
 	Store,
 	X,
@@ -28,8 +34,11 @@ import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
 import { sendOTP, signOutWebsiteAccount } from '../../lib/auth'
 import { getPortalHref } from '../../lib/portal-url'
 import {
+	getWebsiteSavedQuoteDrafts,
 	saveWebsiteQuoteDraft,
 	submitWebsiteQuoteRequest,
+	type WebsiteSavedQuoteDraft,
+	type WebsiteSavedQuoteDraftItem,
 } from '../../lib/quote-requests'
 import {
 	EGYPT_COUNTRY_CODE,
@@ -48,6 +57,15 @@ import { ThemeToggle } from './ThemeToggle'
 
 const CART_DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
+function getDefaultDraftName(baseName: string, isArabic: boolean) {
+	const date = new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-GB', {
+		day: '2-digit',
+		month: 'short',
+		year: 'numeric',
+	}).format(new Date())
+	return `${baseName} ${date}`
+}
+
 export function WebsiteHeader() {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
@@ -55,6 +73,7 @@ export function WebsiteHeader() {
 	const shouldReduceMotion = useReducedMotion()
 	const [mobileNavOpen, setMobileNavOpen] = useState(false)
 	const [cartOpen, setCartOpen] = useState(false)
+	const [emptySavedOrdersOpen, setEmptySavedOrdersOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, updateQuantity, remove } = useQuoteCart()
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
@@ -83,6 +102,12 @@ export function WebsiteHeader() {
 		if (cartOpen || !submittedReference) return
 		setSubmittedReference(null)
 	}, [cartOpen, submittedReference])
+
+	useEffect(() => {
+		if (!cartOpen) {
+			setEmptySavedOrdersOpen(false)
+		}
+	}, [cartOpen])
 
 	useEffect(() => {
 		if (isHome) {
@@ -360,18 +385,35 @@ export function WebsiteHeader() {
 
 									{/* Items */}
 									{items.length === 0 ? (
-										<div className="flex flex-1 flex-col items-center justify-center px-8 pb-10 pt-4 text-center md:block md:flex-none md:px-5 md:pb-6">
-											<p className="text-[13px] text-[var(--color-text-muted)] mb-4">
-												{t('cart.empty')}
-											</p>
-											<Link
-												to="/market"
-												onClick={() => setCartOpen(false)}
-												className="text-[13px] font-medium text-[var(--color-primary)]"
-											>
-												{t('cart.browseCta')}
-											</Link>
-										</div>
+										emptySavedOrdersOpen ? (
+											<WebsiteSavedOrdersPanel
+												onAdded={() => setEmptySavedOrdersOpen(false)}
+												onBack={() => setEmptySavedOrdersOpen(false)}
+												onAuthRequired={() => navigateTo({ to: '/login' })}
+											/>
+										) : (
+											<div className="flex flex-1 flex-col items-center justify-center px-8 pb-10 pt-4 text-center md:block md:flex-none md:px-5 md:pb-6">
+												<p className="mb-4 text-[13px] text-[var(--color-text-muted)]">
+													{t('cart.empty')}
+												</p>
+												<div className="flex flex-col items-center gap-3">
+													<Link
+														to="/market"
+														onClick={() => setCartOpen(false)}
+														className="text-[13px] font-medium text-[var(--color-primary)]"
+													>
+														{t('cart.browseCta')}
+													</Link>
+													<button
+														type="button"
+														onClick={() => setEmptySavedOrdersOpen(true)}
+														className="h-9 rounded-lg border border-[var(--color-border)] px-4 text-[13px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+													>
+														{t('cart.viewSavedOrders')}
+													</button>
+												</div>
+											</div>
+										)
 									) : (
 										<>
 											<div className="flex-1 overflow-y-auto">
@@ -483,6 +525,357 @@ export function WebsiteHeader() {
 			/>
 		</>
 	)
+}
+
+function WebsiteSavedOrdersPanel({
+	onAdded,
+	onAuthRequired,
+	onBack,
+}: {
+	onAdded: () => void
+	onAuthRequired: () => void
+	onBack: () => void
+}) {
+	const { t, i18n } = useTranslation('website')
+	const isAr = i18n.language === 'ar'
+	const { add, globalNote, setGlobalNote, updateNote } = useQuoteCart()
+	const [drafts, setDrafts] = useState<WebsiteSavedQuoteDraft[]>([])
+	const [loadState, setLoadState] = useState<
+		'loading' | 'ready' | 'auth' | 'error'
+	>('loading')
+	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
+
+	useEffect(() => {
+		let active = true
+		setLoadState('loading')
+		getWebsiteSavedQuoteDrafts()
+			.then((result) => {
+				if (!active) return
+				if (result.success) {
+					setDrafts(result.drafts)
+					setLoadState('ready')
+					return
+				}
+				setLoadState(
+					result.error === 'not_authenticated' ||
+						result.error === 'customer_required'
+						? 'auth'
+						: 'error',
+				)
+			})
+			.catch(() => {
+				if (active) setLoadState('error')
+			})
+		return () => {
+			active = false
+		}
+	}, [])
+
+	function handleAddDraft(draft: WebsiteSavedQuoteDraft) {
+		for (const item of draft.items) {
+			const productId =
+				item.productId ?? `${draft.id}:${item.name}:${item.unitOfMeasure}`
+			add(
+				{
+					productId,
+					slug: productId,
+					name: item.name,
+					nameAr: item.nameAr,
+					category: item.category,
+					unitOfMeasure: item.unitOfMeasure,
+					unitOfMeasureAr: item.unitOfMeasureAr,
+					imageUrl: item.imageUrl,
+				},
+				item.quantity,
+			)
+			if (item.note?.trim()) {
+				updateNote(productId, item.note.trim())
+			}
+		}
+		if (draft.notes?.trim()) {
+			const nextNote = draft.notes.trim()
+			setGlobalNote(
+				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
+			)
+		}
+		onAdded()
+	}
+
+	const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId)
+
+	return (
+		<div className="flex max-h-[min(72dvh,560px)] min-h-0 flex-col border-t border-[var(--color-border)] bg-[var(--color-base)]">
+			<header className="flex shrink-0 items-start justify-between gap-3 px-4 py-3">
+				<div className="min-w-0">
+					<p className="text-[14px] font-semibold text-[var(--color-text)]">
+						{t('cart.savedOrdersTitle')}
+					</p>
+					<p className="mt-1 text-[11px] leading-5 text-[var(--color-text-muted)]">
+						{t('cart.savedOrdersBody')}
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={onBack}
+					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+					aria-label={t('a11y.close')}
+				>
+					<X size={15} strokeWidth={1.8} />
+				</button>
+			</header>
+
+			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+				{loadState === 'loading' ? (
+					<div className="space-y-2">
+						{['a', 'b', 'c'].map((key) => (
+							<div
+								key={key}
+								className="h-20 animate-pulse rounded-xl bg-[var(--color-surface)]"
+							/>
+						))}
+					</div>
+				) : loadState === 'auth' ? (
+					<div className="flex min-h-44 flex-col items-center justify-center text-center">
+						<FilePenLine
+							size={24}
+							strokeWidth={1.6}
+							className="mb-3 text-[var(--color-text-subtle)]"
+						/>
+						<p className="text-[13px] font-medium text-[var(--color-text)]">
+							{t('cart.savedOrdersSignIn')}
+						</p>
+						<button
+							type="button"
+							onClick={onAuthRequired}
+							className="mt-3 h-9 rounded-lg bg-[var(--color-primary)] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+						>
+							{t('login.whatsappCTA')}
+						</button>
+					</div>
+				) : loadState === 'error' ? (
+					<div className="flex min-h-44 flex-col items-center justify-center text-center">
+						<AlertTriangle
+							size={24}
+							strokeWidth={1.6}
+							className="mb-3 text-[var(--color-text-subtle)]"
+						/>
+						<p className="text-[13px] text-[var(--color-text-muted)]">
+							{t('cart.savedOrdersLoadFailed')}
+						</p>
+					</div>
+				) : drafts.length === 0 ? (
+					<div className="flex min-h-44 flex-col items-center justify-center text-center">
+						<FilePenLine
+							size={24}
+							strokeWidth={1.6}
+							className="mb-3 text-[var(--color-text-subtle)]"
+						/>
+						<p className="text-[13px] text-[var(--color-text-muted)]">
+							{t('cart.savedOrdersEmpty')}
+						</p>
+					</div>
+				) : (
+					<div className="space-y-2">
+						{drafts.map((draft) => {
+							const title =
+								draft.name ?? draft.reference ?? t('cart.defaultDraftName')
+							const isSelected = selectedDraftId === draft.id
+							return (
+								<article
+									key={draft.id}
+									className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+								>
+									<div className="p-3">
+										<div className="flex min-w-0 items-start gap-3">
+											<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-base)] text-[var(--color-primary)]">
+												<FilePenLine size={15} strokeWidth={1.7} />
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-[13px] font-semibold text-[var(--color-text)]">
+													{title}
+												</p>
+												<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+													{formatWebsiteDraftDate(draft.date, isAr)}
+												</p>
+											</div>
+											<span className="shrink-0 rounded-full border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--color-text-muted)]">
+												{draft.itemCount}
+											</span>
+										</div>
+										<div className="mt-3 grid grid-cols-2 gap-2">
+											<button
+												type="button"
+												onClick={() =>
+													setSelectedDraftId(isSelected ? null : draft.id)
+												}
+												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] px-3 text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
+											>
+												<Eye size={14} strokeWidth={1.7} />
+												<span className="truncate">{t('cart.view')}</span>
+											</button>
+											<button
+												type="button"
+												onClick={() => handleAddDraft(draft)}
+												disabled={draft.items.length === 0}
+												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
+											>
+												<Plus size={14} strokeWidth={1.7} />
+												<span className="truncate">{t('cart.add')}</span>
+											</button>
+										</div>
+									</div>
+									{isSelected && selectedDraft && (
+										<WebsiteSavedDraftPreview
+											draft={selectedDraft}
+											isAr={isAr}
+										/>
+									)}
+								</article>
+							)
+						})}
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
+
+function WebsiteSavedDraftPreview({
+	draft,
+	isAr,
+}: {
+	draft: WebsiteSavedQuoteDraft
+	isAr: boolean
+}) {
+	const { t } = useTranslation('website')
+
+	return (
+		<div className="border-t border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2">
+			{draft.notes?.trim() && (
+				<WebsiteSavedDraftNotes
+					label={t('cart.notes')}
+					notes={draft.notes.trim()}
+					className="mb-2"
+				/>
+			)}
+			{draft.items.length === 0 ? (
+				<p className="py-3 text-center text-[12px] text-[var(--color-text-muted)]">
+					{t('cart.savedOrdersEmpty')}
+				</p>
+			) : (
+				<div className="divide-y divide-[var(--color-border)]">
+					{draft.items.map((item) => {
+						const itemKey =
+							item.productId ??
+							`${item.name}:${item.quantity}:${item.unitOfMeasure}`
+						return (
+							<WebsiteSavedDraftItemRow
+								key={`${draft.id}-${itemKey}`}
+								item={item}
+								isAr={isAr}
+							/>
+						)
+					})}
+				</div>
+			)}
+		</div>
+	)
+}
+
+function WebsiteSavedDraftNotes({
+	label,
+	notes,
+	className = '',
+}: {
+	label: string
+	notes: string
+	className?: string
+}) {
+	const { t } = useTranslation('website')
+
+	async function copyNotes() {
+		await navigator.clipboard.writeText(notes)
+	}
+
+	return (
+		<div
+			className={`rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 ${className}`}
+		>
+			<div className="mb-1.5 flex items-center justify-between gap-2">
+				<p className="text-[11px] font-semibold text-[var(--color-text-muted)]">
+					{label}
+				</p>
+				<button
+					type="button"
+					onClick={copyNotes}
+					className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-base)] hover:text-[var(--color-text)]"
+					aria-label={t('cart.copyNotes')}
+				>
+					<Copy size={13} strokeWidth={1.7} />
+				</button>
+			</div>
+			<p className="whitespace-pre-wrap text-[12px] leading-5 text-[var(--color-text)]">
+				{notes}
+			</p>
+		</div>
+	)
+}
+
+function WebsiteSavedDraftItemRow({
+	item,
+	isAr,
+}: {
+	item: WebsiteSavedQuoteDraftItem
+	isAr: boolean
+}) {
+	const itemName = isAr && item.nameAr ? item.nameAr : item.name
+	const unitLabel =
+		isAr && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
+	const itemNotes = item.note?.trim()
+	const { t } = useTranslation('website')
+
+	return (
+		<div className="py-2">
+			<div className="flex min-w-0 items-center gap-2">
+				{item.imageUrl ? (
+					<img
+						src={item.imageUrl}
+						alt=""
+						loading="lazy"
+						decoding="async"
+						className="h-9 w-9 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
+					/>
+				) : (
+					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-text-subtle)]">
+						<Package size={14} strokeWidth={1.7} />
+					</span>
+				)}
+				<div className="min-w-0 flex-1">
+					<p className="truncate text-[12px] font-medium text-[var(--color-text)]">
+						{itemName}
+					</p>
+					<p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+						{item.quantity.toLocaleString(isAr ? 'ar-EG' : 'en-EG')} {unitLabel}
+					</p>
+				</div>
+			</div>
+			{itemNotes && (
+				<WebsiteSavedDraftNotes
+					label={t('cart.itemNotes')}
+					notes={itemNotes}
+					className="mt-2 ms-11"
+				/>
+			)}
+		</div>
+	)
+}
+
+function formatWebsiteDraftDate(value: string, isAr: boolean) {
+	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
+		day: '2-digit',
+		month: 'short',
+		year: 'numeric',
+	}).format(new Date(value))
 }
 
 // --------------------------------------------------------------------------
@@ -646,7 +1039,7 @@ function CartSubmit({
 	itemCount: number
 	onSubmitted: (reference: string) => void
 }) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
 	const navigateTo = useNavigate()
 	const shouldReduceMotion = useReducedMotion()
 	const [step, setStep] = useState<CartAuthStep>('submit')
@@ -654,9 +1047,11 @@ function CartSubmit({
 	const [code, setCode] = useState<string[]>(() => emptyOtpCode())
 	const [error, setError] = useState<string | null>(null)
 	const [loadingAction, setLoadingAction] = useState<
-		'submit' | 'save' | 'rename' | 'auth' | null
+		'submit' | 'save' | 'auth' | null
 	>(null)
 	const [authSuccessVisible, setAuthSuccessVisible] = useState(false)
+	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
+	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
 	const { resendCountdown, setResendCountdown } = useResendCountdown(0)
 	const phoneRef = useRef<HTMLInputElement>(null)
 	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -666,8 +1061,11 @@ function CartSubmit({
 		string | null
 	>(null)
 	const [savedDraftId, setSavedDraftId] = useState<string | null>(null)
-	const defaultDraftName = t('cart.defaultDraftName')
-	const [draftName, setDraftName] = useState(defaultDraftName)
+	const defaultDraftName = getDefaultDraftName(
+		t('cart.defaultDraftName'),
+		i18n.language === 'ar',
+	)
+	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
 	const draftFingerprint = useMemo(
 		() =>
@@ -689,7 +1087,6 @@ function CartSubmit({
 	)
 	const isDraftSaved =
 		items.length > 0 && savedDraftFingerprint === draftFingerprint
-	const savedOrdersHref = `${getPortalHref().replace(/\/$/, '')}/orders`
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
@@ -701,65 +1098,6 @@ function CartSubmit({
 			authSuccessRef.current?.focus()
 		}
 	}, [authSuccessVisible, step])
-
-	useEffect(() => {
-		if (
-			step !== 'submit' ||
-			!savedDraftId ||
-			!isDraftSaved ||
-			loadingAction !== null
-		) {
-			return
-		}
-		const nextName = draftName.trim() || defaultDraftName
-		if (nextName === persistedDraftName) return
-
-		const timer = window.setTimeout(async () => {
-			setLoadingAction('rename')
-			setError(null)
-			try {
-				const result = await saveWebsiteQuoteDraft({
-					data: {
-						draftId: savedDraftId,
-						items: items.map((item, index) => ({
-							productId: item.productId,
-							customerDescription: item.name,
-							quantity: item.quantity,
-							unitOfMeasure: item.unitOfMeasure,
-							unitOfMeasureAr: item.unitOfMeasureAr,
-							notes: item.note || undefined,
-							sortOrder: index,
-						})),
-						name: nextName,
-						notes: globalNote || undefined,
-					},
-				})
-				if (result.success) {
-					setPersistedDraftName(nextName)
-					window.dispatchEvent(new Event('hyperquote-account-updated'))
-					return
-				}
-				setError(t('cart.draftRenameFailed'))
-			} catch {
-				setError(t('cart.draftRenameFailed'))
-			} finally {
-				setLoadingAction(null)
-			}
-		}, 650)
-
-		return () => window.clearTimeout(timer)
-	}, [
-		defaultDraftName,
-		draftName,
-		globalNote,
-		isDraftSaved,
-		items,
-		loadingAction,
-		persistedDraftName,
-		savedDraftId,
-		step,
-		t,
-	])
 
 	async function handleSendOTP() {
 		if (!EGYPT_MOBILE_REGEX.test(phone)) {
@@ -847,7 +1185,7 @@ function CartSubmit({
 							notes: item.note || undefined,
 							sortOrder: index,
 						})),
-						name: draftName,
+						name: draftName.trim() || persistedDraftName || defaultDraftName,
 						notes: globalNote || undefined,
 						idempotencyKey: crypto.randomUUID(),
 					},
@@ -883,8 +1221,9 @@ function CartSubmit({
 			}
 		}
 
-		async function handleSaveDraft() {
+		async function handleConfirmSaveDraft() {
 			if (items.length === 0 || loadingAction || isDraftSaved) return
+			const nextName = draftName.trim() || defaultDraftName
 			setLoadingAction('save')
 			setAuthSuccessVisible(false)
 			setError(null)
@@ -901,14 +1240,14 @@ function CartSubmit({
 							notes: item.note || undefined,
 							sortOrder: index,
 						})),
-						name: draftName,
+						name: nextName,
 						notes: globalNote || undefined,
 					},
 				})
 				if (result.success) {
-					const nextName = draftName.trim() || defaultDraftName
 					setDraftName(nextName)
 					setPersistedDraftName(nextName)
+					setDraftNameEntryOpen(false)
 					setSavedDraftId(result.requestId)
 					setSavedDraftFingerprint(draftFingerprint)
 					window.dispatchEvent(new Event('hyperquote-account-updated'))
@@ -928,6 +1267,20 @@ function CartSubmit({
 			} finally {
 				setLoadingAction(null)
 			}
+		}
+
+		if (savedOrdersOpen) {
+			return (
+				<WebsiteSavedOrdersPanel
+					onAdded={() => setSavedOrdersOpen(false)}
+					onBack={() => setSavedOrdersOpen(false)}
+					onAuthRequired={() => {
+						setSavedOrdersOpen(false)
+						setAuthSuccessVisible(false)
+						setStep('phone')
+					}}
+				/>
+			)
 		}
 
 		return (
@@ -981,33 +1334,60 @@ function CartSubmit({
 					)}
 				</AnimatePresence>
 				{isDraftSaved ? (
-					<label className="mb-2 block">
-						<span className="mb-1.5 block text-center text-[11px] font-medium text-[var(--color-text-muted)]">
-							{t('cart.draftNameLabel')}
-						</span>
+					<button
+						type="button"
+						disabled
+						className="mb-2 flex h-10 w-full items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[14px] font-semibold text-[var(--color-text-muted)] opacity-60"
+					>
+						<span className="truncate">{persistedDraftName}</span>
+					</button>
+				) : draftNameEntryOpen ? (
+					<div className="mb-2 flex items-center gap-2">
 						<input
 							type="text"
 							value={draftName}
 							onChange={(event) => setDraftName(event.currentTarget.value)}
-							onBlur={() => {
-								const nextName = draftName.trim() || defaultDraftName
-								setDraftName(nextName)
+							onKeyDown={(event) => {
+								if (event.key === 'Enter') {
+									event.preventDefault()
+									handleConfirmSaveDraft()
+								}
 							}}
 							maxLength={120}
 							aria-label={t('cart.draftNameLabel')}
 							placeholder={defaultDraftName}
-							className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-center text-[14px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+							className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-[14px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
 						/>
-						<p className="mt-1.5 text-center text-[11px] text-[var(--color-text-subtle)]">
-							{loadingAction === 'rename'
-								? t('cart.draftNameSaving')
-								: t('cart.draftNameSaved')}
-						</p>
-					</label>
+						<motion.button
+							type="button"
+							onClick={handleConfirmSaveDraft}
+							disabled={loadingAction !== null}
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-60"
+							aria-label={t('cart.saveDraft')}
+							whileTap={
+								shouldReduceMotion || loadingAction !== null
+									? undefined
+									: { scale: 0.94 }
+							}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.16,
+								ease: CART_DRAWER_EASE,
+							}}
+						>
+							{loadingAction === 'save' ? (
+								<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+							) : (
+								<Save size={16} strokeWidth={1.8} />
+							)}
+						</motion.button>
+					</div>
 				) : (
 					<motion.button
 						type="button"
-						onClick={handleSaveDraft}
+						onClick={() => {
+							setDraftName(savedDraftId ? persistedDraftName : '')
+							setDraftNameEntryOpen(true)
+						}}
 						disabled={loadingAction !== null}
 						className="mb-2 h-10 w-full rounded-lg border border-[var(--color-border)] text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-60"
 						whileTap={
@@ -1020,17 +1400,16 @@ function CartSubmit({
 							ease: CART_DRAWER_EASE,
 						}}
 					>
-						{loadingAction === 'save'
-							? t('cart.savingDraft')
-							: t('cart.saveDraft')}
+						{t('cart.saveDraft')}
 					</motion.button>
 				)}
-				<a
-					href={savedOrdersHref}
+				<button
+					type="button"
+					onClick={() => setSavedOrdersOpen(true)}
 					className="mb-2 flex h-9 w-full items-center justify-center rounded-lg text-[13px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
 				>
 					{t('cart.viewSavedOrders')}
-				</a>
+				</button>
 				<motion.button
 					type="button"
 					onClick={handleSubmitQuote}

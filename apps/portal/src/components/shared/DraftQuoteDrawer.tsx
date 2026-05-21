@@ -1,5 +1,4 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import {
 	Check,
 	FilePenLine,
@@ -7,6 +6,7 @@ import {
 	Package,
 	PanelRightClose,
 	Plus,
+	Save,
 	Search,
 	Trash2,
 	X,
@@ -30,6 +30,7 @@ import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { ProductQuantitySearchRow } from './ProductQuantitySearchRow'
+import { SavedDraftsPanel } from './SavedDraftsPanel'
 
 type DraftQuoteDrawerProps = {
 	open: boolean
@@ -71,6 +72,15 @@ function drawerContentMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
+function getDefaultDraftName(baseName: string, isArabic: boolean) {
+	const date = new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-GB', {
+		day: '2-digit',
+		month: 'short',
+		year: 'numeric',
+	}).format(new Date())
+	return `${baseName} ${date}`
+}
+
 export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const { t, i18n } = useTranslation('portal')
 	const shouldReduceMotion = useReducedMotion()
@@ -88,9 +98,14 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		string | null
 	>(null)
 	const [savedDraftId, setSavedDraftId] = useState<string | null>(null)
-	const defaultDraftName = t('market.defaultDraftName')
-	const [draftName, setDraftName] = useState(defaultDraftName)
+	const defaultDraftName = getDefaultDraftName(
+		t('market.defaultDraftName'),
+		isAr,
+	)
+	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
+	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
+	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
 	const [searchOpen, setSearchOpen] = useState(false)
 	const formattedItemCount = items.length.toLocaleString(
 		isAr ? 'ar-EG' : 'en-EG',
@@ -116,7 +131,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 				data: {
 					draftId: savedDraftId ?? undefined,
 					items: quoteRequestItems,
-					name: draftName,
+					name: draftName.trim() || persistedDraftName || defaultDraftName,
 					notes: globalNote || undefined,
 					idempotencyKey: crypto.randomUUID(),
 				},
@@ -131,26 +146,6 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	})
 
 	const saveMutation = useMutation({
-		mutationFn: () =>
-			saveDraft({
-				data: {
-					draftId: savedDraftId ?? undefined,
-					items: quoteRequestItems,
-					name: draftName,
-					notes: globalNote || undefined,
-				},
-			}),
-		onSuccess: (result) => {
-			const nextName = draftName.trim() || defaultDraftName
-			setDraftName(nextName)
-			setPersistedDraftName(nextName)
-			setSavedDraftId(result.draftId)
-			setSavedDraftFingerprint(draftFingerprint)
-			toast.success(t('market.draftSavedToast', { ref: result.reference }))
-		},
-	})
-
-	const renameMutation = useMutation({
 		mutationFn: (name: string) =>
 			saveDraft({
 				data: {
@@ -160,8 +155,13 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 					notes: globalNote || undefined,
 				},
 			}),
-		onSuccess: (_result, name) => {
-			setPersistedDraftName(name.trim() || defaultDraftName)
+		onSuccess: (result, nextName) => {
+			setDraftName(nextName)
+			setPersistedDraftName(nextName)
+			setDraftNameEntryOpen(false)
+			setSavedDraftId(result.draftId)
+			setSavedDraftFingerprint(draftFingerprint)
+			toast.success(t('market.draftSavedToast', { ref: result.reference }))
 		},
 	})
 
@@ -177,6 +177,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	function handleDrawerExitComplete() {
 		setSubmittedReference(null)
 		setSearchOpen(false)
+		setSavedOrdersOpen(false)
+		setDraftNameEntryOpen(false)
 		submitMutation.reset()
 		saveMutation.reset()
 	}
@@ -193,25 +195,6 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		return () => window.clearTimeout(timer)
 	}, [onClose, open, submittedReference])
 
-	useEffect(() => {
-		if (!open || !savedDraftId || !isDraftSaved) return
-		const nextName = draftName.trim() || defaultDraftName
-		if (nextName === persistedDraftName || renameMutation.isPending) return
-		const timer = window.setTimeout(() => {
-			renameMutation.mutate(nextName)
-		}, 650)
-		return () => window.clearTimeout(timer)
-	}, [
-		defaultDraftName,
-		draftName,
-		isDraftSaved,
-		open,
-		persistedDraftName,
-		renameMutation.isPending,
-		renameMutation.mutate,
-		savedDraftId,
-	])
-
 	function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
 		if (
@@ -224,7 +207,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		submitMutation.mutate()
 	}
 
-	function handleSaveDraft() {
+	function handleConfirmSaveDraft() {
 		if (
 			quoteRequestItems.length === 0 ||
 			submitMutation.isPending ||
@@ -233,7 +216,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		) {
 			return
 		}
-		saveMutation.mutate()
+		saveMutation.mutate(draftName.trim() || defaultDraftName)
 	}
 
 	const unavailableItems = unavailableItemNamesFromError(submitMutation.error)
@@ -346,6 +329,13 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 											<p className="mt-2 max-w-[280px] text-[13px] leading-6 text-[var(--p-text-muted)]">
 												{t('market.cartEmptyBody')}
 											</p>
+											<button
+												type="button"
+												onClick={() => setSavedOrdersOpen(true)}
+												className="mt-5 flex h-10 min-w-40 items-center justify-center rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+											>
+												{t('market.viewSavedOrders')}
+											</button>
 										</motion.div>
 									) : (
 										<motion.form
@@ -526,42 +516,67 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 												)}
 
 												{isDraftSaved ? (
-													<label className="mt-3 block">
-														<span className="mb-1.5 block text-[11px] font-medium text-[var(--p-text-muted)]">
-															{t('market.draftNameLabel')}
+													<button
+														type="button"
+														disabled
+														className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-surface)] px-5 text-[14px] font-semibold text-[var(--p-text-muted)] opacity-60"
+													>
+														<span className="truncate">
+															{persistedDraftName}
 														</span>
+													</button>
+												) : draftNameEntryOpen ? (
+													<div className="mt-3 flex items-center gap-2">
 														<input
 															type="text"
 															value={draftName}
 															onChange={(event) =>
 																setDraftName(event.currentTarget.value)
 															}
-															onBlur={() => {
-																const nextName =
-																	draftName.trim() || defaultDraftName
-																setDraftName(nextName)
-																if (
-																	savedDraftId &&
-																	nextName !== persistedDraftName
-																) {
-																	renameMutation.mutate(nextName)
+															onKeyDown={(event) => {
+																if (event.key === 'Enter') {
+																	event.preventDefault()
+																	handleConfirmSaveDraft()
 																}
 															}}
 															maxLength={120}
 															aria-label={t('market.draftNameLabel')}
 															placeholder={defaultDraftName}
-															className="h-11 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-center text-[14px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+															className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[14px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
 														/>
-														<p className="mt-1.5 text-center text-[11px] text-[var(--p-text-faint)]">
-															{renameMutation.isPending
-																? t('market.draftNameSaving')
-																: t('market.draftNameSaved')}
-														</p>
-													</label>
+														<motion.button
+															type="button"
+															onClick={handleConfirmSaveDraft}
+															disabled={
+																submitMutation.isPending ||
+																saveMutation.isPending
+															}
+															className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-60"
+															aria-label={t('market.saveDraft')}
+															whileTap={
+																shouldReduceMotion ||
+																submitMutation.isPending ||
+																saveMutation.isPending
+																	? undefined
+																	: { scale: 0.94 }
+															}
+														>
+															{saveMutation.isPending ? (
+																<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+															) : (
+																<Save size={17} strokeWidth={1.8} />
+															)}
+														</motion.button>
+													</div>
 												) : (
 													<motion.button
 														type="button"
-														onClick={handleSaveDraft}
+														onClick={() => {
+															setDraftName(
+																savedDraftId ? persistedDraftName : '',
+															)
+															setDraftNameEntryOpen(true)
+														}}
 														disabled={
 															submitMutation.isPending || saveMutation.isPending
 														}
@@ -579,13 +594,13 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															: t('market.saveDraft')}
 													</motion.button>
 												)}
-												<Link
-													to="/orders"
-													onClick={onClose}
+												<button
+													type="button"
+													onClick={() => setSavedOrdersOpen(true)}
 													className="mt-2 flex h-10 w-full items-center justify-center rounded-xl text-[13px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 												>
 													{t('market.viewSavedOrders')}
-												</Link>
+												</button>
 												<motion.button
 													type="submit"
 													disabled={
@@ -612,6 +627,40 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 									open={searchOpen && open}
 									onClose={() => setSearchOpen(false)}
 								/>
+								<AnimatePresence>
+									{savedOrdersOpen && (
+										<motion.div
+											key="saved-drafts-panel"
+											className="absolute inset-0 z-20 flex min-h-0 bg-[var(--p-bg)]"
+											initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 18 }}
+											animate={{ opacity: 1, x: 0 }}
+											exit={{ opacity: 0, x: shouldReduceMotion ? 0 : 12 }}
+											transition={{
+												duration: shouldReduceMotion ? 0.01 : 0.2,
+												ease: SNAP_EASE,
+											}}
+										>
+											<SavedDraftsPanel
+												actionMode="add"
+												className="w-full"
+												onAdded={() => setSavedOrdersOpen(false)}
+												headerAction={
+													<motion.button
+														type="button"
+														onClick={() => setSavedOrdersOpen(false)}
+														className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+														aria-label={t('market.closeCart')}
+														whileTap={
+															shouldReduceMotion ? undefined : { scale: 0.94 }
+														}
+													>
+														<X size={17} strokeWidth={1.8} />
+													</motion.button>
+												}
+											/>
+										</motion.div>
+									)}
+								</AnimatePresence>
 							</>
 						)}
 					</motion.aside>

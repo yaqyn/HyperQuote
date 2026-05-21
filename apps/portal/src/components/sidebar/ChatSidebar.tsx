@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import {
+	ArrowLeft,
 	ClipboardList,
+	ExternalLink,
 	Globe,
 	Info,
 	LifeBuoy,
@@ -10,7 +12,6 @@ import {
 	type LucideIcon,
 	MessageSquare,
 	Moon,
-	PanelLeft,
 	ShoppingBag,
 	Star,
 	Sun,
@@ -51,6 +52,9 @@ const NAV_ITEMS = [
 
 type NavTarget = (typeof NAV_ITEMS)[number]['to']
 
+const WEBSITE_HREF =
+	import.meta.env.VITE_WEBSITE_URL ?? 'https://www.hyperquote.net'
+
 export function ChatSidebar({
 	userName,
 	hasSupplierRole,
@@ -63,6 +67,8 @@ export function ChatSidebar({
 	const setActiveRole = usePortalStore((s) => s.setActiveRole)
 	const [favoritesOpen, setFavoritesOpen] = useState(true)
 	const [chatsOpen, setChatsOpen] = useState(true)
+	const [brandMenuOpen, setBrandMenuOpen] = useState(false)
+	const brandMenuRef = useRef<HTMLDivElement>(null)
 
 	const conversations = useChatStore((s) =>
 		activeRole === 'customer'
@@ -78,6 +84,20 @@ export function ChatSidebar({
 	const recent = conversations.filter((c) => !c.pinned)
 	const firstName = userName?.trim().split(/\s+/)[0] ?? ''
 	const currentPath = matches[matches.length - 1]?.pathname ?? '/'
+
+	useEffect(() => {
+		if (!brandMenuOpen) return
+		function handleClick(event: MouseEvent) {
+			if (
+				brandMenuRef.current &&
+				!brandMenuRef.current.contains(event.target as Node)
+			) {
+				setBrandMenuOpen(false)
+			}
+		}
+		document.addEventListener('mousedown', handleClick)
+		return () => document.removeEventListener('mousedown', handleClick)
+	}, [brandMenuOpen])
 
 	const closeSidebarAfterNavigate = useCallback(() => {
 		if (closeOnNavigate) {
@@ -138,13 +158,40 @@ export function ChatSidebar({
 			<div className="relative flex h-full min-h-0 flex-col px-3 py-3 sm:px-4 sm:py-4">
 				<motion.header {...stagger(0)} className="shrink-0">
 					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0">
-							<p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
-								{t('sidebar.welcome')}
-							</p>
-							<p className="truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
-								{firstName}
-							</p>
+						<div ref={brandMenuRef} className="relative min-w-0">
+							<button
+								type="button"
+								onClick={() => setBrandMenuOpen((open) => !open)}
+								className="flex min-h-9 min-w-0 items-center rounded-xl px-1 text-start transition-colors hover:bg-[var(--p-hover)]"
+								aria-expanded={brandMenuOpen}
+							>
+								<span className="truncate text-[17px] font-semibold leading-tight text-[var(--p-accent)]">
+									HyperQuote
+								</span>
+								<span className="ms-1 truncate text-[17px] font-bold leading-tight text-[var(--p-text)]">
+									Portal
+								</span>
+							</button>
+							{brandMenuOpen && (
+								<div className="absolute start-0 top-full z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
+									<a
+										href={WEBSITE_HREF}
+										target="_blank"
+										rel="noreferrer"
+										onClick={() => setBrandMenuOpen(false)}
+										className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+									>
+										<ExternalLink
+											size={15}
+											strokeWidth={1.65}
+											className="shrink-0"
+										/>
+										<span className="min-w-0 truncate">
+											{t('sidebar.visitWebsite')}
+										</span>
+									</a>
+								</div>
+							)}
 						</div>
 
 						<button
@@ -154,7 +201,7 @@ export function ChatSidebar({
 							aria-label={t('sidebar.hide')}
 							aria-keyshortcuts="["
 						>
-							<PanelLeft size={16} strokeWidth={1.5} />
+							<ArrowLeft size={16} strokeWidth={1.7} />
 						</button>
 					</div>
 				</motion.header>
@@ -288,7 +335,20 @@ export function ChatSidebar({
 					{...stagger(4)}
 					className="relative shrink-0 border-t border-[var(--p-border)] pt-3"
 				>
-					<ProfileMenu userName={userName} closeOnNavigate={closeOnNavigate} />
+					<div className="flex min-w-0 items-center gap-3">
+						<ProfileMenu
+							userName={userName}
+							closeOnNavigate={closeOnNavigate}
+						/>
+						<div className="min-w-0">
+							<p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
+								{t('sidebar.welcome')}
+							</p>
+							<p className="truncate text-[15px] font-semibold leading-tight text-[var(--p-text)]">
+								{firstName}
+							</p>
+						</div>
+					</div>
 				</motion.footer>
 			</div>
 		</div>
