@@ -1,17 +1,41 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import process from 'node:process'
 
 const APPS = [
-	{ name: 'website', cwd: 'apps/website', url: 'http://127.0.0.1:3000' },
-	{ name: 'portal', cwd: 'apps/portal', url: 'http://127.0.0.1:3001' },
-	{ name: 'internal', cwd: 'apps/internal', url: 'http://127.0.0.1:3002' },
-	{ name: 'driver', cwd: 'apps/driver', url: 'http://127.0.0.1:3003' },
+	{
+		name: 'website',
+		cookieName: 'hyperquote_customer_auth',
+		cwd: 'apps/website',
+		url: 'http://127.0.0.1:3000',
+	},
+	{
+		name: 'portal',
+		cookieName: 'hyperquote_customer_auth',
+		cwd: 'apps/portal',
+		url: 'http://127.0.0.1:3001',
+	},
+	{
+		name: 'internal',
+		cookieName: 'hyperquote_internal_auth',
+		cwd: 'apps/internal',
+		url: 'http://127.0.0.1:3002',
+	},
+	{
+		name: 'driver',
+		cookieName: 'hyperquote_driver_auth',
+		cwd: 'apps/driver',
+		url: 'http://127.0.0.1:3003',
+	},
 ]
 
-main()
+main().catch((error) => {
+	console.error(error)
+	process.exit(1)
+})
 
-function main() {
+async function main() {
 	let localEnv = readLocalSupabaseEnv()
 	if (!localEnv) {
 		console.log('Starting local Supabase...')
@@ -37,14 +61,22 @@ function main() {
 	})
 	if (seeded.status !== 0) process.exit(seeded.status ?? 1)
 
-	const env = {
+	const baseEnv = {
 		...process.env,
 		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
 		SUPABASE_URL: localEnv.API_URL,
 		VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
 		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		VITE_SUPABASE_URL: localEnv.API_URL,
 	}
+	writeLocalWorkerEnv({
+		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
+		SUPABASE_URL: localEnv.API_URL,
+		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+		VITE_SUPABASE_URL: localEnv.API_URL,
+	})
 
 	console.log('Local Supabase is available.')
 	console.log(`API: ${localEnv.API_URL}`)
@@ -52,10 +84,16 @@ function main() {
 	for (const app of APPS) console.log(`${app.name}: ${app.url}`)
 
 	let shuttingDown = false
-	const children = APPS.map((app) => {
+	const children = []
+	for (const app of APPS) {
+		const appEnv = {
+			...baseEnv,
+			SUPABASE_COOKIE_NAME: app.cookieName,
+			VITE_SUPABASE_COOKIE_NAME: app.cookieName,
+		}
 		const child = spawn('bun', ['run', 'dev'], {
 			cwd: app.cwd,
-			env,
+			env: appEnv,
 			stdio: 'inherit',
 		})
 		child.on('exit', (code, signal) => {
@@ -65,19 +103,56 @@ function main() {
 			)
 			shutdown(code ?? 1)
 		})
-		return child
-	})
+		children.push(child)
+		await sleep(750)
+	}
 
 	function shutdown(exitCode = 0) {
 		shuttingDown = true
 		for (const child of children) {
 			if (!child.killed) child.kill('SIGTERM')
 		}
+		writeLocalWorkerEnv()
 		setTimeout(() => process.exit(exitCode), 250)
 	}
 
 	process.on('SIGINT', () => shutdown(0))
 	process.on('SIGTERM', () => shutdown(0))
+}
+
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function writeLocalWorkerEnv(runtimeEnv = {}) {
+	const workerApps = APPS.filter((app) => app.name !== 'driver')
+	for (const app of workerApps) {
+		const next = {
+			GROQ_MODEL: 'openai/gpt-oss-120b',
+			SUPABASE_ANON_KEY: 'placeholder',
+			SUPABASE_SERVICE_ROLE_KEY: 'placeholder',
+			SUPABASE_URL: 'https://placeholder.supabase.co',
+			USE_AI: '0',
+			VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
+			VITE_SUPABASE_ANON_KEY: 'placeholder',
+			VITE_SUPABASE_URL: 'https://placeholder.supabase.co',
+			...runtimeEnv,
+			SUPABASE_COOKIE_NAME: app.cookieName,
+			VITE_SUPABASE_COOKIE_NAME: app.cookieName,
+		}
+		writeFileSync(
+			`${app.cwd}/.dev.vars`,
+			`${Object.entries(next)
+				.map(([key, value]) => `${key}=${quoteEnvValue(value)}`)
+				.join('\n')}\n`,
+		)
+	}
+}
+
+function quoteEnvValue(value) {
+	const text = String(value ?? '')
+	if (/^[A-Za-z0-9_./:@-]+$/.test(text)) return text
+	return JSON.stringify(text)
 }
 
 function readLocalSupabaseEnv() {
@@ -88,7 +163,7 @@ function readLocalSupabaseEnv() {
 	if (result.status !== 0) return null
 
 	const env = parseEnvOutput(result.stdout)
-	if (!env.API_URL || !env.ANON_KEY) return null
+	if (!env.API_URL || !env.ANON_KEY || !env.SERVICE_ROLE_KEY) return null
 	return env
 }
 

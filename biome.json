@@ -10,6 +10,8 @@
 			"!**/.wrangler",
 			"!**/.tanstack",
 			"!**/.tmp",
+			"!**/playwright-report",
+			"!**/test-results",
 			"!**/*.gen.ts",
 			"!**/routeTree.gen.ts",
 			"!**/bun.lock",

@@ -27,6 +27,11 @@
 		"db:migrate": "supabase migration up",
 		"db:seed:local-auth": "node scripts/seed-local-auth.mjs",
 		"db:types": "node scripts/db-types-local.mjs",
+		"flow:db-smoke": "node scripts/flow-db-smoke.mjs",
+		"flow:evidence": "node scripts/flow-evidence.mjs --write",
+		"flow:tasklist": "node scripts/flow-human-tasklist.mjs --write",
+		"flow:tasklist:check": "node scripts/flow-human-tasklist.mjs --check",
+		"flow:browser-smoke": "env -u NO_COLOR playwright test scripts/flow-browser-smoke.spec.ts --reporter=line --workers=1",
 		"leaks": "gitleaks git --verbose --redact --no-banner",
 		"scan:arch": "depcruise --no-config --include-only \"^(apps|packages)/\" --exclude \"node_modules|dist|\\.output|\\.turbo|routeTree\\.gen\\.ts\" apps packages --output-type err",
 		"scan:duplicates": "jscpd apps packages --ignore \"**/node_modules/**,**/dist/**,**/.output/**,**/.turbo/**,**/routeTree.gen.ts,apps/driver/android/app/src/main/assets/public/**,apps/driver/ios/App/App/public/**\" --min-lines 8 --min-tokens 80",
@@ -45,6 +50,8 @@
 	"devDependencies": {
 		"@ast-grep/cli": "0.42.2",
 		"@biomejs/biome": "^2.4.15",
+		"@playwright/test": "^1.60.0",
+		"@supabase/ssr": "^0.9.0",
 		"@supabase/supabase-js": "^2.105.4",
 		"@types/node": "^25.8.0",
 		"dependency-cruiser": "17.4.0",
@@ -61,9 +68,11 @@
 	"overrides": {
 		"@babel/plugin-transform-modules-systemjs": "7.29.4",
 		"@xmldom/xmldom": "0.8.13",
+		"brace-expansion": "5.0.6",
 		"fast-uri": "3.1.2",
 		"postcss": "8.5.10",
 		"protocol-buffers-schema": "3.6.1",
-		"vite": "~7.3.3"
+		"vite": "~7.3.3",
+		"ws": "8.20.1"
 	}
 }

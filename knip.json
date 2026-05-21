@@ -26,13 +26,22 @@
 			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
-	"ignoreBinaries": ["infisical", "gitleaks", "osv-scanner", "semgrep", "jq"],
+	"ignoreBinaries": [
+		"infisical",
+		"gitleaks",
+		"osv-scanner",
+		"semgrep",
+		"supabase",
+		"jq"
+	],
 	"ignoreDependencies": [
 		"@capacitor/ios",
 		"@ast-grep/cli",
-		"cloudflare",
 		"rollup-plugin-visualizer",
 		"tailwindcss",
 		"tailwindcss-react-aria-components"
-	]
+	],
+	"ignoreIssues": {
+		"packages/types/src/database.types.ts": ["exports", "types"]
+	}
 }

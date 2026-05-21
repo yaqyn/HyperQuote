@@ -57,7 +57,7 @@ function readGroqEnv(): GroqEnv {
 }
 
 /**
- * Returns true when the server should call Groq (vs a mock). Default: on in
+ * Returns true when the server should call Groq. Default: on in
  * dev, off in prod. Override with USE_AI=1 / USE_AI=0.
  */
 export function isAIEnabled(): boolean {
