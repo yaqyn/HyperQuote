@@ -622,7 +622,7 @@ async function getSupabaseInventoryOverview() {
 	}
 }
 
-export const getInventoryOverview = createServerFn({ method: 'GET' })
+export const getInventoryOverview = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseInventoryOverview()
@@ -748,7 +748,7 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 	}
 }
 
-export const getInventoryProductDetail = createServerFn({ method: 'GET' })
+export const getInventoryProductDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ slug: z.string() }))
 	.handler(async ({ data }) => {
 		return getSupabaseInventoryProductDetail(data.slug)

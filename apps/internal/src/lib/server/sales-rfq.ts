@@ -256,7 +256,7 @@ async function getSupabaseRFQQueue(input: {
 
 // ─── Server Functions ─────────────────────────────────────
 
-export const getRFQQueue = createServerFn({ method: 'GET' })
+export const getRFQQueue = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			status: z.string().optional(),

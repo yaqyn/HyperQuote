@@ -123,7 +123,7 @@ function normalizeCustomerSearch(value: string | undefined): string {
 
 // ─── Server Functions ─────────────────────────────────────
 
-export const getCustomerList = createServerFn({ method: 'GET' })
+export const getCustomerList = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			search: z.string().optional(),

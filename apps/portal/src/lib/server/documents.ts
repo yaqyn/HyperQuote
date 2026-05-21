@@ -26,7 +26,7 @@ const downloadInvoicePDFInput = z.object({
 	invoiceId: z.string(),
 })
 
-export const getDocuments = createServerFn()
+export const getDocuments = createServerFn({ method: 'POST' })
 	.inputValidator(getDocumentsInput)
 	.handler(
 		async ({
@@ -71,7 +71,7 @@ export const getDocuments = createServerFn()
 		},
 	)
 
-export const downloadInvoicePDF = createServerFn()
+export const downloadInvoicePDF = createServerFn({ method: 'POST' })
 	.inputValidator(downloadInvoicePDFInput)
 	.handler(async ({ data: input }): Promise<{ url: string }> => {
 		const { session, supabase } = await getAuthenticatedPortalCustomer()

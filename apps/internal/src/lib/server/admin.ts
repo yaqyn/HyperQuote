@@ -1679,7 +1679,7 @@ export const adminDeleteCustomer = createServerFn({ method: 'POST' })
 	})
 
 export const adminListCustomerAddresses = createServerFn({
-	method: 'GET',
+	method: 'POST',
 })
 	.inputValidator(z.object({ customerId: z.string().uuid() }))
 	.handler(async ({ data }): Promise<AdminCustomerAddressRow[]> => {
@@ -1823,7 +1823,7 @@ export const adminDeleteCustomerAddress = createServerFn({ method: 'POST' })
 		return { ok: true }
 	})
 
-export const adminListCustomerProjects = createServerFn({ method: 'GET' })
+export const adminListCustomerProjects = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ customerId: z.string().uuid() }))
 	.handler(async ({ data }): Promise<AdminCustomerProjectRow[]> => {
 		await getAdminSupabaseClient(false)
@@ -2969,7 +2969,7 @@ async function assertSupplierSpecialtyScope(
 	}
 }
 
-export const adminListSupplierSpecialties = createServerFn({ method: 'GET' })
+export const adminListSupplierSpecialties = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ supplierId: z.string().uuid() }))
 	.handler(async ({ data }): Promise<AdminSupplierSpecialtyRow[]> => {
 		await getAdminSupabaseClient(false)

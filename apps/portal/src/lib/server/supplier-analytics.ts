@@ -17,7 +17,7 @@ const emptySupplierAnalytics = (): SupplierAnalytics => ({
 	topProducts: [],
 })
 
-export const getSupplierAnalytics = createServerFn()
+export const getSupplierAnalytics = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			period: z.string(),

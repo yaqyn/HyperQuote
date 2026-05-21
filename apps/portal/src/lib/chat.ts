@@ -361,7 +361,7 @@ async function* scopedPortalStream(
 // switch back for true token-at-a-time streaming.
 // ============================================================================
 
-export const portalChatFn = createServerFn()
+export const portalChatFn = createServerFn({ method: 'POST' })
 	.inputValidator(portalChatInput)
 	.handler(async ({ data: input }) => {
 		const lastMessage = input.messages[input.messages.length - 1]

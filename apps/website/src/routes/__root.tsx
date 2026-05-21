@@ -97,7 +97,7 @@ function RootComponent() {
 	}, [])
 
 	return (
-		<html lang={locale} dir={dir}>
+		<html lang={locale} dir={dir} data-theme="light" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 				<script

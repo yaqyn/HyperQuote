@@ -450,7 +450,7 @@ async function getSupabaseStockOverview() {
 
 // ─── Server functions ────────────────────────────────────
 
-export const getStockOverview = createServerFn({ method: 'GET' })
+export const getStockOverview = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseStockOverview()
@@ -604,7 +604,7 @@ async function getSupabaseRefillProductDetail(slug: string) {
 	} satisfies RefillProductDetail
 }
 
-export const getRefillProductDetail = createServerFn({ method: 'GET' })
+export const getRefillProductDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ slug: z.string() }))
 	.handler(async ({ data }) => {
 		return getSupabaseRefillProductDetail(data.slug)

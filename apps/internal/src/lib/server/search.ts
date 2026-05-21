@@ -254,7 +254,7 @@ function tableSummaries(rows: SearchIndexRow[]): SearchTableSummary[] {
 	}))
 }
 
-export const searchInternalDb = createServerFn({ method: 'GET' })
+export const searchInternalDb = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ query: z.string() }))
 	.handler(async ({ data }): Promise<SearchResponse> => {
 		const query = data.query.trim()
@@ -299,7 +299,7 @@ export const searchInternalDb = createServerFn({ method: 'GET' })
 		return { query, tables, tableMatches, results }
 	})
 
-export const listSearchTable = createServerFn({ method: 'GET' })
+export const listSearchTable = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ tableId: z.string() }))
 	.handler(async ({ data }): Promise<SearchTableView> => {
 		const table = tableConfig(data.tableId)
@@ -330,7 +330,7 @@ export const getSearchExecutiveBrief = createServerFn({
 	}
 })
 
-export const getSearchModuleSummary = createServerFn({ method: 'GET' })
+export const getSearchModuleSummary = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ moduleId: z.string() }))
 	.handler(async ({ data }): Promise<SearchModuleSummary> => {
 		if (!(data.moduleId in MODULE_TABLES)) {

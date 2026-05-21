@@ -719,7 +719,7 @@ async function getDispatchTerminalProof(
 
 // ─── Server functions ────────────────────────────────────
 
-export const getDispatchBoard = createServerFn({ method: 'GET' })
+export const getDispatchBoard = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async (): Promise<DispatchBoardView> => {
 		const supabaseData = await getSupabaseDispatchData()
@@ -767,7 +767,7 @@ export const getDispatchBoard = createServerFn({ method: 'GET' })
 		}
 	})
 
-export const getDispatchRouteDetail = createServerFn({ method: 'GET' })
+export const getDispatchRouteDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }): Promise<DispatchRouteView | null> => {
 		if (!isUuid(data.quoteId)) return null
@@ -782,7 +782,7 @@ export const getDispatchRouteDetail = createServerFn({ method: 'GET' })
 		)
 	})
 
-export const getDispatchDrivers = createServerFn({ method: 'GET' })
+export const getDispatchDrivers = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async (): Promise<{ drivers: DispatchDriverView[] }> => {
 		const supabaseData = await getSupabaseDispatchData()
@@ -961,7 +961,7 @@ export const markOrderReturned = createServerFn({ method: 'POST' })
 	})
 
 export const getWarehouseEmployeesForDispatch = createServerFn({
-	method: 'GET',
+	method: 'POST',
 })
 	.inputValidator(z.object({}))
 	.handler(async () => {

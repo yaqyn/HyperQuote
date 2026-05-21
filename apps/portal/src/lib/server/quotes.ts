@@ -63,7 +63,7 @@ const partialResponseInput = z.object({
 // getQuoteDetail
 // ============================================================================
 
-export const getQuoteDetail = createServerFn()
+export const getQuoteDetail = createServerFn({ method: 'POST' })
 	.inputValidator(getQuoteDetailInput)
 	.handler(async ({ data: input }): Promise<Quote> => {
 		const { supabase } = await getAuthenticatedSupabase()

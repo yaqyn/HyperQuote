@@ -21,7 +21,7 @@ const contactInput = z.object({
 	message: z.string().min(10).max(2000),
 })
 
-export const submitContactForm = createServerFn()
+export const submitContactForm = createServerFn({ method: 'POST' })
 	.inputValidator(contactInput)
 	.handler(async ({ data: input }) => {
 		// Extract client IP for rate limiting

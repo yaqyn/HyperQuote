@@ -162,7 +162,7 @@ function publicProductSearchFilter(search: string): string | null {
 // searchProducts
 // ============================================================================
 
-export const searchProducts = createServerFn()
+export const searchProducts = createServerFn({ method: 'POST' })
 	.inputValidator(searchProductsInput)
 	.handler(async ({ data: input }): Promise<ProductSearchResult[]> => {
 		const limit = input.limit ?? 20
@@ -198,7 +198,7 @@ export const searchProducts = createServerFn()
 // getProductCatalog -- loads products for client-side fuse.js index
 // ============================================================================
 
-export const getProductCatalog = createServerFn()
+export const getProductCatalog = createServerFn({ method: 'POST' })
 	.inputValidator(getProductCatalogInput)
 	.handler(async ({ data: input }): Promise<ProductSearchResult[]> => {
 		const limit = input.limit ?? 500

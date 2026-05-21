@@ -603,7 +603,7 @@ function buildSupabaseLoadingDetail(
 
 // ─── Queries ──────────────────────────────────────────────
 
-export const getWarehouseQueue = createServerFn({ method: 'GET' })
+export const getWarehouseQueue = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const supabaseData = await getSupabaseLoadingData()
@@ -644,7 +644,7 @@ export const getWarehouseQueue = createServerFn({ method: 'GET' })
 		}
 	})
 
-export const getWarehouseOrderDetail = createServerFn({ method: 'GET' })
+export const getWarehouseOrderDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
 		if (!isUuid(data.quoteId)) return null
@@ -657,7 +657,7 @@ export const getWarehouseOrderDetail = createServerFn({ method: 'GET' })
 		)
 	})
 
-export const getAvailableTrucks = createServerFn({ method: 'GET' })
+export const getAvailableTrucks = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const auth = await getInternalSupabaseClient()
@@ -726,7 +726,7 @@ export const getAvailableTrucks = createServerFn({ method: 'GET' })
 		return { trucks: available }
 	})
 
-export const getWarehouseEmployees = createServerFn({ method: 'GET' })
+export const getWarehouseEmployees = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const auth = await getInternalSupabaseClient()
@@ -1237,7 +1237,7 @@ async function getSupabaseReceivingData(
 	return { auth, tasks, paymentsByRefill, itemsByTask }
 }
 
-export const getReceivingQueue = createServerFn({ method: 'GET' })
+export const getReceivingQueue = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const supabaseData = await getSupabaseReceivingData()
@@ -1266,7 +1266,7 @@ export const getReceivingQueue = createServerFn({ method: 'GET' })
 		}
 	})
 
-export const getReceivingDealDetail = createServerFn({ method: 'GET' })
+export const getReceivingDealDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ dealId: z.string() }))
 	.handler(async ({ data }) => {
 		if (!isUuid(data.dealId)) return null

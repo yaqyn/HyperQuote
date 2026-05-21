@@ -660,7 +660,7 @@ function buildFinanceTotals(
 
 // ─── Queries ──────────────────────────────────────────────
 
-export const getFinanceInbox = createServerFn({ method: 'GET' })
+export const getFinanceInbox = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseFinanceInbox()

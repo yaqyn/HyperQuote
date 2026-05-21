@@ -8,7 +8,7 @@ import { z } from 'zod'
 import type { SupplierPO } from '../../types/supplier'
 import { getAuthenticatedSupabase } from './_supabase'
 
-export const getSupplierPOs = createServerFn()
+export const getSupplierPOs = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number(),

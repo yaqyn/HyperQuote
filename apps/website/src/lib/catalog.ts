@@ -150,7 +150,9 @@ function withCategoryImageFallback(
 	} as unknown as PublicProduct
 }
 
-export const getPublicMarketPreviewCategories = createServerFn()
+export const getPublicMarketPreviewCategories = createServerFn({
+	method: 'POST',
+})
 	.inputValidator(marketPreviewInput)
 	.handler(async ({ data: input }): Promise<PublicMarketPreviewCategory[]> => {
 		const config = await getSupabaseConfig()
@@ -232,7 +234,7 @@ export const getPublicMarketPreviewCategories = createServerFn()
 // getPublicCatalog — paginated, filterable product listing
 // ============================================================================
 
-export const getPublicCatalog = createServerFn()
+export const getPublicCatalog = createServerFn({ method: 'POST' })
 	.inputValidator(catalogInput)
 	.handler(async ({ data: input }) => {
 		const config = await getSupabaseConfig()
@@ -329,7 +331,7 @@ export const getPublicCatalog = createServerFn()
 // getProductBySlug — single product lookup
 // ============================================================================
 
-export const getProductBySlug = createServerFn()
+export const getProductBySlug = createServerFn({ method: 'POST' })
 	.inputValidator(productBySlugInput)
 	.handler(async ({ data: input }) => {
 		const config = await getSupabaseConfig()

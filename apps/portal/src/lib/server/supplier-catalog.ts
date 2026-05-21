@@ -19,7 +19,7 @@ export const uploadCatalog = createServerFn({ method: 'POST' })
 		throw new Error('Supplier catalog ingestion is not configured')
 	})
 
-export const getSupplierUploadHistory = createServerFn()
+export const getSupplierUploadHistory = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number(),

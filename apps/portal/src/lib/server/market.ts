@@ -117,7 +117,7 @@ function firstImageUrl(imageUrls: string[] | null | undefined): string {
 	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
 }
 
-export const getMarketProducts = createServerFn()
+export const getMarketProducts = createServerFn({ method: 'POST' })
 	.inputValidator(getMarketProductsInput)
 	.handler(async ({ data: input }): Promise<MarketProductsResponse> => {
 		const page = input.page ?? 1

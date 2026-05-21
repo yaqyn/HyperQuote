@@ -8,7 +8,7 @@ import { z } from 'zod'
 import type { PriceHistoryEntry, SupplierProduct } from '../../types/supplier'
 import { getAuthenticatedSupabase } from './_supabase'
 
-export const getSupplierProducts = createServerFn()
+export const getSupplierProducts = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number(),
@@ -53,7 +53,7 @@ export const bulkUpdatePrices = createServerFn({ method: 'POST' })
 		throw new Error('Supplier bulk price updates are not configured')
 	})
 
-export const getSupplierPriceHistory = createServerFn()
+export const getSupplierPriceHistory = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number(),

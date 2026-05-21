@@ -26,7 +26,7 @@ export const submitSupplierInvoice = createServerFn({ method: 'POST' })
 		throw new Error('Supplier invoice submission is not configured')
 	})
 
-export const getSupplierInvoices = createServerFn()
+export const getSupplierInvoices = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number(),

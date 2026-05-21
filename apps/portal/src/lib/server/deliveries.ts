@@ -502,7 +502,7 @@ function buildOrderDetail(
 	}
 }
 
-export const getOrderDetail = createServerFn({ method: 'GET' })
+export const getOrderDetail = createServerFn({ method: 'POST' })
 	.inputValidator(getOrderDetailInput)
 	.handler(async ({ data: input }): Promise<OrderDetailResult | null> => {
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()

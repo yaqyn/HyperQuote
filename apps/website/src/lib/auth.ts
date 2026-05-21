@@ -383,7 +383,7 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 // sendOTP — Request OTP via WhatsApp or SMS
 // ============================================================================
 
-export const sendOTP = createServerFn()
+export const sendOTP = createServerFn({ method: 'POST' })
 	.inputValidator(sendOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
@@ -466,7 +466,7 @@ function isProviderSendFailure(error: {
 // verifyOTP — Verify OTP code and check for existing account
 // ============================================================================
 
-export const verifyOTP = createServerFn()
+export const verifyOTP = createServerFn({ method: 'POST' })
 	.inputValidator(verifyOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
@@ -572,7 +572,7 @@ export const verifyOTP = createServerFn()
 // createAccount — Create new customer account after OTP verification
 // ============================================================================
 
-export const createAccount = createServerFn()
+export const createAccount = createServerFn({ method: 'POST' })
 	.inputValidator(createAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
@@ -650,7 +650,7 @@ export const createAccount = createServerFn()
 // claimAccount — Link auth user to existing unclaimed customer
 // ============================================================================
 
-export const claimAccount = createServerFn()
+export const claimAccount = createServerFn({ method: 'POST' })
 	.inputValidator(claimAccountInput)
 	.handler(async ({ data: input }) => {
 		try {

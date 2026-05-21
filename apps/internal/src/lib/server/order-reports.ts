@@ -425,7 +425,7 @@ async function getSupabaseOrderReport(
 	return report
 }
 
-export const getOrderReport = createServerFn({ method: 'GET' })
+export const getOrderReport = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
 		return getSupabaseOrderReport(data.rfqId)

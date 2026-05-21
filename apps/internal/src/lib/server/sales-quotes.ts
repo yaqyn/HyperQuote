@@ -979,7 +979,7 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 		throw new Error('Supabase quote request or customer is required')
 	})
 
-export const getQuoteBuilderData = createServerFn({ method: 'GET' })
+export const getQuoteBuilderData = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ rfqId: z.string() }))
 	.handler(async ({ data }) => {
 		return await buildQuoteBuilderData(data.rfqId)
@@ -1023,7 +1023,7 @@ export const recordSalesCallOutcome = createServerFn({ method: 'POST' })
 		}
 	})
 
-export const getSalesApprovers = createServerFn({ method: 'GET' })
+export const getSalesApprovers = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const auth = await getInternalSupabaseClient()
@@ -1067,7 +1067,7 @@ export const validateSalesApproverCredential = createServerFn({
 
 // ─── Product Catalog (consumed by the quote builder search menu) ──
 
-export const getProductCatalog = createServerFn({ method: 'GET' })
+export const getProductCatalog = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		const auth = await getInternalSupabaseClient()

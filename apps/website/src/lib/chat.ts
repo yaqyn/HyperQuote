@@ -127,7 +127,7 @@ async function* textOnlyStream(
 // The stream() adapter in useAIChat wraps this for the useChat hook
 // ============================================================================
 
-export const chatStreamFn = createServerFn()
+export const chatStreamFn = createServerFn({ method: 'POST' })
 	.inputValidator(chatInput)
 	.handler(async ({ data: input }): Promise<WebsiteStreamChunk[]> => {
 		const lastMessage = input.messages[input.messages.length - 1]

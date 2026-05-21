@@ -99,7 +99,7 @@ async function* textStream(text: string): AsyncGenerator<StreamChunk> {
 	}
 }
 
-export const internalChatFn = createServerFn()
+export const internalChatFn = createServerFn({ method: 'POST' })
 	.inputValidator(internalChatInput)
 	.handler(async ({ data: input }) => {
 		const auth = await getInternalSupabaseClient()

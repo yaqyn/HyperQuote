@@ -11,7 +11,7 @@ import { getAuthenticatedSupabase } from './_supabase'
 // getNotifications
 // ============================================================================
 
-export const getNotifications = createServerFn({ method: 'GET' })
+export const getNotifications = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			page: z.number().default(1),

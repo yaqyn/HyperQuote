@@ -401,13 +401,13 @@ async function getSupabaseCustomerOrders(orderId?: string) {
 	return { orders: presented, totals }
 }
 
-export const getCustomerOrdersList = createServerFn({ method: 'GET' })
+export const getCustomerOrdersList = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseCustomerOrders()
 	})
 
-export const getCustomerOrderDetail = createServerFn({ method: 'GET' })
+export const getCustomerOrderDetail = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
 		if (!isUuid(data.quoteId)) {
