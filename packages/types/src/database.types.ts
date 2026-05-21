@@ -1558,6 +1558,13 @@ export type Database = {
 						foreignKeyName: 'orders_quote_request_id_fkey'
 						columns: ['quote_request_id']
 						isOneToOne: true
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'orders_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: true
 						referencedRelation: 'quote_requests'
 						referencedColumns: ['id']
 					},
@@ -1630,6 +1637,13 @@ export type Database = {
 						columns: ['product_id']
 						isOneToOne: false
 						referencedRelation: 'products'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_update_requests_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -2188,6 +2202,13 @@ export type Database = {
 						foreignKeyName: 'quote_request_items_quote_request_id_fkey'
 						columns: ['quote_request_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_request_items_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
 						referencedRelation: 'quote_requests'
 						referencedColumns: ['id']
 					},
@@ -2461,6 +2482,13 @@ export type Database = {
 						columns: ['project_id']
 						isOneToOne: false
 						referencedRelation: 'projects'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quotes_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -2744,6 +2772,13 @@ export type Database = {
 						foreignKeyName: 'sales_call_notes_quote_request_id_fkey'
 						columns: ['quote_request_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'sales_call_notes_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
 						referencedRelation: 'quote_requests'
 						referencedColumns: ['id']
 					},
@@ -2805,6 +2840,13 @@ export type Database = {
 						columns: ['created_by_employee_id']
 						isOneToOne: false
 						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'sales_quote_versions_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -3733,11 +3775,33 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_quote_request_summary: {
+				Row: {
+					approval_required: boolean | null
+					company_name: string | null
+					contact_name: string | null
+					created_at: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string | null
+					id: string | null
+					item_count: number | null
+					notes: string | null
+					request_number: string | null
+					status: string | null
+					submitted_at: string | null
+					updated_at: string | null
+					urgency: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_index: {
 				Row: {
 					entity_id: string | null
 					entity_type: string | null
 					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
 					subtitle: string | null
 					title: string | null
 				}

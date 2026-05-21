@@ -71,6 +71,47 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects submitted quote requests as current order pipeline records', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'order',
+			entity_id: 'quote-request-1',
+			title: 'QR-2026-00123',
+			subtitle: 'submitted',
+			metadata: {
+				approval_required: false,
+				company_name: 'Local Cairo Contractors',
+				created_at: '2026-05-21T10:15:00+00:00',
+				delivery_date: '2026-05-25',
+				item_count: 3,
+				notes: 'Needs cement before noon',
+				source: 'quote_request',
+				submitted_at: '2026-05-21T10:20:00+00:00',
+				urgency: 'urgent',
+			},
+		}
+
+		const preview = buildSearchPreviewFields(row)
+		const details = buildSearchDetailFields(row)
+		const labels = details.map((field) => field.label)
+		const renderedDetails = details
+			.map((field) => String(field.value))
+			.join(' ')
+
+		expect(preview).toEqual(
+			expect.arrayContaining([
+				{ label: 'Customer', value: 'Local Cairo Contractors' },
+				{ label: 'Stage', value: 'Submitted' },
+				{ label: 'Items', value: '3' },
+			]),
+		)
+		expect(labels).toContain('Quote request')
+		expect(labels).toContain('Submitted')
+		expect(labels).not.toContain('source')
+		expect(renderedDetails).toContain('Urgent')
+		expect(renderedDetails).toContain('Needs cement before noon')
+		expect(renderedDetails).not.toContain('2026-05-21T10:20:00')
+	})
+
 	it('replaces raw source and action titles where the index title is technical', () => {
 		expect(
 			buildSearchDisplayTitle(row('payment', 'customer_payment', 'paid')),

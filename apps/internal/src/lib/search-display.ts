@@ -10,6 +10,8 @@ export interface SearchDisplayIndexRow {
 	title: string
 	subtitle: string | null
 	metadata: JsonObject | null
+	sort_at?: string | null
+	search_text?: string | null
 }
 
 export interface SearchSummaryBucket {
@@ -29,10 +31,17 @@ const cairoDateTimeFormatter = new Intl.DateTimeFormat('en-EG', {
 	timeZone: 'Africa/Cairo',
 })
 
+const cairoDateFormatter = new Intl.DateTimeFormat('en-EG', {
+	dateStyle: 'medium',
+	timeZone: 'Africa/Cairo',
+})
+
 const statusLabels: Record<string, string> = {
 	active: 'Active',
+	approved: 'Approved',
 	assigned: 'Assigned',
 	available: 'Available',
+	awaiting_clarification: 'Awaiting clarification',
 	blocked: 'Blocked',
 	canceled: 'Canceled',
 	closed: 'Closed',
@@ -40,11 +49,13 @@ const statusLabels: Record<string, string> = {
 	confirmed: 'Confirmed',
 	confirmed_for_inventory: 'Accepted - inventory check',
 	conversation: 'Conversation',
+	declined: 'Declined',
 	delivered: 'Delivered',
 	disabled: 'Disabled',
 	dispatch_assigned: 'Assigned for dispatch',
 	dispatch_ready: 'Ready for dispatch',
 	dispatched: 'Dispatched',
+	draft: 'Draft',
 	expired: 'Expired',
 	inactive: 'Inactive',
 	invited: 'Invited',
@@ -58,9 +69,13 @@ const statusLabels: Record<string, string> = {
 	paid: 'Paid',
 	partial: 'Partially paid',
 	pending: 'Pending',
+	quoted: 'Quoted',
+	quoting: 'Quoting',
 	receiving: 'Receiving',
 	rejected: 'Rejected',
+	reviewing: 'Reviewing',
 	resolved: 'Resolved',
+	saved: 'Saved',
 	submitted: 'Submitted',
 	ticket: 'Support ticket',
 	under_review: 'Under review',
@@ -69,7 +84,9 @@ const statusLabels: Record<string, string> = {
 
 const sourceLabels: Record<string, string> = {
 	conversation: 'Conversation',
+	customer_order: 'Customer order',
 	customer_payment: 'Customer receipt',
+	quote_request: 'Quote request',
 	supplier_payment: 'Supplier payment',
 	ticket: 'Support ticket',
 }
@@ -139,6 +156,13 @@ function formatDateTime(value: JsonValue | undefined): string | null {
 	const date = new Date(value)
 	if (Number.isNaN(date.getTime())) return null
 	return cairoDateTimeFormatter.format(date)
+}
+
+function formatDate(value: JsonValue | undefined): string | null {
+	if (typeof value !== 'string') return null
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return null
+	return cairoDateFormatter.format(date)
 }
 
 function formatMoney(value: number | null): string | null {
@@ -246,10 +270,13 @@ function humanLabel(key: string): string {
 		completed_at: 'Completed',
 		created_at: 'Created',
 		delivered_at: 'Delivered',
+		delivery_date: 'Delivery date',
 		driver_name: 'Driver',
 		driver_status: 'Driver status',
+		draft_name: 'Draft name',
 		email: 'Email',
 		is_ceo: 'CEO access',
+		item_count: 'Items',
 		last_seen_at: 'Last seen',
 		minimum_quantity: 'Minimum',
 		on_hand_quantity: 'On hand',
@@ -261,14 +288,17 @@ function humanLabel(key: string): string {
 		plate_number: 'Truck',
 		rating: 'Rating',
 		rejection_reason: 'Rejection reason',
+		request_number: 'Request',
 		requester: 'Requester',
 		reserved_quantity: 'Reserved',
 		source: 'Source',
 		status: 'Status',
 		subject: 'Subject',
+		submitted_at: 'Submitted',
 		tier: 'Tier',
 		total_amount: 'Value',
 		trade_license_status: 'Trade license',
+		urgency: 'Urgency',
 		updated_at: 'Updated',
 		vehicle_label: 'Vehicle',
 	}
@@ -278,7 +308,10 @@ function humanLabel(key: string): string {
 function renderGenericValue(key: string, value: JsonValue): string | null {
 	if (value === null) return null
 	const normalized = normalizeToken(key)
-	if (normalized.endsWith('_at') || normalized.endsWith('_date')) {
+	if (normalized.endsWith('_date')) {
+		return formatDate(value)
+	}
+	if (normalized.endsWith('_at')) {
 		return formatDateTime(value)
 	}
 	if (
@@ -298,6 +331,13 @@ function renderGenericValue(key: string, value: JsonValue): string | null {
 	if (typeof value === 'number') return formatNumber(value)
 	if (typeof value === 'boolean') return value ? 'Yes' : 'No'
 	return contextSummary(value)
+}
+
+function isQuoteRequestOrder(row: SearchDisplayIndexRow): boolean {
+	return (
+		row.entity_type === 'order' &&
+		stringValue(metadataObject(row.metadata), 'source') === 'quote_request'
+	)
 }
 
 function genericPreviewFields(
@@ -344,6 +384,23 @@ export function buildSearchPreviewFields(
 
 	switch (row.entity_type) {
 		case 'order':
+			if (isQuoteRequestOrder(row)) {
+				return fields(
+					previewField('Customer', stringValue(metadata, 'company_name')),
+					previewField('Stage', stage(row)),
+					previewField(
+						'Items',
+						formatNumber(numberValue(metadata, 'item_count')),
+					),
+					previewField(
+						'Submitted',
+						formatDateTime(
+							jsonValue(metadata, 'submitted_at') ??
+								jsonValue(metadata, 'created_at'),
+						),
+					),
+				)
+			}
 			return fields(
 				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Stage', stage(row)),
@@ -467,6 +524,38 @@ export function buildSearchDetailFields(
 
 	switch (row.entity_type) {
 		case 'order':
+			if (isQuoteRequestOrder(row)) {
+				return details(
+					detailField('Quote request', row.title),
+					detailField('Customer', stringValue(metadata, 'company_name')),
+					detailField('Stage', stage(row)),
+					detailField(
+						'Items',
+						formatNumber(numberValue(metadata, 'item_count')),
+					),
+					detailField(
+						'Urgency',
+						formatStatus(stringValue(metadata, 'urgency')),
+					),
+					detailField('Delivery date', formatDate(metadata.delivery_date)),
+					detailField(
+						'Submitted',
+						formatDateTime(
+							jsonValue(metadata, 'submitted_at') ??
+								jsonValue(metadata, 'created_at'),
+						),
+					),
+					detailField(
+						'Approval required',
+						booleanValue(metadata, 'approval_required') === null
+							? null
+							: booleanValue(metadata, 'approval_required')
+								? 'Yes'
+								: 'No',
+					),
+					detailField('Notes', stringValue(metadata, 'notes')),
+				)
+			}
 			return details(
 				detailField('Order', row.title),
 				detailField('Customer', stringValue(metadata, 'company_name')),
@@ -612,6 +701,13 @@ export function buildSearchSummaryNote(
 	const metadata = metadataObject(row.metadata)
 	switch (row.entity_type) {
 		case 'order':
+			if (isQuoteRequestOrder(row)) {
+				const itemCount = formatNumber(numberValue(metadata, 'item_count'))
+				const itemLabel = itemCount ? `${itemCount} items` : null
+				return [stage(row), stringValue(metadata, 'company_name'), itemLabel]
+					.filter(Boolean)
+					.join(' - ')
+			}
 			return [stage(row), stringValue(metadata, 'company_name')]
 				.filter(Boolean)
 				.join(' - ')
