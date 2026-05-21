@@ -3795,7 +3795,223 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_activity_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Insert: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: never
+				}
+				Update: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: never
+				}
+				Relationships: []
+			}
+			ceo_search_customer_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Insert: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: string | null
+				}
+				Update: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: string | null
+					title?: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_dispatch_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_driver_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_employee_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Insert: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: never
+					title?: string | null
+				}
+				Update: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: never
+					title?: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_index: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_inventory_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_order_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_payment_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_quote_request_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_supplier_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Insert: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: never
+					title?: string | null
+				}
+				Update: {
+					entity_id?: never
+					entity_type?: never
+					metadata?: never
+					search_text?: never
+					sort_at?: string | null
+					subtitle?: never
+					title?: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_support_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_warehouse_vtable: {
 				Row: {
 					entity_id: string | null
 					entity_type: string | null
