@@ -82,16 +82,31 @@ function cartItemMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
-function cartSlideMotion(shouldReduceMotion: boolean | null) {
+function cartNotesMotion(shouldReduceMotion: boolean | null) {
 	return {
-		animate: { gridTemplateRows: '1fr' },
-		exit: { gridTemplateRows: '0fr' },
-		initial: { gridTemplateRows: '0fr' },
+		animate: { maxHeight: 112 },
+		exit: { maxHeight: 0 },
+		initial: { maxHeight: 0 },
 		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.18,
+			duration: shouldReduceMotion ? 0.01 : 0.2,
 			ease: CART_DRAWER_EASE,
 		},
 	}
+}
+
+function useDelayedVisibility(visible: boolean, delayMs = 160) {
+	const [ready, setReady] = useState(false)
+
+	useEffect(() => {
+		if (!visible) {
+			setReady(false)
+			return
+		}
+		const timeout = window.setTimeout(() => setReady(true), delayMs)
+		return () => window.clearTimeout(timeout)
+	}, [delayMs, visible])
+
+	return visible && ready
 }
 
 function getDefaultDraftName(baseName: string, isArabic: boolean) {
@@ -588,6 +603,7 @@ function WebsiteSavedOrdersPanel({
 	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
 		null,
 	)
+	const showLoading = useDelayedVisibility(loadState === 'loading')
 
 	useEffect(() => {
 		let active = true
@@ -640,7 +656,7 @@ function WebsiteSavedOrdersPanel({
 	const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId)
 
 	return (
-		<div className="flex max-h-[min(72dvh,560px)] min-h-0 flex-col border-t border-[var(--color-border)] bg-[var(--color-base)]">
+		<div className="flex h-[min(46dvh,360px)] max-h-[min(72dvh,560px)] min-h-[280px] flex-col border-t border-[var(--color-border)] bg-[var(--color-base)]">
 			<header className="flex shrink-0 items-start justify-between gap-3 px-4 py-3">
 				<div className="min-w-0">
 					<p className="text-[14px] font-semibold text-[var(--color-text)]">
@@ -662,14 +678,7 @@ function WebsiteSavedOrdersPanel({
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
 				{loadState === 'loading' ? (
-					<div className="space-y-2">
-						{['a', 'b', 'c'].map((key) => (
-							<div
-								key={key}
-								className="h-20 animate-pulse rounded-xl bg-[var(--color-surface)]"
-							/>
-						))}
-					</div>
+					<WebsiteSavedOrdersLoading visible={showLoading} />
 				) : loadState === 'auth' ? (
 					<div className="flex min-h-44 flex-col items-center justify-center text-center">
 						<FilePenLine
@@ -864,6 +873,26 @@ function WebsiteSavedDraftPreview({
 							/>
 						)
 					})}
+				</div>
+			)}
+		</motion.div>
+	)
+}
+
+function WebsiteSavedOrdersLoading({ visible }: { visible: boolean }) {
+	const { t } = useTranslation('website')
+	const shouldReduceMotion = useReducedMotion()
+
+	return (
+		<motion.div
+			key="saved-drafts-loading"
+			className="flex min-h-44 items-center justify-center"
+			{...cartRevealMotion(shouldReduceMotion)}
+		>
+			{visible && (
+				<div className="flex items-center gap-2 text-[12px] font-medium text-[var(--color-text-muted)]">
+					<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+					<span>{t('cart.savedOrdersLoading', 'Loading saved drafts...')}</span>
 				</div>
 			)}
 		</motion.div>
@@ -1455,10 +1484,10 @@ function CartSubmit({
 					{notesOpen && (
 						<motion.div
 							key="cart-notes"
-							className="grid overflow-hidden"
-							{...cartSlideMotion(shouldReduceMotion)}
+							className="overflow-hidden"
+							{...cartNotesMotion(shouldReduceMotion)}
 						>
-							<div className="min-h-0">
+							<div className="overflow-hidden">
 								<label className="block pb-2">
 									<span className="sr-only">{t('cart.notes')}</span>
 									<textarea

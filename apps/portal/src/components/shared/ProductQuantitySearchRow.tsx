@@ -117,12 +117,11 @@ export function ProductQuantitySearchRow({
 
 	return (
 		<motion.div
-			layout
-			initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
+			initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 4 }}
 			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -6 }}
+			exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -4 }}
 			transition={{
-				duration: shouldReduceMotion ? 0.01 : 0.18,
+				duration: shouldReduceMotion ? 0.01 : 0.14,
 				ease: ROW_EASE,
 			}}
 			className={[

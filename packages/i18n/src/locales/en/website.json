@@ -159,6 +159,7 @@
 		"savedOrdersBody": "Review a saved draft inside this cart.",
 		"savedOrdersEmpty": "No saved drafts yet.",
 		"savedOrdersSignIn": "Sign in to view saved drafts.",
+		"savedOrdersLoading": "Loading saved drafts...",
 		"savedOrdersLoadFailed": "Could not load saved drafts.",
 		"view": "View",
 		"submit": "Request Quote",

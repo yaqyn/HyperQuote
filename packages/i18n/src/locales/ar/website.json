@@ -162,6 +162,7 @@
 		"savedOrdersBody": "راجع مسودة محفوظة داخل هذه السلة.",
 		"savedOrdersEmpty": "لا توجد مسودات محفوظة بعد.",
 		"savedOrdersSignIn": "سجّل الدخول لعرض المسودات المحفوظة.",
+		"savedOrdersLoading": "جارٍ تحميل المسودات المحفوظة...",
 		"savedOrdersLoadFailed": "تعذر تحميل المسودات المحفوظة.",
 		"view": "عرض",
 		"submit": "طلب عرض سعر",

@@ -92,6 +92,21 @@ function chatMenuMotion(
 	}
 }
 
+function useDelayedVisibility(visible: boolean, delayMs = 160) {
+	const [ready, setReady] = useState(false)
+
+	useEffect(() => {
+		if (!visible) {
+			setReady(false)
+			return
+		}
+		const timeout = window.setTimeout(() => setReady(true), delayMs)
+		return () => window.clearTimeout(timeout)
+	}, [delayMs, visible])
+
+	return visible && ready
+}
+
 function formatDraftDate(value: string, isAr: boolean) {
 	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
 		day: '2-digit',
@@ -249,6 +264,7 @@ export function ChatDraftsPanel({
 		queryFn: () => getAllCustomerOrders(),
 		staleTime: 30_000,
 	})
+	const showDraftMenuLoading = useDelayedVisibility(isLoading)
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
@@ -290,6 +306,7 @@ export function ChatDraftsPanel({
 		staleTime: 60_000,
 	})
 	const products = productData?.products ?? []
+	const showProductMenuLoading = useDelayedVisibility(isProductLoading)
 
 	const dirty = editor
 		? editorFingerprint(editor) !== editor.baseFingerprint
@@ -685,12 +702,13 @@ export function ChatDraftsPanel({
 
 								<div className="mt-2 space-y-1">
 									{isLoading ? (
-										['a', 'b', 'c'].map((key) => (
-											<div
-												key={key}
-												className="h-11 animate-pulse rounded-lg bg-[var(--p-border)]"
+										showDraftMenuLoading ? (
+											<MenuLoadingState
+												label={t('common.loading', 'Loading...')}
 											/>
-										))
+										) : (
+											<div className="h-11" aria-hidden="true" />
+										)
 									) : isError ? (
 										<div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2">
 											<div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
@@ -896,14 +914,14 @@ export function ChatDraftsPanel({
 														{t('orders.error')}
 													</p>
 												) : isProductLoading ? (
-													<div className="space-y-2">
-														{['a', 'b'].map((key) => (
-															<div
-																key={key}
-																className="h-12 animate-pulse rounded-lg bg-[var(--p-border)]"
-															/>
-														))}
-													</div>
+													showProductMenuLoading ? (
+														<MenuLoadingState
+															label={t('common.loading', 'Loading...')}
+															size="comfortable"
+														/>
+													) : (
+														<div className="min-h-24" aria-hidden="true" />
+													)
 												) : products.length === 0 ? (
 													<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
 														{t('orders.noProducts')}
@@ -1156,6 +1174,29 @@ export function ChatDraftsPanel({
 				</footer>
 			)}
 		</section>
+	)
+}
+
+function MenuLoadingState({
+	label,
+	size = 'compact',
+}: {
+	label: string
+	size?: 'compact' | 'comfortable'
+}) {
+	const shouldReduceMotion = useReducedMotion()
+
+	return (
+		<motion.div
+			className={[
+				'flex items-center justify-center gap-2 rounded-lg text-[12px] font-medium text-[var(--p-text-muted)]',
+				size === 'comfortable' ? 'min-h-24' : 'h-11',
+			].join(' ')}
+			{...chatFadeMotion(shouldReduceMotion)}
+		>
+			<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-border)] border-t-[var(--p-accent)]" />
+			<span>{label}</span>
+		</motion.div>
 	)
 }
 

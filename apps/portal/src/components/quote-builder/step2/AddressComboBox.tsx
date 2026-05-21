@@ -6,7 +6,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPin, Plus } from 'lucide-react'
-import { motion } from 'motion/react'
+import { cubicBezier, motion, useReducedMotion } from 'motion/react'
 import { useCallback, useId, useState } from 'react'
 import { Button as AriaButton, Button } from 'react-aria-components/Button'
 import { Input } from 'react-aria-components/Input'
@@ -60,6 +60,8 @@ const GOVERNORATES = [
 	'Aswan',
 ] as const
 
+const ADDRESS_FORM_EASE = cubicBezier(0.22, 1, 0.36, 1)
+
 // ============================================================================
 // New Address Form
 // ============================================================================
@@ -71,6 +73,7 @@ interface NewAddressFormProps {
 
 function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 	const [street, setStreet] = useState('')
 	const [area, setArea] = useState('')
 	const [governorate, setGovernorate] = useState('')
@@ -103,11 +106,14 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
 
 	return (
 		<motion.div
-			initial={{ opacity: 0, height: 0 }}
-			animate={{ opacity: 1, height: 'auto' }}
-			exit={{ opacity: 0, height: 0 }}
-			transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-			className="space-y-3 mt-3"
+			initial={{ maxHeight: 0, opacity: 0 }}
+			animate={{ maxHeight: 520, opacity: 1 }}
+			exit={{ maxHeight: 0, opacity: 0 }}
+			transition={{
+				duration: shouldReduceMotion ? 0.01 : 0.2,
+				ease: ADDRESS_FORM_EASE,
+			}}
+			className="mt-3 space-y-3 overflow-hidden"
 		>
 			{/* Street */}
 			<TextField

@@ -5,7 +5,12 @@
  */
 
 import { Paperclip, Upload, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import { useCallback, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { DropZone } from 'react-aria-components/DropZone'
@@ -23,6 +28,7 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const ACCEPTED_EXTENSIONS = '.pdf,.jpg,.jpeg,.png'
 const ACCEPTED_FILE_NAME_PATTERN = /\.(pdf|jpe?g|png)$/i
+const CHIP_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 // ============================================================================
 // Component
@@ -30,6 +36,7 @@ const ACCEPTED_FILE_NAME_PATTERN = /\.(pdf|jpe?g|png)$/i
 
 export function AttachmentUpload() {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 	const attachments = useQuoteBuilderStore((s) => s.attachments)
 	const setAttachments = useQuoteBuilderStore((s) => s.setAttachments)
 	const [validationMessage, setValidationMessage] = useState<string | null>(
@@ -164,17 +171,17 @@ export function AttachmentUpload() {
 
 			{/* File chips */}
 			<div className="flex flex-wrap gap-2">
-				<AnimatePresence mode="popLayout">
+				<AnimatePresence initial={false}>
 					{attachments.map((file, idx) => (
 						<motion.div
 							key={`${file.url}-${file.name}-${file.size}`}
-							initial={{ opacity: 0, scale: 0.95 }}
+							initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.98 }}
 							animate={{ opacity: 1, scale: 1 }}
-							exit={{ opacity: 0, scale: 0.9 }}
-							transition={
-								// Spring for enter, tween for exit
-								{ type: 'spring', stiffness: 300, damping: 25 }
-							}
+							exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.98 }}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.14,
+								ease: CHIP_EASE,
+							}}
 							className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--color-surface)] text-[13px] text-[var(--color-text)]"
 						>
 							<Paperclip

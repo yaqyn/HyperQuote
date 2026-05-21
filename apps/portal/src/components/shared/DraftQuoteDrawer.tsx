@@ -86,16 +86,31 @@ function drawerRevealMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
-function drawerSlideMotion(shouldReduceMotion: boolean | null) {
+function drawerNotesMotion(shouldReduceMotion: boolean | null) {
 	return {
-		animate: { gridTemplateRows: '1fr' },
-		exit: { gridTemplateRows: '0fr' },
-		initial: { gridTemplateRows: '0fr' },
+		animate: { maxHeight: 112 },
+		exit: { maxHeight: 0 },
+		initial: { maxHeight: 0 },
 		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.18,
+			duration: shouldReduceMotion ? 0.01 : 0.2,
 			ease: SNAP_EASE,
 		},
 	}
+}
+
+function useDelayedVisibility(visible: boolean, delayMs = 160) {
+	const [ready, setReady] = useState(false)
+
+	useEffect(() => {
+		if (!visible) {
+			setReady(false)
+			return
+		}
+		const timeout = window.setTimeout(() => setReady(true), delayMs)
+		return () => window.clearTimeout(timeout)
+	}, [delayMs, visible])
+
+	return visible && ready
 }
 
 function getDefaultDraftName(baseName: string, isArabic: boolean) {
@@ -552,10 +567,10 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													{notesOpen && (
 														<motion.div
 															key="cart-notes"
-															className="grid overflow-hidden"
-															{...drawerSlideMotion(shouldReduceMotion)}
+															className="overflow-hidden"
+															{...drawerNotesMotion(shouldReduceMotion)}
 														>
-															<div className="min-h-0">
+															<div className="overflow-hidden">
 																<label className="block pb-2">
 																	<span className="sr-only">
 																		{t('market.cartNotesLabel')}
@@ -905,6 +920,7 @@ function DraftProductSearch({
 		() => data?.pages.flatMap((page) => page.products) ?? [],
 		[data],
 	)
+	const showProductLoading = useDelayedVisibility(isLoading)
 	const existingQuantities = useMemo(
 		() => new Map(items.map((item) => [item.productId, item.quantity])),
 		[items],
@@ -1015,14 +1031,14 @@ function DraftProductSearch({
 									initial={{ opacity: 0 }}
 									animate={{ opacity: 1 }}
 									exit={{ opacity: 0 }}
-									className="space-y-2"
+									className="flex min-h-48 items-center justify-center"
 								>
-									{['a', 'b', 'c', 'd'].map((key) => (
-										<div
-											key={key}
-											className="h-16 animate-pulse rounded-xl bg-[var(--p-border)]"
-										/>
-									))}
+									{showProductLoading && (
+										<div className="flex items-center gap-2 text-[12px] font-medium text-[var(--p-text-muted)]">
+											<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-border)] border-t-[var(--p-accent)]" />
+											<span>{t('common.loading', 'Loading...')}</span>
+										</div>
+									)}
 								</motion.div>
 							) : products.length === 0 ? (
 								<motion.div

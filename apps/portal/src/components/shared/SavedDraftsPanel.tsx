@@ -14,7 +14,7 @@ import {
 	motion,
 	useReducedMotion,
 } from 'motion/react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import { submitQuoteRequest } from '../../lib/server/quote-requests'
@@ -47,6 +47,21 @@ function savedDraftItemMotion(shouldReduceMotion: boolean | null) {
 			ease: SAVED_DRAFTS_EASE,
 		},
 	}
+}
+
+function useDelayedVisibility(visible: boolean, delayMs = 160) {
+	const [ready, setReady] = useState(false)
+
+	useEffect(() => {
+		if (!visible) {
+			setReady(false)
+			return
+		}
+		const timeout = window.setTimeout(() => setReady(true), delayMs)
+		return () => window.clearTimeout(timeout)
+	}, [delayMs, visible])
+
+	return visible && ready
 }
 
 interface SavedDraftsPanelProps {
@@ -101,6 +116,7 @@ export function SavedDraftsPanel({
 		queryFn: () => getAllCustomerOrders(),
 		staleTime: 30_000,
 	})
+	const showLoading = useDelayedVisibility(isLoading)
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
@@ -191,14 +207,7 @@ export function SavedDraftsPanel({
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 md:px-5">
 				{isLoading ? (
-					<div className="space-y-2">
-						{['a', 'b', 'c'].map((key) => (
-							<div
-								key={key}
-								className="h-20 animate-pulse rounded-xl bg-[var(--p-border)]"
-							/>
-						))}
-					</div>
+					<SavedDraftsLoadingState visible={showLoading} />
 				) : isError ? (
 					<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
 						<AlertTriangle
@@ -427,6 +436,26 @@ function DraftPreview({ draft, isAr }: { draft: Order; isAr: boolean }) {
 							</div>
 						)
 					})}
+				</div>
+			)}
+		</motion.div>
+	)
+}
+
+function SavedDraftsLoadingState({ visible }: { visible: boolean }) {
+	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
+
+	return (
+		<motion.div
+			key="saved-drafts-loading"
+			className="flex min-h-48 items-center justify-center"
+			{...savedDraftRevealMotion(shouldReduceMotion)}
+		>
+			{visible && (
+				<div className="flex items-center gap-2 text-[12px] font-medium text-[var(--p-text-muted)]">
+					<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--p-border)] border-t-[var(--p-accent)]" />
+					<span>{t('common.loading', 'Loading...')}</span>
 				</div>
 			)}
 		</motion.div>
