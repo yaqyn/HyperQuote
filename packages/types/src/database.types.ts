@@ -7,6 +7,31 @@ export type Json =
 	| Json[]
 
 export type Database = {
+	graphql_public: {
+		Tables: {
+			[_ in never]: never
+		}
+		Views: {
+			[_ in never]: never
+		}
+		Functions: {
+			graphql: {
+				Args: {
+					extensions?: Json
+					operationName?: string
+					query?: string
+					variables?: Json
+				}
+				Returns: Json
+			}
+		}
+		Enums: {
+			[_ in never]: never
+		}
+		CompositeTypes: {
+			[_ in never]: never
+		}
+	}
 	public: {
 		Tables: {
 			activity_events: {
@@ -3688,21 +3713,56 @@ export type Database = {
 					entity_type: string | null
 					id: string | null
 				}
-				Insert: {
-					action?: never
-					created_at?: string | null
-					details?: Json | null
-					entity_id?: string | null
-					entity_type?: string | null
-					id?: string | null
-				}
-				Update: {
-					action?: never
-					created_at?: string | null
-					details?: Json | null
-					entity_id?: string | null
-					entity_type?: string | null
-					id?: string | null
+				Relationships: []
+			}
+			ceo_business_activity_vtable: {
+				Row: {
+					action: string | null
+					action_label: string | null
+					actor_label: string | null
+					actor_type: string | null
+					amount: number | null
+					area: string | null
+					contact_channel: string | null
+					created_at: string | null
+					customer_contact: string | null
+					customer_email: string | null
+					customer_name: string | null
+					customer_phone: string | null
+					delivery_address: string | null
+					delivery_number: string | null
+					driver_name: string | null
+					driver_phone: string | null
+					follow_up_due_at: string | null
+					follow_up_state: string | null
+					from_status: string | null
+					headline: string | null
+					id: string | null
+					item_summary: string | null
+					notes: string | null
+					order_number: string | null
+					outcome: string | null
+					payment_fraction: number | null
+					product_category: string | null
+					product_name: string | null
+					product_sku: string | null
+					quote_number: string | null
+					reason: string | null
+					request_number: string | null
+					role: string | null
+					row_count: number | null
+					scope: string | null
+					source: string | null
+					source_entity_id: string | null
+					source_entity_type: string | null
+					supplier_name: string | null
+					support_reference: string | null
+					support_subject: string | null
+					target: string | null
+					to_status: string | null
+					total_amount: number | null
+					truck_plate: string | null
+					truck_type: string | null
 				}
 				Relationships: []
 			}
@@ -3883,24 +3943,6 @@ export type Database = {
 					sort_at: string | null
 					subtitle: string | null
 					title: string | null
-				}
-				Insert: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: string | null
-					title?: never
-				}
-				Update: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: string | null
-					title?: never
 				}
 				Relationships: []
 			}
@@ -4230,6 +4272,25 @@ export type Database = {
 			can_access_panel: {
 				Args: { required_panel: string; write_required?: boolean }
 				Returns: boolean
+			}
+			ceo_activity_action_label: {
+				Args: { p_action: Database['public']['Enums']['audit_event_type'] }
+				Returns: string
+			}
+			ceo_activity_area: {
+				Args: {
+					p_action: Database['public']['Enums']['audit_event_type']
+					p_entity_type: string
+				}
+				Returns: string
+			}
+			ceo_activity_source_label: {
+				Args: {
+					p_action: Database['public']['Enums']['audit_event_type']
+					p_actor_type: string
+					p_source: string
+				}
+				Returns: string
 			}
 			ceo_search_date_terms:
 				| {
@@ -5119,6 +5180,14 @@ export type Database = {
 			}
 			is_employee_with_role: {
 				Args: { required_role: string }
+				Returns: boolean
+			}
+			is_important_activity: {
+				Args: {
+					p_action: Database['public']['Enums']['audit_event_type']
+					p_details?: Json
+					p_entity_type: string
+				}
 				Returns: boolean
 			}
 			link_support_conversation_to_customer: {
@@ -6297,6 +6366,9 @@ export type CompositeTypes<
 		: never
 
 export const Constants = {
+	graphql_public: {
+		Enums: {},
+	},
 	public: {
 		Enums: {
 			account_type: ['customer', 'employee', 'driver'],

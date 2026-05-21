@@ -153,6 +153,43 @@ function formatSource(value: string | null | undefined): string | null {
 	return sourceLabels[normalized] ?? humanizeIdentifier(value)
 }
 
+function formatActivityTitle(row: SearchDisplayIndexRow): string {
+	const metadata = metadataObject(row.metadata)
+	const headline = stringValue(metadata, 'headline')
+	if (headline) return headline
+	if (row.title.includes('_') && !row.title.includes(' ')) {
+		return humanizeIdentifier(row.title) ?? row.title
+	}
+	return row.title
+}
+
+function activityLabel(
+	metadata: JsonObject,
+	row: SearchDisplayIndexRow,
+): string | null {
+	return (
+		stringValue(metadata, 'action_label') ??
+		humanizeIdentifier(stringValue(metadata, 'action')) ??
+		humanizeIdentifier(row.title)
+	)
+}
+
+function statusChange(metadata: JsonObject): string | null {
+	const from = formatStatus(stringValue(metadata, 'from_status'))
+	const to = formatStatus(stringValue(metadata, 'to_status'))
+	if (from && to) return `${from} to ${to}`
+	if (to) return `Now ${to}`
+	if (from) return `From ${from}`
+	return null
+}
+
+function activityAmount(metadata: JsonObject): string | null {
+	return (
+		formatMoney(numberValue(metadata, 'amount')) ??
+		formatMoney(numberValue(metadata, 'total_amount'))
+	)
+}
+
 function formatDateTime(value: JsonValue | undefined): string | null {
 	if (typeof value !== 'string') return null
 	const date = new Date(value)
@@ -267,14 +304,20 @@ function isTechnicalKey(key: string): boolean {
 function humanLabel(key: string): string {
 	const labels: Record<string, string> = {
 		amount: 'Amount',
+		action_label: 'Action',
+		actor: 'Who',
+		area: 'Area',
 		assigned_employee: 'Assigned to',
 		assigned_sales_rep: 'Sales rep',
 		available_quantity: 'Available',
 		base_salary: 'Base salary',
 		brand: 'Brand',
 		company_name: 'Customer',
+		contact: 'Contact',
+		contact_channel: 'Channel',
 		completed_at: 'Completed',
 		current_exposure: 'Current exposure',
+		customer: 'Customer',
 		created_at: 'Created',
 		delivered_at: 'Delivered',
 		delivery_address: 'Delivery address',
@@ -285,11 +328,14 @@ function humanLabel(key: string): string {
 		driver_status: 'Driver status',
 		draft_name: 'Draft name',
 		email: 'Email',
+		follow_up_due_at: 'Follow-up due',
+		follow_up_state: 'Follow-up state',
 		good_quantity: 'Good from',
 		hire_date: 'Hire date',
 		is_ceo: 'CEO access',
 		item_count: 'Items',
 		item_summary: 'Items',
+		items: 'Items',
 		last_seen_at: 'Last seen',
 		lifetime_value: 'Lifetime value',
 		minimum_quantity: 'Minimum',
@@ -316,7 +362,10 @@ function humanLabel(key: string): string {
 		request_number: 'Request',
 		requester: 'Requester',
 		reserved_quantity: 'Reserved',
+		role: 'Role',
+		row_count: 'Rows',
 		salary_currency: 'Salary currency',
+		scope: 'Scope',
 		sku: 'SKU',
 		source: 'Source',
 		social_insurance_salary: 'Insurance salary',
@@ -325,6 +374,9 @@ function humanLabel(key: string): string {
 		subject: 'Subject',
 		submitted_by: 'Submitted by',
 		submitted_at: 'Submitted',
+		support_reference: 'Support case',
+		support_subject: 'Support subject',
+		target: 'Target',
 		tier: 'Tier',
 		title: 'Title',
 		total_amount: 'Value',
@@ -561,10 +613,16 @@ export function buildSearchPreviewFields(
 			)
 		case 'activity':
 			return fields(
-				previewField('Action', humanizeIdentifier(row.title)),
-				previewField('Area', humanizeIdentifier(row.subtitle)),
+				previewField('Area', stringValue(metadata, 'area') ?? stage(row)),
+				previewField('Action', activityLabel(metadata, row)),
+				previewField('Who', stringValue(metadata, 'actor')),
+				previewField('Source', stringValue(metadata, 'source')),
+				previewField('Customer', stringValue(metadata, 'customer')),
+				previewField('Target', stringValue(metadata, 'target')),
+				previewField('Items', stringValue(metadata, 'items')),
+				previewField('Amount', activityAmount(metadata)),
+				previewField('Where', stringValue(metadata, 'delivery_address')),
 				previewField('When', formatDateTime(metadata.created_at)),
-				previewField('Context', contextSummary(jsonValue(metadata, 'details'))),
 			)
 		default:
 			return genericPreviewFields(row)
@@ -574,7 +632,7 @@ export function buildSearchPreviewFields(
 export function buildSearchDisplayTitle(row: SearchDisplayIndexRow): string {
 	switch (row.entity_type) {
 		case 'activity':
-			return humanizeIdentifier(row.title) ?? row.title
+			return formatActivityTitle(row)
 		case 'payment':
 			return formatSource(row.title) ?? row.title
 		default:
@@ -880,10 +938,68 @@ export function buildSearchDetailFields(
 			)
 		case 'activity':
 			return details(
-				detailField('Action', humanizeIdentifier(row.title)),
-				detailField('Area', humanizeIdentifier(row.subtitle)),
+				detailField('Activity', formatActivityTitle(row)),
+				detailField('Area', stringValue(metadata, 'area') ?? stage(row)),
+				detailField('Action', activityLabel(metadata, row)),
+				detailField('Who', stringValue(metadata, 'actor')),
+				detailField('Actor type', stringValue(metadata, 'actor_type')),
+				detailField('Source', stringValue(metadata, 'source')),
+				detailField('Customer', stringValue(metadata, 'customer')),
+				detailField('Contact', stringValue(metadata, 'contact')),
+				detailField('Phone', stringValue(metadata, 'phone')),
+				detailField('Email', stringValue(metadata, 'email')),
+				detailField('Target', stringValue(metadata, 'target')),
+				detailField('Order', stringValue(metadata, 'order_number')),
+				detailField('Quote request', stringValue(metadata, 'request_number')),
+				detailField('Quote', stringValue(metadata, 'quote_number')),
+				detailField('Delivery', stringValue(metadata, 'delivery_number')),
+				detailField(
+					'Delivery address',
+					stringValue(metadata, 'delivery_address'),
+				),
+				detailField('Items', stringValue(metadata, 'items')),
+				detailField('Product', stringValue(metadata, 'product')),
+				detailField('Product SKU', stringValue(metadata, 'product_sku')),
+				detailField(
+					'Product category',
+					stringValue(metadata, 'product_category'),
+				),
+				detailField('Supplier', stringValue(metadata, 'supplier')),
+				detailField('Driver', stringValue(metadata, 'driver')),
+				detailField('Driver phone', stringValue(metadata, 'driver_phone')),
+				detailField('Truck', stringValue(metadata, 'truck')),
+				detailField('Truck type', stringValue(metadata, 'truck_type')),
+				detailField('Support case', stringValue(metadata, 'support_reference')),
+				detailField(
+					'Support subject',
+					stringValue(metadata, 'support_subject'),
+				),
+				detailField('Role', formatStatus(stringValue(metadata, 'role'))),
+				detailField(
+					'Channel',
+					formatSource(stringValue(metadata, 'contact_channel')),
+				),
+				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+				detailField(
+					'Payment portion',
+					formatPercent(numberValue(metadata, 'payment_fraction')),
+				),
+				detailField(
+					'Total',
+					formatMoney(numberValue(metadata, 'total_amount')),
+				),
+				detailField('Status change', statusChange(metadata)),
+				detailField(
+					'Follow-up state',
+					formatStatus(stringValue(metadata, 'follow_up_state')),
+				),
+				detailField('Follow-up due', formatDateTime(metadata.follow_up_due_at)),
+				detailField('Scope', stringValue(metadata, 'scope')),
+				detailField('Rows', formatNumber(numberValue(metadata, 'row_count'))),
+				detailField('Reason', stringValue(metadata, 'reason')),
+				detailField('Outcome', stringValue(metadata, 'outcome')),
+				detailField('Notes', stringValue(metadata, 'notes')),
 				detailField('When', formatDateTime(metadata.created_at)),
-				detailField('Context', contextSummary(jsonValue(metadata, 'details'))),
 			)
 		default:
 			return genericDetails(row)
@@ -943,6 +1059,15 @@ export function buildSearchSummaryNote(
 				.join(' - ')
 		case 'support':
 			return [stage(row), stringValue(metadata, 'requester')]
+				.filter(Boolean)
+				.join(' - ')
+		case 'activity':
+			return [
+				stringValue(metadata, 'area') ?? stage(row),
+				stringValue(metadata, 'actor'),
+				stringValue(metadata, 'source'),
+				stringValue(metadata, 'target'),
+			]
 				.filter(Boolean)
 				.join(' - ')
 		default:

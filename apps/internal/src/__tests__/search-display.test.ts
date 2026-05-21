@@ -184,6 +184,53 @@ describe('Search display formatting', () => {
 		).toBe('Customer order submitted')
 	})
 
+	it('keeps enriched activity headlines and shows business context', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-1',
+			title: 'Local Cairo Contractors submitted QR-2026-00221 via Portal',
+			subtitle: 'Sales',
+			metadata: {
+				action: 'order_submitted',
+				action_label: 'Order submitted',
+				actor: 'Local Cairo Contractors',
+				actor_type: 'Customer',
+				area: 'Sales',
+				customer: 'Local Cairo Contractors',
+				delivery_address: 'New Cairo, Cairo',
+				headline: 'Local Cairo Contractors submitted QR-2026-00221 via Portal',
+				items: '20 Wood ton, 20 Metal ton',
+				request_number: 'QR-2026-00221',
+				source: 'Portal',
+				to_status: 'submitted',
+				created_at: '2026-05-20T19:04:15.148802+00:00',
+			},
+		}
+
+		const preview = buildSearchPreviewFields(row)
+		const details = buildSearchDetailFields(row)
+
+		expect(buildSearchDisplayTitle(row)).toBe(
+			'Local Cairo Contractors submitted QR-2026-00221 via Portal',
+		)
+		expect(preview).toEqual(
+			expect.arrayContaining([
+				{ label: 'Who', value: 'Local Cairo Contractors' },
+				{ label: 'Source', value: 'Portal' },
+				{ label: 'Items', value: '20 Wood ton, 20 Metal ton' },
+				{ label: 'Where', value: 'New Cairo, Cairo' },
+			]),
+		)
+		expect(details).toEqual(
+			expect.arrayContaining([
+				{ label: 'Activity', value: row.title },
+				{ label: 'Quote request', value: 'QR-2026-00221' },
+				{ label: 'Status change', value: 'Now Submitted' },
+			]),
+		)
+		expect(details.map((field) => field.label)).not.toContain('Context')
+	})
+
 	it('builds business summary buckets for the Search dashboard', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-05-21T12:00:00Z'))
