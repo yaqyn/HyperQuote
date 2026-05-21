@@ -614,6 +614,11 @@ function SummaryRowButton({
 				<span className="block truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white">
 					{entry.title}
 				</span>
+				{entry.note && (
+					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[11px] text-white/44">
+						{entry.note}
+					</span>
+				)}
 				<PreviewFields fields={entry.preview} />
 			</span>
 			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/30 sm:self-end sm:text-end">
@@ -831,9 +836,9 @@ function PreviewFields({ fields }: { fields: SearchPreviewField[] }) {
 			{visible.map((field) => (
 				<span
 					key={`${field.label}-${String(field.value)}`}
-					className="min-w-0 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/34"
+					className="min-w-0 font-[family-name:var(--font-plex-mono)] text-[10px] text-white/34"
 				>
-					<span className="text-white/22">{field.label}</span>{' '}
+					<span className="uppercase text-white/22">{field.label}</span>{' '}
 					<span className="text-white/52">{String(field.value)}</span>
 				</span>
 			))}
@@ -894,7 +899,7 @@ function RowDetailPanel({
 									{row.title}
 								</h2>
 								<p className="mt-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/28">
-									record {row.rowId}
+									{row.tableLabel} summary
 								</p>
 							</div>
 						</div>
@@ -965,7 +970,7 @@ function DetailField({
 
 function renderJsonValue(value: JsonValue): ReactNode {
 	if (value === null) {
-		return <span className="text-[13px] text-white/28">null</span>
+		return <span className="text-[13px] text-white/28">Not available</span>
 	}
 	if (typeof value === 'string' || typeof value === 'number') {
 		return (
@@ -977,7 +982,7 @@ function renderJsonValue(value: JsonValue): ReactNode {
 	if (typeof value === 'boolean') {
 		return (
 			<span className="font-[family-name:var(--font-plex-mono)] text-[12px] uppercase text-white/72">
-				{value ? 'true' : 'false'}
+				{value ? 'Yes' : 'No'}
 			</span>
 		)
 	}

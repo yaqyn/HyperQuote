@@ -1,10 +1,18 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { JsonObject, JsonValue } from '../db/types'
+import type { JsonObject } from '../db/types'
+import {
+	buildSearchDetailFields,
+	buildSearchDisplayTitle,
+	buildSearchMatchedFieldLabels,
+	buildSearchPreviewFields,
+	buildSearchSummaryBuckets,
+	buildSearchSummaryNote,
+	type SearchDisplayIndexRow,
+} from '../search-display'
 import type {
 	SearchExecutiveBrief,
 	SearchModuleSummary,
-	SearchPreviewField,
 	SearchResponse,
 	SearchRow,
 	SearchSummaryModuleId,
@@ -17,13 +25,7 @@ type SearchTableId = SearchTableSummary['tableId']
 type SearchResultGroup = SearchResponse['results'][number]
 type SearchResultRow = SearchResultGroup['rows'][number]
 
-interface SearchIndexRow {
-	entity_type: string
-	entity_id: string
-	title: string
-	subtitle: string | null
-	metadata: JsonObject | null
-}
+interface SearchIndexRow extends SearchDisplayIndexRow {}
 
 interface SearchTableConfig {
 	tableId: SearchTableId
@@ -141,45 +143,6 @@ function metadataObject(value: JsonObject | null): JsonObject {
 	return value
 }
 
-function toScalar(value: JsonValue): string | number | boolean | null {
-	if (
-		value === null ||
-		typeof value === 'string' ||
-		typeof value === 'number' ||
-		typeof value === 'boolean'
-	) {
-		return value
-	}
-	return JSON.stringify(value)
-}
-
-function previewFields(row: SearchIndexRow): SearchPreviewField[] {
-	const metadata = metadataObject(row.metadata)
-	const fields: SearchPreviewField[] = [
-		{ label: 'Type', value: row.entity_type },
-		{ label: 'Status', value: row.subtitle },
-	]
-	for (const [key, value] of Object.entries(metadata).slice(0, 3)) {
-		fields.push({ label: key, value: toScalar(value) })
-	}
-	return fields
-}
-
-function details(
-	row: SearchIndexRow,
-): Array<{ label: string; value: JsonValue }> {
-	return [
-		{ label: 'entity_type', value: row.entity_type },
-		{ label: 'entity_id', value: row.entity_id },
-		{ label: 'title', value: row.title },
-		{ label: 'subtitle', value: row.subtitle },
-		...Object.entries(metadataObject(row.metadata)).map(([label, value]) => ({
-			label,
-			value,
-		})),
-	]
-}
-
 function toSearchRow(row: SearchIndexRow): SearchRow | null {
 	const table = tableForEntity(row.entity_type)
 	if (!table) return null
@@ -188,9 +151,9 @@ function toSearchRow(row: SearchIndexRow): SearchRow | null {
 		tableLabel: table.label,
 		accent: table.accent,
 		rowId: row.entity_id,
-		title: row.title,
-		preview: previewFields(row),
-		details: details(row),
+		title: buildSearchDisplayTitle(row),
+		preview: buildSearchPreviewFields(row),
+		details: buildSearchDetailFields(row),
 	}
 }
 
@@ -208,15 +171,7 @@ function rowHaystack(row: SearchIndexRow): string {
 }
 
 function matchedFields(row: SearchIndexRow, query: string): string[] {
-	if (!query) return []
-	const needle = query.toLowerCase()
-	const matches: string[] = []
-	if (row.title.toLowerCase().includes(needle)) matches.push('title')
-	if (row.subtitle?.toLowerCase().includes(needle)) matches.push('subtitle')
-	for (const [key, value] of Object.entries(metadataObject(row.metadata))) {
-		if (String(value).toLowerCase().includes(needle)) matches.push(key)
-	}
-	return matches
+	return buildSearchMatchedFieldLabels(row, query)
 }
 
 async function fetchSearchRows(): Promise<SearchIndexRow[]> {
@@ -344,17 +299,13 @@ function buildModuleSummary(
 	moduleId: SearchSummaryModuleId,
 	rows: SearchIndexRow[],
 ): SearchModuleSummary {
-	const tableIds = MODULE_TABLES[moduleId]
-	const sections = tableIds.map((tableId) => {
-		const table = tableConfig(tableId)
-		const sectionRows = table
-			? rows.filter((row) => row.entity_type === table.entityType)
-			: []
+	const buckets = buildSearchSummaryBuckets(moduleId, rows)
+	const sections = buckets.map((bucket) => {
 		return {
-			id: tableId,
-			label: table?.label ?? tableId,
-			count: sectionRows.length,
-			rows: sectionRows.slice(0, 5).flatMap((row) => {
+			id: bucket.id,
+			label: bucket.label,
+			count: bucket.rows.length,
+			rows: bucket.rows.slice(0, 5).flatMap((row) => {
 				const searchRow = toSearchRow(row)
 				if (!searchRow) return []
 				return [
@@ -362,7 +313,7 @@ function buildModuleSummary(
 						id: searchRow.rowId,
 						title: searchRow.title,
 						tableLabel: searchRow.tableLabel,
-						note: row.subtitle,
+						note: buildSearchSummaryNote(row),
 						preview: searchRow.preview,
 						row: searchRow,
 					},
@@ -373,7 +324,7 @@ function buildModuleSummary(
 	return {
 		moduleId,
 		moduleLabel: MODULE_LABELS[moduleId],
-		points: sections.slice(0, 3).map((section) => ({
+		points: sections.map((section) => ({
 			id: section.id,
 			label: section.label,
 			count: section.count,
