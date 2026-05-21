@@ -1,6 +1,6 @@
 import { redirect } from '@tanstack/react-router'
-import { getRequest } from '@tanstack/react-start/server'
-import { createSupabaseServerClient } from './server'
+import { getRequest, getResponse } from '@tanstack/react-start/server'
+import { appendSetCookieHeaders, createSupabaseServerClient } from './server'
 import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
 
 /**
@@ -16,11 +16,23 @@ import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
 export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	const request = getRequest()
 	const loginPath = opts.loginPath ?? '/login'
-	const { client } = createSupabaseServerClient({
-		request,
-		supabaseUrl: opts.supabaseUrl,
-		supabaseAnonKey: opts.supabaseAnonKey,
-	})
+	const { client, responseCookies, responseHeaders } =
+		createSupabaseServerClient({
+			request,
+			supabaseUrl: opts.supabaseUrl,
+			supabaseAnonKey: opts.supabaseAnonKey,
+			cookieDomain: opts.cookieDomain,
+			cookieName: opts.cookieName,
+		})
+
+	const {
+		data: { user },
+		error: userError,
+	} = await client.auth.getUser()
+
+	if (userError || !user) {
+		throw redirectToLogin(loginPath, request)
+	}
 
 	const {
 		data: { session },
@@ -29,9 +41,14 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	if (!session) {
 		throw redirectToLogin(loginPath, request)
 	}
+	appendSetCookieHeaders(
+		getResponse().headers,
+		responseCookies.values(),
+		responseHeaders.entries(),
+	)
 
 	// Extract claims set by custom access token hook (Phase 2 migration 004)
-	const metadata = session.user.app_metadata ?? {}
+	const metadata = user.app_metadata ?? {}
 	const pool = resolveAuthPool(metadata.pool)
 	const roles = (metadata.roles as string[]) ?? []
 	const tenantId = (metadata.tenant_id as string) ?? null
@@ -41,8 +58,8 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	}
 
 	return {
-		session,
-		user: session.user,
+		session: { ...session, user },
+		user,
 		pool,
 		roles,
 		tenantId,

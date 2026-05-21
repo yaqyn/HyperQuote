@@ -22,7 +22,8 @@ interface RateLimitResult {
 async function getKVNamespace(): Promise<KVNamespace | null> {
 	try {
 		// Dynamic import to avoid bundling cloudflare:workers in client code
-		const { env } = await import('cloudflare:workers')
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
 		return ((env as Record<string, unknown>).RATE_KV as KVNamespace) ?? null
 	} catch {
 		// KV not available (local dev, non-Workers environment)

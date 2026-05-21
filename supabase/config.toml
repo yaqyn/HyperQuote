@@ -151,7 +151,7 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
@@ -159,7 +159,9 @@ additional_redirect_urls = [
   "http://127.0.0.1:3001",
   "http://127.0.0.1:3002",
   "http://127.0.0.1:3003",
+  "http://127.0.0.1:3000/login",
   "http://localhost:3000",
+  "http://localhost:3000/login",
   "http://localhost:3001",
   "http://localhost:3002",
   "http://localhost:3003"
@@ -226,7 +228,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -271,6 +273,8 @@ max_frequency = "5s"
 [auth.sms.test_otp]
 201000000000 = "123456"
 201011111111 = "123456"
+201055555555 = "123456"
+201099999999 = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -294,7 +298,7 @@ max_frequency = "5s"
 enabled = true
 account_sid = "local-test-account-sid"
 message_service_sid = "local-test-message-service-sid"
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+auth_token = "local-test-auth-token"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]

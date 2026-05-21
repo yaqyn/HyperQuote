@@ -13,6 +13,8 @@ export interface AuthSession {
 export interface AuthGuardOptions {
 	supabaseUrl: string
 	supabaseAnonKey: string
+	cookieDomain?: string
+	cookieName?: string
 	loginPath?: string
 	requiredPool?: AuthPool
 }

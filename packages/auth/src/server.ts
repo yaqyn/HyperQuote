@@ -1,19 +1,22 @@
+/// <reference types="@cloudflare/workers-types" />
 import {
 	type CookieOptions,
 	createServerClient,
 	parseCookieHeader,
 } from '@supabase/ssr'
-
-export {
+import {
 	resolveSupabaseServerConfig,
 	type SupabaseServerRuntimeConfig,
 } from './config'
+
+export { resolveSupabaseServerConfig, type SupabaseServerRuntimeConfig }
 
 interface ServerClientOptions {
 	request: Request
 	supabaseUrl: string
 	supabaseAnonKey: string
 	cookieDomain?: string
+	cookieName?: string
 }
 
 /**
@@ -49,10 +52,17 @@ export function createSupabaseServerClient({
 	supabaseUrl,
 	supabaseAnonKey,
 	cookieDomain,
+	cookieName,
 }: ServerClientOptions) {
 	const responseCookies = new Map<string, string>()
 
 	const client = createServerClient(supabaseUrl, supabaseAnonKey, {
+		cookieOptions: {
+			...(cookieName ? { name: cookieName } : {}),
+			...(cookieDomain ? { domain: cookieDomain } : {}),
+			path: '/',
+			sameSite: 'lax',
+		},
 		cookies: {
 			getAll() {
 				const header = request.headers.get('cookie') ?? ''
@@ -74,5 +84,47 @@ export function createSupabaseServerClient({
 		},
 	})
 
-	return { client, responseCookies }
+	return { client, responseCookies, responseHeaders: new Map<string, string>() }
+}
+
+export function appendSetCookieHeaders(
+	headers: Headers,
+	cookies: Iterable<string>,
+	extraHeaders: Iterable<[string, string]> = [],
+): number {
+	let appended = 0
+	for (const [key, value] of extraHeaders) {
+		headers.set(key, value)
+	}
+	for (const cookie of cookies) {
+		headers.append('set-cookie', cookie)
+		appended += 1
+	}
+	return appended
+}
+
+export async function resolveSupabaseWorkerConfig(
+	fallbackEnv: Record<string, string | undefined>,
+): Promise<SupabaseServerRuntimeConfig | null> {
+	const processConfig = resolveSupabaseServerConfig(fallbackEnv)
+	if (processConfig) return processConfig
+
+	try {
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
+		return resolveSupabaseServerConfig({
+			COOKIE_DOMAIN: stringEnvValue(env, 'COOKIE_DOMAIN'),
+			SUPABASE_COOKIE_NAME: stringEnvValue(env, 'SUPABASE_COOKIE_NAME'),
+			SUPABASE_ANON_KEY: stringEnvValue(env, 'SUPABASE_ANON_KEY'),
+			SUPABASE_URL: stringEnvValue(env, 'SUPABASE_URL'),
+		})
+	} catch {
+		return null
+	}
+}
+
+function stringEnvValue(env: unknown, key: string): string | undefined {
+	if (!env || typeof env !== 'object') return undefined
+	const value = (env as Record<string, unknown>)[key]
+	return typeof value === 'string' ? value : undefined
 }

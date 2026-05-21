@@ -2,11 +2,13 @@ export interface SupabaseServerRuntimeConfig {
 	supabaseUrl: string
 	supabaseAnonKey: string
 	cookieDomain?: string
+	cookieName?: string
 }
 
 export interface SupabaseBrowserRuntimeConfig {
 	supabaseUrl: string
 	supabaseAnonKey: string
+	cookieName?: string
 }
 
 const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co'
@@ -45,14 +47,20 @@ export function resolveSupabaseServerConfig(
 	return {
 		...config,
 		cookieDomain: env.COOKIE_DOMAIN || undefined,
+		cookieName: env.SUPABASE_COOKIE_NAME || undefined,
 	}
 }
 
 export function resolveSupabaseBrowserConfig(
 	env: Record<string, string | undefined>,
 ): SupabaseBrowserRuntimeConfig | null {
-	return resolveConfiguredPair(
+	const config = resolveConfiguredPair(
 		env.VITE_SUPABASE_URL,
 		env.VITE_SUPABASE_ANON_KEY,
 	)
+	if (!config) return null
+	return {
+		...config,
+		cookieName: env.VITE_SUPABASE_COOKIE_NAME || undefined,
+	}
 }

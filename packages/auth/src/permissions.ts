@@ -8,9 +8,32 @@ import type { AuthSession } from './types'
  * Roles with their permissions are defined in the seed data (Phase 2).
  */
 export function hasPermission(
-	_session: AuthSession,
-	_permission: string,
+	session: AuthSession,
+	permission: string,
 ): boolean {
-	// RLS is authoritative; client UI gates stay permissive until role maps are loaded.
-	return true
+	if (session.pool !== 'internal') return false
+	return session.roles.some((role) =>
+		(ROLE_PERMISSIONS[role] ?? []).some((rule) =>
+			permissionMatches(rule, permission),
+		),
+	)
+}
+
+const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
+	admin: ['*'],
+	ceo: ['*'],
+	customer_service: ['customer_service.*'],
+	dispatch: ['dispatch.*'],
+	finance: ['finance.*'],
+	inventory: ['inventory.*', 'procurement.*'],
+	sales: ['sales.*'],
+	warehouse: ['warehouse.*'],
+}
+
+function permissionMatches(rule: string, permission: string): boolean {
+	if (rule === '*') return true
+	if (rule.endsWith('.*')) {
+		return permission.startsWith(rule.slice(0, -1))
+	}
+	return rule === permission
 }

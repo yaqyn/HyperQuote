@@ -1,5 +1,5 @@
-import { getRequest } from '@tanstack/react-start/server'
-import { createSupabaseServerClient } from './server'
+import { getRequest, getResponse } from '@tanstack/react-start/server'
+import { appendSetCookieHeaders, createSupabaseServerClient } from './server'
 import type { AuthPool, AuthSession } from './types'
 
 /**
@@ -11,26 +11,41 @@ export async function getServerSession(opts: {
 	supabaseUrl: string
 	supabaseAnonKey: string
 	cookieDomain?: string
+	cookieName?: string
 }): Promise<AuthSession | null> {
 	const request = getRequest()
-	const { client } = createSupabaseServerClient({
-		request,
-		supabaseUrl: opts.supabaseUrl,
-		supabaseAnonKey: opts.supabaseAnonKey,
-		cookieDomain: opts.cookieDomain,
-	})
+	const { client, responseCookies, responseHeaders } =
+		createSupabaseServerClient({
+			request,
+			supabaseUrl: opts.supabaseUrl,
+			supabaseAnonKey: opts.supabaseAnonKey,
+			cookieDomain: opts.cookieDomain,
+			cookieName: opts.cookieName,
+		})
+
+	const {
+		data: { user },
+		error: userError,
+	} = await client.auth.getUser()
+
+	if (userError || !user) return null
 
 	const {
 		data: { session },
 	} = await client.auth.getSession()
 
 	if (!session) return null
+	appendSetCookieHeaders(
+		getResponse().headers,
+		responseCookies.values(),
+		responseHeaders.entries(),
+	)
 
-	const metadata = session.user.app_metadata ?? {}
+	const metadata = user.app_metadata ?? {}
 
 	return {
-		session,
-		user: session.user,
+		session: { ...session, user },
+		user,
 		pool: resolveAuthPool(metadata.pool),
 		roles: (metadata.roles as string[]) ?? [],
 		tenantId: (metadata.tenant_id as string) ?? null,

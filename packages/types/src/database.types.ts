@@ -76,6 +76,13 @@ export type Database = {
 						foreignKeyName: 'activity_events_actor_customer_id_fkey'
 						columns: ['actor_customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_events_actor_customer_id_fkey'
+						columns: ['actor_customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -83,7 +90,21 @@ export type Database = {
 						foreignKeyName: 'activity_events_actor_driver_id_fkey'
 						columns: ['actor_driver_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_events_actor_driver_id_fkey'
+						columns: ['actor_driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_events_actor_employee_id_fkey'
+						columns: ['actor_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -143,6 +164,13 @@ export type Database = {
 						foreignKeyName: 'ai_tool_call_audit_actor_employee_id_fkey'
 						columns: ['actor_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'ai_tool_call_audit_actor_employee_id_fkey'
+						columns: ['actor_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
@@ -193,30 +221,39 @@ export type Database = {
 			categories: {
 				Row: {
 					created_at: string
+					description: string
+					description_ar: string
 					id: string
+					image_url: string | null
 					is_active: boolean
 					name: string
-					name_ar: string | null
+					name_ar: string
 					parent_id: string | null
 					slug: string
 					updated_at: string
 				}
 				Insert: {
 					created_at?: string
+					description?: string
+					description_ar?: string
 					id?: string
+					image_url?: string | null
 					is_active?: boolean
 					name: string
-					name_ar?: string | null
+					name_ar?: string
 					parent_id?: string | null
 					slug: string
 					updated_at?: string
 				}
 				Update: {
 					created_at?: string
+					description?: string
+					description_ar?: string
 					id?: string
+					image_url?: string | null
 					is_active?: boolean
 					name?: string
-					name_ar?: string | null
+					name_ar?: string
 					parent_id?: string | null
 					slug?: string
 					updated_at?: string
@@ -242,6 +279,8 @@ export type Database = {
 					is_default: boolean
 					label: string | null
 					landmark: string | null
+					latitude: number | null
+					longitude: number | null
 					phone: string | null
 					postal_code: string | null
 					street: string
@@ -257,6 +296,8 @@ export type Database = {
 					is_default?: boolean
 					label?: string | null
 					landmark?: string | null
+					latitude?: number | null
+					longitude?: number | null
 					phone?: string | null
 					postal_code?: string | null
 					street: string
@@ -272,12 +313,21 @@ export type Database = {
 					is_default?: boolean
 					label?: string | null
 					landmark?: string | null
+					latitude?: number | null
+					longitude?: number | null
 					phone?: string | null
 					postal_code?: string | null
 					street?: string
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'customer_addresses_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'customer_addresses_customer_id_fkey'
 						columns: ['customer_id']
@@ -337,6 +387,13 @@ export type Database = {
 						foreignKeyName: 'customer_payments_recorded_by_employee_id_fkey'
 						columns: ['recorded_by_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'customer_payments_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
@@ -344,48 +401,81 @@ export type Database = {
 			}
 			customers: {
 				Row: {
+					assigned_sales_rep_id: string | null
 					company_name: string
 					contact_name: string
 					created_at: string
 					created_by_employee_id: string | null
+					credit_limit: number
 					email: string | null
 					id: string
+					payment_history: Database['public']['Enums']['customer_payment_history']
 					phone: string
 					profile_photo_url: string | null
 					status: Database['public']['Enums']['customer_status']
+					tier: Database['public']['Enums']['customer_tier']
 					trade_license_status: Database['public']['Enums']['trade_license_status']
 					updated_at: string
 					user_id: string | null
 				}
 				Insert: {
+					assigned_sales_rep_id?: string | null
 					company_name: string
 					contact_name: string
 					created_at?: string
 					created_by_employee_id?: string | null
+					credit_limit?: number
 					email?: string | null
 					id?: string
+					payment_history?: Database['public']['Enums']['customer_payment_history']
 					phone: string
 					profile_photo_url?: string | null
 					status?: Database['public']['Enums']['customer_status']
+					tier?: Database['public']['Enums']['customer_tier']
 					trade_license_status?: Database['public']['Enums']['trade_license_status']
 					updated_at?: string
 					user_id?: string | null
 				}
 				Update: {
+					assigned_sales_rep_id?: string | null
 					company_name?: string
 					contact_name?: string
 					created_at?: string
 					created_by_employee_id?: string | null
+					credit_limit?: number
 					email?: string | null
 					id?: string
+					payment_history?: Database['public']['Enums']['customer_payment_history']
 					phone?: string
 					profile_photo_url?: string | null
 					status?: Database['public']['Enums']['customer_status']
+					tier?: Database['public']['Enums']['customer_tier']
 					trade_license_status?: Database['public']['Enums']['trade_license_status']
 					updated_at?: string
 					user_id?: string | null
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'customers_assigned_sales_rep_id_fkey'
+						columns: ['assigned_sales_rep_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'customers_assigned_sales_rep_id_fkey'
+						columns: ['assigned_sales_rep_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'customers_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'customers_created_by_employee_id_fkey'
 						columns: ['created_by_employee_id']
@@ -449,7 +539,21 @@ export type Database = {
 						foreignKeyName: 'deliveries_driver_id_fkey'
 						columns: ['driver_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'deliveries_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'deliveries_loading_task_id_fkey'
+						columns: ['loading_task_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_warehouse_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -526,6 +630,13 @@ export type Database = {
 						columns: ['delivery_id']
 						isOneToOne: false
 						referencedRelation: 'deliveries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'delivery_proofs_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -611,6 +722,13 @@ export type Database = {
 						foreignKeyName: 'documents_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'documents_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -672,6 +790,13 @@ export type Database = {
 						foreignKeyName: 'driver_locations_driver_id_fkey'
 						columns: ['driver_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'driver_locations_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
 						referencedColumns: ['id']
 					},
@@ -701,6 +826,49 @@ export type Database = {
 						foreignKeyName: 'driver_online_states_driver_id_fkey'
 						columns: ['driver_id']
 						isOneToOne: true
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'driver_online_states_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: true
+						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			driver_team_messages: {
+				Row: {
+					author_driver_id: string
+					body: string
+					created_at: string
+					id: string
+				}
+				Insert: {
+					author_driver_id: string
+					body: string
+					created_at?: string
+					id?: string
+				}
+				Update: {
+					author_driver_id?: string
+					body?: string
+					created_at?: string
+					id?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'driver_team_messages_author_driver_id_fkey'
+						columns: ['author_driver_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'driver_team_messages_author_driver_id_fkey'
+						columns: ['author_driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
 						referencedColumns: ['id']
 					},
@@ -772,6 +940,52 @@ export type Database = {
 						foreignKeyName: 'employee_panel_permissions_employee_id_fkey'
 						columns: ['employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_panel_permissions_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			employee_presence: {
+				Row: {
+					active_panel: Database['public']['Enums']['employee_panel'] | null
+					employee_id: string
+					last_seen_at: string
+					status: Database['public']['Enums']['employee_presence_status']
+					updated_at: string
+				}
+				Insert: {
+					active_panel?: Database['public']['Enums']['employee_panel'] | null
+					employee_id: string
+					last_seen_at?: string
+					status?: Database['public']['Enums']['employee_presence_status']
+					updated_at?: string
+				}
+				Update: {
+					active_panel?: Database['public']['Enums']['employee_panel'] | null
+					employee_id?: string
+					last_seen_at?: string
+					status?: Database['public']['Enums']['employee_presence_status']
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'employee_presence_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: true
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_presence_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: true
 						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
@@ -797,6 +1011,13 @@ export type Database = {
 					role?: Database['public']['Enums']['employee_role']
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'employee_roles_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'employee_roles_employee_id_fkey'
 						columns: ['employee_id']
@@ -842,6 +1063,87 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			finance_payment_followups: {
+				Row: {
+					contact_channel: string
+					created_at: string
+					follow_up_due_at: string
+					follow_up_state: string
+					id: string
+					notes: string
+					order_id: string | null
+					outcome: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string | null
+					target_type: string
+					updated_at: string
+				}
+				Insert: {
+					contact_channel: string
+					created_at?: string
+					follow_up_due_at: string
+					follow_up_state?: string
+					id?: string
+					notes: string
+					order_id?: string | null
+					outcome: string
+					recorded_by_employee_id?: string | null
+					refill_request_id?: string | null
+					target_type: string
+					updated_at?: string
+				}
+				Update: {
+					contact_channel?: string
+					created_at?: string
+					follow_up_due_at?: string
+					follow_up_state?: string
+					id?: string
+					notes?: string
+					order_id?: string | null
+					outcome?: string
+					recorded_by_employee_id?: string | null
+					refill_request_id?: string | null
+					target_type?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_payment_followups_order_id_fkey'
+						columns: ['order_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_order_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_payment_followups_order_id_fkey'
+						columns: ['order_id']
+						isOneToOne: false
+						referencedRelation: 'orders'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_payment_followups_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_payment_followups_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_payment_followups_refill_request_id_fkey'
+						columns: ['refill_request_id']
+						isOneToOne: false
+						referencedRelation: 'refill_requests'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			inventory_reservations: {
 				Row: {
 					created_at: string
@@ -874,6 +1176,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'inventory_reservations_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'inventory_reservations_created_by_employee_id_fkey'
 						columns: ['created_by_employee_id']
@@ -914,6 +1223,7 @@ export type Database = {
 			inventory_stock: {
 				Row: {
 					available_quantity: number | null
+					good_quantity: number
 					id: string
 					minimum_quantity: number
 					on_hand_quantity: number
@@ -923,6 +1233,7 @@ export type Database = {
 				}
 				Insert: {
 					available_quantity?: number | null
+					good_quantity?: number
 					id?: string
 					minimum_quantity?: number
 					on_hand_quantity?: number
@@ -932,6 +1243,7 @@ export type Database = {
 				}
 				Update: {
 					available_quantity?: number | null
+					good_quantity?: number
 					id?: string
 					minimum_quantity?: number
 					on_hand_quantity?: number
@@ -986,7 +1298,21 @@ export type Database = {
 						foreignKeyName: 'loading_task_drivers_driver_id_fkey'
 						columns: ['driver_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'loading_task_drivers_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'loading_task_drivers_loading_task_id_fkey'
+						columns: ['loading_task_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_warehouse_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -1037,6 +1363,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'loading_tasks_advisor_employee_id_fkey'
+						columns: ['advisor_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'loading_tasks_advisor_employee_id_fkey'
 						columns: ['advisor_employee_id']
@@ -1093,6 +1426,13 @@ export type Database = {
 						foreignKeyName: 'notification_preferences_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'notification_preferences_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -1136,6 +1476,13 @@ export type Database = {
 					user_id?: string | null
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'notifications_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'notifications_customer_id_fkey'
 						columns: ['customer_id']
@@ -1190,6 +1537,13 @@ export type Database = {
 						foreignKeyName: 'orders_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'orders_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -1216,6 +1570,7 @@ export type Database = {
 					id: string
 					product_id: string
 					quote_request_id: string | null
+					quote_request_item_id: string | null
 					reason: string
 					requested_by_employee_id: string | null
 					resolved_at: string | null
@@ -1228,6 +1583,7 @@ export type Database = {
 					id?: string
 					product_id: string
 					quote_request_id?: string | null
+					quote_request_item_id?: string | null
 					reason: string
 					requested_by_employee_id?: string | null
 					resolved_at?: string | null
@@ -1240,6 +1596,7 @@ export type Database = {
 					id?: string
 					product_id?: string
 					quote_request_id?: string | null
+					quote_request_item_id?: string | null
 					reason?: string
 					requested_by_employee_id?: string | null
 					resolved_at?: string | null
@@ -1247,6 +1604,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'price_update_requests_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'price_update_requests_assigned_employee_id_fkey'
 						columns: ['assigned_employee_id']
@@ -1273,6 +1637,20 @@ export type Database = {
 						columns: ['quote_request_id']
 						isOneToOne: false
 						referencedRelation: 'quote_requests'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_update_requests_quote_request_item_id_fkey'
+						columns: ['quote_request_item_id']
+						isOneToOne: false
+						referencedRelation: 'quote_request_items'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_update_requests_requested_by_employee_id_fkey'
+						columns: ['requested_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -1337,11 +1715,85 @@ export type Database = {
 						foreignKeyName: 'price_updates_supplier_id_fkey'
 						columns: ['supplier_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_supplier_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_updates_supplier_id_fkey'
+						columns: ['supplier_id']
+						isOneToOne: false
 						referencedRelation: 'suppliers'
 						referencedColumns: ['id']
 					},
 					{
 						foreignKeyName: 'price_updates_updated_by_employee_id_fkey'
+						columns: ['updated_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_updates_updated_by_employee_id_fkey'
+						columns: ['updated_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			pricing_rules: {
+				Row: {
+					absolute_min_margin: number
+					active: boolean
+					bonus_margin: number
+					category_slug: string | null
+					created_at: string
+					floor_margin: number
+					id: string
+					product_category: string | null
+					product_slug: string | null
+					target_margin: number
+					updated_at: string
+					updated_by_employee_id: string | null
+				}
+				Insert: {
+					absolute_min_margin?: number
+					active?: boolean
+					bonus_margin?: number
+					category_slug?: string | null
+					created_at?: string
+					floor_margin?: number
+					id?: string
+					product_category?: string | null
+					product_slug?: string | null
+					target_margin?: number
+					updated_at?: string
+					updated_by_employee_id?: string | null
+				}
+				Update: {
+					absolute_min_margin?: number
+					active?: boolean
+					bonus_margin?: number
+					category_slug?: string | null
+					created_at?: string
+					floor_margin?: number
+					id?: string
+					product_category?: string | null
+					product_slug?: string | null
+					target_margin?: number
+					updated_at?: string
+					updated_by_employee_id?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'pricing_rules_updated_by_employee_id_fkey'
+						columns: ['updated_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'pricing_rules_updated_by_employee_id_fkey'
 						columns: ['updated_by_employee_id']
 						isOneToOne: false
 						referencedRelation: 'employees'
@@ -1371,9 +1823,12 @@ export type Database = {
 					sku: string
 					slug: string
 					specifications: Json
+					specifications_ar: Json
 					subcategory: string | null
+					subcategory_ar: string
 					tags: string[]
 					unit_of_measure: string
+					unit_of_measure_ar: string
 					updated_at: string
 					weight_kg: number | null
 				}
@@ -1398,9 +1853,12 @@ export type Database = {
 					sku: string
 					slug: string
 					specifications?: Json
+					specifications_ar?: Json
 					subcategory?: string | null
+					subcategory_ar?: string
 					tags?: string[]
 					unit_of_measure: string
+					unit_of_measure_ar?: string
 					updated_at?: string
 					weight_kg?: number | null
 				}
@@ -1425,9 +1883,12 @@ export type Database = {
 					sku?: string
 					slug?: string
 					specifications?: Json
+					specifications_ar?: Json
 					subcategory?: string | null
+					subcategory_ar?: string
 					tags?: string[]
 					unit_of_measure?: string
+					unit_of_measure_ar?: string
 					updated_at?: string
 					weight_kg?: number | null
 				}
@@ -1505,6 +1966,13 @@ export type Database = {
 						foreignKeyName: 'projects_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'projects_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -1569,6 +2037,7 @@ export type Database = {
 					reject_reason: string | null
 					sort_order: number
 					unit_of_measure: string
+					unit_of_measure_ar: string
 					unit_price: number
 					updated_at: string
 				}
@@ -1589,6 +2058,7 @@ export type Database = {
 					reject_reason?: string | null
 					sort_order?: number
 					unit_of_measure: string
+					unit_of_measure_ar?: string
 					unit_price: number
 					updated_at?: string
 				}
@@ -1609,6 +2079,7 @@ export type Database = {
 					reject_reason?: string | null
 					sort_order?: number
 					unit_of_measure?: string
+					unit_of_measure_ar?: string
 					unit_price?: number
 					updated_at?: string
 				}
@@ -1646,42 +2117,57 @@ export type Database = {
 			quote_request_items: {
 				Row: {
 					created_at: string
+					currency: string
 					customer_description: string
 					id: string
 					is_unmatched: boolean
 					match_confidence: number | null
 					notes: string | null
+					price_range_max: number | null
+					price_range_min: number | null
 					product_id: string | null
+					product_name_ar: string
 					quantity: number
 					quote_request_id: string
 					sort_order: number
 					unit_of_measure: string
+					unit_of_measure_ar: string
 				}
 				Insert: {
 					created_at?: string
+					currency?: string
 					customer_description: string
 					id?: string
 					is_unmatched?: boolean
 					match_confidence?: number | null
 					notes?: string | null
+					price_range_max?: number | null
+					price_range_min?: number | null
 					product_id?: string | null
+					product_name_ar?: string
 					quantity: number
 					quote_request_id: string
 					sort_order?: number
 					unit_of_measure: string
+					unit_of_measure_ar?: string
 				}
 				Update: {
 					created_at?: string
+					currency?: string
 					customer_description?: string
 					id?: string
 					is_unmatched?: boolean
 					match_confidence?: number | null
 					notes?: string | null
+					price_range_max?: number | null
+					price_range_min?: number | null
 					product_id?: string | null
+					product_name_ar?: string
 					quantity?: number
 					quote_request_id?: string
 					sort_order?: number
 					unit_of_measure?: string
+					unit_of_measure_ar?: string
 				}
 				Relationships: [
 					{
@@ -1717,6 +2203,7 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					draft_name: string | null
 					eligible_at: string
 					id: string
 					idempotency_key: string | null
@@ -1740,6 +2227,7 @@ export type Database = {
 					customer_id?: string | null
 					delivery_address_id?: string | null
 					delivery_date?: string | null
+					draft_name?: string | null
 					eligible_at?: string
 					id?: string
 					idempotency_key?: string | null
@@ -1763,6 +2251,7 @@ export type Database = {
 					customer_id?: string | null
 					delivery_address_id?: string | null
 					delivery_date?: string | null
+					draft_name?: string | null
 					eligible_at?: string
 					id?: string
 					idempotency_key?: string | null
@@ -1782,7 +2271,21 @@ export type Database = {
 						foreignKeyName: 'quote_requests_assigned_employee_id_fkey'
 						columns: ['assigned_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_requests_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_requests_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -1936,6 +2439,13 @@ export type Database = {
 						foreignKeyName: 'quotes_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quotes_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -2044,6 +2554,13 @@ export type Database = {
 						foreignKeyName: 'receiving_tasks_advisor_employee_id_fkey'
 						columns: ['advisor_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'receiving_tasks_advisor_employee_id_fkey'
+						columns: ['advisor_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
@@ -2085,6 +2602,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'referrals_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'referrals_customer_id_fkey'
 						columns: ['customer_id']
@@ -2150,7 +2674,21 @@ export type Database = {
 						foreignKeyName: 'refill_requests_requested_by_employee_id_fkey'
 						columns: ['requested_by_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'refill_requests_requested_by_employee_id_fkey'
+						columns: ['requested_by_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'refill_requests_supplier_id_fkey'
+						columns: ['supplier_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_supplier_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -2188,6 +2726,13 @@ export type Database = {
 					quote_request_id?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'sales_call_notes_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'sales_call_notes_employee_id_fkey'
 						columns: ['employee_id']
@@ -2252,6 +2797,13 @@ export type Database = {
 						foreignKeyName: 'sales_quote_versions_created_by_employee_id_fkey'
 						columns: ['created_by_employee_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'sales_quote_versions_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
 						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
@@ -2296,6 +2848,13 @@ export type Database = {
 					status?: Database['public']['Enums']['payment_record_status']
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'supplier_payments_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'supplier_payments_recorded_by_employee_id_fkey'
 						columns: ['recorded_by_employee_id']
@@ -2371,6 +2930,69 @@ export type Database = {
 						foreignKeyName: 'supplier_product_links_supplier_id_fkey'
 						columns: ['supplier_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_supplier_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'supplier_product_links_supplier_id_fkey'
+						columns: ['supplier_id']
+						isOneToOne: false
+						referencedRelation: 'suppliers'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			supplier_specialties: {
+				Row: {
+					category_slug: string
+					created_at: string
+					id: string
+					product_slug: string | null
+					supplier_id: string
+					updated_at: string
+				}
+				Insert: {
+					category_slug: string
+					created_at?: string
+					id?: string
+					product_slug?: string | null
+					supplier_id: string
+					updated_at?: string
+				}
+				Update: {
+					category_slug?: string
+					created_at?: string
+					id?: string
+					product_slug?: string | null
+					supplier_id?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'supplier_specialties_category_slug_fkey'
+						columns: ['category_slug']
+						isOneToOne: false
+						referencedRelation: 'categories'
+						referencedColumns: ['slug']
+					},
+					{
+						foreignKeyName: 'supplier_specialties_product_slug_fkey'
+						columns: ['product_slug']
+						isOneToOne: false
+						referencedRelation: 'products'
+						referencedColumns: ['slug']
+					},
+					{
+						foreignKeyName: 'supplier_specialties_supplier_id_fkey'
+						columns: ['supplier_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_supplier_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'supplier_specialties_supplier_id_fkey'
+						columns: ['supplier_id']
+						isOneToOne: false
 						referencedRelation: 'suppliers'
 						referencedColumns: ['id']
 					},
@@ -2379,32 +3001,44 @@ export type Database = {
 			suppliers: {
 				Row: {
 					created_at: string
+					custom_badges: string[]
 					email: string | null
 					id: string
 					name: string
 					notes: string | null
+					payment_terms: string
 					phone: string | null
+					rating: number
 					status: Database['public']['Enums']['supplier_status']
+					tier: string
 					updated_at: string
 				}
 				Insert: {
 					created_at?: string
+					custom_badges?: string[]
 					email?: string | null
 					id?: string
 					name: string
 					notes?: string | null
+					payment_terms?: string
 					phone?: string | null
+					rating?: number
 					status?: Database['public']['Enums']['supplier_status']
+					tier?: string
 					updated_at?: string
 				}
 				Update: {
 					created_at?: string
+					custom_badges?: string[]
 					email?: string | null
 					id?: string
 					name?: string
 					notes?: string | null
+					payment_terms?: string
 					phone?: string | null
+					rating?: number
 					status?: Database['public']['Enums']['supplier_status']
+					tier?: string
 					updated_at?: string
 				}
 				Relationships: []
@@ -2443,6 +3077,7 @@ export type Database = {
 			}
 			support_conversations: {
 				Row: {
+					assigned_employee_id: string | null
 					channel: Database['public']['Enums']['support_channel']
 					created_at: string
 					customer_id: string | null
@@ -2454,6 +3089,7 @@ export type Database = {
 					updated_at: string
 				}
 				Insert: {
+					assigned_employee_id?: string | null
 					channel: Database['public']['Enums']['support_channel']
 					created_at?: string
 					customer_id?: string | null
@@ -2465,6 +3101,7 @@ export type Database = {
 					updated_at?: string
 				}
 				Update: {
+					assigned_employee_id?: string | null
 					channel?: Database['public']['Enums']['support_channel']
 					created_at?: string
 					customer_id?: string | null
@@ -2476,6 +3113,27 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'support_conversations_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'support_conversations_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'support_conversations_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'support_conversations_customer_id_fkey'
 						columns: ['customer_id']
@@ -2493,6 +3151,9 @@ export type Database = {
 					created_at: string
 					external_message_id: string | null
 					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
 					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
@@ -2504,6 +3165,9 @@ export type Database = {
 					created_at?: string
 					external_message_id?: string | null
 					id?: string
+					metadata?: Json
+					provider_error?: string | null
+					provider_status?: string
 					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id?: string | null
 					ticket_id?: string | null
@@ -2515,6 +3179,9 @@ export type Database = {
 					created_at?: string
 					external_message_id?: string | null
 					id?: string
+					metadata?: Json
+					provider_error?: string | null
+					provider_status?: string
 					sender_type?: Database['public']['Enums']['support_sender_type']
 					sender_user_id?: string | null
 					ticket_id?: string | null
@@ -2538,6 +3205,7 @@ export type Database = {
 			}
 			support_tickets: {
 				Row: {
+					assigned_employee_id: string | null
 					created_at: string
 					customer_id: string | null
 					id: string
@@ -2551,6 +3219,7 @@ export type Database = {
 					updated_at: string
 				}
 				Insert: {
+					assigned_employee_id?: string | null
 					created_at?: string
 					customer_id?: string | null
 					id?: string
@@ -2564,6 +3233,7 @@ export type Database = {
 					updated_at?: string
 				}
 				Update: {
+					assigned_employee_id?: string | null
 					created_at?: string
 					customer_id?: string | null
 					id?: string
@@ -2577,6 +3247,27 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'support_tickets_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'support_tickets_assigned_employee_id_fkey'
+						columns: ['assigned_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'support_tickets_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'support_tickets_customer_id_fkey'
 						columns: ['customer_id']
@@ -2619,6 +3310,13 @@ export type Database = {
 						foreignKeyName: 'team_invites_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'team_invites_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -2651,6 +3349,13 @@ export type Database = {
 						foreignKeyName: 'team_members_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'team_members_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -2658,6 +3363,7 @@ export type Database = {
 			}
 			trucks: {
 				Row: {
+					body_type: string
 					capacity_tons: number | null
 					created_at: string
 					driver_id: string | null
@@ -2667,6 +3373,7 @@ export type Database = {
 					updated_at: string
 				}
 				Insert: {
+					body_type?: string
 					capacity_tons?: number | null
 					created_at?: string
 					driver_id?: string | null
@@ -2676,6 +3383,7 @@ export type Database = {
 					updated_at?: string
 				}
 				Update: {
+					body_type?: string
 					capacity_tons?: number | null
 					created_at?: string
 					driver_id?: string | null
@@ -2685,6 +3393,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'trucks_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'trucks_driver_id_fkey'
 						columns: ['driver_id']
@@ -2742,6 +3457,13 @@ export type Database = {
 						foreignKeyName: 'user_profiles_customer_id_fkey'
 						columns: ['customer_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'user_profiles_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: false
 						referencedRelation: 'customers'
 						referencedColumns: ['id']
 					},
@@ -2749,7 +3471,21 @@ export type Database = {
 						foreignKeyName: 'user_profiles_driver_id_fkey'
 						columns: ['driver_id']
 						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'user_profiles_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
 						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'user_profiles_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
 						referencedColumns: ['id']
 					},
 					{
@@ -2822,6 +3558,69 @@ export type Database = {
 			}
 		}
 		Views: {
+			ceo_activity_summary: {
+				Row: {
+					action: string | null
+					created_at: string | null
+					details: Json | null
+					entity_id: string | null
+					entity_type: string | null
+					id: string | null
+				}
+				Insert: {
+					action?: never
+					created_at?: string | null
+					details?: Json | null
+					entity_id?: string | null
+					entity_type?: string | null
+					id?: string | null
+				}
+				Update: {
+					action?: never
+					created_at?: string | null
+					details?: Json | null
+					entity_id?: string | null
+					entity_type?: string | null
+					id?: string | null
+				}
+				Relationships: []
+			}
+			ceo_customer_summary: {
+				Row: {
+					company_name: string | null
+					contact_name: string | null
+					created_at: string | null
+					email: string | null
+					id: string | null
+					phone: string | null
+					status: string | null
+					trade_license_status: string | null
+					updated_at: string | null
+				}
+				Insert: {
+					company_name?: string | null
+					contact_name?: string | null
+					created_at?: string | null
+					email?: string | null
+					id?: string | null
+					phone?: string | null
+					status?: never
+					trade_license_status?: never
+					updated_at?: string | null
+				}
+				Update: {
+					company_name?: string | null
+					contact_name?: string | null
+					created_at?: string | null
+					email?: string | null
+					id?: string | null
+					phone?: string | null
+					status?: never
+					trade_license_status?: never
+					updated_at?: string | null
+				}
+				Relationships: []
+			}
 			ceo_dispatch_summary: {
 				Row: {
 					completed_at: string | null
@@ -2829,7 +3628,9 @@ export type Database = {
 					driver_name: string | null
 					id: string | null
 					order_id: string | null
-					status: Database['public']['Enums']['delivery_status'] | null
+					order_number: string | null
+					plate_number: string | null
+					status: string | null
 					updated_at: string | null
 				}
 				Relationships: [
@@ -2849,6 +3650,52 @@ export type Database = {
 					},
 				]
 			}
+			ceo_driver_summary: {
+				Row: {
+					driver_status: string | null
+					full_name: string | null
+					id: string | null
+					last_seen_at: string | null
+					online_status: string | null
+					phone: string | null
+					updated_at: string | null
+					vehicle_label: string | null
+				}
+				Relationships: []
+			}
+			ceo_employee_summary: {
+				Row: {
+					created_at: string | null
+					email: string | null
+					full_name: string | null
+					id: string | null
+					is_ceo: boolean | null
+					phone: string | null
+					status: string | null
+					updated_at: string | null
+				}
+				Insert: {
+					created_at?: string | null
+					email?: string | null
+					full_name?: string | null
+					id?: string | null
+					is_ceo?: boolean | null
+					phone?: string | null
+					status?: never
+					updated_at?: string | null
+				}
+				Update: {
+					created_at?: string | null
+					email?: string | null
+					full_name?: string | null
+					id?: string | null
+					is_ceo?: boolean | null
+					phone?: string | null
+					status?: never
+					updated_at?: string | null
+				}
+				Relationships: []
+			}
 			ceo_finance_summary: {
 				Row: {
 					amount: number | null
@@ -2857,6 +3704,7 @@ export type Database = {
 					id: string | null
 					payment_fraction: number | null
 					source: string | null
+					status: string | null
 				}
 				Relationships: []
 			}
@@ -2869,6 +3717,7 @@ export type Database = {
 					on_hand_quantity: number | null
 					product_id: string | null
 					reserved_quantity: number | null
+					updated_at: string | null
 				}
 				Relationships: []
 			}
@@ -2879,7 +3728,7 @@ export type Database = {
 					delivered_at: string | null
 					id: string | null
 					order_number: string | null
-					status: Database['public']['Enums']['order_workflow_status'] | null
+					status: string | null
 					total_amount: number | null
 				}
 				Relationships: []
@@ -2894,11 +3743,185 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_supplier_summary: {
+				Row: {
+					created_at: string | null
+					email: string | null
+					id: string | null
+					name: string | null
+					payment_terms: string | null
+					phone: string | null
+					rating: number | null
+					status: string | null
+					tier: string | null
+					updated_at: string | null
+				}
+				Insert: {
+					created_at?: string | null
+					email?: string | null
+					id?: string | null
+					name?: string | null
+					payment_terms?: string | null
+					phone?: string | null
+					rating?: number | null
+					status?: never
+					tier?: string | null
+					updated_at?: string | null
+				}
+				Update: {
+					created_at?: string | null
+					email?: string | null
+					id?: string | null
+					name?: string | null
+					payment_terms?: string | null
+					phone?: string | null
+					rating?: number | null
+					status?: never
+					tier?: string | null
+					updated_at?: string | null
+				}
+				Relationships: []
+			}
+			ceo_support_summary: {
+				Row: {
+					created_at: string | null
+					email: string | null
+					id: string | null
+					phone: string | null
+					reference: string | null
+					requester: string | null
+					source: string | null
+					status: string | null
+					subject: string | null
+					updated_at: string | null
+				}
+				Relationships: []
+			}
+			ceo_warehouse_summary: {
+				Row: {
+					company_name: string | null
+					created_at: string | null
+					id: string | null
+					loading_status: string | null
+					order_number: string | null
+					order_status: string | null
+					plate_number: string | null
+					rejection_reason: string | null
+					updated_at: string | null
+				}
+				Relationships: []
+			}
 		}
 		Functions: {
+			admin_assign_employee_role: {
+				Args: {
+					p_employee_id: string
+					p_reason: string
+					p_role: Database['public']['Enums']['employee_role']
+				}
+				Returns: undefined
+			}
+			admin_disable_driver: {
+				Args: { p_driver_id: string; p_reason: string }
+				Returns: undefined
+			}
+			admin_export_data: {
+				Args: { p_reason: string; p_scope: string }
+				Returns: Json
+			}
+			admin_record_audit: {
+				Args: {
+					p_action: Database['public']['Enums']['audit_event_type']
+					p_details?: Json
+					p_entity_id: string
+					p_entity_type: string
+					p_reason: string
+				}
+				Returns: undefined
+			}
+			admin_remove_employee_role: {
+				Args: {
+					p_employee_id: string
+					p_reason: string
+					p_role: Database['public']['Enums']['employee_role']
+				}
+				Returns: undefined
+			}
+			assign_support_conversation: {
+				Args: { p_conversation_id: string }
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			assign_support_ticket: {
+				Args: { p_ticket_id: string }
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					customer_id: string | null
+					id: string
+					reference: string
+					requester_email: string
+					requester_name: string | null
+					requester_phone: string | null
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
+					subject: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_tickets'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			can_access_ceo_search: { Args: never; Returns: boolean }
 			can_access_panel: {
 				Args: { required_panel: string; write_required?: boolean }
 				Returns: boolean
+			}
+			claim_customer_profile: {
+				Args: { p_phone: string }
+				Returns: {
+					assigned_sales_rep_id: string | null
+					company_name: string
+					contact_name: string
+					created_at: string
+					created_by_employee_id: string | null
+					credit_limit: number
+					email: string | null
+					id: string
+					payment_history: Database['public']['Enums']['customer_payment_history']
+					phone: string
+					profile_photo_url: string | null
+					status: Database['public']['Enums']['customer_status']
+					tier: Database['public']['Enums']['customer_tier']
+					trade_license_status: Database['public']['Enums']['trade_license_status']
+					updated_at: string
+					user_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'customers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
 			}
 			claim_next_sales_order: {
 				Args: never
@@ -2993,13 +4016,16 @@ export type Database = {
 			}
 			create_support_ticket: {
 				Args: {
+					p_client_key?: string
 					p_message: string
 					p_requester_email: string
 					p_requester_name?: string
 					p_requester_phone?: string
+					p_source?: string
 					p_subject: string
 				}
 				Returns: {
+					assigned_employee_id: string | null
 					created_at: string
 					customer_id: string | null
 					id: string
@@ -3022,6 +4048,10 @@ export type Database = {
 			current_customer_id: { Args: never; Returns: string }
 			current_driver_id: { Args: never; Returns: string }
 			current_employee_id: { Args: never; Returns: string }
+			current_employee_is_online: {
+				Args: { required_panel?: string }
+				Returns: boolean
+			}
 			customer_accept_quote: {
 				Args: { p_quote_id: string }
 				Returns: {
@@ -3079,6 +4109,31 @@ export type Database = {
 					isOneToOne: true
 					isSetofReturn: false
 				}
+			}
+			customer_get_delivery_secret: {
+				Args: { p_order_id: string }
+				Returns: Json
+			}
+			customer_order_delivery_tracking: {
+				Args: { p_order_id: string }
+				Returns: Json
+			}
+			customer_record_order_saved_as_draft: {
+				Args: {
+					p_draft_quote_request_id: string
+					p_source?: string
+					p_source_order_id?: string
+					p_source_quote_request_id: string
+				}
+				Returns: undefined
+			}
+			customer_record_portal_order_viewed: {
+				Args: { p_order_id?: string; p_quote_request_id: string }
+				Returns: undefined
+			}
+			customer_record_quote_request_draft_saved: {
+				Args: { p_context?: Json; p_quote_request_id: string; p_source: string }
+				Returns: undefined
 			}
 			customer_request_quote_negotiation: {
 				Args: {
@@ -3142,6 +4197,71 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			customer_submit_saved_quote_request:
+				| {
+						Args: { p_quote_request_id: string }
+						Returns: {
+							approval_required: boolean
+							assigned_at: string | null
+							assigned_employee_id: string | null
+							attachment_urls: string[]
+							created_at: string
+							customer_id: string | null
+							delivery_address_id: string | null
+							delivery_date: string | null
+							eligible_at: string
+							id: string
+							idempotency_key: string | null
+							notes: string | null
+							project_id: string | null
+							rejected_proof: Json | null
+							rejected_reason: string | null
+							request_number: string
+							status: Database['public']['Enums']['quote_request_status']
+							submitted_at: string | null
+							submitted_by: string | null
+							updated_at: string
+							urgency: Database['public']['Enums']['quote_request_urgency']
+						}
+						SetofOptions: {
+							from: '*'
+							to: 'quote_requests'
+							isOneToOne: true
+							isSetofReturn: false
+						}
+				  }
+				| {
+						Args: { p_quote_request_id: string; p_source: string }
+						Returns: {
+							approval_required: boolean
+							assigned_at: string | null
+							assigned_employee_id: string | null
+							attachment_urls: string[]
+							created_at: string
+							customer_id: string | null
+							delivery_address_id: string | null
+							delivery_date: string | null
+							eligible_at: string
+							id: string
+							idempotency_key: string | null
+							notes: string | null
+							project_id: string | null
+							rejected_proof: Json | null
+							rejected_reason: string | null
+							request_number: string
+							status: Database['public']['Enums']['quote_request_status']
+							submitted_at: string | null
+							submitted_by: string | null
+							updated_at: string
+							urgency: Database['public']['Enums']['quote_request_urgency']
+						}
+						SetofOptions: {
+							from: '*'
+							to: 'quote_requests'
+							isOneToOne: true
+							isSetofReturn: false
+						}
+				  }
 			dispatch_assign_driver: {
 				Args: {
 					p_driver_id: string
@@ -3197,8 +4317,58 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			dispatch_complete_loaded_order: {
+				Args: { p_order_id: string; p_proof: Json }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			dispatch_reject_delivery: {
 				Args: { p_delivery_id: string; p_proof: Json; p_reason: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			dispatch_return_loaded_order: {
+				Args: { p_order_id: string; p_proof: Json; p_reason: string }
 				Returns: {
 					arrived_at: string | null
 					completed_at: string | null
@@ -3247,6 +4417,36 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			driver_app_dashboard: { Args: never; Returns: Json }
+			driver_confirm_arrival_secret: {
+				Args: { p_code: string; p_delivery_id: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_confirm_arrival_secret_result: {
+				Args: { p_code: string; p_delivery_id: string }
+				Returns: Json
+			}
 			driver_confirm_delivery: {
 				Args: {
 					p_delivery_id: string
@@ -3278,6 +4478,8 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			driver_list_active_drivers: { Args: never; Returns: Json }
+			driver_list_team_messages: { Args: { p_limit?: number }; Returns: Json }
 			driver_record_arrival: {
 				Args: { p_delivery_id: string }
 				Returns: {
@@ -3324,6 +4526,47 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_reopen_delivery_route: {
+				Args: { p_delivery_id: string }
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			driver_send_team_message: { Args: { p_body: string }; Returns: Json }
+			driver_set_online: {
+				Args: { p_online: boolean }
+				Returns: {
+					driver_id: string
+					last_seen_at: string
+					status: Database['public']['Enums']['driver_online_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'driver_online_states'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -3381,6 +4624,57 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			finance_cancel_customer_order: {
+				Args: { p_order_id: string; p_proof?: Json; p_reason: string }
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_cancel_supplier_refill: {
+				Args: { p_proof?: Json; p_reason: string; p_refill_request_id: string }
+				Returns: {
+					created_at: string
+					id: string
+					product_id: string
+					proof: Json
+					quantity: number
+					requested_by_employee_id: string | null
+					status: Database['public']['Enums']['refill_request_status']
+					supplier_id: string
+					unit_cost: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			find_claimable_customer_profile: {
+				Args: { p_phone: string }
+				Returns: {
+					company_name: string
+					id: string
+					user_id: string
+				}[]
+			}
 			ingest_whatsapp_message: {
 				Args: {
 					p_body: string
@@ -3394,6 +4688,9 @@ export type Database = {
 					created_at: string
 					external_message_id: string | null
 					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
 					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
@@ -3427,9 +4724,71 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			inventory_finance_cleared_order_ids: {
+				Args: { p_order_ids: string[] }
+				Returns: {
+					order_id: string
+				}[]
+			}
+			inventory_update_price: {
+				Args: {
+					p_new_price: number
+					p_notes?: string
+					p_product_id: string
+					p_proof_path: string
+					p_supplier_id: string
+				}
+				Returns: {
+					created_at: string
+					id: string
+					new_price: number
+					notes: string | null
+					old_price: number | null
+					product_id: string
+					proof_path: string
+					supplier_id: string
+					updated_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'price_updates'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			inventory_update_supplier_prices: {
+				Args: {
+					p_notes?: string
+					p_proof_path: string
+					p_supplier_id: string
+					p_updates: Json
+				}
+				Returns: Json
+			}
 			is_employee_with_role: {
 				Args: { required_role: string }
 				Returns: boolean
+			}
+			link_support_conversation_to_customer: {
+				Args: { p_conversation_id: string }
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
 			}
 			log_activity: {
 				Args: {
@@ -3442,6 +4801,38 @@ export type Database = {
 			}
 			next_order_number: { Args: never; Returns: string }
 			next_quote_request_number: { Args: never; Returns: string }
+			record_ai_tool_call: {
+				Args: {
+					p_agent_scope: Database['public']['Enums']['ai_agent_scope']
+					p_approved_by_user?: boolean
+					p_input_summary?: Json
+					p_output_summary?: Json
+					p_read_entities?: string[]
+					p_tool_name: string
+					p_write_entity_id?: string
+					p_write_entity_type?: string
+				}
+				Returns: {
+					actor_employee_id: string | null
+					actor_user_id: string | null
+					agent_scope: Database['public']['Enums']['ai_agent_scope']
+					approved_by_user: boolean
+					created_at: string
+					id: string
+					input_summary: Json
+					output_summary: Json
+					read_entities: string[]
+					tool_name: string
+					write_entity_id: string | null
+					write_entity_type: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'ai_tool_call_audit'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			record_customer_payment: {
 				Args: {
 					p_amount: number
@@ -3465,6 +4856,45 @@ export type Database = {
 					isOneToOne: true
 					isSetofReturn: false
 				}
+			}
+			record_customer_payment_followup: {
+				Args: {
+					p_contact_channel: string
+					p_follow_up_due_at: string
+					p_follow_up_state: string
+					p_notes: string
+					p_order_id: string
+					p_outcome: string
+				}
+				Returns: {
+					contact_channel: string
+					created_at: string
+					follow_up_due_at: string
+					follow_up_state: string
+					id: string
+					notes: string
+					order_id: string | null
+					outcome: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string | null
+					target_type: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_payment_followups'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			record_search_query_executed: {
+				Args: {
+					p_context?: Json
+					p_query: string
+					p_result_count: number
+					p_table_count: number
+				}
+				Returns: undefined
 			}
 			record_supplier_payment: {
 				Args: {
@@ -3490,6 +4920,36 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			record_supplier_payment_followup: {
+				Args: {
+					p_contact_channel: string
+					p_follow_up_due_at: string
+					p_follow_up_state: string
+					p_notes: string
+					p_outcome: string
+					p_refill_request_id: string
+				}
+				Returns: {
+					contact_channel: string
+					created_at: string
+					follow_up_due_at: string
+					follow_up_state: string
+					id: string
+					notes: string
+					order_id: string | null
+					outcome: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string | null
+					target_type: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_payment_followups'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			request_price_update: {
 				Args: { p_order_id: string; p_product_id: string; p_reason: string }
 				Returns: {
@@ -3498,6 +4958,7 @@ export type Database = {
 					id: string
 					product_id: string
 					quote_request_id: string | null
+					quote_request_item_id: string | null
 					reason: string
 					requested_by_employee_id: string | null
 					resolved_at: string | null
@@ -3511,11 +4972,23 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			require_delivery_signature: {
+				Args: { signature_path: string; signer_name: string }
+				Returns: undefined
+			}
+			require_driver_rejection_proof: {
+				Args: { proof: Json }
+				Returns: undefined
+			}
 			require_panel: {
 				Args: { required_panel: string; write_required?: boolean }
 				Returns: string
 			}
 			require_rejection_proof: { Args: { proof: Json }; Returns: undefined }
+			require_warehouse_receiving_proof: {
+				Args: { proof: Json }
+				Returns: string
+			}
 			reserve_order_stock: {
 				Args: { p_order_id: string }
 				Returns: {
@@ -3560,6 +5033,70 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			sales_cancel_order: {
+				Args: { p_order_id: string; p_proof?: Json; p_reason: string }
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_claim_order: {
+				Args: { p_order_id: string }
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			sales_confirm_order: {
 				Args: { p_order_id: string; p_quote_version_id?: string }
 				Returns: {
@@ -3578,6 +5115,23 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_record_call_note: {
+				Args: { p_notes?: string; p_order_id: string; p_outcome: string }
+				Returns: {
+					created_at: string
+					employee_id: string | null
+					id: string
+					notes: string | null
+					outcome: string
+					quote_request_id: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'sales_call_notes'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -3615,7 +5169,7 @@ export type Database = {
 				}
 			}
 			sales_save_and_requeue: {
-				Args: { p_note?: string; p_order_id: string }
+				Args: { p_note?: string; p_order_id: string; p_return_minutes?: number }
 				Returns: {
 					approval_required: boolean
 					assigned_at: string | null
@@ -3646,10 +5200,61 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			sales_save_quote_version: {
+				Args: { p_items: Json; p_notes?: string; p_order_id: string }
+				Returns: {
+					created_at: string
+					created_by_employee_id: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					notes: string | null
+					quote_request_id: string
+					status: Database['public']['Enums']['sales_quote_version_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			send_support_conversation_reply: {
+				Args: {
+					p_body: string
+					p_channel?: Database['public']['Enums']['support_message_channel']
+					p_conversation_id: string
+				}
+				Returns: {
+					body: string
+					channel: Database['public']['Enums']['support_message_channel']
+					conversation_id: string | null
+					created_at: string
+					external_message_id: string | null
+					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
+					sender_type: Database['public']['Enums']['support_sender_type']
+					sender_user_id: string | null
+					ticket_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_messages'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			send_support_reply: {
 				Args: {
 					p_body: string
 					p_channel?: Database['public']['Enums']['support_message_channel']
+					p_metadata?: Json
 					p_ticket_id: string
 				}
 				Returns: {
@@ -3659,6 +5264,9 @@ export type Database = {
 					created_at: string
 					external_message_id: string | null
 					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
 					sender_type: Database['public']['Enums']['support_sender_type']
 					sender_user_id: string | null
 					ticket_id: string | null
@@ -3666,6 +5274,72 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'support_messages'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			set_employee_presence: {
+				Args: { p_active_panel?: string; p_status: string }
+				Returns: {
+					active_panel: Database['public']['Enums']['employee_panel'] | null
+					employee_id: string
+					last_seen_at: string
+					status: Database['public']['Enums']['employee_presence_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_presence'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			set_support_conversation_status: {
+				Args: {
+					p_conversation_id: string
+					p_status: Database['public']['Enums']['support_conversation_status']
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			set_support_ticket_status: {
+				Args: {
+					p_status: Database['public']['Enums']['support_ticket_status']
+					p_ticket_id: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					customer_id: string | null
+					id: string
+					reference: string
+					requester_email: string
+					requester_name: string | null
+					requester_phone: string | null
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
+					subject: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_tickets'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -3712,6 +5386,42 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			warehouse_assign_loading_driver: {
+				Args: { p_driver_id: string; p_order_id: string; p_truck_id?: string }
+				Returns: {
+					assigned_items: Json
+					created_at: string
+					driver_id: string
+					id: string
+					loading_task_id: string
+					truck_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_task_drivers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			warehouse_mark_loading_ready: {
+				Args: { p_order_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			warehouse_reject_loading: {
 				Args: { p_loading_task_id: string; p_proof: Json; p_reason: string }
 				Returns: {
@@ -3750,8 +5460,65 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			warehouse_remove_loading_driver: {
+				Args: { p_order_id: string; p_truck_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			warehouse_reset_loading: {
+				Args: { p_order_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			warehouse_start_loading: {
 				Args: { p_order_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			warehouse_toggle_loading_item: {
+				Args: { p_order_id: string; p_product_slug: string; p_truck_id: string }
 				Returns: {
 					advisor_employee_id: string | null
 					created_at: string
@@ -3780,6 +5547,10 @@ export type Database = {
 				| 'rejected'
 				| 'canceled'
 			audit_event_type:
+				| 'driver_marked_online'
+				| 'driver_marked_offline'
+				| 'customer_profile_claimed'
+				| 'quote_request_submitted'
 				| 'quote_accepted'
 				| 'customer_quote_accepted'
 				| 'customer_quote_declined'
@@ -3787,11 +5558,15 @@ export type Database = {
 				| 'customer_quote_line_response_submitted'
 				| 'sales_order_claimed'
 				| 'sales_order_requeued'
+				| 'sales_call_note_recorded'
+				| 'sales_quote_draft_saved'
 				| 'sales_quote_approved'
 				| 'sales_order_confirmed'
 				| 'sales_order_rejected'
+				| 'sales_order_canceled'
 				| 'manual_order_created'
 				| 'price_update_requested'
+				| 'inventory_price_updated'
 				| 'supplier_refill_created'
 				| 'customer_payment_recorded'
 				| 'supplier_payment_recorded'
@@ -3805,6 +5580,7 @@ export type Database = {
 				| 'dispatch_driver_assigned'
 				| 'dispatch_delivery_completed'
 				| 'dispatch_delivery_rejected'
+				| 'delivery_returned_to_warehouse_loading'
 				| 'driver_delivery_accepted'
 				| 'driver_delivery_started'
 				| 'driver_delivery_arrived'
@@ -3813,12 +5589,108 @@ export type Database = {
 				| 'support_ticket_created'
 				| 'support_reply_sent'
 				| 'whatsapp_message_ingested'
+				| 'warehouse_loading_driver_assigned'
+				| 'warehouse_loading_driver_removed'
+				| 'warehouse_loading_item_toggled'
+				| 'warehouse_loading_marked_ready'
+				| 'warehouse_loading_reset'
+				| 'support_status_updated'
+				| 'support_assigned'
+				| 'admin_record_created'
+				| 'admin_record_updated'
+				| 'admin_record_deactivated'
+				| 'admin_export_created'
+				| 'employee_role_assigned'
+				| 'employee_role_removed'
+				| 'driver_location_updated'
+				| 'driver_assigned_delivery'
+				| 'customer_signature_captured'
+				| 'driver_rejection_proof_uploaded'
+				| 'internal_employee_created'
+				| 'internal_employee_role_assigned'
+				| 'internal_employee_role_removed'
+				| 'customer_payment_followup_recorded'
+				| 'supplier_payment_followup_recorded'
+				| 'supplier_refill_canceled'
+				| 'driver_team_message_sent'
+				| 'website_draft_saved'
+				| 'portal_draft_saved'
+				| 'customer_order_saved_as_draft'
+				| 'portal_order_viewed'
+				| 'customer_signed_up'
+				| 'customer_signed_in'
+				| 'draft_created'
+				| 'draft_updated'
+				| 'draft_saved'
+				| 'draft_submitted'
+				| 'order_submitted'
+				| 'support_ticket_notification_sent'
+				| 'support_ticket_reply_sent'
+				| 'sales_order_opened'
+				| 'sales_customer_called'
+				| 'sales_quote_edited'
+				| 'support_conversation_linked_to_customer'
+				| 'admin_role_assigned'
+				| 'admin_role_removed'
+				| 'admin_database_exported'
+				| 'search_query_executed'
+				| 'driver_assignment_notified'
+				| 'driver_arrived'
+				| 'driver_delivery_returned_to_warehouse_loading'
+				| 'dispatch_delivery_created'
+				| 'dispatch_delivery_delivered'
+				| 'dispatch_delivery_exception_opened'
+				| 'dispatch_delivery_status_updated'
+				| 'dispatch_truck_location_updated'
+				| 'sales_order_auto_assigned'
+				| 'sales_order_saved'
+				| 'manual_order_started'
+				| 'provisional_customer_created'
+				| 'provisional_customer_confirmed'
+				| 'manual_order_quoted'
+				| 'sales_order_sent_to_finance'
+				| 'supplier_price_proof_uploaded'
+				| 'item_price_updated'
+				| 'inventory_refill_started'
+				| 'supplier_refill_deal_created'
+				| 'supplier_refill_sent_to_finance'
+				| 'customer_payment_discussion_started'
+				| 'customer_partial_payment_recorded'
+				| 'customer_order_sent_to_inventory'
+				| 'supplier_payment_discussion_started'
+				| 'supplier_partial_payment_recorded'
+				| 'supplier_refill_sent_to_warehouse'
+				| 'supplier_receiving_issue_opened'
+				| 'warehouse_driver_assigned'
+				| 'warehouse_stock_assigned_to_driver'
+				| 'warehouse_advisor_assigned'
+				| 'warehouse_advisor_approved'
+				| 'warehouse_loading_issue_opened'
+				| 'customer_order_sent_to_dispatch'
+				| 'warehouse_receiving_started'
+				| 'warehouse_receiving_advisor_assigned'
+				| 'warehouse_receiving_advisor_approved'
+				| 'support_ticket_assigned'
+				| 'support_ticket_replied'
+				| 'support_ticket_closed'
+				| 'whatsapp_support_message_received'
+				| 'whatsapp_support_message_replied'
+				| 'supplier_delivery_unloaded'
+				| 'supplier_delivery_rejected'
+				| 'inventory_stock_increased'
+				| 'inventory_order_received'
+				| 'inventory_stock_reserved'
+				| 'inventory_stock_released'
+				| 'inventory_stock_consumed'
+				| 'driver_delivery_route_reopened'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
 				| 'out_of_stock'
 				| 'hidden'
+			customer_payment_history: 'excellent' | 'good' | 'fair' | 'poor'
 			customer_status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
+			customer_tier: 'A' | 'B' | 'C' | 'new'
 			delivery_proof_type: 'signature' | 'photo' | 'note'
 			delivery_status:
 				| 'assigned'
@@ -3845,6 +5717,7 @@ export type Database = {
 				| 'customer_service'
 				| 'admin'
 				| 'search'
+			employee_presence_status: 'online' | 'away' | 'offline'
 			employee_role:
 				| 'admin'
 				| 'sales'
@@ -4083,6 +5956,10 @@ export const Constants = {
 				'canceled',
 			],
 			audit_event_type: [
+				'driver_marked_online',
+				'driver_marked_offline',
+				'customer_profile_claimed',
+				'quote_request_submitted',
 				'quote_accepted',
 				'customer_quote_accepted',
 				'customer_quote_declined',
@@ -4090,11 +5967,15 @@ export const Constants = {
 				'customer_quote_line_response_submitted',
 				'sales_order_claimed',
 				'sales_order_requeued',
+				'sales_call_note_recorded',
+				'sales_quote_draft_saved',
 				'sales_quote_approved',
 				'sales_order_confirmed',
 				'sales_order_rejected',
+				'sales_order_canceled',
 				'manual_order_created',
 				'price_update_requested',
+				'inventory_price_updated',
 				'supplier_refill_created',
 				'customer_payment_recorded',
 				'supplier_payment_recorded',
@@ -4108,6 +5989,7 @@ export const Constants = {
 				'dispatch_driver_assigned',
 				'dispatch_delivery_completed',
 				'dispatch_delivery_rejected',
+				'delivery_returned_to_warehouse_loading',
 				'driver_delivery_accepted',
 				'driver_delivery_started',
 				'driver_delivery_arrived',
@@ -4116,6 +5998,100 @@ export const Constants = {
 				'support_ticket_created',
 				'support_reply_sent',
 				'whatsapp_message_ingested',
+				'warehouse_loading_driver_assigned',
+				'warehouse_loading_driver_removed',
+				'warehouse_loading_item_toggled',
+				'warehouse_loading_marked_ready',
+				'warehouse_loading_reset',
+				'support_status_updated',
+				'support_assigned',
+				'admin_record_created',
+				'admin_record_updated',
+				'admin_record_deactivated',
+				'admin_export_created',
+				'employee_role_assigned',
+				'employee_role_removed',
+				'driver_location_updated',
+				'driver_assigned_delivery',
+				'customer_signature_captured',
+				'driver_rejection_proof_uploaded',
+				'internal_employee_created',
+				'internal_employee_role_assigned',
+				'internal_employee_role_removed',
+				'customer_payment_followup_recorded',
+				'supplier_payment_followup_recorded',
+				'supplier_refill_canceled',
+				'driver_team_message_sent',
+				'website_draft_saved',
+				'portal_draft_saved',
+				'customer_order_saved_as_draft',
+				'portal_order_viewed',
+				'customer_signed_up',
+				'customer_signed_in',
+				'draft_created',
+				'draft_updated',
+				'draft_saved',
+				'draft_submitted',
+				'order_submitted',
+				'support_ticket_notification_sent',
+				'support_ticket_reply_sent',
+				'sales_order_opened',
+				'sales_customer_called',
+				'sales_quote_edited',
+				'support_conversation_linked_to_customer',
+				'admin_role_assigned',
+				'admin_role_removed',
+				'admin_database_exported',
+				'search_query_executed',
+				'driver_assignment_notified',
+				'driver_arrived',
+				'driver_delivery_returned_to_warehouse_loading',
+				'dispatch_delivery_created',
+				'dispatch_delivery_delivered',
+				'dispatch_delivery_exception_opened',
+				'dispatch_delivery_status_updated',
+				'dispatch_truck_location_updated',
+				'sales_order_auto_assigned',
+				'sales_order_saved',
+				'manual_order_started',
+				'provisional_customer_created',
+				'provisional_customer_confirmed',
+				'manual_order_quoted',
+				'sales_order_sent_to_finance',
+				'supplier_price_proof_uploaded',
+				'item_price_updated',
+				'inventory_refill_started',
+				'supplier_refill_deal_created',
+				'supplier_refill_sent_to_finance',
+				'customer_payment_discussion_started',
+				'customer_partial_payment_recorded',
+				'customer_order_sent_to_inventory',
+				'supplier_payment_discussion_started',
+				'supplier_partial_payment_recorded',
+				'supplier_refill_sent_to_warehouse',
+				'supplier_receiving_issue_opened',
+				'warehouse_driver_assigned',
+				'warehouse_stock_assigned_to_driver',
+				'warehouse_advisor_assigned',
+				'warehouse_advisor_approved',
+				'warehouse_loading_issue_opened',
+				'customer_order_sent_to_dispatch',
+				'warehouse_receiving_started',
+				'warehouse_receiving_advisor_assigned',
+				'warehouse_receiving_advisor_approved',
+				'support_ticket_assigned',
+				'support_ticket_replied',
+				'support_ticket_closed',
+				'whatsapp_support_message_received',
+				'whatsapp_support_message_replied',
+				'supplier_delivery_unloaded',
+				'supplier_delivery_rejected',
+				'inventory_stock_increased',
+				'inventory_order_received',
+				'inventory_stock_reserved',
+				'inventory_stock_released',
+				'inventory_stock_consumed',
+				'driver_delivery_route_reopened',
 			],
 			catalog_availability_status: [
 				'available',
@@ -4123,7 +6099,9 @@ export const Constants = {
 				'out_of_stock',
 				'hidden',
 			],
+			customer_payment_history: ['excellent', 'good', 'fair', 'poor'],
 			customer_status: ['unclaimed', 'claimed', 'active', 'inactive'],
+			customer_tier: ['A', 'B', 'C', 'new'],
 			delivery_proof_type: ['signature', 'photo', 'note'],
 			delivery_status: [
 				'assigned',
@@ -4153,6 +6131,7 @@ export const Constants = {
 				'admin',
 				'search',
 			],
+			employee_presence_status: ['online', 'away', 'offline'],
 			employee_role: [
 				'admin',
 				'sales',

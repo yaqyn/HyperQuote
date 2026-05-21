@@ -127,6 +127,10 @@ create type public.team_member_role as enum ('owner', 'admin', 'member');
 create type public.team_invite_status as enum ('pending', 'accepted', 'revoked');
 create type public.ai_agent_scope as enum ('website', 'portal', 'employee', 'search');
 create type public.audit_event_type as enum (
+	'driver_marked_online',
+	'driver_marked_offline',
+	'customer_profile_claimed',
+	'quote_request_submitted',
 	'quote_accepted',
 	'customer_quote_accepted',
 	'customer_quote_declined',
@@ -134,11 +138,15 @@ create type public.audit_event_type as enum (
 	'customer_quote_line_response_submitted',
 	'sales_order_claimed',
 	'sales_order_requeued',
+	'sales_call_note_recorded',
+	'sales_quote_draft_saved',
 	'sales_quote_approved',
 	'sales_order_confirmed',
 	'sales_order_rejected',
+	'sales_order_canceled',
 	'manual_order_created',
 	'price_update_requested',
+	'inventory_price_updated',
 	'supplier_refill_created',
 	'customer_payment_recorded',
 	'supplier_payment_recorded',
@@ -152,6 +160,7 @@ create type public.audit_event_type as enum (
 	'dispatch_driver_assigned',
 	'dispatch_delivery_completed',
 	'dispatch_delivery_rejected',
+	'delivery_returned_to_warehouse_loading',
 	'driver_delivery_accepted',
 	'driver_delivery_started',
 	'driver_delivery_arrived',
@@ -165,6 +174,7 @@ create type public.audit_event_type as enum (
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
 	new.updated_at = now();
@@ -175,6 +185,7 @@ $$;
 create or replace function public.next_quote_request_number()
 returns text
 language plpgsql
+set search_path = public
 as $$
 declare
 	next_value bigint;
@@ -187,6 +198,7 @@ $$;
 create or replace function public.next_order_number()
 returns text
 language plpgsql
+set search_path = public
 as $$
 declare
 	next_value bigint;
@@ -921,6 +933,13 @@ create table public.ai_tool_call_audit (
 	created_at timestamptz not null default now()
 );
 
+create table app_private.support_ticket_rate_limits (
+	rate_key text primary key,
+	window_started_at timestamptz not null default now(),
+	attempts integer not null default 0,
+	updated_at timestamptz not null default now()
+);
+
 create or replace function public.current_customer_id()
 returns uuid
 language sql
@@ -1146,10 +1165,30 @@ create or replace function public.require_rejection_proof(proof jsonb)
 returns void
 language plpgsql
 immutable
+set search_path = public
 as $$
 begin
 	if proof is null or proof = '{}'::jsonb or proof = '[]'::jsonb then
 		raise exception 'rejection_proof_required' using errcode = '23514';
+	end if;
+end;
+$$;
+
+create or replace function public.require_delivery_signature(
+	signature_path text,
+	signer_name text
+)
+returns void
+language plpgsql
+immutable
+set search_path = public
+as $$
+begin
+	if signature_path is null or length(trim(signature_path)) = 0 then
+		raise exception 'delivery_signature_required' using errcode = '23514';
+	end if;
+	if signer_name is null or length(trim(signer_name)) < 2 then
+		raise exception 'delivery_signer_required' using errcode = '23514';
 	end if;
 end;
 $$;
@@ -1221,6 +1260,88 @@ begin
 end;
 $$;
 
+create or replace function public.claim_customer_profile(p_phone text)
+returns public.customers
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+	actor_user_id uuid := auth.uid();
+	actor_phone_digits text;
+	claim_phone_digits text := regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g');
+	claimed_customer public.customers%rowtype;
+begin
+	if actor_user_id is null then
+		raise exception 'not_authenticated' using errcode = '28000';
+	end if;
+
+	select regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+	into actor_phone_digits
+	from auth.users
+	where id = actor_user_id;
+
+	if claim_phone_digits = '' or actor_phone_digits <> claim_phone_digits then
+		raise exception 'phone_mismatch' using errcode = '42501';
+	end if;
+
+	update public.customers
+	set
+		user_id = actor_user_id,
+		status = 'active',
+		updated_at = now()
+	where regexp_replace(phone, '[^0-9]', '', 'g') = claim_phone_digits
+	  and (user_id is null or user_id = actor_user_id)
+	returning * into claimed_customer;
+
+	if claimed_customer.id is null then
+		raise exception 'claimable_customer_not_found' using errcode = 'P0002';
+	end if;
+
+	perform public.log_activity(
+		'customer',
+		claimed_customer.id,
+		'customer_profile_claimed',
+		jsonb_build_object('phone', claimed_customer.phone)
+	);
+
+	return claimed_customer;
+end;
+$$;
+
+create or replace function public.find_claimable_customer_profile(p_phone text)
+returns table(id uuid, company_name text, user_id uuid)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+	actor_user_id uuid := auth.uid();
+	actor_phone_digits text;
+	claim_phone_digits text := regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g');
+begin
+	if actor_user_id is null then
+		raise exception 'not_authenticated' using errcode = '28000';
+	end if;
+
+	select regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+	into actor_phone_digits
+	from auth.users
+	where auth.users.id = actor_user_id;
+
+	if claim_phone_digits = '' or actor_phone_digits <> claim_phone_digits then
+		raise exception 'phone_mismatch' using errcode = '42501';
+	end if;
+
+	return query
+	select c.id, c.company_name, c.user_id
+	from public.customers c
+	where regexp_replace(c.phone, '[^0-9]', '', 'g') = claim_phone_digits
+	  and c.user_id is null
+	limit 1;
+end;
+$$;
+
 create or replace function public.assign_quote_request_customer()
 returns trigger
 language plpgsql
@@ -1244,6 +1365,48 @@ $$;
 create trigger quote_requests_assign_customer
 	before insert on public.quote_requests
 	for each row execute function public.assign_quote_request_customer();
+
+create or replace function public.customer_submit_saved_quote_request(p_quote_request_id uuid)
+returns public.quote_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	request_customer_id uuid;
+	submitted_request public.quote_requests;
+begin
+	request_customer_id := public.current_customer_id();
+	if request_customer_id is null then
+		raise exception 'not_authenticated' using errcode = '42501';
+	end if;
+
+	perform app_private.allow_workflow_state_change();
+
+	update public.quote_requests
+	set
+		status = 'submitted',
+		submitted_at = now(),
+		submitted_by = auth.uid()
+	where id = p_quote_request_id
+	  and customer_id = request_customer_id
+	  and status = 'draft'
+	returning * into submitted_request;
+
+	if submitted_request.id is null then
+		raise exception 'quote_request_not_found_or_not_draft' using errcode = 'P0002';
+	end if;
+
+	perform public.log_activity(
+		'quote_request',
+		submitted_request.id,
+		'quote_request_submitted',
+		jsonb_build_object('from_status', 'draft', 'to_status', 'submitted')
+	);
+
+	return submitted_request;
+end;
+$$;
 
 create or replace function public.create_order_from_accepted_quote()
 returns trigger
@@ -1613,7 +1776,56 @@ begin
 end;
 $$;
 
-create or replace function public.sales_save_and_requeue(p_order_id uuid, p_note text default null)
+create or replace function public.sales_claim_order(p_order_id uuid)
+returns public.quote_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	target public.quote_requests%rowtype;
+begin
+	employee_id := public.require_panel('sales', true);
+	perform app_private.allow_workflow_state_change();
+
+	select * into target
+	from public.quote_requests
+	where id = p_order_id
+	for update;
+
+	if target.id is null then
+		raise exception 'quote_request_not_found' using errcode = '02000';
+	end if;
+
+	if target.status = 'assigned' and target.assigned_employee_id = employee_id then
+		return target;
+	end if;
+
+	if target.status <> 'submitted' or target.eligible_at > now() then
+		raise exception 'invalid_sales_claim_transition_%', target.status using errcode = '23514';
+	end if;
+
+	update public.quote_requests
+	set
+		status = 'assigned',
+		assigned_employee_id = employee_id,
+		assigned_at = now()
+	where id = target.id
+	returning * into target;
+
+	perform public.log_activity(
+		'quote_request',
+		target.id,
+		'sales_order_claimed',
+		jsonb_build_object('employee_id', employee_id, 'from_status', 'submitted', 'to_status', 'assigned')
+	);
+
+	return target;
+end;
+$$;
+
+create or replace function public.sales_save_and_requeue(p_order_id uuid, p_note text default null, p_return_minutes integer default 10)
 returns public.quote_requests
 language plpgsql
 security definer
@@ -1622,19 +1834,41 @@ as $$
 declare
 	employee_id uuid;
 	updated public.quote_requests%rowtype;
+	source_request public.quote_requests%rowtype;
+	hold_minutes integer;
 begin
 	employee_id := public.require_panel('sales', true);
 	perform app_private.allow_workflow_state_change();
+	hold_minutes := greatest(1, least(coalesce(p_return_minutes, 10), 1440));
+
+	select * into source_request
+	from public.quote_requests
+	where id = p_order_id
+	for update;
+
+	if source_request.id is null then
+		raise exception 'quote_request_not_found_or_not_assigned' using errcode = '02000';
+	end if;
+
+	if source_request.status not in ('assigned', 'submitted', 'saved') then
+		raise exception 'invalid_sales_requeue_transition_%', source_request.status using errcode = '23514';
+	end if;
+
+	if source_request.assigned_employee_id is not null
+		and source_request.assigned_employee_id <> employee_id
+		and not public.is_employee_with_role('ceo')
+	then
+		raise exception 'quote_request_assigned_to_another_employee' using errcode = '42501';
+	end if;
 
 	update public.quote_requests
 	set
 		status = 'submitted',
 		assigned_employee_id = null,
 		assigned_at = null,
-		eligible_at = now() + interval '10 minutes',
+		eligible_at = now() + (hold_minutes * interval '1 minute'),
 		notes = coalesce(notes || E'\n', '') || coalesce(p_note, '')
 	where id = p_order_id
-	  and (assigned_employee_id = employee_id or public.can_access_panel('sales', true))
 	returning * into updated;
 
 	if updated.id is null then
@@ -1645,9 +1879,148 @@ begin
 		'quote_request',
 		updated.id,
 		'sales_order_requeued',
-		jsonb_build_object('from_status', 'assigned', 'to_status', 'submitted', 'note', p_note)
+		jsonb_build_object('from_status', source_request.status, 'to_status', 'submitted', 'note', p_note, 'return_minutes', hold_minutes)
 	);
 	return updated;
+end;
+$$;
+
+create or replace function public.sales_save_quote_version(p_order_id uuid, p_items jsonb, p_notes text default null)
+returns public.sales_quote_versions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	source_request public.quote_requests%rowtype;
+	updated public.sales_quote_versions%rowtype;
+	next_version integer;
+	item_count integer;
+	subtotal_amount numeric;
+begin
+	employee_id := public.require_panel('sales', true);
+
+	select * into source_request
+	from public.quote_requests
+	where id = p_order_id
+	for update;
+
+	if source_request.id is null then
+		raise exception 'quote_request_not_found' using errcode = '02000';
+	end if;
+
+	if source_request.status not in ('assigned', 'submitted', 'saved', 'reviewing', 'quoting') then
+		raise exception 'invalid_sales_quote_version_transition_%', source_request.status using errcode = '23514';
+	end if;
+
+	if source_request.assigned_employee_id is not null
+		and source_request.assigned_employee_id <> employee_id
+		and not public.is_employee_with_role('ceo')
+	then
+		raise exception 'quote_request_assigned_to_another_employee' using errcode = '42501';
+	end if;
+
+	if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+		raise exception 'quote_items_required' using errcode = '23514';
+	end if;
+
+	if exists (
+		select 1
+		from jsonb_array_elements(p_items) as item
+		where coalesce((item->>'quantity')::numeric, 0) <= 0
+		   or coalesce((item->>'sellPrice')::numeric, (item->>'sell_price')::numeric, 0) < 0
+	) then
+		raise exception 'invalid_quote_item_values' using errcode = '23514';
+	end if;
+
+	select
+		count(*),
+		coalesce(sum((item->>'quantity')::numeric * coalesce((item->>'sellPrice')::numeric, (item->>'sell_price')::numeric, 0)), 0)
+	into item_count, subtotal_amount
+	from jsonb_array_elements(p_items) as item;
+
+	select * into updated
+	from public.sales_quote_versions
+	where quote_request_id = p_order_id
+	  and status = 'draft'
+	order by version_number desc
+	limit 1
+	for update;
+
+	if updated.id is not null then
+		update public.sales_quote_versions
+		set
+			subtotal = subtotal_amount,
+			tax_amount = round(subtotal_amount * 0.14, 2),
+			total = round(subtotal_amount * 1.14, 2),
+			notes = jsonb_build_object('notes', p_notes, 'items', p_items)::text
+		where id = updated.id
+		returning * into updated;
+	else
+		select coalesce(max(version_number), 0) + 1
+		into next_version
+		from public.sales_quote_versions
+		where quote_request_id = p_order_id;
+
+		insert into public.sales_quote_versions (
+			quote_request_id,
+			version_number,
+			created_by_employee_id,
+			status,
+			subtotal,
+			tax_amount,
+			total,
+			notes
+		)
+		values (
+			p_order_id,
+			next_version,
+			employee_id,
+			'draft',
+			subtotal_amount,
+			round(subtotal_amount * 0.14, 2),
+			round(subtotal_amount * 1.14, 2),
+			jsonb_build_object('notes', p_notes, 'items', p_items)::text
+		)
+		returning * into updated;
+	end if;
+
+	perform public.log_activity(
+		'quote_request',
+		p_order_id,
+		'sales_quote_draft_saved',
+		jsonb_build_object('quote_version_id', updated.id, 'item_count', item_count, 'total', updated.total)
+	);
+
+	return updated;
+end;
+$$;
+
+create or replace function public.sales_record_call_note(p_order_id uuid, p_outcome text, p_notes text default null)
+returns public.sales_call_notes
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	created_note public.sales_call_notes%rowtype;
+begin
+	employee_id := public.require_panel('sales', true);
+
+	insert into public.sales_call_notes (quote_request_id, employee_id, outcome, notes)
+	values (p_order_id, employee_id, p_outcome, p_notes)
+	returning * into created_note;
+
+	perform public.log_activity(
+		'quote_request',
+		p_order_id,
+		'sales_call_note_recorded',
+		jsonb_build_object('employee_id', employee_id, 'outcome', p_outcome, 'notes', p_notes)
+	);
+
+	return created_note;
 end;
 $$;
 
@@ -1672,7 +2045,9 @@ declare
 	employee_id uuid;
 	source_request public.quote_requests%rowtype;
 	created_order public.orders%rowtype;
+	confirmed_quote_version_id uuid;
 	from_status text;
+	quote_total numeric := 0;
 begin
 	employee_id := public.require_panel('sales', true);
 	perform app_private.allow_workflow_state_change();
@@ -1692,13 +2067,31 @@ begin
 
 	from_status := source_request.status::text;
 
+	select id, total
+	into confirmed_quote_version_id, quote_total
+	from public.sales_quote_versions
+	where quote_request_id = p_order_id
+	  and (p_quote_version_id is null or id = p_quote_version_id)
+	order by version_number desc
+	limit 1;
+
+	if p_quote_version_id is not null and confirmed_quote_version_id is null then
+		raise exception 'sales_quote_version_not_found' using errcode = '02000';
+	end if;
+
+	if confirmed_quote_version_id is not null then
+		update public.sales_quote_versions
+		set status = 'approved'
+		where id = confirmed_quote_version_id;
+	end if;
+
 	update public.quote_requests
 	set status = 'approved'
 	where id = p_order_id
 	returning * into source_request;
 
 	insert into public.orders (quote_request_id, customer_id, status, total_amount)
-	values (source_request.id, source_request.customer_id, 'confirmed_for_inventory', 0)
+	values (source_request.id, source_request.customer_id, 'confirmed_for_inventory', coalesce(quote_total, 0))
 	on conflict (quote_request_id) do update
 	set
 		customer_id = excluded.customer_id,
@@ -1718,15 +2111,33 @@ begin
 		'sales_order_confirmed',
 		jsonb_build_object(
 			'employee_id', employee_id,
-			'quote_version_id', p_quote_version_id,
+			'quote_version_id', confirmed_quote_version_id,
 			'from_status', from_status,
 			'to_status', 'approved',
-			'order_status', created_order.status
+			'order_status', created_order.status,
+			'total_amount', created_order.total_amount
 		)
 	);
 	return created_order;
 end;
 $$;
+
+update public.orders o
+set total_amount = (
+	select sqv.total
+	from public.sales_quote_versions sqv
+	where sqv.quote_request_id = o.quote_request_id
+	  and sqv.total > 0
+	order by sqv.version_number desc
+	limit 1
+)
+where o.total_amount = 0
+  and exists (
+	select 1
+	from public.sales_quote_versions sqv
+	where sqv.quote_request_id = o.quote_request_id
+	  and sqv.total > 0
+  );
 
 create or replace function public.sales_reject_order(p_order_id uuid, p_reason text, p_proof jsonb)
 returns public.quote_requests
@@ -1756,6 +2167,73 @@ begin
 		'sales_order_rejected',
 		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
 	);
+	return updated;
+end;
+$$;
+
+create or replace function public.sales_cancel_order(p_order_id uuid, p_reason text, p_proof jsonb default '{}'::jsonb)
+returns public.quote_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	target public.quote_requests%rowtype;
+	updated public.quote_requests%rowtype;
+	cancel_reason text;
+begin
+	employee_id := public.require_panel('sales', true);
+	perform app_private.allow_workflow_state_change();
+	cancel_reason := nullif(btrim(coalesce(p_reason, '')), '');
+
+	if cancel_reason is null or length(cancel_reason) < 3 then
+		raise exception 'cancel_reason_required' using errcode = '23514';
+	end if;
+
+	select * into target
+	from public.quote_requests
+	where id = p_order_id
+	for update;
+
+	if target.id is null then
+		raise exception 'quote_request_not_found' using errcode = '02000';
+	end if;
+
+	if target.status not in ('assigned', 'submitted', 'saved', 'reviewing', 'quoting') then
+		raise exception 'invalid_sales_cancel_transition_%', target.status using errcode = '23514';
+	end if;
+
+	if target.assigned_employee_id is not null
+		and target.assigned_employee_id <> employee_id
+		and not public.is_employee_with_role('ceo')
+	then
+		raise exception 'quote_request_assigned_to_another_employee' using errcode = '42501';
+	end if;
+
+	update public.quote_requests
+	set
+		status = 'canceled',
+		assigned_employee_id = null,
+		assigned_at = null,
+		rejected_reason = cancel_reason,
+		rejected_proof = coalesce(p_proof, '{}'::jsonb)
+	where id = p_order_id
+	returning * into updated;
+
+	perform public.log_activity(
+		'quote_request',
+		updated.id,
+		'sales_order_canceled',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'from_status', target.status,
+			'to_status', 'canceled',
+			'reason', cancel_reason,
+			'proof', coalesce(p_proof, '{}'::jsonb)
+		)
+	);
+
 	return updated;
 end;
 $$;
@@ -1830,6 +2308,17 @@ declare
 begin
 	employee_id := public.require_panel('sales', true);
 
+	select * into created_request
+	from public.price_update_requests
+	where product_id = p_product_id
+	  and quote_request_id = p_order_id
+	  and status = 'pending'
+	limit 1;
+
+	if created_request.id is not null then
+		return created_request;
+	end if;
+
 	insert into public.price_update_requests (
 		product_id,
 		quote_request_id,
@@ -1841,6 +2330,140 @@ begin
 
 	perform public.log_activity('price_update_request', created_request.id, 'price_update_requested', jsonb_build_object('product_id', p_product_id, 'quote_request_id', p_order_id));
 	return created_request;
+end;
+$$;
+
+create or replace function public.inventory_update_price(
+	p_product_id uuid,
+	p_supplier_id uuid,
+	p_new_price numeric,
+	p_proof_path text,
+	p_notes text default null
+)
+returns public.price_updates
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	employee_id uuid;
+	target_product public.products%rowtype;
+	target_supplier public.suppliers%rowtype;
+	created_update public.price_updates%rowtype;
+	proof_path text;
+	old_price numeric;
+	new_public_max numeric;
+begin
+	employee_id := public.require_panel('inventory', true);
+	proof_path := nullif(btrim(coalesce(p_proof_path, '')), '');
+
+	if p_new_price is null or p_new_price < 0 then
+		raise exception 'invalid_price_update_amount' using errcode = '23514';
+	end if;
+	if proof_path is null then
+		raise exception 'price_proof_required' using errcode = '23514';
+	end if;
+
+	select * into target_product
+	from public.products
+	where id = p_product_id
+	for update;
+
+	if target_product.id is null then
+		raise exception 'product_not_found' using errcode = '02000';
+	end if;
+
+	select * into target_supplier
+	from public.suppliers
+	where id = p_supplier_id
+	  and status = 'active';
+
+	if target_supplier.id is null then
+		raise exception 'supplier_not_found' using errcode = '02000';
+	end if;
+
+	old_price := target_product.price_range_min;
+	new_public_max := case
+		when target_product.price_range_min is not null
+			and target_product.price_range_min > 0
+			and target_product.price_range_max is not null
+			and target_product.price_range_max >= target_product.price_range_min
+			then round(p_new_price * (target_product.price_range_max / target_product.price_range_min), 2)
+		else p_new_price
+	end;
+
+	update public.supplier_product_links
+	set is_primary = false
+	where product_id = p_product_id;
+
+	insert into public.supplier_product_links (
+		supplier_id,
+		product_id,
+		raw_cost,
+		lead_time_days,
+		min_order_qty,
+		is_primary,
+		last_quoted_at,
+		notes
+	)
+	values (p_supplier_id, p_product_id, p_new_price, 1, 1, true, now(), p_notes)
+	on conflict (supplier_id, product_id) do update
+	set
+		raw_cost = excluded.raw_cost,
+		is_primary = true,
+		last_quoted_at = excluded.last_quoted_at,
+		notes = excluded.notes;
+
+	update public.products
+	set
+		price_range_min = p_new_price,
+		price_range_max = new_public_max,
+		updated_at = now()
+	where id = p_product_id;
+
+	insert into public.price_updates (
+		product_id,
+		supplier_id,
+		updated_by_employee_id,
+		old_price,
+		new_price,
+		proof_path,
+		notes
+	)
+	values (
+		p_product_id,
+		p_supplier_id,
+		employee_id,
+		old_price,
+		p_new_price,
+		proof_path,
+		p_notes
+	)
+	returning * into created_update;
+
+	update public.price_update_requests
+	set
+		status = 'resolved',
+		assigned_employee_id = employee_id,
+		resolved_at = now()
+	where product_id = p_product_id
+	  and status = 'pending';
+
+	perform public.log_activity(
+		'price_update',
+		created_update.id,
+		'inventory_price_updated',
+		jsonb_build_object(
+			'employee_id', employee_id,
+			'product_id', p_product_id,
+			'supplier_id', p_supplier_id,
+			'old_price', old_price,
+			'new_price', p_new_price,
+			'proof_path', proof_path
+		)
+	);
+
+	return created_update;
 end;
 $$;
 
@@ -1859,8 +2482,22 @@ as $$
 declare
 	employee_id uuid;
 	created_refill public.refill_requests%rowtype;
+	old_price numeric;
+	price_update_id uuid;
+	proof_path text;
 begin
 	employee_id := public.require_panel('inventory', true);
+
+	select raw_cost into old_price
+	from public.supplier_product_links
+	where product_id = p_product_id
+	  and supplier_id = p_supplier_id;
+
+	if old_price is null then
+		select price_range_min into old_price
+		from public.products
+		where id = p_product_id;
+	end if;
 
 	insert into public.refill_requests (
 		product_id,
@@ -1873,7 +2510,82 @@ begin
 	values (p_product_id, p_supplier_id, employee_id, p_quantity, p_unit_cost, coalesce(p_proof, '{}'::jsonb))
 	returning * into created_refill;
 
-	perform public.log_activity('refill_request', created_refill.id, 'supplier_refill_created', jsonb_build_object('product_id', p_product_id, 'supplier_id', p_supplier_id));
+	update public.supplier_product_links
+	set is_primary = false
+	where product_id = p_product_id
+	  and supplier_id <> p_supplier_id;
+
+	insert into public.supplier_product_links (
+		product_id,
+		supplier_id,
+		raw_cost,
+		last_quoted_at,
+		is_primary
+	)
+	values (p_product_id, p_supplier_id, p_unit_cost, now(), true)
+	on conflict (supplier_id, product_id) do update
+	set
+		raw_cost = excluded.raw_cost,
+		last_quoted_at = excluded.last_quoted_at,
+		is_primary = true,
+		updated_at = now();
+
+	update public.products
+	set
+		price_range_min = p_unit_cost,
+		price_range_max = p_unit_cost,
+		updated_at = now()
+	where id = p_product_id;
+
+	proof_path := 'refill-proofs/' || created_refill.id::text || '.json';
+
+	insert into public.price_updates (
+		product_id,
+		supplier_id,
+		updated_by_employee_id,
+		old_price,
+		new_price,
+		proof_path,
+		notes
+	)
+	values (
+		p_product_id,
+		p_supplier_id,
+		employee_id,
+		old_price,
+		p_unit_cost,
+		proof_path,
+		coalesce(p_proof->>'notes', 'Supplier refill price update')
+	)
+	returning id into price_update_id;
+
+	perform public.log_activity(
+		'price_update',
+		price_update_id,
+		'inventory_price_updated',
+		jsonb_build_object(
+			'product_id', p_product_id,
+			'supplier_id', p_supplier_id,
+			'employee_id', employee_id,
+			'old_price', old_price,
+			'new_price', p_unit_cost,
+			'proof_path', proof_path,
+			'source', 'supplier_refill'
+		)
+	);
+
+	perform public.log_activity(
+		'refill_request',
+		created_refill.id,
+		'supplier_refill_created',
+		jsonb_build_object(
+			'product_id', p_product_id,
+			'supplier_id', p_supplier_id,
+			'quantity', p_quantity,
+			'unit_cost', p_unit_cost,
+			'proof_path', proof_path
+		)
+	);
 	return created_refill;
 end;
 $$;
@@ -2026,6 +2738,15 @@ begin
 
 	if target_order.status <> 'confirmed_for_inventory' then
 		raise exception 'invalid_inventory_transition_%', target_order.status using errcode = '23514';
+	end if;
+
+	if not exists (
+		select 1
+		from public.customer_payments cp
+		where cp.order_id = p_order_id
+		  and cp.status = 'recorded'
+	) then
+		raise exception 'customer_payment_required_before_inventory' using errcode = '23514';
 	end if;
 
 	for line in
@@ -2344,9 +3065,12 @@ begin
 
 	if not exists (
 		select 1
-		from public.drivers
-		where id = p_driver_id
-		  and status in ('available', 'offline')
+		from public.drivers d
+		join public.driver_online_states dos on dos.driver_id = d.id
+		where d.id = p_driver_id
+		  and d.status = 'available'
+		  and dos.status = 'online'
+		  and dos.last_seen_at >= now() - interval '15 minutes'
 	) then
 		raise exception 'driver_not_available' using errcode = '23514';
 	end if;
@@ -2416,6 +3140,7 @@ declare
 	updated public.deliveries%rowtype;
 begin
 	perform public.require_panel('dispatch', true);
+	perform public.require_rejection_proof(p_proof);
 	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
@@ -2479,8 +3204,14 @@ begin
 	end if;
 
 	update public.orders
-	set status = 'rejected'
+	set status = 'warehouse_loading'
 	where id = updated.order_id;
+
+	update public.loading_tasks
+	set status = 'pending',
+		rejection_reason = p_reason,
+		proof = p_proof
+	where id = updated.loading_task_id;
 
 	update public.drivers
 	set status = 'available'
@@ -2496,7 +3227,55 @@ begin
 		'dispatch_delivery_rejected',
 		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
 	);
+	perform public.log_activity(
+		'order',
+		updated.order_id,
+		'delivery_returned_to_warehouse_loading',
+		jsonb_build_object('delivery_id', updated.id, 'to_status', 'warehouse_loading')
+	);
 	return updated;
+end;
+$$;
+
+create or replace function public.driver_set_online(p_online boolean)
+returns public.driver_online_states
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_driver_id uuid;
+	state_row public.driver_online_states%rowtype;
+	next_status public.driver_online_status;
+begin
+	v_driver_id := public.current_driver_id();
+	if v_driver_id is null then
+		raise exception 'driver_required' using errcode = '42501';
+	end if;
+
+	next_status := case when p_online then 'online'::public.driver_online_status else 'offline'::public.driver_online_status end;
+	perform app_private.allow_workflow_state_change();
+
+	insert into public.driver_online_states (driver_id, status, last_seen_at)
+	values (v_driver_id, next_status, now())
+	on conflict (driver_id) do update
+	set status = excluded.status,
+		last_seen_at = excluded.last_seen_at
+	returning * into state_row;
+
+	update public.drivers
+	set status = case when p_online then 'available'::public.driver_status else 'offline'::public.driver_status end
+	where id = v_driver_id
+	  and status <> 'disabled';
+
+	perform public.log_activity(
+		'driver',
+		v_driver_id,
+		case when p_online then 'driver_marked_online'::public.audit_event_type else 'driver_marked_offline'::public.audit_event_type end,
+		jsonb_build_object('status', next_status)
+	);
+
+	return state_row;
 end;
 $$;
 
@@ -2702,6 +3481,7 @@ begin
 	if v_driver_id is null then
 		raise exception 'driver_required' using errcode = '42501';
 	end if;
+	perform public.require_delivery_signature(p_signature_path, p_signer_name);
 	perform app_private.allow_workflow_state_change();
 
 	update public.deliveries
@@ -2788,8 +3568,14 @@ begin
 	end if;
 
 	update public.orders
-	set status = 'rejected'
+	set status = 'warehouse_loading'
 	where id = updated.order_id;
+
+	update public.loading_tasks
+	set status = 'pending',
+		rejection_reason = p_reason,
+		proof = p_proof
+	where id = updated.loading_task_id;
 
 	update public.drivers
 	set status = 'available'
@@ -2805,7 +3591,63 @@ begin
 		'driver_delivery_rejected',
 		jsonb_build_object('to_status', 'rejected', 'reason', p_reason, 'proof', p_proof)
 	);
+	perform public.log_activity(
+		'order',
+		updated.order_id,
+		'delivery_returned_to_warehouse_loading',
+		jsonb_build_object('delivery_id', updated.id, 'to_status', 'warehouse_loading')
+	);
 	return updated;
+end;
+$$;
+
+create or replace function app_private.check_support_ticket_rate_limit(
+	p_rate_key text,
+	p_limit integer default 5,
+	p_window_seconds integer default 60
+)
+returns void
+language plpgsql
+security definer
+set search_path = app_private, public
+as $$
+declare
+	normalized_key text;
+	current_attempts integer;
+	window_interval interval;
+begin
+	normalized_key := lower(trim(coalesce(p_rate_key, '')));
+	if normalized_key = '' then
+		raise exception 'support_rate_key_required' using errcode = '23514';
+	end if;
+
+	window_interval := make_interval(secs => p_window_seconds);
+
+	insert into app_private.support_ticket_rate_limits (
+		rate_key,
+		window_started_at,
+		attempts,
+		updated_at
+	)
+	values (normalized_key, now(), 1, now())
+	on conflict (rate_key) do update
+	set
+		window_started_at = case
+			when app_private.support_ticket_rate_limits.window_started_at <= now() - window_interval
+				then now()
+			else app_private.support_ticket_rate_limits.window_started_at
+		end,
+		attempts = case
+			when app_private.support_ticket_rate_limits.window_started_at <= now() - window_interval
+				then 1
+			else app_private.support_ticket_rate_limits.attempts + 1
+		end,
+		updated_at = now()
+	returning attempts into current_attempts;
+
+	if current_attempts > p_limit then
+		raise exception 'support_ticket_rate_limited' using errcode = 'P0001';
+	end if;
 end;
 $$;
 
@@ -2825,6 +3667,25 @@ declare
 	v_customer_id uuid;
 	ticket public.support_tickets%rowtype;
 begin
+	if p_requester_email is null or p_requester_email !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+		raise exception 'valid_requester_email_required' using errcode = '23514';
+	end if;
+	if p_subject is null or length(trim(p_subject)) = 0 or length(p_subject) > 200 then
+		raise exception 'valid_support_subject_required' using errcode = '23514';
+	end if;
+	if p_message is null or length(trim(p_message)) < 10 or length(p_message) > 2000 then
+		raise exception 'valid_support_message_required' using errcode = '23514';
+	end if;
+
+	perform app_private.check_support_ticket_rate_limit(
+		'support:email:' || lower(trim(p_requester_email))
+	);
+	if p_requester_phone is not null and length(trim(p_requester_phone)) > 0 then
+		perform app_private.check_support_ticket_rate_limit(
+			'support:phone:' || regexp_replace(p_requester_phone, '[^0-9+]', '', 'g')
+		);
+	end if;
+
 	v_customer_id := public.current_customer_id();
 
 	insert into public.support_tickets (
@@ -2949,6 +3810,82 @@ begin
 
 	perform public.log_activity('support_conversation', conversation_id, 'whatsapp_message_ingested', jsonb_build_object('phone', p_from_phone));
 	return message;
+end;
+$$;
+
+create or replace function public.record_ai_tool_call(
+	p_agent_scope public.ai_agent_scope,
+	p_tool_name text,
+	p_read_entities text[] default '{}',
+	p_write_entity_type text default null,
+	p_write_entity_id uuid default null,
+	p_approved_by_user boolean default false,
+	p_input_summary jsonb default '{}'::jsonb,
+	p_output_summary jsonb default '{}'::jsonb
+)
+returns public.ai_tool_call_audit
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_employee_id uuid;
+	audit_row public.ai_tool_call_audit%rowtype;
+begin
+	if p_tool_name is null or length(trim(p_tool_name)) = 0 then
+		raise exception 'ai_tool_name_required' using errcode = '23514';
+	end if;
+
+	if p_agent_scope = 'portal' and public.current_customer_id() is null then
+		raise exception 'customer_required_for_portal_ai' using errcode = '42501';
+	end if;
+
+	if p_agent_scope in ('employee', 'search') then
+		v_employee_id := public.current_employee_id();
+		if v_employee_id is null then
+			raise exception 'employee_required_for_ai' using errcode = '42501';
+		end if;
+	end if;
+
+	if p_agent_scope = 'search' and not public.is_employee_with_role('ceo') then
+		raise exception 'ceo_required_for_search_ai' using errcode = '42501';
+	end if;
+
+	if p_agent_scope = 'search' and p_write_entity_type is not null then
+		raise exception 'search_ai_is_read_only' using errcode = '42501';
+	end if;
+
+	if p_write_entity_type is not null and not coalesce(p_approved_by_user, false) then
+		raise exception 'ai_write_requires_user_approval' using errcode = '42501';
+	end if;
+
+	insert into public.ai_tool_call_audit (
+		actor_user_id,
+		actor_employee_id,
+		agent_scope,
+		tool_name,
+		read_entities,
+		write_entity_type,
+		write_entity_id,
+		approved_by_user,
+		input_summary,
+		output_summary
+	)
+	values (
+		auth.uid(),
+		v_employee_id,
+		p_agent_scope,
+		p_tool_name,
+		coalesce(p_read_entities, '{}'),
+		p_write_entity_type,
+		p_write_entity_id,
+		coalesce(p_approved_by_user, false),
+		coalesce(p_input_summary, '{}'::jsonb),
+		coalesce(p_output_summary, '{}'::jsonb)
+	)
+	returning * into audit_row;
+
+	return audit_row;
 end;
 $$;
 
@@ -3143,48 +4080,63 @@ begin
 	end loop;
 end $$;
 
-create policy public_can_read_active_products
+create policy catalog_read_access
 	on public.products for select
 	to anon, authenticated
-	using (is_active and availability_status <> 'hidden');
+	using (
+		(is_active and availability_status <> 'hidden')
+		or public.can_access_panel('admin')
+		or public.can_access_panel('inventory')
+		or public.is_employee_with_role('ceo')
+	);
 
 create policy customer_profiles_own
 	on public.customers for select
 	to authenticated
-	using (user_id = auth.uid() or public.current_customer_id() = id or public.can_access_panel('customer_service') or public.can_access_panel('sales') or public.can_access_panel('admin'));
+	using (user_id = (select auth.uid()) or public.current_customer_id() = id or public.can_access_panel('customer_service') or public.can_access_panel('sales') or public.can_access_panel('admin'));
 
 create policy customers_create_self
 	on public.customers for insert
 	to authenticated
-	with check (user_id = auth.uid() or public.can_access_panel('sales', true) or public.can_access_panel('admin', true));
+	with check (user_id = (select auth.uid()) or public.can_access_panel('sales', true) or public.can_access_panel('admin', true));
 
 create policy customers_update_self_or_staff
 	on public.customers for update
 	to authenticated
-	using (user_id = auth.uid() or user_id is null or public.can_access_panel('customer_service', true) or public.can_access_panel('sales', true) or public.can_access_panel('admin', true))
-	with check (user_id = auth.uid() or public.can_access_panel('customer_service', true) or public.can_access_panel('sales', true) or public.can_access_panel('admin', true));
+	using (user_id = (select auth.uid()) or public.can_access_panel('customer_service', true) or public.can_access_panel('sales', true) or public.can_access_panel('admin', true))
+	with check (user_id = (select auth.uid()) or public.can_access_panel('customer_service', true) or public.can_access_panel('sales', true) or public.can_access_panel('admin', true));
 
 create policy employees_read_self_or_admin
 	on public.employees for select
 	to authenticated
-	using (user_id = auth.uid() or public.can_access_panel('admin') or public.is_employee_with_role('ceo'));
+	using (user_id = (select auth.uid()) or public.can_access_panel('admin') or public.is_employee_with_role('ceo'));
 
-create policy employees_admin_write
-	on public.employees for all
+create policy employees_admin_insert
+	on public.employees for insert
+	to authenticated
+	with check (public.can_access_panel('admin', true));
+
+create policy employees_admin_update
+	on public.employees for update
 	to authenticated
 	using (public.can_access_panel('admin', true))
 	with check (public.can_access_panel('admin', true));
 
+create policy employees_admin_delete
+	on public.employees for delete
+	to authenticated
+	using (public.can_access_panel('admin', true));
+
 create policy drivers_read_self_or_ops
 	on public.drivers for select
 	to authenticated
-	using (user_id = auth.uid() or public.can_access_panel('dispatch') or public.can_access_panel('admin'));
+	using (user_id = (select auth.uid()) or public.can_access_panel('dispatch') or public.can_access_panel('admin'));
 
 create policy drivers_update_self_location_status
 	on public.drivers for update
 	to authenticated
-	using (user_id = auth.uid() or public.can_access_panel('dispatch', true) or public.can_access_panel('admin', true))
-	with check (user_id = auth.uid() or public.can_access_panel('dispatch', true) or public.can_access_panel('admin', true));
+	using (user_id = (select auth.uid()) or public.can_access_panel('dispatch', true) or public.can_access_panel('admin', true))
+	with check (user_id = (select auth.uid()) or public.can_access_panel('dispatch', true) or public.can_access_panel('admin', true));
 
 create policy customers_own_addresses
 	on public.customer_addresses for all
@@ -3232,16 +4184,31 @@ create policy customer_quote_items_visibility
 		  and (q.customer_id = public.current_customer_id() or public.can_access_panel('sales') or public.can_access_panel('finance') or public.is_employee_with_role('ceo'))
 	));
 
+create policy sales_quote_versions_internal_read
+	on public.sales_quote_versions for select
+	to authenticated
+	using (public.can_access_panel('sales') or public.can_access_panel('finance') or public.is_employee_with_role('ceo'));
+
 create policy customer_orders_visibility
 	on public.orders for select
 	to authenticated
 	using (customer_id = public.current_customer_id() or public.can_access_panel('sales') or public.can_access_panel('finance') or public.can_access_panel('inventory') or public.can_access_panel('warehouse') or public.can_access_panel('dispatch') or public.is_employee_with_role('ceo'));
 
-create policy internal_catalog_write
-	on public.products for all
+create policy internal_catalog_insert
+	on public.products for insert
+	to authenticated
+	with check (public.can_access_panel('admin', true) or public.can_access_panel('inventory', true));
+
+create policy internal_catalog_update
+	on public.products for update
 	to authenticated
 	using (public.can_access_panel('admin', true) or public.can_access_panel('inventory', true))
 	with check (public.can_access_panel('admin', true) or public.can_access_panel('inventory', true));
+
+create policy internal_catalog_delete
+	on public.products for delete
+	to authenticated
+	using (public.can_access_panel('admin', true) or public.can_access_panel('inventory', true));
 
 create policy internal_supplier_access
 	on public.suppliers for all
@@ -3249,21 +4216,63 @@ create policy internal_supplier_access
 	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('admin') or public.is_employee_with_role('ceo'))
 	with check (public.can_access_panel('inventory', true) or public.can_access_panel('finance', true) or public.can_access_panel('admin', true));
 
+create policy internal_supplier_product_link_access
+	on public.supplier_product_links for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('sales') or public.can_access_panel('admin') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('inventory', true) or public.can_access_panel('admin', true));
+
+create policy internal_price_update_access
+	on public.price_updates for select
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('sales') or public.can_access_panel('admin') or public.is_employee_with_role('ceo'));
+
 create policy internal_inventory_access
 	on public.inventory_stock for all
 	to authenticated
 	using (public.can_access_panel('inventory') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
 	with check (public.can_access_panel('inventory', true) or public.can_access_panel('warehouse', true));
 
-create policy support_public_insert_ticket
-	on public.support_tickets for insert
-	to anon, authenticated
-	with check (true);
+create policy internal_inventory_reservation_access
+	on public.inventory_reservations for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('warehouse') or public.can_access_panel('dispatch') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('inventory', true) or public.can_access_panel('warehouse', true) or public.can_access_panel('dispatch', true));
 
-create policy support_public_insert_message
-	on public.support_messages for insert
-	to anon, authenticated
-	with check (sender_type in ('customer', 'external'));
+create policy internal_refill_request_access
+	on public.refill_requests for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('inventory', true) or public.can_access_panel('finance', true) or public.can_access_panel('warehouse', true));
+
+create policy internal_supplier_payment_access
+	on public.supplier_payments for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('finance', true));
+
+create policy internal_customer_payment_access
+	on public.customer_payments for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('finance', true));
+
+create policy internal_receiving_task_access
+	on public.receiving_tasks for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('warehouse', true) or public.can_access_panel('finance', true));
+
+create policy internal_receiving_task_item_access
+	on public.receiving_task_items for all
+	to authenticated
+	using (public.can_access_panel('inventory') or public.can_access_panel('finance') or public.can_access_panel('warehouse') or public.is_employee_with_role('ceo'))
+	with check (public.can_access_panel('warehouse', true) or public.can_access_panel('finance', true));
+
+create policy internal_price_request_access
+	on public.price_update_requests for select
+	to authenticated
+	using (public.can_access_panel('sales') or public.can_access_panel('inventory') or public.can_access_panel('admin') or public.is_employee_with_role('ceo'));
 
 create policy support_visibility
 	on public.support_tickets for select
@@ -3306,8 +4315,8 @@ create policy customer_documents_visibility
 create policy customer_notifications_visibility
 	on public.notifications for all
 	to authenticated
-	using (user_id = auth.uid() or customer_id = public.current_customer_id() or public.can_access_panel('customer_service'))
-	with check (user_id = auth.uid() or customer_id = public.current_customer_id() or public.can_access_panel('customer_service', true));
+	using (user_id = (select auth.uid()) or customer_id = public.current_customer_id() or public.can_access_panel('customer_service'))
+	with check (user_id = (select auth.uid()) or customer_id = public.current_customer_id() or public.can_access_panel('customer_service', true));
 
 create policy activity_events_internal_read
 	on public.activity_events for select
@@ -3321,8 +4330,6 @@ create policy ai_audit_internal_read
 
 grant usage on schema public to anon, authenticated, service_role;
 grant select on public.products to anon;
-grant select, insert on public.support_tickets to anon;
-grant insert on public.support_messages to anon;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant usage, select on all sequences in schema public to authenticated, service_role;
 grant select on public.ceo_order_summary to authenticated;
@@ -3335,13 +4342,20 @@ grant execute on function public.customer_accept_quote(uuid) to authenticated;
 grant execute on function public.customer_decline_quote(uuid, text, text) to authenticated;
 grant execute on function public.customer_request_quote_negotiation(uuid, public.quote_counter_type, jsonb, numeric, boolean, text) to authenticated;
 grant execute on function public.customer_submit_quote_line_response(uuid, jsonb) to authenticated;
+grant execute on function public.find_claimable_customer_profile(text) to authenticated;
+grant execute on function public.claim_customer_profile(text) to authenticated;
 grant execute on function public.claim_next_sales_order() to authenticated;
-grant execute on function public.sales_save_and_requeue(uuid, text) to authenticated;
+grant execute on function public.sales_claim_order(uuid) to authenticated;
+grant execute on function public.sales_save_and_requeue(uuid, text, integer) to authenticated;
+grant execute on function public.sales_save_quote_version(uuid, jsonb, text) to authenticated;
+grant execute on function public.sales_record_call_note(uuid, text, text) to authenticated;
 grant execute on function public.sales_approve_quote(uuid, uuid) to authenticated;
 grant execute on function public.sales_confirm_order(uuid, uuid) to authenticated;
 grant execute on function public.sales_reject_order(uuid, text, jsonb) to authenticated;
+grant execute on function public.sales_cancel_order(uuid, text, jsonb) to authenticated;
 grant execute on function public.create_manual_order(uuid, jsonb, text) to authenticated;
 grant execute on function public.request_price_update(uuid, uuid, text) to authenticated;
+grant execute on function public.inventory_update_price(uuid, uuid, numeric, text, text) to authenticated;
 grant execute on function public.create_supplier_refill(uuid, uuid, numeric, numeric, jsonb) to authenticated;
 grant execute on function public.record_customer_payment(uuid, numeric, numeric, text) to authenticated;
 grant execute on function public.record_supplier_payment(uuid, numeric, numeric, text) to authenticated;
@@ -3355,6 +4369,7 @@ grant execute on function public.warehouse_reject_receiving(uuid, text, jsonb) t
 grant execute on function public.dispatch_assign_driver(uuid, uuid, uuid, uuid) to authenticated;
 grant execute on function public.dispatch_complete_delivery(uuid, jsonb) to authenticated;
 grant execute on function public.dispatch_reject_delivery(uuid, text, jsonb) to authenticated;
+grant execute on function public.driver_set_online(boolean) to authenticated;
 grant execute on function public.driver_accept_delivery(uuid) to authenticated;
 grant execute on function public.driver_start_delivery(uuid) to authenticated;
 grant execute on function public.driver_record_arrival(uuid) to authenticated;
@@ -3364,6 +4379,7 @@ grant execute on function public.driver_reject_delivery(uuid, text, jsonb) to au
 grant execute on function public.create_support_ticket(text, text, text, text, text) to anon, authenticated;
 grant execute on function public.send_support_reply(uuid, text, public.support_message_channel) to authenticated;
 grant execute on function public.ingest_whatsapp_message(text, text, text) to service_role;
+grant execute on function public.record_ai_tool_call(public.ai_agent_scope, text, text[], text, uuid, boolean, jsonb, jsonb) to anon, authenticated;
 grant execute on function public.transfer_team_ownership(uuid) to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

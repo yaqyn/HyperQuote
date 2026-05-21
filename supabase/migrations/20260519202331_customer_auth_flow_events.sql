@@ -1,0 +1,9 @@
+alter type public.audit_event_type add value if not exists 'customer_signed_up';
+alter type public.audit_event_type add value if not exists 'customer_signed_in';
+alter type public.audit_event_type add value if not exists 'draft_created';
+alter type public.audit_event_type add value if not exists 'draft_updated';
+alter type public.audit_event_type add value if not exists 'draft_saved';
+alter type public.audit_event_type add value if not exists 'draft_submitted';
+alter type public.audit_event_type add value if not exists 'order_submitted';
+alter type public.audit_event_type add value if not exists 'support_ticket_notification_sent';
+alter type public.audit_event_type add value if not exists 'support_ticket_reply_sent';
