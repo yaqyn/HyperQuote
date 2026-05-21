@@ -218,7 +218,7 @@ function MarketPage() {
 			</section>
 
 			{/* Category strip + sort */}
-			<section className="border-y border-[var(--color-border)] py-3">
+			<section className="hidden border-y border-[var(--color-border)] py-3 sm:block">
 				<div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 overflow-hidden px-4 sm:px-6 lg:flex-row lg:px-12">
 					<div className="w-full min-w-0 lg:flex-1">
 						<div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
@@ -365,7 +365,7 @@ function MarketLoading() {
 					<div className="h-10 w-48 rounded-lg bg-[var(--color-surface)] animate-pulse" />
 				</div>
 			</section>
-			<section className="border-y border-[var(--color-border)] py-3">
+			<section className="hidden border-y border-[var(--color-border)] py-3 sm:block">
 				<div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12 flex gap-2">
 					{MARKET_FILTER_SKELETON_KEYS.map((k) => (
 						<div

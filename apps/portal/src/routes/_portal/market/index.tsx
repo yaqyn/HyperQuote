@@ -340,7 +340,7 @@ function CategoryStrip({
 	}, [menuOpen])
 
 	return (
-		<section className="shrink-0 border-y border-[var(--p-border)] py-3">
+		<section className="hidden shrink-0 border-y border-[var(--p-border)] py-3 sm:block">
 			<div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-12">
 				<div ref={menuRef} className="relative lg:hidden">
 					<button
