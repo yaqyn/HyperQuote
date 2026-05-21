@@ -51,6 +51,7 @@ interface DraftEditorState {
 
 const NEW_DRAFT_KEY = '__new_draft__'
 const CHAT_DRAFT_EASE = cubicBezier(0.22, 1, 0.36, 1)
+const SUBMITTED_RESET_DELAY_MS = 1800
 
 function chatRevealMotion(shouldReduceMotion: boolean | null) {
 	return {
@@ -257,6 +258,9 @@ export function ChatDraftsPanel({
 	const [editor, setEditor] = useState<DraftEditorState | null>(null)
 	const [productMenuOpen, setProductMenuOpen] = useState(false)
 	const [productSearch, setProductSearch] = useState('')
+	const [submittedReference, setSubmittedReference] = useState<string | null>(
+		null,
+	)
 	const [submitError, setSubmitError] = useState<string | null>(null)
 
 	const { data, isError, isLoading, refetch } = useQuery({
@@ -357,6 +361,26 @@ export function ChatDraftsPanel({
 		}
 	}, [actionsMenuOpen, draftMenuOpen, productMenuOpen])
 
+	useEffect(() => {
+		if (!submittedReference) return
+		const timeout = window.setTimeout(() => {
+			const nextEditor = createNewEditor(defaultDraftName)
+			setSubmittedReference(null)
+			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActionsMenuOpen(false)
+			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
+			setConfirmDeleteId(null)
+			setDraftMenuOpen(false)
+			setDraftSearch('')
+			setEditor(nextEditor)
+			setProductMenuOpen(false)
+			setProductSearch('')
+			setSubmitError(null)
+		}, SUBMITTED_RESET_DELAY_MS)
+		return () => window.clearTimeout(timeout)
+	}, [defaultDraftName, submittedReference])
+
 	const saveMutation = useMutation({
 		mutationFn: (draft: DraftEditorState) => {
 			const trimmedName = draft.name.trim() || defaultDraftName
@@ -406,10 +430,15 @@ export function ChatDraftsPanel({
 			}),
 		onMutate: () => setSubmitError(null),
 		onSuccess: (result) => {
-			setActiveDraftKey(null)
+			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
-			setEditor(null)
+			setConfirmDeleteId(null)
+			setDraftMenuOpen(false)
+			setProductMenuOpen(false)
+			setSubmitError(null)
+			setSubmittedReference(result.reference)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
 			onSubmitted?.(result.reference)
@@ -620,6 +649,26 @@ export function ChatDraftsPanel({
 			return
 		}
 		setConfirmDeleteId(editor.id)
+	}
+
+	if (submittedReference) {
+		return (
+			<motion.section
+				key="draft-submitted-panel"
+				className={`flex min-h-0 flex-col overflow-hidden bg-white text-black ${className}`}
+				initial={shouldReduceMotion ? false : { opacity: 0.92 }}
+				animate={{ opacity: 1 }}
+				transition={{
+					duration: shouldReduceMotion ? 0.01 : 0.18,
+					ease: CHAT_DRAFT_EASE,
+				}}
+			>
+				<SubmittedDraftPanel
+					reference={submittedReference}
+					shouldReduceMotion={shouldReduceMotion}
+				/>
+			</motion.section>
+		)
 	}
 
 	return (
@@ -1174,6 +1223,94 @@ export function ChatDraftsPanel({
 				</footer>
 			)}
 		</section>
+	)
+}
+
+function SubmittedDraftPanel({
+	reference,
+	shouldReduceMotion,
+}: {
+	reference: string
+	shouldReduceMotion: boolean | null
+}) {
+	const { t } = useTranslation('portal')
+
+	return (
+		<div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10 text-center">
+			<motion.div
+				className="flex max-w-[280px] flex-col items-center"
+				initial={
+					shouldReduceMotion ? false : { opacity: 0, y: 14, scale: 0.98 }
+				}
+				animate={{ opacity: 1, y: 0, scale: 1 }}
+				transition={{
+					duration: shouldReduceMotion ? 0.01 : 0.28,
+					ease: CHAT_DRAFT_EASE,
+				}}
+			>
+				<motion.div
+					className="relative flex h-20 w-20 items-center justify-center rounded-full bg-black text-white shadow-[0_18px_45px_-24px_rgba(0,0,0,0.9)]"
+					initial={shouldReduceMotion ? false : { scale: 0.82 }}
+					animate={{ scale: 1 }}
+					transition={{
+						delay: shouldReduceMotion ? 0 : 0.04,
+						duration: shouldReduceMotion ? 0.01 : 0.32,
+						ease: CHAT_DRAFT_EASE,
+					}}
+				>
+					<motion.span
+						aria-hidden="true"
+						className="absolute inset-0 rounded-full border border-black/10"
+						initial={shouldReduceMotion ? false : { opacity: 0.42, scale: 1 }}
+						animate={
+							shouldReduceMotion
+								? { opacity: 0.24, scale: 1 }
+								: { opacity: 0, scale: 1.55 }
+						}
+						transition={{
+							delay: shouldReduceMotion ? 0 : 0.1,
+							duration: shouldReduceMotion ? 0.01 : 0.75,
+							ease: 'easeOut',
+						}}
+					/>
+					<motion.div
+						initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.86 }}
+						animate={{ opacity: 1, scale: 1 }}
+						transition={{
+							delay: shouldReduceMotion ? 0 : 0.16,
+							duration: shouldReduceMotion ? 0.01 : 0.22,
+							ease: CHAT_DRAFT_EASE,
+						}}
+					>
+						<Check size={38} strokeWidth={2.1} />
+					</motion.div>
+				</motion.div>
+				<motion.p
+					className="mt-5 text-[20px] font-semibold text-black"
+					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{
+						delay: shouldReduceMotion ? 0 : 0.18,
+						duration: shouldReduceMotion ? 0.01 : 0.18,
+						ease: CHAT_DRAFT_EASE,
+					}}
+				>
+					{t('orders.draftSubmitted')}
+				</motion.p>
+				<motion.p
+					className="mt-2 text-[12px] font-medium text-black/45"
+					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{
+						delay: shouldReduceMotion ? 0 : 0.24,
+						duration: shouldReduceMotion ? 0.01 : 0.18,
+						ease: CHAT_DRAFT_EASE,
+					}}
+				>
+					{t('orders.draftSubmittedReady', { ref: reference })}
+				</motion.p>
+			</motion.div>
+		</div>
 	)
 }
 

@@ -616,6 +616,8 @@
 		"savedDraftsTitle": "Saved drafts",
 		"savedDraftsHelp": "Saved drafts are reusable material lists. Review one before submitting it as a quote request.",
 		"submit": "Submit",
+		"draftSubmitted": "Draft submitted",
+		"draftSubmittedReady": "{{ref}} is in review. New draft ready.",
 		"submitFailed": "Could not submit this draft. Please try again.",
 		"unavailableItems": "{{items}} is not available.",
 		"view": "View",

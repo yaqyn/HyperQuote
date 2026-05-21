@@ -102,6 +102,8 @@
 	"orders.savedDraftsTitle": "المسودات المحفوظة",
 	"orders.savedDraftsHelp": "المسودات المحفوظة قوائم مواد قابلة لإعادة الاستخدام. راجع إحداها قبل إرسالها كطلب عرض سعر.",
 	"orders.submit": "إرسال",
+	"orders.draftSubmitted": "تم إرسال المسودة",
+	"orders.draftSubmittedReady": "{{ref}} قيد المراجعة. مسودة جديدة جاهزة.",
 	"orders.submitFailed": "تعذر إرسال هذه المسودة. يرجى المحاولة مرة أخرى.",
 	"orders.unavailableItems": "{{items}} غير متاح.",
 	"orders.view": "عرض",
