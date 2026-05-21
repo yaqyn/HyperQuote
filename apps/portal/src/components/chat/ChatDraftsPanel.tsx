@@ -16,6 +16,12 @@ import {
 	Trash2,
 	X,
 } from 'lucide-react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
@@ -44,6 +50,47 @@ interface DraftEditorState {
 }
 
 const NEW_DRAFT_KEY = '__new_draft__'
+const CHAT_DRAFT_EASE = cubicBezier(0.22, 1, 0.36, 1)
+
+function chatRevealMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: CHAT_DRAFT_EASE,
+		},
+	}
+}
+
+function chatFadeMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: CHAT_DRAFT_EASE,
+		},
+	}
+}
+
+function chatMenuMotion(
+	shouldReduceMotion: boolean | null,
+	transformOrigin: 'top' | 'bottom',
+) {
+	return {
+		animate: { opacity: 1, scaleY: 1 },
+		exit: { opacity: 0, scaleY: shouldReduceMotion ? 1 : 0.98 },
+		initial: { opacity: 0, scaleY: shouldReduceMotion ? 1 : 0.98 },
+		style: { transformOrigin },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.12,
+			ease: CHAT_DRAFT_EASE,
+		},
+	}
+}
 
 function formatDraftDate(value: string, isAr: boolean) {
 	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
@@ -176,6 +223,7 @@ export function ChatDraftsPanel({
 	const { t, i18n } = useTranslation('portal')
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
+	const shouldReduceMotion = useReducedMotion()
 	const addCartItem = useDraftQuoteStore((s) => s.add)
 	const defaultDraftName = getDefaultDraftName(
 		t('market.defaultDraftName'),
@@ -572,24 +620,26 @@ export function ChatDraftsPanel({
 						</p>
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
-						<button
+						<motion.button
 							type="button"
 							onClick={startNewDraft}
 							className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
 							aria-label={t('orders.newDraft')}
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 						>
 							<Plus size={16} strokeWidth={1.8} />
-						</button>
+						</motion.button>
 						{headerAction}
 					</div>
 				</div>
 				<div ref={draftMenuRef} className="relative mt-3">
-					<button
+					<motion.button
 						type="button"
 						onClick={() => setDraftMenuOpen((open) => !open)}
 						aria-expanded={draftMenuOpen}
 						aria-haspopup="menu"
 						className="flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
+						whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
 					>
 						<span className="min-w-0">
 							<span className="block truncate text-[13px] font-semibold text-[var(--p-text)]">
@@ -606,278 +656,303 @@ export function ChatDraftsPanel({
 								draftMenuOpen ? 'rotate-180' : ''
 							}`}
 						/>
-					</button>
+					</motion.button>
 
-					{draftMenuOpen && (
-						<div
-							role="menu"
-							className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(70vh,420px)] overflow-y-auto rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
-						>
-							<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
-								<Search
-									size={14}
-									strokeWidth={1.7}
-									className="shrink-0 text-[var(--p-text-muted)]"
-								/>
-								<input
-									value={draftSearch}
-									onChange={(event) =>
-										setDraftSearch(event.currentTarget.value)
-									}
-									placeholder={t('orders.searchDrafts')}
-									className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
-									type="search"
-								/>
-							</label>
+					<AnimatePresence initial={false}>
+						{draftMenuOpen && (
+							<motion.div
+								key="draft-menu"
+								role="menu"
+								className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(70vh,420px)] overflow-y-auto rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
+								{...chatMenuMotion(shouldReduceMotion, 'top')}
+							>
+								<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+									<Search
+										size={14}
+										strokeWidth={1.7}
+										className="shrink-0 text-[var(--p-text-muted)]"
+									/>
+									<input
+										value={draftSearch}
+										onChange={(event) =>
+											setDraftSearch(event.currentTarget.value)
+										}
+										placeholder={t('orders.searchDrafts')}
+										className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+										type="search"
+									/>
+								</label>
 
-							<div className="mt-2 space-y-1">
-								{isLoading ? (
-									['a', 'b', 'c'].map((key) => (
-										<div
-											key={key}
-											className="h-11 animate-pulse rounded-lg bg-[var(--p-border)]"
-										/>
-									))
-								) : isError ? (
-									<div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2">
-										<div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
-											<AlertTriangle size={14} strokeWidth={1.7} />
-											<span className="truncate">{t('orders.error')}</span>
+								<div className="mt-2 space-y-1">
+									{isLoading ? (
+										['a', 'b', 'c'].map((key) => (
+											<div
+												key={key}
+												className="h-11 animate-pulse rounded-lg bg-[var(--p-border)]"
+											/>
+										))
+									) : isError ? (
+										<div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2">
+											<div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
+												<AlertTriangle size={14} strokeWidth={1.7} />
+												<span className="truncate">{t('orders.error')}</span>
+											</div>
+											<button
+												type="button"
+												onClick={() => refetch()}
+												className="shrink-0 text-[12px] font-semibold text-[var(--p-text)]"
+											>
+												{t('orders.retry')}
+											</button>
 										</div>
+									) : visibleDrafts.length === 0 ? (
 										<button
 											type="button"
-											onClick={() => refetch()}
-											className="shrink-0 text-[12px] font-semibold text-[var(--p-text)]"
+											onClick={startNewDraft}
+											className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 										>
-											{t('orders.retry')}
+											<Plus size={14} strokeWidth={1.7} />
+											{t('orders.newDraft')}
 										</button>
-									</div>
-								) : visibleDrafts.length === 0 ? (
-									<button
-										type="button"
-										onClick={startNewDraft}
-										className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-									>
-										<Plus size={14} strokeWidth={1.7} />
-										{t('orders.newDraft')}
-									</button>
-								) : (
-									visibleDrafts.map((draft) => {
-										const isActive = activeDraftKey === draft.id
-										const title =
-											draft.name ??
-											draft.reference ??
-											t('market.defaultDraftName')
-										return (
-											<button
-												key={draft.id}
-												type="button"
-												onClick={() => selectDraft(draft)}
-												className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
-													isActive
-														? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
-														: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
-												}`}
-											>
-												<FilePenLine
-													size={14}
-													strokeWidth={1.7}
-													className="shrink-0"
-												/>
-												<span className="min-w-0 flex-1">
-													<span className="block truncate text-[12px] font-semibold">
-														{title}
+									) : (
+										visibleDrafts.map((draft) => {
+											const isActive = activeDraftKey === draft.id
+											const title =
+												draft.name ??
+												draft.reference ??
+												t('market.defaultDraftName')
+											return (
+												<button
+													key={draft.id}
+													type="button"
+													onClick={() => selectDraft(draft)}
+													className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
+														isActive
+															? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
+															: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
+													}`}
+												>
+													<FilePenLine
+														size={14}
+														strokeWidth={1.7}
+														className="shrink-0"
+													/>
+													<span className="min-w-0 flex-1">
+														<span className="block truncate text-[12px] font-semibold">
+															{title}
+														</span>
+														<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
+															{formatDraftDate(draft.date, isAr)}
+														</span>
 													</span>
-													<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
-														{formatDraftDate(draft.date, isAr)}
+													<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
+														{draft.itemCount}
 													</span>
-												</span>
-												<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
-													{draft.itemCount}
-												</span>
-											</button>
-										)
-									})
-								)}
-							</div>
-						</div>
-					)}
+												</button>
+											)
+										})
+									)}
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
 				</div>
 			</header>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-				{editor ? (
-					<div className="space-y-4">
-						<div className="space-y-3">
-							<label className="block">
-								<span className="mb-1.5 block text-[11px] font-semibold text-[var(--p-text-muted)]">
-									{t('market.draftNameLabel')}
-								</span>
-								<input
-									value={editor.name}
-									onChange={(event) =>
-										updateEditor({ name: event.currentTarget.value })
-									}
-									placeholder={t('orders.orderName')}
-									className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-								/>
-							</label>
-
-							<label className="block">
-								<span className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-[var(--p-text-muted)]">
-									<span>{t('market.cartNotesLabel')}</span>
-									{editor.notes.trim() && (
-										<CopyButton text={editor.notes.trim()} />
-									)}
-								</span>
-								<textarea
-									value={editor.notes}
-									onChange={(event) =>
-										updateEditor({ notes: event.currentTarget.value })
-									}
-									rows={3}
-									placeholder={t('market.cartNotesPlaceholder')}
-									className="min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-								/>
-							</label>
-						</div>
-
-						<div>
-							<div className="mb-2 flex items-center justify-between gap-2">
-								<p className="text-[12px] font-semibold text-[var(--p-text)]">
-									{t('orders.items', { count: editor.items.length })}
-								</p>
-								{dirty && (
-									<span className="rounded-full border border-[var(--p-border)] px-2 py-1 text-[10px] font-semibold text-[var(--p-text-muted)]">
-										{t('orders.unsaved')}
+				<AnimatePresence mode="wait" initial={false}>
+					{editor ? (
+						<motion.div
+							key={activeDraftKey ?? 'draft-editor'}
+							className="space-y-4"
+							{...chatFadeMotion(shouldReduceMotion)}
+						>
+							<div className="space-y-3">
+								<label className="block">
+									<span className="mb-1.5 block text-[11px] font-semibold text-[var(--p-text-muted)]">
+										{t('market.draftNameLabel')}
 									</span>
+									<input
+										value={editor.name}
+										onChange={(event) =>
+											updateEditor({ name: event.currentTarget.value })
+										}
+										placeholder={t('orders.orderName')}
+										className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+									/>
+								</label>
+
+								<label className="block">
+									<span className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-[var(--p-text-muted)]">
+										<span>{t('market.cartNotesLabel')}</span>
+										{editor.notes.trim() && (
+											<CopyButton text={editor.notes.trim()} />
+										)}
+									</span>
+									<textarea
+										value={editor.notes}
+										onChange={(event) =>
+											updateEditor({ notes: event.currentTarget.value })
+										}
+										rows={3}
+										placeholder={t('market.cartNotesPlaceholder')}
+										className="min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+									/>
+								</label>
+							</div>
+
+							<div>
+								<div className="mb-2 flex items-center justify-between gap-2">
+									<p className="text-[12px] font-semibold text-[var(--p-text)]">
+										{t('orders.items', { count: editor.items.length })}
+									</p>
+									{dirty && (
+										<motion.span
+											className="rounded-full border border-[var(--p-border)] px-2 py-1 text-[10px] font-semibold text-[var(--p-text-muted)]"
+											{...chatFadeMotion(shouldReduceMotion)}
+										>
+											{t('orders.unsaved')}
+										</motion.span>
+									)}
+								</div>
+
+								{editor.items.length === 0 ? (
+									<div className="flex min-h-28 items-center justify-center rounded-xl border border-dashed border-[var(--p-border)] text-center text-[12px] text-[var(--p-text-muted)]">
+										{t('orders.emptyOrder')}
+									</div>
+								) : (
+									<div className="space-y-2">
+										<AnimatePresence initial={false}>
+											{editor.items.map((item, index) => (
+												<DraftItemEditor
+													key={`${item.productId}:${item.productName}:${item.unitOfMeasure}`}
+													item={item}
+													index={index}
+													isAr={isAr}
+													onRemove={() => removeItem(index)}
+													onUpdate={(patch) => updateItem(index, patch)}
+												/>
+											))}
+										</AnimatePresence>
+									</div>
 								)}
 							</div>
 
-							{editor.items.length === 0 ? (
-								<div className="flex min-h-28 items-center justify-center rounded-xl border border-dashed border-[var(--p-border)] text-center text-[12px] text-[var(--p-text-muted)]">
-									{t('orders.emptyOrder')}
-								</div>
-							) : (
-								<div className="space-y-2">
-									{editor.items.map((item, index) => (
-										<DraftItemEditor
-											key={`${item.productId}:${item.productName}:${item.unitOfMeasure}`}
-											item={item}
-											index={index}
-											isAr={isAr}
-											onRemove={() => removeItem(index)}
-											onUpdate={(patch) => updateItem(index, patch)}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-
-						<div ref={productMenuRef} className="relative">
-							<button
-								type="button"
-								onClick={() => setProductMenuOpen((open) => !open)}
-								aria-expanded={productMenuOpen}
-								aria-haspopup="menu"
-								className="flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
-							>
-								<span className="flex min-w-0 items-center gap-2">
-									<Search
-										size={15}
-										strokeWidth={1.7}
-										className="shrink-0 text-[var(--p-text-muted)]"
-									/>
-									<span className="truncate text-[12px] font-semibold text-[var(--p-text)]">
-										{t('orders.searchProducts')}
-									</span>
-								</span>
-								<ChevronDown
-									size={15}
-									strokeWidth={1.8}
-									className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
-										productMenuOpen ? 'rotate-180' : ''
-									}`}
-								/>
-							</button>
-
-							{productMenuOpen && (
-								<div
-									role="menu"
-									className="mt-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+							<div ref={productMenuRef} className="relative">
+								<motion.button
+									type="button"
+									onClick={() => setProductMenuOpen((open) => !open)}
+									aria-expanded={productMenuOpen}
+									aria-haspopup="menu"
+									className="flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
+									whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
 								>
-									<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+									<span className="flex min-w-0 items-center gap-2">
 										<Search
-											size={14}
+											size={15}
 											strokeWidth={1.7}
 											className="shrink-0 text-[var(--p-text-muted)]"
 										/>
-										<input
-											value={productSearch}
-											onChange={(event) =>
-												setProductSearch(event.currentTarget.value)
-											}
-											placeholder={t('orders.searchProducts')}
-											className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
-											type="search"
-										/>
-									</label>
-									<div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
-										{productSearchFailed ? (
-											<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
-												{t('orders.error')}
-											</p>
-										) : isProductLoading ? (
-											<div className="space-y-2">
-												{['a', 'b'].map((key) => (
-													<div
-														key={key}
-														className="h-12 animate-pulse rounded-lg bg-[var(--p-border)]"
-													/>
-												))}
-											</div>
-										) : products.length === 0 ? (
-											<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
-												{t('orders.noProducts')}
-											</p>
-										) : (
-											products.map((product) => (
-												<ProductResult
-													key={product.id}
-													product={product}
-													isAr={isAr}
-													onAdd={() => {
-														addProduct(product)
-														setProductMenuOpen(false)
-													}}
+										<span className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+											{t('orders.searchProducts')}
+										</span>
+									</span>
+									<ChevronDown
+										size={15}
+										strokeWidth={1.8}
+										className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+											productMenuOpen ? 'rotate-180' : ''
+										}`}
+									/>
+								</motion.button>
+
+								<AnimatePresence initial={false}>
+									{productMenuOpen && (
+										<motion.div
+											key="product-menu"
+											role="menu"
+											className="mt-2 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+											{...chatMenuMotion(shouldReduceMotion, 'top')}
+										>
+											<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+												<Search
+													size={14}
+													strokeWidth={1.7}
+													className="shrink-0 text-[var(--p-text-muted)]"
 												/>
-											))
-										)}
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
-				) : (
-					<div className="flex min-h-full flex-col items-center justify-center text-center">
-						<FilePenLine
-							size={28}
-							strokeWidth={1.5}
-							className="mb-3 text-[var(--p-text-faint)]"
-						/>
-						<p className="text-[14px] font-semibold text-[var(--p-text)]">
-							{t('quoteBuilder.emptyDraftsTitle')}
-						</p>
-						<button
-							type="button"
-							onClick={startNewDraft}
-							className="mt-4 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-4 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+												<input
+													value={productSearch}
+													onChange={(event) =>
+														setProductSearch(event.currentTarget.value)
+													}
+													placeholder={t('orders.searchProducts')}
+													className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+													type="search"
+												/>
+											</label>
+											<div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+												{productSearchFailed ? (
+													<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
+														{t('orders.error')}
+													</p>
+												) : isProductLoading ? (
+													<div className="space-y-2">
+														{['a', 'b'].map((key) => (
+															<div
+																key={key}
+																className="h-12 animate-pulse rounded-lg bg-[var(--p-border)]"
+															/>
+														))}
+													</div>
+												) : products.length === 0 ? (
+													<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
+														{t('orders.noProducts')}
+													</p>
+												) : (
+													products.map((product) => (
+														<ProductResult
+															key={product.id}
+															product={product}
+															isAr={isAr}
+															onAdd={() => {
+																addProduct(product)
+																setProductMenuOpen(false)
+															}}
+														/>
+													))
+												)}
+											</div>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+						</motion.div>
+					) : (
+						<motion.div
+							key="draft-empty"
+							className="flex min-h-full flex-col items-center justify-center text-center"
+							{...chatFadeMotion(shouldReduceMotion)}
 						>
-							<Plus size={15} strokeWidth={1.7} />
-							{t('orders.newDraft')}
-						</button>
-					</div>
-				)}
+							<FilePenLine
+								size={28}
+								strokeWidth={1.5}
+								className="mb-3 text-[var(--p-text-faint)]"
+							/>
+							<p className="text-[14px] font-semibold text-[var(--p-text)]">
+								{t('quoteBuilder.emptyDraftsTitle')}
+							</p>
+							<motion.button
+								type="button"
+								onClick={startNewDraft}
+								className="mt-4 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-4 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+								whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+							>
+								<Plus size={15} strokeWidth={1.7} />
+								{t('orders.newDraft')}
+							</motion.button>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</div>
 
 			{submitError && (
@@ -888,66 +963,83 @@ export function ChatDraftsPanel({
 
 			{editor && (
 				<footer className="shrink-0 border-t border-[var(--p-border)] px-4 py-3">
-					{confirmSubmitOpen && (
-						<div className="mb-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2">
-							<p className="text-[12px] font-semibold text-[var(--p-text)]">
-								{t('market.confirmSubmitTitle')}
-							</p>
-							<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
-								{t('market.confirmSubmitBody')}
-							</p>
-							<div className="mt-2 grid grid-cols-2 gap-2">
-								<button
-									type="button"
-									onClick={() => setConfirmSubmitOpen(false)}
-									className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-								>
-									{t('orders.cancel')}
-								</button>
-								<button
-									type="button"
-									onClick={confirmSubmitEditor}
-									className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-								>
-									{t('market.confirmSubmitAction')}
-								</button>
-							</div>
-						</div>
-					)}
-					{confirmCartAddOpen && (
-						<div className="mb-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2">
-							<p className="text-[12px] font-semibold text-[var(--p-text)]">
-								{t('orders.confirmAddToCart')}
-							</p>
-							<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
-								{t('orders.confirmAddToCartBody', {
-									count: editor.items.length,
-								})}
-							</p>
-							<div className="mt-2 grid grid-cols-2 gap-2">
-								<button
-									type="button"
-									onClick={() => setConfirmCartAddOpen(false)}
-									className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-								>
-									{t('orders.cancel')}
-								</button>
-								<button
-									type="button"
-									onClick={addEditorToCart}
-									className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-								>
-									{t('market.confirm')}
-								</button>
-							</div>
-						</div>
-					)}
+					<AnimatePresence initial={false}>
+						{confirmSubmitOpen && (
+							<motion.div
+								key="submit-confirm"
+								className="mb-2 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+								{...chatRevealMotion(shouldReduceMotion)}
+							>
+								<p className="text-[12px] font-semibold text-[var(--p-text)]">
+									{t('market.confirmSubmitTitle')}
+								</p>
+								<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+									{t('market.confirmSubmitBody')}
+								</p>
+								<div className="mt-2 grid grid-cols-2 gap-2">
+									<motion.button
+										type="button"
+										onClick={() => setConfirmSubmitOpen(false)}
+										className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+										whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+									>
+										{t('orders.cancel')}
+									</motion.button>
+									<motion.button
+										type="button"
+										onClick={confirmSubmitEditor}
+										className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+										whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+									>
+										{t('market.confirmSubmitAction')}
+									</motion.button>
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
+					<AnimatePresence initial={false}>
+						{confirmCartAddOpen && (
+							<motion.div
+								key="cart-add-confirm"
+								className="mb-2 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+								{...chatRevealMotion(shouldReduceMotion)}
+							>
+								<p className="text-[12px] font-semibold text-[var(--p-text)]">
+									{t('orders.confirmAddToCart')}
+								</p>
+								<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+									{t('orders.confirmAddToCartBody', {
+										count: editor.items.length,
+									})}
+								</p>
+								<div className="mt-2 grid grid-cols-2 gap-2">
+									<motion.button
+										type="button"
+										onClick={() => setConfirmCartAddOpen(false)}
+										className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+										whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+									>
+										{t('orders.cancel')}
+									</motion.button>
+									<motion.button
+										type="button"
+										onClick={addEditorToCart}
+										className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+										whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+									>
+										{t('market.confirm')}
+									</motion.button>
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
 					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
-						<button
+						<motion.button
 							type="button"
 							onClick={requestSubmitEditor}
 							disabled={!canPersist || submitMutation.isPending}
 							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-45"
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
 						>
 							<Send size={14} strokeWidth={1.7} />
 							<span className="truncate">
@@ -955,8 +1047,8 @@ export function ChatDraftsPanel({
 									? t('quoteBuilder.submitting')
 									: t('orders.submit')}
 							</span>
-						</button>
-						<button
+						</motion.button>
+						<motion.button
 							type="button"
 							onClick={() => {
 								setConfirmSubmitOpen(false)
@@ -964,6 +1056,7 @@ export function ChatDraftsPanel({
 							}}
 							disabled={!canPersist || saveMutation.isPending}
 							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 							aria-label={
 								saveMutation.isPending
 									? t('quoteBuilder.savingDraft')
@@ -971,87 +1064,93 @@ export function ChatDraftsPanel({
 							}
 						>
 							<Save size={15} strokeWidth={1.7} />
-						</button>
-						<button
+						</motion.button>
+						<motion.button
 							type="button"
 							onClick={requestAddEditorToCart}
 							disabled={editor.items.length === 0}
 							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
 							aria-label={t('orders.addToCart')}
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 						>
 							<ShoppingCart size={15} strokeWidth={1.7} />
-						</button>
+						</motion.button>
 						<div ref={actionsMenuRef} className="relative">
-							<button
+							<motion.button
 								type="button"
 								onClick={() => setActionsMenuOpen((open) => !open)}
 								aria-expanded={actionsMenuOpen}
 								aria-haspopup="menu"
 								className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
 								aria-label={t('orders.moreActions', 'More actions')}
+								whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 							>
 								<MoreHorizontal size={16} strokeWidth={1.8} />
-							</button>
+							</motion.button>
 
-							{actionsMenuOpen && (
-								<div
-									role="menu"
-									className="absolute right-0 bottom-full z-30 mb-2 w-[min(240px,calc(100vw-2rem))] rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
-								>
-									<button
-										type="button"
-										onClick={() => promptEditor('review')}
-										disabled={editor.items.length === 0 || !onDraftPrompt}
-										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+							<AnimatePresence initial={false}>
+								{actionsMenuOpen && (
+									<motion.div
+										key="actions-menu"
+										role="menu"
+										className="absolute right-0 bottom-full z-30 mb-2 w-[min(240px,calc(100vw-2rem))] rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
+										{...chatMenuMotion(shouldReduceMotion, 'bottom')}
 									>
-										<MessageSquareText size={14} strokeWidth={1.7} />
-										<span className="truncate">
-											{t('orders.reviewWithLyon')}
-										</span>
-									</button>
-									<button
-										type="button"
-										onClick={() => promptEditor('notes')}
-										disabled={editor.items.length === 0 || !onDraftPrompt}
-										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-									>
-										<FilePenLine size={14} strokeWidth={1.7} />
-										<span className="truncate">
-											{t('orders.writeNotesWithLyon')}
-										</span>
-									</button>
-									<button
-										type="button"
-										onClick={duplicateEditor}
-										disabled={editor.items.length === 0}
-										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-									>
-										<Copy size={14} strokeWidth={1.7} />
-										<span className="truncate">{t('orders.duplicate')}</span>
-									</button>
-									<button
-										type="button"
-										onClick={handleDeleteEditor}
-										disabled={!editor.id || deleteMutation.isPending}
-										className={`flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-45 ${
-											editor.id && confirmDeleteId === editor.id
-												? 'bg-[var(--p-error)] text-white hover:opacity-90'
-												: 'text-[var(--p-error)] hover:bg-[var(--p-hover)]'
-										}`}
-									>
-										{editor.id && confirmDeleteId === editor.id ? (
-											<Check size={14} strokeWidth={1.8} />
-										) : (
-											<Trash2 size={14} strokeWidth={1.7} />
-										)}
-										<span className="truncate">
-											{editor.id && confirmDeleteId === editor.id
-												? t('orders.confirmDelete')
-												: t('orders.delete')}
-										</span>
-									</button>
-								</div>
-							)}
+										<button
+											type="button"
+											onClick={() => promptEditor('review')}
+											disabled={editor.items.length === 0 || !onDraftPrompt}
+											className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+										>
+											<MessageSquareText size={14} strokeWidth={1.7} />
+											<span className="truncate">
+												{t('orders.reviewWithLyon')}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => promptEditor('notes')}
+											disabled={editor.items.length === 0 || !onDraftPrompt}
+											className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+										>
+											<FilePenLine size={14} strokeWidth={1.7} />
+											<span className="truncate">
+												{t('orders.writeNotesWithLyon')}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={duplicateEditor}
+											disabled={editor.items.length === 0}
+											className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+										>
+											<Copy size={14} strokeWidth={1.7} />
+											<span className="truncate">{t('orders.duplicate')}</span>
+										</button>
+										<button
+											type="button"
+											onClick={handleDeleteEditor}
+											disabled={!editor.id || deleteMutation.isPending}
+											className={`flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-45 ${
+												editor.id && confirmDeleteId === editor.id
+													? 'bg-[var(--p-error)] text-white hover:opacity-90'
+													: 'text-[var(--p-error)] hover:bg-[var(--p-hover)]'
+											}`}
+										>
+											{editor.id && confirmDeleteId === editor.id ? (
+												<Check size={14} strokeWidth={1.8} />
+											) : (
+												<Trash2 size={14} strokeWidth={1.7} />
+											)}
+											<span className="truncate">
+												{editor.id && confirmDeleteId === editor.id
+													? t('orders.confirmDelete')
+													: t('orders.delete')}
+											</span>
+										</button>
+									</motion.div>
+								)}
+							</AnimatePresence>
 						</div>
 					</div>
 				</footer>
@@ -1074,12 +1173,16 @@ function DraftItemEditor({
 	onUpdate: (patch: Partial<OrderItem>) => void
 }) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 	const name = isAr ? item.productNameAr : item.productName
 	const unit =
 		isAr && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
 
 	return (
-		<div className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-2">
+		<motion.div
+			className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-2"
+			{...chatFadeMotion(shouldReduceMotion)}
+		>
 			<OrderItemImage imageUrl={item.imageUrl} />
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-[12px] font-semibold text-[var(--p-text)]">
@@ -1106,16 +1209,17 @@ function DraftItemEditor({
 					{unit}
 				</span>
 			</label>
-			<button
+			<motion.button
 				type="button"
 				onClick={onRemove}
 				className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
 				aria-label={t('quoteBuilder.removeItem', { name })}
+				whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
 			>
 				<X size={14} strokeWidth={1.7} />
-			</button>
+			</motion.button>
 			<span className="sr-only">{index + 1}</span>
-		</div>
+		</motion.div>
 	)
 }
 
@@ -1129,6 +1233,7 @@ function ProductResult({
 	product: MarketProduct
 }) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 	const name = isAr ? product.nameAr : product.name
 	const category =
 		isAr && product.categoryNameAr
@@ -1140,7 +1245,10 @@ function ProductResult({
 			: product.unitOfMeasure
 
 	return (
-		<div className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-2">
+		<motion.div
+			className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-2"
+			{...chatFadeMotion(shouldReduceMotion)}
+		>
 			<OrderItemImage imageUrl={product.imageUrl} />
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-[12px] font-semibold text-[var(--p-text)]">
@@ -1150,20 +1258,22 @@ function ProductResult({
 					{category} · {unit}
 				</p>
 			</div>
-			<button
+			<motion.button
 				type="button"
 				onClick={onAdd}
 				className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 				aria-label={t('orders.addItem')}
+				whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
 			>
 				<Plus size={14} strokeWidth={1.8} />
-			</button>
-		</div>
+			</motion.button>
+		</motion.div>
 	)
 }
 
 function CopyButton({ text }: { text: string }) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 
 	async function copyText() {
 		await navigator.clipboard.writeText(text)
@@ -1171,14 +1281,15 @@ function CopyButton({ text }: { text: string }) {
 	}
 
 	return (
-		<button
+		<motion.button
 			type="button"
 			onClick={copyText}
 			className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 			aria-label={t('orders.copyNotes')}
+			whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
 		>
 			<Copy size={13} strokeWidth={1.7} />
-		</button>
+		</motion.button>
 	)
 }
 

@@ -8,6 +8,12 @@ import {
 	Plus,
 	Send,
 } from 'lucide-react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
 import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
@@ -16,6 +22,32 @@ import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import type { Order, OrderItem } from '../../types/order'
+
+const SAVED_DRAFTS_EASE = cubicBezier(0.22, 1, 0.36, 1)
+
+function savedDraftRevealMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: SAVED_DRAFTS_EASE,
+		},
+	}
+}
+
+function savedDraftItemMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: SAVED_DRAFTS_EASE,
+		},
+	}
+}
 
 interface SavedDraftsPanelProps {
 	actionMode?: 'submit' | 'add'
@@ -56,6 +88,7 @@ export function SavedDraftsPanel({
 	const { t, i18n } = useTranslation('portal')
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
+	const shouldReduceMotion = useReducedMotion()
 	const addCartItem = useDraftQuoteStore((s) => s.add)
 	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
 	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
@@ -207,8 +240,9 @@ export function SavedDraftsPanel({
 							const isSelected = selectedDraftId === draft.id
 							const isSubmitting = submitMutation.variables?.id === draft.id
 							return (
-								<article
+								<motion.article
 									key={draft.id}
+									{...savedDraftItemMotion(shouldReduceMotion)}
 									className="overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]"
 								>
 									<div className="p-3">
@@ -229,19 +263,22 @@ export function SavedDraftsPanel({
 											</span>
 										</div>
 										<div className="mt-3 grid grid-cols-2 gap-2">
-											<button
+											<motion.button
 												type="button"
 												onClick={() => {
 													setConfirmAddDraftId(null)
 													setSelectedDraftId(isSelected ? null : draft.id)
 												}}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+												whileTap={
+													shouldReduceMotion ? undefined : { scale: 0.98 }
+												}
 											>
 												<Eye size={14} strokeWidth={1.7} />
 												<span className="truncate">{t('orders.view')}</span>
-											</button>
+											</motion.button>
 											{actionMode === 'add' ? (
-												<button
+												<motion.button
 													type="button"
 													onClick={() => {
 														setSelectedDraftId(draft.id)
@@ -249,18 +286,24 @@ export function SavedDraftsPanel({
 													}}
 													disabled={draft.items.length === 0}
 													className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+													whileTap={
+														shouldReduceMotion ? undefined : { scale: 0.98 }
+													}
 												>
 													<Plus size={14} strokeWidth={1.7} />
 													<span className="truncate">{t('orders.add')}</span>
-												</button>
+												</motion.button>
 											) : (
-												<button
+												<motion.button
 													type="button"
 													onClick={() => submitMutation.mutate(draft)}
 													disabled={
 														draft.items.length === 0 || submitMutation.isPending
 													}
 													className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+													whileTap={
+														shouldReduceMotion ? undefined : { scale: 0.98 }
+													}
 												>
 													<Send size={14} strokeWidth={1.7} />
 													<span className="truncate">
@@ -268,42 +311,50 @@ export function SavedDraftsPanel({
 															? t('quoteBuilder.submitting')
 															: t('orders.submit')}
 													</span>
-												</button>
+												</motion.button>
 											)}
 										</div>
 									</div>
-									{isSelected && selectedDraft && (
-										<DraftPreview draft={selectedDraft} isAr={isAr} />
-									)}
-									{actionMode === 'add' && confirmAddDraftId === draft.id && (
-										<div className="border-t border-[var(--p-border)] bg-[var(--p-bg)] p-3">
-											<p className="text-[12px] font-semibold text-[var(--p-text)]">
-												{t('orders.confirmAddToCart')}
-											</p>
-											<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
-												{t('orders.confirmAddToCartBody', {
-													count: draft.items.length,
-												})}
-											</p>
-											<div className="mt-2 grid grid-cols-2 gap-2">
-												<button
-													type="button"
-													onClick={() => setConfirmAddDraftId(null)}
-													className="flex h-8 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-												>
-													{t('orders.cancel')}
-												</button>
-												<button
-													type="button"
-													onClick={() => handleAddDraft(draft)}
-													className="flex h-8 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-												>
-													{t('market.confirm')}
-												</button>
-											</div>
-										</div>
-									)}
-								</article>
+									<AnimatePresence initial={false}>
+										{isSelected && selectedDraft && (
+											<DraftPreview draft={selectedDraft} isAr={isAr} />
+										)}
+									</AnimatePresence>
+									<AnimatePresence initial={false}>
+										{actionMode === 'add' && confirmAddDraftId === draft.id && (
+											<motion.div
+												key="add-confirm"
+												className="overflow-hidden border-t border-[var(--p-border)] bg-[var(--p-bg)] p-3"
+												{...savedDraftRevealMotion(shouldReduceMotion)}
+											>
+												<p className="text-[12px] font-semibold text-[var(--p-text)]">
+													{t('orders.confirmAddToCart')}
+												</p>
+												<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+													{t('orders.confirmAddToCartBody', {
+														count: draft.items.length,
+													})}
+												</p>
+												<div className="mt-2 grid grid-cols-2 gap-2">
+													<button
+														type="button"
+														onClick={() => setConfirmAddDraftId(null)}
+														className="flex h-8 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+													>
+														{t('orders.cancel')}
+													</button>
+													<button
+														type="button"
+														onClick={() => handleAddDraft(draft)}
+														className="flex h-8 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+													>
+														{t('market.confirm')}
+													</button>
+												</div>
+											</motion.div>
+										)}
+									</AnimatePresence>
+								</motion.article>
 							)
 						})}
 					</div>
@@ -321,9 +372,14 @@ export function SavedDraftsPanel({
 
 function DraftPreview({ draft, isAr }: { draft: Order; isAr: boolean }) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 
 	return (
-		<div className="border-t border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2">
+		<motion.div
+			key="draft-preview"
+			className="overflow-hidden border-t border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2"
+			{...savedDraftRevealMotion(shouldReduceMotion)}
+		>
 			{draft.notes?.trim() && (
 				<DraftNotes
 					label={t('market.cartNotesLabel')}
@@ -373,7 +429,7 @@ function DraftPreview({ draft, isAr }: { draft: Order; isAr: boolean }) {
 					})}
 				</div>
 			)}
-		</div>
+		</motion.div>
 	)
 }
 

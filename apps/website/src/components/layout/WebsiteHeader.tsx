@@ -58,6 +58,42 @@ import { ThemeToggle } from './ThemeToggle'
 
 const CART_DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
+function cartRevealMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: CART_DRAWER_EASE,
+		},
+	}
+}
+
+function cartItemMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: CART_DRAWER_EASE,
+		},
+	}
+}
+
+function cartSlideMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { gridTemplateRows: '1fr' },
+		exit: { gridTemplateRows: '0fr' },
+		initial: { gridTemplateRows: '0fr' },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.18,
+			ease: CART_DRAWER_EASE,
+		},
+	}
+}
+
 function getDefaultDraftName(baseName: string, isArabic: boolean) {
 	const date = new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-GB', {
 		day: '2-digit',
@@ -542,6 +578,7 @@ function WebsiteSavedOrdersPanel({
 }) {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
+	const shouldReduceMotion = useReducedMotion()
 	const { add } = useQuoteCart()
 	const [drafts, setDrafts] = useState<WebsiteSavedQuoteDraft[]>([])
 	const [loadState, setLoadState] = useState<
@@ -680,8 +717,9 @@ function WebsiteSavedOrdersPanel({
 								draft.name ?? draft.reference ?? t('cart.defaultDraftName')
 							const isSelected = selectedDraftId === draft.id
 							return (
-								<article
+								<motion.article
 									key={draft.id}
+									{...cartItemMotion(shouldReduceMotion)}
 									className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
 								>
 									<div className="p-3">
@@ -702,18 +740,21 @@ function WebsiteSavedOrdersPanel({
 											</span>
 										</div>
 										<div className="mt-3 grid grid-cols-2 gap-2">
-											<button
+											<motion.button
 												type="button"
 												onClick={() => {
 													setConfirmAddDraftId(null)
 													setSelectedDraftId(isSelected ? null : draft.id)
 												}}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] px-3 text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
+												whileTap={
+													shouldReduceMotion ? undefined : { scale: 0.98 }
+												}
 											>
 												<Eye size={14} strokeWidth={1.7} />
 												<span className="truncate">{t('cart.view')}</span>
-											</button>
-											<button
+											</motion.button>
+											<motion.button
 												type="button"
 												onClick={() => {
 													setSelectedDraftId(draft.id)
@@ -721,47 +762,58 @@ function WebsiteSavedOrdersPanel({
 												}}
 												disabled={draft.items.length === 0}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
+												whileTap={
+													shouldReduceMotion ? undefined : { scale: 0.98 }
+												}
 											>
 												<Plus size={14} strokeWidth={1.7} />
 												<span className="truncate">{t('cart.add')}</span>
-											</button>
+											</motion.button>
 										</div>
 									</div>
-									{isSelected && selectedDraft && (
-										<WebsiteSavedDraftPreview
-											draft={selectedDraft}
-											isAr={isAr}
-										/>
-									)}
-									{confirmAddDraftId === draft.id && (
-										<div className="border-t border-[var(--color-border)] bg-[var(--color-base)] p-3">
-											<p className="text-[12px] font-semibold text-[var(--color-text)]">
-												{t('cart.confirmAddToCart')}
-											</p>
-											<p className="mt-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
-												{t('cart.confirmAddToCartBody', {
-													count: draft.items.length,
-												})}
-											</p>
-											<div className="mt-2 grid grid-cols-2 gap-2">
-												<button
-													type="button"
-													onClick={() => setConfirmAddDraftId(null)}
-													className="flex h-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
-												>
-													{t('cart.cancel')}
-												</button>
-												<button
-													type="button"
-													onClick={() => handleAddDraft(draft)}
-													className="flex h-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-												>
-													{t('cart.confirm')}
-												</button>
-											</div>
-										</div>
-									)}
-								</article>
+									<AnimatePresence initial={false}>
+										{isSelected && selectedDraft && (
+											<WebsiteSavedDraftPreview
+												draft={selectedDraft}
+												isAr={isAr}
+											/>
+										)}
+									</AnimatePresence>
+									<AnimatePresence initial={false}>
+										{confirmAddDraftId === draft.id && (
+											<motion.div
+												key="add-confirm"
+												className="overflow-hidden border-t border-[var(--color-border)] bg-[var(--color-base)] p-3"
+												{...cartRevealMotion(shouldReduceMotion)}
+											>
+												<p className="text-[12px] font-semibold text-[var(--color-text)]">
+													{t('cart.confirmAddToCart')}
+												</p>
+												<p className="mt-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
+													{t('cart.confirmAddToCartBody', {
+														count: draft.items.length,
+													})}
+												</p>
+												<div className="mt-2 grid grid-cols-2 gap-2">
+													<button
+														type="button"
+														onClick={() => setConfirmAddDraftId(null)}
+														className="flex h-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
+													>
+														{t('cart.cancel')}
+													</button>
+													<button
+														type="button"
+														onClick={() => handleAddDraft(draft)}
+														className="flex h-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+													>
+														{t('cart.confirm')}
+													</button>
+												</div>
+											</motion.div>
+										)}
+									</AnimatePresence>
+								</motion.article>
 							)
 						})}
 					</div>
@@ -779,9 +831,14 @@ function WebsiteSavedDraftPreview({
 	isAr: boolean
 }) {
 	const { t } = useTranslation('website')
+	const shouldReduceMotion = useReducedMotion()
 
 	return (
-		<div className="border-t border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2">
+		<motion.div
+			key="draft-preview"
+			className="overflow-hidden border-t border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2"
+			{...cartRevealMotion(shouldReduceMotion)}
+		>
 			{draft.notes?.trim() && (
 				<WebsiteSavedDraftNotes
 					label={t('cart.notes')}
@@ -809,7 +866,7 @@ function WebsiteSavedDraftPreview({
 					})}
 				</div>
 			)}
-		</div>
+		</motion.div>
 	)
 }
 
@@ -1398,81 +1455,87 @@ function CartSubmit({
 					{notesOpen && (
 						<motion.div
 							key="cart-notes"
-							className="overflow-hidden"
-							initial={{
-								height: 0,
-								y: shouldReduceMotion ? 0 : 14,
-							}}
-							animate={{ height: 'auto', y: 0 }}
-							exit={{
-								height: 0,
-								y: shouldReduceMotion ? 0 : 14,
-							}}
-							transition={{
-								duration: shouldReduceMotion ? 0.01 : 0.22,
-								ease: CART_DRAWER_EASE,
-							}}
+							className="grid overflow-hidden"
+							{...cartSlideMotion(shouldReduceMotion)}
 						>
-							<label className="block pb-2">
-								<span className="sr-only">{t('cart.notes')}</span>
-								<textarea
-									value={globalNote}
-									onChange={(event) => setGlobalNote(event.currentTarget.value)}
-									rows={3}
-									placeholder={t('cart.notesPlaceholder')}
-									className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-								/>
-							</label>
+							<div className="min-h-0">
+								<label className="block pb-2">
+									<span className="sr-only">{t('cart.notes')}</span>
+									<textarea
+										value={globalNote}
+										onChange={(event) =>
+											setGlobalNote(event.currentTarget.value)
+										}
+										rows={3}
+										placeholder={t('cart.notesPlaceholder')}
+										className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+									/>
+								</label>
+							</div>
 						</motion.div>
 					)}
 				</AnimatePresence>
 
-				{submitConfirmOpen && (
-					<div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-						<p className="text-[13px] font-semibold text-[var(--color-text)]">
-							{t('cart.confirmSubmitTitle')}
-						</p>
-						<p className="mt-1 text-[12px] leading-5 text-[var(--color-text-muted)]">
-							{t('cart.confirmSubmitBody')}
-						</p>
-						<div className="mt-3 grid grid-cols-2 gap-2">
-							<button
-								type="button"
-								onClick={() => setSubmitConfirmOpen(false)}
-								className="flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
-							>
-								{t('cart.cancel')}
-							</button>
-							<button
-								type="button"
-								onClick={handleSubmitQuote}
-								className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-							>
-								{t('cart.confirmSubmitAction')}
-							</button>
-						</div>
-					</div>
-				)}
+				<AnimatePresence initial={false}>
+					{submitConfirmOpen && (
+						<motion.div
+							key="submit-confirm"
+							className="mt-3 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+							{...cartRevealMotion(shouldReduceMotion)}
+						>
+							<p className="text-[13px] font-semibold text-[var(--color-text)]">
+								{t('cart.confirmSubmitTitle')}
+							</p>
+							<p className="mt-1 text-[12px] leading-5 text-[var(--color-text-muted)]">
+								{t('cart.confirmSubmitBody')}
+							</p>
+							<div className="mt-3 grid grid-cols-2 gap-2">
+								<motion.button
+									type="button"
+									onClick={() => setSubmitConfirmOpen(false)}
+									className="flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
+									whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+								>
+									{t('cart.cancel')}
+								</motion.button>
+								<motion.button
+									type="button"
+									onClick={handleSubmitQuote}
+									className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+									whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+								>
+									{t('cart.confirmSubmitAction')}
+								</motion.button>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 
-				{draftNameEntryOpen && !isDraftSaved && (
-					<div className="mt-2 flex items-center gap-2">
-						<input
-							type="text"
-							value={draftName}
-							onChange={(event) => setDraftName(event.currentTarget.value)}
-							onKeyDown={(event) => {
-								if (event.key === 'Enter') {
-									event.preventDefault()
-									handleConfirmSaveDraft()
-								}
-							}}
-							maxLength={120}
-							aria-label={t('cart.draftNameLabel')}
-							placeholder={defaultDraftName}
-							className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-[13px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-						/>
-					</div>
-				)}
+				<AnimatePresence initial={false}>
+					{draftNameEntryOpen && !isDraftSaved && (
+						<motion.div
+							key="draft-name-entry"
+							className="mt-2 flex items-center gap-2 overflow-hidden"
+							{...cartRevealMotion(shouldReduceMotion)}
+						>
+							<input
+								type="text"
+								value={draftName}
+								onChange={(event) => setDraftName(event.currentTarget.value)}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter') {
+										event.preventDefault()
+										handleConfirmSaveDraft()
+									}
+								}}
+								maxLength={120}
+								aria-label={t('cart.draftNameLabel')}
+								placeholder={defaultDraftName}
+								className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-[13px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+							/>
+						</motion.div>
+					)}
+				</AnimatePresence>
 
 				<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] gap-2">
 					<motion.button

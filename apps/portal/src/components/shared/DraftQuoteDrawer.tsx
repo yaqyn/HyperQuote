@@ -74,6 +74,30 @@ function drawerContentMotion(shouldReduceMotion: boolean | null) {
 	}
 }
 
+function drawerRevealMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: 0 },
+		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
+		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.14,
+			ease: SNAP_EASE,
+		},
+	}
+}
+
+function drawerSlideMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { gridTemplateRows: '1fr' },
+		exit: { gridTemplateRows: '0fr' },
+		initial: { gridTemplateRows: '0fr' },
+		transition: {
+			duration: shouldReduceMotion ? 0.01 : 0.18,
+			ease: SNAP_EASE,
+		},
+	}
+}
+
 function getDefaultDraftName(baseName: string, isArabic: boolean) {
 	const date = new Intl.DateTimeFormat(isArabic ? 'ar-EG' : 'en-GB', {
 		day: '2-digit',
@@ -365,7 +389,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 											className="flex min-h-0 flex-1 flex-col"
 										>
 											<div className="flex-1 overflow-y-auto">
-												<AnimatePresence initial={false} mode="popLayout">
+												<AnimatePresence initial={false}>
 													{items.map((item, index) => {
 														const itemName =
 															isAr && item.nameAr ? item.nameAr : item.name
@@ -379,20 +403,18 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																: item.unitOfMeasure
 														return (
 															<motion.div
-																layout
 																key={item.productId}
 																initial={{
 																	opacity: 0,
-																	y: shouldReduceMotion ? 0 : 8,
+																	y: shouldReduceMotion ? 0 : 4,
 																}}
 																animate={{ opacity: 1, y: 0 }}
 																exit={{
 																	opacity: 0,
-																	x: shouldReduceMotion ? 0 : -16,
-																	height: 0,
+																	x: shouldReduceMotion ? 0 : -8,
 																}}
 																transition={{
-																	duration: shouldReduceMotion ? 0.01 : 0.18,
+																	duration: shouldReduceMotion ? 0.01 : 0.14,
 																	ease: SNAP_EASE,
 																}}
 																className={[
@@ -530,35 +552,27 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													{notesOpen && (
 														<motion.div
 															key="cart-notes"
-															className="overflow-hidden"
-															initial={{
-																height: 0,
-																y: shouldReduceMotion ? 0 : 14,
-															}}
-															animate={{ height: 'auto', y: 0 }}
-															exit={{
-																height: 0,
-																y: shouldReduceMotion ? 0 : 14,
-															}}
-															transition={{
-																duration: shouldReduceMotion ? 0.01 : 0.22,
-																ease: SNAP_EASE,
-															}}
+															className="grid overflow-hidden"
+															{...drawerSlideMotion(shouldReduceMotion)}
 														>
-															<label className="block pb-2">
-																<span className="sr-only">
-																	{t('market.cartNotesLabel')}
-																</span>
-																<textarea
-																	value={globalNote}
-																	onChange={(event) =>
-																		setGlobalNote(event.currentTarget.value)
-																	}
-																	rows={3}
-																	placeholder={t('market.cartNotesPlaceholder')}
-																	className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-																/>
-															</label>
+															<div className="min-h-0">
+																<label className="block pb-2">
+																	<span className="sr-only">
+																		{t('market.cartNotesLabel')}
+																	</span>
+																	<textarea
+																		value={globalNote}
+																		onChange={(event) =>
+																			setGlobalNote(event.currentTarget.value)
+																		}
+																		rows={3}
+																		placeholder={t(
+																			'market.cartNotesPlaceholder',
+																		)}
+																		className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+																	/>
+																</label>
+															</div>
 														</motion.div>
 													)}
 												</AnimatePresence>
@@ -571,54 +585,76 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													</p>
 												)}
 
-												{submitConfirmOpen && (
-													<div className="mt-3 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-3">
-														<p className="text-[13px] font-semibold text-[var(--p-text)]">
-															{t('market.confirmSubmitTitle')}
-														</p>
-														<p className="mt-1 text-[12px] leading-5 text-[var(--p-text-muted)]">
-															{t('market.confirmSubmitBody')}
-														</p>
-														<div className="mt-3 grid grid-cols-2 gap-2">
-															<button
-																type="button"
-																onClick={() => setSubmitConfirmOpen(false)}
-																className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-															>
-																{t('orders.cancel')}
-															</button>
-															<button
-																type="button"
-																onClick={handleConfirmSubmit}
-																className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-															>
-																{t('market.confirmSubmitAction')}
-															</button>
-														</div>
-													</div>
-												)}
+												<AnimatePresence initial={false}>
+													{submitConfirmOpen && (
+														<motion.div
+															key="submit-confirm"
+															className="mt-3 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-3"
+															{...drawerRevealMotion(shouldReduceMotion)}
+														>
+															<p className="text-[13px] font-semibold text-[var(--p-text)]">
+																{t('market.confirmSubmitTitle')}
+															</p>
+															<p className="mt-1 text-[12px] leading-5 text-[var(--p-text-muted)]">
+																{t('market.confirmSubmitBody')}
+															</p>
+															<div className="mt-3 grid grid-cols-2 gap-2">
+																<motion.button
+																	type="button"
+																	onClick={() => setSubmitConfirmOpen(false)}
+																	className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+																	whileTap={
+																		shouldReduceMotion
+																			? undefined
+																			: { scale: 0.98 }
+																	}
+																>
+																	{t('orders.cancel')}
+																</motion.button>
+																<motion.button
+																	type="button"
+																	onClick={handleConfirmSubmit}
+																	className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+																	whileTap={
+																		shouldReduceMotion
+																			? undefined
+																			: { scale: 0.98 }
+																	}
+																>
+																	{t('market.confirmSubmitAction')}
+																</motion.button>
+															</div>
+														</motion.div>
+													)}
+												</AnimatePresence>
 
-												{draftNameEntryOpen && !isDraftSaved && (
-													<div className="mt-2 flex items-center gap-2">
-														<input
-															type="text"
-															value={draftName}
-															onChange={(event) =>
-																setDraftName(event.currentTarget.value)
-															}
-															onKeyDown={(event) => {
-																if (event.key === 'Enter') {
-																	event.preventDefault()
-																	handleConfirmSaveDraft()
+												<AnimatePresence initial={false}>
+													{draftNameEntryOpen && !isDraftSaved && (
+														<motion.div
+															key="draft-name-entry"
+															className="mt-2 flex items-center gap-2 overflow-hidden"
+															{...drawerRevealMotion(shouldReduceMotion)}
+														>
+															<input
+																type="text"
+																value={draftName}
+																onChange={(event) =>
+																	setDraftName(event.currentTarget.value)
 																}
-															}}
-															maxLength={120}
-															aria-label={t('market.draftNameLabel')}
-															placeholder={defaultDraftName}
-															className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-														/>
-													</div>
-												)}
+																onKeyDown={(event) => {
+																	if (event.key === 'Enter') {
+																		event.preventDefault()
+																		handleConfirmSaveDraft()
+																	}
+																}}
+																maxLength={120}
+																aria-label={t('market.draftNameLabel')}
+																placeholder={defaultDraftName}
+																className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+															/>
+														</motion.div>
+													)}
+												</AnimatePresence>
 
 												<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-2">
 													<motion.button
@@ -944,10 +980,7 @@ function DraftProductSearch({
 				>
 					<header className="shrink-0 border-b border-[var(--p-border)] px-4 py-3 md:px-5">
 						<div className="flex items-center gap-2">
-							<motion.div
-								layout
-								className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 transition-colors focus-within:border-[var(--p-border-strong)]"
-							>
+							<motion.div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 transition-colors focus-within:border-[var(--p-border-strong)]">
 								<Search
 									size={16}
 									strokeWidth={1.8}
@@ -1009,7 +1042,7 @@ function DraftProductSearch({
 									exit={{ opacity: 0 }}
 									className="space-y-2"
 								>
-									<AnimatePresence initial={false} mode="popLayout">
+									<AnimatePresence initial={false}>
 										{products.map((product) => (
 											<ProductQuantitySearchRow
 												key={product.id}
