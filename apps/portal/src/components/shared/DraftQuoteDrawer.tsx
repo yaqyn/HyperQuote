@@ -109,6 +109,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
 	const [notesOpen, setNotesOpen] = useState(false)
 	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
+	const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
 	const [searchOpen, setSearchOpen] = useState(false)
 	const formattedItemCount = items.length.toLocaleString(
 		isAr ? 'ar-EG' : 'en-EG',
@@ -141,6 +142,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 			}),
 		onSuccess: (result) => {
 			clear()
+			setSubmitConfirmOpen(false)
 			setSubmittedReference(result.reference)
 			setSavedDraftFingerprint(null)
 			setSavedDraftId(null)
@@ -183,6 +185,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		setSavedOrdersOpen(false)
 		setDraftNameEntryOpen(false)
 		setNotesOpen(false)
+		setSubmitConfirmOpen(false)
 		submitMutation.reset()
 		saveMutation.reset()
 	}
@@ -208,6 +211,18 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		) {
 			return
 		}
+		setSubmitConfirmOpen(true)
+	}
+
+	function handleConfirmSubmit() {
+		if (
+			quoteRequestItems.length === 0 ||
+			submitMutation.isPending ||
+			saveMutation.isPending
+		) {
+			return
+		}
+		setSubmitConfirmOpen(false)
 		submitMutation.mutate()
 	}
 
@@ -220,6 +235,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		) {
 			return
 		}
+		setSubmitConfirmOpen(false)
 		saveMutation.mutate(draftName.trim() || defaultDraftName)
 	}
 
@@ -553,6 +569,33 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															? submitErrorText
 															: t('market.submitError')}
 													</p>
+												)}
+
+												{submitConfirmOpen && (
+													<div className="mt-3 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-3">
+														<p className="text-[13px] font-semibold text-[var(--p-text)]">
+															{t('market.confirmSubmitTitle')}
+														</p>
+														<p className="mt-1 text-[12px] leading-5 text-[var(--p-text-muted)]">
+															{t('market.confirmSubmitBody')}
+														</p>
+														<div className="mt-3 grid grid-cols-2 gap-2">
+															<button
+																type="button"
+																onClick={() => setSubmitConfirmOpen(false)}
+																className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+															>
+																{t('orders.cancel')}
+															</button>
+															<button
+																type="button"
+																onClick={handleConfirmSubmit}
+																className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+															>
+																{t('market.confirmSubmitAction')}
+															</button>
+														</div>
+													</div>
 												)}
 
 												{draftNameEntryOpen && !isDraftSaved && (

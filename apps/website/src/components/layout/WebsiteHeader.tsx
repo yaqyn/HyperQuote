@@ -542,7 +542,7 @@ function WebsiteSavedOrdersPanel({
 }) {
 	const { t, i18n } = useTranslation('website')
 	const isAr = i18n.language === 'ar'
-	const { add, globalNote, setGlobalNote, updateNote } = useQuoteCart()
+	const { add } = useQuoteCart()
 	const [drafts, setDrafts] = useState<WebsiteSavedQuoteDraft[]>([])
 	const [loadState, setLoadState] = useState<
 		'loading' | 'ready' | 'auth' | 'error'
@@ -594,15 +594,6 @@ function WebsiteSavedOrdersPanel({
 					imageUrl: item.imageUrl,
 				},
 				item.quantity,
-			)
-			if (item.note?.trim()) {
-				updateNote(productId, item.note.trim())
-			}
-		}
-		if (draft.notes?.trim()) {
-			const nextNote = draft.notes.trim()
-			setGlobalNote(
-				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
 			)
 		}
 		setConfirmAddDraftId(null)
@@ -1093,6 +1084,7 @@ function CartSubmit({
 	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
 	const [notesOpen, setNotesOpen] = useState(false)
 	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
+	const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
 	const { resendCountdown, setResendCountdown } = useResendCountdown(0)
 	const phoneRef = useRef<HTMLInputElement>(null)
 	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -1227,6 +1219,7 @@ function CartSubmit({
 	if (step === 'submit') {
 		async function handleSubmitQuote() {
 			if (quoteRequestItems.length === 0 || loadingAction) return
+			setSubmitConfirmOpen(false)
 			setLoadingAction('submit')
 			setAuthSuccessVisible(false)
 			setError(null)
@@ -1271,9 +1264,15 @@ function CartSubmit({
 			}
 		}
 
+		function handleRequestSubmitQuote() {
+			if (quoteRequestItems.length === 0 || loadingAction) return
+			setSubmitConfirmOpen(true)
+		}
+
 		async function handleConfirmSaveDraft() {
 			if (quoteRequestItems.length === 0 || loadingAction || isDraftSaved)
 				return
+			setSubmitConfirmOpen(false)
 			const nextName = draftName.trim() || defaultDraftName
 			setLoadingAction('save')
 			setAuthSuccessVisible(false)
@@ -1428,6 +1427,33 @@ function CartSubmit({
 					)}
 				</AnimatePresence>
 
+				{submitConfirmOpen && (
+					<div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+						<p className="text-[13px] font-semibold text-[var(--color-text)]">
+							{t('cart.confirmSubmitTitle')}
+						</p>
+						<p className="mt-1 text-[12px] leading-5 text-[var(--color-text-muted)]">
+							{t('cart.confirmSubmitBody')}
+						</p>
+						<div className="mt-3 grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								onClick={() => setSubmitConfirmOpen(false)}
+								className="flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
+							>
+								{t('cart.cancel')}
+							</button>
+							<button
+								type="button"
+								onClick={handleSubmitQuote}
+								className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+							>
+								{t('cart.confirmSubmitAction')}
+							</button>
+						</div>
+					</div>
+				)}
+
 				{draftNameEntryOpen && !isDraftSaved && (
 					<div className="mt-2 flex items-center gap-2">
 						<input
@@ -1451,7 +1477,7 @@ function CartSubmit({
 				<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] gap-2">
 					<motion.button
 						type="button"
-						onClick={handleSubmitQuote}
+						onClick={handleRequestSubmitQuote}
 						disabled={loadingAction !== null || quoteRequestItems.length === 0}
 						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
 						whileTap={

@@ -57,9 +57,6 @@ export function SavedDraftsPanel({
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
 	const addCartItem = useDraftQuoteStore((s) => s.add)
-	const updateCartItemNote = useDraftQuoteStore((s) => s.updateNote)
-	const globalNote = useDraftQuoteStore((s) => s.globalNote)
-	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
 	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
 		null,
@@ -134,15 +131,6 @@ export function SavedDraftsPanel({
 					imageUrl: item.imageUrl,
 				},
 				item.quantity,
-			)
-			if (item.notes?.trim()) {
-				updateCartItemNote(productId, item.notes.trim())
-			}
-		}
-		if (draft.notes?.trim()) {
-			const nextNote = draft.notes.trim()
-			setGlobalNote(
-				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
 			)
 		}
 		setConfirmAddDraftId(null)

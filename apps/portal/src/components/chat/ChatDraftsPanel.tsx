@@ -177,8 +177,6 @@ export function ChatDraftsPanel({
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
 	const addCartItem = useDraftQuoteStore((s) => s.add)
-	const globalNote = useDraftQuoteStore((s) => s.globalNote)
-	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const defaultDraftName = getDefaultDraftName(
 		t('market.defaultDraftName'),
 		isAr,
@@ -189,6 +187,7 @@ export function ChatDraftsPanel({
 	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
 	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
 	const [confirmCartAddOpen, setConfirmCartAddOpen] = useState(false)
+	const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false)
 	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 	const [draftMenuOpen, setDraftMenuOpen] = useState(false)
 	const [draftSearch, setDraftSearch] = useState('')
@@ -316,6 +315,7 @@ export function ChatDraftsPanel({
 			}
 			setActiveDraftKey(result.draftId)
 			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
 			setEditor({
 				...savedEditor,
 				baseFingerprint: editorFingerprint(savedEditor),
@@ -343,6 +343,7 @@ export function ChatDraftsPanel({
 		onSuccess: (result) => {
 			setActiveDraftKey(null)
 			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
 			setEditor(null)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
@@ -367,6 +368,7 @@ export function ChatDraftsPanel({
 			const nextDraft = savedDrafts.find((draft) => draft.id !== draftId)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
 			setConfirmDeleteId(null)
 			if (nextDraft) {
 				setActiveDraftKey(nextDraft.id)
@@ -386,6 +388,7 @@ export function ChatDraftsPanel({
 	function selectDraft(draft: Order) {
 		setActiveDraftKey(draft.id)
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
 		setEditor(createEditorFromOrder(draft))
@@ -397,6 +400,7 @@ export function ChatDraftsPanel({
 		setActiveDraftKey(NEW_DRAFT_KEY)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
 		setEditor(createNewEditor(defaultDraftName))
@@ -409,11 +413,13 @@ export function ChatDraftsPanel({
 		patch: Partial<Omit<DraftEditorState, 'baseFingerprint'>>,
 	) {
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setEditor((current) => (current ? { ...current, ...patch } : current))
 	}
 
 	function updateItem(index: number, patch: Partial<OrderItem>) {
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			return {
@@ -427,6 +433,7 @@ export function ChatDraftsPanel({
 
 	function removeItem(index: number) {
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			return {
@@ -438,6 +445,7 @@ export function ChatDraftsPanel({
 
 	function addProduct(product: MarketProduct) {
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			const existingIndex = current.items.findIndex(
@@ -465,6 +473,7 @@ export function ChatDraftsPanel({
 		if (!editor) return
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		editor.items.forEach((item, index) => {
 			const productId =
 				item.category === 'unmatched'
@@ -486,25 +495,34 @@ export function ChatDraftsPanel({
 				item.quantity,
 			)
 		})
-		if (editor.notes.trim()) {
-			const nextNote = editor.notes.trim()
-			setGlobalNote(
-				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
-			)
-		}
 		toast.success(t('orders.draftAddedToCart'))
 	}
 
 	function requestAddEditorToCart() {
 		if (!editor || editor.items.length === 0) return
 		setActionsMenuOpen(false)
+		setConfirmSubmitOpen(false)
 		setConfirmCartAddOpen(true)
+	}
+
+	function requestSubmitEditor() {
+		if (!editor || !canPersist || submitMutation.isPending) return
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(true)
+	}
+
+	function confirmSubmitEditor() {
+		if (!editor || !canPersist || submitMutation.isPending) return
+		setConfirmSubmitOpen(false)
+		submitMutation.mutate(editor)
 	}
 
 	function duplicateEditor() {
 		if (!editor) return
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 		const name = editor.name.trim() || editor.reference || defaultDraftName
 		const duplicate = {
 			date: new Date().toISOString(),
@@ -527,6 +545,7 @@ export function ChatDraftsPanel({
 		onDraftPrompt(buildDraftPrompt(editor, intent))
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
 	}
 
 	function handleDeleteEditor() {
@@ -869,6 +888,32 @@ export function ChatDraftsPanel({
 
 			{editor && (
 				<footer className="shrink-0 border-t border-[var(--p-border)] px-4 py-3">
+					{confirmSubmitOpen && (
+						<div className="mb-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2">
+							<p className="text-[12px] font-semibold text-[var(--p-text)]">
+								{t('market.confirmSubmitTitle')}
+							</p>
+							<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+								{t('market.confirmSubmitBody')}
+							</p>
+							<div className="mt-2 grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => setConfirmSubmitOpen(false)}
+									className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+								>
+									{t('orders.cancel')}
+								</button>
+								<button
+									type="button"
+									onClick={confirmSubmitEditor}
+									className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+								>
+									{t('market.confirmSubmitAction')}
+								</button>
+							</div>
+						</div>
+					)}
 					{confirmCartAddOpen && (
 						<div className="mb-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2">
 							<p className="text-[12px] font-semibold text-[var(--p-text)]">
@@ -900,7 +945,7 @@ export function ChatDraftsPanel({
 					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
 						<button
 							type="button"
-							onClick={() => editor && submitMutation.mutate(editor)}
+							onClick={requestSubmitEditor}
 							disabled={!canPersist || submitMutation.isPending}
 							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-45"
 						>
@@ -913,7 +958,10 @@ export function ChatDraftsPanel({
 						</button>
 						<button
 							type="button"
-							onClick={() => editor && saveMutation.mutate(editor)}
+							onClick={() => {
+								setConfirmSubmitOpen(false)
+								editor && saveMutation.mutate(editor)
+							}}
 							disabled={!canPersist || saveMutation.isPending}
 							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
 							aria-label={
