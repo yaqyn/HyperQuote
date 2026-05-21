@@ -111,6 +111,8 @@
 	"orders.more": "إضافي",
 	"orders.add": "إضافة",
 	"orders.addToCart": "إضافة للسلة",
+	"orders.confirmAddToCart": "إضافة هذه المسودة إلى السلة؟",
+	"orders.confirmAddToCartBody": "سيتم إضافة {{count}} عناصر إلى السلة الحالية.",
 	"orders.save": "حفظ",
 	"orders.deleteOrder": "حذف الطلب",
 	"orders.draftDeleted": "تم حذف المسودة.",

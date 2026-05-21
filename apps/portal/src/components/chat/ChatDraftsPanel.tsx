@@ -67,7 +67,6 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 		items: editor.items.map((item) => ({
 			category: item.category,
 			imageUrl: item.imageUrl,
-			notes: item.notes?.trim() ?? '',
 			productId: item.productId,
 			productName: item.productName.trim(),
 			productNameAr: item.productNameAr.trim(),
@@ -80,11 +79,24 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 	})
 }
 
+function itemWithoutNotes(item: OrderItem): OrderItem {
+	return {
+		category: item.category,
+		imageUrl: item.imageUrl,
+		productId: item.productId,
+		productName: item.productName,
+		productNameAr: item.productNameAr,
+		quantity: item.quantity,
+		unitOfMeasure: item.unitOfMeasure,
+		unitOfMeasureAr: item.unitOfMeasureAr,
+	}
+}
+
 function createEditorFromOrder(order: Order): DraftEditorState {
 	const editor = {
 		date: order.date,
 		id: order.id,
-		items: order.items,
+		items: order.items.map(itemWithoutNotes),
 		name: order.name ?? order.reference ?? '',
 		notes: order.notes ?? '',
 		reference: order.reference ?? null,
@@ -127,7 +139,6 @@ function toQuoteRequestItems(items: OrderItem[]) {
 	return items.map((item, index) => ({
 		customerDescription: item.productName,
 		isUnmatched: item.category === 'unmatched',
-		notes: item.notes?.trim() || undefined,
 		productId: item.category === 'unmatched' ? undefined : item.productId,
 		quantity: item.quantity,
 		sortOrder: index,
@@ -142,10 +153,10 @@ function buildDraftPrompt(
 ) {
 	const title = editor.name.trim() || editor.reference || 'Untitled draft'
 	const items = editor.items
-		.map((item, index) => {
-			const note = item.notes?.trim() ? ` Notes: ${item.notes.trim()}` : ''
-			return `${index + 1}. ${item.quantity} ${item.unitOfMeasure} ${item.productName}.${note}`
-		})
+		.map(
+			(item, index) =>
+				`${index + 1}. ${item.quantity} ${item.unitOfMeasure} ${item.productName}`,
+		)
 		.join('\n')
 	const draftNotes = editor.notes.trim() || 'No draft notes yet.'
 
@@ -153,7 +164,7 @@ function buildDraftPrompt(
 		return `Write concise order notes for this draft. Keep delivery/site assumptions separate from material assumptions.\n\nDraft: ${title}\nCurrent notes: ${draftNotes}\nItems:\n${items}`
 	}
 
-	return `Inspect this draft and suggest what to change before submitting it as a quote request. Check quantities, missing notes, and whether any items need clarification.\n\nDraft: ${title}\nNotes: ${draftNotes}\nItems:\n${items}`
+	return `Inspect this draft and suggest what to change before submitting it as a quote request. Check quantities, draft notes, and whether any items need clarification.\n\nDraft: ${title}\nNotes: ${draftNotes}\nItems:\n${items}`
 }
 
 export function ChatDraftsPanel({
@@ -166,7 +177,6 @@ export function ChatDraftsPanel({
 	const queryClient = useQueryClient()
 	const isAr = i18n.language === 'ar'
 	const addCartItem = useDraftQuoteStore((s) => s.add)
-	const updateCartItemNote = useDraftQuoteStore((s) => s.updateNote)
 	const globalNote = useDraftQuoteStore((s) => s.globalNote)
 	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const defaultDraftName = getDefaultDraftName(
@@ -178,6 +188,7 @@ export function ChatDraftsPanel({
 	const productMenuRef = useRef<HTMLDivElement>(null)
 	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
 	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
+	const [confirmCartAddOpen, setConfirmCartAddOpen] = useState(false)
 	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 	const [draftMenuOpen, setDraftMenuOpen] = useState(false)
 	const [draftSearch, setDraftSearch] = useState('')
@@ -304,6 +315,7 @@ export function ChatDraftsPanel({
 				reference: result.reference,
 			}
 			setActiveDraftKey(result.draftId)
+			setConfirmCartAddOpen(false)
 			setEditor({
 				...savedEditor,
 				baseFingerprint: editorFingerprint(savedEditor),
@@ -330,6 +342,7 @@ export function ChatDraftsPanel({
 		onMutate: () => setSubmitError(null),
 		onSuccess: (result) => {
 			setActiveDraftKey(null)
+			setConfirmCartAddOpen(false)
 			setEditor(null)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
@@ -353,6 +366,7 @@ export function ChatDraftsPanel({
 		onSuccess: (_result, draftId) => {
 			const nextDraft = savedDrafts.find((draft) => draft.id !== draftId)
 			setActionsMenuOpen(false)
+			setConfirmCartAddOpen(false)
 			setConfirmDeleteId(null)
 			if (nextDraft) {
 				setActiveDraftKey(nextDraft.id)
@@ -371,6 +385,7 @@ export function ChatDraftsPanel({
 
 	function selectDraft(draft: Order) {
 		setActiveDraftKey(draft.id)
+		setConfirmCartAddOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
 		setEditor(createEditorFromOrder(draft))
@@ -381,6 +396,7 @@ export function ChatDraftsPanel({
 	function startNewDraft() {
 		setActiveDraftKey(NEW_DRAFT_KEY)
 		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
 		setEditor(createNewEditor(defaultDraftName))
@@ -392,10 +408,12 @@ export function ChatDraftsPanel({
 	function updateEditor(
 		patch: Partial<Omit<DraftEditorState, 'baseFingerprint'>>,
 	) {
+		setConfirmCartAddOpen(false)
 		setEditor((current) => (current ? { ...current, ...patch } : current))
 	}
 
 	function updateItem(index: number, patch: Partial<OrderItem>) {
+		setConfirmCartAddOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			return {
@@ -408,6 +426,7 @@ export function ChatDraftsPanel({
 	}
 
 	function removeItem(index: number) {
+		setConfirmCartAddOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			return {
@@ -418,6 +437,7 @@ export function ChatDraftsPanel({
 	}
 
 	function addProduct(product: MarketProduct) {
+		setConfirmCartAddOpen(false)
 		setEditor((current) => {
 			if (!current) return current
 			const existingIndex = current.items.findIndex(
@@ -444,6 +464,7 @@ export function ChatDraftsPanel({
 	function addEditorToCart() {
 		if (!editor) return
 		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
 		editor.items.forEach((item, index) => {
 			const productId =
 				item.category === 'unmatched'
@@ -464,7 +485,6 @@ export function ChatDraftsPanel({
 				},
 				item.quantity,
 			)
-			if (item.notes?.trim()) updateCartItemNote(productId, item.notes.trim())
 		})
 		if (editor.notes.trim()) {
 			const nextNote = editor.notes.trim()
@@ -475,14 +495,21 @@ export function ChatDraftsPanel({
 		toast.success(t('orders.draftAddedToCart'))
 	}
 
+	function requestAddEditorToCart() {
+		if (!editor || editor.items.length === 0) return
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(true)
+	}
+
 	function duplicateEditor() {
 		if (!editor) return
 		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
 		const name = editor.name.trim() || editor.reference || defaultDraftName
 		const duplicate = {
 			date: new Date().toISOString(),
 			id: null,
-			items: editor.items,
+			items: editor.items.map(itemWithoutNotes),
 			name: t('orders.copyName', { name }),
 			notes: editor.notes,
 			reference: null,
@@ -499,6 +526,7 @@ export function ChatDraftsPanel({
 		if (!editor || !onDraftPrompt) return
 		onDraftPrompt(buildDraftPrompt(editor, intent))
 		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
 	}
 
 	function handleDeleteEditor() {
@@ -841,6 +869,34 @@ export function ChatDraftsPanel({
 
 			{editor && (
 				<footer className="shrink-0 border-t border-[var(--p-border)] px-4 py-3">
+					{confirmCartAddOpen && (
+						<div className="mb-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2">
+							<p className="text-[12px] font-semibold text-[var(--p-text)]">
+								{t('orders.confirmAddToCart')}
+							</p>
+							<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+								{t('orders.confirmAddToCartBody', {
+									count: editor.items.length,
+								})}
+							</p>
+							<div className="mt-2 grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => setConfirmCartAddOpen(false)}
+									className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+								>
+									{t('orders.cancel')}
+								</button>
+								<button
+									type="button"
+									onClick={addEditorToCart}
+									className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+								>
+									{t('market.confirm')}
+								</button>
+							</div>
+						</div>
+					)}
 					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
 						<button
 							type="button"
@@ -870,7 +926,7 @@ export function ChatDraftsPanel({
 						</button>
 						<button
 							type="button"
-							onClick={addEditorToCart}
+							onClick={requestAddEditorToCart}
 							disabled={editor.items.length === 0}
 							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
 							aria-label={t('orders.addToCart')}
@@ -975,56 +1031,41 @@ function DraftItemEditor({
 		isAr && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
 
 	return (
-		<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3">
-			<div className="flex min-w-0 items-start gap-2">
-				<OrderItemImage imageUrl={item.imageUrl} />
-				<div className="min-w-0 flex-1">
-					<p className="truncate text-[12px] font-semibold text-[var(--p-text)]">
-						{name}
-					</p>
-					<p className="mt-1 text-[10px] text-[var(--p-text-muted)]">{unit}</p>
-				</div>
-				<button
-					type="button"
-					onClick={onRemove}
-					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
-					aria-label={t('quoteBuilder.removeItem', { name })}
-				>
-					<X size={14} strokeWidth={1.7} />
-				</button>
+		<div className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-2">
+			<OrderItemImage imageUrl={item.imageUrl} />
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+					{name}
+				</p>
 			</div>
-			<div className="mt-3 grid grid-cols-[82px_minmax(0,1fr)] gap-2">
-				<label className="block">
-					<span className="sr-only">{t('chat.qty')}</span>
-					<input
-						value={item.quantity}
-						onChange={(event) => {
-							const quantity = Number.parseInt(event.currentTarget.value, 10)
-							if (Number.isFinite(quantity) && quantity > 0) {
-								onUpdate({ quantity })
-							}
-						}}
-						min={1}
-						type="number"
-						className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 text-center text-[13px] font-semibold tabular-nums text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-border-strong)]"
-						aria-label={t('quoteBuilder.quantityFor', { name })}
-					/>
-				</label>
-				<label className="block">
-					<span className="sr-only">{t('orders.itemNotes')}</span>
-					<input
-						value={item.notes ?? ''}
-						onChange={(event) => onUpdate({ notes: event.currentTarget.value })}
-						placeholder={t('orders.itemNotes')}
-						className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 text-[12px] text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-					/>
-				</label>
-			</div>
-			{item.notes?.trim() && (
-				<div className="mt-2 flex justify-end">
-					<CopyButton text={item.notes.trim()} />
-				</div>
-			)}
+			<label className="flex h-9 w-[112px] shrink-0 items-center justify-end gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+				<span className="sr-only">{t('chat.qty')}</span>
+				<input
+					value={item.quantity}
+					onChange={(event) => {
+						const quantity = Number.parseInt(event.currentTarget.value, 10)
+						if (Number.isFinite(quantity) && quantity > 0) {
+							onUpdate({ quantity })
+						}
+					}}
+					min={1}
+					type="number"
+					inputMode="numeric"
+					className="h-full min-w-0 flex-1 bg-transparent text-end text-[13px] font-semibold tabular-nums text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					aria-label={t('quoteBuilder.quantityFor', { name })}
+				/>
+				<span className="max-w-12 truncate text-[11px] text-[var(--p-text-muted)]">
+					{unit}
+				</span>
+			</label>
+			<button
+				type="button"
+				onClick={onRemove}
+				className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+				aria-label={t('quoteBuilder.removeItem', { name })}
+			>
+				<X size={14} strokeWidth={1.7} />
+			</button>
 			<span className="sr-only">{index + 1}</span>
 		</div>
 	)

@@ -625,6 +625,8 @@
 		"more": "more",
 		"add": "Add",
 		"addToCart": "Add to cart",
+		"confirmAddToCart": "Add this draft to cart?",
+		"confirmAddToCartBody": "This will add {{count}} items to the current cart.",
 		"save": "Save",
 		"deleteOrder": "Delete Order",
 		"draftDeleted": "Draft deleted.",
