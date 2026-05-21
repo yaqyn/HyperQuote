@@ -533,19 +533,21 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 												</AnimatePresence>
 											</div>
 
-											<motion.div
-												initial={false}
-												animate={{ paddingTop: notesOpen ? 128 : 20 }}
-												transition={{
-													duration: shouldReduceMotion ? 0.01 : 0.2,
-													ease: SNAP_EASE,
-												}}
-												className="relative shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-5 md:pb-4"
-											>
+											<div className="relative shrink-0 px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-5 md:pb-4">
+												<motion.div
+													aria-hidden="true"
+													className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--p-border)]"
+													initial={false}
+													animate={{ y: notesOpen ? -108 : 0 }}
+													transition={{
+														duration: shouldReduceMotion ? 0.01 : 0.2,
+														ease: SNAP_EASE,
+													}}
+												/>
 												<motion.button
 													type="button"
 													onClick={() => setNotesOpen((value) => !value)}
-													className={`absolute -top-5 end-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:end-5 ${
+													className={`absolute -top-5 end-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:end-5 ${
 														notesOpen
 															? 'border-[var(--p-accent)] text-[var(--p-accent)]'
 															: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
@@ -553,9 +555,15 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													aria-label={t('market.cartNotesLabel')}
 													aria-expanded={notesOpen}
 													aria-pressed={notesOpen}
+													initial={false}
+													animate={{ y: notesOpen ? -108 : 0 }}
 													whileTap={
 														shouldReduceMotion ? undefined : { scale: 0.94 }
 													}
+													transition={{
+														duration: shouldReduceMotion ? 0.01 : 0.2,
+														ease: SNAP_EASE,
+													}}
 												>
 													<StickyNote size={17} strokeWidth={1.8} />
 												</motion.button>
@@ -563,8 +571,20 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													{notesOpen && (
 														<motion.div
 															key="cart-notes"
-															className="absolute inset-x-4 top-5 md:inset-x-5"
-															{...drawerRevealMotion(shouldReduceMotion)}
+															className="absolute inset-x-4 top-0 z-10 md:inset-x-5"
+															initial={{
+																opacity: 0,
+																y: shouldReduceMotion ? -96 : -76,
+															}}
+															animate={{ opacity: 1, y: -96 }}
+															exit={{
+																opacity: 0,
+																y: shouldReduceMotion ? -96 : -76,
+															}}
+															transition={{
+																duration: shouldReduceMotion ? 0.01 : 0.18,
+																ease: SNAP_EASE,
+															}}
 														>
 															<label className="block">
 																<span className="sr-only">
@@ -745,7 +765,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 														)}
 													</motion.button>
 												</div>
-											</motion.div>
+											</div>
 										</motion.form>
 									)}
 								</AnimatePresence>

@@ -1400,15 +1400,17 @@ function CartSubmit({
 		}
 
 		return (
-			<motion.div
-				initial={false}
-				animate={{ paddingTop: notesOpen ? 124 : 20 }}
-				transition={{
-					duration: shouldReduceMotion ? 0.01 : 0.2,
-					ease: CART_DRAWER_EASE,
-				}}
-				className="relative border-t border-[var(--color-border)] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3"
-			>
+			<div className="relative px-4 pt-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+				<motion.div
+					aria-hidden="true"
+					className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--color-border)]"
+					initial={false}
+					animate={{ y: notesOpen ? -104 : 0 }}
+					transition={{
+						duration: shouldReduceMotion ? 0.01 : 0.2,
+						ease: CART_DRAWER_EASE,
+					}}
+				/>
 				<AnimatePresence initial={false}>
 					{authSuccessVisible && (
 						<motion.div
@@ -1460,7 +1462,7 @@ function CartSubmit({
 				<motion.button
 					type="button"
 					onClick={() => setNotesOpen((value) => !value)}
-					className={`absolute -top-5 end-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--color-base)] shadow-sm transition-colors ${
+					className={`absolute -top-5 end-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--color-base)] shadow-sm transition-colors ${
 						notesOpen
 							? 'border-[var(--color-primary)] text-[var(--color-primary)]'
 							: 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
@@ -1468,9 +1470,11 @@ function CartSubmit({
 					aria-label={t('cart.notes')}
 					aria-expanded={notesOpen}
 					aria-pressed={notesOpen}
+					initial={false}
+					animate={{ y: notesOpen ? -104 : 0 }}
 					whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 					transition={{
-						duration: shouldReduceMotion ? 0.01 : 0.16,
+						duration: shouldReduceMotion ? 0.01 : 0.2,
 						ease: CART_DRAWER_EASE,
 					}}
 				>
@@ -1480,8 +1484,14 @@ function CartSubmit({
 					{notesOpen && (
 						<motion.div
 							key="cart-notes"
-							className="absolute inset-x-4 top-5"
-							{...cartRevealMotion(shouldReduceMotion)}
+							className="absolute inset-x-4 top-0 z-10"
+							initial={{ opacity: 0, y: shouldReduceMotion ? -92 : -72 }}
+							animate={{ opacity: 1, y: -92 }}
+							exit={{ opacity: 0, y: shouldReduceMotion ? -92 : -72 }}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.18,
+								ease: CART_DRAWER_EASE,
+							}}
 						>
 							<label className="block">
 								<span className="sr-only">{t('cart.notes')}</span>
@@ -1641,7 +1651,7 @@ function CartSubmit({
 				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">
 					{t('cart.submitHint')}
 				</p>
-			</motion.div>
+			</div>
 		)
 	}
 
