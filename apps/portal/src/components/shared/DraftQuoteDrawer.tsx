@@ -1,7 +1,9 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
 import {
 	Check,
+	ChevronUp,
 	FilePenLine,
+	Files,
 	Minus,
 	Package,
 	PanelRightClose,
@@ -105,6 +107,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
 	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
+	const [notesOpen, setNotesOpen] = useState(false)
 	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
 	const [searchOpen, setSearchOpen] = useState(false)
 	const formattedItemCount = items.length.toLocaleString(
@@ -179,6 +182,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		setSearchOpen(false)
 		setSavedOrdersOpen(false)
 		setDraftNameEntryOpen(false)
+		setNotesOpen(false)
 		submitMutation.reset()
 		saveMutation.reset()
 	}
@@ -492,20 +496,51 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 											</div>
 
 											<div className="shrink-0 border-t border-[var(--p-border)] px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:px-5 md:pb-4">
-												<label className="block text-[12px] font-medium text-[var(--p-text-muted)]">
-													<span className="mb-1.5 block">
+												<button
+													type="button"
+													onClick={() => setNotesOpen((value) => !value)}
+													className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+													aria-expanded={notesOpen}
+												>
+													<span className="truncate">
 														{t('market.cartNotesLabel')}
 													</span>
-													<textarea
-														value={globalNote}
-														onChange={(event) =>
-															setGlobalNote(event.currentTarget.value)
-														}
-														rows={2}
-														placeholder={t('market.cartNotesPlaceholder')}
-														className="block w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+													<ChevronUp
+														size={16}
+														strokeWidth={1.8}
+														className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+															notesOpen ? 'rotate-180' : ''
+														}`}
 													/>
-												</label>
+												</button>
+												<AnimatePresence initial={false}>
+													{notesOpen && (
+														<motion.label
+															key="cart-notes"
+															className="mt-2 block"
+															initial={{ opacity: 0, height: 0 }}
+															animate={{ opacity: 1, height: 'auto' }}
+															exit={{ opacity: 0, height: 0 }}
+															transition={{
+																duration: shouldReduceMotion ? 0.01 : 0.18,
+																ease: SNAP_EASE,
+															}}
+														>
+															<span className="sr-only">
+																{t('market.cartNotesLabel')}
+															</span>
+															<textarea
+																value={globalNote}
+																onChange={(event) =>
+																	setGlobalNote(event.currentTarget.value)
+																}
+																rows={3}
+																placeholder={t('market.cartNotesPlaceholder')}
+																className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+															/>
+														</motion.label>
+													)}
+												</AnimatePresence>
 
 												{(submitMutation.isError || saveMutation.isError) && (
 													<p className="mt-3 text-[12px] text-[var(--p-error)]">
@@ -515,18 +550,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													</p>
 												)}
 
-												{isDraftSaved ? (
-													<button
-														type="button"
-														disabled
-														className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-surface)] px-5 text-[14px] font-semibold text-[var(--p-text-muted)] opacity-60"
-													>
-														<span className="truncate">
-															{persistedDraftName}
-														</span>
-													</button>
-												) : draftNameEntryOpen ? (
-													<div className="mt-3 flex items-center gap-2">
+												{draftNameEntryOpen && !isDraftSaved && (
+													<div className="mt-2 flex items-center gap-2">
 														<input
 															type="text"
 															value={draftName}
@@ -542,45 +567,18 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															maxLength={120}
 															aria-label={t('market.draftNameLabel')}
 															placeholder={defaultDraftName}
-															className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[14px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+															className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
 														/>
-														<motion.button
-															type="button"
-															onClick={handleConfirmSaveDraft}
-															disabled={
-																submitMutation.isPending ||
-																saveMutation.isPending
-															}
-															className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-60"
-															aria-label={t('market.saveDraft')}
-															whileTap={
-																shouldReduceMotion ||
-																submitMutation.isPending ||
-																saveMutation.isPending
-																	? undefined
-																	: { scale: 0.94 }
-															}
-														>
-															{saveMutation.isPending ? (
-																<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-															) : (
-																<Save size={17} strokeWidth={1.8} />
-															)}
-														</motion.button>
 													</div>
-												) : (
+												)}
+
+												<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-2">
 													<motion.button
-														type="button"
-														onClick={() => {
-															setDraftName(
-																savedDraftId ? persistedDraftName : '',
-															)
-															setDraftNameEntryOpen(true)
-														}}
+														type="submit"
 														disabled={
 															submitMutation.isPending || saveMutation.isPending
 														}
-														className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-[var(--p-border)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-70"
+														className="flex h-11 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
 														whileTap={
 															shouldReduceMotion ||
 															submitMutation.isPending ||
@@ -589,36 +587,70 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																: { scale: 0.985 }
 														}
 													>
-														{saveMutation.isPending
-															? t('quoteBuilder.savingDraft')
-															: t('market.saveDraft')}
+														<span className="truncate">
+															{submitMutation.isPending
+																? t('quoteBuilder.submitting')
+																: t('market.submitQuote')}
+														</span>
 													</motion.button>
-												)}
-												<button
-													type="button"
-													onClick={() => setSavedOrdersOpen(true)}
-													className="mt-2 flex h-10 w-full items-center justify-center rounded-xl text-[13px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-												>
-													{t('market.viewSavedOrders')}
-												</button>
-												<motion.button
-													type="submit"
-													disabled={
-														submitMutation.isPending || saveMutation.isPending
-													}
-													className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
-													whileTap={
-														shouldReduceMotion ||
-														submitMutation.isPending ||
-														saveMutation.isPending
-															? undefined
-															: { scale: 0.985 }
-													}
-												>
-													{submitMutation.isPending
-														? t('quoteBuilder.submitting')
-														: t('market.submitQuote')}
-												</motion.button>
+													<motion.button
+														type="button"
+														onClick={() => setSavedOrdersOpen(true)}
+														className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+														aria-label={t('market.viewSavedOrders')}
+														whileTap={
+															shouldReduceMotion ? undefined : { scale: 0.94 }
+														}
+													>
+														<Files size={17} strokeWidth={1.8} />
+													</motion.button>
+													<motion.button
+														type="button"
+														onClick={() => {
+															if (isDraftSaved) return
+															if (draftNameEntryOpen) {
+																handleConfirmSaveDraft()
+																return
+															}
+															setDraftName(
+																savedDraftId ? persistedDraftName : '',
+															)
+															setDraftNameEntryOpen(true)
+														}}
+														disabled={
+															submitMutation.isPending ||
+															saveMutation.isPending ||
+															isDraftSaved
+														}
+														title={
+															isDraftSaved ? persistedDraftName : undefined
+														}
+														className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:pointer-events-none ${
+															draftNameEntryOpen && !isDraftSaved
+																? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500'
+																: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:bg-[var(--p-surface)] disabled:text-[var(--p-text-faint)] disabled:opacity-60'
+														}`}
+														aria-label={
+															isDraftSaved
+																? persistedDraftName
+																: t('market.saveDraft')
+														}
+														whileTap={
+															shouldReduceMotion ||
+															submitMutation.isPending ||
+															saveMutation.isPending ||
+															isDraftSaved
+																? undefined
+																: { scale: 0.94 }
+														}
+													>
+														{saveMutation.isPending ? (
+															<span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+														) : (
+															<Save size={17} strokeWidth={1.8} />
+														)}
+													</motion.button>
+												</div>
 											</div>
 										</motion.form>
 									)}

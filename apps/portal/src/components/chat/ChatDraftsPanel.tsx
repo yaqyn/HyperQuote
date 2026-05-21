@@ -2,18 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
 	AlertTriangle,
 	Check,
+	ChevronDown,
 	Copy,
 	FilePenLine,
 	MessageSquareText,
+	MoreHorizontal,
 	Package,
 	Plus,
 	Save,
 	Search,
 	Send,
+	ShoppingCart,
 	Trash2,
 	X,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
@@ -170,10 +173,16 @@ export function ChatDraftsPanel({
 		t('market.defaultDraftName'),
 		isAr,
 	)
+	const actionsMenuRef = useRef<HTMLDivElement>(null)
+	const draftMenuRef = useRef<HTMLDivElement>(null)
+	const productMenuRef = useRef<HTMLDivElement>(null)
 	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
+	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
 	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+	const [draftMenuOpen, setDraftMenuOpen] = useState(false)
 	const [draftSearch, setDraftSearch] = useState('')
 	const [editor, setEditor] = useState<DraftEditorState | null>(null)
+	const [productMenuOpen, setProductMenuOpen] = useState(false)
 	const [productSearch, setProductSearch] = useState('')
 	const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -228,6 +237,12 @@ export function ChatDraftsPanel({
 		? editorFingerprint(editor) !== editor.baseFingerprint
 		: false
 	const canPersist = Boolean(editor && editor.items.length > 0)
+	const activeDraftTitle = editor
+		? editor.name.trim() || editor.reference || t('market.defaultDraftName')
+		: t('orders.selectDraft', 'Select draft')
+	const activeDraftMeta = editor
+		? `${t('orders.items', { count: editor.items.length })} · ${formatDraftDate(editor.date, isAr)}`
+		: t('orders.noDraftSelected', 'No draft selected')
 
 	useEffect(() => {
 		if (activeDraftKey || savedDrafts.length === 0) return
@@ -235,6 +250,37 @@ export function ChatDraftsPanel({
 		setActiveDraftKey(firstDraft.id)
 		setEditor(createEditorFromOrder(firstDraft))
 	}, [activeDraftKey, savedDrafts])
+
+	useEffect(() => {
+		if (!actionsMenuOpen && !draftMenuOpen && !productMenuOpen) return
+
+		function handlePointerDown(event: PointerEvent) {
+			const target = event.target as Node
+			if (actionsMenuOpen && !actionsMenuRef.current?.contains(target)) {
+				setActionsMenuOpen(false)
+			}
+			if (draftMenuOpen && !draftMenuRef.current?.contains(target)) {
+				setDraftMenuOpen(false)
+			}
+			if (productMenuOpen && !productMenuRef.current?.contains(target)) {
+				setProductMenuOpen(false)
+			}
+		}
+
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key !== 'Escape') return
+			setActionsMenuOpen(false)
+			setDraftMenuOpen(false)
+			setProductMenuOpen(false)
+		}
+
+		document.addEventListener('pointerdown', handlePointerDown)
+		document.addEventListener('keydown', handleKeyDown)
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown)
+			document.removeEventListener('keydown', handleKeyDown)
+		}
+	}, [actionsMenuOpen, draftMenuOpen, productMenuOpen])
 
 	const saveMutation = useMutation({
 		mutationFn: (draft: DraftEditorState) => {
@@ -304,10 +350,17 @@ export function ChatDraftsPanel({
 	const deleteMutation = useMutation({
 		mutationFn: (draftId: string) =>
 			deleteOrder({ data: { orderId: draftId } }),
-		onSuccess: () => {
-			setActiveDraftKey(null)
+		onSuccess: (_result, draftId) => {
+			const nextDraft = savedDrafts.find((draft) => draft.id !== draftId)
+			setActionsMenuOpen(false)
 			setConfirmDeleteId(null)
-			setEditor(null)
+			if (nextDraft) {
+				setActiveDraftKey(nextDraft.id)
+				setEditor(createEditorFromOrder(nextDraft))
+			} else {
+				setActiveDraftKey(null)
+				setEditor(null)
+			}
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('orders.draftDeleted'))
 		},
@@ -319,6 +372,7 @@ export function ChatDraftsPanel({
 	function selectDraft(draft: Order) {
 		setActiveDraftKey(draft.id)
 		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
 		setEditor(createEditorFromOrder(draft))
 		setProductSearch('')
 		setSubmitError(null)
@@ -326,8 +380,11 @@ export function ChatDraftsPanel({
 
 	function startNewDraft() {
 		setActiveDraftKey(NEW_DRAFT_KEY)
+		setActionsMenuOpen(false)
 		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
 		setEditor(createNewEditor(defaultDraftName))
+		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
 	}
@@ -386,6 +443,7 @@ export function ChatDraftsPanel({
 
 	function addEditorToCart() {
 		if (!editor) return
+		setActionsMenuOpen(false)
 		editor.items.forEach((item, index) => {
 			const productId =
 				item.category === 'unmatched'
@@ -419,6 +477,7 @@ export function ChatDraftsPanel({
 
 	function duplicateEditor() {
 		if (!editor) return
+		setActionsMenuOpen(false)
 		const name = editor.name.trim() || editor.reference || defaultDraftName
 		const duplicate = {
 			date: new Date().toISOString(),
@@ -434,6 +493,21 @@ export function ChatDraftsPanel({
 			...duplicate,
 			baseFingerprint: editorFingerprint(duplicate),
 		})
+	}
+
+	function promptEditor(intent: 'notes' | 'review') {
+		if (!editor || !onDraftPrompt) return
+		onDraftPrompt(buildDraftPrompt(editor, intent))
+		setActionsMenuOpen(false)
+	}
+
+	function handleDeleteEditor() {
+		if (!editor?.id) return
+		if (confirmDeleteId === editor.id) {
+			deleteMutation.mutate(editor.id)
+			return
+		}
+		setConfirmDeleteId(editor.id)
 	}
 
 	return (
@@ -462,94 +536,127 @@ export function ChatDraftsPanel({
 						{headerAction}
 					</div>
 				</div>
-				<label className="mt-3 flex h-10 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 transition-colors focus-within:border-[var(--p-border-strong)]">
-					<Search
-						size={15}
-						strokeWidth={1.7}
-						className="shrink-0 text-[var(--p-text-muted)]"
-					/>
-					<input
-						value={draftSearch}
-						onChange={(event) => setDraftSearch(event.currentTarget.value)}
-						placeholder={t('orders.searchDrafts')}
-						className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
-						type="search"
-					/>
-				</label>
-			</header>
-
-			<div className="shrink-0 border-b border-[var(--p-border)] px-3 py-3">
-				{isLoading ? (
-					<div className="grid grid-cols-1 gap-2">
-						{['a', 'b', 'c'].map((key) => (
-							<div
-								key={key}
-								className="h-16 animate-pulse rounded-xl bg-[var(--p-border)]"
-							/>
-						))}
-					</div>
-				) : isError ? (
-					<div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3">
-						<div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
-							<AlertTriangle size={15} strokeWidth={1.7} />
-							<span className="truncate">{t('orders.error')}</span>
-						</div>
-						<button
-							type="button"
-							onClick={() => refetch()}
-							className="shrink-0 text-[12px] font-semibold text-[var(--p-text)]"
-						>
-							{t('orders.retry')}
-						</button>
-					</div>
-				) : visibleDrafts.length === 0 ? (
+				<div ref={draftMenuRef} className="relative mt-3">
 					<button
 						type="button"
-						onClick={startNewDraft}
-						className="flex h-16 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						onClick={() => setDraftMenuOpen((open) => !open)}
+						aria-expanded={draftMenuOpen}
+						aria-haspopup="menu"
+						className="flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
 					>
-						<Plus size={15} strokeWidth={1.7} />
-						{t('orders.newDraft')}
+						<span className="min-w-0">
+							<span className="block truncate text-[13px] font-semibold text-[var(--p-text)]">
+								{activeDraftTitle}
+							</span>
+							<span className="mt-0.5 block truncate text-[11px] text-[var(--p-text-muted)]">
+								{activeDraftMeta}
+							</span>
+						</span>
+						<ChevronDown
+							size={16}
+							strokeWidth={1.8}
+							className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+								draftMenuOpen ? 'rotate-180' : ''
+							}`}
+						/>
 					</button>
-				) : (
-					<div className="flex snap-x gap-2 overflow-x-auto pb-1">
-						{visibleDrafts.map((draft) => {
-							const isActive = activeDraftKey === draft.id
-							const title =
-								draft.name ?? draft.reference ?? t('market.defaultDraftName')
-							return (
-								<button
-									key={draft.id}
-									type="button"
-									onClick={() => selectDraft(draft)}
-									className={`min-w-[190px] snap-start rounded-xl border p-3 text-start transition-colors ${
-										isActive
-											? 'border-[var(--p-border-strong)] bg-[var(--p-card)]'
-											: 'border-[var(--p-border)] bg-[var(--p-surface)] hover:bg-[var(--p-hover)]'
-									}`}
-								>
-									<div className="flex items-start gap-2">
-										<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
-											<FilePenLine size={14} strokeWidth={1.7} />
-										</span>
-										<span className="min-w-0 flex-1">
-											<span className="block truncate text-[12px] font-semibold text-[var(--p-text)]">
-												{title}
-											</span>
-											<span className="mt-1 block text-[10px] text-[var(--p-text-muted)]">
-												{formatDraftDate(draft.date, isAr)}
-											</span>
-										</span>
-										<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
-											{draft.itemCount}
-										</span>
+
+					{draftMenuOpen && (
+						<div
+							role="menu"
+							className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(70vh,420px)] overflow-y-auto rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
+						>
+							<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+								<Search
+									size={14}
+									strokeWidth={1.7}
+									className="shrink-0 text-[var(--p-text-muted)]"
+								/>
+								<input
+									value={draftSearch}
+									onChange={(event) =>
+										setDraftSearch(event.currentTarget.value)
+									}
+									placeholder={t('orders.searchDrafts')}
+									className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+									type="search"
+								/>
+							</label>
+
+							<div className="mt-2 space-y-1">
+								{isLoading ? (
+									['a', 'b', 'c'].map((key) => (
+										<div
+											key={key}
+											className="h-11 animate-pulse rounded-lg bg-[var(--p-border)]"
+										/>
+									))
+								) : isError ? (
+									<div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2">
+										<div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
+											<AlertTriangle size={14} strokeWidth={1.7} />
+											<span className="truncate">{t('orders.error')}</span>
+										</div>
+										<button
+											type="button"
+											onClick={() => refetch()}
+											className="shrink-0 text-[12px] font-semibold text-[var(--p-text)]"
+										>
+											{t('orders.retry')}
+										</button>
 									</div>
-								</button>
-							)
-						})}
-					</div>
-				)}
-			</div>
+								) : visibleDrafts.length === 0 ? (
+									<button
+										type="button"
+										onClick={startNewDraft}
+										className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+									>
+										<Plus size={14} strokeWidth={1.7} />
+										{t('orders.newDraft')}
+									</button>
+								) : (
+									visibleDrafts.map((draft) => {
+										const isActive = activeDraftKey === draft.id
+										const title =
+											draft.name ??
+											draft.reference ??
+											t('market.defaultDraftName')
+										return (
+											<button
+												key={draft.id}
+												type="button"
+												onClick={() => selectDraft(draft)}
+												className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
+													isActive
+														? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
+														: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
+												}`}
+											>
+												<FilePenLine
+													size={14}
+													strokeWidth={1.7}
+													className="shrink-0"
+												/>
+												<span className="min-w-0 flex-1">
+													<span className="block truncate text-[12px] font-semibold">
+														{title}
+													</span>
+													<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
+														{formatDraftDate(draft.date, isAr)}
+													</span>
+												</span>
+												<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
+													{draft.itemCount}
+												</span>
+											</button>
+										)
+									})
+								)}
+							</div>
+						</div>
+					)}
+				</div>
+			</header>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
 				{editor ? (
@@ -588,33 +695,6 @@ export function ChatDraftsPanel({
 							</label>
 						</div>
 
-						<div className="grid grid-cols-2 gap-2">
-							<button
-								type="button"
-								onClick={() =>
-									onDraftPrompt?.(buildDraftPrompt(editor, 'review'))
-								}
-								disabled={editor.items.length === 0 || !onDraftPrompt}
-								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-							>
-								<MessageSquareText size={14} strokeWidth={1.7} />
-								<span className="truncate">{t('orders.reviewWithLyon')}</span>
-							</button>
-							<button
-								type="button"
-								onClick={() =>
-									onDraftPrompt?.(buildDraftPrompt(editor, 'notes'))
-								}
-								disabled={editor.items.length === 0 || !onDraftPrompt}
-								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-							>
-								<FilePenLine size={14} strokeWidth={1.7} />
-								<span className="truncate">
-									{t('orders.writeNotesWithLyon')}
-								</span>
-							</button>
-						</div>
-
 						<div>
 							<div className="mb-2 flex items-center justify-between gap-2">
 								<p className="text-[12px] font-semibold text-[var(--p-text)]">
@@ -647,52 +727,88 @@ export function ChatDraftsPanel({
 							)}
 						</div>
 
-						<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3">
-							<label className="flex h-10 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 transition-colors focus-within:border-[var(--p-border-strong)]">
-								<Search
+						<div ref={productMenuRef} className="relative">
+							<button
+								type="button"
+								onClick={() => setProductMenuOpen((open) => !open)}
+								aria-expanded={productMenuOpen}
+								aria-haspopup="menu"
+								className="flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
+							>
+								<span className="flex min-w-0 items-center gap-2">
+									<Search
+										size={15}
+										strokeWidth={1.7}
+										className="shrink-0 text-[var(--p-text-muted)]"
+									/>
+									<span className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+										{t('orders.searchProducts')}
+									</span>
+								</span>
+								<ChevronDown
 									size={15}
-									strokeWidth={1.7}
-									className="shrink-0 text-[var(--p-text-muted)]"
+									strokeWidth={1.8}
+									className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+										productMenuOpen ? 'rotate-180' : ''
+									}`}
 								/>
-								<input
-									value={productSearch}
-									onChange={(event) =>
-										setProductSearch(event.currentTarget.value)
-									}
-									placeholder={t('orders.searchProducts')}
-									className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
-									type="search"
-								/>
-							</label>
-							<div className="mt-3 space-y-2">
-								{productSearchFailed ? (
-									<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
-										{t('orders.error')}
-									</p>
-								) : isProductLoading ? (
-									<div className="space-y-2">
-										{['a', 'b'].map((key) => (
-											<div
-												key={key}
-												className="h-12 animate-pulse rounded-xl bg-[var(--p-border)]"
-											/>
-										))}
-									</div>
-								) : products.length === 0 ? (
-									<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
-										{t('orders.noProducts')}
-									</p>
-								) : (
-									products.map((product) => (
-										<ProductResult
-											key={product.id}
-											product={product}
-											isAr={isAr}
-											onAdd={() => addProduct(product)}
+							</button>
+
+							{productMenuOpen && (
+								<div
+									role="menu"
+									className="mt-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+								>
+									<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+										<Search
+											size={14}
+											strokeWidth={1.7}
+											className="shrink-0 text-[var(--p-text-muted)]"
 										/>
-									))
-								)}
-							</div>
+										<input
+											value={productSearch}
+											onChange={(event) =>
+												setProductSearch(event.currentTarget.value)
+											}
+											placeholder={t('orders.searchProducts')}
+											className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+											type="search"
+										/>
+									</label>
+									<div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+										{productSearchFailed ? (
+											<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
+												{t('orders.error')}
+											</p>
+										) : isProductLoading ? (
+											<div className="space-y-2">
+												{['a', 'b'].map((key) => (
+													<div
+														key={key}
+														className="h-12 animate-pulse rounded-lg bg-[var(--p-border)]"
+													/>
+												))}
+											</div>
+										) : products.length === 0 ? (
+											<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
+												{t('orders.noProducts')}
+											</p>
+										) : (
+											products.map((product) => (
+												<ProductResult
+													key={product.id}
+													product={product}
+													isAr={isAr}
+													onAdd={() => {
+														addProduct(product)
+														setProductMenuOpen(false)
+													}}
+												/>
+											))
+										)}
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 				) : (
@@ -725,40 +841,7 @@ export function ChatDraftsPanel({
 
 			{editor && (
 				<footer className="shrink-0 border-t border-[var(--p-border)] px-4 py-3">
-					<div className="grid grid-cols-2 gap-2">
-						<button
-							type="button"
-							onClick={addEditorToCart}
-							disabled={editor.items.length === 0}
-							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-						>
-							<Plus size={14} strokeWidth={1.7} />
-							<span className="truncate">{t('orders.addToCart')}</span>
-						</button>
-						<button
-							type="button"
-							onClick={duplicateEditor}
-							disabled={editor.items.length === 0}
-							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-						>
-							<Copy size={14} strokeWidth={1.7} />
-							<span className="truncate">{t('orders.duplicate')}</span>
-						</button>
-					</div>
-					<div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2">
-						<button
-							type="button"
-							onClick={() => editor && saveMutation.mutate(editor)}
-							disabled={!canPersist || saveMutation.isPending}
-							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-						>
-							<Save size={14} strokeWidth={1.7} />
-							<span className="truncate">
-								{saveMutation.isPending
-									? t('quoteBuilder.savingDraft')
-									: t('orders.save')}
-							</span>
-						</button>
+					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
 						<button
 							type="button"
 							onClick={() => editor && submitMutation.mutate(editor)}
@@ -772,27 +855,100 @@ export function ChatDraftsPanel({
 									: t('orders.submit')}
 							</span>
 						</button>
-						{editor.id && confirmDeleteId === editor.id ? (
+						<button
+							type="button"
+							onClick={() => editor && saveMutation.mutate(editor)}
+							disabled={!canPersist || saveMutation.isPending}
+							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+							aria-label={
+								saveMutation.isPending
+									? t('quoteBuilder.savingDraft')
+									: t('orders.save')
+							}
+						>
+							<Save size={15} strokeWidth={1.7} />
+						</button>
+						<button
+							type="button"
+							onClick={addEditorToCart}
+							disabled={editor.items.length === 0}
+							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+							aria-label={t('orders.addToCart')}
+						>
+							<ShoppingCart size={15} strokeWidth={1.7} />
+						</button>
+						<div ref={actionsMenuRef} className="relative">
 							<button
 								type="button"
-								onClick={() => deleteMutation.mutate(editor.id ?? '')}
-								disabled={deleteMutation.isPending}
-								className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--p-error)] text-white transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-45"
-								aria-label={t('orders.confirmDelete')}
+								onClick={() => setActionsMenuOpen((open) => !open)}
+								aria-expanded={actionsMenuOpen}
+								aria-haspopup="menu"
+								className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+								aria-label={t('orders.moreActions', 'More actions')}
 							>
-								<Check size={15} strokeWidth={1.8} />
+								<MoreHorizontal size={16} strokeWidth={1.8} />
 							</button>
-						) : (
-							<button
-								type="button"
-								onClick={() => editor.id && setConfirmDeleteId(editor.id)}
-								disabled={!editor.id}
-								className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)] disabled:pointer-events-none disabled:opacity-45"
-								aria-label={t('orders.delete')}
-							>
-								<Trash2 size={15} strokeWidth={1.7} />
-							</button>
-						)}
+
+							{actionsMenuOpen && (
+								<div
+									role="menu"
+									className="absolute right-0 bottom-full z-30 mb-2 w-[min(240px,calc(100vw-2rem))] rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
+								>
+									<button
+										type="button"
+										onClick={() => promptEditor('review')}
+										disabled={editor.items.length === 0 || !onDraftPrompt}
+										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+									>
+										<MessageSquareText size={14} strokeWidth={1.7} />
+										<span className="truncate">
+											{t('orders.reviewWithLyon')}
+										</span>
+									</button>
+									<button
+										type="button"
+										onClick={() => promptEditor('notes')}
+										disabled={editor.items.length === 0 || !onDraftPrompt}
+										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+									>
+										<FilePenLine size={14} strokeWidth={1.7} />
+										<span className="truncate">
+											{t('orders.writeNotesWithLyon')}
+										</span>
+									</button>
+									<button
+										type="button"
+										onClick={duplicateEditor}
+										disabled={editor.items.length === 0}
+										className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
+									>
+										<Copy size={14} strokeWidth={1.7} />
+										<span className="truncate">{t('orders.duplicate')}</span>
+									</button>
+									<button
+										type="button"
+										onClick={handleDeleteEditor}
+										disabled={!editor.id || deleteMutation.isPending}
+										className={`flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-45 ${
+											editor.id && confirmDeleteId === editor.id
+												? 'bg-[var(--p-error)] text-white hover:opacity-90'
+												: 'text-[var(--p-error)] hover:bg-[var(--p-hover)]'
+										}`}
+									>
+										{editor.id && confirmDeleteId === editor.id ? (
+											<Check size={14} strokeWidth={1.8} />
+										) : (
+											<Trash2 size={14} strokeWidth={1.7} />
+										)}
+										<span className="truncate">
+											{editor.id && confirmDeleteId === editor.id
+												? t('orders.confirmDelete')
+												: t('orders.delete')}
+										</span>
+									</button>
+								</div>
+							)}
+						</div>
 					</div>
 				</footer>
 			)}

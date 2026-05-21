@@ -3,11 +3,13 @@ import {
 	AlertTriangle,
 	ArrowLeft,
 	ChevronDown,
+	ChevronUp,
 	CircleCheck,
 	Copy,
 	ExternalLink,
 	Eye,
 	FilePenLine,
+	Files,
 	LogOut,
 	Menu,
 	MessageCircle,
@@ -75,8 +77,7 @@ export function WebsiteHeader() {
 	const [cartOpen, setCartOpen] = useState(false)
 	const [emptySavedOrdersOpen, setEmptySavedOrdersOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
-	const { globalNote, items, remove, setGlobalNote, updateQuantity } =
-		useQuoteCart()
+	const { items, remove, updateQuantity } = useQuoteCart()
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
@@ -504,23 +505,6 @@ export function WebsiteHeader() {
 														</div>
 													</div>
 												))}
-											</div>
-
-											<div className="shrink-0 border-t border-[var(--color-border)] px-4 py-3">
-												<label className="block">
-													<span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-muted)]">
-														{t('cart.notes')}
-													</span>
-													<textarea
-														value={globalNote}
-														onChange={(event) =>
-															setGlobalNote(event.currentTarget.value)
-														}
-														rows={3}
-														placeholder={t('cart.notesPlaceholder')}
-														className="block max-h-28 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-													/>
-												</label>
 											</div>
 
 											{/* Submit / Inline Auth */}
@@ -1069,12 +1053,13 @@ function CartSubmit({
 	>(null)
 	const [authSuccessVisible, setAuthSuccessVisible] = useState(false)
 	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
+	const [notesOpen, setNotesOpen] = useState(false)
 	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
 	const { resendCountdown, setResendCountdown } = useResendCountdown(0)
 	const phoneRef = useRef<HTMLInputElement>(null)
 	const otpRefs = useRef<(HTMLInputElement | null)[]>([])
 	const authSuccessRef = useRef<HTMLDivElement>(null)
-	const { clear, globalNote, items } = useQuoteCart()
+	const { clear, globalNote, items, setGlobalNote } = useQuoteCart()
 	const [savedDraftFingerprint, setSavedDraftFingerprint] = useState<
 		string | null
 	>(null)
@@ -1351,16 +1336,48 @@ function CartSubmit({
 						</motion.div>
 					)}
 				</AnimatePresence>
-				{isDraftSaved ? (
-					<button
-						type="button"
-						disabled
-						className="mb-2 flex h-10 w-full items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[14px] font-semibold text-[var(--color-text-muted)] opacity-60"
-					>
-						<span className="truncate">{persistedDraftName}</span>
-					</button>
-				) : draftNameEntryOpen ? (
-					<div className="mb-2 flex items-center gap-2">
+				<button
+					type="button"
+					onClick={() => setNotesOpen((value) => !value)}
+					className="flex h-10 w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)]/45"
+					aria-expanded={notesOpen}
+				>
+					<span className="truncate">{t('cart.notes')}</span>
+					<ChevronUp
+						size={16}
+						strokeWidth={1.8}
+						className={`shrink-0 text-[var(--color-text-muted)] transition-transform ${
+							notesOpen ? 'rotate-180' : ''
+						}`}
+					/>
+				</button>
+				<AnimatePresence initial={false}>
+					{notesOpen && (
+						<motion.label
+							key="cart-notes"
+							className="mt-2 block"
+							initial={{ opacity: 0, height: 0 }}
+							animate={{ opacity: 1, height: 'auto' }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.18,
+								ease: CART_DRAWER_EASE,
+							}}
+						>
+							<span className="sr-only">{t('cart.notes')}</span>
+							<textarea
+								value={globalNote}
+								onChange={(event) => setGlobalNote(event.currentTarget.value)}
+								rows={3}
+								placeholder={t('cart.notesPlaceholder')}
+								className="block max-h-32 min-h-20 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] leading-5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+							/>
+						</motion.label>
+					)}
+				</AnimatePresence>
+
+				{draftNameEntryOpen && !isDraftSaved && (
+					<div className="mt-2 flex items-center gap-2">
 						<input
 							type="text"
 							value={draftName}
@@ -1374,40 +1391,17 @@ function CartSubmit({
 							maxLength={120}
 							aria-label={t('cart.draftNameLabel')}
 							placeholder={defaultDraftName}
-							className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-[14px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
+							className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-transparent px-3 text-[13px] font-semibold text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
 						/>
-						<motion.button
-							type="button"
-							onClick={handleConfirmSaveDraft}
-							disabled={loadingAction !== null}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-60"
-							aria-label={t('cart.saveDraft')}
-							whileTap={
-								shouldReduceMotion || loadingAction !== null
-									? undefined
-									: { scale: 0.94 }
-							}
-							transition={{
-								duration: shouldReduceMotion ? 0.01 : 0.16,
-								ease: CART_DRAWER_EASE,
-							}}
-						>
-							{loadingAction === 'save' ? (
-								<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-							) : (
-								<Save size={16} strokeWidth={1.8} />
-							)}
-						</motion.button>
 					</div>
-				) : (
+				)}
+
+				<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] gap-2">
 					<motion.button
 						type="button"
-						onClick={() => {
-							setDraftName(savedDraftId ? persistedDraftName : '')
-							setDraftNameEntryOpen(true)
-						}}
+						onClick={handleSubmitQuote}
 						disabled={loadingAction !== null}
-						className="mb-2 h-10 w-full rounded-lg border border-[var(--color-border)] text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-60"
+						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
 						whileTap={
 							shouldReduceMotion || loadingAction !== null
 								? undefined
@@ -1418,35 +1412,61 @@ function CartSubmit({
 							ease: CART_DRAWER_EASE,
 						}}
 					>
-						{t('cart.saveDraft')}
+						<span className="truncate">
+							{loadingAction === 'submit'
+								? t('cart.submitting')
+								: `${t('cart.submit')} — ${t('cart.itemCount', { count: itemCount })}`}
+						</span>
 					</motion.button>
-				)}
-				<button
-					type="button"
-					onClick={() => setSavedOrdersOpen(true)}
-					className="mb-2 flex h-9 w-full items-center justify-center rounded-lg text-[13px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
-				>
-					{t('cart.viewSavedOrders')}
-				</button>
-				<motion.button
-					type="button"
-					onClick={handleSubmitQuote}
-					disabled={loadingAction !== null}
-					className="w-full h-10 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-[14px] hover:bg-[var(--color-primary-hover)] transition-colors"
-					whileTap={
-						shouldReduceMotion || loadingAction !== null
-							? undefined
-							: { scale: 0.985 }
-					}
-					transition={{
-						duration: shouldReduceMotion ? 0.01 : 0.16,
-						ease: CART_DRAWER_EASE,
-					}}
-				>
-					{loadingAction === 'submit'
-						? t('cart.submitting')
-						: `${t('cart.submit')} — ${t('cart.itemCount', { count: itemCount })}`}
-				</motion.button>
+					<motion.button
+						type="button"
+						onClick={() => setSavedOrdersOpen(true)}
+						className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+						aria-label={t('cart.viewSavedOrders')}
+						whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+						transition={{
+							duration: shouldReduceMotion ? 0.01 : 0.16,
+							ease: CART_DRAWER_EASE,
+						}}
+					>
+						<Files size={16} strokeWidth={1.8} />
+					</motion.button>
+					<motion.button
+						type="button"
+						onClick={() => {
+							if (isDraftSaved) return
+							if (draftNameEntryOpen) {
+								handleConfirmSaveDraft()
+								return
+							}
+							setDraftName(savedDraftId ? persistedDraftName : '')
+							setDraftNameEntryOpen(true)
+						}}
+						disabled={loadingAction !== null || isDraftSaved}
+						title={isDraftSaved ? persistedDraftName : undefined}
+						className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors disabled:pointer-events-none ${
+							draftNameEntryOpen && !isDraftSaved
+								? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500'
+								: 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] disabled:bg-[var(--color-surface)] disabled:text-[var(--color-text-subtle)] disabled:opacity-60'
+						}`}
+						aria-label={isDraftSaved ? persistedDraftName : t('cart.saveDraft')}
+						whileTap={
+							shouldReduceMotion || loadingAction !== null || isDraftSaved
+								? undefined
+								: { scale: 0.94 }
+						}
+						transition={{
+							duration: shouldReduceMotion ? 0.01 : 0.16,
+							ease: CART_DRAWER_EASE,
+						}}
+					>
+						{loadingAction === 'save' ? (
+							<span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+						) : (
+							<Save size={16} strokeWidth={1.8} />
+						)}
+					</motion.button>
+				</div>
 				{error && (
 					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
 						{error}
