@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from './db/types'
+import { searchTokens } from './search-query'
 import type {
 	SearchPreviewField,
 	SearchSummaryModuleId,
@@ -166,9 +167,9 @@ function formatDate(value: JsonValue | undefined): string | null {
 	return cairoDateFormatter.format(date)
 }
 
-function formatMoney(value: number | null): string | null {
+function formatMoney(value: number | null, currency = 'EGP'): string | null {
 	if (value === null) return null
-	return `EGP ${value.toLocaleString('en-EG', {
+	return `${currency} ${value.toLocaleString('en-EG', {
 		maximumFractionDigits: 2,
 		minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
 	})}`
@@ -266,19 +267,31 @@ function isTechnicalKey(key: string): boolean {
 function humanLabel(key: string): string {
 	const labels: Record<string, string> = {
 		amount: 'Amount',
+		assigned_employee: 'Assigned to',
+		assigned_sales_rep: 'Sales rep',
 		available_quantity: 'Available',
+		base_salary: 'Base salary',
+		brand: 'Brand',
 		company_name: 'Customer',
 		completed_at: 'Completed',
+		current_exposure: 'Current exposure',
 		created_at: 'Created',
 		delivered_at: 'Delivered',
+		delivery_address: 'Delivery address',
 		delivery_date: 'Delivery date',
+		department: 'Department',
 		driver_name: 'Driver',
+		driver_phone: 'Driver phone',
 		driver_status: 'Driver status',
 		draft_name: 'Draft name',
 		email: 'Email',
+		good_quantity: 'Good from',
+		hire_date: 'Hire date',
 		is_ceo: 'CEO access',
 		item_count: 'Items',
+		item_summary: 'Items',
 		last_seen_at: 'Last seen',
+		lifetime_value: 'Lifetime value',
 		minimum_quantity: 'Minimum',
 		on_hand_quantity: 'On hand',
 		order_number: 'Order',
@@ -287,20 +300,33 @@ function humanLabel(key: string): string {
 		payment_terms: 'Payment terms',
 		phone: 'Phone',
 		plate_number: 'Truck',
+		preferred_suppliers: 'Suppliers',
+		product_sku: 'SKU',
 		product_name: 'Product',
+		products: 'Products',
+		project_name: 'Project',
+		quote_items: 'Quoted items',
+		quote_number: 'Quote',
 		quantity: 'Quantity',
 		rating: 'Rating',
 		receiving_status: 'Receiving status',
+		request_items: 'Requested items',
 		rejection_reason: 'Rejection reason',
 		refill_status: 'Refill status',
 		request_number: 'Request',
 		requester: 'Requester',
 		reserved_quantity: 'Reserved',
+		salary_currency: 'Salary currency',
+		sku: 'SKU',
 		source: 'Source',
+		social_insurance_salary: 'Insurance salary',
+		specialties: 'Specialties',
 		status: 'Status',
 		subject: 'Subject',
+		submitted_by: 'Submitted by',
 		submitted_at: 'Submitted',
 		tier: 'Tier',
+		title: 'Title',
 		total_amount: 'Value',
 		trade_license_status: 'Trade license',
 		urgency: 'Urgency',
@@ -322,7 +348,11 @@ function renderGenericValue(key: string, value: JsonValue): string | null {
 	if (
 		normalized.includes('amount') ||
 		normalized.includes('total') ||
-		normalized.includes('value')
+		normalized.includes('value') ||
+		normalized.includes('salary') ||
+		normalized.includes('cost') ||
+		normalized.includes('price') ||
+		normalized.includes('fee')
 	) {
 		return formatMoney(typeof value === 'number' ? value : null)
 	}
@@ -395,8 +425,10 @@ export function buildSearchPreviewFields(
 					previewField('Stage', stage(row)),
 					previewField(
 						'Items',
-						formatNumber(numberValue(metadata, 'item_count')),
+						stringValue(metadata, 'item_summary') ??
+							formatNumber(numberValue(metadata, 'item_count')),
 					),
+					previewField('Address', stringValue(metadata, 'delivery_address')),
 					previewField(
 						'Submitted',
 						formatDateTime(
@@ -410,6 +442,11 @@ export function buildSearchPreviewFields(
 				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Stage', stage(row)),
 				previewField(
+					'Items',
+					stringValue(metadata, 'quote_items') ??
+						stringValue(metadata, 'request_items'),
+				),
+				previewField(
 					'Value',
 					formatMoney(numberValue(metadata, 'total_amount')),
 				),
@@ -419,21 +456,25 @@ export function buildSearchPreviewFields(
 			return fields(
 				previewField('Contact', row.subtitle),
 				previewField('Account', metadataStatus(row, 'status')),
-				previewField('License', metadataStatus(row, 'trade_license_status')),
-				previewField('Phone', stringValue(metadata, 'phone')),
+				previewField('Tier', formatStatus(stringValue(metadata, 'tier'))),
+				previewField('Address', stringValue(metadata, 'default_address')),
+				previewField(
+					'Orders',
+					formatNumber(numberValue(metadata, 'order_count')),
+				),
 			)
 		case 'payment':
 			return fields(
 				previewField('Source', formatSource(row.title)),
 				previewField('Stage', stage(row)),
 				previewField('Amount', formatMoney(numberValue(metadata, 'amount'))),
-				previewField(
-					'Portion',
-					formatPercent(numberValue(metadata, 'payment_fraction')),
-				),
+				previewField('Customer', stringValue(metadata, 'company_name')),
+				previewField('Supplier', stringValue(metadata, 'supplier_name')),
+				previewField('Recorded by', stringValue(metadata, 'recorded_by')),
 			)
 		case 'inventory':
 			return fields(
+				previewField('SKU', stringValue(metadata, 'sku')),
 				previewField(
 					'Available',
 					formatNumber(numberValue(metadata, 'available_quantity')),
@@ -442,11 +483,7 @@ export function buildSearchPreviewFields(
 					'Reserved',
 					formatNumber(numberValue(metadata, 'reserved_quantity')),
 				),
-				previewField(
-					'Minimum',
-					formatNumber(numberValue(metadata, 'minimum_quantity')),
-				),
-				previewField('Updated', formatDateTime(metadata.updated_at)),
+				previewField('Suppliers', stringValue(metadata, 'preferred_suppliers')),
 			)
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
@@ -463,15 +500,21 @@ export function buildSearchPreviewFields(
 			return fields(
 				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Stage', stage(row)),
-				previewField('Truck', stringValue(metadata, 'plate_number')),
-				previewField('Updated', formatDateTime(metadata.updated_at)),
+				previewField('Advisor', stringValue(metadata, 'advisor_name')),
+				previewField('Items', stringValue(metadata, 'item_summary')),
+				previewField(
+					'Truck',
+					stringValue(metadata, 'plate_number') ??
+						stringValue(metadata, 'driver_name'),
+				),
 			)
 		case 'dispatch':
 			return fields(
 				previewField('Order', stringValue(metadata, 'order_number')),
 				previewField('Driver', stringValue(metadata, 'driver_name')),
+				previewField('Customer', stringValue(metadata, 'company_name')),
 				previewField('Stage', stage(row)),
-				previewField('Truck', stringValue(metadata, 'plate_number')),
+				previewField('Address', stringValue(metadata, 'delivery_address')),
 			)
 		case 'driver':
 			return fields(
@@ -492,13 +535,21 @@ export function buildSearchPreviewFields(
 				previewField('Stage', stage(row)),
 				previewField('Tier', formatStatus(stringValue(metadata, 'tier'))),
 				previewField('Terms', stringValue(metadata, 'payment_terms')),
-				previewField('Rating', formatRating(numberValue(metadata, 'rating'))),
+				previewField('Products', stringValue(metadata, 'products')),
+				previewField('Specialties', stringValue(metadata, 'specialties')),
 			)
 		case 'employee':
 			return fields(
 				previewField('Stage', stage(row)),
-				previewField('Email', stringValue(metadata, 'email')),
-				previewField('Phone', stringValue(metadata, 'phone')),
+				previewField('Title', stringValue(metadata, 'title')),
+				previewField('Department', stringValue(metadata, 'department')),
+				previewField(
+					'Base salary',
+					formatMoney(
+						numberValue(metadata, 'base_salary'),
+						stringValue(metadata, 'salary_currency') ?? 'EGP',
+					),
+				),
 				previewField(
 					'CEO access',
 					booleanValue(metadata, 'is_ceo') === null
@@ -547,7 +598,18 @@ export function buildSearchDetailFields(
 					detailField('Stage', stage(row)),
 					detailField(
 						'Items',
-						formatNumber(numberValue(metadata, 'item_count')),
+						stringValue(metadata, 'item_summary') ??
+							formatNumber(numberValue(metadata, 'item_count')),
+					),
+					detailField(
+						'Delivery address',
+						stringValue(metadata, 'delivery_address'),
+					),
+					detailField('Project', stringValue(metadata, 'project_name')),
+					detailField('Submitted by', stringValue(metadata, 'submitted_by')),
+					detailField(
+						'Assigned to',
+						stringValue(metadata, 'assigned_employee'),
 					),
 					detailField(
 						'Urgency',
@@ -576,6 +638,19 @@ export function buildSearchDetailFields(
 				detailField('Order', row.title),
 				detailField('Customer', stringValue(metadata, 'company_name')),
 				detailField('Stage', stage(row)),
+				detailField('Request', stringValue(metadata, 'request_number')),
+				detailField('Quote', stringValue(metadata, 'quote_number')),
+				detailField(
+					'Items',
+					stringValue(metadata, 'quote_items') ??
+						stringValue(metadata, 'request_items'),
+				),
+				detailField(
+					'Delivery address',
+					stringValue(metadata, 'delivery_address'),
+				),
+				detailField('Submitted by', stringValue(metadata, 'submitted_by')),
+				detailField('Assigned to', stringValue(metadata, 'assigned_employee')),
 				detailField(
 					'Order value',
 					formatMoney(numberValue(metadata, 'total_amount')),
@@ -590,9 +665,27 @@ export function buildSearchDetailFields(
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Account status', metadataStatus(row, 'status')),
+				detailField('Tier', formatStatus(stringValue(metadata, 'tier'))),
 				detailField(
 					'Trade license',
 					metadataStatus(row, 'trade_license_status'),
+				),
+				detailField(
+					'Default address',
+					stringValue(metadata, 'default_address'),
+				),
+				detailField('Sales rep', stringValue(metadata, 'assigned_sales_rep')),
+				detailField(
+					'Credit limit',
+					formatMoney(numberValue(metadata, 'credit_limit')),
+				),
+				detailField(
+					'Lifetime value',
+					formatMoney(numberValue(metadata, 'lifetime_value')),
+				),
+				detailField(
+					'Current exposure',
+					formatMoney(numberValue(metadata, 'current_exposure')),
 				),
 			)
 		case 'payment':
@@ -604,12 +697,20 @@ export function buildSearchDetailFields(
 					'Payment portion',
 					formatPercent(numberValue(metadata, 'payment_fraction')),
 				),
+				detailField('Order', stringValue(metadata, 'order_number')),
+				detailField('Customer', stringValue(metadata, 'company_name')),
+				detailField('Supplier', stringValue(metadata, 'supplier_name')),
+				detailField('Product', stringValue(metadata, 'product_name')),
+				detailField('Recorded by', stringValue(metadata, 'recorded_by')),
 				detailField('Recorded', formatDateTime(metadata.created_at)),
 			)
 		case 'inventory':
 			return details(
 				detailField('Product', row.title),
+				detailField('SKU', stringValue(metadata, 'sku')),
 				detailField('Category', row.subtitle),
+				detailField('Brand', stringValue(metadata, 'brand')),
+				detailField('Suppliers', stringValue(metadata, 'preferred_suppliers')),
 				detailField(
 					'On hand',
 					formatNumber(numberValue(metadata, 'on_hand_quantity')),
@@ -625,6 +726,10 @@ export function buildSearchDetailFields(
 				detailField(
 					'Minimum required',
 					formatNumber(numberValue(metadata, 'minimum_quantity')),
+				),
+				detailField(
+					'Good from',
+					formatNumber(numberValue(metadata, 'good_quantity')),
 				),
 				detailField('Last stock update', formatDateTime(metadata.updated_at)),
 			)
@@ -645,6 +750,10 @@ export function buildSearchDetailFields(
 						formatNumber(numberValue(metadata, 'quantity')),
 					),
 					detailField(
+						'Received',
+						formatNumber(numberValue(metadata, 'received_quantity')),
+					),
+					detailField(
 						'Unit cost',
 						formatMoney(numberValue(metadata, 'unit_cost')),
 					),
@@ -660,6 +769,13 @@ export function buildSearchDetailFields(
 				detailField('Customer', stringValue(metadata, 'company_name')),
 				detailField('Warehouse stage', stage(row)),
 				detailField('Order status', metadataStatus(row, 'order_status')),
+				detailField('Advisor', stringValue(metadata, 'advisor_name')),
+				detailField('Driver', stringValue(metadata, 'driver_name')),
+				detailField('Items', stringValue(metadata, 'item_summary')),
+				detailField(
+					'Delivery address',
+					stringValue(metadata, 'delivery_address'),
+				),
 				detailField('Truck', stringValue(metadata, 'plate_number')),
 				detailField(
 					'Rejection reason',
@@ -672,8 +788,20 @@ export function buildSearchDetailFields(
 				detailField('Delivery', row.title),
 				detailField('Stage', stage(row)),
 				detailField('Order', stringValue(metadata, 'order_number')),
+				detailField('Customer', stringValue(metadata, 'company_name')),
 				detailField('Driver', stringValue(metadata, 'driver_name')),
+				detailField('Driver phone', stringValue(metadata, 'driver_phone')),
 				detailField('Truck', stringValue(metadata, 'plate_number')),
+				detailField(
+					'Delivery address',
+					stringValue(metadata, 'delivery_address'),
+				),
+				detailField(
+					'Rejection reason',
+					stringValue(metadata, 'rejection_reason'),
+				),
+				detailField('Started', formatDateTime(metadata.started_at)),
+				detailField('Arrived', formatDateTime(metadata.arrived_at)),
 				detailField('Completed', completedAt ?? 'Not completed yet'),
 				detailField('Last update', formatDateTime(metadata.updated_at)),
 			)
@@ -683,7 +811,9 @@ export function buildSearchDetailFields(
 				detailField('Availability', stage(row)),
 				detailField('Dispatch status', metadataStatus(row, 'driver_status')),
 				detailField('Vehicle', stringValue(metadata, 'vehicle_label')),
+				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Phone', stringValue(metadata, 'phone')),
+				detailField('Truck', stringValue(metadata, 'truck_plates')),
 				detailField('Last seen', formatDateTime(metadata.last_seen_at)),
 				detailField('Last profile update', formatDateTime(metadata.updated_at)),
 			)
@@ -694,6 +824,8 @@ export function buildSearchDetailFields(
 				detailField('Channel', formatSource(stringValue(metadata, 'source'))),
 				detailField('Subject', stringValue(metadata, 'subject')),
 				detailField('Requester', stringValue(metadata, 'requester')),
+				detailField('Customer', stringValue(metadata, 'customer_name')),
+				detailField('Assigned to', stringValue(metadata, 'assigned_employee')),
 				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField('Last update', formatDateTime(metadata.updated_at)),
@@ -705,6 +837,9 @@ export function buildSearchDetailFields(
 				detailField('Tier', formatStatus(stringValue(metadata, 'tier'))),
 				detailField('Payment terms', stringValue(metadata, 'payment_terms')),
 				detailField('Rating', formatRating(numberValue(metadata, 'rating'))),
+				detailField('Products', stringValue(metadata, 'products')),
+				detailField('Specialties', stringValue(metadata, 'specialties')),
+				detailField('Notes', stringValue(metadata, 'notes')),
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Last update', formatDateTime(metadata.updated_at)),
@@ -713,6 +848,24 @@ export function buildSearchDetailFields(
 			return details(
 				detailField('Employee', row.title),
 				detailField('Stage', stage(row)),
+				detailField('Title', stringValue(metadata, 'title')),
+				detailField('Department', stringValue(metadata, 'department')),
+				detailField('Roles', stringValue(metadata, 'roles')),
+				detailField('Hire date', formatDate(metadata.hire_date)),
+				detailField(
+					'Base salary',
+					formatMoney(
+						numberValue(metadata, 'base_salary'),
+						stringValue(metadata, 'salary_currency') ?? 'EGP',
+					),
+				),
+				detailField(
+					'Insurance salary',
+					formatMoney(
+						numberValue(metadata, 'social_insurance_salary'),
+						stringValue(metadata, 'salary_currency') ?? 'EGP',
+					),
+				),
 				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField(
@@ -745,12 +898,19 @@ export function buildSearchSummaryNote(
 		case 'order':
 			if (isQuoteRequestOrder(row)) {
 				const itemCount = formatNumber(numberValue(metadata, 'item_count'))
-				const itemLabel = itemCount ? `${itemCount} items` : null
+				const itemLabel =
+					stringValue(metadata, 'item_summary') ??
+					(itemCount ? `${itemCount} items` : null)
 				return [stage(row), stringValue(metadata, 'company_name'), itemLabel]
 					.filter(Boolean)
 					.join(' - ')
 			}
-			return [stage(row), stringValue(metadata, 'company_name')]
+			return [
+				stage(row),
+				stringValue(metadata, 'company_name'),
+				stringValue(metadata, 'quote_items') ??
+					stringValue(metadata, 'request_items'),
+			]
 				.filter(Boolean)
 				.join(' - ')
 		case 'payment':
@@ -796,24 +956,33 @@ export function buildSearchMatchedFieldLabels(
 ): string[] {
 	const needle = query.trim().toLowerCase()
 	if (!needle) return []
+	const needles = searchTokens(needle)
+	const activeNeedles = needles.length > 0 ? needles : [needle]
 
 	const labels = new Set<string>()
-	if (matchesNeedle(row.title, needle)) labels.add('Record')
+	if (matchesAnyNeedle(row.title, activeNeedles)) labels.add('Record')
 
 	const rowStage = stage(row)
-	if (rowStage && matchesNeedle(rowStage, needle)) labels.add('Stage')
+	if (rowStage && matchesAnyNeedle(rowStage, activeNeedles)) labels.add('Stage')
 
 	for (const field of [
 		...buildSearchPreviewFields(row),
 		...buildSearchDetailFields(row),
 	]) {
 		const rendered = String(field.value)
-		if (matchesNeedle(field.label, needle) || matchesNeedle(rendered, needle)) {
+		if (
+			matchesAnyNeedle(field.label, activeNeedles) ||
+			matchesAnyNeedle(rendered, activeNeedles)
+		) {
 			labels.add(field.label)
 		}
 	}
 
 	return Array.from(labels)
+}
+
+function matchesAnyNeedle(value: string, needles: string[]): boolean {
+	return needles.some((needle) => matchesNeedle(value, needle))
 }
 
 function matchesNeedle(value: string, needle: string): boolean {
@@ -935,6 +1104,7 @@ function isRejectedOrder(row: SearchDisplayIndexRow): boolean {
 function isAcceptedOrder(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'order' &&
+		!isStatusOneOf(row, ['draft', 'saved']) &&
 		!isSubmittedOrder(row) &&
 		!isRejectedOrder(row)
 	)

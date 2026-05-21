@@ -10,7 +10,12 @@ import {
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
 import { Toggle } from '../../ui/Toggle'
-import { SelectControl, StatusTag, TextControl } from '../AdminControls'
+import {
+	NumberControl,
+	SelectControl,
+	StatusTag,
+	TextControl,
+} from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
@@ -35,6 +40,12 @@ function blankEmployee(): EmployeeDraft {
 		status: 'active',
 		isCeo: false,
 		roles: [],
+		department: '',
+		title: '',
+		hireDate: '',
+		baseSalary: 0,
+		socialInsuranceSalary: 0,
+		salaryCurrency: 'EGP',
 	}
 }
 
@@ -199,6 +210,17 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 			),
 		},
 		{
+			key: 'title',
+			labelKey: 'volumes.employees.columns.title',
+			width: 'minmax(140px, 1fr)',
+			mobileRole: 'detail',
+			render: (r) => (
+				<span className="break-words text-[var(--color-text-muted)]">
+					{r.title || '—'}
+				</span>
+			),
+		},
+		{
 			key: 'status',
 			labelKey: 'volumes.employees.columns.status',
 			width: '110px',
@@ -218,13 +240,31 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 			mobileRole: 'detail',
 			render: (r) => <>{r.phone}</>,
 		},
+		{
+			key: 'baseSalary',
+			labelKey: 'volumes.employees.columns.salary',
+			width: 'minmax(120px, 0.8fr)',
+			mono: true,
+			mobileRole: 'detail',
+			render: (r) => (
+				<>
+					{r.salaryCurrency}{' '}
+					{r.baseSalary.toLocaleString('en-EG', {
+						maximumFractionDigits: 2,
+					})}
+				</>
+			),
+		},
 	]
 
 	const filter = (r: AdminEmployeeRow, q: string) =>
 		r.name.toLowerCase().includes(q) ||
 		r.email.toLowerCase().includes(q) ||
+		r.department.toLowerCase().includes(q) ||
+		r.title.toLowerCase().includes(q) ||
 		r.roles.join(' ').toLowerCase().includes(q) ||
 		r.phone.includes(q) ||
+		String(r.baseSalary).includes(q) ||
 		r.id.toLowerCase().includes(q)
 
 	return (
@@ -348,6 +388,65 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 								aria-label={t('editor.fields.isCeo')}
 							/>
 						)}
+					</Field>
+
+					<Section title={t('editor.section.compensation')} />
+					<Field label={t('editor.fields.title')}>
+						<TextControl
+							value={draft.title}
+							onChange={(v) => setDraft({ ...draft, title: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.title')}
+						/>
+					</Field>
+					<Field label={t('editor.fields.department')}>
+						<TextControl
+							value={draft.department}
+							onChange={(v) => setDraft({ ...draft, department: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.department')}
+						/>
+					</Field>
+					<Field label={t('editor.fields.hireDate')}>
+						<TextControl
+							value={draft.hireDate}
+							onChange={(v) => setDraft({ ...draft, hireDate: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.hireDate')}
+							type="date"
+						/>
+					</Field>
+					<Field label={t('editor.fields.salaryCurrency')}>
+						<TextControl
+							value={draft.salaryCurrency}
+							onChange={(v) =>
+								setDraft({ ...draft, salaryCurrency: v.toUpperCase() })
+							}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.salaryCurrency')}
+						/>
+					</Field>
+					<Field label={t('editor.fields.baseSalary')}>
+						<NumberControl
+							value={draft.baseSalary}
+							onChange={(v) => setDraft({ ...draft, baseSalary: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.baseSalary')}
+							min={0}
+							step={100}
+							suffix={draft.salaryCurrency}
+						/>
+					</Field>
+					<Field label={t('editor.fields.socialInsuranceSalary')}>
+						<NumberControl
+							value={draft.socialInsuranceSalary}
+							onChange={(v) => setDraft({ ...draft, socialInsuranceSalary: v })}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.socialInsuranceSalary')}
+							min={0}
+							step={100}
+							suffix={draft.salaryCurrency}
+						/>
 					</Field>
 				</div>
 			)}

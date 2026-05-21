@@ -9,6 +9,7 @@ import {
 	buildSearchSummaryNote,
 	type SearchDisplayIndexRow,
 } from '../search-display'
+import { searchPattern, searchTokens } from '../search-query'
 import type {
 	SearchExecutiveBrief,
 	SearchModuleSummary,
@@ -181,10 +182,6 @@ function matchedFields(row: SearchIndexRow, query: string): string[] {
 
 type SearchClient = Awaited<ReturnType<typeof requireSearchClient>>
 
-function searchPattern(value: string): string {
-	return `%${value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
-}
-
 function baseSearchQuery(client: SearchClient) {
 	return client
 		.from('ceo_search_index')
@@ -203,7 +200,10 @@ function filteredSearchQuery(
 	}
 	const search = options.search?.trim()
 	if (search) {
-		query = query.ilike('search_text', searchPattern(search))
+		const tokens = searchTokens(search)
+		for (const token of tokens.length > 0 ? tokens : [search]) {
+			query = query.ilike('search_text', searchPattern(token))
+		}
 	}
 	return query
 }
@@ -244,7 +244,10 @@ async function countSearchRows(
 	}
 	const search = options.search?.trim()
 	if (search) {
-		query = query.ilike('search_text', searchPattern(search))
+		const tokens = searchTokens(search)
+		for (const token of tokens.length > 0 ? tokens : [search]) {
+			query = query.ilike('search_text', searchPattern(token))
+		}
 	}
 	const { count, error } = await query
 	if (error) throw new Error(error.message)

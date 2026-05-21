@@ -57,8 +57,10 @@
 				"name": "الاسم",
 				"email": "البريد الإلكتروني",
 				"roles": "الأدوار",
+				"title": "المسمى",
 				"status": "الحالة",
-				"phone": "الهاتف"
+				"phone": "الهاتف",
+				"salary": "الراتب"
 			}
 		},
 		"drivers": {
@@ -172,6 +174,7 @@
 			"contact": "التواصل",
 			"address": "العنوان",
 			"assignment": "الإسناد",
+			"compensation": "التعويضات",
 			"vehicle": "المركبة",
 			"taxonomy": "التصنيف",
 			"scope": "النطاق",
@@ -252,6 +255,12 @@
 			"goodStockThreshold": "جيد من",
 			"roles": "الأدوار",
 			"isCeo": "صلاحية بحث المدير التنفيذي",
+			"title": "المسمى الوظيفي",
+			"department": "القسم",
+			"hireDate": "تاريخ التعيين",
+			"baseSalary": "الراتب الأساسي",
+			"socialInsuranceSalary": "راتب التأمينات",
+			"salaryCurrency": "عملة الراتب",
 			"parentId": "الفئة الأصل",
 			"active": "نشط",
 			"notes": "ملاحظات",

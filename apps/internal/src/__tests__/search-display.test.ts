@@ -83,6 +83,7 @@ describe('Search display formatting', () => {
 				created_at: '2026-05-21T10:15:00+00:00',
 				delivery_date: '2026-05-25',
 				item_count: 3,
+				item_summary: '20 Wood ton, 20 Metal ton',
 				notes: 'Needs cement before noon',
 				source: 'quote_request',
 				submitted_at: '2026-05-21T10:20:00+00:00',
@@ -101,15 +102,75 @@ describe('Search display formatting', () => {
 			expect.arrayContaining([
 				{ label: 'Customer', value: 'Local Cairo Contractors' },
 				{ label: 'Stage', value: 'Submitted' },
-				{ label: 'Items', value: '3' },
+				{ label: 'Items', value: '20 Wood ton, 20 Metal ton' },
 			]),
 		)
 		expect(labels).toContain('Quote request')
 		expect(labels).toContain('Submitted')
 		expect(labels).not.toContain('source')
 		expect(renderedDetails).toContain('Urgent')
+		expect(renderedDetails).toContain('20 Wood ton, 20 Metal ton')
 		expect(renderedDetails).toContain('Needs cement before noon')
 		expect(renderedDetails).not.toContain('2026-05-21T10:20:00')
+	})
+
+	it('matches multi-token business searches against readable fields', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'order',
+			entity_id: 'quote-request-2',
+			title: 'ORD-2026-1111',
+			subtitle: 'submitted',
+			metadata: {
+				company_name: 'Local Cairo Contractors',
+				delivery_address: 'New Cairo, Cairo',
+				item_summary: '20 Wood ton, 20 Metal ton',
+				source: 'quote_request',
+				submitted_by: 'Ahmed Hassan',
+			},
+		}
+
+		const labels = buildSearchMatchedFieldLabels(row, '20 may wood ahmed')
+
+		expect(labels).toContain('Items')
+		expect(labels).toContain('Submitted by')
+		expect(buildSearchMatchedFieldLabels(row, 'new cairo')).toContain(
+			'Delivery address',
+		)
+	})
+
+	it('shows restricted employee compensation as business fields', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'employee',
+			entity_id: 'employee-1',
+			title: 'Ahmed Hassan',
+			subtitle: 'active',
+			metadata: {
+				base_salary: 25000,
+				department: 'Sales',
+				hire_date: '2026-05-20',
+				roles: 'sales, admin',
+				salary_currency: 'EGP',
+				social_insurance_salary: 12000,
+				title: 'Senior sales advisor',
+			},
+		}
+
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Title', value: 'Senior sales advisor' },
+				{ label: 'Department', value: 'Sales' },
+				{ label: 'Base salary', value: 'EGP 25,000' },
+			]),
+		)
+		const details = buildSearchDetailFields(row)
+		expect(details).toEqual(
+			expect.arrayContaining([
+				{ label: 'Insurance salary', value: 'EGP 12,000' },
+			]),
+		)
+		expect(
+			String(details.find((field) => field.label === 'Hire date')?.value),
+		).toContain('2026')
 	})
 
 	it('replaces raw source and action titles where the index title is technical', () => {
@@ -131,6 +192,7 @@ describe('Search display formatting', () => {
 			row('order', 'ORD-SUB', 'submitted'),
 			row('order', 'ORD-ACC', 'out_for_delivery'),
 			row('order', 'ORD-REJ', 'rejected'),
+			row('order', 'QR-DRAFT', 'draft'),
 			row('inventory', 'Cement', 'bulk', {
 				available_quantity: 4,
 				minimum_quantity: 10,

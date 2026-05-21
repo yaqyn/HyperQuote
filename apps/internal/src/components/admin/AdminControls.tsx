@@ -33,7 +33,7 @@ interface TextControlProps {
 	placeholder?: string
 	readOnly?: boolean
 	ariaLabel: string
-	type?: 'text' | 'email' | 'tel' | 'password'
+	type?: 'text' | 'email' | 'tel' | 'password' | 'date'
 }
 
 export function TextControl({

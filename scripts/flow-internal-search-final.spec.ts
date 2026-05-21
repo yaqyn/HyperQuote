@@ -95,6 +95,27 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 		).toBeGreaterThan(0)
 	}
 
+	for (const searchCase of [
+		{ label: 'product names', tokens: ['wood'] },
+		{ label: 'human dates', tokens: ['20', 'may'] },
+		{ label: 'customer/address words', tokens: ['local', 'cairo'] },
+		{ label: 'document codes', tokens: ['2026'] },
+	]) {
+		let request = ceoClient
+			.from('ceo_search_index')
+			.select('entity_type, title, metadata, search_text')
+			.limit(5)
+		for (const token of searchCase.tokens) {
+			request = request.ilike('search_text', `%${token}%`)
+		}
+		const { data, error } = await request
+		expect(error, `${searchCase.label} search`).toBeNull()
+		expect(
+			data ?? [],
+			`${searchCase.label} search should find rich business data`,
+		).not.toHaveLength(0)
+	}
+
 	const salesSearchRead = await salesClient
 		.from('ceo_search_index')
 		.select('entity_type')
@@ -108,6 +129,13 @@ test('CEO Search reads summary views, audits queries, links to source panels, an
 		.limit(1)
 	expect(customerSearchRead.error).toBeNull()
 	expect(customerSearchRead.data ?? []).toHaveLength(0)
+
+	const salesCompensationRead = await salesClient
+		.from('employee_compensation')
+		.select('employee_id')
+		.limit(1)
+	expect(salesCompensationRead.error).toBeNull()
+	expect(salesCompensationRead.data ?? []).toHaveLength(0)
 
 	const salesAuditDenied = await salesClient.rpc(
 		'record_search_query_executed',
@@ -272,8 +300,15 @@ function installBrowserErrorGuard(page: Page) {
 	page.on('requestfailed', (request) => {
 		const failure = request.failure()
 		const errorText = failure?.errorText ?? 'request failed'
+		const url = request.url()
 		if (errorText.includes('ERR_ABORTED')) return
-		browserErrors.push(`${request.method()} ${request.url()} ${errorText}`)
+		if (
+			url.startsWith('https://fonts.googleapis.com/') ||
+			url.startsWith('https://fonts.gstatic.com/')
+		) {
+			return
+		}
+		browserErrors.push(`${request.method()} ${url} ${errorText}`)
 	})
 	page.on('response', (response) => {
 		if (response.status() < 500) return

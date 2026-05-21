@@ -13,6 +13,7 @@ import { isAIEnabled, OPS_ASSISTANT, streamChat } from '@hyperquote/ai'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import { searchPattern, searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
 const internalChatInput = z.object({
@@ -322,11 +323,9 @@ async function fetchSearchAiRows(
 				.order('title', { ascending: true })
 				.limit(SEARCH_AI_ENTITY_LIMIT)
 			if (searchTokensToApply.length > 0) {
-				request = request.or(
-					searchTokensToApply
-						.map((token) => `search_text.ilike.${searchPattern(token)}`)
-						.join(','),
-				)
+				for (const token of searchTokensToApply) {
+					request = request.ilike('search_text', searchPattern(token))
+				}
 			}
 			const { data, error } = await request
 			if (error) throw new Error(error.message)
@@ -351,26 +350,6 @@ function requestedSearchEntityTypes(query: string): Set<string> {
 	return matches
 }
 
-function searchTokens(query: string): string[] {
-	return query
-		.toLowerCase()
-		.split(/[^a-z0-9-]+/)
-		.map((token) => token.trim())
-		.filter((token) => token.length >= 3 && !STOP_WORDS.has(token))
-}
-
-const STOP_WORDS = new Set([
-	'and',
-	'for',
-	'the',
-	'with',
-	'show',
-	'give',
-	'tell',
-	'about',
-	'from',
-])
-
 function keywordTokensForEntityTypes(entityTypes: Set<string>): Set<string> {
 	const tokens = new Set<string>()
 	for (const entityType of entityTypes) {
@@ -381,10 +360,6 @@ function keywordTokensForEntityTypes(entityTypes: Set<string>): Set<string> {
 		}
 	}
 	return tokens
-}
-
-function searchPattern(value: string): string {
-	return `%${value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
 }
 
 function groupSearchRows(rows: SearchAiRow[]): Record<string, SearchAiRow[]> {

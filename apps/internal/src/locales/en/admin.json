@@ -62,8 +62,10 @@
 				"name": "Name",
 				"email": "Email",
 				"roles": "Roles",
+				"title": "Title",
 				"status": "Status",
-				"phone": "Phone"
+				"phone": "Phone",
+				"salary": "Salary"
 			}
 		},
 		"drivers": {
@@ -179,6 +181,7 @@
 			"contact": "Contact",
 			"address": "Address",
 			"assignment": "Assignment",
+			"compensation": "Compensation",
 			"vehicle": "Vehicle",
 			"taxonomy": "Taxonomy",
 			"scope": "Scope",
@@ -259,6 +262,12 @@
 			"goodStockThreshold": "Good from",
 			"roles": "Roles",
 			"isCeo": "CEO search access",
+			"title": "Title",
+			"department": "Department",
+			"hireDate": "Hire date",
+			"baseSalary": "Base salary",
+			"socialInsuranceSalary": "Insurance salary",
+			"salaryCurrency": "Salary currency",
 			"parentId": "Parent category",
 			"active": "Active",
 			"notes": "Notes",

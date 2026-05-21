@@ -7,31 +7,6 @@ export type Json =
 	| Json[]
 
 export type Database = {
-	graphql_public: {
-		Tables: {
-			[_ in never]: never
-		}
-		Views: {
-			[_ in never]: never
-		}
-		Functions: {
-			graphql: {
-				Args: {
-					extensions?: Json
-					operationName?: string
-					query?: string
-					variables?: Json
-				}
-				Returns: Json
-			}
-		}
-		Enums: {
-			[_ in never]: never
-		}
-		CompositeTypes: {
-			[_ in never]: never
-		}
-	}
 	public: {
 		Tables: {
 			activity_events: {
@@ -909,6 +884,74 @@ export type Database = {
 					vehicle_label?: string | null
 				}
 				Relationships: []
+			}
+			employee_compensation: {
+				Row: {
+					base_salary: number | null
+					created_at: string
+					department: string | null
+					employee_id: string
+					hire_date: string | null
+					salary_currency: string
+					social_insurance_salary: number | null
+					title: string | null
+					updated_at: string
+					updated_by_employee_id: string | null
+				}
+				Insert: {
+					base_salary?: number | null
+					created_at?: string
+					department?: string | null
+					employee_id: string
+					hire_date?: string | null
+					salary_currency?: string
+					social_insurance_salary?: number | null
+					title?: string | null
+					updated_at?: string
+					updated_by_employee_id?: string | null
+				}
+				Update: {
+					base_salary?: number | null
+					created_at?: string
+					department?: string | null
+					employee_id?: string
+					hire_date?: string | null
+					salary_currency?: string
+					social_insurance_salary?: number | null
+					title?: string | null
+					updated_at?: string
+					updated_by_employee_id?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'employee_compensation_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: true
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_compensation_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: true
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_compensation_updated_by_employee_id_fkey'
+						columns: ['updated_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_compensation_updated_by_employee_id_fkey'
+						columns: ['updated_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
 			}
 			employee_panel_permissions: {
 				Row: {
@@ -3835,24 +3878,6 @@ export type Database = {
 					subtitle: string | null
 					title: string | null
 				}
-				Insert: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: string | null
-					title?: string | null
-				}
-				Update: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: string | null
-					title?: string | null
-				}
 				Relationships: []
 			}
 			ceo_search_dispatch_vtable: {
@@ -3888,24 +3913,6 @@ export type Database = {
 					sort_at: string | null
 					subtitle: string | null
 					title: string | null
-				}
-				Insert: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: never
-					title?: string | null
-				}
-				Update: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: never
-					title?: string | null
 				}
 				Relationships: []
 			}
@@ -3990,24 +3997,6 @@ export type Database = {
 					sort_at: string | null
 					subtitle: string | null
 					title: string | null
-				}
-				Insert: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: never
-					title?: string | null
-				}
-				Update: {
-					entity_id?: never
-					entity_type?: never
-					metadata?: never
-					search_text?: never
-					sort_at?: string | null
-					subtitle?: never
-					title?: string | null
 				}
 				Relationships: []
 			}
@@ -4188,6 +4177,19 @@ export type Database = {
 				Args: { required_panel: string; write_required?: boolean }
 				Returns: boolean
 			}
+			ceo_search_date_terms:
+				| {
+						Args: { p_value: string }
+						Returns: {
+							error: true
+						} & 'Could not choose the best candidate function between: public.ceo_search_date_terms(p_value => date), public.ceo_search_date_terms(p_value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved'
+				  }
+				| {
+						Args: { p_value: string }
+						Returns: {
+							error: true
+						} & 'Could not choose the best candidate function between: public.ceo_search_date_terms(p_value => date), public.ceo_search_date_terms(p_value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved'
+				  }
 			claim_customer_profile: {
 				Args: { p_phone: string }
 				Returns: {
@@ -6241,9 +6243,6 @@ export type CompositeTypes<
 		: never
 
 export const Constants = {
-	graphql_public: {
-		Enums: {},
-	},
 	public: {
 		Enums: {
 			account_type: ['customer', 'employee', 'driver'],

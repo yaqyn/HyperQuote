@@ -74,6 +74,12 @@ export interface AdminEmployeeRow {
 	status: 'invited' | 'active' | 'disabled'
 	isCeo: boolean
 	roles: AdminEmployeeRole[]
+	department: string
+	title: string
+	hireDate: string
+	baseSalary: number
+	socialInsuranceSalary: number
+	salaryCurrency: string
 }
 
 export interface AdminCategoryRow {
@@ -227,6 +233,17 @@ interface SupabaseEmployeeRow {
 	employee_roles: SupabaseEmployeeRoleRow[] | null
 }
 
+interface SupabaseEmployeeCompensationRow {
+	employee_id: string
+	department: string | null
+	title: string | null
+	hire_date: string | null
+	base_salary: number | string | null
+	social_insurance_salary: number | string | null
+	salary_currency: string
+	updated_at: string
+}
+
 interface SupabaseCustomerRow {
 	id: string
 	user_id: string | null
@@ -370,6 +387,8 @@ const CATEGORY_COLUMNS =
 	'id, slug, name, name_ar, description, description_ar, image_url, parent_id, is_active, parent:parent_id(slug)'
 const EMPLOYEE_COLUMNS =
 	'id, user_id, full_name, email, phone, status, is_ceo, employee_roles(role)'
+const EMPLOYEE_COMPENSATION_COLUMNS =
+	'employee_id, department, title, hire_date, base_salary, social_insurance_salary, salary_currency, updated_at'
 const CUSTOMER_COLUMNS =
 	'id, user_id, company_name, contact_name, phone, email, status, trade_license_status, profile_photo_url, created_by_employee_id, tier, credit_limit, payment_history, assigned_sales_rep_id, created_at'
 const SUPPLIER_COLUMNS =
@@ -533,9 +552,15 @@ function supabaseCategoryToAdmin(row: SupabaseCategoryRow): AdminCategoryRow {
 	}
 }
 
-function supabaseEmployeeToAdmin(row: SupabaseEmployeeRow): AdminEmployeeRow {
+function supabaseEmployeeToAdmin(
+	row: SupabaseEmployeeRow,
+	compensation?: SupabaseEmployeeCompensationRow | null,
+): AdminEmployeeRow {
 	const roles = (row.employee_roles ?? []).map((role) => role.role)
 	return {
+		baseSalary: nullableNumeric(compensation?.base_salary) ?? 0,
+		department: compensation?.department ?? '',
+		hireDate: compensation?.hire_date ?? '',
 		id: row.id,
 		name: row.full_name,
 		email: row.email,
@@ -543,6 +568,10 @@ function supabaseEmployeeToAdmin(row: SupabaseEmployeeRow): AdminEmployeeRow {
 		status: row.status,
 		isCeo: row.is_ceo,
 		roles: row.is_ceo && !roles.includes('ceo') ? [...roles, 'ceo'] : roles,
+		salaryCurrency: compensation?.salary_currency ?? 'EGP',
+		socialInsuranceSalary:
+			nullableNumeric(compensation?.social_insurance_salary) ?? 0,
+		title: compensation?.title ?? '',
 	}
 }
 
@@ -962,6 +991,112 @@ async function currentAdminEmployeeId(): Promise<string | null> {
 		.limit(1)
 	if (error) throw new Error(error.message)
 	return data?.[0]?.id ?? null
+}
+
+async function employeeCompensationById(
+	employeeIds: string[],
+): Promise<Map<string, SupabaseEmployeeCompensationRow>> {
+	if (employeeIds.length === 0) return new Map()
+	const service = await getInternalSupabaseAdminClient()
+	const { data, error } = await service
+		.from('employee_compensation')
+		.select(EMPLOYEE_COMPENSATION_COLUMNS)
+		.in('employee_id', employeeIds)
+	if (error) throw new Error(error.message)
+	return new Map(
+		((data ?? []) as unknown as SupabaseEmployeeCompensationRow[]).map(
+			(row) => [row.employee_id, row],
+		),
+	)
+}
+
+function cleanEmployeeDate(value: string | null | undefined): string | null {
+	const clean = value?.trim()
+	return clean ? clean : null
+}
+
+function cleanSalaryCurrency(value: string | null | undefined): string {
+	const clean = value?.trim().toUpperCase()
+	return clean || 'EGP'
+}
+
+function employeeCompensationPayload(
+	data: Partial<{
+		baseSalary: number
+		department: string
+		hireDate: string
+		salaryCurrency: string
+		socialInsuranceSalary: number
+		title: string
+	}>,
+	updatedByEmployeeId: string | null,
+): Record<string, unknown> {
+	const patch: Record<string, unknown> = {
+		updated_by_employee_id: updatedByEmployeeId,
+	}
+	if (data.department !== undefined) {
+		patch.department = nullableCleanText(data.department)
+	}
+	if (data.title !== undefined) {
+		patch.title = nullableCleanText(data.title)
+	}
+	if (data.hireDate !== undefined) {
+		patch.hire_date = cleanEmployeeDate(data.hireDate)
+	}
+	if (data.baseSalary !== undefined) {
+		patch.base_salary = data.baseSalary
+	}
+	if (data.socialInsuranceSalary !== undefined) {
+		patch.social_insurance_salary = data.socialInsuranceSalary
+	}
+	if (data.salaryCurrency !== undefined) {
+		patch.salary_currency = cleanSalaryCurrency(data.salaryCurrency)
+	}
+	return patch
+}
+
+function hasEmployeeCompensationPatch(
+	data: Partial<{
+		baseSalary: number
+		department: string
+		hireDate: string
+		salaryCurrency: string
+		socialInsuranceSalary: number
+		title: string
+	}>,
+): boolean {
+	return (
+		data.department !== undefined ||
+		data.title !== undefined ||
+		data.hireDate !== undefined ||
+		data.baseSalary !== undefined ||
+		data.socialInsuranceSalary !== undefined ||
+		data.salaryCurrency !== undefined
+	)
+}
+
+async function upsertEmployeeCompensation(
+	employeeId: string,
+	data: Partial<{
+		baseSalary: number
+		department: string
+		hireDate: string
+		salaryCurrency: string
+		socialInsuranceSalary: number
+		title: string
+	}>,
+) {
+	if (!hasEmployeeCompensationPatch(data)) return
+	const service = await getInternalSupabaseAdminClient()
+	const updatedByEmployeeId = await currentAdminEmployeeId()
+	const { error } = await service.from('employee_compensation').upsert(
+		{
+			employee_id: employeeId,
+			...employeeCompensationPayload(data, updatedByEmployeeId),
+		},
+		{ onConflict: 'employee_id' },
+	)
+	if (error) throw new Error(error.message)
 }
 
 async function findAuthUserByEmail(
@@ -2281,6 +2416,12 @@ const EmployeePayload = z.object({
 	status: z.enum(['invited', 'active', 'disabled']),
 	isCeo: z.boolean(),
 	roles: z.array(employeeRoleSchema),
+	department: z.string(),
+	title: z.string(),
+	hireDate: z.string(),
+	baseSalary: z.number().min(0),
+	socialInsuranceSalary: z.number().min(0),
+	salaryCurrency: z.string().trim().min(3).max(8),
 })
 
 export const adminListEmployees = createServerFn({ method: 'GET' }).handler(
@@ -2291,8 +2432,12 @@ export const adminListEmployees = createServerFn({ method: 'GET' }).handler(
 			.select(EMPLOYEE_COLUMNS)
 			.order('full_name', { ascending: true })
 		if (error) throw new Error(error.message)
-		return ((data ?? []) as unknown as SupabaseEmployeeRow[]).map(
-			supabaseEmployeeToAdmin,
+		const rows = (data ?? []) as unknown as SupabaseEmployeeRow[]
+		const compensation = await employeeCompensationById(
+			rows.map((row) => row.id),
+		)
+		return rows.map((row) =>
+			supabaseEmployeeToAdmin(row, compensation.get(row.id)),
 		)
 	},
 )
@@ -2326,6 +2471,7 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 			.select(EMPLOYEE_COLUMNS)
 			.single()
 		if (error) throw new Error(error.message)
+		await upsertEmployeeCompensation(row.id, data)
 		for (const role of data.roles) {
 			const { error: assignError } = await auth.client.rpc(
 				'admin_assign_employee_role',
@@ -2362,7 +2508,11 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 			.eq('id', row.id)
 			.single()
 		if (freshError) throw new Error(freshError.message)
-		return supabaseEmployeeToAdmin(fresh as unknown as SupabaseEmployeeRow)
+		const compensation = await employeeCompensationById([row.id])
+		return supabaseEmployeeToAdmin(
+			fresh as unknown as SupabaseEmployeeRow,
+			compensation.get(row.id),
+		)
 	})
 
 export const adminUpdateEmployee = createServerFn({ method: 'POST' })
@@ -2420,6 +2570,7 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 				.eq('id', id)
 			if (error) throw new Error(error.message)
 		}
+		await upsertEmployeeCompensation(id, patch)
 
 		if (patch.roles) {
 			const { data: currentRoles, error: roleError } = await auth.client
@@ -2485,7 +2636,11 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 			.eq('id', id)
 			.single()
 		if (error) throw new Error(error.message)
-		return supabaseEmployeeToAdmin(row as unknown as SupabaseEmployeeRow)
+		const compensation = await employeeCompensationById([id])
+		return supabaseEmployeeToAdmin(
+			row as unknown as SupabaseEmployeeRow,
+			compensation.get(id),
+		)
 	})
 
 export const adminDeleteEmployee = createServerFn({ method: 'POST' })
