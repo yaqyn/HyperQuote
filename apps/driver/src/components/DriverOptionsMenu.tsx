@@ -1,7 +1,9 @@
 import { Languages, Moon, MoreHorizontal, Sun } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { Button, DialogTrigger, Popover } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { DialogTrigger } from 'react-aria-components/Dialog'
+import { Popover } from 'react-aria-components/Popover'
 
 export interface DriverOption {
 	icon: ReactNode

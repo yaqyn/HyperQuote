@@ -1,5 +1,5 @@
 import { MessageCircle, Phone, Truck } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type { DriverLanguage, DriverProfile } from '../lib/driver-repository'
 import { formatClock, localize } from '../lib/format'
@@ -43,7 +43,9 @@ export function DriverCrewCard({
 						{t('fleet.lastPing')}
 					</p>
 					<p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-						{formatClock(driver.location.recordedAt, language)}
+						{driver.location
+							? formatClock(driver.location.recordedAt, language)
+							: t('fleet.noPing')}
 					</p>
 				</div>
 			</div>

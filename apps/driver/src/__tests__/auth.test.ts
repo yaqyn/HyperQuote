@@ -1,29 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import {
-	createMockDriverSession,
-	isMockLoginAccepted,
-	loginSchema,
-} from '../lib/auth'
+import { loginSchema } from '../lib/auth'
 
 describe('driver login validation', () => {
-	it('accepts a valid driver email and password length', () => {
+	it('accepts well-formed credentials for Supabase authentication', () => {
 		const values = {
 			email: 'driver@hyperquote.net',
 			password: 'routepass',
 		}
 
 		expect(loginSchema.safeParse(values).success).toBe(true)
-		expect(isMockLoginAccepted(values)).toBe(true)
-		expect(createMockDriverSession(values).source).toBe('mock')
 	})
 
 	it('rejects invalid email and short passwords', () => {
 		const values = {
 			email: 'driver',
-			password: 'short',
+			password: '12345',
 		}
 
 		expect(loginSchema.safeParse(values).success).toBe(false)
-		expect(isMockLoginAccepted(values)).toBe(false)
+	})
+
+	it('matches the local Supabase password floor', () => {
+		expect(
+			loginSchema.safeParse({
+				email: 'driver@hyperquote.net',
+				password: '123456',
+			}).success,
+		).toBe(true)
 	})
 })

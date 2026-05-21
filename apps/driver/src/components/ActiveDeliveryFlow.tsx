@@ -1,49 +1,67 @@
-import { ClipboardList, ListChecks, MapPinned, Navigation } from 'lucide-react'
-import { useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import {
+	ArrowLeft,
+	ClipboardList,
+	MapPinned,
+	Navigation,
+	OctagonX,
+	QrCode,
+	ScanLine,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Button } from 'react-aria-components/Button'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
 import type { DriverDelivery, DriverLanguage } from '../lib/driver-repository'
 import { localize } from '../lib/format'
-import { ActionButton, Metric, StatusPill } from './DriverShellPrimitives'
-import { SignaturePad } from './SignaturePad'
+import { ActionButton, StatusPill } from './DriverShellPrimitives'
 
 interface ActiveDeliveryFlowProps {
 	activeDelivery: DriverDelivery | null
-	completeDelivery: (
-		deliveryId: string,
-		signerName: string,
-		signatureDataUrl: string,
-	) => void
+	actionError?: string | null
+	completeDelivery: (deliveryId: string) => void
+	completeError?: string | null
 	isCompleting: boolean
 	isMutating: boolean
+	isRejecting: boolean
 	language: DriverLanguage
 	nextDelivery: DriverDelivery | null
 	onAccept: (deliveryId: string) => void
-	onArrival: (deliveryId: string) => void
+	onArrival: (deliveryId: string, secretCode: string) => void
+	onBackToRoute: (deliveryId: string) => void
+	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
 	onStart: (deliveryId: string) => void
+	rejectError?: string | null
 }
 
 export function ActiveDeliveryFlow({
 	activeDelivery,
+	actionError,
 	completeDelivery,
+	completeError,
 	isCompleting,
 	isMutating,
+	isRejecting,
 	language,
 	nextDelivery,
 	onAccept,
 	onArrival,
+	onBackToRoute,
+	onReject,
 	onStart,
+	rejectError,
 }: ActiveDeliveryFlowProps) {
 	const { t } = useTranslation('driver')
 	const delivery = activeDelivery ?? nextDelivery
 
 	if (!delivery) {
 		return (
-			<div className="border border-[var(--color-border)] bg-[var(--color-panel)]/96 p-4 shadow-[0_18px_60px_rgba(17,17,17,0.14)] backdrop-blur">
+			<div className="border border-[var(--color-border)] bg-[var(--color-panel)]/96 p-3 shadow-[0_14px_44px_rgba(17,17,17,0.14)] backdrop-blur sm:p-4">
 				<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-subtle)]">
 					{t('active.noneEyebrow')}
 				</p>
-				<p className="mt-1 font-[family-name:var(--font-archivo)] text-lg font-semibold">
+				<p className="mt-1 font-[family-name:var(--font-archivo)] text-base font-semibold leading-snug sm:text-lg">
 					{t('active.noneTitle')}
 				</p>
 			</div>
@@ -51,38 +69,27 @@ export function ActiveDeliveryFlow({
 	}
 
 	return (
-		<div className="border border-[var(--color-border)] bg-[var(--color-panel)]/96 p-4 shadow-[0_18px_60px_rgba(17,17,17,0.14)] backdrop-blur">
+		<div className="max-h-[min(50dvh,24rem)] overflow-auto border border-[var(--color-border)] bg-[var(--color-panel)]/96 p-2.5 shadow-[0_14px_44px_rgba(17,17,17,0.14)] backdrop-blur sm:p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-primary)]">
 						{activeDelivery ? t('active.current') : t('active.next')}
 					</p>
-					<h1 className="mt-1 truncate font-[family-name:var(--font-archivo)] text-xl font-bold">
+					<h1 className="mt-0.5 truncate font-[family-name:var(--font-archivo)] text-base font-bold leading-tight sm:text-lg">
 						{localize(delivery.orderName, language)}
 					</h1>
-					<p className="mt-1 truncate text-sm text-[var(--color-text-muted)]">
+					<p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)] sm:text-sm">
 						{localize(delivery.customer.name, language)}
 					</p>
 				</div>
 				<StatusPill status={delivery.status} />
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-2 border-y border-[var(--color-border)] py-3">
-				<Metric
-					label={t('active.eta')}
-					value={t('units.minutes', { count: delivery.etaMinutes })}
-				/>
-				<Metric
-					label={t('active.window')}
-					value={localize(delivery.scheduledWindow, language)}
-				/>
-			</div>
-
-			{delivery.status === 'available' && (
+			{(delivery.status === 'assigned' || delivery.status === 'available') && (
 				<ActionButton
-					icon={<ListChecks aria-hidden="true" size={18} />}
+					icon={<Navigation aria-hidden="true" size={18} />}
 					isDisabled={isMutating}
-					label={t('active.accept')}
+					label={t('active.start')}
 					onPress={() => onAccept(delivery.id)}
 				/>
 			)}
@@ -94,24 +101,265 @@ export function ActiveDeliveryFlow({
 					onPress={() => onStart(delivery.id)}
 				/>
 			)}
+			{actionError && (
+				<p
+					role="alert"
+					className="mt-2 text-xs font-semibold text-[#B91C1C] sm:text-sm"
+				>
+					{actionError}
+				</p>
+			)}
 			{delivery.status === 'in_transit' && (
-				<ActionButton
-					icon={<MapPinned aria-hidden="true" size={18} />}
-					isDisabled={isMutating}
-					label={t('active.arrival')}
-					onPress={() => onArrival(delivery.id)}
+				<ArrivalVerificationForm
+					deliveryId={delivery.id}
+					isMutating={isMutating}
+					isRejecting={isRejecting}
+					onArrival={onArrival}
+					onReject={onReject}
+					rejectError={rejectError}
 				/>
 			)}
 			{delivery.status === 'arrived' && (
 				<VerificationForm
 					deliveryId={delivery.id}
+					errorMessage={completeError}
 					isCompleting={isCompleting}
+					isMutating={isMutating}
+					onBackToRoute={onBackToRoute}
 					onComplete={completeDelivery}
 				/>
 			)}
+			{['assigned', 'accepted', 'arrived'].includes(delivery.status) && (
+				<RejectionForm
+					deliveryId={delivery.id}
+					errorMessage={rejectError}
+					isRejecting={isRejecting}
+					onReject={onReject}
+				/>
+			)}
 			{delivery.status === 'completed' && (
-				<p className="mt-4 border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-sm font-semibold text-[#047857]">
+				<p className="mt-3 border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-sm font-semibold text-[#047857]">
 					{t('active.completed')}
+				</p>
+			)}
+			{delivery.status === 'rejected' && (
+				<p className="mt-3 border border-[#B91C1C]/25 bg-[#B91C1C]/10 px-3 py-2 text-sm font-semibold text-[#B91C1C]">
+					{t('active.rejected')}
+				</p>
+			)}
+		</div>
+	)
+}
+
+interface BarcodeDetectorResult {
+	rawValue?: string
+}
+
+interface BarcodeDetectorInstance {
+	detect(source: HTMLVideoElement): Promise<BarcodeDetectorResult[]>
+}
+
+interface BarcodeDetectorConstructor {
+	new (options?: { formats?: string[] }): BarcodeDetectorInstance
+}
+
+function getBarcodeDetector(): BarcodeDetectorConstructor | null {
+	const browserGlobal = globalThis as typeof globalThis & {
+		BarcodeDetector?: BarcodeDetectorConstructor
+	}
+	return browserGlobal.BarcodeDetector ?? null
+}
+
+function ArrivalVerificationForm({
+	deliveryId,
+	isMutating,
+	isRejecting,
+	onArrival,
+	onReject,
+	rejectError,
+}: {
+	deliveryId: string
+	isMutating: boolean
+	isRejecting: boolean
+	onArrival: (deliveryId: string, secretCode: string) => void
+	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
+	rejectError?: string | null
+}) {
+	const { t } = useTranslation('driver')
+	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
+	const [secretCode, setSecretCode] = useState('')
+	const [scannerActive, setScannerActive] = useState(false)
+	const [scannerError, setScannerError] = useState<string | null>(null)
+	const streamRef = useRef<MediaStream | null>(null)
+	const frameRef = useRef<number | null>(null)
+	const videoRef = useRef<HTMLVideoElement | null>(null)
+	const canSubmit = secretCode.trim().length >= 8 && !isMutating
+	const scannerSupported =
+		typeof navigator !== 'undefined' &&
+		Boolean(navigator.mediaDevices?.getUserMedia) &&
+		getBarcodeDetector() !== null
+
+	useEffect(() => {
+		if (!scannerActive) return
+		const Detector = getBarcodeDetector()
+		if (!Detector || !navigator.mediaDevices?.getUserMedia) {
+			setScannerError(t('arrival.scannerUnavailable'))
+			setScannerActive(false)
+			return
+		}
+
+		let canceled = false
+		const detector = new Detector({ formats: ['qr_code'] })
+
+		const stopScanner = () => {
+			if (frameRef.current !== null) {
+				cancelAnimationFrame(frameRef.current)
+				frameRef.current = null
+			}
+			for (const track of streamRef.current?.getTracks() ?? []) {
+				track.stop()
+			}
+			streamRef.current = null
+			if (videoRef.current) videoRef.current.srcObject = null
+		}
+
+		const scanFrame = async () => {
+			if (canceled || !videoRef.current) return
+			try {
+				const results = await detector.detect(videoRef.current)
+				const value = results.find((result) => result.rawValue)?.rawValue
+				if (value) {
+					setSecretCode(value)
+					onArrival(deliveryId, value)
+					setScannerActive(false)
+					stopScanner()
+					return
+				}
+			} catch {
+				setScannerError(t('arrival.scannerError'))
+			}
+			frameRef.current = requestAnimationFrame(scanFrame)
+		}
+
+		const startScanner = async () => {
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia({
+					audio: false,
+					video: { facingMode: 'environment' },
+				})
+				if (canceled) {
+					for (const track of stream.getTracks()) {
+						track.stop()
+					}
+					return
+				}
+				streamRef.current = stream
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream
+					await videoRef.current.play()
+					frameRef.current = requestAnimationFrame(scanFrame)
+				}
+			} catch {
+				setScannerError(t('arrival.scannerError'))
+				setScannerActive(false)
+			}
+		}
+
+		void startScanner()
+
+		return () => {
+			canceled = true
+			stopScanner()
+		}
+	}, [deliveryId, onArrival, scannerActive, t])
+
+	if (mode === 'reject') {
+		return (
+			<div className="mt-2">
+				<RejectionFields
+					deliveryId={deliveryId}
+					errorMessage={rejectError}
+					isRejecting={isRejecting}
+					onCancel={() => setMode('secret')}
+					onReject={onReject}
+				/>
+			</div>
+		)
+	}
+
+	return (
+		<div className="mt-2 space-y-2 sm:space-y-3">
+			<TextField>
+				<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
+					{t('arrival.secretCode')}
+				</Label>
+				<Input
+					value={secretCode}
+					inputMode="text"
+					autoComplete="one-time-code"
+					autoCapitalize="characters"
+					placeholder={t('arrival.secretPlaceholder')}
+					onChange={(event) => setSecretCode(event.target.value.toUpperCase())}
+					className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-12 sm:text-base"
+				/>
+			</TextField>
+
+			{scannerSupported && (
+				<Button
+					isDisabled={isMutating}
+					onPress={() => {
+						setScannerError(null)
+						setScannerActive((active) => !active)
+					}}
+					className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+				>
+					<span>
+						{scannerActive ? t('arrival.stopScan') : t('arrival.scanQr')}
+					</span>
+					{scannerActive ? (
+						<QrCode aria-hidden="true" size={17} />
+					) : (
+						<ScanLine aria-hidden="true" size={17} />
+					)}
+				</Button>
+			)}
+
+			<div className="grid grid-cols-[minmax(0,1fr)_3rem] gap-2">
+				<Button
+					isDisabled={!canSubmit}
+					onPress={() => onArrival(deliveryId, secretCode.trim())}
+					className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+				>
+					<span>{t('arrival.confirm')}</span>
+					<MapPinned aria-hidden="true" size={17} />
+				</Button>
+				<Button
+					aria-label={t('rejection.submit')}
+					isDisabled={isRejecting}
+					onPress={() => setMode('reject')}
+					className="grid h-10 w-12 place-items-center border border-[#B91C1C]/35 bg-[#B91C1C]/8 text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+				>
+					<OctagonX aria-hidden="true" size={18} />
+				</Button>
+			</div>
+
+			{scannerActive && (
+				<div className="overflow-hidden border border-[var(--color-border)] bg-black">
+					<video
+						ref={videoRef}
+						muted
+						playsInline
+						className="aspect-video w-full object-cover"
+					/>
+					<p className="bg-[var(--color-surface)] px-3 py-1.5 text-xs text-[var(--color-text-muted)]">
+						{t('arrival.scanning')}
+					</p>
+				</div>
+			)}
+
+			{scannerError && (
+				<p className="text-xs font-semibold text-[#B91C1C] sm:text-sm">
+					{scannerError}
 				</p>
 			)}
 		</div>
@@ -120,51 +368,170 @@ export function ActiveDeliveryFlow({
 
 function VerificationForm({
 	deliveryId,
+	errorMessage,
 	isCompleting,
+	isMutating,
+	onBackToRoute,
 	onComplete,
 }: {
 	deliveryId: string
+	errorMessage?: string | null
 	isCompleting: boolean
-	onComplete: (
-		deliveryId: string,
-		signerName: string,
-		signatureDataUrl: string,
-	) => void
+	isMutating: boolean
+	onBackToRoute: (deliveryId: string) => void
+	onComplete: (deliveryId: string) => void
 }) {
 	const { t } = useTranslation('driver')
-	const [signerName, setSignerName] = useState('')
-	const [signatureDataUrl, setSignatureDataUrl] = useState('')
-	const [strokeCount, setStrokeCount] = useState(0)
-	const canComplete = signerName.trim().length >= 2 && strokeCount > 0
 
 	return (
-		<div className="mt-4 space-y-3">
-			<TextField>
-				<Label className="mb-2 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
-					{t('verification.signerName')}
-				</Label>
-				<Input
-					value={signerName}
-					onChange={(event) => setSignerName(event.target.value)}
-					className="h-12 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15"
-				/>
-			</TextField>
-			<SignaturePad
-				onSignatureChange={(nextSignature, nextStrokeCount) => {
-					setSignatureDataUrl(nextSignature)
-					setStrokeCount(nextStrokeCount)
-				}}
-			/>
+		<div className="mt-3 space-y-2 sm:space-y-3">
+			<p className="border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-xs font-semibold text-[#047857] sm:text-sm">
+				{t('verification.secretVerified')}
+			</p>
 			<Button
-				isDisabled={!canComplete || isCompleting}
-				onPress={() =>
-					onComplete(deliveryId, signerName.trim(), signatureDataUrl)
-				}
-				className="driver-action-button flex h-12 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50"
+				isDisabled={isCompleting || isMutating}
+				onPress={() => onBackToRoute(deliveryId)}
+				className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+			>
+				<span>{t('arrival.backToRoute')}</span>
+				<ArrowLeft aria-hidden="true" size={17} />
+			</Button>
+			<Button
+				isDisabled={isCompleting}
+				onPress={() => onComplete(deliveryId)}
+				className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12"
 			>
 				<span>{t('verification.complete')}</span>
 				<ClipboardList aria-hidden="true" size={17} />
 			</Button>
+			{errorMessage && (
+				<p
+					role="alert"
+					className="text-xs font-semibold text-[#B91C1C] sm:text-sm"
+				>
+					{errorMessage}
+				</p>
+			)}
+		</div>
+	)
+}
+
+function RejectionFields({
+	deliveryId,
+	errorMessage,
+	isRejecting,
+	onCancel,
+	onReject,
+}: {
+	deliveryId: string
+	errorMessage?: string | null
+	isRejecting: boolean
+	onCancel?: () => void
+	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
+}) {
+	const { t } = useTranslation('driver')
+	const [reason, setReason] = useState('')
+	const [evidenceText, setEvidenceText] = useState('')
+	const canReject = reason.trim().length >= 3 && evidenceText.trim().length >= 3
+
+	return (
+		<>
+			<div className="grid gap-2 sm:grid-cols-2">
+				<TextField>
+					<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
+						{t('rejection.reason')}
+					</Label>
+					<Input
+						value={reason}
+						onChange={(event) => setReason(event.target.value)}
+						className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-11"
+					/>
+				</TextField>
+				<TextField>
+					<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
+						{t('rejection.evidence')}
+					</Label>
+					<Input
+						value={evidenceText}
+						onChange={(event) => setEvidenceText(event.target.value)}
+						className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-11"
+					/>
+				</TextField>
+			</div>
+			<div
+				className={[
+					'mt-2 grid gap-2 sm:mt-3',
+					onCancel ? 'grid-cols-[3rem_minmax(0,1fr)]' : '',
+				].join(' ')}
+			>
+				{onCancel && (
+					<Button
+						aria-label={t('arrival.backToRoute')}
+						isDisabled={isRejecting}
+						onPress={onCancel}
+						className="grid h-10 w-12 place-items-center border border-[var(--color-border)] bg-[var(--color-surface)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+					>
+						<ArrowLeft aria-hidden="true" size={17} />
+					</Button>
+				)}
+				<Button
+					isDisabled={!canReject || isRejecting}
+					onPress={() =>
+						onReject(deliveryId, reason.trim(), evidenceText.trim())
+					}
+					className="flex h-10 w-full items-center justify-between border border-[#B91C1C]/35 bg-[#B91C1C]/8 px-3 text-sm font-semibold text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+				>
+					<span>{t('rejection.submit')}</span>
+					<OctagonX aria-hidden="true" size={17} />
+				</Button>
+			</div>
+			{errorMessage && (
+				<p
+					role="alert"
+					className="mt-2 text-xs font-semibold text-[#B91C1C] sm:text-sm"
+				>
+					{errorMessage}
+				</p>
+			)}
+		</>
+	)
+}
+
+function RejectionForm({
+	deliveryId,
+	errorMessage,
+	isRejecting,
+	onReject,
+}: {
+	deliveryId: string
+	errorMessage?: string | null
+	isRejecting: boolean
+	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
+}) {
+	const { t } = useTranslation('driver')
+	const [isOpen, setIsOpen] = useState(false)
+
+	if (!isOpen && !errorMessage) {
+		return (
+			<Button
+				isDisabled={isRejecting}
+				onPress={() => setIsOpen(true)}
+				className="mt-3 flex h-9 w-full items-center justify-between border border-[#B91C1C]/25 bg-[#B91C1C]/8 px-3 text-xs font-semibold text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"
+			>
+				<span>{t('rejection.submit')}</span>
+				<OctagonX aria-hidden="true" size={16} />
+			</Button>
+		)
+	}
+
+	return (
+		<div className="mt-3 border-t border-[var(--color-border)] pt-3">
+			<RejectionFields
+				deliveryId={deliveryId}
+				errorMessage={errorMessage}
+				isRejecting={isRejecting}
+				onReject={onReject}
+			/>
 		</div>
 	)
 }

@@ -3,11 +3,13 @@ export type DriverLanguage = 'en' | 'ar'
 export type LocalizedText = Record<DriverLanguage, string>
 
 export type DeliveryStatus =
+	| 'assigned'
 	| 'available'
 	| 'accepted'
 	| 'in_transit'
 	| 'arrived'
 	| 'completed'
+	| 'rejected'
 
 export type DriverStatus = 'available' | 'on_delivery' | 'offline'
 
@@ -17,7 +19,7 @@ export interface DriverLocation {
 	latitude: number
 	longitude: number
 	recordedAt: string
-	source: 'browser' | 'native' | 'mock'
+	source: 'browser' | 'native'
 	speedKmh?: number
 }
 
@@ -25,10 +27,11 @@ export interface DriverProfile {
 	id: string
 	email: string
 	name: LocalizedText
+	onlineStatus?: 'online' | 'offline'
 	phone: string
 	status: DriverStatus
 	vehicle: LocalizedText
-	location: DriverLocation
+	location: DriverLocation | null
 	activeDeliveryId?: string
 }
 
@@ -48,8 +51,8 @@ export interface DeliveryItem {
 export interface DeliveryPoint {
 	address: LocalizedText
 	label: LocalizedText
-	latitude: number
-	longitude: number
+	latitude: number | null
+	longitude: number | null
 }
 
 export interface DriverDelivery {
@@ -63,7 +66,7 @@ export interface DriverDelivery {
 	items: DeliveryItem[]
 	notes: LocalizedText
 	scheduledWindow: LocalizedText
-	etaMinutes: number
+	etaMinutes: number | null
 	status: DeliveryStatus
 	driverId: string | null
 	acceptedAt?: string
@@ -71,6 +74,10 @@ export interface DriverDelivery {
 	arrivedAt?: string
 	completedAt?: string
 	proof?: CompletionProof
+	rejectionProof?: DeliveryRejectionProof
+	rejectionReason?: string
+	truckId?: string
+	truckPlate?: string
 }
 
 export interface TeamMessage {
@@ -92,12 +99,23 @@ export interface DriverDashboard {
 export interface CompletionProof {
 	capturedAt: string
 	location: DriverLocation
-	signatureDataUrl: string
-	signerName: string
+}
+
+export interface DeliveryRejectionProof {
+	capturedAt: string
+	evidenceText: string
+	location: DriverLocation
+	photoDataUrl?: string
+	reason: string
 }
 
 export interface DriverRepository {
 	acceptDelivery(deliveryId: string, driverId: string): Promise<DriverDelivery>
+	confirmArrival(
+		deliveryId: string,
+		driverId: string,
+		secretCode: string,
+	): Promise<DriverDelivery>
 	completeDelivery(
 		deliveryId: string,
 		driverId: string,
@@ -107,12 +125,20 @@ export interface DriverRepository {
 	listActiveDrivers(): Promise<DriverProfile[]>
 	listDeliveries(): Promise<DriverDelivery[]>
 	listTeamMessages(): Promise<TeamMessage[]>
-	recordArrival(deliveryId: string, driverId: string): Promise<DriverDelivery>
+	rejectDelivery(
+		deliveryId: string,
+		driverId: string,
+		reason: string,
+		proof: DeliveryRejectionProof | null,
+	): Promise<DriverDelivery>
+	reopenRoute(deliveryId: string, driverId: string): Promise<DriverDelivery>
 	sendTeamMessage(driverId: string, body: string): Promise<TeamMessage>
+	setOnline(driverId: string, online: boolean): Promise<DriverProfile>
 	startDelivery(deliveryId: string, driverId: string): Promise<DriverDelivery>
 	updateLocation(
 		driverId: string,
 		location: DriverLocation,
+		deliveryId?: string | null,
 	): Promise<DriverProfile>
 }
 
@@ -123,7 +149,8 @@ export class DriverRepositoryError extends Error {
 			| 'driver_not_found'
 			| 'delivery_unavailable'
 			| 'invalid_transition'
-			| 'invalid_proof',
+			| 'invalid_proof'
+			| 'invalid_secret',
 		message: string,
 	) {
 		super(message)
@@ -133,8 +160,6 @@ export class DriverRepositoryError extends Error {
 
 export function isCompletionProofReady(proof: CompletionProof): boolean {
 	return (
-		proof.signerName.trim().length >= 2 &&
-		proof.signatureDataUrl.startsWith('data:image/') &&
 		proof.location.latitude !== 0 &&
 		proof.location.longitude !== 0 &&
 		Number.isFinite(proof.location.latitude) &&

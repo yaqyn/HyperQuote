@@ -1,5 +1,5 @@
 import { ArrowLeft, MapPinned, Phone, Warehouse } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import type {
 	DriverDelivery,
@@ -63,7 +63,11 @@ export function DeliveryPassport({
 				<div className="mt-4 grid grid-cols-3 gap-2 border-y border-[var(--color-border)] py-3">
 					<Metric
 						label={t('active.eta')}
-						value={t('units.minutes', { count: delivery.etaMinutes })}
+						value={
+							delivery.etaMinutes === null
+								? t('units.pending')
+								: t('units.minutes', { count: delivery.etaMinutes })
+						}
 					/>
 					<Metric
 						label={t('active.window')}
@@ -144,6 +148,12 @@ export function DeliveryPassport({
 							: t('fleet.unassigned')}
 					</p>
 					<p className="mt-3 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-subtle)]">
+						{t('fleet.truck')}
+					</p>
+					<p className="mt-2 text-sm font-semibold">
+						{delivery.truckPlate ?? delivery.truckId ?? t('fleet.unassigned')}
+					</p>
+					<p className="mt-3 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-subtle)]">
 						{t('info.notes')}
 					</p>
 					<p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
@@ -200,6 +210,9 @@ function ContactBlock({
 					</p>
 					<p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
 						{localize(contact.role, language)}
+					</p>
+					<p className="mt-1 truncate font-[family-name:var(--font-plex-mono)] text-[10px] text-[var(--color-text-subtle)]">
+						{contact.phone}
 					</p>
 				</div>
 				<a

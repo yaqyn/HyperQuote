@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { LoginScreen } from './components/LoginScreen'
 import { getCurrentDriverSession } from './lib/auth'

@@ -3,10 +3,12 @@ import type { ReactNode } from 'react'
 
 export function PanelShell({
 	children,
+	hideHeader = false,
 	reserveRail = true,
 	title,
 }: {
 	children: ReactNode
+	hideHeader?: boolean
 	reserveRail?: boolean
 	title: string
 }) {
@@ -22,11 +24,13 @@ export function PanelShell({
 			animate={{ opacity: 1, y: 0 }}
 			transition={transition}
 		>
-			<header className="driver-panel-header flex h-16 shrink-0 items-center justify-center border-b border-[var(--color-border)] px-4 pt-[env(safe-area-inset-top)] text-center">
-				<h2 className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-lg font-bold">
-					{title}
-				</h2>
-			</header>
+			{!hideHeader && (
+				<header className="driver-panel-header flex h-16 shrink-0 items-center justify-center border-b border-[var(--color-border)] px-4 pt-[env(safe-area-inset-top)] text-center">
+					<h2 className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-lg font-bold">
+						{title}
+					</h2>
+				</header>
+			)}
 			<div
 				className={`driver-panel-body min-h-0 flex-1 overflow-auto ${
 					reserveRail

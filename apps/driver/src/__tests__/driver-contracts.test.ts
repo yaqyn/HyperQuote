@@ -18,7 +18,7 @@ describe('driver app contracts', () => {
 		expectTypeOf<DeliveryItem>().toHaveProperty('quantity')
 		expectTypeOf<DeliveryPoint>()
 			.toHaveProperty('latitude')
-			.toEqualTypeOf<number>()
+			.toEqualTypeOf<number | null>()
 		expectTypeOf<DriverStatus>().toEqualTypeOf<
 			'available' | 'offline' | 'on_delivery'
 		>()

@@ -1,7 +1,7 @@
 import { ClipboardList, MessageCircle, UsersRound } from 'lucide-react'
 import type { Key } from 'react'
 import { useState } from 'react'
-import { TabList, TabPanel, Tabs } from 'react-aria-components'
+import { TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import type {
 	DriverDelivery,
@@ -28,6 +28,7 @@ export function FleetPanel({
 	onSelectedTabChange,
 	onSendMessage,
 	selectedTab,
+	sendMessageError,
 	sendMessagePending,
 }: {
 	assignedDriverById: Map<string, DriverProfile>
@@ -37,8 +38,9 @@ export function FleetPanel({
 	language: DriverLanguage
 	messages: TeamMessage[]
 	onSelectedTabChange: (tab: FleetTab) => void
-	onSendMessage: (body: string) => void
+	onSendMessage: (body: string) => Promise<boolean>
 	selectedTab: FleetTab
+	sendMessageError: string | null
 	sendMessagePending: boolean
 }) {
 	const { t } = useTranslation('driver')
@@ -96,15 +98,38 @@ export function FleetPanel({
 		onSelectedTabChange('chat')
 	}
 
-	function handleSendMessage() {
+	async function handleSendMessage() {
 		const body = draftMessage.trim()
 		if (!body) return
-		onSendMessage(body)
-		setDraftMessage('')
+		const sent = await onSendMessage(body)
+		if (sent) setDraftMessage('')
+	}
+
+	if (selectedTab === 'chat') {
+		return (
+			<PanelShell hideHeader reserveRail={false} title={t('fleet.title')}>
+				<TeamChatPanel
+					currentDriverId={currentDriverId}
+					drivers={drivers}
+					draftMessage={draftMessage}
+					focusedDriver={focusedDriver}
+					language={language}
+					messages={messages}
+					onBack={() => onSelectedTabChange(lastNonChatTab)}
+					onClearFocus={() => setFocusedDriverId(null)}
+					onDraftChange={setDraftMessage}
+					onMentionDriver={handleMentionDriver}
+					onSendMessage={handleSendMessage}
+					sendMessageError={sendMessageError}
+					sendMessagePending={sendMessagePending}
+					showHeader={false}
+				/>
+			</PanelShell>
+		)
 	}
 
 	return (
-		<PanelShell reserveRail={selectedTab !== 'chat'} title={t('fleet.title')}>
+		<PanelShell hideHeader reserveRail title={t('fleet.title')}>
 			<Tabs selectedKey={selectedTab} onSelectionChange={handleTabChange}>
 				<TabList
 					aria-label={t('fleet.tabsLabel')}
@@ -183,6 +208,7 @@ export function FleetPanel({
 						onDraftChange={setDraftMessage}
 						onMentionDriver={handleMentionDriver}
 						onSendMessage={handleSendMessage}
+						sendMessageError={sendMessageError}
 						sendMessagePending={sendMessagePending}
 					/>
 				</TabPanel>

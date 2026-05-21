@@ -3,11 +3,10 @@ import {
 	resolveSupabaseBrowserConfig,
 } from '@hyperquote/auth'
 import { z } from 'zod'
-import { MOCK_CURRENT_DRIVER_ID } from './mock-data'
 
 export const loginSchema = z.object({
 	email: z.string().trim().email(),
-	password: z.string().min(8),
+	password: z.string().min(6),
 })
 
 export type LoginFormValues = z.infer<typeof loginSchema>
@@ -16,7 +15,7 @@ export interface DriverAuthSession {
 	driverId: string
 	email: string
 	startedAt: string
-	source: 'mock' | 'supabase'
+	source: 'supabase'
 }
 
 export type DriverLoginError =
@@ -29,21 +28,6 @@ export type DriverLoginResult =
 	| { ok: true; session: DriverAuthSession }
 	| { ok: false; error: DriverLoginError }
 
-export function createMockDriverSession(
-	values: LoginFormValues,
-): DriverAuthSession {
-	return {
-		driverId: MOCK_CURRENT_DRIVER_ID,
-		email: values.email,
-		startedAt: new Date().toISOString(),
-		source: 'mock',
-	}
-}
-
-export function isMockLoginAccepted(values: LoginFormValues): boolean {
-	return loginSchema.safeParse(values).success
-}
-
 export async function authenticateDriver(
 	values: LoginFormValues,
 ): Promise<DriverLoginResult> {
@@ -51,14 +35,13 @@ export async function authenticateDriver(
 	if (!parsed.success) return { ok: false, error: 'invalid_credentials' }
 
 	const config = resolveSupabaseBrowserConfig(import.meta.env)
-	if (!config) {
-		return { ok: true, session: createMockDriverSession(parsed.data) }
-	}
+	if (!config) return { ok: false, error: 'unexpected' }
 
 	try {
 		const client = createSupabaseBrowserClient(
 			config.supabaseUrl,
 			config.supabaseAnonKey,
+			config.cookieName,
 		)
 		const { data, error } = await client.auth.signInWithPassword({
 			email: parsed.data.email.trim(),
@@ -97,6 +80,7 @@ export async function getCurrentDriverSession(): Promise<DriverAuthSession | nul
 	const client = createSupabaseBrowserClient(
 		config.supabaseUrl,
 		config.supabaseAnonKey,
+		config.cookieName,
 	)
 	const {
 		data: { user },
@@ -113,6 +97,7 @@ export async function signOutDriver(): Promise<void> {
 	const client = createSupabaseBrowserClient(
 		config.supabaseUrl,
 		config.supabaseAnonKey,
+		config.cookieName,
 	)
 	await client.auth.signOut()
 }
@@ -136,11 +121,12 @@ async function createDriverSessionFromSupabaseUser(
 
 	const { data: driver, error } = await client
 		.from('drivers')
-		.select('id, email')
+		.select('id, email, status')
 		.eq('user_id', user.id)
 		.single()
 
 	if (error || !driver) return null
+	if (driver.status === 'disabled' || driver.status === 'invited') return null
 
 	return {
 		driverId: driver.id,

@@ -2,15 +2,27 @@
 	"active": {
 		"accept": "Accept delivery",
 		"arrival": "Record arrival",
-		"completed": "Proof captured. Delivery completed.",
+		"completed": "Delivery completed.",
 		"current": "Active delivery",
 		"eta": "ETA",
 		"items": "Items",
 		"next": "Next acceptable delivery",
 		"noneEyebrow": "No active delivery",
 		"noneTitle": "No acceptable stops are open right now.",
+		"rejected": "Delivery rejected. Returned to warehouse loading.",
 		"start": "Start route",
 		"window": "Window"
+	},
+	"arrival": {
+		"backToRoute": "Back to route",
+		"confirm": "Confirm arrival",
+		"scanQr": "Scan QR",
+		"scannerError": "Camera could not start. Enter the code.",
+		"scannerUnavailable": "QR scanner is not available. Enter the code.",
+		"scanning": "Point the camera at the customer QR code.",
+		"secretCode": "Customer secret code",
+		"secretPlaceholder": "Enter or scan the 8-character code",
+		"stopScan": "Stop scan"
 	},
 	"brand": {
 		"driver": "HyperStreets",
@@ -18,6 +30,10 @@
 	},
 	"controls": {
 		"language": "Switch language",
+		"goOffline": "Go offline",
+		"goOnline": "Go online",
+		"offlineRefresh": "Offline. Reconnect driver",
+		"onlineRefresh": "Online. Refresh GPS",
 		"options": "Driver options",
 		"refreshLocation": "Refresh GPS",
 		"signOut": "Sign out",
@@ -52,11 +68,13 @@
 		"lastPing": "Last ping",
 		"messageLabel": "Team message",
 		"messagePlaceholder": "Message...",
+		"noPing": "No location yet",
 		"mentionPeople": "@People",
 		"pickup": "Pickup",
 		"send": "Send message",
 		"tabsLabel": "Driver team panels",
 		"title": "Driver floor",
+		"truck": "Truck",
 		"unassigned": "Unassigned",
 		"view": "View",
 		"you": "You"
@@ -77,15 +95,15 @@
 				"value": "Driver only"
 			},
 			"proof": {
-				"label": "Proof",
-				"value": "Signature + GPS"
+				"label": "Verification",
+				"value": "Code + GPS"
 			},
 			"provisioning": {
 				"label": "Provisioning",
 				"value": "Manual"
 			}
 		},
-		"body": "A field pass for assigned stops, live GPS, site calls, and customer proof before the truck leaves the gate.",
+		"body": "A field pass for assigned stops, live GPS, site calls, and customer code verification before completion.",
 		"email": "Driver email",
 		"errors": {
 			"invalid_credentials": "Check the driver email and password.",
@@ -96,7 +114,7 @@
 		"formEyebrow": "Route gate",
 		"formTitle": "Driver pass",
 		"kicker": "Dispatch handoff",
-		"passFooter": "GPS proof starts after entry",
+		"passFooter": "GPS verification starts after entry",
 		"passStamp": "Yard clear",
 		"password": "Password",
 		"route": {
@@ -104,8 +122,8 @@
 			"label": "Route strip",
 			"stops": {
 				"proof": {
-					"detail": "Name, signature, GPS, time",
-					"label": "Customer proof"
+					"detail": "Secret code, GPS, time",
+					"label": "Customer verification"
 				},
 				"release": {
 					"detail": "Accept, depart, arrive",
@@ -118,34 +136,48 @@
 			}
 		},
 		"submit": "Enter driver app",
-		"title": "Unlock today's route at the yard gate."
+		"title": "Unlock today's route at the yard gate.",
+		"validation": {
+			"email": "Enter a valid driver email.",
+			"password": "Password must be at least 6 characters."
+		}
 	},
 	"rail": {
 		"active": "Active",
 		"fleet": "Fleet",
+		"hideUi": "Hide route UI",
+		"showUi": "Show route UI",
 		"info": "Details"
 	},
 	"shell": {
 		"driver": "Active driver"
 	},
+	"rejection": {
+		"evidence": "Evidence",
+		"reason": "Reason",
+		"submit": "Reject delivery"
+	},
 	"state": {
+		"dashboardErrorBody": "The driver profile could not be loaded from Supabase. Sign out and try again, or contact dispatch.",
+		"dashboardErrorEyebrow": "Driver data unavailable",
+		"dashboardErrorTitle": "Dashboard did not load",
 		"loading": "Loading driver dashboard"
 	},
 	"status": {
 		"accepted": "Accepted",
 		"arrived": "Arrived",
+		"assigned": "Assigned",
 		"available": "Available",
 		"completed": "Completed",
-		"inTransit": "In transit"
+		"inTransit": "In transit",
+		"rejected": "Rejected"
 	},
 	"units": {
-		"minutes": "{{count}} min"
+		"minutes": "{{count}} min",
+		"pending": "Pending"
 	},
 	"verification": {
-		"clearSignature": "Clear signature",
 		"complete": "Complete delivery",
-		"signature": "Touch signature",
-		"signatureCanvas": "Customer signature canvas",
-		"signerName": "Signer name"
+		"secretVerified": "Customer code verified. Signature is not required."
 	}
 }

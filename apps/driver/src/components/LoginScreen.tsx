@@ -8,7 +8,10 @@ import {
 	Navigation,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Input } from 'react-aria-components/Input'
+import { Label } from 'react-aria-components/Label'
+import { TextField } from 'react-aria-components/TextField'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {
@@ -236,6 +239,11 @@ export function LoginScreen() {
 											type="email"
 										/>
 									</div>
+									{errors.email && (
+										<p role="alert" className="mt-1.5 text-xs text-[#B91C1C]">
+											{t('login.validation.email')}
+										</p>
+									)}
 								</TextField>
 								<TextField
 									className="group"
@@ -260,6 +268,11 @@ export function LoginScreen() {
 											type="password"
 										/>
 									</div>
+									{errors.password && (
+										<p role="alert" className="mt-1.5 text-xs text-[#B91C1C]">
+											{t('login.validation.password')}
+										</p>
+									)}
 								</TextField>
 							</div>
 

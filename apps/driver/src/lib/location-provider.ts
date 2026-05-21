@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import type { DriverLocation } from './driver-repository'
-import { DEFAULT_DRIVER_LOCATION } from './mock-data'
 
 export interface LocationProvider {
 	getCurrentPosition(): Promise<DriverLocation>
@@ -15,18 +14,21 @@ interface LocationCoordinates {
 	speed?: number | null
 }
 
+const LOCATION_CACHE_MAX_AGE_MS = 5_000
+const LOCATION_TIMEOUT_MS = 10_000
+
 export class DeviceLocationProvider implements LocationProvider {
 	async getCurrentPosition(): Promise<DriverLocation> {
 		if (Capacitor.isNativePlatform()) {
 			try {
 				const position = await Geolocation.getCurrentPosition({
 					enableHighAccuracy: true,
-					timeout: 10_000,
-					maximumAge: 30_000,
+					timeout: LOCATION_TIMEOUT_MS,
+					maximumAge: LOCATION_CACHE_MAX_AGE_MS,
 				})
 				return toDriverLocation(position.coords, 'native')
 			} catch {
-				return currentMockLocation()
+				throw new Error('Driver location permission or GPS is required')
 			}
 		}
 
@@ -35,11 +37,11 @@ export class DeviceLocationProvider implements LocationProvider {
 				const position = await getBrowserPosition()
 				return toDriverLocation(position.coords, 'browser')
 			} catch {
-				return currentMockLocation()
+				throw new Error('Driver location permission or GPS is required')
 			}
 		}
 
-		return currentMockLocation()
+		throw new Error('Driver location is unavailable in this browser')
 	}
 }
 
@@ -47,8 +49,8 @@ function getBrowserPosition(): Promise<GeolocationPosition> {
 	return new Promise((resolve, reject) => {
 		navigator.geolocation.getCurrentPosition(resolve, reject, {
 			enableHighAccuracy: true,
-			maximumAge: 30_000,
-			timeout: 10_000,
+			maximumAge: LOCATION_CACHE_MAX_AGE_MS,
+			timeout: LOCATION_TIMEOUT_MS,
 		})
 	})
 }
@@ -71,13 +73,6 @@ function toDriverLocation(
 		location.speedKmh = coords.speed * 3.6
 
 	return location
-}
-
-function currentMockLocation(): DriverLocation {
-	return {
-		...DEFAULT_DRIVER_LOCATION,
-		recordedAt: new Date().toISOString(),
-	}
 }
 
 export const locationProvider = new DeviceLocationProvider()

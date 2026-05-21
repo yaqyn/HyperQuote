@@ -13,7 +13,7 @@ export function DeliveryInfoPanel({
 	const { t } = useTranslation('driver')
 
 	return (
-		<PanelShell title={t('info.title')}>
+		<PanelShell hideHeader title={t('info.title')}>
 			<DeliveryPassport
 				assignedDriver={null}
 				className="block p-3 sm:p-4"

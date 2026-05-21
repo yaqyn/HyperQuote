@@ -1,6 +1,7 @@
 import type { ParseKeys } from 'i18next'
 import type { ReactNode } from 'react'
-import { Button, Tab } from 'react-aria-components'
+import { Button } from 'react-aria-components/Button'
+import { Tab } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import type { DeliveryStatus, DriverProfile } from '../lib/driver-repository'
 import type { FleetTab } from './driver-shell-types'
@@ -8,9 +9,11 @@ import type { FleetTab } from './driver-shell-types'
 const STATUS_KEYS: Record<DeliveryStatus, ParseKeys<'driver'>> = {
 	accepted: 'status.accepted',
 	arrived: 'status.arrived',
+	assigned: 'status.assigned',
 	available: 'status.available',
 	completed: 'status.completed',
 	in_transit: 'status.inTransit',
+	rejected: 'status.rejected',
 }
 
 export function StatusPill({ status }: { status: DeliveryStatus }) {
@@ -65,7 +68,7 @@ export function ActionButton({
 		<Button
 			isDisabled={isDisabled}
 			onPress={onPress}
-			className="driver-action-button mt-4 flex h-12 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50"
+			className="driver-action-button mt-3 flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:mt-4 sm:h-12"
 		>
 			<span>{label}</span>
 			{icon}
@@ -74,12 +77,14 @@ export function ActionButton({
 }
 
 export function RailButton({
+	ariaPressed,
 	icon,
 	isActive,
 	label,
 	onPress,
 	primary = false,
 }: {
+	ariaPressed?: boolean
 	icon: ReactNode
 	isActive: boolean
 	label: string
@@ -88,6 +93,7 @@ export function RailButton({
 }) {
 	return (
 		<Button
+			aria-pressed={ariaPressed}
 			onPress={onPress}
 			className={`flex h-full flex-col items-center justify-center gap-0 border-inline-end border-[var(--color-border)] text-[11px] font-semibold outline-none last:border-inline-end-0 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 				isActive
