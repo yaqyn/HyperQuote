@@ -61,6 +61,9 @@ export function SavedDraftsPanel({
 	const globalNote = useDraftQuoteStore((s) => s.globalNote)
 	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
+	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
+		null,
+	)
 	const [submitError, setSubmitError] = useState<string | null>(null)
 
 	const { data, isError, isLoading, refetch } = useQuery({
@@ -142,6 +145,7 @@ export function SavedDraftsPanel({
 				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
 			)
 		}
+		setConfirmAddDraftId(null)
 		toast.success(t('orders.draftAddedToCart'))
 		onAdded?.()
 	}
@@ -239,9 +243,10 @@ export function SavedDraftsPanel({
 										<div className="mt-3 grid grid-cols-2 gap-2">
 											<button
 												type="button"
-												onClick={() =>
+												onClick={() => {
+													setConfirmAddDraftId(null)
 													setSelectedDraftId(isSelected ? null : draft.id)
-												}
+												}}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
 											>
 												<Eye size={14} strokeWidth={1.7} />
@@ -250,7 +255,7 @@ export function SavedDraftsPanel({
 											{actionMode === 'add' ? (
 												<button
 													type="button"
-													onClick={() => handleAddDraft(draft)}
+													onClick={() => setConfirmAddDraftId(draft.id)}
 													disabled={draft.items.length === 0}
 													className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
 												>
@@ -275,6 +280,34 @@ export function SavedDraftsPanel({
 												</button>
 											)}
 										</div>
+										{actionMode === 'add' && confirmAddDraftId === draft.id && (
+											<div className="mt-2 rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-bg)] p-2">
+												<p className="text-[12px] font-semibold text-[var(--p-text)]">
+													{t('orders.confirmAddToCart')}
+												</p>
+												<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
+													{t('orders.confirmAddToCartBody', {
+														count: draft.items.length,
+													})}
+												</p>
+												<div className="mt-2 grid grid-cols-2 gap-2">
+													<button
+														type="button"
+														onClick={() => setConfirmAddDraftId(null)}
+														className="flex h-8 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+													>
+														{t('orders.cancel')}
+													</button>
+													<button
+														type="button"
+														onClick={() => handleAddDraft(draft)}
+														className="flex h-8 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+													>
+														{t('market.confirm')}
+													</button>
+												</div>
+											</div>
+										)}
 									</div>
 									{isSelected && selectedDraft && (
 										<DraftPreview draft={selectedDraft} isAr={isAr} />

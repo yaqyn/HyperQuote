@@ -548,6 +548,9 @@ function WebsiteSavedOrdersPanel({
 		'loading' | 'ready' | 'auth' | 'error'
 	>('loading')
 	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
+	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
+		null,
+	)
 
 	useEffect(() => {
 		let active = true
@@ -602,6 +605,7 @@ function WebsiteSavedOrdersPanel({
 				globalNote.trim() ? `${globalNote.trim()}\n${nextNote}` : nextNote,
 			)
 		}
+		setConfirmAddDraftId(null)
 		onAdded()
 	}
 
@@ -709,9 +713,10 @@ function WebsiteSavedOrdersPanel({
 										<div className="mt-3 grid grid-cols-2 gap-2">
 											<button
 												type="button"
-												onClick={() =>
+												onClick={() => {
+													setConfirmAddDraftId(null)
 													setSelectedDraftId(isSelected ? null : draft.id)
-												}
+												}}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] px-3 text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
 											>
 												<Eye size={14} strokeWidth={1.7} />
@@ -719,7 +724,7 @@ function WebsiteSavedOrdersPanel({
 											</button>
 											<button
 												type="button"
-												onClick={() => handleAddDraft(draft)}
+												onClick={() => setConfirmAddDraftId(draft.id)}
 												disabled={draft.items.length === 0}
 												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
 											>
@@ -727,6 +732,34 @@ function WebsiteSavedOrdersPanel({
 												<span className="truncate">{t('cart.add')}</span>
 											</button>
 										</div>
+										{confirmAddDraftId === draft.id && (
+											<div className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] p-2">
+												<p className="text-[12px] font-semibold text-[var(--color-text)]">
+													{t('cart.confirmAddToCart')}
+												</p>
+												<p className="mt-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
+													{t('cart.confirmAddToCartBody', {
+														count: draft.items.length,
+													})}
+												</p>
+												<div className="mt-2 grid grid-cols-2 gap-2">
+													<button
+														type="button"
+														onClick={() => setConfirmAddDraftId(null)}
+														className="flex h-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
+													>
+														{t('cart.cancel')}
+													</button>
+													<button
+														type="button"
+														onClick={() => handleAddDraft(draft)}
+														className="flex h-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+													>
+														{t('cart.confirm')}
+													</button>
+												</div>
+											</div>
+										)}
 									</div>
 									{isSelected && selectedDraft && (
 										<WebsiteSavedDraftPreview
