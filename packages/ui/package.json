@@ -16,6 +16,7 @@
 		"./logging/redacted-error": "./src/logging/redacted-error.ts",
 		"./maps/maplibre-style": "./src/maps/maplibre-style.ts",
 		"./maps/osm": "./src/maps/osm.ts",
+		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./brand/LionMark": "./src/brand/LionMark.tsx",
 		"./utils/cn": "./src/utils/cn.ts"
@@ -24,6 +25,7 @@
 		"@hyperquote/i18n": "workspace:*",
 		"motion": "^12.38.0",
 		"clsx": "^2.1.1",
+		"lucide-react": "^1.16.0",
 		"tailwind-merge": "^3.6.0"
 	},
 	"peerDependencies": {

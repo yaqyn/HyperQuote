@@ -1,20 +1,19 @@
+import {
+	getQuoteCartFingerprint,
+	toQuoteRequestItemPayloads,
+} from '@hyperquote/quote-cart'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-	AlertTriangle,
 	ArrowLeft,
 	ChevronDown,
 	CircleCheck,
-	Copy,
 	ExternalLink,
-	Eye,
-	FilePenLine,
 	FileText,
 	LogOut,
 	Menu,
 	MessageCircle,
 	Package,
 	PanelRightClose,
-	Plus,
 	Save,
 	ShoppingCart,
 	StickyNote,
@@ -35,11 +34,8 @@ import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
 import { sendOTP, signOutWebsiteAccount } from '../../lib/auth'
 import { getPortalHref } from '../../lib/portal-url'
 import {
-	getWebsiteSavedQuoteDrafts,
 	saveWebsiteQuoteDraft,
 	submitWebsiteQuoteRequest,
-	type WebsiteSavedQuoteDraft,
-	type WebsiteSavedQuoteDraftItem,
 } from '../../lib/quote-requests'
 import {
 	EGYPT_COUNTRY_CODE,
@@ -52,49 +48,49 @@ import { OtpResendControl } from '../auth/OtpResendControl'
 import { PhoneNumberInput } from '../auth/PhoneNumberInput'
 import { useResendCountdown } from '../auth/useResendCountdown'
 import { verifyOtpCode } from '../auth/verifyOtpCode'
+import { WebsiteSavedDraftsPanel } from '../shared/SavedDraftsPanel'
 import { LanguageToggle } from './LanguageToggle'
 import { MobileNavOverlay } from './MobileNavOverlay'
 import { ThemeToggle } from './ThemeToggle'
 
 const CART_DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
+const CART_NOTES_RAIL_OPEN_Y = -104
+const CART_NOTES_PANEL_CLOSED_Y = -72
+const CART_NOTES_PANEL_OPEN_Y = -92
+
+function cartTransition(shouldReduceMotion: boolean | null, duration = 0.14) {
+	return {
+		duration: shouldReduceMotion ? 0.01 : duration,
+		ease: CART_DRAWER_EASE,
+	}
+}
 
 function cartRevealMotion(shouldReduceMotion: boolean | null) {
 	return {
 		animate: { opacity: 1, y: 0 },
 		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
 		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.14,
-			ease: CART_DRAWER_EASE,
-		},
+		transition: cartTransition(shouldReduceMotion),
 	}
 }
 
-function cartItemMotion(shouldReduceMotion: boolean | null) {
+function cartNotesPanelMotion(shouldReduceMotion: boolean | null) {
 	return {
-		animate: { opacity: 1, y: 0 },
-		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
-		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.14,
-			ease: CART_DRAWER_EASE,
+		animate: { opacity: 1, y: CART_NOTES_PANEL_OPEN_Y },
+		exit: {
+			opacity: 0,
+			y: shouldReduceMotion
+				? CART_NOTES_PANEL_OPEN_Y
+				: CART_NOTES_PANEL_CLOSED_Y,
 		},
+		initial: {
+			opacity: 0,
+			y: shouldReduceMotion
+				? CART_NOTES_PANEL_OPEN_Y
+				: CART_NOTES_PANEL_CLOSED_Y,
+		},
+		transition: cartTransition(shouldReduceMotion, 0.18),
 	}
-}
-
-function useDelayedVisibility(visible: boolean, delayMs = 160) {
-	const [ready, setReady] = useState(false)
-
-	useEffect(() => {
-		if (!visible) {
-			setReady(false)
-			return
-		}
-		const timeout = window.setTimeout(() => setReady(true), delayMs)
-		return () => window.clearTimeout(timeout)
-	}, [delayMs, visible])
-
-	return visible && ready
 }
 
 function getDefaultDraftName(baseName: string, isArabic: boolean) {
@@ -426,7 +422,7 @@ export function WebsiteHeader() {
 									{/* Items */}
 									{items.length === 0 ? (
 										emptySavedOrdersOpen ? (
-											<WebsiteSavedOrdersPanel
+											<WebsiteSavedDraftsPanel
 												onAdded={() => setEmptySavedOrdersOpen(false)}
 												onBack={() => setEmptySavedOrdersOpen(false)}
 												onAuthRequired={() => navigateTo({ to: '/login' })}
@@ -457,95 +453,120 @@ export function WebsiteHeader() {
 									) : (
 										<>
 											<div className="flex-1 overflow-y-auto">
-												{items.map((item, idx) => (
-													<div
-														key={item.productId}
-														className={`px-5 py-4 ${idx > 0 ? 'border-t border-[var(--color-text)]/[0.04]' : ''}`}
-													>
-														<div className="flex min-w-0 items-center gap-3">
-															{item.imageUrl && (
-																<img
-																	src={item.imageUrl}
-																	alt=""
-																	className="h-11 w-11 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
-																/>
-															)}
-															<div className="min-w-0 flex-1">
-																<Link
-																	to="/market/$productSlug"
-																	params={{ productSlug: item.slug }}
-																	onClick={() => setCartOpen(false)}
-																	className="block truncate text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
+												{items.map((item, idx) => {
+													const itemName =
+														isAr && item.nameAr ? item.nameAr : item.name
+													const categoryLabel =
+														isAr && item.categoryNameAr
+															? item.categoryNameAr
+															: item.categoryName
+													const unitLabel =
+														isAr && item.unitOfMeasureAr
+															? item.unitOfMeasureAr
+															: item.unitOfMeasure
+
+													return (
+														<div
+															key={item.productId}
+															className={`px-4 py-3 md:px-5 ${idx > 0 ? 'border-t border-[var(--color-border)]' : ''}`}
+														>
+															<div className="flex min-w-0 items-center gap-3">
+																{item.imageUrl ? (
+																	<img
+																		src={item.imageUrl}
+																		alt=""
+																		loading="lazy"
+																		decoding="async"
+																		className="h-11 w-11 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover ring-1 ring-inset ring-[var(--color-border)]"
+																	/>
+																) : (
+																	<div
+																		aria-hidden="true"
+																		className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-text-subtle)] ring-1 ring-inset ring-[var(--color-border)]"
+																	>
+																		<Package size={15} strokeWidth={1.8} />
+																	</div>
+																)}
+																<div className="min-w-0 flex-1">
+																	<Link
+																		to="/market/$productSlug"
+																		params={{ productSlug: item.slug }}
+																		onClick={() => setCartOpen(false)}
+																		className="block truncate text-[13px] font-medium leading-snug text-[var(--color-text)] transition-colors hover:text-[var(--color-primary)]"
+																	>
+																		{itemName}
+																	</Link>
+																	<p className="mt-1 truncate text-[11px] text-[var(--color-text-muted)]">
+																		{categoryLabel}
+																	</p>
+																</div>
+																<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
+																	<span className="sr-only">
+																		{t('product.quantityLabel')}
+																	</span>
+																	<input
+																		type="number"
+																		inputMode="numeric"
+																		value={item.quantity}
+																		onKeyDown={(event) => {
+																			if (
+																				item.quantity !== 0 ||
+																				!/^\d$/.test(event.key)
+																			) {
+																				return
+																			}
+																			event.preventDefault()
+																			updateQuantity(
+																				item.productId,
+																				Number(event.key),
+																			)
+																		}}
+																		onPaste={(event) => {
+																			if (item.quantity !== 0) return
+																			const pastedValue = event.clipboardData
+																				.getData('text')
+																				.trim()
+																			if (!/^\d+$/.test(pastedValue)) return
+																			event.preventDefault()
+																			updateQuantity(
+																				item.productId,
+																				Number.parseInt(pastedValue, 10),
+																			)
+																		}}
+																		onChange={(event) => {
+																			const rawValue =
+																				event.currentTarget.value.trim()
+																			if (rawValue === '') {
+																				updateQuantity(item.productId, 0)
+																				return
+																			}
+																			const next = Number.parseInt(rawValue, 10)
+																			if (Number.isFinite(next) && next >= 0) {
+																				updateQuantity(item.productId, next)
+																			}
+																		}}
+																		className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																		min={0}
+																		style={{
+																			fontVariantNumeric: 'tabular-nums',
+																		}}
+																	/>
+																	<span className="min-w-0 truncate text-[12px] text-[var(--color-text-muted)]">
+																		{unitLabel}
+																	</span>
+																</label>
+																<button
+																	type="button"
+																	onClick={() => remove(item.productId)}
+																	className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-error)]"
+																	aria-label={t('cart.remove')}
 																>
-																	{isAr && item.nameAr
-																		? item.nameAr
-																		: item.name}
-																</Link>
+																	<X size={15} strokeWidth={1.8} />
+																</button>
 															</div>
-															<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
-																<span className="sr-only">
-																	{t('product.quantityLabel')}
-																</span>
-																<input
-																	type="number"
-																	inputMode="numeric"
-																	value={item.quantity}
-																	onKeyDown={(event) => {
-																		if (
-																			item.quantity !== 0 ||
-																			!/^\d$/.test(event.key)
-																		) {
-																			return
-																		}
-																		event.preventDefault()
-																		updateQuantity(
-																			item.productId,
-																			Number(event.key),
-																		)
-																	}}
-																	onPaste={(event) => {
-																		if (item.quantity !== 0) return
-																		const pastedValue = event.clipboardData
-																			.getData('text')
-																			.trim()
-																		if (!/^\d+$/.test(pastedValue)) return
-																		event.preventDefault()
-																		updateQuantity(
-																			item.productId,
-																			Number.parseInt(pastedValue, 10),
-																		)
-																	}}
-																	onChange={(e) => {
-																		const rawValue = e.target.value.trim()
-																		if (rawValue === '') {
-																			updateQuantity(item.productId, 0)
-																			return
-																		}
-																		const v = Number.parseInt(rawValue, 10)
-																		if (Number.isFinite(v) && v >= 0) {
-																			updateQuantity(item.productId, v)
-																		}
-																	}}
-																	className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--color-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-																	min={0}
-																/>
-																<span className="min-w-0 truncate text-[12px] text-[var(--color-text-subtle)]">
-																	{isAr && item.unitOfMeasureAr
-																		? item.unitOfMeasureAr
-																		: item.unitOfMeasure}
-																</span>
-															</label>
-															<button
-																type="button"
-																onClick={() => remove(item.productId)}
-																className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-error)]"
-																aria-label={t('cart.remove')}
-															>
-																<X size={15} strokeWidth={1.8} />
-															</button>
 														</div>
-													</div>
-												))}
+													)
+												})}
 											</div>
 
 											{/* Submit / Inline Auth */}
@@ -568,419 +589,6 @@ export function WebsiteHeader() {
 			/>
 		</>
 	)
-}
-
-function WebsiteSavedOrdersPanel({
-	onAdded,
-	onAuthRequired,
-	onBack,
-}: {
-	onAdded: () => void
-	onAuthRequired: () => void
-	onBack: () => void
-}) {
-	const { t, i18n } = useTranslation('website')
-	const isAr = i18n.language === 'ar'
-	const shouldReduceMotion = useReducedMotion()
-	const { add } = useQuoteCart()
-	const [drafts, setDrafts] = useState<WebsiteSavedQuoteDraft[]>([])
-	const [loadState, setLoadState] = useState<
-		'loading' | 'ready' | 'auth' | 'error'
-	>('loading')
-	const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
-	const [confirmAddDraftId, setConfirmAddDraftId] = useState<string | null>(
-		null,
-	)
-	const showLoading = useDelayedVisibility(loadState === 'loading')
-
-	useEffect(() => {
-		let active = true
-		setLoadState('loading')
-		getWebsiteSavedQuoteDrafts()
-			.then((result) => {
-				if (!active) return
-				if (result.success) {
-					setDrafts(result.drafts)
-					setLoadState('ready')
-					return
-				}
-				setLoadState(
-					result.error === 'not_authenticated' ||
-						result.error === 'customer_required'
-						? 'auth'
-						: 'error',
-				)
-			})
-			.catch(() => {
-				if (active) setLoadState('error')
-			})
-		return () => {
-			active = false
-		}
-	}, [])
-
-	function handleAddDraft(draft: WebsiteSavedQuoteDraft) {
-		for (const item of draft.items) {
-			const productId =
-				item.productId ?? `${draft.id}:${item.name}:${item.unitOfMeasure}`
-			add(
-				{
-					productId,
-					slug: productId,
-					name: item.name,
-					nameAr: item.nameAr,
-					category: item.category,
-					unitOfMeasure: item.unitOfMeasure,
-					unitOfMeasureAr: item.unitOfMeasureAr,
-					imageUrl: item.imageUrl,
-				},
-				item.quantity,
-			)
-		}
-		setConfirmAddDraftId(null)
-		onAdded()
-	}
-
-	const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId)
-
-	return (
-		<div className="flex h-[min(46dvh,360px)] max-h-[min(72dvh,560px)] min-h-[280px] flex-col border-t border-[var(--color-border)] bg-[var(--color-base)]">
-			<header className="flex shrink-0 items-start justify-between gap-3 px-4 py-3">
-				<div className="min-w-0">
-					<p className="text-[14px] font-semibold text-[var(--color-text)]">
-						{t('cart.savedOrdersTitle')}
-					</p>
-					<p className="mt-1 text-[11px] leading-5 text-[var(--color-text-muted)]">
-						{t('cart.savedOrdersBody')}
-					</p>
-				</div>
-				<button
-					type="button"
-					onClick={onBack}
-					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
-					aria-label={t('a11y.close')}
-				>
-					<X size={15} strokeWidth={1.8} />
-				</button>
-			</header>
-
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
-				{loadState === 'loading' ? (
-					<WebsiteSavedOrdersLoading visible={showLoading} />
-				) : loadState === 'auth' ? (
-					<div className="flex min-h-44 flex-col items-center justify-center text-center">
-						<FilePenLine
-							size={24}
-							strokeWidth={1.6}
-							className="mb-3 text-[var(--color-text-subtle)]"
-						/>
-						<p className="text-[13px] font-medium text-[var(--color-text)]">
-							{t('cart.savedOrdersSignIn')}
-						</p>
-						<button
-							type="button"
-							onClick={onAuthRequired}
-							className="mt-3 h-9 rounded-lg bg-[var(--color-primary)] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-						>
-							{t('login.whatsappCTA')}
-						</button>
-					</div>
-				) : loadState === 'error' ? (
-					<div className="flex min-h-44 flex-col items-center justify-center text-center">
-						<AlertTriangle
-							size={24}
-							strokeWidth={1.6}
-							className="mb-3 text-[var(--color-text-subtle)]"
-						/>
-						<p className="text-[13px] text-[var(--color-text-muted)]">
-							{t('cart.savedOrdersLoadFailed')}
-						</p>
-					</div>
-				) : drafts.length === 0 ? (
-					<div className="flex min-h-44 flex-col items-center justify-center text-center">
-						<FilePenLine
-							size={24}
-							strokeWidth={1.6}
-							className="mb-3 text-[var(--color-text-subtle)]"
-						/>
-						<p className="text-[13px] text-[var(--color-text-muted)]">
-							{t('cart.savedOrdersEmpty')}
-						</p>
-					</div>
-				) : (
-					<div className="space-y-2">
-						{drafts.map((draft) => {
-							const title =
-								draft.name ?? draft.reference ?? t('cart.defaultDraftName')
-							const isSelected = selectedDraftId === draft.id
-							return (
-								<motion.article
-									key={draft.id}
-									{...cartItemMotion(shouldReduceMotion)}
-									className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-								>
-									<div className="p-3">
-										<div className="flex min-w-0 items-start gap-3">
-											<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-base)] text-[var(--color-primary)]">
-												<FilePenLine size={15} strokeWidth={1.7} />
-											</span>
-											<div className="min-w-0 flex-1">
-												<p className="truncate text-[13px] font-semibold text-[var(--color-text)]">
-													{title}
-												</p>
-												<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-													{formatWebsiteDraftDate(draft.date, isAr)}
-												</p>
-											</div>
-											<span className="shrink-0 rounded-full border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--color-text-muted)]">
-												{draft.itemCount}
-											</span>
-										</div>
-										<div className="mt-3 grid grid-cols-2 gap-2">
-											<motion.button
-												type="button"
-												onClick={() => {
-													setConfirmAddDraftId(null)
-													setSelectedDraftId(isSelected ? null : draft.id)
-												}}
-												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] px-3 text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
-												whileTap={
-													shouldReduceMotion ? undefined : { scale: 0.98 }
-												}
-											>
-												<Eye size={14} strokeWidth={1.7} />
-												<span className="truncate">{t('cart.view')}</span>
-											</motion.button>
-											<motion.button
-												type="button"
-												onClick={() => {
-													setSelectedDraftId(draft.id)
-													setConfirmAddDraftId(draft.id)
-												}}
-												disabled={draft.items.length === 0}
-												className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
-												whileTap={
-													shouldReduceMotion ? undefined : { scale: 0.98 }
-												}
-											>
-												<Plus size={14} strokeWidth={1.7} />
-												<span className="truncate">{t('cart.add')}</span>
-											</motion.button>
-										</div>
-									</div>
-									<AnimatePresence initial={false}>
-										{isSelected && selectedDraft && (
-											<WebsiteSavedDraftPreview
-												draft={selectedDraft}
-												isAr={isAr}
-											/>
-										)}
-									</AnimatePresence>
-									<AnimatePresence initial={false}>
-										{confirmAddDraftId === draft.id && (
-											<motion.div
-												key="add-confirm"
-												className="overflow-hidden border-t border-[var(--color-border)] bg-[var(--color-base)] p-3"
-												{...cartRevealMotion(shouldReduceMotion)}
-											>
-												<p className="text-[12px] font-semibold text-[var(--color-text)]">
-													{t('cart.confirmAddToCart')}
-												</p>
-												<p className="mt-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
-													{t('cart.confirmAddToCartBody', {
-														count: draft.items.length,
-													})}
-												</p>
-												<div className="mt-2 grid grid-cols-2 gap-2">
-													<button
-														type="button"
-														onClick={() => setConfirmAddDraftId(null)}
-														className="flex h-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
-													>
-														{t('cart.cancel')}
-													</button>
-													<button
-														type="button"
-														onClick={() => handleAddDraft(draft)}
-														className="flex h-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-													>
-														{t('cart.confirm')}
-													</button>
-												</div>
-											</motion.div>
-										)}
-									</AnimatePresence>
-								</motion.article>
-							)
-						})}
-					</div>
-				)}
-			</div>
-		</div>
-	)
-}
-
-function WebsiteSavedDraftPreview({
-	draft,
-	isAr,
-}: {
-	draft: WebsiteSavedQuoteDraft
-	isAr: boolean
-}) {
-	const { t } = useTranslation('website')
-	const shouldReduceMotion = useReducedMotion()
-
-	return (
-		<motion.div
-			key="draft-preview"
-			className="overflow-hidden border-t border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2"
-			{...cartRevealMotion(shouldReduceMotion)}
-		>
-			{draft.notes?.trim() && (
-				<WebsiteSavedDraftNotes
-					label={t('cart.notes')}
-					notes={draft.notes.trim()}
-					className="mb-2"
-				/>
-			)}
-			{draft.items.length === 0 ? (
-				<p className="py-3 text-center text-[12px] text-[var(--color-text-muted)]">
-					{t('cart.savedOrdersEmpty')}
-				</p>
-			) : (
-				<div className="divide-y divide-[var(--color-border)]">
-					{draft.items.map((item) => {
-						const itemKey =
-							item.productId ??
-							`${item.name}:${item.quantity}:${item.unitOfMeasure}`
-						return (
-							<WebsiteSavedDraftItemRow
-								key={`${draft.id}-${itemKey}`}
-								item={item}
-								isAr={isAr}
-							/>
-						)
-					})}
-				</div>
-			)}
-		</motion.div>
-	)
-}
-
-function WebsiteSavedOrdersLoading({ visible }: { visible: boolean }) {
-	const { t } = useTranslation('website')
-	const shouldReduceMotion = useReducedMotion()
-
-	return (
-		<motion.div
-			key="saved-drafts-loading"
-			className="flex min-h-44 items-center justify-center"
-			{...cartRevealMotion(shouldReduceMotion)}
-		>
-			{visible && (
-				<div className="flex items-center gap-2 text-[12px] font-medium text-[var(--color-text-muted)]">
-					<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-					<span>{t('cart.savedOrdersLoading', 'Loading saved drafts...')}</span>
-				</div>
-			)}
-		</motion.div>
-	)
-}
-
-function WebsiteSavedDraftNotes({
-	label,
-	notes,
-	className = '',
-}: {
-	label: string
-	notes: string
-	className?: string
-}) {
-	const { t } = useTranslation('website')
-
-	async function copyNotes() {
-		await navigator.clipboard.writeText(notes)
-	}
-
-	return (
-		<div
-			className={`rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 ${className}`}
-		>
-			<div className="mb-1.5 flex items-center justify-between gap-2">
-				<p className="text-[11px] font-semibold text-[var(--color-text-muted)]">
-					{label}
-				</p>
-				<button
-					type="button"
-					onClick={copyNotes}
-					className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-base)] hover:text-[var(--color-text)]"
-					aria-label={t('cart.copyNotes')}
-				>
-					<Copy size={13} strokeWidth={1.7} />
-				</button>
-			</div>
-			<p className="whitespace-pre-wrap text-[12px] leading-5 text-[var(--color-text)]">
-				{notes}
-			</p>
-		</div>
-	)
-}
-
-function WebsiteSavedDraftItemRow({
-	item,
-	isAr,
-}: {
-	item: WebsiteSavedQuoteDraftItem
-	isAr: boolean
-}) {
-	const itemName = isAr && item.nameAr ? item.nameAr : item.name
-	const unitLabel =
-		isAr && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
-	const itemNotes = item.note?.trim()
-	const { t } = useTranslation('website')
-
-	return (
-		<div className="py-2">
-			<div className="flex min-w-0 items-center gap-2">
-				{item.imageUrl ? (
-					<img
-						src={item.imageUrl}
-						alt=""
-						loading="lazy"
-						decoding="async"
-						className="h-9 w-9 shrink-0 rounded-lg bg-[var(--color-surface)] object-cover"
-					/>
-				) : (
-					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-text-subtle)]">
-						<Package size={14} strokeWidth={1.7} />
-					</span>
-				)}
-				<div className="min-w-0 flex-1">
-					<p className="truncate text-[12px] font-medium text-[var(--color-text)]">
-						{itemName}
-					</p>
-					<p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-						{item.quantity.toLocaleString(isAr ? 'ar-EG' : 'en-EG')} {unitLabel}
-					</p>
-				</div>
-			</div>
-			{itemNotes && (
-				<WebsiteSavedDraftNotes
-					label={t('cart.itemNotes')}
-					notes={itemNotes}
-					className="mt-2 ms-11"
-				/>
-			)}
-		</div>
-	)
-}
-
-function formatWebsiteDraftDate(value: string, isAr: boolean) {
-	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-GB', {
-		day: '2-digit',
-		month: 'short',
-		year: 'numeric',
-	}).format(new Date(value))
 }
 
 // --------------------------------------------------------------------------
@@ -1172,42 +780,16 @@ function CartSubmit({
 		t('cart.defaultDraftName'),
 		i18n.language === 'ar',
 	)
+	const isArabic = i18n.language === 'ar'
 	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
-	const activeItems = useMemo(
-		() => items.filter((item) => item.quantity > 0),
-		[items],
-	)
 	const quoteRequestItems = useMemo(
-		() =>
-			activeItems.map((item, index) => ({
-				productId: item.productId,
-				customerDescription: item.name,
-				quantity: item.quantity,
-				unitOfMeasure: item.unitOfMeasure,
-				unitOfMeasureAr: item.unitOfMeasureAr,
-				notes: item.note || undefined,
-				sortOrder: index,
-			})),
-		[activeItems],
+		() => toQuoteRequestItemPayloads(items, { isArabic }),
+		[isArabic, items],
 	)
 	const draftFingerprint = useMemo(
-		() =>
-			JSON.stringify({
-				globalNote: globalNote.trim(),
-				items: activeItems.map((item, index) => ({
-					imageUrl: item.imageUrl,
-					name: item.name,
-					nameAr: item.nameAr,
-					note: item.note.trim(),
-					productId: item.productId,
-					quantity: item.quantity,
-					sortOrder: index,
-					unitOfMeasure: item.unitOfMeasure,
-					unitOfMeasureAr: item.unitOfMeasureAr,
-				})),
-			}),
-		[activeItems, globalNote],
+		() => getQuoteCartFingerprint(items, globalNote),
+		[globalNote, items],
 	)
 	const isDraftSaved =
 		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
@@ -1387,7 +969,7 @@ function CartSubmit({
 
 		if (savedOrdersOpen) {
 			return (
-				<WebsiteSavedOrdersPanel
+				<WebsiteSavedDraftsPanel
 					onAdded={() => setSavedOrdersOpen(false)}
 					onBack={() => setSavedOrdersOpen(false)}
 					onAuthRequired={() => {
@@ -1399,17 +981,16 @@ function CartSubmit({
 			)
 		}
 
+		const notesRailY = notesOpen ? CART_NOTES_RAIL_OPEN_Y : 0
+
 		return (
 			<div className="relative px-4 pt-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 				<motion.div
 					aria-hidden="true"
 					className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--color-border)]"
 					initial={false}
-					animate={{ y: notesOpen ? -104 : 0 }}
-					transition={{
-						duration: shouldReduceMotion ? 0.01 : 0.2,
-						ease: CART_DRAWER_EASE,
-					}}
+					animate={{ y: notesRailY }}
+					transition={cartTransition(shouldReduceMotion, 0.2)}
 				/>
 				<AnimatePresence initial={false}>
 					{authSuccessVisible && (
@@ -1430,19 +1011,13 @@ function CartSubmit({
 								y: shouldReduceMotion ? 0 : -6,
 								scale: shouldReduceMotion ? 1 : 0.98,
 							}}
-							transition={{
-								duration: shouldReduceMotion ? 0.01 : 0.2,
-								ease: CART_DRAWER_EASE,
-							}}
+							transition={cartTransition(shouldReduceMotion, 0.2)}
 						>
 							<div className="flex items-start gap-2.5">
 								<motion.span
 									initial={{ scale: shouldReduceMotion ? 1 : 0.8 }}
 									animate={{ scale: 1 }}
-									transition={{
-										duration: shouldReduceMotion ? 0.01 : 0.22,
-										ease: CART_DRAWER_EASE,
-									}}
+									transition={cartTransition(shouldReduceMotion, 0.22)}
 									className="mt-0.5 shrink-0 text-[var(--color-success)]"
 								>
 									<CircleCheck size={17} strokeWidth={1.8} aria-hidden="true" />
@@ -1471,12 +1046,9 @@ function CartSubmit({
 					aria-expanded={notesOpen}
 					aria-pressed={notesOpen}
 					initial={false}
-					animate={{ y: notesOpen ? -104 : 0 }}
+					animate={{ y: notesRailY }}
 					whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
-					transition={{
-						duration: shouldReduceMotion ? 0.01 : 0.2,
-						ease: CART_DRAWER_EASE,
-					}}
+					transition={cartTransition(shouldReduceMotion, 0.2)}
 				>
 					<StickyNote size={16} strokeWidth={1.8} />
 				</motion.button>
@@ -1485,13 +1057,7 @@ function CartSubmit({
 						<motion.div
 							key="cart-notes"
 							className="absolute inset-x-4 top-0 z-10"
-							initial={{ opacity: 0, y: shouldReduceMotion ? -92 : -72 }}
-							animate={{ opacity: 1, y: -92 }}
-							exit={{ opacity: 0, y: shouldReduceMotion ? -92 : -72 }}
-							transition={{
-								duration: shouldReduceMotion ? 0.01 : 0.18,
-								ease: CART_DRAWER_EASE,
-							}}
+							{...cartNotesPanelMotion(shouldReduceMotion)}
 						>
 							<label className="block">
 								<span className="sr-only">{t('cart.notes')}</span>
@@ -1579,10 +1145,7 @@ function CartSubmit({
 								? undefined
 								: { scale: 0.985 }
 						}
-						transition={{
-							duration: shouldReduceMotion ? 0.01 : 0.16,
-							ease: CART_DRAWER_EASE,
-						}}
+						transition={cartTransition(shouldReduceMotion, 0.16)}
 					>
 						<span className="truncate">
 							{loadingAction === 'submit'
@@ -1596,10 +1159,7 @@ function CartSubmit({
 						className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
 						aria-label={t('cart.viewSavedOrders')}
 						whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
-						transition={{
-							duration: shouldReduceMotion ? 0.01 : 0.16,
-							ease: CART_DRAWER_EASE,
-						}}
+						transition={cartTransition(shouldReduceMotion, 0.16)}
 					>
 						<FileText size={16} strokeWidth={1.8} />
 					</motion.button>
@@ -1631,10 +1191,7 @@ function CartSubmit({
 								? undefined
 								: { scale: 0.94 }
 						}
-						transition={{
-							duration: shouldReduceMotion ? 0.01 : 0.16,
-							ease: CART_DRAWER_EASE,
-						}}
+						transition={cartTransition(shouldReduceMotion, 0.16)}
 					>
 						{loadingAction === 'save' ? (
 							<span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />

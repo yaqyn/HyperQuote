@@ -18,6 +18,7 @@
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",
+		"@hyperquote/quote-cart": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@internationalized/date": "^3.12.1",
 		"@supabase/supabase-js": "^2.105.4",

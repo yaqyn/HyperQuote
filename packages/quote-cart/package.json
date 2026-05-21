@@ -1,0 +1,15 @@
+{
+	"name": "@hyperquote/quote-cart",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"zustand": "^5.0.13"
+	},
+	"peerDependencies": {
+		"react": "^19.2.6"
+	}
+}

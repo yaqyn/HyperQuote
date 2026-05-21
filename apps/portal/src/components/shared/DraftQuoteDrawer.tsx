@@ -1,3 +1,4 @@
+import { getQuoteCartFingerprint } from '@hyperquote/quote-cart'
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
 import {
 	Check,
@@ -20,10 +21,7 @@ import {
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import {
-	type DraftCartItem,
-	toDraftQuoteRequestItemPayloads,
-} from '../../lib/draft-quote-cart'
+import { toDraftQuoteRequestItemPayloads } from '../../lib/draft-quote-cart'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { saveDraft, submitQuoteRequest } from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
@@ -39,27 +37,15 @@ type DraftQuoteDrawerProps = {
 
 const DRAWER_EASE = cubicBezier(0.22, 1, 0.36, 1)
 const SNAP_EASE = cubicBezier(0.16, 1, 0.3, 1)
+const DRAFT_NOTES_RAIL_OPEN_Y = -108
+const DRAFT_NOTES_PANEL_CLOSED_Y = -76
+const DRAFT_NOTES_PANEL_OPEN_Y = -96
 
-function getDraftFingerprint(items: DraftCartItem[], globalNote: string) {
-	return JSON.stringify({
-		globalNote: globalNote.trim(),
-		items: items
-			.filter((item) => item.quantity > 0)
-			.map((item, index) => ({
-				category: item.category,
-				categoryName: item.categoryName,
-				categoryNameAr: item.categoryNameAr,
-				imageUrl: item.imageUrl,
-				name: item.name,
-				nameAr: item.nameAr,
-				note: item.note.trim(),
-				productId: item.productId,
-				quantity: item.quantity,
-				sortOrder: index,
-				unitOfMeasure: item.unitOfMeasure,
-				unitOfMeasureAr: item.unitOfMeasureAr,
-			})),
-	})
+function snapTransition(shouldReduceMotion: boolean | null, duration = 0.14) {
+	return {
+		duration: shouldReduceMotion ? 0.01 : duration,
+		ease: SNAP_EASE,
+	}
 }
 
 function drawerContentMotion(shouldReduceMotion: boolean | null) {
@@ -67,10 +53,7 @@ function drawerContentMotion(shouldReduceMotion: boolean | null) {
 		animate: { opacity: 1, y: 0 },
 		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -8 },
 		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 8 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.18,
-			ease: SNAP_EASE,
-		},
+		transition: snapTransition(shouldReduceMotion, 0.18),
 	}
 }
 
@@ -79,10 +62,26 @@ function drawerRevealMotion(shouldReduceMotion: boolean | null) {
 		animate: { opacity: 1, y: 0 },
 		exit: { opacity: 0, y: shouldReduceMotion ? 0 : -4 },
 		initial: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
-		transition: {
-			duration: shouldReduceMotion ? 0.01 : 0.14,
-			ease: SNAP_EASE,
+		transition: snapTransition(shouldReduceMotion),
+	}
+}
+
+function drawerNotesPanelMotion(shouldReduceMotion: boolean | null) {
+	return {
+		animate: { opacity: 1, y: DRAFT_NOTES_PANEL_OPEN_Y },
+		exit: {
+			opacity: 0,
+			y: shouldReduceMotion
+				? DRAFT_NOTES_PANEL_OPEN_Y
+				: DRAFT_NOTES_PANEL_CLOSED_Y,
 		},
+		initial: {
+			opacity: 0,
+			y: shouldReduceMotion
+				? DRAFT_NOTES_PANEL_OPEN_Y
+				: DRAFT_NOTES_PANEL_CLOSED_Y,
+		},
+		transition: snapTransition(shouldReduceMotion, 0.18),
 	}
 }
 
@@ -150,7 +149,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		[isAr, items],
 	)
 	const draftFingerprint = useMemo(
-		() => getDraftFingerprint(items, globalNote),
+		() => getQuoteCartFingerprint(items, globalNote),
 		[globalNote, items],
 	)
 	const isDraftSaved =
@@ -273,6 +272,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 					items: unavailableItems.join(', '),
 				})
 			: t('market.submitError')
+	const notesRailY = notesOpen ? DRAFT_NOTES_RAIL_OPEN_Y : 0
 
 	if (typeof document === 'undefined') return null
 
@@ -538,11 +538,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													aria-hidden="true"
 													className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--p-border)]"
 													initial={false}
-													animate={{ y: notesOpen ? -108 : 0 }}
-													transition={{
-														duration: shouldReduceMotion ? 0.01 : 0.2,
-														ease: SNAP_EASE,
-													}}
+													animate={{ y: notesRailY }}
+													transition={snapTransition(shouldReduceMotion, 0.2)}
 												/>
 												<motion.button
 													type="button"
@@ -556,14 +553,11 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													aria-expanded={notesOpen}
 													aria-pressed={notesOpen}
 													initial={false}
-													animate={{ y: notesOpen ? -108 : 0 }}
+													animate={{ y: notesRailY }}
 													whileTap={
 														shouldReduceMotion ? undefined : { scale: 0.94 }
 													}
-													transition={{
-														duration: shouldReduceMotion ? 0.01 : 0.2,
-														ease: SNAP_EASE,
-													}}
+													transition={snapTransition(shouldReduceMotion, 0.2)}
 												>
 													<StickyNote size={17} strokeWidth={1.8} />
 												</motion.button>
@@ -572,19 +566,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 														<motion.div
 															key="cart-notes"
 															className="absolute inset-x-4 top-0 z-10 md:inset-x-5"
-															initial={{
-																opacity: 0,
-																y: shouldReduceMotion ? -96 : -76,
-															}}
-															animate={{ opacity: 1, y: -96 }}
-															exit={{
-																opacity: 0,
-																y: shouldReduceMotion ? -96 : -76,
-															}}
-															transition={{
-																duration: shouldReduceMotion ? 0.01 : 0.18,
-																ease: SNAP_EASE,
-															}}
+															{...drawerNotesPanelMotion(shouldReduceMotion)}
 														>
 															<label className="block">
 																<span className="sr-only">

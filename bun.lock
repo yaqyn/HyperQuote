@@ -118,6 +118,7 @@
         "@hyperquote/auth": "workspace:*",
         "@hyperquote/forms": "workspace:*",
         "@hyperquote/i18n": "workspace:*",
+        "@hyperquote/quote-cart": "workspace:*",
         "@hyperquote/ui": "workspace:*",
         "@internationalized/date": "^3.12.1",
         "@supabase/supabase-js": "^2.105.4",
@@ -171,6 +172,7 @@
         "@hyperquote/auth": "workspace:*",
         "@hyperquote/forms": "workspace:*",
         "@hyperquote/i18n": "workspace:*",
+        "@hyperquote/quote-cart": "workspace:*",
         "@hyperquote/types": "workspace:*",
         "@hyperquote/ui": "workspace:*",
         "@tanstack/ai": "^0.9.2",
@@ -256,6 +258,16 @@
         "react": "^19.2.6",
       },
     },
+    "packages/quote-cart": {
+      "name": "@hyperquote/quote-cart",
+      "version": "0.0.0",
+      "dependencies": {
+        "zustand": "^5.0.13",
+      },
+      "peerDependencies": {
+        "react": "^19.2.6",
+      },
+    },
     "packages/tables": {
       "name": "@hyperquote/tables",
       "version": "0.0.0",
@@ -284,6 +296,7 @@
       "dependencies": {
         "@hyperquote/i18n": "workspace:*",
         "clsx": "^2.1.1",
+        "lucide-react": "^1.16.0",
         "motion": "^12.38.0",
         "tailwind-merge": "^3.6.0",
       },
@@ -655,6 +668,8 @@
     "@hyperquote/internal": ["@hyperquote/internal@workspace:apps/internal"],
 
     "@hyperquote/portal": ["@hyperquote/portal@workspace:apps/portal"],
+
+    "@hyperquote/quote-cart": ["@hyperquote/quote-cart@workspace:packages/quote-cart"],
 
     "@hyperquote/tables": ["@hyperquote/tables@workspace:packages/tables"],
 
