@@ -269,7 +269,12 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 				<button
 					type="button"
 					onClick={toggleNotifications}
-					className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
+					aria-label={
+						unreadNotifications > 0
+							? `${unreadNotifications.toLocaleString('en-EG')} unread notifications`
+							: 'Notifications'
+					}
+					className="relative mt-4 inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
 				>
 					<Bell
 						aria-hidden="true"
@@ -277,9 +282,8 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 						strokeWidth={1.8}
 						className="text-[var(--color-primary)]"
 					/>
-					<span>Notifications</span>
 					{unreadNotifications > 0 && (
-						<span className="min-w-5 rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-center font-[family-name:var(--font-plex-mono)] text-[10px] leading-none text-white tabular-nums">
+						<span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[var(--color-primary)] px-1 text-center font-[family-name:var(--font-plex-mono)] text-[9px] leading-4 text-white tabular-nums">
 							{unreadNotifications.toLocaleString('en-EG')}
 						</span>
 					)}

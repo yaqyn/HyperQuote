@@ -1,6 +1,6 @@
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AtSign, Bell, CheckCircle2, Clock, Truck } from 'lucide-react'
+import { AtSign, Bell, CheckCircle2, Clock, Truck, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
@@ -127,18 +127,27 @@ export function NotificationsWindow({
 			className="shell-plate max-h-[80vh] w-full max-w-md max-lg:!fixed max-lg:!inset-0 max-lg:!h-dvh max-lg:!max-h-dvh max-lg:!w-screen max-lg:!max-w-none max-lg:!rounded-none"
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+			<div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
 				<h2 className="text-base font-semibold text-[var(--color-text)]">
 					{t('notifications.title', 'Notifications')}
 				</h2>
-				{unreadCount > 0 && (
+				<div className="flex items-center gap-2">
+					{unreadCount > 0 && (
+						<Button
+							onPress={handleMarkAllRead}
+							className="text-sm text-[var(--color-primary)] hover:underline cursor-pointer outline-none"
+						>
+							{t('notifications.markAllRead', 'Mark all read')}
+						</Button>
+					)}
 					<Button
-						onPress={handleMarkAllRead}
-						className="text-sm text-[var(--color-primary)] hover:underline cursor-pointer outline-none"
+						onPress={handleClose}
+						aria-label={t('notifications.close', 'Close notifications')}
+						className="inline-flex size-8 items-center justify-center rounded-md text-[var(--color-text-muted)] outline-none transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
 					>
-						{t('notifications.markAllRead', 'Mark all read')}
+						<X aria-hidden="true" size={16} strokeWidth={1.8} />
 					</Button>
-				)}
+				</div>
 			</div>
 
 			{/* Content */}
