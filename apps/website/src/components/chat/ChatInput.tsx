@@ -8,6 +8,8 @@ interface ChatInputProps {
 	isFullScreen?: boolean
 }
 
+const MAX_CHAT_INPUT_CHARACTERS = 4000
+
 export function ChatInput({
 	onSend,
 	isLoading,
@@ -70,6 +72,7 @@ export function ChatInput({
 					onKeyDown={handleKeyDown}
 					placeholder={t('chat.inputPlaceholder')}
 					rows={1}
+					maxLength={MAX_CHAT_INPUT_CHARACTERS}
 					aria-label={t('chat.inputPlaceholder')}
 					className="min-h-[24px] max-h-[120px] flex-1 resize-none border-0 bg-transparent text-[15px] leading-[1.5] outline-none placeholder:opacity-30"
 				/>

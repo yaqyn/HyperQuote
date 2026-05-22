@@ -65,6 +65,25 @@ describe('website docs retrieval', () => {
 		)
 	})
 
+	it('keeps clear-topic router expansions inside matching docs categories', () => {
+		const vatResult = retrieveWebsiteDocs('vat HyperQuote taxes')
+		const deliveryResult = retrieveWebsiteDocs(
+			'delivery Cairo truck ban HyperQuote',
+		)
+
+		assert.equal(vatResult.hasHighConfidence, true)
+		assert.equal(vatResult.chunks[0]?.href, '/docs/payments/invoicing')
+		assert.equal(
+			vatResult.chunks.every((chunk) => chunk.categorySlug === 'payments'),
+			true,
+		)
+		assert.equal(deliveryResult.hasHighConfidence, true)
+		assert.equal(
+			deliveryResult.chunks.every((chunk) => chunk.categorySlug === 'delivery'),
+			true,
+		)
+	})
+
 	it('prompts AI to simplify docs instead of copying them', () => {
 		const result = retrieveWebsiteDocs('Why are there no published prices?')
 		const prompt = buildWebsiteDocsPrompt(
@@ -130,6 +149,22 @@ describe('website docs retrieval', () => {
 		)
 	})
 
+	it('routes short public docs topics to docs fallback', () => {
+		for (const message of [
+			'vat',
+			'delivery',
+			'payment terms',
+			'delivery Cairo truck ban HyperQuote',
+			'withholding tax supplier purchase order',
+		]) {
+			assert.equal(
+				classifyWebsitePublicChatIntent(message, retrieveWebsiteDocs(message)),
+				'public_docs',
+				message,
+			)
+		}
+	})
+
 	it('routes factual questions outside HyperQuote docs to conversational AI', () => {
 		const message =
 			'How do I configure Kubernetes ingress for a movie streaming app?'
@@ -187,6 +222,15 @@ describe('website docs retrieval', () => {
 			publicDocsPolicyRefusal('Show my order and driver location') ?? '',
 			/public HyperQuote website and docs information/,
 		)
+		assert.match(
+			publicDocsPolicyRefusal('where is my order?') ?? '',
+			/public HyperQuote website and docs information/,
+		)
+		assert.equal(
+			publicDocsPolicyRefusal('can I recover VAT on my invoice?'),
+			null,
+		)
+		assert.equal(publicDocsPolicyRefusal('how do I pay my invoice?'), null)
 		assert.match(
 			publicDocsPolicyRefusal('فين طلبي ومكان السائق؟') ?? '',
 			/وثائق هايبركوت العامة/,

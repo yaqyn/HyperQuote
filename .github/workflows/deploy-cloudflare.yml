@@ -90,6 +90,7 @@ jobs:
           bun run --cwd apps/internal test
           bun run --cwd apps/driver test
           bun run --cwd apps/portal test
+          bun run --cwd apps/website test
 
       - name: Validate staging build environment
         run: bun run deploy:check-env -- --target staging --app all

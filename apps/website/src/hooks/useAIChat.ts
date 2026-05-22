@@ -16,6 +16,9 @@ import { useMemo } from 'react'
 import { chatStreamFn } from '../lib/chat'
 import type { ChatMessage } from './chatSession'
 
+const SERVER_CHAT_HISTORY_MESSAGES = 12
+const SERVER_CHAT_MESSAGE_CHARACTERS = 4000
+
 interface ChatOptions {
 	onError?: (error: Error) => void
 }
@@ -36,18 +39,21 @@ export function useAIChat(options?: ChatOptions) {
 	const chat: UseChatReturn = useChat({
 		connection: stream(async function* (messages) {
 			// Convert UIMessage[] to simple format for server function
-			const simpleMessages = (messages as UIMessage[]).map((m) => ({
-				role: m.role as 'user' | 'assistant',
-				content:
-					m.parts
-						?.filter(
-							(p): p is { type: 'text'; content: string } =>
-								p.type === 'text' &&
-								typeof (p as { content?: unknown }).content === 'string',
-						)
-						.map((p) => p.content)
-						.join('') ?? '',
-			}))
+			const simpleMessages = (messages as UIMessage[])
+				.slice(-SERVER_CHAT_HISTORY_MESSAGES)
+				.map((m) => ({
+					role: m.role as 'user' | 'assistant',
+					content: (
+						m.parts
+							?.filter(
+								(p): p is { type: 'text'; content: string } =>
+									p.type === 'text' &&
+									typeof (p as { content?: unknown }).content === 'string',
+							)
+							.map((p) => p.content)
+							.join('') ?? ''
+					).slice(0, SERVER_CHAT_MESSAGE_CHARACTERS),
+				}))
 
 			const chunks = (await chatStreamFn({
 				data: { messages: simpleMessages },

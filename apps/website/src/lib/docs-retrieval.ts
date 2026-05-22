@@ -87,8 +87,6 @@ const AR_STOP_WORDS = new Set([
 ])
 
 const PRIVATE_SCOPE_PATTERNS = [
-	/\bmy\s+(account|balance|delivery|draft|invoice|order|payment|profile|quote)\b/i,
-	/\bour\s+(account|balance|delivery|draft|invoice|order|payment|profile|quote)\b/i,
 	/\banother customer\b/i,
 	/\bother customer\b/i,
 	/\bcustomer (data|order|record)\b/i,
@@ -101,12 +99,29 @@ const PRIVATE_SCOPE_PATTERNS = [
 	/\bmargin\b/i,
 	/\bprofit\b/i,
 	/\bsupplier (cost|margin|price book|pricing)\b/i,
-	/حسابي|حسابنا|طلبي|طلباتنا|طلباتي|عرضي|عروضي|فاتورتي|فواتيري|رصيدي/,
 	/عميل\s+(تاني|تانى|اخر|آخر)/,
 	/بيانات\s+(عميل|حساب|موظف|سائق)/,
 	/مكان\s+السائق|موقع\s+السائق|السائق\s+فين/,
 	/داخلي|داخلية|الموظف|الموظفين|بيانات\s+مالية|بيانات\s+ماليه|قسم\s+المالية|هامش|ربح|تكلفة\s+المورد/,
 ]
+
+const PRIVATE_ACCOUNT_ENTITY_PATTERN =
+	/\b(my|our)\s+(account|balance|delivery|draft|invoice|order|payment|profile|quote)\b/i
+
+const PRIVATE_ACCOUNT_ALWAYS_PATTERN =
+	/\b(my|our)\s+(account|balance|profile)\b/i
+
+const PRIVATE_ACCOUNT_ACTION_PATTERN =
+	/\b(show|see|view|open|pull up|find|where(?:'s| is)|track|tracking|download|send|change|cancel|update|modify|delete|access)\b/i
+
+const PRIVATE_ACCOUNT_STATUS_PATTERN =
+	/\b(my|our)\s+(delivery|draft|invoice|order|payment|quote)\b.*\b(status|location|eta|driver|where|tracking)\b/i
+
+const AR_PRIVATE_ACCOUNT_ALWAYS_PATTERN = /حسابي|حسابنا|رصيدي/
+const AR_PRIVATE_ACCOUNT_ENTITY_PATTERN =
+	/طلبي|طلباتنا|طلباتي|عرضي|عروضي|فاتورتي|فواتيري/
+const AR_PRIVATE_ACCOUNT_ACTION_PATTERN =
+	/فين|مكان|موقع|حالة|حاله|تتبع|تابع|اعرض|وريني|هات|نزل|حمل|غير|عدل|الغي/
 
 const FACTUAL_QUESTION_PATTERN =
 	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix|tell me|explain|help me)\b|\?/i
@@ -123,6 +138,133 @@ const CUSTOMER_TAX_QUERY_PATTERN =
 const SUPPLIER_TAX_QUERY_PATTERN =
 	/\b(supplier|purchase order|purchase orders|po|withholding)\b/i
 
+type DocsTopic =
+	| 'delivery'
+	| 'driver'
+	| 'lyon'
+	| 'market'
+	| 'payments'
+	| 'platform'
+	| 'portal'
+	| 'quotes'
+	| 'supplier'
+	| 'support'
+
+interface DocsTopicRule {
+	categories: string[]
+	tokens: string[]
+	topic: DocsTopic
+}
+
+const DOC_TOPIC_RULES: DocsTopicRule[] = [
+	{
+		topic: 'supplier',
+		categories: ['supplier-portal', 'quotes-orders'],
+		tokens: [
+			'supplier',
+			'suppliers',
+			'purchase',
+			'po',
+			'withholding',
+			'fulfillment',
+		],
+	},
+	{
+		topic: 'payments',
+		categories: ['payments'],
+		tokens: [
+			'payment',
+			'payments',
+			'invoice',
+			'invoices',
+			'invoicing',
+			'vat',
+			'tax',
+			'taxes',
+			'eta',
+			'credit',
+			'cheque',
+			'bank',
+			'cash',
+			'reclaim',
+			'recover',
+		],
+	},
+	{
+		topic: 'delivery',
+		categories: ['delivery'],
+		tokens: [
+			'delivery',
+			'deliveries',
+			'dispatch',
+			'schedule',
+			'scheduling',
+			'truck',
+			'cairo',
+			'window',
+			'tracking',
+			'pod',
+			'damage',
+			'damaged',
+		],
+	},
+	{
+		topic: 'driver',
+		categories: ['driver-app'],
+		tokens: ['driver', 'drivers', 'offline', 'route', 'vehicle'],
+	},
+	{
+		topic: 'quotes',
+		categories: ['quotes-orders', 'customer-portal'],
+		tokens: [
+			'quote',
+			'quotes',
+			'quoting',
+			'rfq',
+			'order',
+			'orders',
+			'price',
+			'prices',
+			'pricing',
+			'change',
+			'proforma',
+		],
+	},
+	{
+		topic: 'market',
+		categories: ['website-market'],
+		tokens: [
+			'market',
+			'catalog',
+			'catalogue',
+			'product',
+			'products',
+			'search',
+			'browse',
+		],
+	},
+	{
+		topic: 'support',
+		categories: ['support'],
+		tokens: ['support', 'help', 'faq', 'whatsapp', 'contact', 'damaged'],
+	},
+	{
+		topic: 'lyon',
+		categories: ['ai-lyon'],
+		tokens: ['lyon', 'ai', 'assistant', 'recommendations', 'estimation'],
+	},
+	{
+		topic: 'portal',
+		categories: ['customer-portal'],
+		tokens: ['portal', 'dashboard', 'project', 'projects'],
+	},
+	{
+		topic: 'platform',
+		categories: ['platform'],
+		tokens: ['platform', 'white', 'label', 'flow'],
+	},
+]
+
 interface DocsChunk {
 	article: LocalizedDocContent
 	heading: string
@@ -133,6 +275,11 @@ interface DocsChunk {
 	normalizedCategory: string
 	normalizedDescription: string
 	bodyTokens: string[]
+}
+
+interface ScoredDocsChunk {
+	chunk: DocsChunk
+	score: number
 }
 
 export interface RetrievedDocsChunk {
@@ -193,11 +340,12 @@ export function detectDocsQueryLocale(query: string): DocsLocale {
 }
 
 export function publicDocsPolicyRefusal(userMessage: string): string | null {
+	if (isPrivateAccountScope(userMessage)) {
+		return privateScopeRefusalMessage(userMessage)
+	}
 	for (const pattern of PRIVATE_SCOPE_PATTERNS) {
 		if (pattern.test(userMessage)) {
-			return detectDocsQueryLocale(userMessage) === 'ar'
-				? 'أقدر أجاوب بس من معلومات ووثائق هايبركوت العامة. سجّل دخولك في البوابة عشان بيانات حسابك أو طلباتك.'
-				: 'I can only answer from public HyperQuote website and docs information. Sign in to the portal for your account-specific data.'
+			return privateScopeRefusalMessage(userMessage)
 		}
 	}
 	return null
@@ -243,8 +391,37 @@ export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
 	return 'I do not see a reliable answer for that in the public HyperQuote docs.'
 }
 
+function privateScopeRefusalMessage(userMessage: string): string {
+	return detectDocsQueryLocale(userMessage) === 'ar'
+		? 'أقدر أجاوب بس من معلومات ووثائق هايبركوت العامة. سجّل دخولك في البوابة عشان بيانات حسابك أو طلباتك.'
+		: 'I can only answer from public HyperQuote website and docs information. Sign in to the portal for your account-specific data.'
+}
+
+function isPrivateAccountScope(userMessage: string): boolean {
+	if (AR_PRIVATE_ACCOUNT_ALWAYS_PATTERN.test(userMessage)) return true
+	if (
+		AR_PRIVATE_ACCOUNT_ENTITY_PATTERN.test(userMessage) &&
+		AR_PRIVATE_ACCOUNT_ACTION_PATTERN.test(userMessage)
+	) {
+		return true
+	}
+	if (!PRIVATE_ACCOUNT_ENTITY_PATTERN.test(userMessage)) return false
+	if (PRIVATE_ACCOUNT_ALWAYS_PATTERN.test(userMessage)) return true
+	return (
+		PRIVATE_ACCOUNT_ACTION_PATTERN.test(userMessage) ||
+		PRIVATE_ACCOUNT_STATUS_PATTERN.test(userMessage)
+	)
+}
+
 function isPublicDocsSeekingMessage(userMessage: string): boolean {
-	if (!FACTUAL_QUESTION_PATTERN.test(userMessage)) return false
+	const isFactualQuestion = FACTUAL_QUESTION_PATTERN.test(userMessage)
+	const queryTokens = tokensFromNormalized(
+		normalize(userMessage),
+		detectDocsQueryLocale(userMessage),
+	)
+	const isShortTopic =
+		queryTokens.length <= 4 || detectDominantDocsTopic(queryTokens) !== null
+	if (!isFactualQuestion && !isShortTopic) return false
 	return (
 		PUBLIC_DOCS_TOPIC_PATTERN.test(userMessage) ||
 		AR_PUBLIC_DOCS_TOPIC_PATTERN.test(userMessage)
@@ -302,12 +479,14 @@ export function retrieveWebsiteDocs(
 	const maxChunks = options.maxChunks ?? DEFAULT_MAX_CHUNKS
 	const maxContextCharacters =
 		options.maxContextCharacters ?? DEFAULT_CONTEXT_CHARACTERS
-	const scored = DOC_CHUNKS.map((chunk) => ({
+	const topic = detectDominantDocsTopic(queryTokens)
+	const scoredCandidates = DOC_CHUNKS.map((chunk) => ({
 		chunk,
 		score: scoreChunk(chunk, query, queryTokens, locale),
 	}))
 		.filter((candidate) => candidate.score > 0)
 		.sort((a, b) => b.score - a.score)
+	const scored = scopedTopicCandidates(scoredCandidates, topic)
 
 	const topScore = scored[0]?.score ?? 0
 	if (topScore < HIGH_CONFIDENCE_SCORE) {
@@ -343,6 +522,36 @@ export function retrieveWebsiteDocs(
 		locale,
 		queryTokens,
 	}
+}
+
+function detectDominantDocsTopic(queryTokens: string[]): DocsTopicRule | null {
+	const scoredTopics = DOC_TOPIC_RULES.map((rule) => ({
+		rule,
+		score: rule.tokens.reduce(
+			(score, token) => score + (queryTokens.includes(token) ? 1 : 0),
+			0,
+		),
+	}))
+		.filter((candidate) => candidate.score > 0)
+		.sort((a, b) => b.score - a.score)
+
+	const topTopic = scoredTopics[0]
+	if (!topTopic) return null
+	const secondScore = scoredTopics[1]?.score ?? 0
+	if (topTopic.score === secondScore) return null
+	return topTopic.rule
+}
+
+function scopedTopicCandidates(
+	scored: ScoredDocsChunk[],
+	topic: DocsTopicRule | null,
+): ScoredDocsChunk[] {
+	if (!topic) return scored
+	const topicMatches = scored.filter((candidate) =>
+		topic.categories.includes(candidate.chunk.article.categorySlug),
+	)
+	if ((topicMatches[0]?.score ?? 0) < HIGH_CONFIDENCE_SCORE) return scored
+	return topicMatches
 }
 
 export function buildPublicDocsContext(chunks: RetrievedDocsChunk[]): string {

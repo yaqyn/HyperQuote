@@ -198,12 +198,10 @@ jobs:
               bun run --cwd apps/internal test
               bun run --cwd apps/driver test
               bun run --cwd apps/portal test
+              bun run --cwd apps/website test
               ;;
-            internal|driver|portal)
+            internal|driver|portal|website)
               bun run --cwd "apps/${TARGET_APP}" test
-              ;;
-            website)
-              echo "Website has no app-local test script."
               ;;
           esac
 

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { useChatSession } from '../../hooks/chatSession'
 import { ChatMarkdown } from '../chat/ChatMarkdown'
 
+const MAX_CHAT_INPUT_CHARACTERS = 4000
+
 export function LyonHeroChat({
 	initialMessage = '',
 }: {
@@ -122,6 +124,7 @@ export function LyonHeroChat({
 							}}
 							placeholder={t('chat.inputPlaceholder')}
 							rows={1}
+							maxLength={MAX_CHAT_INPUT_CHARACTERS}
 							className="flex-1 min-h-[24px] max-h-[160px] bg-transparent text-[15px] text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] outline-none resize-none"
 						/>
 						<button
