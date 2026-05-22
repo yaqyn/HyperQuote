@@ -6,10 +6,15 @@ const START_RUNTIME_SECRETS = [
 	'USE_AI',
 ]
 
+const CUSTOMER_AUTH_RUNTIME_SECRETS = ['COOKIE_DOMAIN', 'SUPABASE_COOKIE_NAME']
+
 const APP_DEPLOY_CONTRACTS = {
 	website: {
 		buildVars: [],
-		runtimeSecrets: START_RUNTIME_SECRETS,
+		runtimeSecrets: [
+			...START_RUNTIME_SECRETS,
+			...CUSTOMER_AUTH_RUNTIME_SECRETS,
+		],
 	},
 	portal: {
 		buildVars: [
@@ -17,11 +22,14 @@ const APP_DEPLOY_CONTRACTS = {
 			'VITE_SUPABASE_ANON_KEY',
 			'VITE_INTERNAL_URL',
 		],
-		runtimeSecrets: START_RUNTIME_SECRETS,
+		runtimeSecrets: [
+			...START_RUNTIME_SECRETS,
+			...CUSTOMER_AUTH_RUNTIME_SECRETS,
+		],
 	},
 	internal: {
 		buildVars: ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'],
-		runtimeSecrets: START_RUNTIME_SECRETS,
+		runtimeSecrets: [...START_RUNTIME_SECRETS, 'SUPABASE_COOKIE_NAME'],
 	},
 	driver: {
 		buildVars: [],

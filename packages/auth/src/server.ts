@@ -55,13 +55,19 @@ export function createSupabaseServerClient({
 	cookieName,
 }: ServerClientOptions) {
 	const responseCookies = new Map<string, string>()
+	const requestCookieDomain = resolveCookieDomainForRequest(
+		request,
+		cookieDomain,
+	)
+	const secureCookies = shouldUseSecureCookies(request)
 
 	const client = createServerClient(supabaseUrl, supabaseAnonKey, {
 		cookieOptions: {
 			...(cookieName ? { name: cookieName } : {}),
-			...(cookieDomain ? { domain: cookieDomain } : {}),
+			...(requestCookieDomain ? { domain: requestCookieDomain } : {}),
 			path: '/',
 			sameSite: 'lax',
+			secure: secureCookies,
 		},
 		cookies: {
 			getAll() {
@@ -75,8 +81,9 @@ export function createSupabaseServerClient({
 				for (const { name, value, options } of cookiesToSet) {
 					const cookieOpts = {
 						...options,
-						// Override domain if cookieDomain is configured (cross-subdomain sharing)
-						...(cookieDomain ? { domain: cookieDomain } : {}),
+						secure: secureCookies,
+						// Override domain only when the request host is inside that domain.
+						...(requestCookieDomain ? { domain: requestCookieDomain } : {}),
 					}
 					responseCookies.set(name, serializeSetCookie(name, value, cookieOpts))
 				}
@@ -85,6 +92,47 @@ export function createSupabaseServerClient({
 	})
 
 	return { client, responseCookies, responseHeaders: new Map<string, string>() }
+}
+
+function resolveCookieDomainForRequest(
+	request: Request,
+	cookieDomain?: string,
+): string | undefined {
+	const normalized = normalizeCookieDomain(cookieDomain)
+	if (!normalized) return undefined
+
+	let hostname: string
+	try {
+		hostname = new URL(request.url).hostname.toLowerCase()
+	} catch {
+		return undefined
+	}
+
+	const bareDomain = normalized.replace(/^\./, '')
+	if (hostname === bareDomain || hostname.endsWith(`.${bareDomain}`)) {
+		return normalized
+	}
+	return undefined
+}
+
+function normalizeCookieDomain(value?: string): string | undefined {
+	const trimmed = value?.trim().toLowerCase()
+	if (!trimmed) return undefined
+	return trimmed
+}
+
+function shouldUseSecureCookies(request: Request): boolean {
+	try {
+		if (new URL(request.url).protocol === 'https:') return true
+	} catch {
+		// Fall through to forwarded protocol check.
+	}
+	const forwardedProto = request.headers
+		.get('x-forwarded-proto')
+		?.split(',')[0]
+		?.trim()
+		.toLowerCase()
+	return forwardedProto === 'https'
 }
 
 export function appendSetCookieHeaders(

@@ -2,14 +2,10 @@
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import process from 'node:process'
+import { withLocalSupabaseAuthEnv } from './supabase-auth-env.mjs'
 
 const outputPath = 'packages/types/src/database.types.ts'
-const env = {
-	...process.env,
-	SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN:
-		process.env.SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN ??
-		['local', 'test', 'auth', 'token'].join('-'),
-}
+const env = withLocalSupabaseAuthEnv(process.env)
 
 const generated = spawnSync(
 	'supabase',

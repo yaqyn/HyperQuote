@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import process from 'node:process'
+import { withLocalSupabaseAuthEnv } from './supabase-auth-env.mjs'
 
 const args = process.argv.slice(2)
 const quiet = args.includes('--quiet')
@@ -12,12 +13,7 @@ if (supabaseArgs.length === 0) {
 }
 
 const child = spawn('supabase', supabaseArgs, {
-	env: {
-		...process.env,
-		SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN:
-			process.env.SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN ??
-			['local', 'test', 'auth', 'token'].join('-'),
-	},
+	env: withLocalSupabaseAuthEnv(process.env),
 	stdio: quiet ? 'ignore' : ['inherit', 'pipe', 'pipe'],
 })
 
