@@ -300,6 +300,10 @@ export function SearchModule() {
 
 	return (
 		<div className="relative h-full min-h-0 overflow-hidden bg-[#010101] text-white">
+			<ActivityCornerButton
+				isActive={isActivityMode}
+				onOpenActivity={openActivity}
+			/>
 			<motion.div
 				key="search-console"
 				className={`relative z-10 flex h-full min-h-0 flex-col ${
@@ -333,10 +337,8 @@ export function SearchModule() {
 				>
 					<SearchBox
 						inputRef={setSearchInputRef}
-						isActivityActive={isActivityMode}
 						query={query}
 						onQueryChange={handleQueryChange}
-						onOpenActivity={openActivity}
 						onSubmit={askLyon}
 					/>
 				</motion.div>
@@ -432,17 +434,13 @@ export function SearchModule() {
 
 function SearchBox({
 	inputRef,
-	isActivityActive,
 	query,
 	onQueryChange,
-	onOpenActivity,
 	onSubmit,
 }: {
 	inputRef: (node: HTMLInputElement | null) => void
-	isActivityActive: boolean
 	query: string
 	onQueryChange: (value: string) => void
-	onOpenActivity: () => void
 	onSubmit: () => void
 }) {
 	return (
@@ -453,40 +451,49 @@ function SearchBox({
 			}}
 			className="relative"
 		>
-			<div className="flex items-center justify-center gap-3">
-				<div className="flex h-11 min-w-0 items-center justify-center border-b border-white/[0.16] bg-transparent px-0 transition-colors duration-200 focus-within:border-white/45 sm:h-12">
-					<input
-						ref={inputRef}
-						value={query}
-						onChange={(event) => onQueryChange(event.target.value)}
-						placeholder="Query"
-						dir="ltr"
-						className={`min-w-0 bg-transparent text-center font-[family-name:var(--font-archivo)] text-[14px] font-medium text-white/90 outline-none transition-[width] duration-200 placeholder:font-normal placeholder:italic placeholder:text-white/24 focus:w-[24ch] sm:text-[15px] sm:focus:w-[30ch] ${
-							query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
-						}`}
-						style={{
-							caretColor: 'rgba(255,255,255,0.82)',
-							letterSpacing: '0',
-							lineHeight: 1,
-						}}
-						aria-label="Search internal database"
-					/>
-				</div>
-				<button
-					type="button"
-					aria-pressed={isActivityActive}
-					onClick={onOpenActivity}
-					className={`inline-flex h-9 shrink-0 items-center gap-2 border px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] outline-none transition-[border-color,background-color,color] focus-visible:border-white/35 sm:h-10 ${
-						isActivityActive
-							? 'border-white/[0.22] bg-white/[0.07] text-white/82'
-							: 'border-white/[0.08] bg-white/[0.012] text-white/42 hover:border-white/[0.16] hover:bg-white/[0.035] hover:text-white/72'
+			<div className="flex h-11 items-center justify-center border-b border-white/[0.16] bg-transparent px-0 transition-colors duration-200 focus-within:border-white/45 sm:h-12">
+				<input
+					ref={inputRef}
+					value={query}
+					onChange={(event) => onQueryChange(event.target.value)}
+					placeholder="Query"
+					dir="ltr"
+					className={`min-w-0 bg-transparent text-center font-[family-name:var(--font-archivo)] text-[14px] font-medium text-white/90 outline-none transition-[width] duration-200 placeholder:font-normal placeholder:italic placeholder:text-white/24 focus:w-[24ch] sm:text-[15px] sm:focus:w-[30ch] ${
+						query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
 					}`}
-				>
-					<Activity aria-hidden="true" size={14} strokeWidth={1.8} />
-					Activity
-				</button>
+					style={{
+						caretColor: 'rgba(255,255,255,0.82)',
+						letterSpacing: '0',
+						lineHeight: 1,
+					}}
+					aria-label="Search internal database"
+				/>
 			</div>
 		</form>
+	)
+}
+
+function ActivityCornerButton({
+	isActive,
+	onOpenActivity,
+}: {
+	isActive: boolean
+	onOpenActivity: () => void
+}) {
+	return (
+		<button
+			type="button"
+			aria-pressed={isActive}
+			onClick={onOpenActivity}
+			className={`absolute top-4 right-4 z-20 inline-flex h-9 items-center gap-2 border px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] outline-none transition-[border-color,background-color,color] focus-visible:border-white/35 sm:top-5 sm:right-5 sm:h-10 ${
+				isActive
+					? 'border-white/[0.22] bg-white/[0.07] text-white/82'
+					: 'border-white/[0.08] bg-white/[0.012] text-white/42 hover:border-white/[0.16] hover:bg-white/[0.035] hover:text-white/72'
+			}`}
+		>
+			<Activity aria-hidden="true" size={14} strokeWidth={1.8} />
+			Activity
+		</button>
 	)
 }
 
