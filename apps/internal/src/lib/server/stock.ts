@@ -186,33 +186,12 @@ function specialtySuppliersForProduct(
 		)
 }
 
-function matchingSupplierIdsForProduct(
-	specialties: SupabaseSupplierSpecialtyRow[],
-	product: Pick<SupabaseStockProductRow, 'category' | 'slug'>,
-): Set<string> {
-	const ids = new Set<string>()
-	for (const specialty of specialties) {
-		if (!specialtyMatchesProduct(specialty, product)) continue
-		const supplier = firstRelation(specialty.suppliers)
-		if (supplierIsActive(supplier)) ids.add(specialty.supplier_id)
-	}
-	return ids
-}
-
-function eligibleSupplierLinksForProduct(
+function activeSupplierLinksForProduct(
 	links: SupabaseSupplierLinkRow[],
-	specialties: SupabaseSupplierSpecialtyRow[],
-	product: Pick<SupabaseStockProductRow, 'category' | 'slug'>,
 ): SupabaseSupplierLinkRow[] {
-	const eligibleSupplierIds = matchingSupplierIdsForProduct(
-		specialties,
-		product,
-	)
 	return links.filter((link) => {
 		const supplier = firstRelation(link.suppliers)
-		return (
-			supplierIsActive(supplier) && eligibleSupplierIds.has(link.supplier_id)
-		)
+		return supplierIsActive(supplier)
 	})
 }
 
@@ -252,11 +231,7 @@ function buildSupabaseStockView({
 		goodStockThreshold,
 	)
 	const broad = getBroadCategory(product.category)
-	const eligibleLinks = eligibleSupplierLinksForProduct(
-		links,
-		specialties,
-		product,
-	)
+	const eligibleLinks = activeSupplierLinksForProduct(links)
 	const primary =
 		eligibleLinks.find((link) => link.is_primary) ?? eligibleLinks[0] ?? null
 	const primarySupplier = firstRelation(primary?.suppliers ?? null)
@@ -567,11 +542,7 @@ async function getSupabaseRefillProductDetail(slug: string) {
 	const links = (linkRows ?? []) as unknown as SupabaseSupplierLinkRow[]
 	const specialties = (specialtyRows ??
 		[]) as unknown as SupabaseSupplierSpecialtyRow[]
-	const eligibleLinks = eligibleSupplierLinksForProduct(
-		links,
-		specialties,
-		product,
-	)
+	const eligibleLinks = activeSupplierLinksForProduct(links)
 	const linkedSupplierIds = new Set(
 		eligibleLinks.map((link) => link.supplier_id),
 	)

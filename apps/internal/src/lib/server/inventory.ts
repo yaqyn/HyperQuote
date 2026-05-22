@@ -89,15 +89,14 @@ type FreshnessLevel = 'fresh' | 'aging' | 'stale'
 type PriceStatus = 'updated' | 'outdated'
 
 /**
- * Product-level freshness. Items updated in the last 24h are fresh, 1-3d
- * aging, >3d stale. Aging and stale both report priceStatus="outdated" to
- * the sales side — the inventory UI separates them purely for tone of voice.
+ * Sell-price freshness. Primary supplier quote time is authoritative; product
+ * updated_at is only a fallback for products that do not have a supplier quote.
  */
-function productFreshnessFor(lastUpdatedAt: string): {
+function productFreshnessFor(lastQuotedOrFallbackAt: string): {
 	level: FreshnessLevel
 	priceStatus: PriceStatus
 } {
-	const hours = hoursSince(lastUpdatedAt)
+	const hours = hoursSince(lastQuotedOrFallbackAt)
 	if (hours < 24) return { level: 'fresh', priceStatus: 'updated' }
 	if (hours < 72) return { level: 'aging', priceStatus: 'outdated' }
 	return { level: 'stale', priceStatus: 'outdated' }
@@ -506,15 +505,11 @@ function supplierQuotesForProduct({
 		specialties,
 		product,
 	)
-	const eligibleLinks = links.filter((link) => {
+	const activeLinks = links.filter((link) => {
 		const supplier = firstRelation(link.suppliers)
-		return (
-			supplierIsActive(supplier) && eligibleSupplierIds.has(link.supplier_id)
-		)
+		return supplierIsActive(supplier)
 	})
-	const linkedSupplierIds = new Set(
-		eligibleLinks.map((link) => link.supplier_id),
-	)
+	const linkedSupplierIds = new Set(activeLinks.map((link) => link.supplier_id))
 	const specialtyQuotes = specialties
 		.filter(
 			(specialty) =>
@@ -529,7 +524,7 @@ function supplierQuotesForProduct({
 		.map((supplier) => presentFallbackSupplier(supplier, rawCost))
 
 	return [
-		...eligibleLinks.map(presentSupabaseSupplierLink),
+		...activeLinks.map(presentSupabaseSupplierLink),
 		...specialtyQuotes,
 	].sort((a, b) => {
 		if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1
@@ -929,9 +924,6 @@ export const getSupplierBatchPriceOptions = createServerFn({
 		const supplier = firstRelation(row.suppliers)
 		if (!product || !supplier || supplier.status !== 'active') continue
 		if (!product.is_active || product.availability_status === 'hidden') continue
-		if (!matchingSupplierIdsForProduct(specialties, product).has(supplier.id)) {
-			continue
-		}
 		linkedSupplierProducts.add(`${supplier.id}:${product.id}`)
 		const current =
 			grouped.get(supplier.id) ??

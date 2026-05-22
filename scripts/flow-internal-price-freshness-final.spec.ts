@@ -155,7 +155,9 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 				name: /Inventory sections/i,
 			}),
 		).toBeVisible({ timeout: 20_000 })
-		await inventory.page.getByRole('button', { name: /^Prices$/i }).click()
+		await inventory.page
+			.getByRole('button', { name: /^Prices(?:\s+\d+)?$/i })
+			.click()
 		await expect(
 			inventory.page.getByRole('button', { name: /^Prices/i }),
 		).toHaveClass(/red/)
@@ -337,6 +339,88 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 	)
 })
 
+test('inventory tabs keep direct supplier price links without specialties', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const service = createLocalServiceClient(env)
+	const fixture = await createInventoryPricesFixture(service)
+
+	const inventory = await openInternalPage(browser, LOCAL_INVENTORY)
+	try {
+		await inventory.page.getByRole('button', { name: /^Inventory$/i }).click()
+		await expect(
+			inventory.page.getByRole('navigation', {
+				name: /Inventory sections/i,
+			}),
+		).toBeVisible({ timeout: 20_000 })
+
+		await inventory.page
+			.getByRole('button', { name: /^Prices(?:\s+\d+)?$/i })
+			.click()
+		await inventory.page
+			.getByLabel(/Search prices/i)
+			.fill(fixture.directProduct.name)
+		const directPriceRow = inventory.page
+			.locator('li', { hasText: fixture.directProduct.name })
+			.first()
+		await expect(directPriceRow).toContainText(/outdated/i, {
+			timeout: 20_000,
+		})
+		await expect(directPriceRow).toContainText(/10d ago/i)
+		await expect(directPriceRow).toContainText(fixture.supplierName)
+
+		await inventory.page
+			.getByRole('button', { name: /^Stock(?:\s+\d+)?$/i })
+			.click()
+		await inventory.page
+			.getByLabel(/Search stock/i)
+			.fill(fixture.directProduct.name)
+		const directStockRow = inventory.page
+			.locator('li', { hasText: fixture.directProduct.name })
+			.first()
+		await expect(directStockRow).toBeVisible({ timeout: 20_000 })
+		await directStockRow
+			.getByRole('button', { name: /^(Refill|Review)$/i })
+			.click()
+		const refillPanel = inventory.page.getByRole('dialog', {
+			name: /Refill stock/i,
+		})
+		await expect(refillPanel).toBeVisible({ timeout: 20_000 })
+		await expect(refillPanel).toContainText(fixture.supplierName)
+		await expect(refillPanel).toContainText(
+			fixture.directProduct.oldCost.toLocaleString('en-EG', {
+				minimumFractionDigits: 2,
+			}),
+		)
+		await inventory.page.keyboard.press('Escape')
+		await expect(refillPanel).toBeHidden({ timeout: 20_000 })
+
+		await inventory.page
+			.getByRole('button', { name: /^Prices(?:\s+\d+)?$/i })
+			.click()
+		await inventory.page.getByLabel(/Search prices/i).fill('')
+		await inventory.page
+			.getByRole('button', { name: /^Supplier call$/i })
+			.click()
+		await expect(
+			inventory.page.getByRole('dialog', {
+				name: /Supplier call price update/i,
+			}),
+		).toBeVisible({ timeout: 20_000 })
+		await inventory.page
+			.getByLabel(/Supplier for batch price update/i)
+			.selectOption(fixture.supplierId)
+		await expect(inventory.page.locator('body')).toContainText(
+			`${fixture.supplierName} · 4 items`,
+		)
+		await inventory.guard.expectClean('inventory direct supplier link tabs')
+	} finally {
+		await inventory.context.close()
+	}
+})
+
 test('inventory prices show supplier freshness labels and update one or many supplier items with proof', async ({
 	browser,
 }) => {
@@ -344,14 +428,15 @@ test('inventory prices show supplier freshness labels and update one or many sup
 	const env = readLocalSupabaseEnv()
 	const service = createLocalServiceClient(env)
 	const inventoryAuth = await signInLocal(env, LOCAL_INVENTORY)
-	const salesAuth = await signInLocal(env, LOCAL_SALES)
+	const salesOnlyAccount = await createSalesOnlyInternalActor(service)
+	const salesOnlyAuth = await signInLocal(env, salesOnlyAccount)
 	const inventoryEmployeeId = await employeeIdByEmail(
 		service,
 		LOCAL_INVENTORY.email,
 	)
 	const fixture = await createInventoryPricesFixture(service)
 
-	const unauthorizedBatch = await salesAuth.client.rpc(
+	const unauthorizedBatch = await salesOnlyAuth.client.rpc(
 		'inventory_update_supplier_prices',
 		{
 			p_notes: `Sales must not batch-update supplier prices ${fixture.runId}`,
@@ -384,7 +469,9 @@ test('inventory prices show supplier freshness labels and update one or many sup
 				name: /Inventory sections/i,
 			}),
 		).toBeVisible({ timeout: 20_000 })
-		await inventory.page.getByRole('button', { name: /^Prices$/i }).click()
+		await inventory.page
+			.getByRole('button', { name: /^Prices(?:\s+\d+)?$/i })
+			.click()
 
 		await inventory.page
 			.getByLabel(/Search prices/i)
@@ -751,6 +838,8 @@ async function createInventoryPricesFixture(
 			oldCost: 72,
 			newCost: 81.5,
 			lastQuotedAt: staleAt,
+			productUpdatedAt: freshAt,
+			skipSpecialty: true,
 		},
 		{
 			key: 'fresh',
@@ -758,6 +847,8 @@ async function createInventoryPricesFixture(
 			oldCost: 44,
 			newCost: 51,
 			lastQuotedAt: freshAt,
+			productUpdatedAt: freshAt,
+			skipSpecialty: false,
 		},
 		{
 			key: 'batch-a',
@@ -765,6 +856,8 @@ async function createInventoryPricesFixture(
 			oldCost: 63,
 			newCost: 67.25,
 			lastQuotedAt: staleAt,
+			productUpdatedAt: staleAt,
+			skipSpecialty: false,
 		},
 		{
 			key: 'batch-b',
@@ -772,6 +865,8 @@ async function createInventoryPricesFixture(
 			oldCost: 88,
 			newCost: 93.75,
 			lastQuotedAt: staleAt,
+			productUpdatedAt: staleAt,
+			skipSpecialty: false,
 		},
 	] as const
 
@@ -799,7 +894,7 @@ async function createInventoryPricesFixture(
 				subcategory_ar: 'أسمنت',
 				unit_of_measure: 'piece',
 				unit_of_measure_ar: 'قطعة',
-				updated_at: definition.lastQuotedAt,
+				updated_at: definition.productUpdatedAt,
 			})
 			.select('id, name, slug')
 			.single()
@@ -820,6 +915,17 @@ async function createInventoryPricesFixture(
 				supplier_id: supplier.id,
 			})
 		if (linkError) throw new Error(linkError.message)
+
+		if (definition.skipSpecialty) {
+			products[definition.key] = {
+				id: product.id,
+				name: product.name,
+				newCost: definition.newCost,
+				oldCost: definition.oldCost,
+				slug: product.slug,
+			}
+			continue
+		}
 
 		const { error: specialtyError } = await service
 			.from('supplier_specialties')
@@ -847,6 +953,57 @@ async function createInventoryPricesFixture(
 		supplierId: supplier.id,
 		supplierName: supplier.name,
 	}
+}
+
+async function createSalesOnlyInternalActor(
+	service: ReturnType<typeof createLocalServiceClient>,
+): Promise<{ email: string; password: string }> {
+	const runId = `sales-only-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+	const email = `${runId}@hyperquote.local`
+	const password = 'sales1'
+	const { data: userData, error: userError } =
+		await service.auth.admin.createUser({
+			email,
+			email_confirm: true,
+			password,
+			user_metadata: { pool: 'internal' },
+		})
+	if (userError || !userData.user) {
+		throw new Error(userError?.message ?? 'Sales-only auth user missing')
+	}
+
+	const { data: employee, error: employeeError } = await service
+		.from('employees')
+		.insert({
+			email,
+			full_name: `Flow Sales Only ${runId}`,
+			phone: `+206${Date.now().toString().slice(-10)}`,
+			status: 'active',
+			user_id: userData.user.id,
+		})
+		.select('id')
+		.single()
+	if (employeeError || !employee) {
+		throw new Error(employeeError?.message ?? 'Sales-only employee missing')
+	}
+
+	const { error: roleError } = await service.from('employee_roles').insert({
+		employee_id: employee.id,
+		role: 'sales',
+	})
+	if (roleError) throw new Error(roleError.message)
+
+	const { error: panelError } = await service
+		.from('employee_panel_permissions')
+		.insert({
+			can_read: true,
+			can_write: true,
+			employee_id: employee.id,
+			panel: 'sales',
+		})
+	if (panelError) throw new Error(panelError.message)
+
+	return { email, password }
 }
 
 async function localCustomer(

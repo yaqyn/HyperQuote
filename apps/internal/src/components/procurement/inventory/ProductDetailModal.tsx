@@ -445,7 +445,7 @@ function PricePanelHeader({
 				<PriceMetric
 					label="Sell-ready"
 					value={formatDecimalEgp(data.currentSupplierCost)}
-					caption={`Updated ${formatRelative(data.lastUpdatedAt)}`}
+					caption={`Quoted ${formatRelative(data.lastUpdatedAt)}`}
 				/>
 			</div>
 		</header>
