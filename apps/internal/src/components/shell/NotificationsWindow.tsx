@@ -1,6 +1,14 @@
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AtSign, Bell, CheckCircle2, Clock, Truck, X } from 'lucide-react'
+import {
+	AtSign,
+	Bell,
+	CheckCircle2,
+	Clock,
+	Cloud,
+	Truck,
+	X,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
@@ -153,11 +161,13 @@ export function NotificationsWindow({
 			{/* Content */}
 			<div className="min-h-0 flex-1 overflow-auto">
 				{notifications.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-12 gap-3">
-						<Bell size={48} className="text-[var(--color-text-muted)]" />
-						<p className="text-sm text-[var(--color-text-muted)]">
-							{t('notifications.empty', 'No notifications')}
-						</p>
+					<div className="grid h-full min-h-[320px] place-items-center text-center">
+						<div className="flex flex-col items-center justify-center gap-2">
+							<Cloud size={28} className="text-[var(--color-text-muted)]" />
+							<p className="text-sm text-[var(--color-text-muted)]">
+								{t('notifications.empty', 'Calm')}
+							</p>
+						</div>
 					</div>
 				) : (
 					sectionOrder.map((section) => {
