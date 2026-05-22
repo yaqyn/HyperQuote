@@ -818,6 +818,7 @@ async function moveReservedOrderToDelivered(input: {
 	const assigned = await input.warehouseClient.rpc(
 		'warehouse_assign_loading_driver',
 		{
+			p_driver_id: input.truck.driverId,
 			p_order_id: input.order.id,
 			p_truck_id: input.truck.truckId,
 		},

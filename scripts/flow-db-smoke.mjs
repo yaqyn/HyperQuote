@@ -144,6 +144,10 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	)
 
 	const employee = await signIn(env, ACCOUNTS.employee)
+	await mustRpc(employee.client, 'set_employee_presence', {
+		p_active_panel: 'sales',
+		p_status: 'online',
+	})
 	const { data: claimed, error: claimError } = await employee.client.rpc(
 		'sales_claim_order',
 		{ p_order_id: draft.id },
@@ -191,19 +195,9 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	}
 	const orderTotal = Number(order.total_amount)
 	assert(orderTotal > 0, 'sales confirm must create a positive order total')
-	const websiteDraftId = await assertCustomerDraftSaveAudit(
-		customerClient,
-		product,
-		runId,
-		'website',
-	)
-	const portalDraftId = await assertCustomerDraftSaveAudit(
-		customerClient,
-		product,
-		runId,
-		'portal',
-	)
-	const savedAsDraftId = await assertCustomerOrderSaveAsDraftAudit(
+	await assertCustomerDraftSaveAudit(customerClient, product, runId, 'website')
+	await assertCustomerDraftSaveAudit(customerClient, product, runId, 'portal')
+	await assertCustomerOrderSaveAsDraftAudit(
 		customerClient,
 		product,
 		runId,
@@ -293,6 +287,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	const offlineAssign = await employee.client.rpc(
 		'warehouse_assign_loading_driver',
 		{
+			p_driver_id: driverRow.id,
 			p_order_id: order.id,
 			p_truck_id: truckRow.id,
 		},
@@ -312,6 +307,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	const { error: assignError } = await employee.client.rpc(
 		'warehouse_assign_loading_driver',
 		{
+			p_driver_id: driverRow.id,
 			p_order_id: order.id,
 			p_truck_id: truckRow.id,
 		},
@@ -432,11 +428,9 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	)
 
 	return {
+		deliveryId: delivery.id,
 		order,
-		portalDraftId,
 		quoteRequestId: draft.id,
-		savedAsDraftId,
-		websiteDraftId,
 	}
 }
 
@@ -654,28 +648,36 @@ async function assertActivityRecorded(env, auditTargets) {
 	if (error) throw new Error(`Activity audit check failed: ${error.message}`)
 	const actions = new Set((data ?? []).map((row) => row.action))
 	assert(
-		actions.has('quote_request_submitted'),
+		actions.has('order_submitted'),
 		'quote submission must write activity history',
 	)
 	assert(
-		actions.has('portal_order_viewed'),
-		'portal order detail view must write activity history',
+		actions.has('sales_order_claimed'),
+		'sales claim must write activity history',
 	)
-
-	await assertEntityHasActivity(
-		client,
-		auditTargets.websiteDraftId,
-		'website_draft_saved',
+	assert(
+		actions.has('sales_order_confirmed'),
+		'sales confirmation must write activity history',
 	)
 	await assertEntityHasActivity(
 		client,
-		auditTargets.portalDraftId,
-		'portal_draft_saved',
+		auditTargets.order.id,
+		'customer_payment_recorded',
 	)
 	await assertEntityHasActivity(
 		client,
-		auditTargets.savedAsDraftId,
-		'customer_order_saved_as_draft',
+		auditTargets.order.id,
+		'order_stock_reserved',
+	)
+	await assertEntityHasActivity(
+		client,
+		auditTargets.order.id,
+		'warehouse_loading_started',
+	)
+	await assertEntityHasActivity(
+		client,
+		auditTargets.deliveryId,
+		'driver_delivery_confirmed',
 	)
 }
 

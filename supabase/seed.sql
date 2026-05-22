@@ -151,12 +151,13 @@ set
 	tags = excluded.tags,
 	is_stockable = excluded.is_stockable;
 
-insert into public.inventory_stock (product_id, on_hand_quantity, reserved_quantity, minimum_quantity)
-select id, 1000, 0, 100
+insert into public.inventory_stock (product_id, on_hand_quantity, reserved_quantity, minimum_quantity, good_quantity)
+select id, 1000, 0, 100, 1000
 from public.products
 on conflict (product_id) do update
 set on_hand_quantity = excluded.on_hand_quantity,
 	reserved_quantity = excluded.reserved_quantity,
-	minimum_quantity = excluded.minimum_quantity;
+	minimum_quantity = excluded.minimum_quantity,
+	good_quantity = excluded.good_quantity;
 
 select set_config('app.audited_registry_write', '', false);

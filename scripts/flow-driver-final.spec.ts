@@ -131,6 +131,7 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 	const offlineAssign = await warehouseAuth.client.rpc(
 		'warehouse_assign_loading_driver',
 		{
+			p_driver_id: primaryTruck.driverId,
 			p_order_id: completionOrder.orderId,
 			p_truck_id: primaryTruck.truckId,
 		},
@@ -715,6 +716,7 @@ async function assignAndApproveOrder(
 	const assigned = await warehouseClient.rpc(
 		'warehouse_assign_loading_driver',
 		{
+			p_driver_id: truck.driverId,
 			p_order_id: order.orderId,
 			p_truck_id: truck.truckId,
 		},

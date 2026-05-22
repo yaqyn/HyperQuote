@@ -515,6 +515,7 @@ async function createApprovedDispatchOrder(
 		const assigned = await input.warehouseClient.rpc(
 			'warehouse_assign_loading_driver',
 			{
+				p_driver_id: assignment.truck.driverId,
 				p_order_id: order.id,
 				p_truck_id: assignment.truck.truckId,
 			},
