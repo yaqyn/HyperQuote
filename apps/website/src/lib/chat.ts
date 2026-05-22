@@ -9,10 +9,11 @@ import { z } from 'zod'
 import {
 	buildPublicDocsContext,
 	buildWebsiteDocsPrompt,
+	classifyWebsitePublicChatIntent,
+	publicConversationFallbackResponse,
 	publicDocsExtractiveResponse,
 	publicDocsNoAnswerResponse,
 	publicDocsPolicyRefusal,
-	publicDocsSmallTalkResponse,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
 
@@ -100,32 +101,29 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 		const userText = lastMessage?.content ?? ''
 		const chunks: WebsiteStreamChunk[] = []
 		const refusal = publicDocsPolicyRefusal(userText)
-		const smallTalk = publicDocsSmallTalkResponse(userText)
 		let readEntities = ['website_index']
 
 		if (refusal) {
 			for await (const chunk of textOnlyStream(refusal)) {
 				chunks.push(chunk)
 			}
-		} else if (smallTalk) {
-			if (isAIEnabled()) {
-				for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
-					chunks.push(chunk as WebsiteStreamChunk)
-				}
-			} else {
-				for await (const chunk of textOnlyStream(smallTalk)) {
-					chunks.push(chunk)
-				}
-			}
 		} else {
 			const docs = retrieveWebsiteDocs(userText)
-			if (!docs.hasHighConfidence) {
-				for await (const chunk of textOnlyStream(
-					publicDocsNoAnswerResponse(docs.locale),
-				)) {
-					chunks.push(chunk)
+			const intent = classifyWebsitePublicChatIntent(userText, docs)
+
+			if (intent === 'conversational') {
+				if (isAIEnabled()) {
+					for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
+						chunks.push(chunk as WebsiteStreamChunk)
+					}
+				} else {
+					for await (const chunk of textOnlyStream(
+						publicConversationFallbackResponse(userText),
+					)) {
+						chunks.push(chunk)
+					}
 				}
-			} else if (isAIEnabled()) {
+			} else if (intent === 'public_docs' && isAIEnabled()) {
 				readEntities = ['public_docs']
 				const groundedPrompt = buildWebsiteDocsPrompt(
 					LYON_WEBSITE,
@@ -134,10 +132,16 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				for await (const chunk of streamChat(input.messages, groundedPrompt)) {
 					chunks.push(chunk as WebsiteStreamChunk)
 				}
-			} else {
+			} else if (intent === 'public_docs') {
 				readEntities = ['public_docs']
 				for await (const chunk of textOnlyStream(
 					publicDocsExtractiveResponse(docs.chunks, docs.locale),
+				)) {
+					chunks.push(chunk)
+				}
+			} else {
+				for await (const chunk of textOnlyStream(
+					publicDocsNoAnswerResponse(docs.locale),
 				)) {
 					chunks.push(chunk)
 				}

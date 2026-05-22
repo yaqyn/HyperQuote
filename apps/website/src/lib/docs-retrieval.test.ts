@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
 	buildPublicDocsContext,
+	classifyWebsitePublicChatIntent,
+	publicConversationFallbackResponse,
 	publicDocsPolicyRefusal,
-	publicDocsSmallTalkResponse,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
 
@@ -53,13 +54,44 @@ describe('website docs retrieval', () => {
 		assert.deepEqual(result.chunks, [])
 	})
 
-	it('answers greetings before the low-confidence docs fallback', () => {
-		assert.match(publicDocsSmallTalkResponse('hey') ?? '', /I’m Lyon/)
-		assert.match(publicDocsSmallTalkResponse('how are you?') ?? '', /I’m Lyon/)
-		assert.match(publicDocsSmallTalkResponse('اهلا') ?? '', /تمام يا زميلي/)
+	it('routes friendly and meta chat outside the docs fallback', () => {
+		for (const message of [
+			'hey',
+			'how are you?',
+			'is this a real AI?',
+			'this is shit lmao',
+			'tell me a joke',
+			'اهلا',
+			'عامل إيه؟',
+		]) {
+			const docs = retrieveWebsiteDocs(message)
+			assert.equal(
+				classifyWebsitePublicChatIntent(message, docs),
+				'conversational',
+				message,
+			)
+		}
+		assert.match(publicConversationFallbackResponse('hey'), /I’m here/)
 		assert.match(
-			publicDocsSmallTalkResponse('عامل إيه؟') ?? '',
+			publicConversationFallbackResponse('عامل إيه؟'),
 			/تمام يا زميلي/,
+		)
+	})
+
+	it('routes public HyperQuote questions to docs even when they are casual', () => {
+		const message = 'lol why are there no published prices?'
+		assert.equal(
+			classifyWebsitePublicChatIntent(message, retrieveWebsiteDocs(message)),
+			'public_docs',
+		)
+	})
+
+	it('routes factual questions outside HyperQuote docs to the boundary fallback', () => {
+		const message =
+			'How do I configure Kubernetes ingress for a movie streaming app?'
+		assert.equal(
+			classifyWebsitePublicChatIntent(message, retrieveWebsiteDocs(message)),
+			'out_of_scope',
 		)
 	})
 

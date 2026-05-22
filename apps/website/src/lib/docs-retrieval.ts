@@ -114,6 +114,21 @@ const EN_GREETING_PATTERN =
 const AR_GREETING_PATTERN =
 	/^(السلام عليكم|سلام عليكم|سلام|اهلا|أهلا|اهلين|أهلين|هاي|هلا|صباح الخير|مساء الخير|ازيك|عامل ايه|عامل إيه|عامله ايه|عاملة إيه|شكرا|تسلم|تمام|الحمد لله)[\s!.؟]*$/
 
+const EN_CONVERSATIONAL_PATTERN =
+	/\b(are you real|real ai|who are you|what are you|how are you|how's it going|how is it going|what can you do|can you talk|talk normal|be normal|joke|funny|lol|lmao|haha|bro|mate|thanks|thank you|sorry|my bad|that was bad|this is shit|you suck|nice|cool|ok|okay|great|test)\b/i
+
+const AR_CONVERSATIONAL_PATTERN =
+	/(انت مين|إنت مين|ذكاء اصطناعي|عامل ايه|عامل إيه|ازيك|بتعمل ايه|بتعمل إيه|هزار|نكتة|اضحك|شكرا|اسف|آسف|تمام|حلو|جامد|اختبار|كلم|اتكلم|طبيعي)/
+
+const FACTUAL_QUESTION_PATTERN =
+	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix)\b|\?/i
+
+const PUBLIC_DOCS_TOPIC_PATTERN =
+	/\b(hyperquote|lyon|quote|quotes|rfq|price|prices|pricing|delivery|deliveries|payment|payments|market|catalog|product|products|order|orders|support|portal|supplier|driver|invoice|vat|eta|cairo|truck)\b/i
+
+const AR_PUBLIC_DOCS_TOPIC_PATTERN =
+	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن)/
+
 interface DocsChunk {
 	article: LocalizedDocContent
 	heading: string
@@ -145,6 +160,11 @@ export interface DocsRetrievalResult {
 	locale: DocsLocale
 	queryTokens: string[]
 }
+
+export type WebsitePublicChatIntent =
+	| 'conversational'
+	| 'out_of_scope'
+	| 'public_docs'
 
 interface RetrievalOptions {
 	maxChunks?: number
@@ -179,17 +199,51 @@ export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
 	return 'I do not have that in the public HyperQuote docs. I can only answer from public docs, such as quotes, delivery, payments, Market, support, or Lyon.'
 }
 
-export function publicDocsSmallTalkResponse(
+export function classifyWebsitePublicChatIntent(
 	userMessage: string,
-): string | null {
+	docs: DocsRetrievalResult,
+): WebsitePublicChatIntent {
+	if (docs.hasHighConfidence && isPublicDocsSeekingMessage(userMessage)) {
+		return 'public_docs'
+	}
+	if (isConversationalMessage(userMessage)) return 'conversational'
+	if (docs.hasHighConfidence) return 'public_docs'
+	return 'out_of_scope'
+}
+
+export function publicConversationFallbackResponse(
+	userMessage: string,
+): string {
+	return detectDocsQueryLocale(userMessage) === 'ar'
+		? 'تمام يا زميلي، قولّي تحب نبدأ بإيه؟'
+		: 'I’m here. What do you want to figure out?'
+}
+
+function isConversationalMessage(userMessage: string): boolean {
 	const trimmed = userMessage.trim()
-	if (EN_GREETING_PATTERN.test(trimmed)) {
-		return 'Hey, I’m Lyon. Ask me about HyperQuote quotes, delivery, payments, Market, support, or Lyon.'
+	if (!trimmed) return true
+	if (EN_GREETING_PATTERN.test(trimmed) || AR_GREETING_PATTERN.test(trimmed)) {
+		return true
 	}
-	if (AR_GREETING_PATTERN.test(trimmed)) {
-		return 'تمام يا زميلي، اسألني عن عروض هايبركوت، التوصيل، الدفع، السوق، الدعم، أو ليون.'
+	if (
+		EN_CONVERSATIONAL_PATTERN.test(trimmed) ||
+		AR_CONVERSATIONAL_PATTERN.test(trimmed)
+	) {
+		return true
 	}
-	return null
+
+	const tokens = tokenize(trimmed, detectDocsQueryLocale(trimmed))
+	if (tokens.length <= 5 && !FACTUAL_QUESTION_PATTERN.test(trimmed)) return true
+
+	return false
+}
+
+function isPublicDocsSeekingMessage(userMessage: string): boolean {
+	if (!FACTUAL_QUESTION_PATTERN.test(userMessage)) return false
+	return (
+		PUBLIC_DOCS_TOPIC_PATTERN.test(userMessage) ||
+		AR_PUBLIC_DOCS_TOPIC_PATTERN.test(userMessage)
+	)
 }
 
 export function publicDocsExtractiveResponse(
