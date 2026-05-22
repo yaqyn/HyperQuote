@@ -1,4 +1,9 @@
-import { isAIEnabled, LYON_WEBSITE, streamChat } from '@hyperquote/ai'
+import {
+	completeChat,
+	isAIEnabled,
+	LYON_WEBSITE,
+	streamChat,
+} from '@hyperquote/ai'
 import {
 	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
@@ -10,10 +15,14 @@ import {
 	buildPublicDocsContext,
 	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
+	parseWebsiteChatRoute,
 	publicDocsExtractiveResponse,
+	publicDocsNoAnswerResponse,
 	publicDocsPolicyRefusal,
 	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
+	WEBSITE_CHAT_ROUTER_PROMPT,
+	type WebsitePublicChatRoute,
 } from './docs-retrieval'
 
 // AG-UI events carry `rawEvent?: unknown` and some variants a
@@ -107,11 +116,13 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				chunks.push(chunk)
 			}
 		} else {
-			const docs = retrieveWebsiteDocs(userText)
-			const intent = classifyWebsitePublicChatIntent(userText, docs)
+			const aiEnabled = isAIEnabled()
+			const route = aiEnabled
+				? await routeWebsitePublicChat(input.messages, userText)
+				: fallbackWebsitePublicChatRoute(userText)
 
-			if (intent === 'conversational') {
-				if (isAIEnabled()) {
+			if (route.action === 'chat') {
+				if (aiEnabled) {
 					for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
 						chunks.push(chunk as WebsiteStreamChunk)
 					}
@@ -122,24 +133,39 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 						chunks.push(chunk)
 					}
 				}
-			} else if (intent === 'public_docs' && isAIEnabled()) {
+			} else if (aiEnabled) {
 				readEntities = ['public_docs']
-				const groundedPrompt = buildWebsiteDocsPrompt(
-					LYON_WEBSITE,
-					buildPublicDocsContext(docs.chunks),
-				)
-				for await (const chunk of streamChat(input.messages, groundedPrompt)) {
-					chunks.push(chunk as WebsiteStreamChunk)
+				const docs = retrieveRoutedDocs(route, userText)
+				if (!docs.hasHighConfidence) {
+					for await (const chunk of textOnlyStream(
+						publicDocsNoAnswerResponse(docs.locale),
+					)) {
+						chunks.push(chunk)
+					}
+				} else {
+					const groundedPrompt = buildWebsiteDocsPrompt(
+						LYON_WEBSITE,
+						buildPublicDocsContext(docs.chunks),
+					)
+					for await (const chunk of streamChat(
+						input.messages,
+						groundedPrompt,
+					)) {
+						chunks.push(chunk as WebsiteStreamChunk)
+					}
+					appendDocsSourcesIfMissing(
+						chunks,
+						publicDocsSourceLinks(docs.chunks, docs.locale),
+						docs.locale,
+					)
 				}
-				appendDocsSourcesIfMissing(
-					chunks,
-					publicDocsSourceLinks(docs.chunks, docs.locale),
-					docs.locale,
-				)
-			} else if (intent === 'public_docs') {
+			} else {
 				readEntities = ['public_docs']
+				const docs = retrieveRoutedDocs(route, userText)
 				for await (const chunk of textOnlyStream(
-					publicDocsExtractiveResponse(docs.chunks, docs.locale),
+					docs.hasHighConfidence
+						? publicDocsExtractiveResponse(docs.chunks, docs.locale)
+						: publicDocsNoAnswerResponse(docs.locale),
 				)) {
 					chunks.push(chunk)
 				}
@@ -153,20 +179,66 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 		return chunks
 	})
 
+async function routeWebsitePublicChat(
+	messages: { role: 'user' | 'assistant'; content: string }[],
+	userText: string,
+): Promise<WebsitePublicChatRoute> {
+	try {
+		const rawRoute = await completeChat(
+			recentRouteMessages(messages),
+			WEBSITE_CHAT_ROUTER_PROMPT,
+			{ temperature: 0 },
+		)
+		return parseWebsiteChatRoute(rawRoute, userText)
+	} catch {
+		return fallbackWebsitePublicChatRoute(userText)
+	}
+}
+
+function recentRouteMessages(
+	messages: { role: 'user' | 'assistant'; content: string }[],
+) {
+	return messages.slice(-6).map((message) => ({
+		role: message.role,
+		content: message.content.slice(0, 1200),
+	}))
+}
+
+function fallbackWebsitePublicChatRoute(
+	userText: string,
+): WebsitePublicChatRoute {
+	const docs = retrieveWebsiteDocs(userText)
+	return classifyWebsitePublicChatIntent(userText, docs) === 'public_docs'
+		? { action: 'retrieve_public_docs', searchQuery: userText }
+		: { action: 'chat', searchQuery: '' }
+}
+
+function retrieveRoutedDocs(route: WebsitePublicChatRoute, userText: string) {
+	const routeQuery = route.searchQuery.trim()
+	const searchQuery = routeQuery ? `${userText} ${routeQuery}` : userText
+	const docs = retrieveWebsiteDocs(searchQuery)
+	if (docs.hasHighConfidence || !routeQuery) return docs
+
+	const fallbackDocs = retrieveWebsiteDocs(userText)
+	return fallbackDocs.hasHighConfidence ? fallbackDocs : docs
+}
+
 function appendDocsSourcesIfMissing(
 	chunks: WebsiteStreamChunk[],
 	sources: string,
 	locale: 'ar' | 'en',
 ) {
 	if (!sources) return
-	const response = assistantText(chunks)
+	let response = assistantText(chunks)
 	if (
 		!response.trim() ||
-		/\/docs\//.test(response) ||
+		/\]\(\/docs\//.test(response) ||
 		/AI unavailable/i.test(response)
 	) {
 		return
 	}
+	response = stripTrailingPlainDocsSources(chunks, response)
+	if (!response.trim()) return
 
 	const messageId = chunks.find(
 		(chunk) => chunk.type === 'TEXT_MESSAGE_START',
@@ -186,6 +258,36 @@ function appendDocsSourcesIfMissing(
 		return
 	}
 	chunks.push(sourceChunk)
+}
+
+function stripTrailingPlainDocsSources(
+	chunks: WebsiteStreamChunk[],
+	response: string,
+): string {
+	const cleaned = response
+		.replace(
+			/(?:^|\n)\s*(?:Sources?|المصادر)\s*:\s*[^\n]*\/docs\/[^\n]*\s*$/i,
+			'',
+		)
+		.trimEnd()
+	if (cleaned === response) return response
+
+	replaceAssistantText(chunks, cleaned)
+	return cleaned
+}
+
+function replaceAssistantText(chunks: WebsiteStreamChunk[], text: string) {
+	const contentIndexes = chunks.reduce<number[]>((indexes, chunk, index) => {
+		if (chunk.type === 'TEXT_MESSAGE_CONTENT') indexes.push(index)
+		return indexes
+	}, [])
+	const [firstIndex, ...restIndexes] = contentIndexes
+	if (firstIndex === undefined) return
+	const firstChunk = chunks[firstIndex]
+	if (firstChunk?.type === 'TEXT_MESSAGE_CONTENT') firstChunk.delta = text
+	for (const index of restIndexes.reverse()) {
+		chunks.splice(index, 1)
+	}
 }
 
 function assistantText(chunks: WebsiteStreamChunk[]): string {

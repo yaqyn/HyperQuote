@@ -4,9 +4,12 @@ import {
 	buildPublicDocsContext,
 	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
+	parseWebsiteChatRoute,
 	publicDocsExtractiveResponse,
 	publicDocsPolicyRefusal,
+	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
+	WEBSITE_CHAT_ROUTER_PROMPT,
 } from './docs-retrieval'
 
 describe('website docs retrieval', () => {
@@ -46,6 +49,22 @@ describe('website docs retrieval', () => {
 		assert.match(context, /price|quote/i)
 	})
 
+	it('prefers customer invoicing docs for buyer VAT recovery questions', () => {
+		const result = retrieveWebsiteDocs(
+			'can I recover tax on my HyperQuote invoice? HyperQuote invoice tax VAT recovery withholding tax',
+		)
+
+		assert.equal(result.hasHighConfidence, true)
+		assert.equal(result.chunks[0]?.href, '/docs/payments/invoicing')
+		assert.notEqual(result.chunks[1]?.categorySlug, 'supplier-portal')
+		assert.equal(
+			publicDocsSourceLinks(result.chunks, result.locale).match(
+				/\(\/docs\/payments\/invoicing\)/g,
+			)?.length,
+			1,
+		)
+	})
+
 	it('prompts AI to simplify docs instead of copying them', () => {
 		const result = retrieveWebsiteDocs('Why are there no published prices?')
 		const prompt = buildWebsiteDocsPrompt(
@@ -56,6 +75,7 @@ describe('website docs retrieval', () => {
 		assert.match(prompt, /only source/)
 		assert.match(prompt, /Explain the answer simply/)
 		assert.match(prompt, /Do not copy long wording/)
+		assert.match(prompt, /app appends exact source links/)
 	})
 
 	it('keeps the non-AI docs fallback short and source-linked', () => {
@@ -117,6 +137,49 @@ describe('website docs retrieval', () => {
 			classifyWebsitePublicChatIntent(message, retrieveWebsiteDocs(message)),
 			'conversational',
 		)
+	})
+
+	it('parses model router decisions for public docs retrieval', () => {
+		assert.deepEqual(
+			parseWebsiteChatRoute(
+				'{"action":"retrieve_public_docs","search_query":"HyperQuote VAT invoices input VAT recovery"}',
+				'can I recover tax?',
+			),
+			{
+				action: 'retrieve_public_docs',
+				searchQuery: 'HyperQuote VAT invoices input VAT recovery',
+			},
+		)
+		assert.deepEqual(
+			parseWebsiteChatRoute(
+				'```json\n{"action":"retrieve_public_docs","search_query":""}\n```',
+				'tell me about delivery',
+			),
+			{
+				action: 'retrieve_public_docs',
+				searchQuery: 'tell me about delivery',
+			},
+		)
+	})
+
+	it('treats malformed or conversational router output as chat', () => {
+		assert.deepEqual(parseWebsiteChatRoute('hello there', 'hi'), {
+			action: 'chat',
+			searchQuery: '',
+		})
+		assert.deepEqual(
+			parseWebsiteChatRoute(
+				'{"action":"chat","search_query":"HyperQuote VAT"}',
+				'thanks',
+			),
+			{ action: 'chat', searchQuery: '' },
+		)
+	})
+
+	it('prompts the router to return JSON and request docs for follow-ups', () => {
+		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /Return JSON only/)
+		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /retrieve_public_docs/)
+		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /indirect follow-ups/)
 	})
 
 	it('detects private/account-scope requests in English and Arabic', () => {

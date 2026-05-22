@@ -30,11 +30,22 @@ interface GroqSSEChunk {
 	error?: { message?: string } | string
 }
 
+interface GroqCompletionResponse {
+	choices?: Array<{
+		message?: { content?: string }
+	}>
+	error?: { message?: string } | string
+}
+
 interface GroqEnv {
 	apiKey: string
 	model: string
 	reasoningEffort?: string
 	url: string
+}
+
+interface ChatCompletionOptions {
+	temperature?: number
 }
 
 function readGroqEnv(): GroqEnv {
@@ -205,4 +216,57 @@ export async function* streamChat(
 		runId,
 		finishReason: 'stop' as const,
 	}
+}
+
+export async function completeChat(
+	messages: { role: 'user' | 'assistant'; content: string }[],
+	systemPrompt: string,
+	options: ChatCompletionOptions = {},
+): Promise<string> {
+	const groq = readGroqEnv()
+	if (!groq.apiKey) {
+		throw new Error('GROQ_API_KEY is not set')
+	}
+
+	const payload = {
+		model: groq.model,
+		messages: [
+			{ role: 'system', content: systemPrompt } as ChatMessage,
+			...messages.map(
+				(m) => ({ role: m.role, content: m.content }) as ChatMessage,
+			),
+		],
+		stream: false,
+		...(options.temperature !== undefined
+			? { temperature: options.temperature }
+			: {}),
+		...(groq.reasoningEffort ? { reasoning_effort: groq.reasoningEffort } : {}),
+	}
+
+	const resp = await fetch(groq.url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${groq.apiKey}`,
+		},
+		body: JSON.stringify(payload),
+	})
+	const responseText = await resp.text().catch(() => '')
+	if (!resp.ok) {
+		throw new Error(
+			`Groq HTTP ${resp.status}${responseText ? ` — ${responseText}` : ''}`,
+		)
+	}
+
+	const parsed = JSON.parse(responseText) as GroqCompletionResponse
+	if (parsed.error) {
+		const msg =
+			typeof parsed.error === 'string'
+				? parsed.error
+				: (parsed.error.message ?? 'Groq error')
+		throw new Error(msg)
+	}
+	const content = parsed.choices?.[0]?.message?.content
+	if (!content) throw new Error('Groq returned an empty completion')
+	return content
 }

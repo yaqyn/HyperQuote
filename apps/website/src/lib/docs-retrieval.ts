@@ -117,6 +117,12 @@ const PUBLIC_DOCS_TOPIC_PATTERN =
 const AR_PUBLIC_DOCS_TOPIC_PATTERN =
 	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن)/
 
+const CUSTOMER_TAX_QUERY_PATTERN =
+	/(\b(my|buyer|customer|client)\b.*\b(invoice|invoices|vat|tax|recover|reclaim|input)\b|\b(invoice|invoices|vat|tax|recover|reclaim|input)\b.*\b(my|buyer|customer|client)\b)/i
+
+const SUPPLIER_TAX_QUERY_PATTERN =
+	/\b(supplier|purchase order|purchase orders|po|withholding)\b/i
+
 interface DocsChunk {
 	article: LocalizedDocContent
 	heading: string
@@ -151,10 +157,30 @@ export interface DocsRetrievalResult {
 
 export type WebsitePublicChatIntent = 'conversational' | 'public_docs'
 
+export type WebsitePublicChatRouteAction = 'chat' | 'retrieve_public_docs'
+
+export interface WebsitePublicChatRoute {
+	action: WebsitePublicChatRouteAction
+	searchQuery: string
+}
+
 interface RetrievalOptions {
 	maxChunks?: number
 	maxContextCharacters?: number
 }
+
+export const WEBSITE_CHAT_ROUTER_PROMPT = `You are Lyon's routing layer for the public HyperQuote website.
+Decide whether the next assistant response should answer naturally or retrieve public HyperQuote docs first.
+Return JSON only. Do not answer the user. Do not use markdown.
+
+Schema:
+{"action":"chat"|"retrieve_public_docs","search_query":"string"}
+
+Use "retrieve_public_docs" when the user asks for factual public HyperQuote information, docs, policies, quotes, pricing, VAT/taxes, invoices, payments, delivery, Cairo delivery rules, Market/catalog/products, support, portal usage, or Lyon's public product behavior.
+Use "retrieve_public_docs" for indirect follow-ups that refer to a previous HyperQuote/docs topic, such as "what about taxes there?" or "how does that work?"
+Use "chat" for greetings, small talk, jokes, complaints, meta conversation, or general non-HyperQuote questions.
+
+For "retrieve_public_docs", write a concise search_query for the docs retriever with concrete HyperQuote terms and synonyms. Keep Arabic queries Arabic when the user is clearly Arabic.`
 
 const DEFAULT_MAX_CHUNKS = 4
 const DEFAULT_CONTEXT_CHARACTERS = 6400
@@ -187,6 +213,36 @@ export function classifyWebsitePublicChatIntent(
 	return 'conversational'
 }
 
+export function parseWebsiteChatRoute(
+	rawResponse: string,
+	userMessage: string,
+): WebsitePublicChatRoute {
+	const jsonText = extractJsonObject(rawResponse)
+	if (!jsonText) return { action: 'chat', searchQuery: '' }
+
+	try {
+		const parsed: unknown = JSON.parse(jsonText)
+		if (!isRecord(parsed)) return { action: 'chat', searchQuery: '' }
+		if (parsed.action !== 'retrieve_public_docs') {
+			return { action: 'chat', searchQuery: '' }
+		}
+		const searchQuery =
+			typeof parsed.search_query === 'string' && parsed.search_query.trim()
+				? parsed.search_query.trim()
+				: userMessage.trim()
+		return { action: 'retrieve_public_docs', searchQuery }
+	} catch {
+		return { action: 'chat', searchQuery: '' }
+	}
+}
+
+export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
+	if (locale === 'ar') {
+		return 'مش لاقي إجابة موثوقة للموضوع ده في وثائق هايبركوت العامة.'
+	}
+	return 'I do not see a reliable answer for that in the public HyperQuote docs.'
+}
+
 function isPublicDocsSeekingMessage(userMessage: string): boolean {
 	if (!FACTUAL_QUESTION_PATTERN.test(userMessage)) return false
 	return (
@@ -215,7 +271,12 @@ export function publicDocsSourceLinks(
 	chunks: RetrievedDocsChunk[],
 	locale: DocsLocale,
 ): string {
-	return chunks
+	const uniqueChunks = chunks.filter((chunk, index) => {
+		return (
+			chunks.findIndex((candidate) => candidate.href === chunk.href) === index
+		)
+	})
+	return uniqueChunks
 		.map((chunk) => {
 			const label =
 				locale === 'ar'
@@ -310,7 +371,9 @@ export function buildWebsiteDocsPrompt(
 Use the public docs below as the only source for factual HyperQuote answers.
 Explain the answer simply for a customer. Do not copy long wording from the docs.
 If the docs do not answer the question, say it is not in the public docs.
-Cite the relevant /docs/... source links.
+Do not write a separate sources line or raw /docs paths; the app appends exact source links.
+Do not add adjacent tax, legal, finance, supplier, or accounting topics unless the user directly asks and the retrieved docs support them.
+For VAT, tax, legal, and compliance questions, avoid absolute advice; mention eligibility, registration, and valid documentation when relevant.
 
 Public docs context:
 ${publicDocsContext}`
@@ -420,6 +483,30 @@ function scoreChunk(
 	) {
 		score += 6
 	}
+	if (CUSTOMER_TAX_QUERY_PATTERN.test(rawQuery)) {
+		if (
+			chunk.article.categorySlug === 'payments' &&
+			chunk.article.articleSlug === 'invoicing'
+		) {
+			score += 22
+			if (/vat|input vat|reclaim/i.test(chunk.normalizedBody)) score += 8
+			if (/vat handling/i.test(chunk.heading)) score += 12
+		}
+		if (
+			chunk.article.categorySlug === 'payments' &&
+			chunk.article.articleSlug === 'eta-compliance'
+		) {
+			score += 8
+		}
+		if (chunk.article.categorySlug === 'supplier-portal') score -= 28
+	}
+	if (
+		SUPPLIER_TAX_QUERY_PATTERN.test(rawQuery) &&
+		!CUSTOMER_TAX_QUERY_PATTERN.test(rawQuery) &&
+		chunk.article.categorySlug === 'supplier-portal'
+	) {
+		score += 10
+	}
 
 	return score
 }
@@ -490,6 +577,19 @@ function trimChunkBody(body: string): string {
 	const normalized = body.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n')
 	if (normalized.length <= 1700) return normalized
 	return `${normalized.slice(0, 1690).trim()}...`
+}
+
+function extractJsonObject(rawResponse: string): string | null {
+	const fenced = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]
+	if (fenced) return fenced.trim()
+	const start = rawResponse.indexOf('{')
+	const end = rawResponse.lastIndexOf('}')
+	if (start < 0 || end <= start) return null
+	return rawResponse.slice(start, end + 1)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
 }
 
 function simpleFallbackLine(chunk: RetrievedDocsChunk): string {
