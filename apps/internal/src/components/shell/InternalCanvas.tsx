@@ -1,6 +1,6 @@
 import { type AuthSession, hasPermission } from '@hyperquote/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
+import { Bell, ChevronDown, type LucideIcon, PanelsTopLeft } from 'lucide-react'
 import {
 	AnimatePresence,
 	cubicBezier,
@@ -20,6 +20,7 @@ import { MODULES } from '../../lib/modules'
 import { validateCurrentInternalPassword } from '../../lib/server/internal-auth'
 import { getUrgentItems } from '../../lib/server/urgent-items'
 import { useInternalStore } from '../../stores/internal'
+import { useNotificationStore } from '../../stores/notifications'
 import { AppActionsMenu } from './AppActionsMenu'
 
 /**
@@ -187,6 +188,8 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 	const now = useCurrentTime()
 	const time = now ? formatTime(now) : '--:--'
 	const setActiveModule = useInternalStore((s) => s.setActiveModule)
+	const unreadNotifications = useNotificationStore((s) => s.unreadCount)
+	const toggleNotifications = useNotificationStore((s) => s.toggleWindow)
 	const [awayActive, setAwayActive] = useState(false)
 	const canLockFromClock = useMediaQuery('(min-width: 640px)')
 	const reduceMotion = useReducedMotion()
@@ -262,6 +265,24 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 					}`}
 				>
 					<Clock time={time} />
+				</button>
+				<button
+					type="button"
+					onClick={toggleNotifications}
+					className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
+				>
+					<Bell
+						aria-hidden="true"
+						size={16}
+						strokeWidth={1.8}
+						className="text-[var(--color-primary)]"
+					/>
+					<span>Notifications</span>
+					{unreadNotifications > 0 && (
+						<span className="min-w-5 rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-center font-[family-name:var(--font-plex-mono)] text-[10px] leading-none text-white tabular-nums">
+							{unreadNotifications.toLocaleString('en-EG')}
+						</span>
+					)}
 				</button>
 				<motion.p
 					initial={{ opacity: 0, y: 8 }}
