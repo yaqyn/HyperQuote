@@ -41,22 +41,32 @@ export function ProcurementTabStrip() {
 				{CHAPTERS.map((chapter) => {
 					const isActive = chapter.id === activeTab
 					const alert = totals.attention[chapter.id]
+					const hasPendingPriceRequest =
+						chapter.id === 'procurement' && totals.pendingRequests > 0
 					return (
 						<li key={chapter.id} className="relative min-w-0 flex-1">
 							<Button
 								onPress={() => setActiveTab(chapter.id)}
 								aria-current={isActive ? 'page' : undefined}
 								className={`group relative flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md px-3 text-start outline-none transition-colors data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--compendium-brand)]/35 ${
-									isActive
-										? 'bg-black/[0.035] text-[var(--ink)]'
-										: 'text-[var(--ink-soft)] hover:bg-black/[0.025]'
+									hasPendingPriceRequest
+										? 'bg-red-500/[0.1] text-red-700 hover:bg-red-500/[0.14] dark:text-red-300'
+										: isActive
+											? 'bg-black/[0.035] text-[var(--ink)]'
+											: 'text-[var(--ink-soft)] hover:bg-black/[0.025]'
 								}`}
 							>
 								<span className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold leading-none">
 									{chapter.title}
 								</span>
 								{alert > 0 && (
-									<span className="shrink-0 rounded-sm bg-[var(--compendium-attention)]/[0.1] px-1.5 py-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums text-[var(--compendium-attention)]">
+									<span
+										className={`shrink-0 rounded-sm px-1.5 py-0.5 font-[family-name:var(--font-geist-mono)] text-[10px] font-semibold tabular-nums ${
+											hasPendingPriceRequest
+												? 'bg-red-500/[0.14] text-red-700 dark:text-red-300'
+												: 'bg-[var(--compendium-attention)]/[0.1] text-[var(--compendium-attention)]'
+										}`}
+									>
 										{alert}
 									</span>
 								)}

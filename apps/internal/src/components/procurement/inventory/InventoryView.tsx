@@ -208,6 +208,7 @@ function PriceEntry({
 	const toneColor =
 		tone === 'fresh' ? 'var(--compendium-fresh)' : 'var(--compendium-attention)'
 	const hasAttention = tone !== 'fresh' || product.pendingRequestCount > 0
+	const hasSalesPriceRequest = product.pendingRequestCount > 0
 	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
 
 	return (
@@ -240,15 +241,32 @@ function PriceEntry({
 					<span className="md:hidden font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
 						Title
 					</span>
-					<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-5 text-[var(--ink)]">
+					<h3
+						className={`min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-5 ${
+							hasSalesPriceRequest
+								? 'text-red-700 dark:text-red-300'
+								: 'text-[var(--ink)]'
+						}`}
+					>
 						{product.name}
 					</h3>
-					<p className="mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+					<p
+						className={`mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] ${
+							hasSalesPriceRequest
+								? 'text-red-700/80 dark:text-red-300/80'
+								: 'text-[var(--ink-mid)]'
+						}`}
+					>
 						{product.supplierName}
 						{product.allSupplierNames.length > 1
 							? ` +${product.allSupplierNames.length - 1} suppliers`
 							: ''}
 					</p>
+					{hasSalesPriceRequest && (
+						<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-red-700 dark:text-red-300">
+							Sales waiting · {product.pendingRequestCount}
+						</p>
+					)}
 				</button>
 
 				<button

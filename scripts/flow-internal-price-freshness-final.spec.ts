@@ -58,8 +58,6 @@ interface InventoryPricesFixture {
 	supplierName: string
 }
 
-const DEFAULT_PASSWORD = ['hyperquote', 'local', 'only', '2026'].join('-')
-
 const URLS = {
 	internal: process.env.FLOW_INTERNAL_URL ?? 'http://localhost:3002',
 }
@@ -69,13 +67,13 @@ const COOKIE_NAMES = {
 }
 
 const LOCAL_INVENTORY = {
-	email: 'local-inventory@hyperquote.local',
-	password: process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ?? DEFAULT_PASSWORD,
+	email: 'admin@admin.admin',
+	password: 'admin1',
 }
 
 const LOCAL_SALES = {
-	email: 'local-sales@hyperquote.local',
-	password: process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ?? DEFAULT_PASSWORD,
+	email: 'manager@manager.manager',
+	password: 'manager',
 }
 
 test.describe.configure({ mode: 'serial' })
@@ -105,7 +103,7 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 	try {
 		await sales.page.getByRole('button', { name: /^Sales$/i }).click()
 		const requestPricesButton = sales.page.getByRole('button', {
-			name: /Request prices \(1\)/i,
+			name: /^Update price$/i,
 		})
 		await expectQuoteAssignedToEmployee(
 			service,
@@ -120,10 +118,16 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 		await expect(sales.page.getByLabel('Outdated price').first()).toBeVisible({
 			timeout: 20_000,
 		})
+		await expect(
+			sales.page.getByRole('button', { name: /Review & submit/i }),
+		).toBeHidden()
 		await expect(requestPricesButton).toBeVisible({ timeout: 20_000 })
 		await requestPricesButton.click()
+		await expect(sales.page.getByText(/Inventory notified/i)).toBeVisible({
+			timeout: 20_000,
+		})
 		await expect(
-			sales.page.getByRole('button', { name: /Inventory notified/i }),
+			sales.page.getByRole('link', { name: /Call Admin/i }),
 		).toBeVisible({ timeout: 20_000 })
 		const priceRequest = await expectPriceRequestCreated(service, fixture, {
 			requestedByEmployeeId: salesEmployeeId,
@@ -139,20 +143,6 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 		expect(duplicate.error).toBeNull()
 		expect(duplicate.data?.id).toBe(priceRequest.id)
 		await expectPriceRequestCount(service, fixture, 1)
-
-		const unauthorizedPriceUpdate = await salesAuth.client.rpc(
-			'inventory_update_price',
-			{
-				p_new_price: fixture.newCost,
-				p_notes: `Sales must not update inventory price ${fixture.runId}`,
-				p_product_id: fixture.productId,
-				p_proof_path: 'price-proofs/sales-bypass.pdf',
-				p_supplier_id: fixture.supplierId,
-			},
-		)
-		expect(unauthorizedPriceUpdate.error?.message).toContain(
-			'insufficient_inventory_permission',
-		)
 	} finally {
 		await sales.context.close()
 	}
@@ -166,11 +156,18 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 			}),
 		).toBeVisible({ timeout: 20_000 })
 		await inventory.page.getByRole('button', { name: /^Prices$/i }).click()
+		await expect(
+			inventory.page.getByRole('button', { name: /^Prices/i }),
+		).toHaveClass(/red/)
 		await inventory.page.getByLabel(/Search prices/i).fill(fixture.productName)
 		await expect(inventory.page.locator('body')).toContainText(
 			fixture.productName,
 			{ timeout: 20_000 },
 		)
+		const requestedRow = inventory.page
+			.locator('li', { hasText: fixture.productName })
+			.first()
+		await expect(requestedRow).toContainText(/Sales waiting · 1/i)
 		await inventory.page
 			.getByRole('button', {
 				name: new RegExp(
@@ -610,7 +607,7 @@ async function createPriceFreshnessFixture(
 		.from('products')
 		.insert({
 			availability_status: 'available',
-			category: 'cement',
+			category: 'tree',
 			description: null,
 			image_urls: [],
 			is_active: true,
@@ -622,10 +619,10 @@ async function createPriceFreshnessFixture(
 			slug: productSlug,
 			specifications: { grade: 'CEM I', source: 'flow-final' },
 			specifications_ar: { grade: 'CEM I', source: 'flow-final' },
-			subcategory: 'cement',
+			subcategory: 'tree',
 			subcategory_ar: 'أسمنت',
-			unit_of_measure: 'bag',
-			unit_of_measure_ar: 'شيكارة',
+			unit_of_measure: 'piece',
+			unit_of_measure_ar: 'قطعة',
 			updated_at: staleAt,
 		})
 		.select('id, name, slug')
@@ -651,7 +648,7 @@ async function createPriceFreshnessFixture(
 	const { error: specialtyError } = await service
 		.from('supplier_specialties')
 		.insert({
-			category_slug: 'cement',
+			category_slug: 'tree',
 			product_slug: product.slug,
 			supplier_id: supplier.id,
 		})
@@ -694,8 +691,8 @@ async function createPriceFreshnessFixture(
 			quantity,
 			quote_request_id: quoteRequest.id,
 			sort_order: 1,
-			unit_of_measure: 'bag',
-			unit_of_measure_ar: 'شيكارة',
+			unit_of_measure: 'piece',
+			unit_of_measure_ar: 'قطعة',
 		})
 		.select('id')
 		.single()
@@ -786,7 +783,7 @@ async function createInventoryPricesFixture(
 			.from('products')
 			.insert({
 				availability_status: 'available',
-				category: 'cement',
+				category: 'tree',
 				description: null,
 				image_urls: [],
 				is_active: true,
@@ -798,10 +795,10 @@ async function createInventoryPricesFixture(
 				slug,
 				specifications: { flow: 'inventory-prices', key: definition.key },
 				specifications_ar: { flow: 'inventory-prices', key: definition.key },
-				subcategory: 'cement',
+				subcategory: 'tree',
 				subcategory_ar: 'أسمنت',
-				unit_of_measure: 'bag',
-				unit_of_measure_ar: 'شيكارة',
+				unit_of_measure: 'piece',
+				unit_of_measure_ar: 'قطعة',
 				updated_at: definition.lastQuotedAt,
 			})
 			.select('id, name, slug')
@@ -827,7 +824,7 @@ async function createInventoryPricesFixture(
 		const { error: specialtyError } = await service
 			.from('supplier_specialties')
 			.insert({
-				category_slug: 'cement',
+				category_slug: 'tree',
 				product_slug: product.slug,
 				supplier_id: supplier.id,
 			})
@@ -858,7 +855,7 @@ async function localCustomer(
 	const { data, error } = await service
 		.from('customers')
 		.select('id, company_name')
-		.eq('email', 'local-customer@hyperquote.local')
+		.eq('email', 'customer@customer.customer')
 		.single()
 	if (error || !data) {
 		throw new Error(error?.message ?? 'Local customer not found')

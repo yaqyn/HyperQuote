@@ -90,6 +90,19 @@ interface QuoteBuilderViewProps {
 	onSave?: () => void
 }
 
+interface InventoryPriceUpdateContact {
+	available: boolean
+	name: string
+	phone: string | null
+}
+
+interface PriceUpdateNoticeState {
+	inventoryContact: InventoryPriceUpdateContact | null
+	requestedCount: number
+	skippedDuplicate: number
+	updatedAt: number
+}
+
 // Customer phone number is NEVER exposed to the frontend.
 // Calls are initiated via server-side endpoint: /api/call/:rfqId
 // The server resolves the number, initiates VoIP/SIP, and connects the employee.
@@ -103,6 +116,11 @@ function toNationalEgyptianMobile(value: string): string {
 	if (digits.startsWith('20') && digits.length >= 12) return digits.slice(2)
 	if (digits.startsWith('0') && digits.length === 11) return digits.slice(1)
 	return digits
+}
+
+function phoneHref(value: string | null | undefined): string | null {
+	const cleaned = value?.replace(/[^\d+]/g, '') ?? ''
+	return cleaned ? `tel:${cleaned}` : null
 }
 
 type PanelCurrency = 'EGP' | 'USD' | 'EUR' | 'SAR'
@@ -262,6 +280,74 @@ function FooterAmount({
 				{suffix}
 			</span>
 		</div>
+	)
+}
+
+function PriceUpdateNotice({
+	notice,
+	onClose,
+}: {
+	notice: PriceUpdateNoticeState
+	onClose: () => void
+}) {
+	const contact = notice.inventoryContact
+	const callHref = phoneHref(contact?.phone)
+	const affectedCount = notice.requestedCount + notice.skippedDuplicate
+	const productLabel =
+		affectedCount === 1
+			? '1 item needs pricing'
+			: `${affectedCount} items need pricing`
+
+	return (
+		<motion.div
+			role="status"
+			initial={{ opacity: 0, y: 8, scale: 0.98 }}
+			animate={{ opacity: 1, y: 0, scale: 1 }}
+			exit={{ opacity: 0, y: 8, scale: 0.98 }}
+			transition={{ duration: 0.16 }}
+			className="absolute right-0 bottom-[calc(100%+0.5rem)] z-20 w-[min(24rem,calc(100vw-1.5rem))] rounded-md border border-red-500/25 bg-[var(--color-surface)] p-3 text-start shadow-[0_20px_54px_-30px_rgba(0,0,0,0.75)]"
+		>
+			<div className="flex min-w-0 items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-red-700 dark:text-red-300">
+						Inventory notified
+					</p>
+					<p className="mt-1 text-[12px] leading-5 text-[var(--color-text-muted)]">
+						{productLabel}. Do not confirm until inventory updates the supplier
+						price.
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={onClose}
+					aria-label="Dismiss inventory notification"
+					className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-[var(--color-text-subtle)] outline-none transition-colors hover:bg-black/[0.04] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-red-500/30 dark:hover:bg-white/[0.06]"
+				>
+					<X size={14} strokeWidth={2.25} aria-hidden="true" />
+				</button>
+			</div>
+
+			<div className="mt-3 flex flex-wrap items-center gap-2">
+				{callHref && contact ? (
+					<a
+						href={callHref}
+						className="inline-flex min-h-9 min-w-0 items-center gap-2 rounded-md border border-red-500/25 bg-red-500/[0.08] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-red-700 outline-none transition-colors hover:bg-red-500/[0.14] focus-visible:ring-2 focus-visible:ring-red-500/30 dark:text-red-300"
+					>
+						<Phone size={13} strokeWidth={2.25} aria-hidden="true" />
+						<span className="min-w-0 truncate">Call {contact.name}</span>
+					</a>
+				) : (
+					<span className="rounded-sm bg-red-500/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-red-700 dark:text-red-300">
+						No inventory phone recorded
+					</span>
+				)}
+				{contact?.available && (
+					<span className="rounded-sm bg-emerald-500/[0.1] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+						Online now
+					</span>
+				)}
+			</div>
+		</motion.div>
 	)
 }
 
@@ -1358,11 +1444,11 @@ function ItemEditPanel({
 		setCalculatorError('')
 	}
 	const requestLabel = isRequestingPrice
-		? 'Requesting price'
+		? 'Updating price'
 		: isPriceRequested
 			? 'Inventory notified'
 			: isOutdated
-				? 'Request inventory price'
+				? 'Update price'
 				: 'Price current'
 	const inputClassName =
 		'h-11 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 font-[family-name:var(--font-plex-mono)] text-[14px] font-semibold tabular-nums text-[var(--color-text)] outline-none transition-colors [appearance:textfield] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
@@ -3054,7 +3140,9 @@ export function QuoteBuilderView({
 		status !== 'declined' &&
 		rfqStatus !== 'declined' &&
 		rfqStatus !== 'expired'
-	const canEvaluate = canEvaluateByStatus && !approvalBlocked
+	const hasOutdatedPrices = outdatedItems.length > 0
+	const canEvaluate =
+		canEvaluateByStatus && !approvalBlocked && !hasOutdatedPrices
 
 	// Evaluate = phone-confirmed order. Saves the draft so a quote row
 	// exists, flips quote.status → 'accepted', freezes totalDue, seeds
@@ -3088,6 +3176,13 @@ export function QuoteBuilderView({
 			onBack?.()
 		} catch (err) {
 			console.error('Failed to evaluate:', err)
+			const message = err instanceof Error ? err.message : ''
+			if (message.includes('outdated_quote_prices')) {
+				setValidationErrors([
+					'Inventory must update outdated prices before finance.',
+				])
+				if (outdatedItems.length > 0) handleRequestPriceUpdate(outdatedItems)
+			}
 			setIsEvaluating(false)
 		}
 	}
@@ -3095,9 +3190,23 @@ export function QuoteBuilderView({
 	const [requestedPriceIds, setRequestedPriceIds] = useState<Set<string>>(
 		new Set(),
 	)
+	const [priceUpdateNotice, setPriceUpdateNotice] =
+		useState<PriceUpdateNoticeState | null>(null)
 	const requestUpdateMutation = useMutation({
 		mutationFn: requestInventoryPriceUpdate,
-		onSuccess: () => {
+		onSuccess: (result) => {
+			if (!result.success) {
+				setValidationErrors([
+					result.error ?? 'Inventory could not be notified. Try again.',
+				])
+				return
+			}
+			setPriceUpdateNotice({
+				inventoryContact: result.inventoryContact,
+				requestedCount: result.requestedCount,
+				skippedDuplicate: result.skippedDuplicate,
+				updatedAt: Date.now(),
+			})
 			queryClient.invalidateQueries({ queryKey: ['inventory-overview'] })
 			queryClient.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
 			queryClient.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
@@ -3114,6 +3223,7 @@ export function QuoteBuilderView({
 	const handleRequestPriceUpdate = useCallback(
 		(items: LineItemFormValues[]) => {
 			if (items.length === 0) return
+			setValidationErrors([])
 			requestUpdateMutation.mutate({
 				data: {
 					rfqId,
@@ -3132,10 +3242,6 @@ export function QuoteBuilderView({
 		},
 		[requestUpdateMutation, rfqId],
 	)
-	const unrequestedOutdatedItems = outdatedItems.filter(
-		(i) => !requestedPriceIds.has(lineProductKey(i)),
-	)
-
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
 
 	const goToStep = (step: number) => {
@@ -3632,14 +3738,12 @@ export function QuoteBuilderView({
 	}
 	const stepExit = { opacity: 0, transition: { duration: 0 } }
 	const canRequestPriceUpdate =
-		outdatedItems.length > 0 &&
-		unrequestedOutdatedItems.length > 0 &&
-		!requestUpdateMutation.isPending
+		outdatedItems.length > 0 && !requestUpdateMutation.isPending
 	const outdatedPriceLabel = requestUpdateMutation.isPending
-		? 'Requesting prices'
-		: unrequestedOutdatedItems.length > 0
-			? `Request prices (${unrequestedOutdatedItems.length})`
-			: 'Inventory notified'
+		? 'Updating prices'
+		: outdatedItems.length > 1
+			? `Update prices (${outdatedItems.length})`
+			: 'Update price'
 	const totalLabel = `EGP ${total.toLocaleString('en-EG', {
 		minimumFractionDigits: 2,
 	})}`
@@ -3695,7 +3799,7 @@ export function QuoteBuilderView({
 			return
 		}
 		if (step2PrimaryAction === 'request_prices') {
-			handleRequestPriceUpdate(unrequestedOutdatedItems)
+			handleRequestPriceUpdate(outdatedItems)
 			return
 		}
 		tryGoToStep(3)
@@ -3703,8 +3807,17 @@ export function QuoteBuilderView({
 	const isStep2PrimaryDisabled =
 		step2PrimaryAction === 'request_prices' && !canRequestPriceUpdate
 	const reviewPrimaryNeedsApproval = approvalBlocked && canEvaluateByStatus
-	const canUseReviewPrimary = canEvaluate || reviewPrimaryNeedsApproval
+	const reviewPrimaryNeedsPrices = hasOutdatedPrices && canEvaluateByStatus
+	const canUseReviewPrimary =
+		canEvaluate || reviewPrimaryNeedsApproval || reviewPrimaryNeedsPrices
+	const isReviewPrimaryBusy =
+		isEvaluating ||
+		(reviewPrimaryNeedsPrices && requestUpdateMutation.isPending)
 	const handleReviewPrimaryPress = () => {
+		if (reviewPrimaryNeedsPrices) {
+			handleRequestPriceUpdate(outdatedItems)
+			return
+		}
 		if (reviewPrimaryNeedsApproval) {
 			approvalSectionRef.current?.scrollIntoView({
 				block: 'center',
@@ -4363,7 +4476,16 @@ export function QuoteBuilderView({
 							</div>
 						</div>
 
-						<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 lg:flex lg:items-center lg:justify-end">
+						<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 lg:flex lg:items-center lg:justify-end">
+							<AnimatePresence>
+								{priceUpdateNotice && (
+									<PriceUpdateNotice
+										key={priceUpdateNotice.updatedAt}
+										notice={priceUpdateNotice}
+										onClose={() => setPriceUpdateNotice(null)}
+									/>
+								)}
+							</AnimatePresence>
 							<EmployeeActionButton
 								type="button"
 								onClick={() => goToStep(1)}
@@ -4381,7 +4503,7 @@ export function QuoteBuilderView({
 								aria-disabled={isStep2PrimaryDisabled}
 								className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 ${
 									step2PrimaryAction === 'request_prices'
-										? 'border-amber-500/20 bg-amber-500/[0.12] text-amber-700 focus-visible:ring-amber-500/25 disabled:cursor-not-allowed disabled:opacity-70 dark:text-amber-300'
+										? 'border-red-500/25 bg-red-500/[0.12] text-red-700 focus-visible:ring-red-500/25 disabled:cursor-not-allowed disabled:opacity-70 dark:text-red-300'
 										: 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700 focus-visible:ring-[var(--color-primary)]/40'
 								}`}
 							>
@@ -4432,7 +4554,16 @@ export function QuoteBuilderView({
 
 			{currentStep === 3 && (
 				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
-					<div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 xl:flex xl:items-center xl:justify-end">
+					<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 xl:flex xl:items-center xl:justify-end">
+						<AnimatePresence>
+							{priceUpdateNotice && (
+								<PriceUpdateNotice
+									key={priceUpdateNotice.updatedAt}
+									notice={priceUpdateNotice}
+									onClose={() => setPriceUpdateNotice(null)}
+								/>
+							)}
+						</AnimatePresence>
 						<button
 							type="button"
 							onClick={() => goToStep(2)}
@@ -4445,16 +4576,18 @@ export function QuoteBuilderView({
 						<button
 							type="button"
 							onClick={handleReviewPrimaryPress}
-							disabled={!canUseReviewPrimary || isEvaluating}
-							aria-busy={isEvaluating}
-							aria-disabled={!canUseReviewPrimary || isEvaluating}
+							disabled={!canUseReviewPrimary || isReviewPrimaryBusy}
+							aria-busy={isReviewPrimaryBusy}
+							aria-disabled={!canUseReviewPrimary || isReviewPrimaryBusy}
 							className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 xl:min-w-[280px] ${
 								canEvaluate
 									? 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700 focus-visible:ring-[var(--color-primary)]/40'
-									: 'border-amber-500/20 bg-amber-500/[0.12] text-amber-700 disabled:cursor-not-allowed disabled:opacity-80 dark:text-amber-300'
+									: reviewPrimaryNeedsPrices
+										? 'border-red-500/25 bg-red-500/[0.12] text-red-700 disabled:cursor-not-allowed disabled:opacity-80 focus-visible:ring-red-500/25 dark:text-red-300'
+										: 'border-amber-500/20 bg-amber-500/[0.12] text-amber-700 disabled:cursor-not-allowed disabled:opacity-80 dark:text-amber-300'
 							}`}
 						>
-							{isEvaluating ? (
+							{isReviewPrimaryBusy ? (
 								<Loader2
 									size={14}
 									strokeWidth={2.25}
@@ -4481,9 +4614,11 @@ export function QuoteBuilderView({
 									? isEvaluating
 										? 'Sending to finance'
 										: `Send to finance · ${totalLabel}`
-									: reviewPrimaryNeedsApproval
-										? `Approve manager · ${totalLabel}`
-										: (approvalBlockReason ?? 'Evaluation blocked')}
+									: reviewPrimaryNeedsPrices
+										? outdatedPriceLabel
+										: reviewPrimaryNeedsApproval
+											? `Approve manager · ${totalLabel}`
+											: (approvalBlockReason ?? 'Evaluation blocked')}
 							</span>
 							{canEvaluate && !isEvaluating && (
 								<ArrowRight

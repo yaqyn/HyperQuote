@@ -221,9 +221,119 @@ interface SupabasePriceRequestRow {
 		| null
 }
 
+interface InventoryContactEmployeeRow {
+	id: string
+	full_name: string
+	phone: string | null
+	status: string
+	employee_roles: Array<{ role: string }> | null
+	employee_panel_permissions: Array<{
+		can_read: boolean
+		panel: string
+	}> | null
+}
+
+interface InventoryPresenceContactRow {
+	employee_id: string
+	last_seen_at: string
+	employees: InventoryContactEmployeeRow | InventoryContactEmployeeRow[] | null
+}
+
+export interface InventoryPriceUpdateContact {
+	available: boolean
+	name: string
+	phone: string | null
+}
+
 function firstRelation<T>(value: T | T[] | null): T | null {
 	if (Array.isArray(value)) return value[0] ?? null
 	return value
+}
+
+function canHandleInventoryPriceRequest(
+	employee: InventoryContactEmployeeRow | null,
+): employee is InventoryContactEmployeeRow {
+	if (!employee || employee.status !== 'active') return false
+	const hasInventoryRole = (employee.employee_roles ?? []).some(
+		(row) => row.role === 'inventory',
+	)
+	const hasInventoryPanel = (employee.employee_panel_permissions ?? []).some(
+		(row) => row.panel === 'inventory' && row.can_read,
+	)
+	return hasInventoryRole || hasInventoryPanel
+}
+
+function presentInventoryContact(
+	employee: InventoryContactEmployeeRow,
+	available: boolean,
+): InventoryPriceUpdateContact {
+	const phone = employee.phone?.trim() || null
+	return {
+		available,
+		name: employee.full_name,
+		phone,
+	}
+}
+
+async function findInventoryPriceUpdateContact(
+	auth: Awaited<ReturnType<typeof getInternalSupabaseClient>>,
+): Promise<InventoryPriceUpdateContact | null> {
+	const onlineCutoff = new Date(Date.now() - 2 * 60_000).toISOString()
+	const { data: presenceRows, error: presenceError } = await auth.client
+		.from('employee_presence')
+		.select(`
+			employee_id,
+			last_seen_at,
+			employees (
+				id,
+				full_name,
+				phone,
+				status,
+				employee_roles ( role ),
+				employee_panel_permissions ( panel, can_read )
+			)
+		`)
+		.eq('status', 'online')
+		.eq('active_panel', 'inventory')
+		.gte('last_seen_at', onlineCutoff)
+		.order('last_seen_at', { ascending: false })
+		.limit(10)
+	if (presenceError) throw new Error(presenceError.message)
+
+	for (const row of (presenceRows ??
+		[]) as unknown as InventoryPresenceContactRow[]) {
+		const employee = firstRelation(row.employees)
+		if (canHandleInventoryPriceRequest(employee)) {
+			return presentInventoryContact(employee, true)
+		}
+	}
+
+	const { data: employeeRows, error: employeeError } = await auth.client
+		.from('employees')
+		.select(`
+			id,
+			full_name,
+			phone,
+			status,
+			employee_roles ( role ),
+			employee_panel_permissions ( panel, can_read )
+		`)
+		.eq('status', 'active')
+		.order('full_name', { ascending: true })
+		.limit(50)
+	if (employeeError) throw new Error(employeeError.message)
+
+	const employees = (employeeRows ??
+		[]) as unknown as InventoryContactEmployeeRow[]
+	const withPhone = employees.find(
+		(employee) =>
+			canHandleInventoryPriceRequest(employee) &&
+			Boolean(employee.phone?.trim()),
+	)
+	if (withPhone) return presentInventoryContact(withPhone, false)
+
+	const fallback = employees.find(canHandleInventoryPriceRequest)
+	return fallback ? presentInventoryContact(fallback, false) : null
 }
 
 function buildPendingContext(request: SupabasePriceRequestRow): string {
@@ -1054,12 +1164,14 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
 				requestedCount: 0,
 				skippedFresh: 0,
 				skippedDuplicate: 0,
+				inventoryContact: null,
 				error: 'Supabase quote request is required',
 			}
 		}
 
 		let inserted = 0
 		let skippedDuplicate = 0
+		const inventoryContact = await findInventoryPriceUpdateContact(auth)
 		for (const item of data.items) {
 			let productQuery = auth.client.from('products').select('id')
 			productQuery = isUuid(item.productId)
@@ -1094,5 +1206,6 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
 			requestedCount: inserted,
 			skippedFresh: 0,
 			skippedDuplicate,
+			inventoryContact,
 		}
 	})
