@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import process from 'node:process'
+
+const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
 
 const APPS = [
 	{
@@ -60,6 +64,7 @@ async function main() {
 		stdio: 'inherit',
 	})
 	if (seeded.status !== 0) process.exit(seeded.status ?? 1)
+	const aiProxy = await startLocalAiProxy()
 
 	const baseEnv = {
 		...process.env,
@@ -71,17 +76,21 @@ async function main() {
 		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		VITE_SUPABASE_URL: localEnv.API_URL,
 	}
-	writeLocalWorkerEnv({
-		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
-		SUPABASE_URL: localEnv.API_URL,
-		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-		VITE_SUPABASE_URL: localEnv.API_URL,
-	})
+	writeLocalWorkerEnv(
+		{
+			SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+			SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
+			SUPABASE_URL: localEnv.API_URL,
+			VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+			VITE_SUPABASE_URL: localEnv.API_URL,
+		},
+		aiProxy,
+	)
 
 	console.log('Local Supabase is available.')
 	console.log(`API: ${localEnv.API_URL}`)
 	if (localEnv.STUDIO_URL) console.log(`Studio: ${localEnv.STUDIO_URL}`)
+	if (aiProxy) console.log('Local AI proxy is available.')
 	for (const app of APPS) console.log(`${app.name}: ${app.url}`)
 
 	let shuttingDown = false
@@ -113,6 +122,7 @@ async function main() {
 		for (const child of children) {
 			if (!child.killed) child.kill('SIGTERM')
 		}
+		aiProxy?.server.close()
 		writeLocalWorkerEnv()
 		setTimeout(() => process.exit(exitCode), 250)
 	}
@@ -125,15 +135,14 @@ function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function writeLocalWorkerEnv(runtimeEnv = {}) {
+function writeLocalWorkerEnv(runtimeEnv = {}, aiProxy = null) {
 	const workerApps = APPS.filter((app) => app.name !== 'driver')
 	for (const app of workerApps) {
 		const next = {
-			GROQ_MODEL: 'openai/gpt-oss-120b',
+			...localWorkerAiEnv(aiProxy),
 			SUPABASE_ANON_KEY: 'placeholder',
 			SUPABASE_SERVICE_ROLE_KEY: 'placeholder',
 			SUPABASE_URL: 'https://placeholder.supabase.co',
-			USE_AI: localAiFlag(),
 			VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
 			VITE_SUPABASE_ANON_KEY: 'placeholder',
 			VITE_SUPABASE_URL: 'https://placeholder.supabase.co',
@@ -150,11 +159,30 @@ function writeLocalWorkerEnv(runtimeEnv = {}) {
 	}
 }
 
+function localWorkerAiEnv(aiProxy) {
+	const model = process.env.GROQ_MODEL ?? process.env.HQ_GROQ_MODEL
+	const reasoningEffort =
+		process.env.GROQ_REASONING_EFFORT ?? process.env.HQ_GROQ_REASONING_EFFORT
+	const env = {
+		GROQ_MODEL: model ?? 'openai/gpt-oss-120b',
+		USE_AI: aiProxy ? localAiFlag() : '0',
+	}
+	if (!aiProxy) return env
+	env.GROQ_API_KEY = LOCAL_AI_PROXY_KEY
+	env.GROQ_URL = aiProxy.url
+	if (reasoningEffort) env.GROQ_REASONING_EFFORT = reasoningEffort
+	return env
+}
+
 function localAiFlag() {
 	if (process.env.USE_AI) return process.env.USE_AI
 	if (process.env.HQ_USE_AI) return process.env.HQ_USE_AI
-	if (process.env.GROQ_API_KEY || process.env.HQ_GROQ_API_KEY) return '1'
-	return '0'
+	return '1'
+}
+
+function localAiRequested() {
+	const flag = process.env.USE_AI ?? process.env.HQ_USE_AI
+	return flag !== '0' && flag !== 'false'
 }
 
 function localOperatorAiEnv() {
@@ -178,6 +206,78 @@ function localOperatorAiEnv() {
 		aiEnv.USE_AI = process.env.HQ_USE_AI
 	}
 	return aiEnv
+}
+
+async function startLocalAiProxy() {
+	const apiKey = process.env.GROQ_API_KEY ?? process.env.HQ_GROQ_API_KEY
+	if (!apiKey || !localAiRequested()) return null
+
+	const upstreamUrl =
+		process.env.GROQ_URL ?? process.env.HQ_GROQ_URL ?? DEFAULT_GROQ_URL
+	const server = createServer(async (request, response) => {
+		if (
+			request.method !== 'POST' ||
+			request.url !== '/openai/v1/chat/completions'
+		) {
+			response.writeHead(404)
+			response.end()
+			return
+		}
+
+		try {
+			const upstream = await fetch(upstreamUrl, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${apiKey}`,
+					'Content-Type': request.headers['content-type'] ?? 'application/json',
+				},
+				body: await readRequestBody(request),
+			})
+			response.writeHead(upstream.status, {
+				'Content-Type':
+					upstream.headers.get('content-type') ?? 'application/json',
+			})
+			if (!upstream.body) {
+				response.end()
+				return
+			}
+			for await (const chunk of upstream.body) {
+				response.write(chunk)
+			}
+			response.end()
+		} catch {
+			response.writeHead(502, { 'Content-Type': 'application/json' })
+			response.end(
+				JSON.stringify({ error: { message: 'Local AI proxy failed' } }),
+			)
+		}
+	})
+
+	await new Promise((resolve, reject) => {
+		server.once('error', reject)
+		server.listen(0, '127.0.0.1', () => {
+			server.off('error', reject)
+			resolve()
+		})
+	})
+	const address = server.address()
+	if (!address || typeof address === 'string') {
+		server.close()
+		return null
+	}
+	return {
+		server,
+		url: `http://127.0.0.1:${address.port}/openai/v1/chat/completions`,
+	}
+}
+
+function readRequestBody(request) {
+	return new Promise((resolve, reject) => {
+		const chunks = []
+		request.on('data', (chunk) => chunks.push(chunk))
+		request.on('end', () => resolve(Buffer.concat(chunks)))
+		request.on('error', reject)
+	})
 }
 
 function quoteEnvValue(value) {
