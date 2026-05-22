@@ -63,6 +63,7 @@ async function main() {
 
 	const baseEnv = {
 		...process.env,
+		...localOperatorAiEnv(),
 		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
 		SUPABASE_URL: localEnv.API_URL,
@@ -132,7 +133,7 @@ function writeLocalWorkerEnv(runtimeEnv = {}) {
 			SUPABASE_ANON_KEY: 'placeholder',
 			SUPABASE_SERVICE_ROLE_KEY: 'placeholder',
 			SUPABASE_URL: 'https://placeholder.supabase.co',
-			USE_AI: '0',
+			USE_AI: localAiFlag(),
 			VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
 			VITE_SUPABASE_ANON_KEY: 'placeholder',
 			VITE_SUPABASE_URL: 'https://placeholder.supabase.co',
@@ -147,6 +148,36 @@ function writeLocalWorkerEnv(runtimeEnv = {}) {
 				.join('\n')}\n`,
 		)
 	}
+}
+
+function localAiFlag() {
+	if (process.env.USE_AI) return process.env.USE_AI
+	if (process.env.HQ_USE_AI) return process.env.HQ_USE_AI
+	if (process.env.GROQ_API_KEY || process.env.HQ_GROQ_API_KEY) return '1'
+	return '0'
+}
+
+function localOperatorAiEnv() {
+	const aiEnv = {}
+	if (!process.env.GROQ_API_KEY && process.env.HQ_GROQ_API_KEY) {
+		aiEnv.GROQ_API_KEY = process.env.HQ_GROQ_API_KEY
+	}
+	if (!process.env.GROQ_MODEL && process.env.HQ_GROQ_MODEL) {
+		aiEnv.GROQ_MODEL = process.env.HQ_GROQ_MODEL
+	}
+	if (
+		!process.env.GROQ_REASONING_EFFORT &&
+		process.env.HQ_GROQ_REASONING_EFFORT
+	) {
+		aiEnv.GROQ_REASONING_EFFORT = process.env.HQ_GROQ_REASONING_EFFORT
+	}
+	if (!process.env.GROQ_URL && process.env.HQ_GROQ_URL) {
+		aiEnv.GROQ_URL = process.env.HQ_GROQ_URL
+	}
+	if (!process.env.USE_AI && process.env.HQ_USE_AI) {
+		aiEnv.USE_AI = process.env.HQ_USE_AI
+	}
+	return aiEnv
 }
 
 function quoteEnvValue(value) {

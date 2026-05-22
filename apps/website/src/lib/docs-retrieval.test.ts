@@ -4,7 +4,6 @@ import {
 	buildPublicDocsContext,
 	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
-	publicConversationFallbackResponse,
 	publicDocsExtractiveResponse,
 	publicDocsPolicyRefusal,
 	retrieveWebsiteDocs,
@@ -84,8 +83,12 @@ describe('website docs retrieval', () => {
 		for (const message of [
 			'hey',
 			'how are you?',
+			'how are u',
+			'u good?',
+			'r u real?',
 			'is this a real AI?',
 			'this is shit lmao',
+			'MOTHERFUCKING FUCKER',
 			'tell me a joke',
 			'اهلا',
 			'عامل إيه؟',
@@ -97,21 +100,6 @@ describe('website docs retrieval', () => {
 				message,
 			)
 		}
-		assert.match(publicConversationFallbackResponse('hey'), /I’m Lyon/)
-		assert.match(publicConversationFallbackResponse('how are you?'), /I’m good/)
-		assert.match(publicConversationFallbackResponse('you good?'), /I’m good/)
-		assert.match(
-			publicConversationFallbackResponse('fuck you'),
-			/That answer was bad/,
-		)
-		assert.match(
-			publicConversationFallbackResponse('is this a real AI?'),
-			/website assistant/,
-		)
-		assert.match(
-			publicConversationFallbackResponse('عامل إيه؟'),
-			/الحمد لله تمام/,
-		)
 	})
 
 	it('routes public HyperQuote questions to docs even when they are casual', () => {
@@ -122,12 +110,12 @@ describe('website docs retrieval', () => {
 		)
 	})
 
-	it('routes factual questions outside HyperQuote docs to the boundary fallback', () => {
+	it('routes factual questions outside HyperQuote docs to conversational AI', () => {
 		const message =
 			'How do I configure Kubernetes ingress for a movie streaming app?'
 		assert.equal(
 			classifyWebsitePublicChatIntent(message, retrieveWebsiteDocs(message)),
-			'out_of_scope',
+			'conversational',
 		)
 	})
 

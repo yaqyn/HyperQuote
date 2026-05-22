@@ -108,40 +108,14 @@ const PRIVATE_SCOPE_PATTERNS = [
 	/داخلي|داخلية|الموظف|الموظفين|بيانات\s+مالية|بيانات\s+ماليه|قسم\s+المالية|هامش|ربح|تكلفة\s+المورد/,
 ]
 
-const EN_GREETING_PATTERN =
-	/^(hey|hi|hello|yo|good\s+(morning|afternoon|evening)|howdy|sup|what'?s\s+up|how\s+are\s+you|how'?s\s+it\s+going|you\s+good|are\s+you\s+ok|are\s+you\s+okay|thanks|thank\s+you|lol|lmao)[\s!.?]*$/i
-
-const AR_GREETING_PATTERN =
-	/^(السلام عليكم|سلام عليكم|سلام|اهلا|أهلا|اهلين|أهلين|هاي|هلا|صباح الخير|مساء الخير|ازيك|عامل ايه|عامل إيه|عامله ايه|عاملة إيه|شكرا|تسلم|تمام|الحمد لله)[\s!.؟]*$/
-
-const EN_CONVERSATIONAL_PATTERN =
-	/\b(are you real|real ai|who are you|what are you|how are you|how's it going|how is it going|what can you do|can you talk|talk normal|be normal|joke|funny|lol|lmao|haha|bro|mate|thanks|thank you|sorry|my bad|that was bad|this is shit|you suck|fuck|nice|cool|ok|okay|great|test)\b/i
-
-const AR_CONVERSATIONAL_PATTERN =
-	/(انت مين|إنت مين|ذكاء اصطناعي|عامل ايه|عامل إيه|ازيك|بتعمل ايه|بتعمل إيه|هزار|نكتة|اضحك|شكرا|اسف|آسف|تمام|حلو|جامد|اختبار|كلم|اتكلم|طبيعي)/
-
 const FACTUAL_QUESTION_PATTERN =
-	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix)\b|\?/i
+	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix|tell me|explain|help me)\b|\?/i
 
 const PUBLIC_DOCS_TOPIC_PATTERN =
 	/\b(hyperquote|lyon|quote|quotes|rfq|price|prices|pricing|delivery|deliveries|payment|payments|market|catalog|product|products|order|orders|support|portal|supplier|driver|invoice|vat|eta|cairo|truck)\b/i
 
 const AR_PUBLIC_DOCS_TOPIC_PATTERN =
 	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن)/
-
-const EN_PROFANITY_PATTERN = /\b(fuck|shit|suck|stupid|dumb|idiot)\b/i
-const EN_WELLBEING_PATTERN =
-	/\b(how are you|how's it going|how is it going|you good|are you ok|are you okay)\b/i
-const EN_IDENTITY_PATTERN =
-	/\b(are you real|real ai|who are you|what are you|what can you do)\b/i
-const EN_JOKE_PATTERN = /\b(joke|funny|make me laugh)\b/i
-const EN_THANKS_PATTERN = /\b(thanks|thank you|appreciate it)\b/i
-
-const AR_WELLBEING_PATTERN =
-	/(عامل ايه|عامل إيه|عامله ايه|عاملة إيه|ازيك|اخبارك|أخبارك)/
-const AR_IDENTITY_PATTERN = /(انت مين|إنت مين|ذكاء اصطناعي|بتعمل ايه|بتعمل إيه)/
-const AR_JOKE_PATTERN = /(نكتة|هزار|اضحك)/
-const AR_THANKS_PATTERN = /(شكرا|تسلم|متشكر)/
 
 interface DocsChunk {
 	article: LocalizedDocContent
@@ -175,10 +149,7 @@ export interface DocsRetrievalResult {
 	queryTokens: string[]
 }
 
-export type WebsitePublicChatIntent =
-	| 'conversational'
-	| 'out_of_scope'
-	| 'public_docs'
+export type WebsitePublicChatIntent = 'conversational' | 'public_docs'
 
 interface RetrievalOptions {
 	maxChunks?: number
@@ -206,13 +177,6 @@ export function publicDocsPolicyRefusal(userMessage: string): string | null {
 	return null
 }
 
-export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
-	if (locale === 'ar') {
-		return 'المعلومة دي مش موجودة في وثائق هايبركوت العامة. أقدر أجاوب بس عن مواضيع الوثائق العامة زي العروض، التوصيل، الدفع، السوق، الدعم، أو ليون.'
-	}
-	return 'I do not have that in the public HyperQuote docs. I can only answer from public docs, such as quotes, delivery, payments, Market, support, or Lyon.'
-}
-
 export function classifyWebsitePublicChatIntent(
 	userMessage: string,
 	docs: DocsRetrievalResult,
@@ -220,74 +184,7 @@ export function classifyWebsitePublicChatIntent(
 	if (docs.hasHighConfidence && isPublicDocsSeekingMessage(userMessage)) {
 		return 'public_docs'
 	}
-	if (isConversationalMessage(userMessage)) return 'conversational'
-	if (docs.hasHighConfidence) return 'public_docs'
-	return 'out_of_scope'
-}
-
-export function publicConversationFallbackResponse(
-	userMessage: string,
-): string {
-	const trimmed = userMessage.trim()
-	const locale = detectDocsQueryLocale(trimmed)
-
-	if (locale === 'ar') {
-		if (AR_WELLBEING_PATTERN.test(trimmed)) {
-			return 'الحمد لله تمام، إنت عامل إيه؟'
-		}
-		if (AR_IDENTITY_PATTERN.test(trimmed)) {
-			return 'أنا ليون، مساعد هايبركوت. أقدر أتكلم عادي، ولما تسأل عن هايبركوت أرجع لوثائقنا العامة.'
-		}
-		if (AR_JOKE_PATTERN.test(trimmed)) {
-			return 'أقدر أهزر، بس خلّيني أقولها خفيفة: المقاول اللي بينسى يطلب الأسمنت بدري بيكتشف إن الخرسانة مش بتحب المفاجآت.'
-		}
-		if (AR_THANKS_PATTERN.test(trimmed)) {
-			return 'العفو يا زميلي.'
-		}
-		if (AR_GREETING_PATTERN.test(trimmed)) {
-			return 'أهلاً، أنا معاك.'
-		}
-		return 'معاك. قولّي تحب نبدأ بإيه؟'
-	}
-
-	if (EN_WELLBEING_PATTERN.test(trimmed)) {
-		return 'I’m good. What are we working through?'
-	}
-	if (EN_IDENTITY_PATTERN.test(trimmed)) {
-		return 'I’m Lyon, HyperQuote’s website assistant. I can chat normally, and I use the public docs when you ask factual HyperQuote questions.'
-	}
-	if (EN_JOKE_PATTERN.test(trimmed)) {
-		return 'I can keep it light. Construction joke: the fastest material on site is always the one nobody ordered early enough.'
-	}
-	if (EN_THANKS_PATTERN.test(trimmed)) {
-		return 'Anytime.'
-	}
-	if (EN_PROFANITY_PATTERN.test(trimmed)) {
-		return 'Fair. That answer was bad. Ask again and I’ll keep it normal.'
-	}
-	if (EN_GREETING_PATTERN.test(trimmed)) {
-		return 'Hey. I’m Lyon.'
-	}
-	return 'I’m with you. What do you want to figure out?'
-}
-
-function isConversationalMessage(userMessage: string): boolean {
-	const trimmed = userMessage.trim()
-	if (!trimmed) return true
-	if (EN_GREETING_PATTERN.test(trimmed) || AR_GREETING_PATTERN.test(trimmed)) {
-		return true
-	}
-	if (
-		EN_CONVERSATIONAL_PATTERN.test(trimmed) ||
-		AR_CONVERSATIONAL_PATTERN.test(trimmed)
-	) {
-		return true
-	}
-
-	const tokens = tokenize(trimmed, detectDocsQueryLocale(trimmed))
-	if (tokens.length <= 5 && !FACTUAL_QUESTION_PATTERN.test(trimmed)) return true
-
-	return false
+	return 'conversational'
 }
 
 function isPublicDocsSeekingMessage(userMessage: string): boolean {
@@ -303,7 +200,22 @@ export function publicDocsExtractiveResponse(
 	locale: DocsLocale,
 ): string {
 	const topChunks = chunks.slice(0, 2)
-	const sources = topChunks
+	const sources = publicDocsSourceLinks(topChunks, locale)
+	const summary = topChunks
+		.map(simpleFallbackLine)
+		.join(locale === 'ar' ? ' ' : ' ')
+
+	if (locale === 'ar') {
+		return `المختصر: ${summary}\n\nالمصادر: ${sources}`
+	}
+	return `Short version: ${summary}\n\nSources: ${sources}`
+}
+
+export function publicDocsSourceLinks(
+	chunks: RetrievedDocsChunk[],
+	locale: DocsLocale,
+): string {
+	return chunks
 		.map((chunk) => {
 			const label =
 				locale === 'ar'
@@ -314,14 +226,6 @@ export function publicDocsExtractiveResponse(
 			return `[${label}](${chunk.href})`
 		})
 		.join(locale === 'ar' ? '، ' : ', ')
-	const summary = topChunks
-		.map(simpleFallbackLine)
-		.join(locale === 'ar' ? ' ' : ' ')
-
-	if (locale === 'ar') {
-		return `المختصر: ${summary}\n\nالمصادر: ${sources}`
-	}
-	return `Short version: ${summary}\n\nSources: ${sources}`
 }
 
 export function retrieveWebsiteDocs(

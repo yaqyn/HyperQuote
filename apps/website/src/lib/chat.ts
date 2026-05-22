@@ -10,10 +10,9 @@ import {
 	buildPublicDocsContext,
 	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
-	publicConversationFallbackResponse,
 	publicDocsExtractiveResponse,
-	publicDocsNoAnswerResponse,
 	publicDocsPolicyRefusal,
+	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
 
@@ -118,7 +117,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 					}
 				} else {
 					for await (const chunk of textOnlyStream(
-						publicConversationFallbackResponse(userText),
+						'AI is not configured on this server.',
 					)) {
 						chunks.push(chunk)
 					}
@@ -132,16 +131,15 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				for await (const chunk of streamChat(input.messages, groundedPrompt)) {
 					chunks.push(chunk as WebsiteStreamChunk)
 				}
+				appendDocsSourcesIfMissing(
+					chunks,
+					publicDocsSourceLinks(docs.chunks, docs.locale),
+					docs.locale,
+				)
 			} else if (intent === 'public_docs') {
 				readEntities = ['public_docs']
 				for await (const chunk of textOnlyStream(
 					publicDocsExtractiveResponse(docs.chunks, docs.locale),
-				)) {
-					chunks.push(chunk)
-				}
-			} else {
-				for await (const chunk of textOnlyStream(
-					publicDocsNoAnswerResponse(docs.locale),
 				)) {
 					chunks.push(chunk)
 				}
@@ -154,6 +152,48 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 
 		return chunks
 	})
+
+function appendDocsSourcesIfMissing(
+	chunks: WebsiteStreamChunk[],
+	sources: string,
+	locale: 'ar' | 'en',
+) {
+	if (!sources) return
+	const response = assistantText(chunks)
+	if (
+		!response.trim() ||
+		/\/docs\//.test(response) ||
+		/AI unavailable/i.test(response)
+	) {
+		return
+	}
+
+	const messageId = chunks.find(
+		(chunk) => chunk.type === 'TEXT_MESSAGE_START',
+	)?.messageId
+	const sourceChunk: WebsiteStreamChunk = {
+		type: 'TEXT_MESSAGE_CONTENT',
+		timestamp: Date.now(),
+		messageId: messageId ?? crypto.randomUUID(),
+		delta:
+			locale === 'ar' ? `\n\nالمصادر: ${sources}` : `\n\nSources: ${sources}`,
+	}
+	const endIndex = chunks.findIndex(
+		(chunk) => chunk.type === 'TEXT_MESSAGE_END',
+	)
+	if (endIndex >= 0) {
+		chunks.splice(endIndex, 0, sourceChunk)
+		return
+	}
+	chunks.push(sourceChunk)
+}
+
+function assistantText(chunks: WebsiteStreamChunk[]): string {
+	return chunks
+		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
+		.map((chunk) => chunk.delta)
+		.join('')
+}
 
 async function recordWebsiteAiAudit(
 	userText: string,
