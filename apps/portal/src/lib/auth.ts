@@ -1,5 +1,15 @@
 import type { AuthSession } from '@hyperquote/auth'
 import {
+	claimAuthenticatedCustomerProfile,
+	createAuthenticatedCustomerProfile,
+	type EmailProfileDefaults,
+	formattedEgyptPhone,
+	isCustomerAuthUser,
+	sendCustomerOtp,
+	signInCustomerWithEmailPassword,
+	verifyCustomerOtp,
+} from '@hyperquote/auth/customer'
+import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
@@ -63,21 +73,7 @@ const emailPasswordInput = z.object({
 	password: z.string().min(6).max(128),
 })
 
-interface CustomerAuthProfile {
-	id: string
-	company_name: string
-	user_id: string | null
-}
-
-type CustomerAuthAction = 'customer_signed_in' | 'customer_signed_up'
-
 type EmailAuthError = 'email_not_confirmed' | 'invalid_credentials'
-
-interface EmailProfileDefaults {
-	companyName?: string
-	fullName?: string
-	phone?: string
-}
 
 // ============================================================================
 // Helpers
@@ -92,50 +88,6 @@ function appendPendingAuthCookies(
 	headers: Iterable<[string, string]> = [],
 ) {
 	appendSetCookieHeaders(getResponse().headers, cookies, headers)
-}
-
-async function recordCustomerAuthActivity(
-	client: ReturnType<typeof createSupabaseServerClient>['client'],
-	customerId: string,
-	action: CustomerAuthAction,
-	details: Record<string, unknown>,
-) {
-	const { error } = await client.rpc('log_activity', {
-		action,
-		details,
-		entity_id: customerId,
-		entity_type: 'customer',
-	})
-	if (error) {
-		logPortalError('portal.auth.activity.supabase_error', error)
-		return false
-	}
-	return true
-}
-
-function normalizedEmail(value: string): string {
-	return value.trim().toLowerCase()
-}
-
-function isEmailNotConfirmedError(error: { message?: string }): boolean {
-	return /confirm|verified/i.test(error.message ?? '')
-}
-
-function metadataString(
-	metadata: Record<string, unknown>,
-	key: string,
-): string | undefined {
-	const value = metadata[key]
-	return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function isCustomerAuthUser(user: { app_metadata?: unknown }): boolean {
-	const metadata = user.app_metadata
-	const pool =
-		metadata && typeof metadata === 'object' && 'pool' in metadata
-			? metadata.pool
-			: undefined
-	return pool !== 'internal' && pool !== 'driver'
 }
 
 // ============================================================================
@@ -225,74 +177,19 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 						...config,
 					})
 
-				const { data, error } = await client.auth.signInWithPassword({
-					email: normalizedEmail(input.email),
-					password: input.password,
-				})
-
-				if (error || !data.user) {
-					return {
-						success: false,
-						error:
-							error && isEmailNotConfirmedError(error)
-								? 'email_not_confirmed'
-								: 'invalid_credentials',
-					}
-				}
-
-				if (!data.user.email_confirmed_at) {
-					await client.auth.signOut()
-					appendPendingAuthCookies(
-						responseCookies.values(),
-						responseHeaders.entries(),
-					)
-					return { success: false, error: 'email_not_confirmed' }
-				}
-
-				if (!isCustomerAuthUser(data.user)) {
-					await client.auth.signOut()
-					appendPendingAuthCookies(
-						responseCookies.values(),
-						responseHeaders.entries(),
-					)
-					return { success: false, error: 'invalid_credentials' }
-				}
-
-				appendPendingAuthCookies(
-					responseCookies.values(),
-					responseHeaders.entries(),
-				)
-
-				const { data: customer } = await client
-					.from('customers')
-					.select('id')
-					.eq('user_id', data.user.id)
-					.maybeSingle()
-
-				if (!customer) {
-					const metadata = data.user.user_metadata ?? {}
-					return {
-						success: true,
-						needsAccount: true,
-						prefill: {
-							companyName: metadataString(metadata, 'company_name'),
-							fullName: metadataString(metadata, 'contact_name'),
-							phone: metadataString(metadata, 'phone')?.replace(/^\+20/, ''),
-						},
-					}
-				}
-
-				await recordCustomerAuthActivity(
+				return signInCustomerWithEmailPassword({
 					client,
-					customer.id,
-					'customer_signed_in',
-					{
-						email: normalizedEmail(input.email),
-						method: 'email_password',
-						source: 'portal',
-					},
-				)
-				return { success: true, needsAccount: false }
+					email: input.email,
+					password: input.password,
+					source: 'portal',
+					appendAuthCookies: () =>
+						appendPendingAuthCookies(
+							responseCookies.values(),
+							responseHeaders.entries(),
+						),
+					onActivityError: (error) =>
+						logPortalError('portal.auth.activity.supabase_error', error),
+				})
 			} catch (err) {
 				logPortalError('portal.auth.email_signin.unexpected_error', err)
 				return { success: false, error: 'invalid_credentials' }
@@ -325,7 +222,7 @@ export const sendOTP = createServerFn({ method: 'POST' })
 				}
 			}
 
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {
@@ -338,17 +235,18 @@ export const sendOTP = createServerFn({ method: 'POST' })
 				...config,
 			})
 
-			const { error } = await client.auth.signInWithOtp({
-				phone: formattedPhone,
-				options: { channel: input.method },
+			const result = await sendCustomerOtp({
+				client,
+				formattedPhone,
+				method: input.method,
 			})
 
-			if (error) {
-				logPortalError('portal.auth.send_otp.supabase_error', error)
+			if (!result.success) {
+				logPortalError('portal.auth.send_otp.supabase_error', result.error)
 				return { success: false, error: 'send_failed' as const }
 			}
 
-			return { success: true, expiresIn: 300 }
+			return { success: true, expiresIn: result.expiresIn ?? 300 }
 		} catch (err) {
 			logPortalError('portal.auth.send_otp.unexpected_error', err)
 			return { success: false, error: 'send_failed' as const }
@@ -376,7 +274,7 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 				}
 			}
 
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {
@@ -390,71 +288,22 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 					...config,
 				})
 
-			const { data, error } = await client.auth.verifyOtp({
-				phone: formattedPhone,
-				token: input.code,
-				type: 'sms',
+			return verifyCustomerOtp({
+				client,
+				formattedPhone,
+				code: input.code,
+				source: 'portal',
+				appendAuthCookies: () =>
+					appendPendingAuthCookies(
+						responseCookies.values(),
+						responseHeaders.entries(),
+					),
+				clearVerifyLimit: () => clearRateLimit(kv, `verify:${input.phone}`),
+				onVerifyError: (error) =>
+					logPortalError('portal.auth.verify_otp.supabase_error', error),
+				onActivityError: (error) =>
+					logPortalError('portal.auth.activity.supabase_error', error),
 			})
-
-			if (error) {
-				logPortalError('portal.auth.verify_otp.supabase_error', error)
-				return { success: false, error: 'invalid_code' as const }
-			}
-
-			if (!data.user || !isCustomerAuthUser(data.user)) {
-				await client.auth.signOut()
-				appendPendingAuthCookies(
-					responseCookies.values(),
-					responseHeaders.entries(),
-				)
-				return { success: false, error: 'invalid_code' as const }
-			}
-
-			appendPendingAuthCookies(
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
-
-			// Clear rate limit counter on success
-			await clearRateLimit(kv, `verify:${input.phone}`)
-
-			// Check if this signed-in user already owns a customer profile.
-			const { data: ownedCustomerResult } = await client
-				.from('customers')
-				.select('id, company_name, user_id')
-				.eq('user_id', data.user?.id ?? '')
-				.maybeSingle()
-			const ownedCustomer = ownedCustomerResult as CustomerAuthProfile | null
-
-			const { data: claimableCustomerResult } = ownedCustomer
-				? { data: null }
-				: await client
-						.rpc('find_claimable_customer_profile', {
-							p_phone: formattedPhone,
-						})
-						.maybeSingle()
-			const claimableCustomer =
-				claimableCustomerResult as CustomerAuthProfile | null
-			const customer = ownedCustomer ?? claimableCustomer
-			const needsAccount = !customer
-			const claimableCompany =
-				customer && !customer.user_id ? customer.company_name : null
-			if (ownedCustomer) {
-				await recordCustomerAuthActivity(
-					client,
-					ownedCustomer.id,
-					'customer_signed_in',
-					{ method: 'phone_otp', phone: formattedPhone, source: 'portal' },
-				)
-			}
-
-			return {
-				success: true,
-				session: data.session,
-				user: data.user,
-				needsAccount,
-				claimableCompany,
-			}
 		} catch (err) {
 			logPortalError('portal.auth.verify_otp.unexpected_error', err)
 			return { success: false, error: 'verify_failed' as const }
@@ -469,7 +318,7 @@ export const createAccount = createServerFn({ method: 'POST' })
 	.inputValidator(createAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {
@@ -490,55 +339,25 @@ export const createAccount = createServerFn({ method: 'POST' })
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
-			if (!isCustomerAuthUser(user)) {
-				await client.auth.signOut()
-				appendPendingAuthCookies(
-					responseCookies.values(),
-					responseHeaders.entries(),
-				)
-				return { success: false, error: 'not_authenticated' as const }
-			}
 
-			// Insert customer record
-			const { data: customer, error } = await client
-				.from('customers')
-				.insert({
-					phone: formattedPhone,
-					email: user.email ?? null,
-					company_name: input.companyName,
-					contact_name: input.fullName,
-					user_id: user.id,
-				})
-				.select('id')
-				.single()
-
-			if (error) {
-				logPortalError('portal.auth.create_account.supabase_error', error)
-				return { success: false, error: 'create_failed' as const }
-			}
-			const activityRecorded = await recordCustomerAuthActivity(
+			return createAuthenticatedCustomerProfile({
 				client,
-				customer.id,
-				'customer_signed_up',
-				{
-					method: input.method ?? 'phone_otp',
-					phone: formattedPhone,
-					source: 'portal',
-				},
-			)
-			if (!activityRecorded) {
-				return { success: false, error: 'create_failed' as const }
-			}
-			appendPendingAuthCookies(
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
-
-			return {
-				success: true,
-				customerId: customer.id,
-				userId: user.id,
-			}
+				user,
+				formattedPhone,
+				companyName: input.companyName,
+				fullName: input.fullName,
+				method: input.method,
+				source: 'portal',
+				appendAuthCookies: () =>
+					appendPendingAuthCookies(
+						responseCookies.values(),
+						responseHeaders.entries(),
+					),
+				onCreateError: (error) =>
+					logPortalError('portal.auth.create_account.supabase_error', error),
+				onActivityError: (error) =>
+					logPortalError('portal.auth.activity.supabase_error', error),
+			})
 		} catch (err) {
 			logPortalError('portal.auth.create_account.unexpected_error', err)
 			return { success: false, error: 'create_failed' as const }
@@ -553,7 +372,7 @@ export const claimAccount = createServerFn({ method: 'POST' })
 	.inputValidator(claimAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {
@@ -574,35 +393,19 @@ export const claimAccount = createServerFn({ method: 'POST' })
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
-			if (!isCustomerAuthUser(user)) {
-				await client.auth.signOut()
-				appendPendingAuthCookies(
-					responseCookies.values(),
-					responseHeaders.entries(),
-				)
-				return { success: false, error: 'not_authenticated' as const }
-			}
 
-			// Find and claim the unclaimed customer through the validated RPC.
-			const { data: customerResult, error } = await client
-				.rpc('claim_customer_profile', { p_phone: formattedPhone })
-				.single()
-			const customer = customerResult as { id: string } | null
-
-			if (error || !customer) {
-				logPortalError('portal.auth.claim_account.supabase_error', error)
-				return { success: false, error: 'claim_failed' as const }
-			}
-			appendPendingAuthCookies(
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
-
-			return {
-				success: true,
-				customerId: customer.id,
-				claimed: true,
-			}
+			return claimAuthenticatedCustomerProfile({
+				client,
+				user,
+				formattedPhone,
+				appendAuthCookies: () =>
+					appendPendingAuthCookies(
+						responseCookies.values(),
+						responseHeaders.entries(),
+					),
+				onClaimError: (error) =>
+					logPortalError('portal.auth.claim_account.supabase_error', error),
+			})
 		} catch (err) {
 			logPortalError('portal.auth.claim_account.unexpected_error', err)
 			return { success: false, error: 'claim_failed' as const }
@@ -632,7 +435,7 @@ export const requestPhoneChange = createServerFn({ method: 'POST' })
 				}
 			}
 
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {
@@ -708,7 +511,7 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 				}
 			}
 
-			const formattedPhone = `+20${input.phone}`
+			const formattedPhone = formattedEgyptPhone(input.phone)
 			const config = await getSupabaseConfig()
 
 			if (!config) {

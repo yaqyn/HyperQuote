@@ -7,6 +7,7 @@
 		".": "./src/index.ts",
 		"./server": "./src/server.ts",
 		"./client": "./src/client.ts",
+		"./customer": "./src/customer.ts",
 		"./guard": "./src/guard.ts",
 		"./session": "./src/session.ts",
 		"./permissions": "./src/permissions.ts",

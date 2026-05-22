@@ -1,3 +1,4 @@
+import { checkRateLimit, getKVNamespace } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
 	createSupabaseServerClient,
@@ -6,7 +7,6 @@ import {
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { checkRateLimit, getKVNamespace } from './rate-limit'
 import { logWebsiteServerError } from './server-log'
 
 const contactInput = z.object({
