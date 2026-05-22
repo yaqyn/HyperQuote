@@ -1,14 +1,22 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Activity, ArrowLeft, Database, Table2 } from 'lucide-react'
+import {
+	Activity,
+	ArrowLeft,
+	ChevronDown,
+	Database,
+	Table2,
+} from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
 	type CSSProperties,
 	type ReactNode,
 	useCallback,
 	useEffect,
+	useId,
 	useRef,
 	useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { JsonValue } from '../../lib/db/types'
 import type {
 	SearchActivityFeed,
@@ -156,8 +164,7 @@ export function SearchModule() {
 	const hasContent =
 		trimmedQuery.length > 0 ||
 		activeTableId !== null ||
-		activeSummaryId !== null ||
-		isActivityMode
+		activeSummaryId !== null
 	const searchData = searchQuery.data
 
 	const handleQueryChange = useCallback(
@@ -215,7 +222,7 @@ export function SearchModule() {
 	}, [hasContent, isFrameExpanded, reduceMotion, switchSearchFrame])
 
 	useEffect(() => {
-		if (selectedRow) return
+		if (selectedRow || isActivityMode) return
 
 		function handleWindowKeyDown(event: KeyboardEvent) {
 			if (
@@ -253,7 +260,7 @@ export function SearchModule() {
 			window.removeEventListener('keydown', handleWindowKeyDown, true)
 			window.removeEventListener('paste', handleWindowPaste, true)
 		}
-	}, [handleQueryChange, query, selectedRow])
+	}, [handleQueryChange, isActivityMode, query, selectedRow])
 
 	function openTable(table: SearchTableSummary) {
 		setActiveTableId(table.tableId)
@@ -272,10 +279,12 @@ export function SearchModule() {
 
 	function openActivity() {
 		setIsActivityMode(true)
-		setActiveTableId(null)
-		setActiveSummaryId(null)
-		setQuery('')
 		setSelectedRow(null)
+	}
+
+	function closeActivity() {
+		setIsActivityMode(false)
+		setActiveActivityDomainId('all')
 	}
 
 	function openRow(row: SearchRow) {
@@ -300,12 +309,18 @@ export function SearchModule() {
 
 	return (
 		<div className="relative h-full min-h-0 overflow-hidden bg-[#010101] text-white">
-			<ActivityCornerButton
-				isActive={isActivityMode}
+			<SearchActionRow
+				brief={executiveBriefQuery.data}
+				isActivityMode={isActivityMode}
+				isLoadingSummaries={executiveBriefQuery.isLoading}
+				reduceMotion={!!reduceMotion}
+				showSummaryMenu={!isActivityMode}
 				onOpenActivity={openActivity}
+				onOpenSummary={openSummary}
 			/>
 			<motion.div
 				key="search-console"
+				data-search-console="true"
 				className={`relative z-10 flex h-full min-h-0 flex-col ${
 					isFrameExpanded ? '' : 'items-center justify-center'
 				}`}
@@ -366,9 +381,7 @@ export function SearchModule() {
 									? `table-${activeTableId}`
 									: activeSummaryId
 										? `summary-${activeSummaryId}`
-										: isActivityMode
-											? 'activity-feed'
-											: 'search-results'
+										: 'search-results'
 							}
 							className="mx-auto mt-5 min-h-0 w-full max-w-3xl flex-1 px-4 pb-6 sm:px-6 lg:px-8"
 							initial={reduceMotion ? false : { opacity: 0 }}
@@ -397,16 +410,6 @@ export function SearchModule() {
 									onBack={() => setActiveSummaryId(null)}
 									onOpenRow={openRow}
 								/>
-							) : isActivityMode ? (
-								<ActivityFeedView
-									activeDomainId={activeActivityDomainId}
-									feed={activityQuery.data}
-									isLoading={activityQuery.isLoading}
-									isError={activityQuery.isError}
-									onBack={() => setIsActivityMode(false)}
-									onOpenRow={openRow}
-									onSelectDomain={setActiveActivityDomainId}
-								/>
 							) : (
 								<SearchResults
 									query={trimmedQuery}
@@ -423,10 +426,67 @@ export function SearchModule() {
 				</AnimatePresence>
 			</motion.div>
 
+			{isActivityMode && (
+				<div
+					data-activity-overlay="true"
+					className="absolute inset-0 z-20 bg-[#010101] text-white"
+				>
+					<div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col px-4 pt-[min(7vh,56px)] pb-6 sm:px-6 lg:px-8">
+						<ActivityFeedView
+							activeDomainId={activeActivityDomainId}
+							feed={activityQuery.data}
+							isLoading={activityQuery.isLoading}
+							isError={activityQuery.isError}
+							onBack={closeActivity}
+							onOpenRow={openRow}
+							onSelectDomain={setActiveActivityDomainId}
+						/>
+					</div>
+				</div>
+			)}
+
 			<RowDetailPanel
 				row={selectedRow}
 				onClose={() => setSelectedRow(null)}
 				onOpenSourcePanel={openSourcePanel}
+			/>
+		</div>
+	)
+}
+
+function SearchActionRow({
+	brief,
+	isActivityMode,
+	isLoadingSummaries,
+	reduceMotion,
+	showSummaryMenu,
+	onOpenActivity,
+	onOpenSummary,
+}: {
+	brief: SearchExecutiveBrief | undefined
+	isActivityMode: boolean
+	isLoadingSummaries: boolean
+	reduceMotion: boolean
+	showSummaryMenu: boolean
+	onOpenActivity: () => void
+	onOpenSummary: (moduleId: SearchSummaryModuleId) => void
+}) {
+	return (
+		<div
+			data-search-actions="true"
+			className="absolute top-4 right-4 z-30 flex items-center gap-1 sm:top-5 sm:right-5"
+		>
+			{showSummaryMenu && (
+				<SummaryMenuControl
+					brief={brief}
+					isLoading={isLoadingSummaries}
+					reduceMotion={reduceMotion}
+					onOpenSummary={onOpenSummary}
+				/>
+			)}
+			<ActivityCornerButton
+				isActive={isActivityMode}
+				onOpenActivity={onOpenActivity}
 			/>
 		</div>
 	)
@@ -483,17 +543,120 @@ function ActivityCornerButton({
 	return (
 		<button
 			type="button"
+			aria-label="Open activity feed"
 			aria-pressed={isActive}
 			onClick={onOpenActivity}
-			className={`absolute top-4 right-4 z-20 inline-flex h-9 items-center gap-2 border px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] outline-none transition-[border-color,background-color,color] focus-visible:border-white/35 sm:top-5 sm:right-5 sm:h-10 ${
+			className={`inline-flex h-9 w-9 items-center justify-center outline-none transition-[background-color,color] hover:bg-white/[0.035] focus-visible:bg-white/[0.06] sm:h-10 sm:w-10 ${
 				isActive
-					? 'border-white/[0.22] bg-white/[0.07] text-white/82'
-					: 'border-white/[0.08] bg-white/[0.012] text-white/42 hover:border-white/[0.16] hover:bg-white/[0.035] hover:text-white/72'
+					? 'text-white/88'
+					: 'text-white/42 hover:text-white/72 focus-visible:text-white/82'
 			}`}
 		>
-			<Activity aria-hidden="true" size={14} strokeWidth={1.8} />
-			Activity
+			<Activity aria-hidden="true" size={18} strokeWidth={1.8} />
 		</button>
+	)
+}
+
+function SummaryMenuControl({
+	brief,
+	isLoading,
+	reduceMotion,
+	onOpenSummary,
+}: {
+	brief: SearchExecutiveBrief | undefined
+	isLoading: boolean
+	reduceMotion: boolean
+	onOpenSummary: (moduleId: SearchSummaryModuleId) => void
+}) {
+	const menuId = useId()
+	const [isMenuOpen, setIsMenuOpen] = useState(false)
+	const [isClient, setIsClient] = useState(false)
+
+	useEffect(() => {
+		setIsClient(true)
+	}, [])
+
+	useEffect(() => {
+		if (!isMenuOpen) return
+
+		function closeOnEscape(event: KeyboardEvent) {
+			if (event.key === 'Escape') setIsMenuOpen(false)
+		}
+
+		window.addEventListener('keydown', closeOnEscape)
+		return () => window.removeEventListener('keydown', closeOnEscape)
+	}, [isMenuOpen])
+
+	function openSummary(moduleId: SearchSummaryModuleId) {
+		setIsMenuOpen(false)
+		onOpenSummary(moduleId)
+	}
+
+	const summaryMenuPortal =
+		!isClient || typeof document === 'undefined'
+			? null
+			: createPortal(
+					<AnimatePresence initial={false}>
+						{isMenuOpen && (
+							<motion.div
+								id={menuId}
+								data-summary-menu="true"
+								key="summary-menu"
+								className="fixed top-1/2 left-1/2 z-[1000] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-white/[0.075] bg-[#050505]/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+								initial={reduceMotion ? false : { opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={{
+									duration: reduceMotion ? 0 : 0.12,
+									ease: 'easeOut',
+								}}
+							>
+								{brief ? (
+									<div className="max-h-[min(68dvh,520px)] overflow-y-auto">
+										{brief.modules.map((summary, index) => (
+											<SearchSummaryMenuButton
+												key={summary.moduleId}
+												summary={summary}
+												index={index}
+												onOpenSummary={openSummary}
+											/>
+										))}
+									</div>
+								) : isLoading ? (
+									<SearchSummaryMenuSkeleton />
+								) : (
+									<p className="px-3 py-3 font-[family-name:var(--font-archivo)] text-[12px] text-white/38">
+										Summaries unavailable.
+									</p>
+								)}
+							</motion.div>
+						)}
+					</AnimatePresence>,
+					document.body,
+				)
+
+	return (
+		<div className="relative">
+			<button
+				type="button"
+				aria-label="Open summaries"
+				aria-controls={menuId}
+				aria-expanded={isMenuOpen}
+				onClick={() => setIsMenuOpen((open) => !open)}
+				className="inline-flex h-9 w-9 items-center justify-center text-white/42 outline-none transition-[background-color,color] hover:bg-white/[0.035] hover:text-white/76 focus-visible:bg-white/[0.06] focus-visible:text-white/86 sm:h-10 sm:w-10"
+			>
+				<ChevronDown
+					aria-hidden="true"
+					size={20}
+					strokeWidth={1.8}
+					className={`transition-transform duration-150 ${
+						isMenuOpen ? 'rotate-180' : ''
+					}`}
+				/>
+			</button>
+
+			{summaryMenuPortal}
+		</div>
 	)
 }
 
@@ -512,13 +675,13 @@ function SearchExecutiveBriefPanel({
 
 	return (
 		<motion.div
-			className="mt-8 w-[min(760px,calc(100%-40px))]"
+			className="mt-8 hidden w-[min(760px,calc(100%-40px))] xl:block"
 			initial={reduceMotion ? false : { opacity: 0, y: 8 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
 		>
 			{brief ? (
-				<div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+				<div className="grid gap-2.5 xl:grid-cols-3">
 					{brief.modules.map((summary, index) => (
 						<SearchExecutiveModuleCard
 							key={summary.moduleId}
@@ -529,7 +692,7 @@ function SearchExecutiveBriefPanel({
 					))}
 				</div>
 			) : (
-				<div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+				<div className="grid gap-2.5 xl:grid-cols-3">
 					{searchSkeletonIds.map((slotId) => (
 						<div
 							key={slotId}
@@ -543,6 +706,56 @@ function SearchExecutiveBriefPanel({
 				</div>
 			)}
 		</motion.div>
+	)
+}
+
+function SearchSummaryMenuButton({
+	summary,
+	index,
+	onOpenSummary,
+}: {
+	summary: SearchModuleSummary
+	index: number
+	onOpenSummary: (moduleId: SearchSummaryModuleId) => void
+}) {
+	const pointSummary = summary.points
+		.map(
+			(point) =>
+				`${point.count.toLocaleString('en-EG')} ${point.label.toLowerCase()}`,
+		)
+		.join(' / ')
+
+	return (
+		<button
+			type="button"
+			onClick={() => onOpenSummary(summary.moduleId)}
+			className="grid min-h-12 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-start outline-none transition-[background-color,color] hover:bg-white/[0.045] focus-visible:bg-white/[0.07]"
+		>
+			<span className="min-w-0">
+				<span className="block truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white/84">
+					{summary.moduleLabel}
+				</span>
+				<span className="mt-1 block truncate font-[family-name:var(--font-plex-mono)] text-[10px] text-white/32">
+					{pointSummary}
+				</span>
+			</span>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[9px] tabular-nums text-white/20">
+				{String(index + 1).padStart(2, '0')}
+			</span>
+		</button>
+	)
+}
+
+function SearchSummaryMenuSkeleton() {
+	return (
+		<div className="space-y-1 p-1">
+			{searchSkeletonIds.slice(0, 5).map((slotId) => (
+				<div key={slotId} className="px-3 py-2">
+					<div className="h-3 w-28 bg-white/[0.075]" />
+					<div className="mt-2 h-2 w-48 max-w-full bg-white/[0.05]" />
+				</div>
+			))}
+		</div>
 	)
 }
 
@@ -725,14 +938,10 @@ function ActivityFeedView({
 	const activeDomain =
 		feed.domains.find((domain) => domain.id === activeDomainId) ??
 		feed.domains[0]
-	const loadedLabel =
-		feed.totalCount > feed.loadedRowCount
-			? `Showing latest ${feed.loadedRowCount.toLocaleString('en-EG')} of ${feed.totalCount.toLocaleString('en-EG')}`
-			: `${feed.totalCount.toLocaleString('en-EG')} activities`
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+			<div className="flex shrink-0 items-center border-b border-white/[0.06] pb-4">
 				<button
 					type="button"
 					onClick={onBack}
@@ -741,14 +950,6 @@ function ActivityFeedView({
 					<ArrowLeft size={15} strokeWidth={1.8} />
 					Back
 				</button>
-				<div className="min-w-0 text-end">
-					<p className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white">
-						Activity
-					</p>
-					<p className="mt-0.5 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/32">
-						{loadedLabel}
-					</p>
-				</div>
 			</div>
 
 			<div className="min-h-0 flex-1 overflow-y-auto py-4">
