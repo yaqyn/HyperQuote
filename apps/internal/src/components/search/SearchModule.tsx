@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Database, Table2 } from 'lucide-react'
+import { Activity, ArrowLeft, Database, Table2 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
 	type CSSProperties,
@@ -11,6 +11,7 @@ import {
 } from 'react'
 import type { JsonValue } from '../../lib/db/types'
 import type {
+	SearchActivityFeed,
 	SearchExecutiveBrief,
 	SearchModuleSummary,
 	SearchPreviewField,
@@ -21,6 +22,7 @@ import type {
 	SearchTableView,
 } from '../../lib/search-registry'
 import {
+	getSearchActivityFeed,
 	getSearchExecutiveBrief,
 	getSearchModuleSummary,
 	listSearchTable,
@@ -39,6 +41,12 @@ const searchSkeletonIds = [
 	'search-skeleton-5',
 	'search-skeleton-6',
 ] as const
+
+const activityTimestampFormatter = new Intl.DateTimeFormat('en-EG', {
+	dateStyle: 'medium',
+	timeStyle: 'short',
+	timeZone: 'Africa/Cairo',
+})
 
 const SOURCE_PANEL_BY_TABLE: Record<string, string> = {
 	activity: 'search',
@@ -89,6 +97,8 @@ export function SearchModule() {
 	const [activeTableId, setActiveTableId] = useState<string | null>(null)
 	const [activeSummaryId, setActiveSummaryId] =
 		useState<SearchSummaryModuleId | null>(null)
+	const [isActivityMode, setIsActivityMode] = useState(false)
+	const [activeActivityDomainId, setActiveActivityDomainId] = useState('all')
 	const [selectedRow, setSelectedRow] = useState<SearchRow | null>(null)
 	const [isFrameExpanded, setIsFrameExpanded] = useState(false)
 	const [isSearchFrameVisible, setIsSearchFrameVisible] = useState(true)
@@ -127,6 +137,15 @@ export function SearchModule() {
 		staleTime: 15_000,
 	})
 
+	const activityQuery = useQuery({
+		queryKey: ['internal-search-activity-feed'],
+		queryFn: () => getSearchActivityFeed(),
+		enabled: isActivityMode,
+		placeholderData: keepPreviousData,
+		refetchInterval: isActivityMode ? 15_000 : false,
+		staleTime: 5_000,
+	})
+
 	useEffect(() => {
 		const id = window.setTimeout(() => {
 			inputRef.current?.focus()
@@ -137,7 +156,8 @@ export function SearchModule() {
 	const hasContent =
 		trimmedQuery.length > 0 ||
 		activeTableId !== null ||
-		activeSummaryId !== null
+		activeSummaryId !== null ||
+		isActivityMode
 	const searchData = searchQuery.data
 
 	const handleQueryChange = useCallback(
@@ -145,8 +165,9 @@ export function SearchModule() {
 			setQuery(value)
 			if (activeTableId) setActiveTableId(null)
 			if (activeSummaryId) setActiveSummaryId(null)
+			if (isActivityMode) setIsActivityMode(false)
 		},
-		[activeSummaryId, activeTableId],
+		[activeSummaryId, activeTableId, isActivityMode],
 	)
 
 	const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
@@ -237,12 +258,22 @@ export function SearchModule() {
 	function openTable(table: SearchTableSummary) {
 		setActiveTableId(table.tableId)
 		setActiveSummaryId(null)
+		setIsActivityMode(false)
 		setSelectedRow(null)
 	}
 
 	function openSummary(moduleId: SearchSummaryModuleId) {
 		setActiveSummaryId(moduleId)
 		setActiveTableId(null)
+		setIsActivityMode(false)
+		setQuery('')
+		setSelectedRow(null)
+	}
+
+	function openActivity() {
+		setIsActivityMode(true)
+		setActiveTableId(null)
+		setActiveSummaryId(null)
 		setQuery('')
 		setSelectedRow(null)
 	}
@@ -302,8 +333,10 @@ export function SearchModule() {
 				>
 					<SearchBox
 						inputRef={setSearchInputRef}
+						isActivityActive={isActivityMode}
 						query={query}
 						onQueryChange={handleQueryChange}
+						onOpenActivity={openActivity}
 						onSubmit={askLyon}
 					/>
 				</motion.div>
@@ -331,7 +364,9 @@ export function SearchModule() {
 									? `table-${activeTableId}`
 									: activeSummaryId
 										? `summary-${activeSummaryId}`
-										: 'search-results'
+										: isActivityMode
+											? 'activity-feed'
+											: 'search-results'
 							}
 							className="mx-auto mt-5 min-h-0 w-full max-w-3xl flex-1 px-4 pb-6 sm:px-6 lg:px-8"
 							initial={reduceMotion ? false : { opacity: 0 }}
@@ -360,6 +395,16 @@ export function SearchModule() {
 									onBack={() => setActiveSummaryId(null)}
 									onOpenRow={openRow}
 								/>
+							) : isActivityMode ? (
+								<ActivityFeedView
+									activeDomainId={activeActivityDomainId}
+									feed={activityQuery.data}
+									isLoading={activityQuery.isLoading}
+									isError={activityQuery.isError}
+									onBack={() => setIsActivityMode(false)}
+									onOpenRow={openRow}
+									onSelectDomain={setActiveActivityDomainId}
+								/>
 							) : (
 								<SearchResults
 									query={trimmedQuery}
@@ -387,13 +432,17 @@ export function SearchModule() {
 
 function SearchBox({
 	inputRef,
+	isActivityActive,
 	query,
 	onQueryChange,
+	onOpenActivity,
 	onSubmit,
 }: {
 	inputRef: (node: HTMLInputElement | null) => void
+	isActivityActive: boolean
 	query: string
 	onQueryChange: (value: string) => void
+	onOpenActivity: () => void
 	onSubmit: () => void
 }) {
 	return (
@@ -404,23 +453,38 @@ function SearchBox({
 			}}
 			className="relative"
 		>
-			<div className="flex h-11 items-center justify-center border-b border-white/[0.16] bg-transparent px-0 transition-colors duration-200 focus-within:border-white/45 sm:h-12">
-				<input
-					ref={inputRef}
-					value={query}
-					onChange={(event) => onQueryChange(event.target.value)}
-					placeholder="Query"
-					dir="ltr"
-					className={`min-w-0 bg-transparent text-center font-[family-name:var(--font-archivo)] text-[14px] font-medium text-white/90 outline-none transition-[width] duration-200 placeholder:font-normal placeholder:italic placeholder:text-white/24 focus:w-[24ch] sm:text-[15px] sm:focus:w-[30ch] ${
-						query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
+			<div className="flex items-center justify-center gap-3">
+				<div className="flex h-11 min-w-0 items-center justify-center border-b border-white/[0.16] bg-transparent px-0 transition-colors duration-200 focus-within:border-white/45 sm:h-12">
+					<input
+						ref={inputRef}
+						value={query}
+						onChange={(event) => onQueryChange(event.target.value)}
+						placeholder="Query"
+						dir="ltr"
+						className={`min-w-0 bg-transparent text-center font-[family-name:var(--font-archivo)] text-[14px] font-medium text-white/90 outline-none transition-[width] duration-200 placeholder:font-normal placeholder:italic placeholder:text-white/24 focus:w-[24ch] sm:text-[15px] sm:focus:w-[30ch] ${
+							query ? 'w-[24ch] sm:w-[30ch]' : 'w-[8ch]'
+						}`}
+						style={{
+							caretColor: 'rgba(255,255,255,0.82)',
+							letterSpacing: '0',
+							lineHeight: 1,
+						}}
+						aria-label="Search internal database"
+					/>
+				</div>
+				<button
+					type="button"
+					aria-pressed={isActivityActive}
+					onClick={onOpenActivity}
+					className={`inline-flex h-9 shrink-0 items-center gap-2 border px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] outline-none transition-[border-color,background-color,color] focus-visible:border-white/35 sm:h-10 ${
+						isActivityActive
+							? 'border-white/[0.22] bg-white/[0.07] text-white/82'
+							: 'border-white/[0.08] bg-white/[0.012] text-white/42 hover:border-white/[0.16] hover:bg-white/[0.035] hover:text-white/72'
 					}`}
-					style={{
-						caretColor: 'rgba(255,255,255,0.82)',
-						letterSpacing: '0',
-						lineHeight: 1,
-					}}
-					aria-label="Search internal database"
-				/>
+				>
+					<Activity aria-hidden="true" size={14} strokeWidth={1.8} />
+					Activity
+				</button>
 			</div>
 		</form>
 	)
@@ -625,6 +689,136 @@ function SummaryRowButton({
 			</span>
 			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/30 sm:self-end sm:text-end">
 				{entry.tableLabel}
+			</span>
+		</button>
+	)
+}
+
+function ActivityFeedView({
+	activeDomainId,
+	feed,
+	isLoading,
+	isError,
+	onBack,
+	onOpenRow,
+	onSelectDomain,
+}: {
+	activeDomainId: string
+	feed: SearchActivityFeed | undefined
+	isLoading: boolean
+	isError: boolean
+	onBack: () => void
+	onOpenRow: (row: SearchRow) => void
+	onSelectDomain: (domainId: string) => void
+}) {
+	if (isLoading && !feed) return <StatusLine>Loading activity</StatusLine>
+	if (isError || !feed)
+		return <StatusLine tone="danger">Activity did not load</StatusLine>
+
+	const activeDomain =
+		feed.domains.find((domain) => domain.id === activeDomainId) ??
+		feed.domains[0]
+	const loadedLabel =
+		feed.totalCount > feed.loadedRowCount
+			? `Showing latest ${feed.loadedRowCount.toLocaleString('en-EG')} of ${feed.totalCount.toLocaleString('en-EG')}`
+			: `${feed.totalCount.toLocaleString('en-EG')} activities`
+
+	return (
+		<div className="flex h-full min-h-0 flex-col">
+			<div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+				<button
+					type="button"
+					onClick={onBack}
+					className="inline-flex h-9 items-center gap-2 px-1 font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-white/48 outline-none transition-colors hover:text-white/82 focus-visible:text-white"
+				>
+					<ArrowLeft size={15} strokeWidth={1.8} />
+					Back
+				</button>
+				<div className="min-w-0 text-end">
+					<p className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white">
+						Activity
+					</p>
+					<p className="mt-0.5 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/32">
+						{loadedLabel}
+					</p>
+				</div>
+			</div>
+
+			<div className="min-h-0 flex-1 overflow-y-auto py-4">
+				<div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-2">
+					{feed.domains.map((domain) => (
+						<button
+							key={domain.id}
+							type="button"
+							onClick={() => onSelectDomain(domain.id)}
+							className={`inline-flex h-9 shrink-0 items-center gap-2 border px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold outline-none transition-[border-color,background-color,color] focus-visible:border-white/35 ${
+								domain.id === activeDomain?.id
+									? 'border-white/[0.18] bg-white/[0.06] text-white/82'
+									: 'border-white/[0.055] bg-white/[0.014] text-white/42 hover:border-white/[0.13] hover:bg-white/[0.035] hover:text-white/70'
+							}`}
+						>
+							<span>{domain.label}</span>
+							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-white/34">
+								{domain.count.toLocaleString('en-EG')}
+							</span>
+						</button>
+					))}
+				</div>
+
+				<div className="mt-4">
+					<GroupLabel>
+						{activeDomain?.label ?? 'Activity'}{' '}
+						<span className="text-white/25">
+							{activeDomain?.count.toLocaleString('en-EG') ?? '0'}
+						</span>
+					</GroupLabel>
+					{activeDomain && activeDomain.rows.length > 0 ? (
+						<div className="mt-3 flex flex-col gap-1.5">
+							{activeDomain.rows.map((entry) => (
+								<ActivityRowButton
+									key={entry.id}
+									entry={entry}
+									onOpen={() => onOpenRow(entry.row)}
+								/>
+							))}
+						</div>
+					) : (
+						<p className="mt-3 border border-white/[0.045] bg-white/[0.012] px-3 py-3 font-[family-name:var(--font-archivo)] text-[12px] text-white/34">
+							No activity in this domain.
+						</p>
+					)}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function ActivityRowButton({
+	entry,
+	onOpen,
+}: {
+	entry: SearchActivityFeed['domains'][number]['rows'][number]
+	onOpen: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onOpen}
+			className="group grid min-h-[64px] grid-cols-[minmax(0,1fr)] gap-3 border border-white/[0.055] bg-black/[0.16] px-3.5 py-3 text-start outline-none transition-[border-color,background-color,transform] hover:-translate-y-px hover:border-white/[0.16] hover:bg-white/[0.045] focus-visible:border-white/[0.24] focus-visible:bg-white/[0.055] sm:grid-cols-[minmax(0,1fr)_auto]"
+		>
+			<span className="min-w-0">
+				<span className="block truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white">
+					{entry.title}
+				</span>
+				{entry.note && (
+					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[11px] text-white/44">
+						{entry.note}
+					</span>
+				)}
+				<PreviewFields fields={entry.preview} limit={6} />
+			</span>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/30 sm:self-end sm:text-end">
+				{formatActivityTimestamp(entry.occurredAt)}
 			</span>
 		</button>
 	)
@@ -1007,6 +1201,13 @@ function renderJsonValue(value: JsonValue): ReactNode {
 			{JSON.stringify(value, null, 2)}
 		</pre>
 	)
+}
+
+function formatActivityTimestamp(value: string | null): string {
+	if (!value) return 'Time unavailable'
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return 'Time unavailable'
+	return activityTimestampFormatter.format(date)
 }
 
 function GroupLabel({ children }: { children: ReactNode }) {

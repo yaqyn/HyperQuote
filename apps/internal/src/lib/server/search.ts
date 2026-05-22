@@ -12,6 +12,7 @@ import {
 } from '../search-display'
 import { searchPattern, searchTokens } from '../search-query'
 import type {
+	SearchActivityFeed,
 	SearchExecutiveBrief,
 	SearchModuleSummary,
 	SearchResponse,
@@ -132,6 +133,7 @@ const SEARCH_ROW_SELECT =
 const SEARCH_RESULT_GROUP_LIMIT = 8
 const SEARCH_TABLE_LIMIT = 500
 const SEARCH_SUMMARY_ENTITY_LIMIT = 5000
+const SEARCH_ACTIVITY_LIMIT = 5000
 const SEARCH_PAGE_SIZE = 1000
 const SEARCH_SUMMARY_MODULES = Object.keys(
 	MODULE_TABLES,
@@ -144,6 +146,19 @@ const SUMMARY_ENTITY_TYPES: Record<SearchSummaryModuleId, string[]> = {
 	dispatch: ['dispatch', 'driver'],
 	'customer-service': ['support', 'customer'],
 }
+
+const ACTIVITY_DOMAINS = [
+	{ id: 'all', label: 'All activity' },
+	{ id: 'sales', label: 'Sales' },
+	{ id: 'inventory', label: 'Inventory' },
+	{ id: 'warehouse', label: 'Warehouse' },
+	{ id: 'finance', label: 'Finance' },
+	{ id: 'dispatch', label: 'Dispatch' },
+	{ id: 'customer-service', label: 'Customer service' },
+	{ id: 'procurement', label: 'Procurement' },
+	{ id: 'admin', label: 'Admin' },
+	{ id: 'other', label: 'Other' },
+] as const
 
 async function requireSearchClient() {
 	const { getInternalSupabaseClient } = await import('./_supabase')
@@ -414,6 +429,68 @@ export const getSearchExecutiveBrief = createServerFn({
 	}
 })
 
+export const getSearchActivityFeed = createServerFn({
+	method: 'GET',
+}).handler(async (): Promise<SearchActivityFeed> => {
+	const client = await requireSearchClient()
+	const [rows, totalCount] = await Promise.all([
+		fetchSearchRows(
+			{
+				entityType: 'activity',
+				limit: SEARCH_ACTIVITY_LIMIT,
+			},
+			client,
+		),
+		countSearchRows({ entityType: 'activity' }, client),
+	])
+	const activityRows = rows
+		.flatMap((row) => {
+			const searchRow = toSearchRow(row)
+			if (!searchRow) return []
+			return [
+				{
+					domainId: activityDomainId(row),
+					id: searchRow.rowId,
+					title: searchRow.title,
+					note: buildSearchSummaryNote(row),
+					preview: searchRow.preview,
+					row: searchRow,
+					occurredAt: activityOccurredAt(row),
+				},
+			]
+		})
+		.sort(compareActivityRows)
+
+	const domains = ACTIVITY_DOMAINS.map((domain) => {
+		const domainRows =
+			domain.id === 'all'
+				? activityRows
+				: activityRows.filter((row) => row.domainId === domain.id)
+		return {
+			id: domain.id,
+			label: domain.label,
+			count: domainRows.length,
+			latestAt: domainRows[0]?.occurredAt ?? null,
+			rows: domainRows.map((row) => ({
+				id: row.id,
+				title: row.title,
+				note: row.note,
+				preview: row.preview,
+				row: row.row,
+				occurredAt: row.occurredAt,
+			})),
+		}
+	})
+
+	return {
+		generatedAt: new Date().toISOString(),
+		totalCount,
+		loadedRowCount: activityRows.length,
+		rowLimit: SEARCH_ACTIVITY_LIMIT,
+		domains,
+	}
+})
+
 export const getSearchModuleSummary = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ moduleId: z.string() }))
 	.handler(async ({ data }): Promise<SearchModuleSummary> => {
@@ -425,6 +502,48 @@ export const getSearchModuleSummary = createServerFn({ method: 'POST' })
 		const rows = await fetchSummaryRowsForModule(moduleId, client)
 		return buildModuleSummary(moduleId, rows)
 	})
+
+function activityDomainId(row: SearchIndexRow): string {
+	const metadata = row.metadata ?? {}
+	const area =
+		typeof metadata.area === 'string' && metadata.area.trim()
+			? metadata.area
+			: row.subtitle
+	const normalized = (area ?? '')
+		.trim()
+		.toLowerCase()
+		.replace(/[\s_]+/g, '-')
+	if (normalized === 'customer-service') return 'customer-service'
+	if (
+		[
+			'admin',
+			'dispatch',
+			'finance',
+			'inventory',
+			'procurement',
+			'sales',
+			'warehouse',
+		].includes(normalized)
+	) {
+		return normalized
+	}
+	return 'other'
+}
+
+function activityOccurredAt(row: SearchIndexRow): string | null {
+	if (row.sort_at) return row.sort_at
+	const metadata = row.metadata ?? {}
+	return typeof metadata.created_at === 'string' ? metadata.created_at : null
+}
+
+function compareActivityRows(
+	left: { occurredAt: string | null },
+	right: { occurredAt: string | null },
+): number {
+	const leftTime = left.occurredAt ? new Date(left.occurredAt).getTime() : 0
+	const rightTime = right.occurredAt ? new Date(right.occurredAt).getTime() : 0
+	return rightTime - leftTime
+}
 
 function buildModuleSummary(
 	moduleId: SearchSummaryModuleId,

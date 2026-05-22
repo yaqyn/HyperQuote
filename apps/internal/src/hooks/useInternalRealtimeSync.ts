@@ -12,6 +12,7 @@ const SEARCH_QUERY_KEYS = [
 	['internal-search-table'],
 	['internal-search-module-summary'],
 	['internal-search-executive-brief'],
+	['internal-search-activity-feed'],
 ] as const satisfies readonly QueryKeyPrefix[]
 
 const ADMIN_QUERY_KEYS = [

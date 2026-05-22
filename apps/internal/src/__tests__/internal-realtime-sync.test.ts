@@ -16,6 +16,15 @@ describe('internalRealtimeQueryKeysForTable', () => {
 		expect(keys).toContain('warehouse-queue')
 		expect(keys).toContain('dispatch-board')
 		expect(keys).toContain('internal-search')
+		expect(keys).toContain('internal-search-activity-feed')
+	})
+
+	it('refreshes the Search activity feed when business activity is recorded', () => {
+		const keys = keyNamesForTable('activity_events')
+
+		expect(keys).toContain('internal-search')
+		expect(keys).toContain('internal-search-activity-feed')
+		expect(keys).toContain('urgent-items')
 	})
 
 	it('refreshes prices, stock, and quote builders when catalog prices change', () => {

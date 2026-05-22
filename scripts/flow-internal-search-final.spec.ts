@@ -201,7 +201,22 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 		await expect(page.locator('body')).toContainText(label)
 	}
 
-	await page.getByRole('button', { name: /Sales/i }).first().click()
+	await page.getByRole('button', { name: /^Activity$/i }).click()
+	await expect(page.locator('body')).toContainText('All activity', {
+		timeout: 20_000,
+	})
+	await expect(page.locator('body')).toContainText('Procurement')
+	await expect(page.locator('body')).toContainText('Admin')
+	await expect(page.locator('body')).toContainText(/May 2026|2026|AM|PM/i)
+	await page.getByRole('button', { name: /^Back$/i }).click()
+
+	const salesSummaryButton = page
+		.locator('button')
+		.filter({ hasText: 'Sales' })
+		.filter({ hasText: 'Submitted orders' })
+		.first()
+	await expect(salesSummaryButton).toBeVisible({ timeout: 15_000 })
+	await salesSummaryButton.click()
 	await expect(page.locator('body')).toContainText('Orders')
 	await expect(page.locator('body')).toContainText('Submitted orders')
 	await expect(page.locator('body')).toContainText('Accepted orders')

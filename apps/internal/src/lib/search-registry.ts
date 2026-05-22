@@ -95,6 +95,23 @@ interface SearchSummarySection {
 	rows: SearchSummaryRow[]
 }
 
+interface SearchActivityRow {
+	id: string
+	title: string
+	note: string | null
+	preview: SearchPreviewField[]
+	row: SearchRow
+	occurredAt: string | null
+}
+
+interface SearchActivityDomain {
+	id: string
+	label: string
+	count: number
+	latestAt: string | null
+	rows: SearchActivityRow[]
+}
+
 export interface SearchModuleSummary {
 	moduleId: SearchSummaryModuleId
 	moduleLabel: string
@@ -105,4 +122,12 @@ export interface SearchModuleSummary {
 export interface SearchExecutiveBrief {
 	generatedAt: string
 	modules: SearchModuleSummary[]
+}
+
+export interface SearchActivityFeed {
+	generatedAt: string
+	totalCount: number
+	loadedRowCount: number
+	rowLimit: number
+	domains: SearchActivityDomain[]
 }

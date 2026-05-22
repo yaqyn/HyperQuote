@@ -14,6 +14,7 @@ describe('SearchModule first render', () => {
 
 		expect(html).toContain('aria-label="Search internal database"')
 		expect(html).toContain('placeholder="Query"')
+		expect(html).toContain('Activity')
 		expect(html).not.toContain('Executive access key')
 		expect(html).not.toContain('Welcome back, executive.')
 	})
