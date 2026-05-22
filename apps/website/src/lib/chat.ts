@@ -6,6 +6,14 @@ import {
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import {
+	buildPublicDocsContext,
+	buildWebsiteDocsPrompt,
+	publicDocsExtractiveResponse,
+	publicDocsNoAnswerResponse,
+	publicDocsPolicyRefusal,
+	retrieveWebsiteDocs,
+} from './docs-retrieval'
 
 // AG-UI events carry `rawEvent?: unknown` and some variants a
 // `providerMetadata?: Record<string, unknown>`. TanStack Start's server-fn
@@ -38,48 +46,6 @@ const chatInput = z.object({
 		}),
 	),
 })
-
-function publicPolicyRefusal(userMessage: string): string | null {
-	const lower = userMessage.toLowerCase()
-	if (
-		lower.includes('my order') ||
-		lower.includes('another customer') ||
-		lower.includes('other customer') ||
-		lower.includes('internal') ||
-		lower.includes('driver location') ||
-		lower.includes('supplier cost') ||
-		lower.includes('finance') ||
-		lower.includes('employee')
-	) {
-		return 'I can only answer from public HyperQuote website, docs, and catalog information. Sign in to the portal for your account-specific data.'
-	}
-	return null
-}
-
-function publicWebsiteResponse(userMessage: string): string {
-	const lower = userMessage.toLowerCase()
-	if (lower.includes('what is') && lower.includes('hyperquote')) {
-		return 'HyperQuote helps contractors in Egypt send one building-materials request and get one consolidated quote from multiple suppliers.'
-	}
-	if (
-		lower.includes('market') ||
-		lower.includes('catalog') ||
-		lower.includes('product') ||
-		lower.includes('cement') ||
-		lower.includes('rebar') ||
-		lower.includes('steel')
-	) {
-		return 'You can browse public building-material listings in Market, compare customer-safe catalog details, and request a quote after signing in.'
-	}
-	if (
-		lower.includes('price') ||
-		lower.includes('quote') ||
-		lower.includes('cost')
-	) {
-		return 'Public prices are indicative. Sign in to request a quote so HyperQuote can source current supplier pricing for your quantity and delivery area.'
-	}
-	return 'I can help with public HyperQuote information, Market browsing, quote requests, account signup, and support. Sign in to the portal for account-specific orders or drafts.'
-}
 
 async function* textOnlyStream(
 	text: string,
@@ -132,25 +98,43 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 		const lastMessage = input.messages[input.messages.length - 1]
 		const userText = lastMessage?.content ?? ''
 		const chunks: WebsiteStreamChunk[] = []
-		const refusal = publicPolicyRefusal(userText)
+		const refusal = publicDocsPolicyRefusal(userText)
+		let readEntities = ['website_index']
 
 		if (refusal) {
 			for await (const chunk of textOnlyStream(refusal)) {
 				chunks.push(chunk)
 			}
-		} else if (isAIEnabled()) {
-			for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
-				chunks.push(chunk as WebsiteStreamChunk)
-			}
 		} else {
-			for await (const chunk of textOnlyStream(
-				publicWebsiteResponse(userText),
-			)) {
-				chunks.push(chunk)
+			const docs = retrieveWebsiteDocs(userText)
+			if (!docs.hasHighConfidence) {
+				for await (const chunk of textOnlyStream(
+					publicDocsNoAnswerResponse(docs.locale),
+				)) {
+					chunks.push(chunk)
+				}
+			} else if (isAIEnabled()) {
+				readEntities = ['public_docs']
+				const groundedPrompt = buildWebsiteDocsPrompt(
+					LYON_WEBSITE,
+					buildPublicDocsContext(docs.chunks),
+				)
+				for await (const chunk of streamChat(input.messages, groundedPrompt)) {
+					chunks.push(chunk as WebsiteStreamChunk)
+				}
+			} else {
+				readEntities = ['public_docs']
+				for await (const chunk of textOnlyStream(
+					publicDocsExtractiveResponse(docs.chunks, docs.locale),
+				)) {
+					chunks.push(chunk)
+				}
 			}
 		}
 
-		await recordWebsiteAiAudit(userText, chunks).catch(() => undefined)
+		await recordWebsiteAiAudit(userText, chunks, readEntities).catch(
+			() => undefined,
+		)
 
 		return chunks
 	})
@@ -158,6 +142,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 async function recordWebsiteAiAudit(
 	userText: string,
 	chunks: WebsiteStreamChunk[],
+	readEntities: string[],
 ) {
 	const config = await resolveSupabaseWorkerConfig(process.env)
 	if (!config) return
@@ -172,7 +157,7 @@ async function recordWebsiteAiAudit(
 		p_approved_by_user: false,
 		p_input_summary: { prompt: userText.slice(0, 240) },
 		p_output_summary: { response: response.slice(0, 240) },
-		p_read_entities: ['website_index', 'published_catalog'],
+		p_read_entities: readEntities,
 		p_tool_name: 'website_public_chat',
 		p_write_entity_id: null,
 		p_write_entity_type: null,

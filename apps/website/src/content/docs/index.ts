@@ -2,6 +2,8 @@
 // Both the article route and DocsSearch read from here.
 // To add an article: add the import + entry to CONTENT below.
 
+import arWebsite from '@hyperquote/i18n/locales/ar/website'
+import { DOC_CATEGORIES, displayName } from '../registry'
 import aiAssistantAr from './ar/ai-lyon/ai-assistant.md?raw'
 import aiQuotingAr from './ar/ai-lyon/ai-quoting.md?raw'
 import aiRecommendationsAr from './ar/ai-lyon/ai-recommendations.md?raw'
@@ -176,10 +178,23 @@ const CONTENT: Record<string, { en: string; ar: string }> = {
 	'support/damaged-delivery': { en: damagedDeliveryEn, ar: damagedDeliveryAr },
 }
 
+export type DocsLocale = 'en' | 'ar'
+
+export interface LocalizedDocContent {
+	categorySlug: string
+	articleSlug: string
+	locale: DocsLocale
+	title: string
+	description: string
+	categoryTitle: string
+	href: string
+	content: string
+}
+
 export function getContent(
 	categorySlug: string,
 	articleSlug: string,
-	locale: 'en' | 'ar',
+	locale: DocsLocale,
 ): string {
 	const entry = CONTENT[`${categorySlug}/${articleSlug}`]
 	if (!entry) return ''
@@ -195,4 +210,39 @@ export function getAllContent(): Array<{
 		const [categorySlug, articleSlug] = key.split('/')
 		return { categorySlug, articleSlug, content: val.en }
 	})
+}
+
+export function getAllLocalizedContent(): LocalizedDocContent[] {
+	return DOC_CATEGORIES.flatMap((category) =>
+		category.articles.flatMap((article) =>
+			(['en', 'ar'] as const).map((locale) => ({
+				categorySlug: category.slug,
+				articleSlug: article.slug,
+				locale,
+				title: localizedDisplayName(article.titleKey, locale),
+				description: localizedDisplayName(article.descriptionKey, locale),
+				categoryTitle: localizedDisplayName(category.titleKey, locale),
+				href: `/docs/${category.slug}/${article.slug}`,
+				content: getContent(category.slug, article.slug, locale),
+			})),
+		),
+	)
+}
+
+function localizedDisplayName(key: string, locale: DocsLocale): string {
+	if (locale === 'en') return displayName(key)
+	return resourceText(arWebsite, key) ?? displayName(key)
+}
+
+function resourceText(resource: unknown, key: string): string | null {
+	let current = resource
+	for (const part of key.split('.')) {
+		if (!isRecord(current) || !(part in current)) return null
+		current = current[part]
+	}
+	return typeof current === 'string' ? current : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
 }
