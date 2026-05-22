@@ -17,7 +17,9 @@ import {
 } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
+	createActorServiceRoleClient,
 	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
@@ -88,6 +90,16 @@ function appendPendingAuthCookies(
 	headers: Iterable<[string, string]> = [],
 ) {
 	appendSetCookieHeaders(getResponse().headers, cookies, headers)
+}
+
+async function createCustomerDataClient(userId: string) {
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) return null
+	return createActorServiceRoleClient({
+		actorPool: 'external',
+		actorUserId: userId,
+		client: service,
+	})
 }
 
 // ============================================================================
@@ -187,6 +199,7 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 							responseCookies.values(),
 							responseHeaders.entries(),
 						),
+					resolveDbClient: createCustomerDataClient,
 					onActivityError: (error) =>
 						logPortalError('portal.auth.activity.supabase_error', error),
 				})
@@ -299,6 +312,7 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 						responseHeaders.entries(),
 					),
 				clearVerifyLimit: () => clearRateLimit(kv, `verify:${input.phone}`),
+				resolveDbClient: createCustomerDataClient,
 				onVerifyError: (error) =>
 					logPortalError('portal.auth.verify_otp.supabase_error', error),
 				onActivityError: (error) =>
@@ -339,9 +353,14 @@ export const createAccount = createServerFn({ method: 'POST' })
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
+			const dbClient = await createCustomerDataClient(user.id)
+			if (!dbClient) {
+				return { success: false, error: 'create_failed' as const }
+			}
 
 			return createAuthenticatedCustomerProfile({
 				client,
+				dbClient,
 				user,
 				formattedPhone,
 				companyName: input.companyName,
@@ -393,9 +412,14 @@ export const claimAccount = createServerFn({ method: 'POST' })
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
+			const dbClient = await createCustomerDataClient(user.id)
+			if (!dbClient) {
+				return { success: false, error: 'claim_failed' as const }
+			}
 
 			return claimAuthenticatedCustomerProfile({
 				client,
+				dbClient,
 				user,
 				formattedPhone,
 				appendAuthCookies: () =>
@@ -456,8 +480,10 @@ export const requestPhoneChange = createServerFn({ method: 'POST' })
 			if (userError || !user || !isCustomerAuthUser(user)) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
+			const dbClient = await createCustomerDataClient(user.id)
+			if (!dbClient) return { success: false, error: 'send_failed' as const }
 
-			const { data: customer, error: customerError } = await client
+			const { data: customer, error: customerError } = await dbClient
 				.from('customers')
 				.select('id, phone')
 				.eq('user_id', user.id)
@@ -536,8 +562,10 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 			) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
+			const dbClient = await createCustomerDataClient(currentUser.id)
+			if (!dbClient) return { success: false, error: 'verify_failed' as const }
 
-			const { data: customer, error: customerError } = await client
+			const { data: customer, error: customerError } = await dbClient
 				.from('customers')
 				.select('id')
 				.eq('user_id', currentUser.id)
@@ -566,7 +594,7 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 				return { success: false, error: 'auth_mismatch' as const }
 			}
 
-			const { error: updateError } = await client
+			const { error: updateError } = await dbClient
 				.from('customers')
 				.update({ phone: formattedPhone })
 				.eq('id', customer.id)

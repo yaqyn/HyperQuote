@@ -1,11 +1,10 @@
 import { checkRateLimit, getKVNamespace } from '@hyperquote/auth/rate-limit'
 import {
-	appendSetCookieHeaders,
-	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest, getResponse } from '@tanstack/react-start/server'
+import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { logWebsiteServerError } from './server-log'
 
@@ -49,11 +48,8 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 		const config = await resolveSupabaseWorkerConfig(process.env)
 		if (!config) return { error: 'not_configured' as const }
 
-		const { client, responseCookies, responseHeaders } =
-			createSupabaseServerClient({
-				request,
-				...config,
-			})
+		const client = await createSupabaseServiceRoleClient(process.env)
+		if (!client) return { error: 'not_configured' as const }
 
 		try {
 			const { data: ticket, error } = await client.rpc(
@@ -67,12 +63,6 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 					p_source: 'website',
 					p_subject: input.subject,
 				},
-			)
-
-			appendSetCookieHeaders(
-				getResponse().headers,
-				responseCookies.values(),
-				responseHeaders.entries(),
 			)
 
 			if (error || !ticket) {

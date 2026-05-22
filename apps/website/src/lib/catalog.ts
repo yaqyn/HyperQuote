@@ -1,10 +1,9 @@
 import {
-	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import type { CatalogProduct } from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { logWebsiteServerError } from './server-log'
 
@@ -67,6 +66,22 @@ interface PublicCategoryRow {
 	image_url: string | null
 }
 
+export interface PublicCategory {
+	slug: string
+	name: string
+	name_ar: string
+	description: string
+	description_ar: string
+	imageUrl: string | null
+}
+
+export interface PublicCatalogResult {
+	categories: PublicCategory[]
+	items: PublicProduct[]
+	total: number
+	hasMore: boolean
+}
+
 // ============================================================================
 // Public columns — NEVER include last_purchase_price or weighted_avg_cost
 // ============================================================================
@@ -123,6 +138,26 @@ function getSupabaseConfig() {
 	return resolveSupabaseWorkerConfig(process.env)
 }
 
+async function getOptionalWebsiteCatalogClient() {
+	const config = await getSupabaseConfig()
+	if (!config) {
+		return null
+	}
+	const client = await createSupabaseServiceRoleClient(process.env)
+	if (!client) {
+		return null
+	}
+	return client
+}
+
+async function getWebsiteCatalogClient() {
+	const client = await getOptionalWebsiteCatalogClient()
+	if (!client) {
+		throw new Error('Supabase service role is required for website catalog')
+	}
+	return client
+}
+
 function firstImageUrl(imageUrls: unknown): string | null {
 	if (!Array.isArray(imageUrls)) return null
 	return imageUrls.find((url) => typeof url === 'string' && url.trim()) ?? null
@@ -155,16 +190,8 @@ export const getPublicMarketPreviewCategories = createServerFn({
 })
 	.inputValidator(marketPreviewInput)
 	.handler(async ({ data: input }): Promise<PublicMarketPreviewCategory[]> => {
-		const config = await getSupabaseConfig()
-		if (!config) {
-			throw new Error('Supabase is required for website catalog')
-		}
-
-		const request = getRequest()
-		const { client } = createSupabaseServerClient({
-			request,
-			...config,
-		})
+		const client = await getOptionalWebsiteCatalogClient()
+		if (!client) return []
 
 		const { data: categoryRows, error: categoryError } = await client
 			.from('categories')
@@ -236,18 +263,8 @@ export const getPublicMarketPreviewCategories = createServerFn({
 
 export const getPublicCatalog = createServerFn({ method: 'POST' })
 	.inputValidator(catalogInput)
-	.handler(async ({ data: input }) => {
-		const config = await getSupabaseConfig()
-		if (!config) {
-			throw new Error('Supabase is required for website catalog')
-		}
-
-		// Production: use Supabase
-		const request = getRequest()
-		const { client } = createSupabaseServerClient({
-			request,
-			...config,
-		})
+	.handler(async ({ data: input }): Promise<PublicCatalogResult> => {
+		const client = await getWebsiteCatalogClient()
 
 		const categoriesQuery = client
 			.from('categories')
@@ -334,16 +351,7 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 export const getProductBySlug = createServerFn({ method: 'POST' })
 	.inputValidator(productBySlugInput)
 	.handler(async ({ data: input }) => {
-		const config = await getSupabaseConfig()
-		if (!config) {
-			throw new Error('Supabase is required for website catalog')
-		}
-
-		const request = getRequest()
-		const { client } = createSupabaseServerClient({
-			request,
-			...config,
-		})
+		const client = await getWebsiteCatalogClient()
 
 		const { data, error } = await client
 			.from('products')

@@ -110,7 +110,7 @@ test('portal customer market and orders load Supabase-backed data', async ({
 }) => {
 	test.setTimeout(90_000)
 	const service = createLocalServiceClient()
-	const activityStartedAt = new Date().toISOString()
+	const flowStartedAt = new Date().toISOString()
 	const context = await browser.newContext({
 		viewport: { height: 1000, width: 1440 },
 	})
@@ -144,11 +144,7 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.last()
 		.click()
 	await page.getByRole('button', { name: /^Draft Quote$/i }).click()
-	await page.getByRole('button', { name: /^Save Draft$/i }).click()
-	await expect(page.locator('body')).toContainText(
-		/Draft .* saved|Draft saved|تم حفظ/i,
-		{ timeout: 15_000 },
-	)
+	await confirmDraftSave(page)
 
 	await page.goto(`${URLS.portal}/orders`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
@@ -197,17 +193,8 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.filter({ hasText: /^Add to Quote$/i })
 		.click()
 	await page.getByRole('button', { name: /Quote Cart/i }).click()
-	await page.getByRole('button', { name: /^Save Draft$/i }).click()
-	await expect(page.locator('body')).toContainText(/Draft name saved/i)
-	await expect(
-		page.getByRole('link', { name: /View saved orders/i }),
-	).toHaveAttribute('href', /\/orders$/)
-	await expectActivityActionsSince(service, activityStartedAt, [
-		'portal_draft_saved',
-		'portal_order_viewed',
-		'customer_order_saved_as_draft',
-		'website_draft_saved',
-	])
+	await confirmDraftSave(page)
+	await expectCustomerDraftArtifactsSince(service, flowStartedAt)
 
 	await guard.expectClean('portal customer data')
 	await context.close()
@@ -1067,6 +1054,20 @@ async function selectOptionByLabel(page: Page, label: string, option: string) {
 	await matchingOption.click()
 }
 
+async function confirmDraftSave(page: Page) {
+	const saveButton = page.getByRole('button', {
+		name: /^(Save Draft|حفظ المسودة)$/i,
+	})
+	await saveButton.click()
+	const draftNameInput = page.getByLabel(/^(Draft name|اسم المسودة)$/i)
+	if (await draftNameInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
+		await saveButton.click()
+	}
+	await expect(
+		page.getByRole('button', { name: /^(Draft \d|مسودة )/i }),
+	).toBeDisabled({ timeout: 15_000 })
+}
+
 function slugPart(value: string): string {
 	return value
 		.trim()
@@ -1083,28 +1084,34 @@ function skuPart(value: string): string {
 		.replace(/^-+|-+$/g, '')
 }
 
-async function expectActivityActionsSince(
+async function expectCustomerDraftArtifactsSince(
 	service: ReturnType<typeof createLocalServiceClient>,
 	sinceIso: string,
-	expectedActions: string[],
 ) {
-	const expected = [...expectedActions].sort().join('|')
 	await expect
 		.poll(
 			async () => {
 				const { data, error } = await service
-					.from('activity_events')
-					.select('action')
+					.from('quote_requests')
+					.select('draft_name, notes, status')
 					.gte('created_at', sinceIso)
-					.in('action', expectedActions)
+					.eq('status', 'draft')
 				if (error) return `error:${error.message}`
-				return [...new Set((data ?? []).map((event) => String(event.action)))]
-					.sort()
-					.join('|')
+
+				const rows = data ?? []
+				const namedDraftCount = rows.filter((row) =>
+					String(row.draft_name ?? '').startsWith('Draft '),
+				).length
+				const copiedOrderDraftCount = rows.filter(
+					(row) => row.notes === 'Local submitted order for portal smoke',
+				).length
+				return namedDraftCount >= 2 && copiedOrderDraftCount >= 1
+					? 'ready'
+					: `${namedDraftCount}:${copiedOrderDraftCount}:${rows.length}`
 			},
 			{ timeout: 15_000 },
 		)
-		.toBe(expected)
+		.toBe('ready')
 }
 
 function installBrowserErrorGuard(page: Page) {

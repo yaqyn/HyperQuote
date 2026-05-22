@@ -5,6 +5,8 @@
  */
 
 import {
+	createActorServiceRoleClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 	type SupabaseServerRuntimeConfig,
 } from '@hyperquote/auth/server'
@@ -36,12 +38,15 @@ async function requireSession() {
  * Adds the user's access token as Authorization header so RLS applies.
  */
 export async function getAuthenticatedSupabase() {
-	const { env, session } = await requireSession()
-	const { createClient } = await import('@supabase/supabase-js')
-	const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
-		global: {
-			headers: { Authorization: `Bearer ${session.session.access_token}` },
-		},
+	const { session } = await requireSession()
+	if (session.pool !== 'external') throw new Error('Customer session required')
+
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) throw new Error('Supabase service role is required for portal')
+	const supabase = createActorServiceRoleClient({
+		actorPool: session.pool,
+		actorUserId: session.user.id,
+		client: service,
 	})
 	return { supabase, session }
 }

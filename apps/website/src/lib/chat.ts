@@ -1,11 +1,10 @@
 import { isAIEnabled, LYON_WEBSITE, streamChat } from '@hyperquote/ai'
 import {
-	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 
 // AG-UI events carry `rawEvent?: unknown` and some variants a
@@ -162,8 +161,8 @@ async function recordWebsiteAiAudit(
 ) {
 	const config = await resolveSupabaseWorkerConfig(process.env)
 	if (!config) return
-	const request = getRequest()
-	const { client } = createSupabaseServerClient({ request, ...config })
+	const client = await createSupabaseServiceRoleClient(process.env)
+	if (!client) return
 	const response = chunks
 		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
 		.map((chunk) => chunk.delta)

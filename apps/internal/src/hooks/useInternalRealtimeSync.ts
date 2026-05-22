@@ -1,7 +1,3 @@
-import {
-	createSupabaseBrowserClient,
-	resolveSupabaseBrowserConfig,
-} from '@hyperquote/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
@@ -238,14 +234,7 @@ export function useInternalRealtimeSync({ enabled = true } = {}) {
 	const queryClient = useQueryClient()
 
 	useEffect(() => {
-		const config = resolveSupabaseBrowserConfig(import.meta.env)
-		if (!enabled || !config) return
-
-		const supabase = createSupabaseBrowserClient(
-			config.supabaseUrl,
-			config.supabaseAnonKey,
-			config.cookieName,
-		)
+		if (!enabled) return
 		const pending = new Map<string, QueryKeyPrefix>()
 		let flushTimer: number | null = null
 
@@ -267,20 +256,14 @@ export function useInternalRealtimeSync({ enabled = true } = {}) {
 			}
 		}
 
-		let channel = supabase.channel('internal:operational-realtime')
-		for (const table of REALTIME_TABLES) {
-			channel = channel.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table },
-				() => enqueueInvalidation(table),
-			)
-		}
-		channel.subscribe()
+		const interval = window.setInterval(() => {
+			for (const table of REALTIME_TABLES) enqueueInvalidation(table)
+		}, 15_000)
 
 		return () => {
 			if (flushTimer !== null) window.clearTimeout(flushTimer)
+			window.clearInterval(interval)
 			pending.clear()
-			supabase.removeChannel(channel)
 		}
 	}, [enabled, queryClient])
 }

@@ -1,6 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "hyperquote-driver",
+	"main": "./src/worker.ts",
 	"compatibility_date": "2026-03-31",
 	"assets": {
 		"directory": "./dist",

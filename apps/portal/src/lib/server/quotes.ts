@@ -6,7 +6,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { Quote, QuoteItem } from '../../types/quote'
-import { getAuthenticatedSupabase } from './_supabase'
+import {
+	getAuthenticatedPortalCustomer,
+	getAuthenticatedSupabase,
+} from './_supabase'
 
 // ============================================================================
 // Input Schemas
@@ -66,7 +69,7 @@ const partialResponseInput = z.object({
 export const getQuoteDetail = createServerFn({ method: 'POST' })
 	.inputValidator(getQuoteDetailInput)
 	.handler(async ({ data: input }): Promise<Quote> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const { data: quote, error } = await supabase
 			.from('quotes')
@@ -78,6 +81,7 @@ export const getQuoteDetail = createServerFn({ method: 'POST' })
       `,
 			)
 			.eq('id', input.quoteId)
+			.eq('customer_id', customerId)
 			.single()
 
 		if (error || !quote) {

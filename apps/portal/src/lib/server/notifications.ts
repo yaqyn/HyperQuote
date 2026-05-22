@@ -26,12 +26,13 @@ export const getNotifications = createServerFn({ method: 'POST' })
 			unread: number
 			hasMore: boolean
 		}> => {
-			const { supabase } = await getAuthenticatedSupabase()
+			const { session, supabase } = await getAuthenticatedSupabase()
 			const offset = (input.page - 1) * input.limit
 
 			const { data: notifications, error } = await supabase
 				.from('notifications')
 				.select('id,type,title,body,read,created_at,target_type,target_id')
+				.eq('user_id', session.user.id)
 				.order('created_at', { ascending: false })
 				.range(offset, offset + input.limit - 1)
 
@@ -43,12 +44,14 @@ export const getNotifications = createServerFn({ method: 'POST' })
 			const { count: unreadCount } = await supabase
 				.from('notifications')
 				.select('id', { count: 'exact', head: true })
+				.eq('user_id', session.user.id)
 				.eq('read', false)
 
 			// Check if there are more
 			const { count: totalCount } = await supabase
 				.from('notifications')
 				.select('id', { count: 'exact', head: true })
+				.eq('user_id', session.user.id)
 
 			const mapped: Notification[] = (notifications ?? []).map(
 				(row: Record<string, unknown>) => ({
@@ -82,12 +85,13 @@ export const markNotificationRead = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { session, supabase } = await getAuthenticatedSupabase()
 
 		const { error } = await supabase
 			.from('notifications')
 			.update({ read: true })
 			.eq('id', input.notificationId)
+			.eq('user_id', session.user.id)
 
 		if (error) {
 			throw new Error(error.message)
@@ -103,11 +107,12 @@ export const markNotificationRead = createServerFn({ method: 'POST' })
 export const markAllNotificationsRead = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async (): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { session, supabase } = await getAuthenticatedSupabase()
 
 		const { error } = await supabase
 			.from('notifications')
 			.update({ read: true })
+			.eq('user_id', session.user.id)
 			.eq('read', false)
 
 		if (error) {

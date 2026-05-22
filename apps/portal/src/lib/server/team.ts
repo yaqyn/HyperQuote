@@ -4,10 +4,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { TeamMember } from '../../types/settings'
-import {
-	getAuthenticatedPortalCustomer,
-	getAuthenticatedSupabase,
-} from './_supabase'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 
 type DbTeamRole = 'owner' | 'admin' | 'member'
 
@@ -22,10 +19,12 @@ function toDbRole(role: TeamMember['role']): DbTeamRole {
 
 export const getTeamMembers = createServerFn().handler(
 	async (): Promise<TeamMember[]> => {
-		const { session, supabase } = await getAuthenticatedPortalCustomer()
+		const { customerId, session, supabase } =
+			await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('team_members')
 			.select('id, user_id, role, created_at')
+			.eq('customer_id', customerId)
 			.order('created_at', { ascending: true })
 
 		if (error) throw new Error(error.message)
@@ -75,11 +74,12 @@ export const inviteTeamMember = createServerFn({ method: 'POST' })
 export const removeTeamMember = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ memberId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { error } = await supabase
 			.from('team_members')
 			.delete()
 			.eq('id', input.memberId)
+			.eq('customer_id', customerId)
 
 		if (error) throw new Error(error.message)
 		return { success: true }
@@ -93,11 +93,12 @@ export const changeTeamMemberRole = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { error } = await supabase
 			.from('team_members')
 			.update({ role: toDbRole(input.newRole) })
 			.eq('id', input.memberId)
+			.eq('customer_id', customerId)
 
 		if (error) throw new Error(error.message)
 		return { success: true }
@@ -111,7 +112,7 @@ export const transferOwnership = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { supabase } = await getAuthenticatedPortalCustomer()
 		const { error } = await supabase.rpc('transfer_team_ownership', {
 			p_member_id: input.memberId,
 		})

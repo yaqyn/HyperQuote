@@ -16,7 +16,9 @@ import {
 } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
+	createActorServiceRoleClient,
 	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
@@ -81,6 +83,16 @@ function appendPendingAuthCookies(
 	appendSetCookieHeaders(getResponse().headers, cookies, headers)
 }
 
+async function createCustomerDataClient(userId: string) {
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) return null
+	return createActorServiceRoleClient({
+		actorPool: 'external',
+		actorUserId: userId,
+		client: service,
+	})
+}
+
 async function getAuthenticatedClient() {
 	const config = await getSupabaseConfig()
 	if (!config) return null
@@ -98,8 +110,10 @@ async function getAuthenticatedClient() {
 	if (!user) {
 		return { error: 'not_authenticated' as const }
 	}
+	const dbClient = await createCustomerDataClient(user.id)
+	if (!dbClient) return { error: 'not_configured' as const }
 
-	return { client, responseCookies, responseHeaders, user }
+	return { client, dbClient, responseCookies, responseHeaders, user }
 }
 
 function confirmationRedirectUrl(request: Request): string {
@@ -137,7 +151,9 @@ export const checkWebsiteAccount = createServerFn({ method: 'GET' }).handler(
 				return { authenticated: false, configured: true }
 			}
 
-			const { data: customer } = await client
+			const dbClient = await createCustomerDataClient(user.id)
+			if (!dbClient) return { authenticated: false, configured: true }
+			const { data: customer } = await dbClient
 				.from('customers')
 				.select('company_name')
 				.eq('user_id', user.id)
@@ -272,6 +288,7 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 							responseCookies.values(),
 							responseHeaders.entries(),
 						),
+					resolveDbClient: createCustomerDataClient,
 					onActivityError: (error) =>
 						logWebsiteServerError(
 							'website.auth.activity.supabase_error',
@@ -392,6 +409,7 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 						responseHeaders.entries(),
 					),
 				clearVerifyLimit: () => clearRateLimit(kv, `verify:${input.phone}`),
+				resolveDbClient: createCustomerDataClient,
 				onVerifyError: (error) =>
 					logWebsiteServerError(
 						'website.auth.verify_otp.supabase_error',
@@ -425,10 +443,12 @@ export const createAccount = createServerFn({ method: 'POST' })
 				return { success: false, error: authContext.error }
 			}
 
-			const { client, responseCookies, responseHeaders, user } = authContext
+			const { client, dbClient, responseCookies, responseHeaders, user } =
+				authContext
 
 			return createAuthenticatedCustomerProfile({
 				client,
+				dbClient,
 				user,
 				formattedPhone,
 				companyName: input.companyName,
@@ -473,10 +493,11 @@ export const claimAccount = createServerFn({ method: 'POST' })
 				return { success: false, error: authContext.error }
 			}
 
-			const { client, responseCookies, responseHeaders } = authContext
+			const { client, dbClient, responseCookies, responseHeaders } = authContext
 
 			return claimAuthenticatedCustomerProfile({
 				client,
+				dbClient,
 				user: authContext.user,
 				formattedPhone,
 				appendAuthCookies: () =>

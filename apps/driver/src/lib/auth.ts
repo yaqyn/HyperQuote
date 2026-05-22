@@ -1,6 +1,7 @@
 import { createSupabaseBrowserClient } from '@hyperquote/auth'
 import { z } from 'zod'
 import { resolveDriverSupabaseConfig } from './supabase-config'
+import { fetchDriverApiSession } from './supabase-driver-repository'
 
 export const loginSchema = z.object({
 	email: z.string().trim().email(),
@@ -55,11 +56,7 @@ export async function authenticateDriver(
 			return { ok: false, error: 'wrong_pool' }
 		}
 
-		const session = await createDriverSessionFromSupabaseUser(
-			client,
-			data.user,
-			parsed.data.email,
-		)
+		const session = await fetchDriverApiSession(config)
 		if (!session) {
 			await client.auth.signOut()
 			return { ok: false, error: 'profile_missing' }
@@ -85,7 +82,7 @@ export async function getCurrentDriverSession(): Promise<DriverAuthSession | nul
 	} = await client.auth.getUser()
 
 	if (!user || user.app_metadata?.pool !== 'driver') return null
-	return createDriverSessionFromSupabaseUser(client, user, user.email ?? '')
+	return fetchDriverApiSession(config)
 }
 
 export async function signOutDriver(): Promise<void> {
@@ -98,38 +95,4 @@ export async function signOutDriver(): Promise<void> {
 		config.cookieName,
 	)
 	await client.auth.signOut()
-}
-
-type SupabaseBrowserClient = ReturnType<typeof createSupabaseBrowserClient>
-
-async function createDriverSessionFromSupabaseUser(
-	client: SupabaseBrowserClient,
-	user: { app_metadata?: { driver_id?: unknown }; email?: string; id: string },
-	fallbackEmail: string,
-): Promise<DriverAuthSession | null> {
-	const metadataDriverId = user.app_metadata?.driver_id
-	if (typeof metadataDriverId === 'string' && metadataDriverId.length > 0) {
-		return {
-			driverId: metadataDriverId,
-			email: user.email ?? fallbackEmail,
-			startedAt: new Date().toISOString(),
-			source: 'supabase',
-		}
-	}
-
-	const { data: driver, error } = await client
-		.from('drivers')
-		.select('id, email, status')
-		.eq('user_id', user.id)
-		.single()
-
-	if (error || !driver) return null
-	if (driver.status === 'disabled' || driver.status === 'invited') return null
-
-	return {
-		driverId: driver.id,
-		email: driver.email ?? user.email ?? fallbackEmail,
-		startedAt: new Date().toISOString(),
-		source: 'supabase',
-	}
 }

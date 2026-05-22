@@ -1,6 +1,8 @@
 import {
 	appendSetCookieHeaders,
+	createActorServiceRoleClient,
 	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
@@ -193,7 +195,15 @@ const getAuthenticatedClient = createServerOnlyFn(async () => {
 
 	if (!user) return { error: 'not_authenticated' as const }
 
-	const { data: customer, error } = await client
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) return { error: 'not_configured' as const }
+	const dataClient = createActorServiceRoleClient({
+		actorPool: 'external',
+		actorUserId: user.id,
+		client: service,
+	})
+
+	const { data: customer, error } = await dataClient
 		.from('customers')
 		.select('id')
 		.eq('user_id', user.id)
@@ -203,7 +213,7 @@ const getAuthenticatedClient = createServerOnlyFn(async () => {
 	if (!customer) return { error: 'customer_required' as const }
 
 	return {
-		client,
+		client: dataClient,
 		customerId: customer.id,
 		responseCookies,
 		responseHeaders,

@@ -5,10 +5,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import {
-	getAuthenticatedPortalCustomer,
-	getAuthenticatedSupabase,
-} from './_supabase'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 import { resolveAddressCoordinates } from './address-coordinates'
 
 // ============================================================================
@@ -50,13 +47,14 @@ export interface CustomerAddress {
 
 export const getCustomerAddresses = createServerFn().handler(
 	async (): Promise<CustomerAddress[]> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 
 		const { data, error } = await supabase
 			.from('customer_addresses')
 			.select(
 				'id, label, street, area, city, governorate, landmark, phone, is_default, latitude, longitude',
 			)
+			.eq('customer_id', customerId)
 			.order('is_default', { ascending: false })
 			.order('created_at', { ascending: false })
 

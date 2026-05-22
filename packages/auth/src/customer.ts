@@ -3,6 +3,7 @@ import type { createSupabaseServerClient } from './server'
 type CustomerAuthClient = ReturnType<
 	typeof createSupabaseServerClient
 >['client']
+type CustomerDataClient = Pick<CustomerAuthClient, 'from' | 'rpc'>
 
 export type CustomerAuthAction = 'customer_signed_in' | 'customer_signed_up'
 
@@ -20,6 +21,9 @@ export interface EmailProfileDefaults {
 
 type AppendAuthCookies = () => void
 type CustomerAuthLogger = (error: unknown) => void
+type ResolveCustomerDataClient = (
+	userId: string,
+) => Promise<CustomerDataClient | null>
 
 export function formattedEgyptPhone(phone: string): string {
 	return `+20${phone}`
@@ -67,7 +71,7 @@ export async function recordCustomerAuthActivity({
 	details,
 	onError,
 }: {
-	client: CustomerAuthClient
+	client: CustomerDataClient
 	customerId: string
 	action: CustomerAuthAction
 	details: Record<string, unknown>
@@ -88,18 +92,22 @@ export async function recordCustomerAuthActivity({
 
 export async function signInCustomerWithEmailPassword({
 	client,
+	dbClient,
 	email,
 	password,
 	source,
 	appendAuthCookies,
 	onActivityError,
+	resolveDbClient,
 }: {
 	client: CustomerAuthClient
+	dbClient?: CustomerDataClient
 	email: string
 	password: string
 	source: 'portal' | 'website'
 	appendAuthCookies: AppendAuthCookies
 	onActivityError: CustomerAuthLogger
+	resolveDbClient?: ResolveCustomerDataClient
 }): Promise<{
 	success: boolean
 	error?: 'email_not_confirmed' | 'invalid_credentials'
@@ -135,8 +143,10 @@ export async function signInCustomerWithEmailPassword({
 	}
 
 	appendAuthCookies()
+	const dataClient =
+		dbClient ?? (await resolveDbClient?.(data.user.id)) ?? client
 
-	const customer = await findCustomerByUserId(client, data.user.id)
+	const customer = await findCustomerByUserId(dataClient, data.user.id)
 	if (!customer) {
 		const metadata = data.user.user_metadata ?? {}
 		return {
@@ -147,7 +157,7 @@ export async function signInCustomerWithEmailPassword({
 	}
 
 	await recordCustomerAuthActivity({
-		client,
+		client: dataClient,
 		customerId: customer.id,
 		action: 'customer_signed_in',
 		details: {
@@ -195,6 +205,7 @@ export async function sendCustomerOtp({
 
 export async function verifyCustomerOtp({
 	client,
+	dbClient,
 	formattedPhone,
 	code,
 	source,
@@ -202,8 +213,10 @@ export async function verifyCustomerOtp({
 	clearVerifyLimit,
 	onVerifyError,
 	onActivityError,
+	resolveDbClient,
 }: {
 	client: CustomerAuthClient
+	dbClient?: CustomerDataClient
 	formattedPhone: string
 	code: string
 	source: 'portal' | 'website'
@@ -211,6 +224,7 @@ export async function verifyCustomerOtp({
 	clearVerifyLimit: () => Promise<void>
 	onVerifyError: CustomerAuthLogger
 	onActivityError: CustomerAuthLogger
+	resolveDbClient?: ResolveCustomerDataClient
 }): Promise<{
 	success: boolean
 	error?: 'invalid_code'
@@ -236,17 +250,19 @@ export async function verifyCustomerOtp({
 
 	appendAuthCookies()
 	await clearVerifyLimit()
+	const dataClient =
+		dbClient ?? (await resolveDbClient?.(data.user.id)) ?? client
 
 	const { ownedCustomer, needsAccount, claimableCompany } =
 		await findCustomerAuthProfileAfterOtp({
-			client,
+			client: dataClient,
 			userId: data.user.id,
 			formattedPhone,
 		})
 
 	if (ownedCustomer) {
 		await recordCustomerAuthActivity({
-			client,
+			client: dataClient,
 			customerId: ownedCustomer.id,
 			action: 'customer_signed_in',
 			details: { method: 'phone_otp', phone: formattedPhone, source },
@@ -263,6 +279,7 @@ export async function verifyCustomerOtp({
 
 export async function createAuthenticatedCustomerProfile({
 	client,
+	dbClient,
 	user,
 	formattedPhone,
 	companyName,
@@ -274,6 +291,7 @@ export async function createAuthenticatedCustomerProfile({
 	onActivityError,
 }: {
 	client: CustomerAuthClient
+	dbClient?: CustomerDataClient
 	user: { id: string; email?: string | null; app_metadata?: unknown }
 	formattedPhone: string
 	companyName: string
@@ -294,9 +312,10 @@ export async function createAuthenticatedCustomerProfile({
 		appendAuthCookies()
 		return { success: false, error: 'not_authenticated' }
 	}
+	const dataClient = dbClient ?? client
 
 	const { customerId, error } = await createCustomerProfile({
-		client,
+		client: dataClient,
 		phone: formattedPhone,
 		email: user.email ?? null,
 		companyName,
@@ -310,7 +329,7 @@ export async function createAuthenticatedCustomerProfile({
 	}
 
 	const activityRecorded = await recordCustomerAuthActivity({
-		client,
+		client: dataClient,
 		customerId,
 		action: 'customer_signed_up',
 		details: {
@@ -335,12 +354,14 @@ export async function createAuthenticatedCustomerProfile({
 
 export async function claimAuthenticatedCustomerProfile({
 	client,
+	dbClient,
 	user,
 	formattedPhone,
 	appendAuthCookies,
 	onClaimError,
 }: {
 	client: CustomerAuthClient
+	dbClient?: CustomerDataClient
 	user: { app_metadata?: unknown }
 	formattedPhone: string
 	appendAuthCookies: AppendAuthCookies
@@ -356,9 +377,10 @@ export async function claimAuthenticatedCustomerProfile({
 		appendAuthCookies()
 		return { success: false, error: 'not_authenticated' }
 	}
+	const dataClient = dbClient ?? client
 
 	const { customerId, error } = await claimCustomerProfile(
-		client,
+		dataClient,
 		formattedPhone,
 	)
 
@@ -377,7 +399,7 @@ export async function claimAuthenticatedCustomerProfile({
 }
 
 export async function findCustomerByUserId(
-	client: CustomerAuthClient,
+	client: CustomerDataClient,
 	userId: string,
 ): Promise<{ id: string } | null> {
 	const { data } = await client
@@ -393,7 +415,7 @@ export async function findCustomerAuthProfileAfterOtp({
 	userId,
 	formattedPhone,
 }: {
-	client: CustomerAuthClient
+	client: CustomerDataClient
 	userId: string
 	formattedPhone: string
 }): Promise<{
@@ -433,7 +455,7 @@ export async function createCustomerProfile({
 	fullName,
 	userId,
 }: {
-	client: CustomerAuthClient
+	client: CustomerDataClient
 	phone: string
 	email: string | null
 	companyName: string
@@ -459,7 +481,7 @@ export async function createCustomerProfile({
 }
 
 export async function claimCustomerProfile(
-	client: CustomerAuthClient,
+	client: CustomerDataClient,
 	formattedPhone: string,
 ): Promise<{ customerId: string | null; error: unknown }> {
 	const { data, error } = await client
@@ -494,7 +516,7 @@ export function isProviderSendFailure(error: {
 }
 
 async function findClaimableCustomerProfile(
-	client: CustomerAuthClient,
+	client: CustomerDataClient,
 	formattedPhone: string,
 ): Promise<CustomerAuthProfile | null> {
 	const { data } = await client

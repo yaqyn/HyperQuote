@@ -7,6 +7,7 @@ export function resolveDriverSupabaseConfig() {
 	if (!config) return null
 	return {
 		...config,
+		driverApiBase: import.meta.env.VITE_DRIVER_API_BASE ?? '',
 		cookieName: config.cookieName ?? DRIVER_SUPABASE_COOKIE_NAME,
 	}
 }

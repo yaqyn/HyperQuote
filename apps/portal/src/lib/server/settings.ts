@@ -105,12 +105,13 @@ export const uploadProfilePhoto = createServerFn({ method: 'POST' })
 
 export const getAddresses = createServerFn().handler(
 	async (): Promise<Address[]> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('customer_addresses')
 			.select(
 				'id, label, street, city, governorate, is_default, postal_code, latitude, longitude',
 			)
+			.eq('customer_id', customerId)
 			.order('is_default', { ascending: false })
 			.order('created_at', { ascending: false })
 
@@ -166,6 +167,7 @@ export const saveAddress = createServerFn({ method: 'POST' })
 					.from('customer_addresses')
 					.update(payload)
 					.eq('id', input.id)
+					.eq('customer_id', customerId)
 					.select(
 						'id, label, street, city, governorate, is_default, postal_code, latitude, longitude',
 					)
@@ -200,11 +202,12 @@ export const saveAddress = createServerFn({ method: 'POST' })
 export const deleteAddress = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ addressId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { error } = await supabase
 			.from('customer_addresses')
 			.delete()
 			.eq('id', input.addressId)
+			.eq('customer_id', customerId)
 
 		if (error) throw new Error(error.message)
 		return { success: true }
@@ -212,10 +215,11 @@ export const deleteAddress = createServerFn({ method: 'POST' })
 
 export const getProjects = createServerFn().handler(
 	async (): Promise<Project[]> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('projects')
 			.select('id, name, description, order_count, created_at, archived')
+			.eq('customer_id', customerId)
 			.eq('archived', false)
 			.order('created_at', { ascending: false })
 
@@ -253,6 +257,7 @@ export const saveProject = createServerFn({ method: 'POST' })
 					.from('projects')
 					.update(payload)
 					.eq('id', input.id)
+					.eq('customer_id', customerId)
 					.select('id, name, description, order_count, created_at, archived')
 					.single()
 			: supabase
@@ -280,11 +285,12 @@ export const saveProject = createServerFn({ method: 'POST' })
 export const archiveProject = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ projectId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { error } = await supabase
 			.from('projects')
 			.update({ archived: true })
 			.eq('id', input.projectId)
+			.eq('customer_id', customerId)
 
 		if (error) throw new Error(error.message)
 		return { success: true }
@@ -333,10 +339,11 @@ export const updateNotificationPreferences = createServerFn({ method: 'POST' })
 
 export const getActiveSessions = createServerFn().handler(
 	async (): Promise<ActiveSession[]> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { session, supabase } = await getAuthenticatedSupabase()
 		const { data, error } = await supabase
 			.from('user_sessions')
 			.select('id, device, last_active, location, is_current')
+			.eq('user_id', session.user.id)
 			.order('last_active', { ascending: false })
 
 		if (error) throw new Error(error.message)
@@ -354,11 +361,12 @@ export const getActiveSessions = createServerFn().handler(
 export const signOutSession = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ sessionId: z.string() }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { supabase } = await getAuthenticatedSupabase()
+		const { session, supabase } = await getAuthenticatedSupabase()
 		const { error } = await supabase
 			.from('user_sessions')
 			.delete()
 			.eq('id', input.sessionId)
+			.eq('user_id', session.user.id)
 
 		if (error) throw new Error(error.message)
 		return { success: true }

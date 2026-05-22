@@ -16,7 +16,11 @@ import {
 	SearchDropdown,
 	type SearchEntry,
 } from '../../../components/shared/SearchDropdown'
-import { getPublicCatalog, type PublicProduct } from '../../../lib/catalog'
+import {
+	getPublicCatalog,
+	type PublicCatalogResult,
+	type PublicProduct,
+} from '../../../lib/catalog'
 import { isAbortedRouteLoad } from '../../../lib/route-loader'
 
 // ── Search schema ──
@@ -51,7 +55,7 @@ function parsePriceTiers(s?: string): PriceTierParam[] {
 export const Route = createFileRoute('/_website/market/')({
 	validateSearch: marketSearchSchema,
 	loaderDeps: ({ search }) => search,
-	loader: async ({ deps, abortController }) => {
+	loader: async ({ deps, abortController }): Promise<PublicCatalogResult> => {
 		try {
 			return await getPublicCatalog({
 				data: {
@@ -173,7 +177,7 @@ function MarketSearch({
 function MarketPage() {
 	const { t, i18n } = useTranslation('website')
 	const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
-	const data = Route.useLoaderData()
+	const data: PublicCatalogResult = Route.useLoaderData()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 

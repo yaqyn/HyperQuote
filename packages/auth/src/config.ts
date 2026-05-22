@@ -5,6 +5,11 @@ export interface SupabaseServerRuntimeConfig {
 	cookieName?: string
 }
 
+export interface SupabaseServiceRoleRuntimeConfig
+	extends SupabaseServerRuntimeConfig {
+	supabaseServiceRoleKey: string
+}
+
 export interface SupabaseBrowserRuntimeConfig {
 	supabaseUrl: string
 	supabaseAnonKey: string
@@ -48,6 +53,18 @@ export function resolveSupabaseServerConfig(
 		...config,
 		cookieDomain: env.COOKIE_DOMAIN || undefined,
 		cookieName: env.SUPABASE_COOKIE_NAME || undefined,
+	}
+}
+
+export function resolveSupabaseServiceRoleConfig(
+	env: Record<string, string | undefined>,
+): SupabaseServiceRoleRuntimeConfig | null {
+	const config = resolveSupabaseServerConfig(env)
+	const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+	if (!config || !supabaseServiceRoleKey) return null
+	return {
+		...config,
+		supabaseServiceRoleKey,
 	}
 }
 

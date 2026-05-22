@@ -7,31 +7,6 @@ export type Json =
 	| Json[]
 
 export type Database = {
-	graphql_public: {
-		Tables: {
-			[_ in never]: never
-		}
-		Views: {
-			[_ in never]: never
-		}
-		Functions: {
-			graphql: {
-				Args: {
-					extensions?: Json
-					operationName?: string
-					query?: string
-					variables?: Json
-				}
-				Returns: Json
-			}
-		}
-		Enums: {
-			[_ in never]: never
-		}
-		CompositeTypes: {
-			[_ in never]: never
-		}
-	}
 	public: {
 		Tables: {
 			activity_events: {
@@ -5703,6 +5678,1643 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_admin_assign_employee_role: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_employee_id: string
+					p_reason: string
+					p_role: Database['public']['Enums']['employee_role']
+				}
+				Returns: undefined
+			}
+			service_admin_disable_driver: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_driver_id: string
+					p_reason: string
+				}
+				Returns: undefined
+			}
+			service_admin_export_data: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_reason: string
+					p_scope: string
+				}
+				Returns: Json
+			}
+			service_admin_record_audit: {
+				Args: {
+					p_action: Database['public']['Enums']['audit_event_type']
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_details?: Json
+					p_entity_id: string
+					p_entity_type: string
+					p_reason: string
+				}
+				Returns: undefined
+			}
+			service_admin_remove_employee_role: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_employee_id: string
+					p_reason: string
+					p_role: Database['public']['Enums']['employee_role']
+				}
+				Returns: undefined
+			}
+			service_assign_support_conversation: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_conversation_id: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_assign_support_ticket: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_ticket_id: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					customer_id: string | null
+					id: string
+					reference: string
+					requester_email: string
+					requester_name: string | null
+					requester_phone: string | null
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
+					subject: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_tickets'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_can_access_ceo_search: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: boolean
+			}
+			service_claim_customer_profile: {
+				Args: { p_actor_pool: string; p_actor_user_id: string; p_phone: string }
+				Returns: {
+					assigned_sales_rep_id: string | null
+					company_name: string
+					contact_name: string
+					created_at: string
+					created_by_employee_id: string | null
+					credit_limit: number
+					email: string | null
+					id: string
+					payment_history: Database['public']['Enums']['customer_payment_history']
+					phone: string
+					profile_photo_url: string | null
+					status: Database['public']['Enums']['customer_status']
+					tier: Database['public']['Enums']['customer_tier']
+					trade_license_status: Database['public']['Enums']['trade_license_status']
+					updated_at: string
+					user_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'customers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_claim_next_sales_order: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_create_manual_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_customer_id: string
+					p_items: Json
+					p_notes?: string
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_create_supplier_refill: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_product_id: string
+					p_proof: Json
+					p_quantity: number
+					p_supplier_id: string
+					p_unit_cost: number
+				}
+				Returns: {
+					created_at: string
+					id: string
+					product_id: string
+					proof: Json
+					quantity: number
+					requested_by_employee_id: string | null
+					status: Database['public']['Enums']['refill_request_status']
+					supplier_id: string
+					unit_cost: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_current_employee_id: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: string
+			}
+			service_customer_accept_quote: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_quote_id: string
+				}
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_customer_decline_quote: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_notes: string
+					p_quote_id: string
+					p_reason: string
+				}
+				Returns: {
+					accepted_at: string | null
+					assigned_rep_name: string | null
+					assigned_rep_phone: string | null
+					created_at: string
+					currency: string
+					customer_id: string | null
+					decline_notes: string | null
+					decline_reason: string | null
+					declined_at: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					payment_terms: string | null
+					previous_version_id: string | null
+					project_id: string | null
+					quote_number: string
+					quote_request_id: string | null
+					status: Database['public']['Enums']['quote_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					updated_at: string
+					valid_until: string
+					validity_days: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quotes'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_customer_get_delivery_secret: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: Json
+			}
+			service_customer_order_delivery_tracking: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: Json
+			}
+			service_customer_record_order_saved_as_draft: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_draft_quote_request_id: string
+					p_source?: string
+					p_source_order_id?: string
+					p_source_quote_request_id: string
+				}
+				Returns: undefined
+			}
+			service_customer_record_portal_order_viewed: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id?: string
+					p_quote_request_id: string
+				}
+				Returns: undefined
+			}
+			service_customer_record_quote_request_draft_saved: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_context?: Json
+					p_quote_request_id: string
+					p_source: string
+				}
+				Returns: undefined
+			}
+			service_customer_request_quote_negotiation: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_counter_type: Database['public']['Enums']['quote_counter_type']
+					p_line_items: Json
+					p_notes: string
+					p_quote_id: string
+					p_self_pickup: boolean
+					p_total_discount: number
+				}
+				Returns: {
+					counter_type: Database['public']['Enums']['quote_counter_type']
+					created_at: string
+					id: string
+					line_items: Json | null
+					notes: string | null
+					quote_id: string
+					self_pickup: boolean
+					total_discount: number | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_counter_offers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_customer_submit_quote_line_response: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_line_responses: Json
+					p_quote_id: string
+				}
+				Returns: {
+					accepted_at: string | null
+					assigned_rep_name: string | null
+					assigned_rep_phone: string | null
+					created_at: string
+					currency: string
+					customer_id: string | null
+					decline_notes: string | null
+					decline_reason: string | null
+					declined_at: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					payment_terms: string | null
+					previous_version_id: string | null
+					project_id: string | null
+					quote_number: string
+					quote_request_id: string | null
+					status: Database['public']['Enums']['quote_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					updated_at: string
+					valid_until: string
+					validity_days: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quotes'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_customer_submit_saved_quote_request: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_quote_request_id: string
+					p_source?: string
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_dispatch_complete_delivery: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+					p_proof: Json
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_dispatch_complete_loaded_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_proof: Json
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_dispatch_return_loaded_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_proof: Json
+					p_reason: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_accept_delivery: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_app_dashboard: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: Json
+			}
+			service_driver_confirm_arrival_secret_result: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_code: string
+					p_delivery_id: string
+				}
+				Returns: Json
+			}
+			service_driver_confirm_delivery: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+					p_latitude: number
+					p_longitude: number
+					p_signature_path: string
+					p_signer_name: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_list_active_drivers: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: Json
+			}
+			service_driver_list_team_messages: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_limit?: number
+				}
+				Returns: Json
+			}
+			service_driver_reject_delivery: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+					p_proof: Json
+					p_reason: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_reopen_delivery_route: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_send_team_message: {
+				Args: { p_actor_pool: string; p_actor_user_id: string; p_body: string }
+				Returns: Json
+			}
+			service_driver_set_online: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_online: boolean
+				}
+				Returns: {
+					driver_id: string
+					last_seen_at: string
+					status: Database['public']['Enums']['driver_online_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'driver_online_states'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_start_delivery: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id: string
+				}
+				Returns: {
+					arrived_at: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_number: string
+					driver_id: string | null
+					id: string
+					loading_task_id: string | null
+					order_id: string | null
+					rejection_proof: Json | null
+					rejection_reason: string | null
+					started_at: string | null
+					status: Database['public']['Enums']['delivery_status']
+					truck_id: string | null
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'deliveries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_driver_update_location: {
+				Args: {
+					p_accuracy_meters?: number
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_delivery_id?: string
+					p_heading?: number
+					p_latitude: number
+					p_longitude: number
+					p_speed_kmh?: number
+				}
+				Returns: {
+					accuracy_meters: number | null
+					delivery_id: string | null
+					driver_id: string
+					heading: number | null
+					id: string
+					latitude: number
+					longitude: number
+					recorded_at: string
+					source: Database['public']['Enums']['driver_location_source']
+					speed_kmh: number | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'driver_locations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_cancel_customer_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_proof?: Json
+					p_reason: string
+				}
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_cancel_supplier_refill: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_proof?: Json
+					p_reason: string
+					p_refill_request_id: string
+				}
+				Returns: {
+					created_at: string
+					id: string
+					product_id: string
+					proof: Json
+					quantity: number
+					requested_by_employee_id: string | null
+					status: Database['public']['Enums']['refill_request_status']
+					supplier_id: string
+					unit_cost: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_find_claimable_customer_profile: {
+				Args: { p_actor_pool: string; p_actor_user_id: string; p_phone: string }
+				Returns: {
+					company_name: string
+					id: string
+					user_id: string
+				}[]
+			}
+			service_inventory_update_price: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_new_price: number
+					p_notes: string
+					p_product_id: string
+					p_proof_path: string
+					p_supplier_id: string
+				}
+				Returns: {
+					created_at: string
+					id: string
+					new_price: number
+					notes: string | null
+					old_price: number | null
+					product_id: string
+					proof_path: string
+					supplier_id: string
+					updated_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'price_updates'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_inventory_update_supplier_prices: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_notes?: string
+					p_proof_path: string
+					p_supplier_id: string
+					p_updates: Json
+				}
+				Returns: Json
+			}
+			service_link_support_conversation_to_customer: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_conversation_id: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_log_activity: {
+				Args: {
+					action: Database['public']['Enums']['audit_event_type']
+					details?: Json
+					entity_id: string
+					entity_type: string
+					p_actor_pool: string
+					p_actor_user_id: string
+				}
+				Returns: undefined
+			}
+			service_record_ai_tool_call: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_agent_scope: Database['public']['Enums']['ai_agent_scope']
+					p_approved_by_user?: boolean
+					p_input_summary?: Json
+					p_output_summary?: Json
+					p_read_entities?: string[]
+					p_tool_name: string
+					p_write_entity_id?: string
+					p_write_entity_type?: string
+				}
+				Returns: {
+					actor_employee_id: string | null
+					actor_user_id: string | null
+					agent_scope: Database['public']['Enums']['ai_agent_scope']
+					approved_by_user: boolean
+					created_at: string
+					id: string
+					input_summary: Json
+					output_summary: Json
+					read_entities: string[]
+					tool_name: string
+					write_entity_id: string | null
+					write_entity_type: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'ai_tool_call_audit'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_record_customer_payment: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_amount: number
+					p_order_id: string
+					p_payment_fraction: number
+					p_proof_path: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					id: string
+					order_id: string
+					payment_fraction: number
+					proof_path: string
+					recorded_by_employee_id: string | null
+					status: Database['public']['Enums']['payment_record_status']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'customer_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_record_customer_payment_followup: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_contact_channel: string
+					p_follow_up_due_at: string
+					p_follow_up_state: string
+					p_notes: string
+					p_order_id: string
+					p_outcome: string
+				}
+				Returns: {
+					contact_channel: string
+					created_at: string
+					follow_up_due_at: string
+					follow_up_state: string
+					id: string
+					notes: string
+					order_id: string | null
+					outcome: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string | null
+					target_type: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_payment_followups'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_record_supplier_payment: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_amount: number
+					p_payment_fraction: number
+					p_proof_path: string
+					p_refill_request_id: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					id: string
+					payment_fraction: number
+					proof_path: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string
+					status: Database['public']['Enums']['payment_record_status']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'supplier_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_record_supplier_payment_followup: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_contact_channel: string
+					p_follow_up_due_at: string
+					p_follow_up_state: string
+					p_notes: string
+					p_outcome: string
+					p_refill_request_id: string
+				}
+				Returns: {
+					contact_channel: string
+					created_at: string
+					follow_up_due_at: string
+					follow_up_state: string
+					id: string
+					notes: string
+					order_id: string | null
+					outcome: string
+					recorded_by_employee_id: string | null
+					refill_request_id: string | null
+					target_type: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_payment_followups'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_request_price_update: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_product_id: string
+					p_reason: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					id: string
+					product_id: string
+					quote_request_id: string | null
+					quote_request_item_id: string | null
+					reason: string
+					requested_by_employee_id: string | null
+					resolved_at: string | null
+					status: Database['public']['Enums']['price_update_request_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'price_update_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_require_panel: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					required_panel: string
+					write_required?: boolean
+				}
+				Returns: string
+			}
+			service_sales_cancel_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_proof?: Json
+					p_reason: string
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_claim_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_record_call_note: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_notes?: string
+					p_order_id: string
+					p_outcome: string
+				}
+				Returns: {
+					created_at: string
+					employee_id: string | null
+					id: string
+					notes: string | null
+					outcome: string
+					quote_request_id: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'sales_call_notes'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_reject_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_proof: Json
+					p_reason: string
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_save_and_requeue: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_note?: string
+					p_order_id: string
+					p_return_minutes?: number
+				}
+				Returns: {
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_date: string | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_save_quote_version: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_items: Json
+					p_notes?: string
+					p_order_id: string
+				}
+				Returns: {
+					created_at: string
+					created_by_employee_id: string | null
+					delivery_fee: number
+					discount_amount: number
+					id: string
+					notes: string | null
+					quote_request_id: string
+					status: Database['public']['Enums']['sales_quote_version_status']
+					subtotal: number
+					tax_amount: number
+					total: number
+					version_number: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_send_support_conversation_reply: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_body: string
+					p_channel: Database['public']['Enums']['support_message_channel']
+					p_conversation_id: string
+				}
+				Returns: {
+					body: string
+					channel: Database['public']['Enums']['support_message_channel']
+					conversation_id: string | null
+					created_at: string
+					external_message_id: string | null
+					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
+					sender_type: Database['public']['Enums']['support_sender_type']
+					sender_user_id: string | null
+					ticket_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_messages'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_set_employee_presence: {
+				Args: {
+					p_active_panel?: string
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_status: string
+				}
+				Returns: {
+					active_panel: Database['public']['Enums']['employee_panel'] | null
+					employee_id: string
+					last_seen_at: string
+					status: Database['public']['Enums']['employee_presence_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_presence'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_set_support_conversation_status: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_conversation_id: string
+					p_status: Database['public']['Enums']['support_conversation_status']
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					channel: Database['public']['Enums']['support_channel']
+					created_at: string
+					customer_id: string | null
+					email: string | null
+					external_thread_id: string | null
+					id: string
+					phone: string | null
+					status: Database['public']['Enums']['support_conversation_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_conversations'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_set_support_ticket_status: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_status: Database['public']['Enums']['support_ticket_status']
+					p_ticket_id: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					customer_id: string | null
+					id: string
+					reference: string
+					requester_email: string
+					requester_name: string | null
+					requester_phone: string | null
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
+					subject: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_tickets'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_transfer_team_ownership: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_member_id: string
+				}
+				Returns: undefined
+			}
+			service_warehouse_approve_loading: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_loading_task_id: string
+					p_proof: Json
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_approve_receiving: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_proof: Json
+					p_receiving_task_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					proof: Json
+					refill_request_id: string
+					rejection_reason: string | null
+					status: Database['public']['Enums']['receiving_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'receiving_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_assign_loading_driver: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_truck_id: string
+				}
+				Returns: {
+					assigned_items: Json
+					created_at: string
+					driver_id: string
+					id: string
+					loading_task_id: string
+					truck_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_task_drivers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_mark_loading_ready: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_reject_loading: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_loading_task_id: string
+					p_proof: Json
+					p_reason: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_reject_receiving: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_proof: Json
+					p_reason: string
+					p_receiving_task_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					proof: Json
+					refill_request_id: string
+					rejection_reason: string | null
+					status: Database['public']['Enums']['receiving_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'receiving_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_remove_loading_driver: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_truck_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_reset_loading: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_toggle_loading_item: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_product_slug: string
+					p_truck_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			set_employee_presence: {
 				Args: { p_active_panel?: string; p_status: string }
 				Returns: {
@@ -6366,9 +7978,6 @@ export type CompositeTypes<
 		: never
 
 export const Constants = {
-	graphql_public: {
-		Enums: {},
-	},
 	public: {
 		Enums: {
 			account_type: ['customer', 'employee', 'driver'],

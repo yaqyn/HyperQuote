@@ -6,10 +6,18 @@ import {
 } from '@supabase/ssr'
 import {
 	resolveSupabaseServerConfig,
+	resolveSupabaseServiceRoleConfig,
 	type SupabaseServerRuntimeConfig,
+	type SupabaseServiceRoleRuntimeConfig,
 } from './config'
+import type { AuthPool } from './types'
 
-export { resolveSupabaseServerConfig, type SupabaseServerRuntimeConfig }
+export {
+	resolveSupabaseServerConfig,
+	resolveSupabaseServiceRoleConfig,
+	type SupabaseServerRuntimeConfig,
+	type SupabaseServiceRoleRuntimeConfig,
+}
 
 interface ServerClientOptions {
 	request: Request
@@ -175,4 +183,155 @@ function stringEnvValue(env: unknown, key: string): string | undefined {
 	if (!env || typeof env !== 'object') return undefined
 	const value = (env as Record<string, unknown>)[key]
 	return typeof value === 'string' ? value : undefined
+}
+
+export async function resolveSupabaseWorkerServiceRoleConfig(
+	fallbackEnv: Record<string, string | undefined>,
+): Promise<SupabaseServiceRoleRuntimeConfig | null> {
+	const processConfig = resolveSupabaseServiceRoleConfig(fallbackEnv)
+	if (processConfig) return processConfig
+
+	try {
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
+		return resolveSupabaseServiceRoleConfig({
+			COOKIE_DOMAIN: stringEnvValue(env, 'COOKIE_DOMAIN'),
+			SUPABASE_ANON_KEY: stringEnvValue(env, 'SUPABASE_ANON_KEY'),
+			SUPABASE_COOKIE_NAME: stringEnvValue(env, 'SUPABASE_COOKIE_NAME'),
+			SUPABASE_SERVICE_ROLE_KEY: stringEnvValue(
+				env,
+				'SUPABASE_SERVICE_ROLE_KEY',
+			),
+			SUPABASE_URL: stringEnvValue(env, 'SUPABASE_URL'),
+		})
+	} catch {
+		return null
+	}
+}
+
+export async function createSupabaseServiceRoleClient(
+	fallbackEnv: Record<string, string | undefined>,
+) {
+	const config = await resolveSupabaseWorkerServiceRoleConfig(fallbackEnv)
+	if (!config) return null
+
+	const { createClient } = await import('@supabase/supabase-js')
+	return createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false,
+		},
+	})
+}
+
+type ServiceRoleClient = NonNullable<
+	Awaited<ReturnType<typeof createSupabaseServiceRoleClient>>
+>
+type ServiceRoleRpc = ServiceRoleClient['rpc']
+
+const ACTOR_RPC_NAMES = new Set([
+	'admin_assign_employee_role',
+	'admin_disable_driver',
+	'admin_export_data',
+	'admin_record_audit',
+	'admin_remove_employee_role',
+	'assign_support_conversation',
+	'assign_support_ticket',
+	'can_access_ceo_search',
+	'claim_customer_profile',
+	'claim_next_sales_order',
+	'create_manual_order',
+	'create_supplier_refill',
+	'current_employee_id',
+	'customer_accept_quote',
+	'customer_decline_quote',
+	'customer_get_delivery_secret',
+	'customer_order_delivery_tracking',
+	'customer_record_order_saved_as_draft',
+	'customer_record_portal_order_viewed',
+	'customer_record_quote_request_draft_saved',
+	'customer_request_quote_negotiation',
+	'customer_submit_quote_line_response',
+	'customer_submit_saved_quote_request',
+	'dispatch_complete_delivery',
+	'dispatch_complete_loaded_order',
+	'dispatch_return_loaded_order',
+	'driver_accept_delivery',
+	'driver_app_dashboard',
+	'driver_confirm_arrival_secret_result',
+	'driver_confirm_delivery',
+	'driver_list_active_drivers',
+	'driver_list_team_messages',
+	'driver_reject_delivery',
+	'driver_reopen_delivery_route',
+	'driver_send_team_message',
+	'driver_set_online',
+	'driver_start_delivery',
+	'driver_update_location',
+	'finance_cancel_customer_order',
+	'finance_cancel_supplier_refill',
+	'find_claimable_customer_profile',
+	'inventory_update_price',
+	'inventory_update_supplier_prices',
+	'link_support_conversation_to_customer',
+	'log_activity',
+	'record_ai_tool_call',
+	'record_customer_payment',
+	'record_customer_payment_followup',
+	'record_supplier_payment',
+	'record_supplier_payment_followup',
+	'request_price_update',
+	'require_panel',
+	'sales_cancel_order',
+	'sales_claim_order',
+	'sales_record_call_note',
+	'sales_reject_order',
+	'sales_save_and_requeue',
+	'sales_save_quote_version',
+	'send_support_conversation_reply',
+	'set_employee_presence',
+	'set_support_conversation_status',
+	'set_support_ticket_status',
+	'transfer_team_ownership',
+	'warehouse_approve_loading',
+	'warehouse_approve_receiving',
+	'warehouse_assign_loading_driver',
+	'warehouse_mark_loading_ready',
+	'warehouse_reject_loading',
+	'warehouse_reject_receiving',
+	'warehouse_remove_loading_driver',
+	'warehouse_reset_loading',
+	'warehouse_toggle_loading_item',
+])
+
+export function createActorServiceRoleClient({
+	actorPool,
+	actorUserId,
+	client,
+}: {
+	actorPool: AuthPool
+	actorUserId: string
+	client: ServiceRoleClient
+}): ServiceRoleClient {
+	const rpc: ServiceRoleRpc = ((functionName, args, options) => {
+		if (typeof functionName === 'string' && ACTOR_RPC_NAMES.has(functionName)) {
+			return client.rpc(
+				`service_${functionName}`,
+				{
+					...((args ?? {}) as Record<string, unknown>),
+					p_actor_pool: actorPool,
+					p_actor_user_id: actorUserId,
+				},
+				options,
+			)
+		}
+		return client.rpc(functionName, args, options)
+	}) as ServiceRoleRpc
+
+	return new Proxy(client, {
+		get(target, property, receiver) {
+			if (property === 'rpc') return rpc
+			return Reflect.get(target, property, receiver)
+		},
+	})
 }

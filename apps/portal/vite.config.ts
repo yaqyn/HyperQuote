@@ -17,6 +17,11 @@ export default defineConfig({
 	resolve: {
 		dedupe: ['react', 'react-dom'],
 	},
+	ssr: {
+		optimizeDeps: {
+			exclude: ['@supabase/supabase-js'],
+		},
+	},
 	plugins: [
 		cloudflare({ viteEnvironment: { name: 'ssr' } }),
 		tailwindcss(),

@@ -17,6 +17,7 @@ import {
 
 interface SupabaseBrowserRuntimeConfig {
 	cookieName?: string
+	driverApiBase?: string
 	supabaseAnonKey: string
 	supabaseUrl: string
 }
@@ -126,11 +127,6 @@ const deliveryProofSchema = z
 	})
 	.nullish()
 	.transform((value) => value ?? undefined)
-
-const arrivalSecretResultSchema = z.object({
-	error: z.string().optional(),
-	ok: z.boolean(),
-})
 
 const rejectionProofSchema = z
 	.object({
@@ -282,6 +278,15 @@ const teamMessageSchema = z
 		}),
 	)
 
+const driverApiSessionSchema = z.object({
+	driverId: z.string(),
+	email: z.string(),
+	source: z.literal('supabase'),
+	startedAt: z.string(),
+})
+
+export type DriverApiSession = z.infer<typeof driverApiSessionSchema>
+
 export function createSupabaseDriverRepository(
 	config: SupabaseBrowserRuntimeConfig,
 ): DriverRepository {
@@ -291,36 +296,75 @@ export function createSupabaseDriverRepository(
 		config.cookieName,
 	)
 
-	async function dashboard() {
-		const { data, error } = await client.rpc('driver_app_dashboard')
-		if (error) throw toRepositoryError(error)
-		return dashboardSchema.parse(data)
-	}
-
-	async function deliveryAfterMutation(deliveryId: string) {
-		const next = await dashboard()
-		const delivery = next.deliveries.find((row) => row.id === deliveryId)
-		if (!delivery) {
+	async function accessToken() {
+		const {
+			data: { session },
+		} = await client.auth.getSession()
+		if (!session?.access_token) {
 			throw new DriverRepositoryError(
-				'delivery_not_found',
-				'Delivery is no longer visible to this driver.',
+				'driver_not_found',
+				'Driver session is required.',
 			)
 		}
-		return delivery
+		return session.access_token
 	}
 
-	async function callDeliveryRpc(
-		name: 'driver_accept_delivery' | 'driver_start_delivery',
+	async function apiRequest<T>(
+		path: string,
+		schema: z.ZodType<T>,
+		init: RequestInit = {},
+	): Promise<T> {
+		const token = await accessToken()
+		const headers = new Headers(init.headers)
+		headers.set('authorization', `Bearer ${token}`)
+		if (init.body && !headers.has('content-type')) {
+			headers.set('content-type', 'application/json')
+		}
+
+		const response = await fetch(`${config.driverApiBase ?? ''}${path}`, {
+			...init,
+			headers,
+		})
+		const payload = await response.json().catch(() => null)
+		if (!response.ok) {
+			throw toRepositoryError({
+				message:
+					payload && typeof payload === 'object' && 'error' in payload
+						? String(payload.error)
+						: response.statusText,
+			})
+		}
+		return schema.parse(payload)
+	}
+
+	async function dashboard() {
+		return apiRequest('/api/driver/dashboard', dashboardSchema)
+	}
+
+	async function mutateDelivery(
 		deliveryId: string,
+		action:
+			| 'accept'
+			| 'start'
+			| 'arrival-secret'
+			| 'complete'
+			| 'reject'
+			| 'reopen',
+		body?: Record<string, unknown>,
 	) {
-		const { error } = await client.rpc(name, { p_delivery_id: deliveryId })
-		if (error) throw toRepositoryError(error)
-		return deliveryAfterMutation(deliveryId)
+		return apiRequest(
+			`/api/driver/deliveries/${deliveryId}/${action}`,
+			deliverySchema,
+			{
+				body: JSON.stringify(body ?? {}),
+				method: 'POST',
+			},
+		)
 	}
 
 	return {
 		async acceptDelivery(deliveryId: string): Promise<DriverDelivery> {
-			return callDeliveryRpc('driver_accept_delivery', deliveryId)
+			return mutateDelivery(deliveryId, 'accept')
 		},
 
 		async confirmArrival(
@@ -328,21 +372,7 @@ export function createSupabaseDriverRepository(
 			_driverId: string,
 			secretCode: string,
 		): Promise<DriverDelivery> {
-			const { data, error } = await client.rpc(
-				'driver_confirm_arrival_secret_result',
-				{
-					p_code: secretCode,
-					p_delivery_id: deliveryId,
-				},
-			)
-			if (error) throw toRepositoryError(error)
-			const result = arrivalSecretResultSchema.parse(data)
-			if (!result.ok) {
-				throw toRepositoryError({
-					message: result.error ?? 'invalid_delivery_secret',
-				})
-			}
-			return deliveryAfterMutation(deliveryId)
+			return mutateDelivery(deliveryId, 'arrival-secret', { secretCode })
 		},
 
 		async completeDelivery(
@@ -356,15 +386,7 @@ export function createSupabaseDriverRepository(
 					'Completion requires verified customer code, GPS, and time.',
 				)
 			}
-			const { error } = await client.rpc('driver_confirm_delivery', {
-				p_delivery_id: deliveryId,
-				p_latitude: proof.location.latitude,
-				p_longitude: proof.location.longitude,
-				p_signature_path: null,
-				p_signer_name: null,
-			})
-			if (error) throw toRepositoryError(error)
-			return deliveryAfterMutation(deliveryId)
+			return mutateDelivery(deliveryId, 'complete', { proof })
 		},
 
 		async getDashboard(): Promise<DriverDashboard> {
@@ -372,9 +394,10 @@ export function createSupabaseDriverRepository(
 		},
 
 		async listActiveDrivers(): Promise<DriverProfile[]> {
-			const { data, error } = await client.rpc('driver_list_active_drivers')
-			if (error) throw toRepositoryError(error)
-			return z.array(driverProfileSchema).parse(data)
+			return apiRequest(
+				'/api/driver/drivers/active',
+				z.array(driverProfileSchema),
+			)
 		},
 
 		async listDeliveries(): Promise<DriverDelivery[]> {
@@ -383,9 +406,7 @@ export function createSupabaseDriverRepository(
 		},
 
 		async listTeamMessages(): Promise<TeamMessage[]> {
-			const { data, error } = await client.rpc('driver_list_team_messages')
-			if (error) throw toRepositoryError(error)
-			return z.array(teamMessageSchema).parse(data)
+			return apiRequest('/api/driver/team/messages', z.array(teamMessageSchema))
 		},
 
 		async rejectDelivery(
@@ -394,50 +415,38 @@ export function createSupabaseDriverRepository(
 			reason: string,
 			proof: DeliveryRejectionProof | null,
 		): Promise<DriverDelivery> {
-			const { error } = await client.rpc('driver_reject_delivery', {
-				p_delivery_id: deliveryId,
-				p_proof: proof ?? {},
-				p_reason: reason,
-			})
-			if (error) throw toRepositoryError(error)
-			return deliveryAfterMutation(deliveryId)
+			return mutateDelivery(deliveryId, 'reject', { proof, reason })
 		},
 
 		async reopenRoute(
 			deliveryId: string,
 			_driverId: string,
 		): Promise<DriverDelivery> {
-			const { error } = await client.rpc('driver_reopen_delivery_route', {
-				p_delivery_id: deliveryId,
-			})
-			if (error) throw toRepositoryError(error)
-			return deliveryAfterMutation(deliveryId)
+			return mutateDelivery(deliveryId, 'reopen')
 		},
 
 		async sendTeamMessage(
 			_driverId: string,
 			body: string,
 		): Promise<TeamMessage> {
-			const { data, error } = await client.rpc('driver_send_team_message', {
-				p_body: body,
+			return apiRequest('/api/driver/team/messages', teamMessageSchema, {
+				body: JSON.stringify({ body }),
+				method: 'POST',
 			})
-			if (error) throw toRepositoryError(error)
-			return teamMessageSchema.parse(data)
 		},
 
 		async setOnline(
 			_driverId: string,
 			online: boolean,
 		): Promise<DriverProfile> {
-			const { error } = await client.rpc('driver_set_online', {
-				p_online: online,
+			return apiRequest('/api/driver/online', driverProfileSchema, {
+				body: JSON.stringify({ online }),
+				method: 'POST',
 			})
-			if (error) throw toRepositoryError(error)
-			return (await dashboard()).currentDriver
 		},
 
 		async startDelivery(deliveryId: string): Promise<DriverDelivery> {
-			return callDeliveryRpc('driver_start_delivery', deliveryId)
+			return mutateDelivery(deliveryId, 'start')
 		},
 
 		async updateLocation(
@@ -445,18 +454,35 @@ export function createSupabaseDriverRepository(
 			location: DriverLocation,
 			deliveryId?: string | null,
 		): Promise<DriverProfile> {
-			const { error } = await client.rpc('driver_update_location', {
-				p_accuracy_meters: location.accuracyMeters ?? null,
-				p_delivery_id: deliveryId ?? null,
-				p_heading: location.heading ?? null,
-				p_latitude: location.latitude,
-				p_longitude: location.longitude,
-				p_speed_kmh: location.speedKmh ?? null,
+			return apiRequest('/api/driver/location', driverProfileSchema, {
+				body: JSON.stringify({ deliveryId, location }),
+				method: 'POST',
 			})
-			if (error) throw toRepositoryError(error)
-			return (await dashboard()).currentDriver
 		},
 	}
+}
+
+export async function fetchDriverApiSession(
+	config: SupabaseBrowserRuntimeConfig,
+): Promise<DriverApiSession | null> {
+	const client = createSupabaseBrowserClient(
+		config.supabaseUrl,
+		config.supabaseAnonKey,
+		config.cookieName,
+	)
+	const {
+		data: { session },
+	} = await client.auth.getSession()
+	if (!session?.access_token) return null
+
+	const response = await fetch(
+		`${config.driverApiBase ?? ''}/api/driver/session`,
+		{
+			headers: { authorization: `Bearer ${session.access_token}` },
+		},
+	)
+	if (!response.ok) return null
+	return driverApiSessionSchema.parse(await response.json())
 }
 
 function toRepositoryError(error: { message: string }) {
