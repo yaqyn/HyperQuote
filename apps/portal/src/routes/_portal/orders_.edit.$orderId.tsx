@@ -277,14 +277,9 @@ function EditSavedOrder() {
 					name: orderName.trim() || defaultDraftName,
 				},
 			}),
-		onSuccess: (result) => {
-			const nextOrder = buildDraftOrder('submitted')
-			if (nextOrder) {
-				writeOrderToCache({
-					...nextOrder,
-					reference: result.reference,
-				})
-			}
+		onSuccess: () => {
+			queryClient.removeQueries({ queryKey: ['customer-orders-all'] })
+			void queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			navigate({ to: '/orders' })
 		},
 		onError: (error) => {

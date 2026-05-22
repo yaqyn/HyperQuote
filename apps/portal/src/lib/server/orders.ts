@@ -220,7 +220,7 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 		incomingDeliveries: OrderDeliveryTracking[]
 		orders: Order[]
 	}> => {
-		const { supabase } = await getAuthenticatedPortalCustomer()
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('quote_requests')
 			.select(`
@@ -257,6 +257,7 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 					created_at
 				)
 			`)
+			.eq('customer_id', customerId)
 			.order('created_at', { ascending: false })
 
 		if (error) throw new Error(error.message)

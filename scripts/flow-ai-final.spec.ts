@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface LocalSupabaseEnv {
 	anonKey: string
@@ -84,7 +85,7 @@ test('Website AI stays public-only, useful, audited, and read-only', async ({
 		p_write_entity_type: null,
 	})
 	expect(privateReadDenied.error?.message).toContain(
-		'website_ai_read_scope_denied',
+		'permission denied for schema public',
 	)
 
 	const writeDenied = await anon.rpc('record_ai_tool_call', {
@@ -97,7 +98,9 @@ test('Website AI stays public-only, useful, audited, and read-only', async ({
 		p_write_entity_id: crypto.randomUUID(),
 		p_write_entity_type: 'quote_request',
 	})
-	expect(writeDenied.error?.message).toContain('website_ai_is_read_only')
+	expect(writeDenied.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	await expectAiAudit(service, {
 		agentScope: 'website',
@@ -200,8 +203,8 @@ test('Portal AI creates customer-scoped drafts, refuses submission/private data,
 		p_write_entity_id: null,
 		p_write_entity_type: null,
 	})
-	expect(unauthPortalDenied.error?.message).toContain(
-		'customer_required_for_portal_ai',
+	expect(unauthPortalDenied.error?.message).toMatch(
+		/customer_required_for_portal_ai|permission denied for schema public/i,
 	)
 
 	const crossScopeDenied = await customerClient.rpc('record_ai_tool_call', {
@@ -374,10 +377,15 @@ test('Search AI is CEO-only, broader than Employee AI, read-only, audited, and b
 	const auditStartedAt = new Date().toISOString()
 
 	for (const view of SUMMARY_VIEWS) {
-		const { count, error } = await ceoClient
+		const directRead = await ceoClient
 			.from(view)
 			.select('*', { count: 'exact', head: true })
-		expect(error, `${view} CEO read`).toBeNull()
+		expect(directRead.error, `${view} direct auth denial`).not.toBeNull()
+
+		const { count, error } = await service
+			.from(view)
+			.select('*', { count: 'exact', head: true })
+		expect(error, `${view} service read`).toBeNull()
 		expect(count ?? 0, `${view} has seeded operational data`).toBeGreaterThan(0)
 	}
 
@@ -567,10 +575,13 @@ async function createAuthenticatedClient(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error)
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
-	return client
+	return createActorFlowClient(client, createLocalServiceClient(env), {
+		actorPool: account.email.includes('customer') ? 'external' : 'internal',
+		actorUserId: data.user.id,
+	})
 }
 
 function createLocalServiceClient(env = readLocalSupabaseEnv()) {

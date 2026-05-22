@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createActorFlowClient, type FlowActorPool } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -12,6 +13,7 @@ interface SupabaseCookieToSet {
 interface LocalSupabaseEnv {
 	anonKey: string
 	apiUrl: string
+	dbUrl: string
 	serviceRoleKey: string
 }
 
@@ -164,8 +166,8 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 		warehouseClient: warehouseAuth.client,
 	})
 
-	const ahmedAuth = await signInLocal(env, ahmedTruck.account)
-	const salehAuth = await signInLocal(env, salehTruck.account)
+	const ahmedAuth = await signInLocal(env, ahmedTruck.account, 'driver')
+	const salehAuth = await signInLocal(env, salehTruck.account, 'driver')
 	const ahmedDeliveryId = await deliveryIdForDriver(
 		service,
 		splitOrder.orderId,
@@ -197,7 +199,9 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 	await mustRpc(salehAuth.client, 'driver_start_delivery', {
 		p_delivery_id: salehDeliveryId,
 	})
-	await mustRpc(salehAuth.client, 'driver_record_arrival', {
+	const salehSecret = await deliverySecretCode(splitOrder.orderId)
+	await mustRpc(salehAuth.client, 'driver_confirm_arrival_secret_result', {
+		p_code: salehSecret,
 		p_delivery_id: salehDeliveryId,
 	})
 	await mustRpc(salehAuth.client, 'driver_update_location', {
@@ -253,7 +257,7 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 				name: `Open live truck ${ahmedTruck.plateNumber}`,
 			})
 			.first()
-			.click()
+			.click({ force: true })
 		await expect(dispatch.page.locator('body')).toContainText(
 			ahmedTruck.driverName,
 			{ timeout: 20_000 },
@@ -277,7 +281,10 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 		await dispatch.page
 			.getByRole('button', { name: /Back to deliveries/i })
 			.click()
-		await dispatch.page.getByRole('button', { name: /^Fleet$/i }).click()
+		await dispatch.page
+			.getByRole('button', { name: /^Fleet$/i })
+			.last()
+			.click()
 		await expect(dispatch.page.locator('body')).toContainText(
 			idleTruck.driverName,
 			{ timeout: 20_000 },
@@ -292,7 +299,10 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 			splitOrder.customerName.toLowerCase(),
 		)
 
-		await dispatch.page.getByRole('button', { name: /^Deliveries$/i }).click()
+		await dispatch.page
+			.getByRole('button', { name: /^Deliveries$/i })
+			.last()
+			.click()
 		await dispatch.page
 			.locator('[role="button"]', { hasText: splitOrder.customerName })
 			.first()
@@ -306,9 +316,6 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 		await dispatch.page.locator('select').selectOption(warehouseEmployee.id)
 		await dispatch.page.getByPlaceholder('your password').fill('wrong-password')
 		await dispatch.page
-			.getByPlaceholder('pod-photo.jpg')
-			.fill(`dispatch/wrong-${splitRunId}.jpg`)
-		await dispatch.page
 			.getByRole('button', { name: /^Confirm delivery$/i })
 			.click()
 		await expect(dispatch.page.locator('body')).toContainText(
@@ -318,9 +325,6 @@ test('dispatch shows live split fleet/order state, blocks driver control access,
 		await dispatch.page
 			.getByPlaceholder('your password')
 			.fill(LOCAL_WAREHOUSE.password)
-		await dispatch.page
-			.getByPlaceholder('pod-photo.jpg')
-			.fill(`dispatch/delivered-${splitRunId}.jpg`)
 		await dispatch.page
 			.getByRole('button', { name: /^Confirm delivery$/i })
 			.click()
@@ -731,17 +735,21 @@ async function createDriverTruck(
 
 async function expectMapMarker(page: Page, plateNumber: string) {
 	await expect(
-		page.getByRole('button', {
-			name: `Open live truck ${plateNumber}`,
-		}),
+		page
+			.getByRole('button', {
+				name: `Open live truck ${plateNumber}`,
+			})
+			.first(),
 	).toBeVisible({ timeout: 30_000 })
 }
 
 async function expectOrderMapMarker(page: Page, order: DispatchOrderFixture) {
 	await expect(
-		page.getByRole('button', {
-			name: `Open dispatch order ${order.orderNumber} for ${order.customerName}`,
-		}),
+		page
+			.getByRole('button', {
+				name: `Open dispatch order ${order.orderNumber} for ${order.customerName}`,
+			})
+			.first(),
 	).toBeVisible({ timeout: 30_000 })
 }
 
@@ -918,6 +926,34 @@ async function deliveryIdForDriver(
 	return String(data.id)
 }
 
+async function deliverySecretCode(orderId: string) {
+	await expect
+		.poll(() => deliverySecretCodeFromSql(orderId), { timeout: 20_000 })
+		.toMatch(/^[2-9A-HJ-NP-Z]{8}$/)
+
+	const code = deliverySecretCodeFromSql(orderId)
+	if (!code) throw new Error('Delivery secret missing')
+	return code
+}
+
+function deliverySecretCodeFromSql(orderId: string) {
+	const env = readLocalSupabaseEnv()
+	const result = spawnSync(
+		'psql',
+		[
+			env.dbUrl,
+			'-At',
+			'-c',
+			`select code from app_private.order_delivery_secrets where order_id = '${orderId.replace(/'/g, "''")}'::uuid`,
+		],
+		{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+	)
+	if (result.status !== 0) {
+		throw new Error(result.stderr.trim() || 'Delivery secret lookup failed')
+	}
+	return result.stdout.trim() || null
+}
+
 async function mustRpc(
 	client: SupabaseClient,
 	name: string,
@@ -1004,15 +1040,21 @@ async function openInternalPage(
 async function signInLocal(
 	env: LocalSupabaseEnv,
 	account: { email: string; password: string },
+	actorPool: FlowActorPool = 'internal',
 ) {
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) {
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
 	}
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool,
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 async function createAuthCookies(
@@ -1125,13 +1167,14 @@ function readLocalSupabaseEnv(): LocalSupabaseEnv {
 
 	const apiUrl = env.API_URL
 	const anonKey = env.ANON_KEY
+	const dbUrl = env.DB_URL
 	const serviceRoleKey = env.SERVICE_ROLE_KEY
-	if (!apiUrl || !anonKey || !serviceRoleKey) {
+	if (!apiUrl || !anonKey || !dbUrl || !serviceRoleKey) {
 		throw new Error(
-			'Local Supabase env is missing API_URL/ANON_KEY/service key',
+			'Local Supabase env is missing API_URL/ANON_KEY/DB_URL/service key',
 		)
 	}
-	return { anonKey, apiUrl, serviceRoleKey }
+	return { anonKey, apiUrl, dbUrl, serviceRoleKey }
 }
 
 function stripEnvQuotes(value: string) {

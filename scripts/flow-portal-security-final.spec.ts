@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient, type FlowActorPool } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -65,16 +66,22 @@ test('portal customer cannot access or mutate another customer drafts and orders
 	const localCustomer = await signInLocal(env, LOCAL_CUSTOMER)
 	const otherDraft = await createCustomerDraft(
 		otherCustomer.client,
+		service,
+		otherCustomer.customerId,
 		product,
 		'draft',
 	)
 	const otherSubmitted = await createCustomerDraft(
 		otherCustomer.client,
+		service,
+		otherCustomer.customerId,
 		product,
 		'submitted',
 	)
 	const otherConfirmed = await createCustomerDraft(
 		otherCustomer.client,
+		service,
+		otherCustomer.customerId,
 		product,
 		'confirmed',
 	)
@@ -121,15 +128,17 @@ async function expectDirectCrossCustomerDenials({
 		.from('quote_requests')
 		.select('id')
 		.eq('id', targetDraft.id)
-	expect(quoteRead.error).toBeNull()
-	expect(quoteRead.data).toEqual([])
+	expect(quoteRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const orderRead = await attackerClient
 		.from('orders')
 		.select('id')
 		.eq('id', targetOrder.orderId)
-	expect(orderRead.error).toBeNull()
-	expect(orderRead.data).toEqual([])
+	expect(orderRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const hackedNotes = `cross-customer edit ${Date.now()}`
 	const updateAttempt = await attackerClient
@@ -137,8 +146,9 @@ async function expectDirectCrossCustomerDenials({
 		.update({ notes: hackedNotes })
 		.eq('id', targetDraft.id)
 		.select('id')
-	expect(updateAttempt.error).toBeNull()
-	expect(updateAttempt.data).toEqual([])
+	expect(updateAttempt.error?.message).toContain(
+		'permission denied for schema public',
+	)
 	await expectQuoteNotesUnchanged(service, targetDraft.id, hackedNotes)
 
 	const deleteAttempt = await attackerClient
@@ -146,8 +156,9 @@ async function expectDirectCrossCustomerDenials({
 		.delete()
 		.eq('id', targetDraft.id)
 		.select('id')
-	expect(deleteAttempt.error).toBeNull()
-	expect(deleteAttempt.data).toEqual([])
+	expect(deleteAttempt.error?.message).toContain(
+		'permission denied for schema public',
+	)
 	await expectQuoteRequestExists(service, targetDraft.id)
 
 	const submitAttempt = await attackerClient.rpc(
@@ -270,12 +281,15 @@ async function createSecondaryCustomer(
 
 async function createCustomerDraft(
 	customerClient: ReturnType<typeof createClient>,
+	service: ReturnType<typeof createLocalServiceClient>,
+	customerId: string,
 	product: ProductRow,
 	variant: 'confirmed' | 'draft' | 'submitted',
 ): Promise<QuoteFixture> {
-	const { data: draft, error: draftError } = await customerClient
+	const { data: draft, error: draftError } = await service
 		.from('quote_requests')
 		.insert({
+			customer_id: customerId,
 			notes: `flow-cross-customer:${variant}:${Date.now()}`,
 		})
 		.select('id, request_number')
@@ -284,7 +298,7 @@ async function createCustomerDraft(
 		throw new Error(draftError?.message ?? 'Failed to create cross draft')
 	}
 
-	const { error: itemError } = await customerClient
+	const { error: itemError } = await service
 		.from('quote_request_items')
 		.insert({
 			customer_description: product.name,
@@ -316,7 +330,7 @@ async function confirmQuoteRequest(
 	env: LocalSupabaseEnv,
 	quoteRequestId: string,
 ) {
-	const employee = await signInLocal(env, LOCAL_EMPLOYEE)
+	const employee = await signInLocal(env, LOCAL_EMPLOYEE, 'internal')
 	const { error } = await employee.client.rpc('sales_confirm_order', {
 		p_order_id: quoteRequestId,
 		p_quote_version_id: null,
@@ -396,14 +410,20 @@ async function firstProduct(
 async function signInLocal(
 	env: LocalSupabaseEnv,
 	account: { email: string; password: string },
+	actorPool: FlowActorPool = 'external',
 ) {
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error)
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool,
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 async function createAuthCookies(

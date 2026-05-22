@@ -173,7 +173,9 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			if (input.draftId && !input.approvalRequired) {
 				const { data: draft, error: draftError } = await supabase
 					.from('quote_requests')
-					.select('id, request_number')
+					.select(
+						'id, request_number, urgency, project_id, delivery_address_id, delivery_date, notes, attachment_urls',
+					)
 					.eq('id', input.draftId)
 					.eq('customer_id', customerId)
 					.eq('status', 'draft')
@@ -189,13 +191,18 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					.insert({
 						customer_id: customerId,
 						status: 'draft',
-						urgency: 'standard',
-						project_id: input.projectId ?? null,
-						delivery_address_id: input.deliveryAddressId ?? null,
-						delivery_date: input.deliveryDate ?? null,
+						urgency: draft.urgency ?? 'standard',
+						project_id: input.projectId ?? draft.project_id,
+						delivery_address_id:
+							input.deliveryAddressId ?? draft.delivery_address_id,
+						delivery_date: input.deliveryDate ?? draft.delivery_date,
 						draft_name: null,
-						notes: normalizeNotes(input.notes),
-						attachment_urls: input.attachmentUrls ?? [],
+						notes:
+							input.notes === undefined
+								? draft.notes
+								: normalizeNotes(input.notes),
+						attachment_urls:
+							input.attachmentUrls ?? draft.attachment_urls ?? [],
 						idempotency_key: input.idempotencyKey,
 						approval_required: false,
 					})

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Dialog, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -49,7 +50,7 @@ test('Admin registry controls catalog, categories, suppliers, employees, exports
 	const stamp = Date.now()
 	const activityStartedAt = new Date().toISOString()
 	const category = {
-		image: 'https://websiteassets.hyperquote.net/Images/timber.webp',
+		image: `${URLS.internal}/icon-192.png`,
 		name: `Flow Admin Category ${stamp}`,
 		nameAr: `تصنيف الإدارة ${stamp}`,
 		slug: `flow-admin-category-${stamp}`,
@@ -66,7 +67,7 @@ test('Admin registry controls catalog, categories, suppliers, employees, exports
 		slug: `flow-admin-category-${stamp}-flow-admin-product-${stamp}`,
 		updatedName: `Flow Admin Product Updated ${stamp}`,
 		updatedNameAr: `منتج الإدارة محدث ${stamp}`,
-		imageOne: 'https://websiteassets.hyperquote.net/Images/cement.webp',
+		imageOne: `${URLS.internal}/icon-512.png`,
 	}
 	const supplier = {
 		name: `Flow Admin Supplier ${stamp}`,
@@ -88,7 +89,7 @@ test('Admin registry controls catalog, categories, suppliers, employees, exports
 		slug: `direct-admin-bypass-${stamp}`,
 	})
 	expect(deniedDirectCategory.error?.message).toContain(
-		'registry_writes_must_use_audited_server_function',
+		'permission denied for schema public',
 	)
 	const deniedExport = await salesClient.rpc('admin_export_data', {
 		p_reason: 'Sales user must not export admin data',
@@ -453,7 +454,7 @@ test('Admin registry controls catalog, categories, suppliers, employees, exports
 		.eq('id', productRow.id)
 	expect(deniedDirectProductUpdate.error?.code).toBe('42501')
 	expect(deniedDirectProductUpdate.error?.message).toMatch(
-		/registry_writes_must_use_audited_server_function|permission denied for table products/i,
+		/registry_writes_must_use_audited_server_function|permission denied for (schema public|table products)/i,
 	)
 
 	await guard.expectClean('internal admin final registry')
@@ -835,6 +836,12 @@ function installBrowserErrorGuard(page: Page) {
 		const failure = request.failure()
 		const errorText = failure?.errorText ?? 'request failed'
 		if (errorText.includes('ERR_ABORTED')) return
+		if (
+			errorText.includes('ERR_BLOCKED_BY_ORB') &&
+			request.resourceType() === 'image'
+		) {
+			return
+		}
 		browserErrors.push(`${request.method()} ${request.url()} ${errorText}`)
 	})
 	page.on('response', (response) => {
@@ -857,10 +864,13 @@ async function createAuthenticatedClient(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error)
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
-	return client
+	return createActorFlowClient(client, createLocalServiceClient(env), {
+		actorPool: account.email.includes('customer') ? 'external' : 'internal',
+		actorUserId: data.user.id,
+	})
 }
 
 async function createAuthCookies(

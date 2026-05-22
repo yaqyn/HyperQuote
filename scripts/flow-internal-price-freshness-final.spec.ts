@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -91,10 +92,13 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 		service,
 		LOCAL_INVENTORY.email,
 	)
-	await deferAssignedFlowTestWork(service, [
-		{ client: salesAuth.client, employeeId: salesEmployeeId },
-	])
+	await deferAssignedFlowTestWork(service, [{ employeeId: salesEmployeeId }])
 	const fixture = await createPriceFreshnessFixture(service)
+	await setSalesPresence(salesAuth.client, 'online')
+	const claim = await salesAuth.client.rpc('sales_claim_order', {
+		p_order_id: fixture.requestId,
+	})
+	expect(claim.error).toBeNull()
 	let priceRequestId: string | null = null
 
 	const sales = await openInternalPage(browser, LOCAL_SALES)
@@ -284,7 +288,7 @@ test('sales sees stale item prices, requests inventory proof, and inventory reso
 			fixture.productName,
 			{ timeout: 30_000 },
 		)
-		const refreshedSellPrice = await productSellPrice(
+		const refreshedSellPrice = await quoteBuilderSellPrice(
 			service,
 			fixture.productId,
 		)
@@ -644,6 +648,15 @@ async function createPriceFreshnessFixture(
 		})
 	if (linkError) throw new Error(linkError.message)
 
+	const { error: specialtyError } = await service
+		.from('supplier_specialties')
+		.insert({
+			category_slug: 'cement',
+			product_slug: product.slug,
+			supplier_id: supplier.id,
+		})
+	if (specialtyError) throw new Error(specialtyError.message)
+
 	const deliveryDate = new Date(Date.now() + 7 * 86_400_000)
 		.toISOString()
 		.slice(0, 10)
@@ -811,6 +824,15 @@ async function createInventoryPricesFixture(
 			})
 		if (linkError) throw new Error(linkError.message)
 
+		const { error: specialtyError } = await service
+			.from('supplier_specialties')
+			.insert({
+				category_slug: 'cement',
+				product_slug: product.slug,
+				supplier_id: supplier.id,
+			})
+		if (specialtyError) throw new Error(specialtyError.message)
+
 		products[definition.key] = {
 			id: product.id,
 			name: product.name,
@@ -903,11 +925,27 @@ async function signInLocal(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) {
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
 	}
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool: 'internal',
+			actorUserId: data.user.id,
+		}),
+	}
+}
+
+async function setSalesPresence(
+	client: ReturnType<typeof createClient>,
+	status: 'online' | 'away' | 'offline',
+) {
+	const { error } = await client.rpc('set_employee_presence', {
+		p_active_panel: status === 'online' ? 'sales' : null,
+		p_status: status,
+	})
+	expect(error).toBeNull()
 }
 
 async function createAuthCookies(
@@ -958,13 +996,9 @@ async function employeeIdByEmail(
 async function deferAssignedFlowTestWork(
 	service: ReturnType<typeof createLocalServiceClient>,
 	employees: {
-		client: ReturnType<typeof createClient>
 		employeeId: string
 	}[],
 ) {
-	const clientByEmployeeId = new Map(
-		employees.map((employee) => [employee.employeeId, employee.client]),
-	)
 	const { data, error } = await service
 		.from('quote_requests')
 		.select('assigned_employee_id, id, notes')
@@ -975,6 +1009,27 @@ async function deferAssignedFlowTestWork(
 		)
 	if (error) throw new Error(error.message)
 
+	const assignedEmployeeIds = [
+		...new Set(
+			(data ?? [])
+				.map((row) => row.assigned_employee_id)
+				.filter((id): id is string => typeof id === 'string'),
+		),
+	]
+	const assignedEmployees = assignedEmployeeIds.length
+		? await service
+				.from('employees')
+				.select('id, user_id')
+				.in('id', assignedEmployeeIds)
+		: { data: [], error: null }
+	if (assignedEmployees.error) throw new Error(assignedEmployees.error.message)
+	const actorUserIds = new Map(
+		(assignedEmployees.data ?? []).map((employee) => [
+			String(employee.id),
+			String(employee.user_id),
+		]),
+	)
+
 	for (const row of data ?? []) {
 		const notes = String(row.notes ?? '')
 		const isFlowTestWork =
@@ -982,14 +1037,22 @@ async function deferAssignedFlowTestWork(
 			notes.startsWith('flow-') ||
 			notes.startsWith('flow-internal-sales:')
 		if (!isFlowTestWork) continue
-		const client = clientByEmployeeId.get(String(row.assigned_employee_id))
-		if (!client) continue
-		const { error: requeueError } = await client.rpc('sales_save_and_requeue', {
-			p_note: 'Flow test isolation',
-			p_order_id: row.id,
-			p_return_minutes: 1440,
-		})
-		expect(requeueError).toBeNull()
+		const actorUserId =
+			row.assigned_employee_id && actorUserIds.get(row.assigned_employee_id)
+		if (!actorUserId) {
+			throw new Error(`No actor user found for assigned order ${row.id}`)
+		}
+		const { error: requeueError } = await service.rpc(
+			'service_sales_save_and_requeue',
+			{
+				p_actor_pool: 'internal',
+				p_actor_user_id: actorUserId,
+				p_note: 'Flow test isolation defer',
+				p_order_id: row.id,
+				p_return_minutes: 1440,
+			},
+		)
+		if (requeueError) throw new Error(requeueError.message)
 	}
 }
 
@@ -1042,19 +1105,80 @@ async function expectOrderTotal(
 	return total
 }
 
-async function productSellPrice(
+async function quoteBuilderSellPrice(
 	service: ReturnType<typeof createLocalServiceClient>,
 	productId: string,
 ): Promise<number> {
 	const { data, error } = await service
 		.from('products')
-		.select('price_range_max')
+		.select(`
+			category,
+			price_range_max,
+			slug,
+			supplier_product_links (
+				raw_cost,
+				is_primary
+			)
+		`)
 		.eq('id', productId)
 		.single()
 	if (error || !data) {
 		throw new Error(error?.message ?? 'Product price missing')
 	}
-	return Number(data.price_range_max)
+	const links = Array.isArray(data.supplier_product_links)
+		? data.supplier_product_links
+		: []
+	const primaryLink = links.find((link) => link.is_primary) ?? links[0]
+	const supplierCost = Number(primaryLink?.raw_cost ?? 0)
+	const sellPrice = Number(data.price_range_max ?? 0)
+	if (supplierCost <= 0 || sellPrice <= 0) return sellPrice
+	const margin = Math.max(
+		0,
+		Math.round(((sellPrice - supplierCost) / supplierCost) * 1000) / 10,
+	)
+	const threshold = await marginThreshold(service, {
+		categorySlug: String(data.category ?? ''),
+		productSlug: String(data.slug ?? ''),
+	})
+	const clampedMargin = Math.max(
+		Math.max(0, threshold.floor),
+		Math.min(
+			Math.max(Math.max(threshold.floor, 25), threshold.bonus),
+			Math.round(margin * 10) / 10,
+		),
+	)
+	return Math.round(supplierCost * (1 + clampedMargin / 100) * 100) / 100
+}
+
+async function marginThreshold(
+	service: ReturnType<typeof createLocalServiceClient>,
+	scope: { categorySlug: string; productSlug: string },
+) {
+	const { data, error } = await service
+		.from('pricing_rules')
+		.select('category_slug, product_slug, bonus_margin, floor_margin, active')
+		.eq('active', true)
+		.order('category_slug', { ascending: true, nullsFirst: true })
+		.order('product_slug', { ascending: true, nullsFirst: true })
+	if (error) throw new Error(error.message)
+	const rows = data ?? []
+	const productRule = rows.find(
+		(row) =>
+			row.category_slug === scope.categorySlug &&
+			row.product_slug === scope.productSlug,
+	)
+	const categoryRule = rows.find(
+		(row) =>
+			row.category_slug === scope.categorySlug && row.product_slug === null,
+	)
+	const fallback = rows.find(
+		(row) => row.category_slug === null && row.product_slug === null,
+	)
+	const rule = productRule ?? categoryRule ?? fallback
+	return {
+		bonus: Number(rule?.bonus_margin ?? 20),
+		floor: Number(rule?.floor_margin ?? 20),
+	}
 }
 
 async function expectPriceRequestCreated(

@@ -79,7 +79,7 @@ test('WhatsApp support conversations are Supabase-backed, customer-linked, repli
 		p_from_phone: uniqueEgyptPhone(stamp, 2),
 	})
 	expect(deniedAnon.error?.message).toContain(
-		'service_role_required_for_whatsapp_ingest',
+		'permission denied for schema public',
 	)
 
 	const { error: employeeSignInError } =
@@ -91,7 +91,7 @@ test('WhatsApp support conversations are Supabase-backed, customer-linked, repli
 		p_from_phone: uniqueEgyptPhone(stamp, 3),
 	})
 	expect(deniedEmployee.error?.message).toContain(
-		'service_role_required_for_whatsapp_ingest',
+		'permission denied for schema public',
 	)
 
 	const linkedCustomer = await createCustomer(service, {

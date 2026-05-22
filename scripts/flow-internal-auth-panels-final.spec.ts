@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface LocalSupabaseEnv {
 	anonKey: string
@@ -195,8 +196,9 @@ test('internal panel permissions are enforced server-side', async () => {
 		.from('customer_payments')
 		.select('id')
 		.limit(1)
-	expect(blockedFinanceRead.error).toBeNull()
-	expect(blockedFinanceRead.data).toEqual([])
+	expect(blockedFinanceRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const customerClient = await signInLocal(
 		env,
@@ -206,8 +208,9 @@ test('internal panel permissions are enforced server-side', async () => {
 		.from('employees')
 		.select('id')
 		.limit(1)
-	expect(blockedEmployeeRead.error).toBeNull()
-	expect(blockedEmployeeRead.data).toEqual([])
+	expect(blockedEmployeeRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const randomUuid = '00000000-0000-4000-8000-000000000001'
 	const wrongRoleRpc = await salesClient.rpc('record_customer_payment', {
@@ -526,6 +529,12 @@ function installBrowserErrorGuard(page: Page) {
 		const failure = request.failure()
 		const errorText = failure?.errorText ?? 'request failed'
 		if (errorText.includes('ERR_ABORTED')) return
+		if (
+			errorText.includes('ERR_NETWORK_CHANGED') &&
+			request.url().startsWith('https://fonts.googleapis.com/')
+		) {
+			return
+		}
 		browserErrors.push(`${request.method()} ${request.url()} ${errorText}`)
 	})
 	page.on('response', (response) => {
@@ -545,12 +554,15 @@ async function signInLocal(env: LocalSupabaseEnv, email: string) {
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword({
+	const { data, error } = await client.auth.signInWithPassword({
 		email,
 		password: PASSWORD,
 	})
 	if (error) throw new Error(`Could not sign in ${email}: ${error.message}`)
-	return client
+	return createActorFlowClient(client, createLocalServiceClient(env), {
+		actorPool: email.includes('customer') ? 'external' : 'internal',
+		actorUserId: data.user.id,
+	})
 }
 
 function readLocalSupabaseEnv(): LocalSupabaseEnv {

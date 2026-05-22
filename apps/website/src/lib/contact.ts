@@ -1,10 +1,14 @@
 import { checkRateLimit, getKVNamespace } from '@hyperquote/auth/rate-limit'
 import {
+	appendSetCookieHeaders,
+	createActorServiceRoleClient,
+	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
+	getSupabaseServerUser,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
+import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { logWebsiteServerError } from './server-log'
 
@@ -52,7 +56,39 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 		if (!client) return { error: 'not_configured' as const }
 
 		try {
-			const { data: ticket, error } = await client.rpc(
+			const {
+				client: authClient,
+				responseCookies,
+				responseHeaders,
+			} = createSupabaseServerClient({
+				request,
+				...config,
+			})
+			const {
+				data: { user },
+			} = await getSupabaseServerUser({
+				client: authClient,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
+			appendSetCookieHeaders(
+				getResponse().headers,
+				responseCookies.values(),
+				responseHeaders.entries(),
+			)
+
+			const ticketClient =
+				user?.app_metadata?.pool === 'external'
+					? createActorServiceRoleClient({
+							actorPool: 'external',
+							actorUserId: user.id,
+							client,
+						})
+					: client
+
+			const { data: ticket, error } = await ticketClient.rpc(
 				'create_support_ticket',
 				{
 					p_client_key: ip,

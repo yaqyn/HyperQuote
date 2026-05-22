@@ -112,9 +112,10 @@ export function WebsiteHeader() {
 	const [emptySavedOrdersOpen, setEmptySavedOrdersOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, remove, updateQuantity } = useQuoteCart()
-	const [submittedReference, setSubmittedReference] = useState<string | null>(
-		null,
-	)
+	const [cartSuccess, setCartSuccess] = useState<{
+		reference: string
+		type: 'draft' | 'submit'
+	} | null>(null)
 	const navigateTo = useNavigate()
 	const routerState = useRouterState()
 	const isHome = routerState.location.pathname === '/'
@@ -123,21 +124,21 @@ export function WebsiteHeader() {
 	const { accountState, refreshAccountState } = useWebsiteAccountState()
 
 	useEffect(() => {
-		if (items.length > 0 && submittedReference) {
-			setSubmittedReference(null)
+		if (items.length > 0 && cartSuccess?.type === 'submit') {
+			setCartSuccess(null)
 		}
-	}, [items.length, submittedReference])
+	}, [items.length, cartSuccess])
 
 	useEffect(() => {
-		if (!cartOpen || !submittedReference) return
+		if (!cartOpen || !cartSuccess) return
 		const timer = window.setTimeout(() => setCartOpen(false), 3000)
 		return () => window.clearTimeout(timer)
-	}, [cartOpen, submittedReference])
+	}, [cartOpen, cartSuccess])
 
 	useEffect(() => {
-		if (cartOpen || !submittedReference) return
-		setSubmittedReference(null)
-	}, [cartOpen, submittedReference])
+		if (cartOpen || !cartSuccess) return
+		setCartSuccess(null)
+	}, [cartOpen, cartSuccess])
 
 	useEffect(() => {
 		if (!cartOpen) {
@@ -401,8 +402,15 @@ export function WebsiteHeader() {
 								ease: CART_DRAWER_EASE,
 							}}
 						>
-							{submittedReference ? (
-								<CartSuccessMessage reference={submittedReference} />
+							{cartSuccess ? (
+								<CartSuccessMessage
+									onContinue={() => {
+										setCartSuccess(null)
+										setCartOpen(false)
+									}}
+									reference={cartSuccess.reference}
+									type={cartSuccess.type}
+								/>
 							) : (
 								<>
 									{/* Header */}
@@ -572,7 +580,12 @@ export function WebsiteHeader() {
 											{/* Submit / Inline Auth */}
 											<CartSubmit
 												itemCount={items.length}
-												onSubmitted={setSubmittedReference}
+												onDraftSaved={(reference) =>
+													setCartSuccess({ reference, type: 'draft' })
+												}
+												onSubmitted={(reference) =>
+													setCartSuccess({ reference, type: 'submit' })
+												}
 											/>
 										</>
 									)}
@@ -696,7 +709,15 @@ function WebsiteAccountMenu({
 	)
 }
 
-function CartSuccessMessage({ reference }: { reference: string }) {
+function CartSuccessMessage({
+	onContinue,
+	reference,
+	type,
+}: {
+	onContinue: () => void
+	reference: string
+	type: 'draft' | 'submit'
+}) {
 	const { t } = useTranslation('website')
 	const shouldReduceMotion = useReducedMotion()
 
@@ -730,14 +751,29 @@ function CartSuccessMessage({ reference }: { reference: string }) {
 				<CircleCheck size={30} strokeWidth={1.8} aria-hidden="true" />
 			</motion.div>
 			<h3 className="text-[19px] font-semibold text-[var(--color-text)]">
-				{t('cart.submitSuccess')}
+				{type === 'draft' ? t('cart.draftSaved') : t('cart.submitSuccess')}
 			</h3>
 			<p className="mt-3 max-w-[300px] text-[13px] leading-6 text-[var(--color-text-muted)]">
-				{t('cart.submitSuccessBody')}
+				{type === 'draft'
+					? t('cart.draftSavedBody')
+					: t('cart.submitSuccessBody')}
 			</p>
 			<p className="mt-4 font-mono text-[12px] text-[var(--color-text-subtle)]">
 				{reference}
 			</p>
+			<a
+				href={getPortalHref('/orders')}
+				className="mt-5 inline-flex h-9 items-center justify-center rounded-lg bg-[var(--color-text)] px-4 text-[12px] font-semibold text-[var(--color-base)] transition-colors hover:opacity-90"
+			>
+				{t('nav.portal')}
+			</a>
+			<button
+				type="button"
+				onClick={onContinue}
+				className="mt-3 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+			>
+				{t('cart.continueBrowsing')}
+			</button>
 			<p className="mt-5 text-[11px] text-[var(--color-text-subtle)]">
 				{t('cart.autoClose')}
 			</p>
@@ -747,9 +783,11 @@ function CartSuccessMessage({ reference }: { reference: string }) {
 
 function CartSubmit({
 	itemCount,
+	onDraftSaved,
 	onSubmitted,
 }: {
 	itemCount: number
+	onDraftSaved: (reference: string) => void
 	onSubmitted: (reference: string) => void
 }) {
 	const { t, i18n } = useTranslation('website')
@@ -948,6 +986,7 @@ function CartSubmit({
 					setDraftNameEntryOpen(false)
 					setSavedDraftId(result.requestId)
 					setSavedDraftFingerprint(draftFingerprint)
+					onDraftSaved(result.reference)
 					window.dispatchEvent(new Event('hyperquote-account-updated'))
 					return
 				}

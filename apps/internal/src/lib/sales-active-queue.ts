@@ -9,5 +9,9 @@ export function isClaimableSalesRfq(rfq: RFQ) {
 }
 
 export function compareSalesQueuePosition(a: RFQ, b: RFQ) {
+	const aPriority = a.status === 'assigned' ? 0 : 1
+	const bPriority = b.status === 'assigned' ? 0 : 1
+	if (aPriority !== bPriority) return aPriority - bPriority
+
 	return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 }

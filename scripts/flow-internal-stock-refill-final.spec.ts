@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -237,7 +238,9 @@ test('inventory refill uses real stock, finance keeps partial supplier balances 
 		})
 		happyRefill = await expectReceivingTaskCreated(service, happyRefill.id)
 		await expect(finance.page.locator('body')).toContainText(
-			`${((happy.agreedCost * happy.agreedQty) / 2).toLocaleString('en-EG')} EGP supplier balance`,
+			`${((happy.agreedCost * happy.agreedQty) / 2).toLocaleString('en-EG', {
+				minimumFractionDigits: 2,
+			})} EGP supplier balance`,
 			{ timeout: 20_000 },
 		)
 
@@ -275,8 +278,8 @@ test('inventory refill uses real stock, finance keeps partial supplier balances 
 		.from('refill_requests')
 		.update({ status: 'received' })
 		.eq('id', rejectedRefill.id)
-	expect(directStatusUpdate.error?.message).toContain(
-		'state_updates_must_use_rpc',
+	expect(directStatusUpdate.error?.message).toMatch(
+		/state_updates_must_use_rpc|permission denied for schema public/i,
 	)
 
 	const warehouse = await openInternalPage(browser, LOCAL_WAREHOUSE)
@@ -663,6 +666,7 @@ async function createRefillFixture(
 	}
 
 	const { error: stockError } = await service.from('inventory_stock').insert({
+		good_quantity: Math.max(input.initialStock, input.minimumStock),
 		minimum_quantity: input.minimumStock,
 		on_hand_quantity: input.initialStock,
 		product_id: product.id,
@@ -683,6 +687,15 @@ async function createRefillFixture(
 			supplier_id: supplier.id,
 		})
 	if (linkError) throw new Error(linkError.message)
+
+	const { error: specialtyError } = await service
+		.from('supplier_specialties')
+		.insert({
+			category_slug: 'cement',
+			product_slug: product.slug,
+			supplier_id: supplier.id,
+		})
+	if (specialtyError) throw new Error(specialtyError.message)
 
 	return {
 		agreedCost: input.agreedCost,
@@ -1152,11 +1165,16 @@ async function signInLocal(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) {
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
 	}
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool: 'internal',
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 async function createAuthCookies(

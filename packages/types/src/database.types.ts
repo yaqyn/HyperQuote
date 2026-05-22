@@ -5784,6 +5784,15 @@ export type Database = {
 				Args: { p_actor_pool: string; p_actor_user_id: string }
 				Returns: boolean
 			}
+			service_can_access_panel: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					required_panel: string
+					write_required?: boolean
+				}
+				Returns: boolean
+			}
 			service_claim_customer_profile: {
 				Args: { p_actor_pool: string; p_actor_user_id: string; p_phone: string }
 				Returns: {
@@ -5908,6 +5917,39 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_create_support_ticket: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_client_key?: string
+					p_message: string
+					p_requester_email: string
+					p_requester_name?: string
+					p_requester_phone?: string
+					p_source?: string
+					p_subject: string
+				}
+				Returns: {
+					assigned_employee_id: string | null
+					created_at: string
+					customer_id: string | null
+					id: string
+					reference: string
+					requester_email: string
+					requester_name: string | null
+					requester_phone: string | null
+					source: Database['public']['Enums']['support_ticket_source']
+					status: Database['public']['Enums']['support_ticket_status']
+					subject: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_tickets'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -6519,6 +6561,32 @@ export type Database = {
 					id: string
 					user_id: string
 				}[]
+			}
+			service_inventory_evaluate_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
 			}
 			service_inventory_finance_cleared_order_ids: {
 				Args: {
@@ -7245,8 +7313,9 @@ export type Database = {
 				Args: {
 					p_actor_pool: string
 					p_actor_user_id: string
+					p_driver_id: string
 					p_order_id: string
-					p_truck_id: string
+					p_truck_id?: string
 				}
 				Returns: {
 					assigned_items: Json
@@ -7361,6 +7430,29 @@ export type Database = {
 				}
 			}
 			service_warehouse_reset_loading: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_warehouse_start_loading: {
 				Args: {
 					p_actor_pool: string
 					p_actor_user_id: string

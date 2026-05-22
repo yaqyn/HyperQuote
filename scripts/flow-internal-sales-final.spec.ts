@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -81,7 +82,9 @@ test('submitted order reaches sales queue and quote builder can call, edit, save
 	const env = readLocalSupabaseEnv()
 	const service = createLocalServiceClient(env)
 	const customer = await signInLocal(env, LOCAL_CUSTOMER)
+	const salesAuth = await signInLocal(env, LOCAL_SALES)
 	const salesEmployeeId = await employeeIdByEmail(service, LOCAL_SALES.email)
+	await deferAssignedFlowTestWork(service, [{ employeeId: salesEmployeeId }])
 	const fixture = await createSubmittedQuoteRequest({
 		customerClient: customer.client,
 		service,
@@ -99,6 +102,11 @@ test('submitted order reaches sales queue and quote builder can call, edit, save
 			quantity: fixture.originalQuantity,
 		}),
 	])
+	await setSalesPresence(salesAuth.client, 'online')
+	const claimed = await salesAuth.client.rpc('sales_claim_order', {
+		p_order_id: fixture.id,
+	})
+	expect(claimed.error).toBeNull()
 
 	const sales = await openSalesPage(browser)
 	try {
@@ -172,12 +180,7 @@ test('submitted order reaches sales queue and quote builder can call, edit, save
 		)
 
 		await sales.page.getByRole('button', { name: /Review & submit/i }).click()
-		await expect(
-			sales.page.getByRole('button', { name: /Send to finance/i }),
-		).toBeVisible({
-			timeout: 20_000,
-		})
-		await sales.page.getByRole('button', { name: /Send to finance/i }).click()
+		await sendReviewedQuoteToFinance(sales.page)
 		await expectConfirmedOrder(service, fixture.id)
 		const quoteVersion = await expectSalesQuoteVersion(
 			service,
@@ -287,8 +290,8 @@ test('sales pipeline auto-claims, prevents duplicate assignment, and saves with 
 		LOCAL_MANAGER.email,
 	)
 	await deferAssignedFlowTestWork(service, [
-		{ client: sales.client, employeeId: salesEmployeeId },
-		{ client: manager.client, employeeId: managerEmployeeId },
+		{ employeeId: salesEmployeeId },
+		{ employeeId: managerEmployeeId },
 	])
 
 	const autoFixture = await createSubmittedQuoteRequest({
@@ -544,7 +547,9 @@ test('sales quote builder can reject a submitted order with required proof', asy
 	const env = readLocalSupabaseEnv()
 	const service = createLocalServiceClient(env)
 	const customer = await signInLocal(env, LOCAL_CUSTOMER)
+	const salesAuth = await signInLocal(env, LOCAL_SALES)
 	const salesEmployeeId = await employeeIdByEmail(service, LOCAL_SALES.email)
+	await deferAssignedFlowTestWork(service, [{ employeeId: salesEmployeeId }])
 	const fixture = await createSubmittedQuoteRequest({
 		customerClient: customer.client,
 		service,
@@ -555,6 +560,11 @@ test('sales quote builder can reject a submitted order with required proof', asy
 		fixture.id,
 		'1951-01-01T00:00:00.000Z',
 	)
+	await setSalesPresence(salesAuth.client, 'online')
+	const claim = await salesAuth.client.rpc('sales_claim_order', {
+		p_order_id: fixture.id,
+	})
+	expect(claim.error).toBeNull()
 	const rejectNote = `Flow reject proof ${fixture.runId}`
 
 	const sales = await openSalesPage(browser)
@@ -634,7 +644,9 @@ test('sales quote builder can cancel a submitted order with required reason', as
 	const env = readLocalSupabaseEnv()
 	const service = createLocalServiceClient(env)
 	const customer = await signInLocal(env, LOCAL_CUSTOMER)
+	const salesAuth = await signInLocal(env, LOCAL_SALES)
 	const salesEmployeeId = await employeeIdByEmail(service, LOCAL_SALES.email)
+	await deferAssignedFlowTestWork(service, [{ employeeId: salesEmployeeId }])
 	const fixture = await createSubmittedQuoteRequest({
 		customerClient: customer.client,
 		service,
@@ -645,6 +657,11 @@ test('sales quote builder can cancel a submitted order with required reason', as
 		fixture.id,
 		'1952-01-01T00:00:00.000Z',
 	)
+	await setSalesPresence(salesAuth.client, 'online')
+	const claim = await salesAuth.client.rpc('sales_claim_order', {
+		p_order_id: fixture.id,
+	})
+	expect(claim.error).toBeNull()
 	const cancelReason = `Customer duplicated request ${fixture.runId}`
 	const cancelNote = `Flow cancel note ${fixture.runId}`
 
@@ -717,6 +734,7 @@ test('manual sales add order attaches existing customers, creates provisional cu
 	const service = createLocalServiceClient(env)
 	const sales = await signInLocal(env, LOCAL_SALES)
 	const salesEmployeeId = await employeeIdByEmail(service, LOCAL_SALES.email)
+	await deferAssignedFlowTestWork(service, [{ employeeId: salesEmployeeId }])
 	const [productA, productB] = await salesTestProducts(service)
 	const existingCustomer = await customerByEmail(service, LOCAL_CUSTOMER.email)
 
@@ -899,13 +917,29 @@ async function createManualOrderFromSalesUi(
 	await page.getByPlaceholder(/^notes$/i).fill(input.notes)
 	await setManualDeliveryDate(page)
 	await page.getByRole('button', { name: /Review & submit/i }).click()
-	await expect(
-		page.getByRole('button', { name: /Send to finance/i }),
-	).toBeVisible({ timeout: 20_000 })
-	await page.getByRole('button', { name: /Send to finance/i }).click()
+	await sendReviewedQuoteToFinance(page)
 	await expect(page.locator('body')).not.toContainText(input.notes, {
 		timeout: 30_000,
 	})
+}
+
+async function sendReviewedQuoteToFinance(page: Page) {
+	const signManagerButton = page.getByRole('button', {
+		name: /Sign manager approval/i,
+	})
+	if (await signManagerButton.isVisible()) {
+		await page.getByRole('button', { name: /Local Sales Manager/i }).click()
+		await page
+			.getByPlaceholder('Type password to sign')
+			.fill(LOCAL_MANAGER.password)
+		await signManagerButton.click()
+	}
+
+	const sendToFinanceButton = page.getByRole('button', {
+		name: /Send to finance/i,
+	})
+	await expect(sendToFinanceButton).toBeVisible({ timeout: 20_000 })
+	await sendToFinanceButton.click()
 }
 
 async function setManualDeliveryDate(page: Page) {
@@ -967,19 +1001,16 @@ async function createSubmittedQuoteRequest({
 	variant: string
 }): Promise<SubmittedQuoteFixture> {
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${variant}`
-	const [productA, productB] = await salesTestProducts(service)
-	const customer = await localCustomer(customerClient)
-	const address = await ensureCustomerAddress(
-		customerClient,
-		customer.id,
-		runId,
-	)
+	const [productA, productB] = await salesTestProducts(service, runId)
+	const customer = await localCustomer(service)
+	const address = await ensureCustomerAddress(service, customer.id, runId)
 	const deliveryDate = new Date(Date.now() + 7 * 86_400_000)
 		.toISOString()
 		.slice(0, 10)
-	const { data: draft, error: draftError } = await customerClient
+	const { data: draft, error: draftError } = await service
 		.from('quote_requests')
 		.insert({
+			customer_id: customer.id,
 			delivery_address_id: address.id,
 			delivery_date: deliveryDate,
 			notes: `flow-internal-sales:${runId}`,
@@ -991,7 +1022,7 @@ async function createSubmittedQuoteRequest({
 	}
 
 	const originalQuantity = 2
-	const { error: itemError } = await customerClient
+	const { error: itemError } = await service
 		.from('quote_request_items')
 		.insert({
 			customer_description: productA.name,
@@ -1028,27 +1059,60 @@ async function createSubmittedQuoteRequest({
 
 async function salesTestProducts(
 	service: ReturnType<typeof createLocalServiceClient>,
+	runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 ) {
+	const rows = [
+		{
+			name: `Flow Sales Product A ${runId}`,
+			name_ar: `منتج مبيعات أ ${runId}`,
+			sku: `FLOW-SALES-A-${runId}`.toUpperCase(),
+			slug: `flow-sales-a-${runId}`,
+		},
+		{
+			name: `Flow Sales Product B ${runId}`,
+			name_ar: `منتج مبيعات ب ${runId}`,
+			sku: `FLOW-SALES-B-${runId}`.toUpperCase(),
+			slug: `flow-sales-b-${runId}`,
+		},
+	].map((product) => ({
+		...product,
+		availability_status: 'available',
+		category: 'cement',
+		description: `Final Flow sales product ${runId}`,
+		description_ar: `منتج اختبار مبيعات ${runId}`,
+		image_urls: [],
+		is_active: true,
+		name: product.name,
+		name_ar: product.name_ar,
+		price_range_max: 125,
+		price_range_min: 100,
+		slug: product.slug,
+		specifications: { flow: 'sales-final' },
+		specifications_ar: { flow: 'sales-final' },
+		subcategory: 'cement',
+		subcategory_ar: 'أسمنت',
+		unit_of_measure: 'bag',
+		unit_of_measure_ar: 'شيكارة',
+	}))
 	const { data, error } = await service
 		.from('products')
+		.insert(rows)
 		.select(
 			'id, slug, name, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max',
 		)
-		.eq('is_active', true)
-		.neq('availability_status', 'hidden')
-		.gt('price_range_min', 0)
 		.order('name', { ascending: true })
-		.limit(10)
 	if (error) throw new Error(error.message)
 	const products = (data ?? []) as ProductRow[]
-	if (products.length < 2) {
-		throw new Error('At least two active priced products are required')
+	if (products.length !== 2) {
+		throw new Error('Two sales test products are required')
 	}
-	return products.slice(0, 2) as [ProductRow, ProductRow]
+	return products as [ProductRow, ProductRow]
 }
 
-async function localCustomer(customerClient: ReturnType<typeof createClient>) {
-	const { data, error } = await customerClient
+async function localCustomer(
+	service: ReturnType<typeof createLocalServiceClient>,
+) {
+	const { data, error } = await service
 		.from('customers')
 		.select('id, company_name')
 		.eq('email', LOCAL_CUSTOMER.email)
@@ -1143,11 +1207,11 @@ async function releaseLocalOtpPhone(
 }
 
 async function ensureCustomerAddress(
-	customerClient: ReturnType<typeof createClient>,
+	service: ReturnType<typeof createLocalServiceClient>,
 	customerId: string,
 	runId: string,
 ) {
-	const { data: existing, error: readError } = await customerClient
+	const { data: existing, error: readError } = await service
 		.from('customer_addresses')
 		.select('id')
 		.eq('customer_id', customerId)
@@ -1157,7 +1221,7 @@ async function ensureCustomerAddress(
 	if (readError) throw new Error(readError.message)
 	if (existing?.id) return existing as { id: string }
 
-	const { data: created, error: createError } = await customerClient
+	const { data: created, error: createError } = await service
 		.from('customer_addresses')
 		.insert({
 			area: 'New Cairo',
@@ -1183,10 +1247,15 @@ async function signInLocal(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error)
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool: account.email.includes('customer') ? 'external' : 'internal',
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 async function setSalesPresence(
@@ -1261,19 +1330,22 @@ async function expectQuoteAssignedToEmployeeId(
 	employeeId: string,
 ) {
 	await expect
-		.poll(async () => {
-			const { data, error } = await service
-				.from('quote_requests')
-				.select('assigned_at, assigned_employee_id, status')
-				.eq('id', quoteRequestId)
-				.single()
-			if (error) return `error:${error.message}`
-			return [
-				data.status,
-				data.assigned_employee_id === employeeId ? 'employee' : 'wrong',
-				data.assigned_at ? 'assigned_at' : 'missing_assigned_at',
-			].join('|')
-		})
+		.poll(
+			async () => {
+				const { data, error } = await service
+					.from('quote_requests')
+					.select('assigned_at, assigned_employee_id, status')
+					.eq('id', quoteRequestId)
+					.single()
+				if (error) return `error:${error.message}`
+				return [
+					data.status,
+					data.assigned_employee_id === employeeId ? 'employee' : 'wrong',
+					data.assigned_at ? 'assigned_at' : 'missing_assigned_at',
+				].join('|')
+			},
+			{ timeout: 30_000 },
+		)
 		.toBe('assigned|employee|assigned_at')
 }
 
@@ -1416,13 +1488,9 @@ async function employeeIdByEmail(
 async function deferAssignedFlowTestWork(
 	service: ReturnType<typeof createLocalServiceClient>,
 	employees: {
-		client: ReturnType<typeof createClient>
 		employeeId: string
 	}[],
 ) {
-	const clientByEmployeeId = new Map(
-		employees.map((employee) => [employee.employeeId, employee.client]),
-	)
 	const { data, error } = await service
 		.from('quote_requests')
 		.select('assigned_employee_id, id, notes')
@@ -1433,21 +1501,51 @@ async function deferAssignedFlowTestWork(
 		)
 	if (error) throw new Error(error.message)
 
+	const assignedEmployeeIds = [
+		...new Set(
+			(data ?? [])
+				.map((row) => row.assigned_employee_id)
+				.filter((id): id is string => typeof id === 'string'),
+		),
+	]
+	const assignedEmployees = assignedEmployeeIds.length
+		? await service
+				.from('employees')
+				.select('id, user_id')
+				.in('id', assignedEmployeeIds)
+		: { data: [], error: null }
+	if (assignedEmployees.error) throw new Error(assignedEmployees.error.message)
+	const actorUserIds = new Map(
+		(assignedEmployees.data ?? []).map((employee) => [
+			String(employee.id),
+			String(employee.user_id),
+		]),
+	)
+
 	for (const row of data ?? []) {
 		const notes = String(row.notes ?? '')
 		const isFlowTestWork =
 			notes.startsWith('Flow ') ||
+			notes === 'Local submitted order for portal smoke' ||
 			notes.startsWith('flow-') ||
 			notes.startsWith('flow-internal-sales:')
 		if (!isFlowTestWork) continue
-		const client = clientByEmployeeId.get(String(row.assigned_employee_id))
-		if (!client) continue
-		const { error: requeueError } = await client.rpc('sales_save_and_requeue', {
-			p_note: 'Flow test isolation',
-			p_order_id: row.id,
-			p_return_minutes: 1440,
-		})
-		expect(requeueError).toBeNull()
+		const actorUserId =
+			row.assigned_employee_id && actorUserIds.get(row.assigned_employee_id)
+		if (!actorUserId) {
+			throw new Error(`No actor user found for assigned order ${row.id}`)
+		}
+		const { error: requeueError } = await service.rpc(
+			'service_sales_save_and_requeue',
+			{
+				p_actor_pool: 'internal',
+				p_actor_user_id: actorUserId,
+				p_note: 'Flow test isolation defer',
+				p_order_id: row.id,
+				p_return_minutes: 1440,
+			},
+		)
+		if (requeueError) throw new Error(requeueError.message)
 	}
 }
 

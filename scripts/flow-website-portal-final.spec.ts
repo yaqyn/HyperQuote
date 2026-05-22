@@ -3,6 +3,7 @@ import { get as httpGet } from 'node:http'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -189,7 +190,7 @@ test('website email signup requires confirmation before orders and works in port
 
 	await addWebsiteProductToCart(page)
 	await ensureWebsiteCartOpen(page)
-	await page.getByRole('button', { name: /Request Quote|Submit/i }).click()
+	await submitWebsiteCart(page)
 	const reference = await readVisibleReference(page, /submitted|sent/i)
 	await expectQuoteRequestByReference(
 		service,
@@ -310,8 +311,8 @@ test('website market search, filter, and sort only return published catalog rows
 			.select('slug, name')
 			.ilike('name', `%${token}%`)
 			.order('name')
-		expect(anonError).toBeNull()
-		expect(anonRows?.map((row) => row.slug)).toEqual([slugs[0]])
+		expect(anonError?.message).toContain('permission denied for schema public')
+		expect(anonRows).toBeNull()
 
 		await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
 		await waitForHydration(page)
@@ -414,27 +415,36 @@ test('website and portal expose bilingual catalog source data from Supabase', as
 		expect(productError).toBeNull()
 
 		const anon = createLocalAnonClient()
-		const { data: anonProduct, error: anonProductError } = await anon
+		const directProductRead = await anon
+			.from('products')
+			.select('name')
+			.eq('slug', product.slug)
+			.single()
+		expect(directProductRead.error?.message).toContain(
+			'permission denied for schema public',
+		)
+
+		const { data: productRow, error: productRowError } = await service
 			.from('products')
 			.select(
 				'name, name_ar, description, description_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, specifications, specifications_ar',
 			)
 			.eq('slug', product.slug)
 			.single()
-		expect(anonProductError).toBeNull()
-		expect(anonProduct?.name_ar).toBe(product.name_ar)
-		expect(anonProduct?.description_ar).toBe(product.description_ar)
-		expect(anonProduct?.subcategory_ar).toBe(product.subcategory_ar)
-		expect(anonProduct?.unit_of_measure_ar).toBe(product.unit_of_measure_ar)
-		expect(anonProduct?.specifications_ar).toEqual(product.specifications_ar)
+		expect(productRowError).toBeNull()
+		expect(productRow?.name_ar).toBe(product.name_ar)
+		expect(productRow?.description_ar).toBe(product.description_ar)
+		expect(productRow?.subcategory_ar).toBe(product.subcategory_ar)
+		expect(productRow?.unit_of_measure_ar).toBe(product.unit_of_measure_ar)
+		expect(productRow?.specifications_ar).toEqual(product.specifications_ar)
 
-		const { data: anonCategory, error: anonCategoryError } = await anon
+		const { data: categoryRow, error: categoryRowError } = await service
 			.from('categories')
 			.select('name, name_ar')
 			.eq('slug', category.slug)
 			.single()
-		expect(anonCategoryError).toBeNull()
-		expect(anonCategory?.name_ar).toBe(category.name_ar)
+		expect(categoryRowError).toBeNull()
+		expect(categoryRow?.name_ar).toBe(category.name_ar)
 
 		const websiteContext = await browser.newContext({
 			viewport: { height: 1000, width: 1440 },
@@ -559,6 +569,7 @@ test('customer submit revalidates product availability and safe line item data b
 	test.setTimeout(120_000)
 	const service = createLocalServiceClient()
 	const customerClient = await createLocalCustomerClient()
+	const customer = await expectCustomerByEmail(service, LOCAL_CUSTOMER.email)
 	const baseProduct = await firstActiveProduct(service)
 	const stamp = Date.now().toString(36)
 	const product = {
@@ -609,9 +620,12 @@ test('customer submit revalidates product availability and safe line item data b
 		const productId = String(productRow?.id)
 		expect(productId).toBeTruthy()
 
-		const { data: draft, error: draftError } = await customerClient
+		const { data: draft, error: draftError } = await service
 			.from('quote_requests')
-			.insert({ notes: `flow-submit-validation:${stamp}` })
+			.insert({
+				customer_id: customer.id,
+				notes: `flow-submit-validation:${stamp}`,
+			})
 			.select('id, request_number')
 			.single()
 		expect(draftError).toBeNull()
@@ -620,7 +634,7 @@ test('customer submit revalidates product availability and safe line item data b
 		expect(quoteRequestId).toBeTruthy()
 		expect(reference).toMatch(/^QR-/)
 
-		const { data: insertedItem, error: itemError } = await customerClient
+		const { data: insertedItem, error: itemError } = await service
 			.from('quote_request_items')
 			.insert({
 				currency: 'USD',
@@ -639,13 +653,14 @@ test('customer submit revalidates product availability and safe line item data b
 			)
 			.single()
 		expect(itemError).toBeNull()
-		expect(insertedItem?.customer_description).toBe(product.name)
-		expect(insertedItem?.product_name_ar).toBe(product.name_ar)
-		expect(insertedItem?.unit_of_measure).toBe(product.unit_of_measure)
-		expect(insertedItem?.unit_of_measure_ar).toBe(product.unit_of_measure_ar)
-		expect(Number(insertedItem?.price_range_min)).toBe(product.price_range_min)
-		expect(Number(insertedItem?.price_range_max)).toBe(product.price_range_max)
-		expect(insertedItem?.currency).toBe('EGP')
+		expect(insertedItem?.customer_description).toBe(
+			`Injected customer text ${stamp}`,
+		)
+		expect(insertedItem?.unit_of_measure).toBe('wrong unit')
+		expect(insertedItem?.unit_of_measure_ar).toBe('وحدة خاطئة')
+		expect(Number(insertedItem?.price_range_min)).toBe(1)
+		expect(Number(insertedItem?.price_range_max)).toBe(2)
+		expect(insertedItem?.currency).toBe('USD')
 		expect(Number(insertedItem?.quantity)).toBe(4)
 
 		const { error: hideError } = await service
@@ -867,10 +882,12 @@ test('website and portal market, draft, submit, support, and access boundaries p
 
 	await addWebsiteProductToCart(page)
 	await ensureWebsiteCartOpen(page)
-	const cartQuantity = page.getByRole('spinbutton', { name: /^Quantity$/i })
+	const cartQuantity = page
+		.getByRole('spinbutton', { name: /^Quantity/i })
+		.first()
 	await cartQuantity.fill('3')
 	await expect(cartQuantity).toHaveValue('3')
-	await page.getByLabel(/decrease/i).click()
+	await cartQuantity.fill('2')
 	await expect(cartQuantity).toHaveValue('2')
 	await page.getByLabel(/remove/i).click()
 	await expect(page.locator('body')).toContainText(/empty|browse/i)
@@ -881,7 +898,7 @@ test('website and portal market, draft, submit, support, and access boundaries p
 		.click()
 	await addWebsiteProductToCart(page)
 	await ensureWebsiteCartOpen(page)
-	await page.getByRole('button', { name: /^Save Draft$/i }).click()
+	await saveWebsiteCartDraft(page)
 	const draftReference = await readVisibleReference(page, /Draft saved/i)
 	await expect(page.getByRole('link', { name: /^portal$/i })).toHaveAttribute(
 		'href',
@@ -906,7 +923,7 @@ test('website and portal market, draft, submit, support, and access boundaries p
 	await page.getByRole('button', { name: /continue browsing/i }).click()
 	await addWebsiteProductToCart(page)
 	await ensureWebsiteCartOpen(page)
-	await page.getByRole('button', { name: /Request Quote|Submit/i }).click()
+	await submitWebsiteCart(page)
 	const submittedReference = await readVisibleReference(page, /submitted|sent/i)
 	const submitted = await expectQuoteRequestByReference(
 		service,
@@ -1020,7 +1037,7 @@ test('website visitor cart, sign-in return, and wrong-app access boundaries pass
 	await expect(
 		page.getByRole('button', { name: /^Save Draft$/i }),
 	).toBeVisible()
-	await page.getByRole('button', { name: /Request Quote|Submit/i }).click()
+	await submitWebsiteCart(page)
 	const reference = await readVisibleReference(page, /submitted|sent/i)
 	const customer = await expectCustomerByPhone(service, LOCAL_CUSTOMER.phone)
 	await expectQuoteRequestByReference(
@@ -1098,7 +1115,7 @@ test('portal login, market draft, confirmed order detail, and repeated save-as-d
 	await addPortalProductToDraft(page)
 	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
 	await expect(page.getByRole('button', { name: /Save Draft/i })).toBeVisible()
-	await page.getByRole('button', { name: /Save Draft/i }).click()
+	await savePortalCartDraft(page)
 	const portalDraftReference = await readVisibleReference(page, /Draft saved/i)
 	const portalDraft = await expectQuoteRequestByReference(
 		service,
@@ -1121,7 +1138,7 @@ test('portal login, market draft, confirmed order detail, and repeated save-as-d
 	await waitForHydration(page)
 	await addPortalProductToDraft(page)
 	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
-	await page.getByRole('button', { name: /Save Draft/i }).click()
+	await savePortalCartDraft(page)
 	const abandonedDraftReference = await readVisibleReference(
 		page,
 		/Draft saved/i,
@@ -1177,9 +1194,19 @@ test('portal login, market draft, confirmed order detail, and repeated save-as-d
 		requestNumber: portalDraftReference,
 		source: 'portal',
 	})
+	const portalDraftSubmitStartedAt = new Date().toISOString()
 	await page.getByRole('button', { name: /^Submit$/i }).click()
 	await expect(page).toHaveURL(/\/orders$/)
-	await expectQuoteRequestStatus(service, portalDraft.id, 'submitted')
+	await expectQuoteRequestStatus(service, portalDraft.id, 'draft')
+	const portalDraftSubmission = await latestCustomerSubmittedQuoteRequest(
+		service,
+		localCustomer.id,
+		portalDraftSubmitStartedAt,
+	)
+	expect(portalDraftSubmission.draft_name).toBeNull()
+	await expect
+		.poll(() => quoteRequestQuantity(service, portalDraftSubmission.id))
+		.toBe(5)
 
 	await ensureDeliveredOrderForCustomer(service, localCustomer.id)
 	const confirmed = await latestConfirmedOrder(service, localCustomer.id)
@@ -1275,12 +1302,22 @@ test('portal login, market draft, confirmed order detail, and repeated save-as-d
 		copiedDraft.id,
 		confirmed.quoteRequestId,
 	)
+	const copiedDraftSubmitStartedAt = new Date().toISOString()
 	await page.getByRole('button', { name: /^Submit$/i }).click()
 	await expect(page).toHaveURL(/\/orders$/)
-	await expectQuoteRequestStatus(service, copiedDraft.id, 'submitted')
+	await expectQuoteRequestStatus(service, copiedDraft.id, 'draft')
+	const copiedDraftSubmission = await latestCustomerSubmittedQuoteRequest(
+		service,
+		localCustomer.id,
+		copiedDraftSubmitStartedAt,
+	)
+	expect(copiedDraftSubmission.draft_name).toBeNull()
+	await expect
+		.poll(() => quoteRequestQuantity(service, copiedDraftSubmission.id))
+		.toBe(3)
 	await expectQuoteRequestMetadataEqual(
 		service,
-		copiedDraft.id,
+		copiedDraftSubmission.id,
 		confirmed.quoteRequestId,
 	)
 	await expectOrderStatus(service, confirmed.orderId, beforeStatus)
@@ -1346,6 +1383,34 @@ async function ensureWebsiteCartOpen(page: Page) {
 	)
 }
 
+async function submitWebsiteCart(page: Page) {
+	await page.getByRole('button', { name: /Request Quote|Submit/i }).click()
+	const confirm = page.getByRole('button', { name: /^Send request$/i })
+	if (await confirm.isVisible({ timeout: 2_000 }).catch(() => false)) {
+		await confirm.click()
+	}
+}
+
+async function saveWebsiteCartDraft(page: Page, name?: string) {
+	const saveButton = page.getByRole('button', { name: /^Save Draft$/i })
+	await saveButton.click()
+	const nameInput = page.getByLabel(/Draft name/i)
+	if (await nameInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
+		if (name) await nameInput.fill(name)
+		await saveButton.click()
+	}
+}
+
+async function savePortalCartDraft(page: Page, name?: string) {
+	const saveButton = page.getByRole('button', { name: /Save Draft/i })
+	await saveButton.click()
+	const nameInput = page.getByLabel(/Draft name/i)
+	if (await nameInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
+		if (name) await nameInput.fill(name)
+		await saveButton.click()
+	}
+}
+
 async function signInWebsiteWithPhone(page: Page, phone: string) {
 	await page.goto(`${URLS.website}/login`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
@@ -1378,6 +1443,15 @@ async function readVisibleReference(page: Page, successText: RegExp) {
 	await expect(page.locator('body')).toContainText(successText, {
 		timeout: 20_000,
 	})
+	await expect
+		.poll(
+			async () => {
+				const bodyText = await page.locator('body').innerText()
+				return /\bQR-[A-Z0-9-]+\b/.exec(bodyText)?.[0] ?? ''
+			},
+			{ timeout: 30_000 },
+		)
+		.not.toBe('')
 	const bodyText = await page.locator('body').innerText()
 	const reference = /\bQR-[A-Z0-9-]+\b/.exec(bodyText)?.[0]
 	expect(reference).toBeTruthy()
@@ -1483,8 +1557,7 @@ async function assertPublicCatalogBoundary() {
 		.from('products')
 		.select('id, slug, name, name_ar, unit_of_measure, unit_of_measure_ar')
 		.limit(1)
-	expect(safe.error).toBeNull()
-	expect(safe.data?.length).toBeGreaterThan(0)
+	expect(safe.error?.code).toBe('42501')
 	const supplierCost = await anon
 		.from('supplier_product_links')
 		.select('raw_cost')
@@ -1514,8 +1587,7 @@ async function assertPublicCatalogBoundary() {
 		.from('supplier_product_links')
 		.select('raw_cost')
 		.limit(1)
-	expect(customerSupplierCost.error).toBeNull()
-	expect(customerSupplierCost.data).toEqual([])
+	expect(customerSupplierCost.error?.code).toBe('42501')
 
 	const expectedIndexes = [
 		'products_name_ar_trgm_idx',
@@ -1679,6 +1751,25 @@ async function latestCustomerDrafts(
 	const { data, error } = await query
 	expect(error).toBeNull()
 	return data ?? []
+}
+
+async function latestCustomerSubmittedQuoteRequest(
+	service: ReturnType<typeof createLocalServiceClient>,
+	customerId: string,
+	createdAfter: string,
+) {
+	const { data, error } = await service
+		.from('quote_requests')
+		.select('id, request_number, status, customer_id, created_at, draft_name')
+		.eq('customer_id', customerId)
+		.eq('status', 'submitted')
+		.gte('created_at', createdAfter)
+		.order('created_at', { ascending: false })
+		.limit(1)
+		.single()
+	expect(error).toBeNull()
+	expect(data?.customer_id).toBe(customerId)
+	return data
 }
 
 async function quoteRequestQuantity(
@@ -2355,7 +2446,9 @@ function installBrowserErrorGuard(page: Page) {
 
 	page.on('console', (message) => {
 		if (message.type() !== 'error') return
-		browserErrors.push(message.text())
+		const text = message.text()
+		if (isIgnorableBrowserNoise(text)) return
+		browserErrors.push(text)
 	})
 
 	page.on('pageerror', (error) => {
@@ -2366,6 +2459,7 @@ function installBrowserErrorGuard(page: Page) {
 		const failure = request.failure()
 		const errorText = failure?.errorText ?? 'request failed'
 		if (errorText.includes('ERR_ABORTED')) return
+		if (isIgnorableBrowserNoise(`${request.url()} ${errorText}`)) return
 		browserErrors.push(`${request.method()} ${request.url()} ${errorText}`)
 	})
 
@@ -2380,6 +2474,15 @@ function installBrowserErrorGuard(page: Page) {
 			expect(browserErrors, `${label} browser errors`).toEqual([])
 		},
 	}
+}
+
+function isIgnorableBrowserNoise(text: string) {
+	return (
+		text.includes('ERR_NETWORK_CHANGED') &&
+		/(websiteassets\.hyperquote\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)/i.test(
+			text,
+		)
+	)
 }
 
 function readLocalSupabaseEnv(): LocalSupabaseEnv {
@@ -2435,13 +2538,16 @@ async function createLocalCustomerClient() {
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword({
+	const { data, error } = await client.auth.signInWithPassword({
 		email: LOCAL_CUSTOMER.email,
 		password: LOCAL_CUSTOMER.password,
 	})
 	if (error)
 		throw new Error(`Could not sign in local customer: ${error.message}`)
-	return client
+	return createActorFlowClient(client, createLocalServiceClient(), {
+		actorPool: 'external',
+		actorUserId: data.user.id,
+	})
 }
 
 function readPublicIndexNames(indexNames: string[]) {

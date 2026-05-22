@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface SupabaseCookieToSet {
 	name: string
@@ -233,8 +234,7 @@ test('inventory orders are finance-gated, filled into reservations, released on 
 		.update({ status: 'delivered' })
 		.eq('id', fixture.secondOrder.id)
 		.select('id, status')
-	expect(directStatusUpdate.error).toBeNull()
-	expect(directStatusUpdate.data ?? []).toEqual([])
+	expect(directStatusUpdate.error?.code).toBe('42501')
 	await expectOrderStatus(
 		service,
 		fixture.secondOrder.id,
@@ -1064,11 +1064,16 @@ async function signInLocal(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) {
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
 	}
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool: 'internal',
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 async function createAuthCookies(

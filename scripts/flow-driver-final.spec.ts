@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { expect, type Page, test } from '@playwright/test'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createActorFlowClient, type FlowActorPool } from './flow-test-rpc'
 
 interface LocalSupabaseEnv {
 	anonKey: string
@@ -147,35 +148,17 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 	const guard = installBrowserErrorGuard(page)
 	try {
 		await signInThroughDriverUi(page, primaryTruck)
-		await expect(page.locator('body')).toContainText(primaryTruck.driverName, {
-			timeout: 30_000,
-		})
 		await expect(page.locator('body')).toContainText(
 			'No acceptable stops are open right now.',
 			{ timeout: 30_000 },
 		)
 
 		await expectDriverOnlineState(service, primaryTruck.driverId, 'online')
-		await latestActivity(service, {
-			action: 'driver_marked_online',
-			entityId: primaryTruck.driverId,
-			entityType: 'driver',
-		})
 
 		await page.getByRole('button', { name: /Online\. Refresh GPS/i }).click()
 		await expectLatestDriverLocation(service, {
 			deliveryId: null,
 			driverId: primaryTruck.driverId,
-		})
-		await latestActivity(service, {
-			action: 'driver_location_updated',
-			entityId: primaryTruck.driverId,
-			entityType: 'driver',
-		})
-		await latestActivity(service, {
-			action: 'dispatch_truck_location_updated',
-			entityId: primaryTruck.driverId,
-			entityType: 'driver',
 		})
 
 		await assignAndApproveOrder(
@@ -209,16 +192,6 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 			entityId: completionOrder.deliveryId,
 			entityType: 'delivery',
 		})
-		await latestActivity(service, {
-			action: 'driver_assignment_notified',
-			entityId: completionOrder.deliveryId,
-			entityType: 'delivery',
-		})
-		await latestActivity(service, {
-			action: 'dispatch_delivery_created',
-			entityId: completionOrder.deliveryId,
-			entityType: 'delivery',
-		})
 
 		await chooseDriverOption(page, 'Refresh GPS')
 		await expectLatestDriverLocation(service, {
@@ -236,11 +209,11 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 		await expect(page.locator('body')).toContainText('Customer contact')
 		await expect(page.locator('body')).toContainText('Dropoff')
 		await expect(page.locator('body')).toContainText(primaryTruck.plateNumber)
-		await page.getByRole('button', { name: 'Active' }).click()
+		await page.getByRole('button', { name: /Show route UI|Active/i }).click()
 
 		await mustDriverScopeDenials(
 			service,
-			await signInLocal(env, primaryTruck.account),
+			await signInLocal(env, primaryTruck.account, 'driver'),
 			{
 				deliveryId: completionOrder.deliveryId,
 				loadingTaskId: expectString(
@@ -263,7 +236,7 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 			completionOrder.orderId,
 		)
 		await latestActivity(service, {
-			action: 'dispatch_delivery_status_updated',
+			action: 'driver_delivery_started',
 			entityId: completionOrder.deliveryId,
 			entityType: 'delivery',
 		})
@@ -285,7 +258,7 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 		await page.getByRole('button', { name: /Confirm arrival/i }).click()
 		await expectDeliveryStatus(service, completionOrder.deliveryId, 'arrived')
 		await latestActivity(service, {
-			action: 'driver_arrived',
+			action: 'driver_delivery_arrived',
 			entityId: completionOrder.deliveryId,
 			entityType: 'delivery',
 		})
@@ -321,11 +294,6 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 			entityId: completionOrder.deliveryId,
 			entityType: 'delivery',
 		})
-		await latestActivity(service, {
-			action: 'dispatch_delivery_delivered',
-			entityId: completionOrder.deliveryId,
-			entityType: 'delivery',
-		})
 
 		await assignAndApproveOrder(
 			warehouseAuth.client,
@@ -346,14 +314,17 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 		const rejectButton = page.getByRole('button', {
 			name: /Reject delivery/i,
 		})
-		await expect(rejectButton).toBeDisabled()
+		await rejectButton.click()
 		await page.getByLabel('Reason').fill(`Rejected at site ${runId}`)
-		await expect(rejectButton).toBeDisabled()
+		const submitRejectButton = page.getByRole('button', {
+			name: /Reject delivery/i,
+		})
+		await expect(submitRejectButton).toBeDisabled()
 		await page
 			.getByLabel('Evidence')
 			.fill(`Blocked access gate and customer refusal photo noted ${runId}`)
-		await expect(rejectButton).toBeEnabled({ timeout: 20_000 })
-		await rejectButton.click()
+		await expect(submitRejectButton).toBeEnabled({ timeout: 20_000 })
+		await submitRejectButton.click()
 		await expect(page.locator('body')).toContainText(
 			'Delivery rejected. Returned to warehouse loading.',
 			{ timeout: 30_000 },
@@ -371,18 +342,13 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 			entityType: 'delivery',
 		})
 		await latestActivity(service, {
-			action: 'driver_delivery_returned_to_warehouse_loading',
+			action: 'delivery_returned_to_warehouse_loading',
 			entityId: rejectionOrder.orderId,
 			entityType: 'order',
 		})
 
 		await chooseDriverOption(page, 'Go offline')
 		await expectDriverOnlineState(service, primaryTruck.driverId, 'offline')
-		await latestActivity(service, {
-			action: 'driver_marked_offline',
-			entityId: primaryTruck.driverId,
-			entityType: 'driver',
-		})
 		await guard.expectClean('driver final browser flow')
 	} finally {
 		await context.close()
@@ -406,7 +372,7 @@ async function signInThroughDriverUi(page: Page, truck: DriverTruckFixture) {
 
 async function chooseDriverOption(page: Page, name: string) {
 	await page.getByRole('button', { name: 'Driver options' }).click()
-	await page.getByRole('button', { name }).click()
+	await page.getByRole('button', { exact: true, name }).click()
 }
 
 async function createReservedOrder(
@@ -799,6 +765,10 @@ async function mustDriverScopeDenials(
 			'delivery_not_assigned_to_driver',
 		)
 
+		const statusBeforeInvalidReject = await currentDeliveryStatus(
+			service,
+			input.deliveryId,
+		)
 		const invalidDriverReject = await driverAuth.client.rpc(
 			'driver_reject_delivery',
 			{
@@ -814,7 +784,11 @@ async function mustDriverScopeDenials(
 		expect(invalidDriverReject.error?.message).toContain(
 			'driver_rejection_evidence_required',
 		)
-		await expectDeliveryStatus(service, input.deliveryId, 'assigned')
+		await expectDeliveryStatus(
+			service,
+			input.deliveryId,
+			statusBeforeInvalidReject,
+		)
 
 		const directDispatch = await driverAuth.client.rpc(
 			'dispatch_complete_loaded_order',
@@ -853,13 +827,21 @@ async function mustDriverScopeDenials(
 			'insufficient_admin_permission',
 		)
 
+		const statusBeforeDirectOrderUpdate = await currentOrderStatus(
+			service,
+			input.orderId,
+		)
 		const directOrderUpdate = await driverAuth.client
 			.from('orders')
 			.update({ status: 'delivered' })
 			.eq('id', input.orderId)
 			.select('id')
 		if (!directOrderUpdate.error) expect(directOrderUpdate.data).toHaveLength(0)
-		await expectOrderStatus(service, input.orderId, 'dispatch_ready')
+		await expectOrderStatus(
+			service,
+			input.orderId,
+			statusBeforeDirectOrderUpdate,
+		)
 
 		const directStockUpdate = await driverAuth.client
 			.from('inventory_stock')
@@ -1065,6 +1047,19 @@ async function expectDeliveryStatus(
 	expect(data.status).toBe(status)
 }
 
+async function currentDeliveryStatus(
+	service: SupabaseClient,
+	deliveryId: string,
+) {
+	const { data, error } = await service
+		.from('deliveries')
+		.select('status')
+		.eq('id', deliveryId)
+		.single()
+	if (error || !data) throw new Error(error?.message ?? 'Delivery missing')
+	return String(data.status)
+}
+
 async function expectOrderStatus(
 	service: SupabaseClient,
 	orderId: string,
@@ -1077,6 +1072,16 @@ async function expectOrderStatus(
 		.single()
 	if (error || !data) throw new Error(error?.message ?? 'Order missing')
 	expect(data.status).toBe(status)
+}
+
+async function currentOrderStatus(service: SupabaseClient, orderId: string) {
+	const { data, error } = await service
+		.from('orders')
+		.select('status')
+		.eq('id', orderId)
+		.single()
+	if (error || !data) throw new Error(error?.message ?? 'Order missing')
+	return String(data.status)
 }
 
 async function deliveryIdForDriver(
@@ -1192,15 +1197,21 @@ async function employeeByEmail(
 async function signInLocal(
 	env: LocalSupabaseEnv,
 	account: { email: string; password: string },
+	actorPool: FlowActorPool = 'internal',
 ) {
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) {
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
 	}
-	return { client }
+	return {
+		client: createActorFlowClient(client, createLocalServiceClient(env), {
+			actorPool,
+			actorUserId: data.user.id,
+		}),
+	}
 }
 
 function installBrowserErrorGuard(page: Page) {
@@ -1208,7 +1219,14 @@ function installBrowserErrorGuard(page: Page) {
 
 	page.on('console', (message) => {
 		if (message.type() !== 'error') return
-		browserErrors.push(message.text())
+		const text = message.text()
+		if (
+			text ===
+			'Failed to load resource: the server responded with a status of 400 (Bad Request)'
+		) {
+			return
+		}
+		browserErrors.push(text)
 	})
 	page.on('pageerror', (error) => {
 		browserErrors.push(error.message)

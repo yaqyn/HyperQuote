@@ -172,6 +172,7 @@
 		"confirmSubmitAction": "Send request",
 		"authSuccessTitle": "Account verified",
 		"authSuccessBody": "You're signed in. You can now save this draft or request the quote.",
+		"continueBrowsing": "Continue browsing",
 		"autoClose": "Closing automatically...",
 		"submitHint": "Free. No commitment. We handle the sourcing.",
 		"itemCount_one": "{{count}} item",

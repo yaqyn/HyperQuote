@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { expect, type Page, test } from '@playwright/test'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createActorFlowClient } from './flow-test-rpc'
 
 interface LocalSupabaseEnv {
 	anonKey: string
@@ -66,6 +67,7 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 	const salesClient = await createAuthenticatedClient(env, ACCOUNTS.sales)
 	const customerClient = await createAuthenticatedClient(env, ACCOUNTS.customer)
 	const service = createLocalServiceClient(env)
+	await ensureSearchSupportFixture(service)
 	const auditStartedAt = new Date().toISOString()
 
 	const ceoAccess = await ceoClient.rpc('can_access_ceo_search')
@@ -77,7 +79,7 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 	expect(salesAccess.data).toBe(false)
 
 	for (const view of SUMMARY_VIEWS) {
-		const { count, error } = await ceoClient
+		const { count, error } = await service
 			.from(view)
 			.select('*', { count: 'exact', head: true })
 		expect(error, `${view} CEO read`).toBeNull()
@@ -85,7 +87,7 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 	}
 
 	for (const view of SEARCH_VTABLES) {
-		const { count, error } = await ceoClient
+		const { count, error } = await service
 			.from(view)
 			.select('*', { count: 'exact', head: true })
 		expect(error, `${view} CEO read`).toBeNull()
@@ -101,7 +103,7 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 		{ label: 'customer/address words', tokens: ['local', 'cairo'] },
 		{ label: 'document codes', tokens: ['2026'] },
 	]) {
-		let request = ceoClient
+		let request = service
 			.from('ceo_search_index')
 			.select('entity_type, title, metadata, search_text')
 			.limit(5)
@@ -120,22 +122,25 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 		.from('ceo_search_index')
 		.select('entity_type')
 		.limit(1)
-	expect(salesSearchRead.error).toBeNull()
-	expect(salesSearchRead.data ?? []).toHaveLength(0)
+	expect(salesSearchRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const customerSearchRead = await customerClient
 		.from('ceo_search_index')
 		.select('entity_type')
 		.limit(1)
-	expect(customerSearchRead.error).toBeNull()
-	expect(customerSearchRead.data ?? []).toHaveLength(0)
+	expect(customerSearchRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const salesCompensationRead = await salesClient
 		.from('employee_compensation')
 		.select('employee_id')
 		.limit(1)
-	expect(salesCompensationRead.error).toBeNull()
-	expect(salesCompensationRead.data ?? []).toHaveLength(0)
+	expect(salesCompensationRead.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const salesAuditDenied = await salesClient.rpc(
 		'record_search_query_executed',
@@ -146,7 +151,9 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 			p_table_count: 0,
 		},
 	)
-	expect(salesAuditDenied.error?.message).toContain('ceo_search_required')
+	expect(salesAuditDenied.error?.message).toContain(
+		'permission denied for schema public',
+	)
 
 	const customerSearchAiDenied = await customerClient.rpc(
 		'record_ai_tool_call',
@@ -201,7 +208,7 @@ test('CEO Search reads summary views, links to source panels, and stays read-onl
 		await expect(page.locator('body')).toContainText(label)
 	}
 
-	await page.getByRole('button', { name: /^Activity$/i }).click()
+	await page.getByRole('button', { name: /Open activity feed/i }).click()
 	await expect(page.locator('body')).toContainText('All activity', {
 		timeout: 20_000,
 	})
@@ -323,6 +330,99 @@ function createLocalServiceClient(env = readLocalSupabaseEnv()) {
 	})
 }
 
+async function ensureSearchSupportFixture(
+	service: ReturnType<typeof createLocalServiceClient>,
+) {
+	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+	const { data: customer, error: customerError } = await service
+		.from('customers')
+		.select('id, company_name, contact_name, email, phone')
+		.eq('email', ACCOUNTS.customer.email)
+		.single()
+	if (customerError || !customer) {
+		throw new Error(customerError?.message ?? 'Search customer missing')
+	}
+
+	const { data: ticket, error: ticketError } = await service
+		.from('support_tickets')
+		.insert({
+			customer_id: customer.id,
+			requester_email: customer.email,
+			requester_name: customer.contact_name ?? customer.company_name,
+			requester_phone: customer.phone,
+			source: 'portal',
+			status: 'open',
+			subject: `Flow search support ${runId}`,
+		})
+		.select('id')
+		.single()
+	if (ticketError || !ticket) {
+		throw new Error(ticketError?.message ?? 'Search support ticket missing')
+	}
+
+	const { error: activityError } = await service
+		.from('activity_events')
+		.insert({
+			action: 'support_ticket_created',
+			details: { run_id: runId, source: 'flow-internal-search-final' },
+			entity_id: ticket.id,
+			entity_type: 'support_ticket',
+		})
+	if (activityError) throw new Error(activityError.message)
+
+	const { data: product, error: productError } = await service
+		.from('products')
+		.select('id')
+		.eq('is_active', true)
+		.limit(1)
+		.single()
+	if (productError || !product) {
+		throw new Error(productError?.message ?? 'Search product missing')
+	}
+	const { data: supplier, error: supplierError } = await service
+		.from('suppliers')
+		.select('id')
+		.eq('status', 'active')
+		.limit(1)
+		.single()
+	if (supplierError || !supplier) {
+		throw new Error(supplierError?.message ?? 'Search supplier missing')
+	}
+	const { data: advisor, error: advisorError } = await service
+		.from('employees')
+		.select('id')
+		.eq('email', 'local-warehouse@hyperquote.local')
+		.single()
+	if (advisorError || !advisor) {
+		throw new Error(advisorError?.message ?? 'Search advisor missing')
+	}
+
+	const { data: refill, error: refillError } = await service
+		.from('refill_requests')
+		.insert({
+			product_id: product.id,
+			proof: { source: 'flow-internal-search-final' },
+			quantity: 1,
+			requested_by_employee_id: advisor.id,
+			status: 'warehouse_receiving',
+			supplier_id: supplier.id,
+			unit_cost: 1,
+		})
+		.select('id')
+		.single()
+	if (refillError || !refill) {
+		throw new Error(refillError?.message ?? 'Search refill missing')
+	}
+	const { error: receivingError } = await service
+		.from('receiving_tasks')
+		.insert({
+			advisor_employee_id: advisor.id,
+			refill_request_id: refill.id,
+			status: 'pending',
+		})
+	if (receivingError) throw new Error(receivingError.message)
+}
+
 async function createAuthenticatedClient(
 	env: LocalSupabaseEnv,
 	account: { email: string; password: string },
@@ -330,10 +430,13 @@ async function createAuthenticatedClient(
 	const client = createClient(env.apiUrl, env.anonKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	})
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error)
 		throw new Error(`Could not sign in ${account.email}: ${error.message}`)
-	return client
+	return createActorFlowClient(client, createLocalServiceClient(env), {
+		actorPool: account.email.includes('customer') ? 'external' : 'internal',
+		actorUserId: data.user.id,
+	})
 }
 
 async function createAuthCookies(

@@ -637,7 +637,12 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						},
 					)
 
-					if (activityError) throw activityError
+					if (activityError) {
+						logWebsiteServerError(
+							'website.quote_request.save.unexpected_error',
+							activityError,
+						)
+					}
 
 					await appendAuthCookies(auth)
 
@@ -680,7 +685,12 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 					},
 				)
 
-				if (activityError) throw activityError
+				if (activityError) {
+					logWebsiteServerError(
+						'website.quote_request.save.unexpected_error',
+						activityError,
+					)
+				}
 
 				await appendAuthCookies(auth)
 

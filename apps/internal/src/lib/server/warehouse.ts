@@ -1,3 +1,4 @@
+import { createActorServiceRoleClient } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
@@ -358,7 +359,11 @@ async function getWarehouseCredentialClient(
 	return {
 		success: true as const,
 		advisor: advisorCheck.advisor,
-		client,
+		client: createActorServiceRoleClient({
+			actorPool: 'internal',
+			actorUserId: data.user.id,
+			client: adminClient,
+		}),
 	}
 }
 

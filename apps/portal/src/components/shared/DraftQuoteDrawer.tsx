@@ -122,6 +122,9 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
+	const [savedDraftReference, setSavedDraftReference] = useState<string | null>(
+		null,
+	)
 	const [savedDraftFingerprint, setSavedDraftFingerprint] = useState<
 		string | null
 	>(null)
@@ -192,6 +195,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 			setDraftNameEntryOpen(false)
 			setSavedDraftId(result.draftId)
 			setSavedDraftFingerprint(draftFingerprint)
+			setSavedDraftReference(result.reference)
 			toast.success(t('market.draftSavedToast', { ref: result.reference }))
 		},
 	})
@@ -207,6 +211,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 
 	function handleDrawerExitComplete() {
 		setSubmittedReference(null)
+		setSavedDraftReference(null)
 		setSearchOpen(false)
 		setSavedOrdersOpen(false)
 		setDraftNameEntryOpen(false)
@@ -223,10 +228,10 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	}, [items.length, submittedReference])
 
 	useEffect(() => {
-		if (!open || !submittedReference) return
+		if (!open || (!submittedReference && !savedDraftReference)) return
 		const timer = window.setTimeout(onClose, 3000)
 		return () => window.clearTimeout(timer)
-	}, [onClose, open, submittedReference])
+	}, [onClose, open, savedDraftReference, submittedReference])
 
 	function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
@@ -311,10 +316,11 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 							ease: DRAWER_EASE,
 						}}
 					>
-						{submittedReference ? (
+						{submittedReference || savedDraftReference ? (
 							<DraftQuoteSuccessMessage
-								reference={submittedReference}
+								reference={submittedReference ?? savedDraftReference ?? ''}
 								shouldReduceMotion={shouldReduceMotion}
+								type={submittedReference ? 'submit' : 'draft'}
 							/>
 						) : (
 							<>
@@ -802,9 +808,11 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 function DraftQuoteSuccessMessage({
 	reference,
 	shouldReduceMotion,
+	type,
 }: {
 	reference: string
 	shouldReduceMotion: boolean | null
+	type: 'draft' | 'submit'
 }) {
 	const { t } = useTranslation('portal')
 
@@ -841,10 +849,14 @@ function DraftQuoteSuccessMessage({
 				id="draft-quote-title"
 				className="text-[19px] font-semibold text-[var(--p-text)]"
 			>
-				{t('market.submitSuccessTitle')}
+				{type === 'draft'
+					? t('market.draftSavedTitle')
+					: t('market.submitSuccessTitle')}
 			</h3>
 			<p className="mt-3 max-w-[320px] text-[13px] leading-6 text-[var(--p-text-muted)]">
-				{t('market.submitSuccessBody', { ref: reference })}
+				{type === 'draft'
+					? t('market.draftSavedBody', { ref: reference })
+					: t('market.submitSuccessBody', { ref: reference })}
 			</p>
 			<p className="mt-4 font-mono text-[12px] text-[var(--p-text-muted)]">
 				{reference}

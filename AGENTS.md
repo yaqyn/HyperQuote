@@ -25,6 +25,10 @@ server functions, Worker routes, or server-only helpers. Server code uses
 called through `createActorServiceRoleClient` so `service_*` wrappers receive
 `p_actor_user_id` and `p_actor_pool`.
 
+Every service-role read or write must enforce the relevant customer, employee,
+driver, role, panel, or ownership boundary in the server function or service RPC
+wrapper before returning data to a client.
+
 New database migrations must not grant `anon`, `authenticated`, or `public`
 access to public tables, views, sequences, or SECURITY DEFINER business
 functions. If a workflow needs client access, add or reuse a server function/API

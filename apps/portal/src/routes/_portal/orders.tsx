@@ -1135,6 +1135,11 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 				<h3 className="mt-2 truncate text-[16px] font-semibold text-[var(--p-text)] sm:text-[17px]">
 					{title}
 				</h3>
+				{order.reference && order.reference !== title ? (
+					<p className="mt-1 font-mono text-[12px] text-[var(--p-text-muted)]">
+						{order.reference}
+					</p>
+				) : null}
 				<div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5">
 					{previewItems.map((item) => {
 						const itemName = isAr ? item.productNameAr : item.productName
