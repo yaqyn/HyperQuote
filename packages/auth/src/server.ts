@@ -4,6 +4,7 @@ import {
 	createServerClient,
 	parseCookieHeader,
 } from '@supabase/ssr'
+import type { User } from '@supabase/supabase-js'
 import {
 	resolveSupabaseServerConfig,
 	resolveSupabaseServiceRoleConfig,
@@ -159,6 +160,123 @@ export function appendSetCookieHeaders(
 	return appended
 }
 
+const STALE_AUTH_ERROR_CODES = new Set([
+	'invalid_refresh_token',
+	'refresh_token_already_used',
+	'refresh_token_not_found',
+])
+
+export function isStaleSupabaseAuthError(error: unknown): boolean {
+	if (!error || typeof error !== 'object') return false
+	const record = error as Record<string, unknown>
+	const code = record.code
+	if (typeof code === 'string' && STALE_AUTH_ERROR_CODES.has(code)) return true
+	const message = record.message
+	return (
+		typeof message === 'string' &&
+		/refresh token/i.test(message) &&
+		/(invalid|not found|already used)/i.test(message)
+	)
+}
+
+export function appendClearSupabaseAuthCookies(
+	headers: Headers,
+	{
+		cookieDomain,
+		cookieName,
+		request,
+	}: {
+		cookieDomain?: string
+		cookieName?: string
+		request: Request
+	},
+): number {
+	if (!cookieName) return 0
+
+	const secureCookies = shouldUseSecureCookies(request)
+	const requestCookieDomain = resolveCookieDomainForRequest(
+		request,
+		cookieDomain,
+	)
+	const names = authCookieNamesFromRequest(request, cookieName)
+	let appended = 0
+
+	for (const name of names) {
+		headers.append(
+			'set-cookie',
+			serializeSetCookie(name, '', {
+				maxAge: 0,
+				path: '/',
+				sameSite: 'lax',
+				secure: secureCookies,
+			}),
+		)
+		appended += 1
+		if (requestCookieDomain) {
+			headers.append(
+				'set-cookie',
+				serializeSetCookie(name, '', {
+					domain: requestCookieDomain,
+					maxAge: 0,
+					path: '/',
+					sameSite: 'lax',
+					secure: secureCookies,
+				}),
+			)
+			appended += 1
+		}
+	}
+
+	return appended
+}
+
+function authCookieNamesFromRequest(request: Request, cookieName: string) {
+	const names = new Set<string>([
+		cookieName,
+		...Array.from({ length: 10 }, (_, index) => `${cookieName}.${index}`),
+	])
+	const header = request.headers.get('cookie') ?? ''
+	for (const { name } of parseCookieHeader(header)) {
+		if (name === cookieName || name.startsWith(`${cookieName}.`)) {
+			names.add(name)
+		}
+	}
+	return names
+}
+
+interface SupabaseAuthUserReader {
+	auth: {
+		getUser(): Promise<{
+			data: { user: User | null }
+			error: unknown
+		}>
+	}
+}
+
+export async function getSupabaseServerUser({
+	client,
+	cookieDomain,
+	cookieName,
+	request,
+	responseHeaders,
+}: {
+	client: SupabaseAuthUserReader
+	cookieDomain?: string
+	cookieName?: string
+	request: Request
+	responseHeaders: Headers
+}) {
+	const result = await client.auth.getUser()
+	if (isStaleSupabaseAuthError(result.error)) {
+		appendClearSupabaseAuthCookies(responseHeaders, {
+			cookieDomain,
+			cookieName,
+			request,
+		})
+	}
+	return result
+}
+
 export async function resolveSupabaseWorkerConfig(
 	fallbackEnv: Record<string, string | undefined>,
 ): Promise<SupabaseServerRuntimeConfig | null> {
@@ -271,6 +389,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'finance_cancel_customer_order',
 	'finance_cancel_supplier_refill',
 	'find_claimable_customer_profile',
+	'inventory_finance_cleared_order_ids',
 	'inventory_update_price',
 	'inventory_update_supplier_prices',
 	'link_support_conversation_to_customer',
@@ -282,13 +401,16 @@ const ACTOR_RPC_NAMES = new Set([
 	'record_supplier_payment_followup',
 	'request_price_update',
 	'require_panel',
+	'reserve_order_stock',
 	'sales_cancel_order',
 	'sales_claim_order',
+	'sales_confirm_order',
 	'sales_record_call_note',
 	'sales_reject_order',
 	'sales_save_and_requeue',
 	'sales_save_quote_version',
 	'send_support_conversation_reply',
+	'send_support_reply',
 	'set_employee_presence',
 	'set_support_conversation_status',
 	'set_support_ticket_status',

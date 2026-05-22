@@ -20,6 +20,7 @@ import {
 	createActorServiceRoleClient,
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
+	getSupabaseServerUser,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
@@ -349,7 +350,13 @@ export const createAccount = createServerFn({ method: 'POST' })
 			// Get current auth user
 			const {
 				data: { user },
-			} = await client.auth.getUser()
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
@@ -408,7 +415,13 @@ export const claimAccount = createServerFn({ method: 'POST' })
 			// Get current auth user
 			const {
 				data: { user },
-			} = await client.auth.getUser()
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
 			if (!user) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
@@ -476,7 +489,13 @@ export const requestPhoneChange = createServerFn({ method: 'POST' })
 			const {
 				data: { user },
 				error: userError,
-			} = await client.auth.getUser()
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
 			if (userError || !user || !isCustomerAuthUser(user)) {
 				return { success: false, error: 'not_authenticated' as const }
 			}
@@ -554,7 +573,13 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 			const {
 				data: { user: currentUser },
 				error: currentUserError,
-			} = await client.auth.getUser()
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
 			if (
 				currentUserError ||
 				!currentUser ||

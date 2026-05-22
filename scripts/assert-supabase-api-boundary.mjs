@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 
 const dbUrl =
 	process.env.SUPABASE_DB_URL ??
@@ -69,12 +70,49 @@ function scalar(sql) {
 	).trim()
 }
 
+function actorRpcNames() {
+	const source = readFileSync('packages/auth/src/server.ts', 'utf8')
+	const start = source.indexOf('const ACTOR_RPC_NAMES')
+	const end = source.indexOf('export function createActorServiceRoleClient')
+	if (start < 0 || end < 0 || end <= start) {
+		throw new Error(
+			'Could not locate ACTOR_RPC_NAMES in packages/auth/src/server.ts',
+		)
+	}
+	return [...source.slice(start, end).matchAll(/'([a-zA-Z0-9_]+)'/g)].map(
+		(match) => match[1],
+	)
+}
+
 const failures = []
 for (const assertion of assertions) {
 	const count = Number(scalar(assertion.sql))
 	if (count !== 0) {
 		failures.push(`${assertion.name}: ${count}`)
 	}
+}
+
+const requiredServiceFunctions = actorRpcNames().map(
+	(name) => `service_${name}`,
+)
+const missingServiceFunctions = scalar(`
+	with required(name) as (
+		select unnest(array[
+			${requiredServiceFunctions.map((name) => `'${name}'`).join(',\n\t\t\t')}
+		])
+	)
+	select coalesce(string_agg(r.name, ', ' order by r.name), '')
+	from required r
+	where not exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and p.proname = r.name
+	)
+`)
+if (missingServiceFunctions) {
+	failures.push(`missing service-role RPC wrappers: ${missingServiceFunctions}`)
 }
 
 if (failures.length > 0) {

@@ -19,6 +19,7 @@ import {
 	createActorServiceRoleClient,
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
+	getSupabaseServerUser,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
@@ -106,7 +107,13 @@ async function getAuthenticatedClient() {
 
 	const {
 		data: { user },
-	} = await client.auth.getUser()
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
 	if (!user) {
 		return { error: 'not_authenticated' as const }
 	}
@@ -136,7 +143,13 @@ export const checkWebsiteAccount = createServerFn({ method: 'GET' }).handler(
 
 			const {
 				data: { user },
-			} = await client.auth.getUser()
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
 			appendPendingAuthCookies(
 				responseCookies.values(),
 				responseHeaders.entries(),

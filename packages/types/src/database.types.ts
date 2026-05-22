@@ -6520,6 +6520,16 @@ export type Database = {
 					user_id: string
 				}[]
 			}
+			service_inventory_finance_cleared_order_ids: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_ids: string[]
+				}
+				Returns: {
+					order_id: string
+				}[]
+			}
 			service_inventory_update_price: {
 				Args: {
 					p_actor_pool: string
@@ -6782,6 +6792,32 @@ export type Database = {
 				}
 				Returns: string
 			}
+			service_reserve_order_stock: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+				}
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_sales_cancel_order: {
 				Args: {
 					p_actor_pool: string
@@ -6854,6 +6890,33 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_confirm_order: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_order_id: string
+					p_quote_version_id?: string
+				}
+				Returns: {
+					created_at: string
+					customer_id: string | null
+					delivered_at: string | null
+					id: string
+					order_number: string
+					quote_id: string | null
+					quote_request_id: string | null
+					reserved_at: string | null
+					status: Database['public']['Enums']['order_workflow_status']
+					total_amount: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'orders'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -6995,6 +7058,36 @@ export type Database = {
 					p_body: string
 					p_channel: Database['public']['Enums']['support_message_channel']
 					p_conversation_id: string
+				}
+				Returns: {
+					body: string
+					channel: Database['public']['Enums']['support_message_channel']
+					conversation_id: string | null
+					created_at: string
+					external_message_id: string | null
+					id: string
+					metadata: Json
+					provider_error: string | null
+					provider_status: string
+					sender_type: Database['public']['Enums']['support_sender_type']
+					sender_user_id: string | null
+					ticket_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'support_messages'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_send_support_reply: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_body: string
+					p_channel?: Database['public']['Enums']['support_message_channel']
+					p_metadata?: Json
+					p_ticket_id: string
 				}
 				Returns: {
 					body: string

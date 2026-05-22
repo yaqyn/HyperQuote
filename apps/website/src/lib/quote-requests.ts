@@ -3,6 +3,7 @@ import {
 	createActorServiceRoleClient,
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
+	getSupabaseServerUser,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
@@ -191,7 +192,13 @@ const getAuthenticatedClient = createServerOnlyFn(async () => {
 
 	const {
 		data: { user },
-	} = await client.auth.getUser()
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
 
 	if (!user) return { error: 'not_authenticated' as const }
 
@@ -457,33 +464,51 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				}
 
 				if (input.draftId) {
-					const { data: draft, error: draftError } = await auth.client
-						.from('quote_requests')
-						.update({
-							draft_name: normalizeDraftName(input.name),
-							idempotency_key: input.idempotencyKey,
-							notes: normalizeNotes(input.notes),
-						})
-						.eq('id', input.draftId)
-						.eq('customer_id', auth.customerId)
-						.eq('status', 'draft')
-						.select('id, request_number')
-						.maybeSingle()
+					const { data: sourceDraft, error: sourceDraftError } =
+						await auth.client
+							.from('quote_requests')
+							.select('id')
+							.eq('id', input.draftId)
+							.eq('customer_id', auth.customerId)
+							.eq('status', 'draft')
+							.maybeSingle()
 
-					if (draftError || !draft) {
-						throw draftError ?? new Error('Quote draft update failed')
+					if (sourceDraftError || !sourceDraft) {
+						throw sourceDraftError ?? new Error('Quote draft was not found')
 					}
 
-					await replaceQuoteRequestItems(
+					const { data: submittedDraft, error: submittedDraftError } =
+						await auth.client
+							.from('quote_requests')
+							.insert({
+								customer_id: auth.customerId,
+								status: 'draft',
+								urgency: 'standard',
+								draft_name: null,
+								notes: normalizeNotes(input.notes),
+								attachment_urls: [],
+								idempotency_key: input.idempotencyKey,
+								approval_required: false,
+							})
+							.select('id, request_number')
+							.single()
+
+					if (submittedDraftError || !submittedDraft) {
+						throw (
+							submittedDraftError ?? new Error('Quote request insert failed')
+						)
+					}
+
+					await insertQuoteRequestItems(
 						auth.client,
-						input.draftId,
+						submittedDraft.id,
 						input.items,
 					)
 
 					const { error: submitError } = await auth.client.rpc(
 						'customer_submit_saved_quote_request',
 						{
-							p_quote_request_id: draft.id,
+							p_quote_request_id: submittedDraft.id,
 							p_source: 'website',
 						},
 					)
@@ -494,8 +519,8 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					return {
 						success: true,
-						requestId: draft.id,
-						reference: draft.request_number,
+						requestId: submittedDraft.id,
+						reference: submittedDraft.request_number,
 					}
 				}
 
@@ -505,7 +530,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						customer_id: auth.customerId,
 						status: 'draft',
 						urgency: 'standard',
-						draft_name: normalizeDraftName(input.name),
+						draft_name: null,
 						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						idempotency_key: input.idempotencyKey,

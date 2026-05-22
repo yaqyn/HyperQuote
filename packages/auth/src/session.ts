@@ -1,5 +1,9 @@
 import { getRequest, getResponse } from '@tanstack/react-start/server'
-import { appendSetCookieHeaders, createSupabaseServerClient } from './server'
+import {
+	appendSetCookieHeaders,
+	createSupabaseServerClient,
+	getSupabaseServerUser,
+} from './server'
 import type { AuthPool, AuthSession } from './types'
 
 /**
@@ -26,7 +30,13 @@ export async function getServerSession(opts: {
 	const {
 		data: { user },
 		error: userError,
-	} = await client.auth.getUser()
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: opts.cookieDomain,
+		cookieName: opts.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
 
 	if (userError || !user) return null
 

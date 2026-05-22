@@ -193,8 +193,25 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.filter({ hasText: /^Add to Quote$/i })
 		.click()
 	await page.getByRole('button', { name: /Quote Cart/i }).click()
-	await confirmDraftSave(page)
-	await expectCustomerDraftArtifactsSince(service, flowStartedAt)
+	const websiteDraftName = `Smoke website draft ${Date.now()}`
+	const websiteFlowNote = `Smoke website submit clone ${Date.now()}`
+	await page.getByRole('button', { name: /^Notes$/i }).click()
+	await page
+		.getByPlaceholder(/Delivery timing, site access/i)
+		.fill(websiteFlowNote)
+	await confirmDraftSave(page, websiteDraftName)
+	await page.getByRole('button', { name: /Request Quote/i }).click()
+	await page.getByRole('button', { name: /^Send request$/i }).click()
+	await expect(page.locator('body')).toContainText(
+		/Quote request submitted|QR-2026/i,
+		{ timeout: 15_000 },
+	)
+	await expectCustomerDraftArtifactsSince(
+		service,
+		flowStartedAt,
+		websiteDraftName,
+		websiteFlowNote,
+	)
 
 	await guard.expectClean('portal customer data')
 	await context.close()
@@ -1054,18 +1071,28 @@ async function selectOptionByLabel(page: Page, label: string, option: string) {
 	await matchingOption.click()
 }
 
-async function confirmDraftSave(page: Page) {
+async function confirmDraftSave(page: Page, draftName?: string) {
 	const saveButton = page.getByRole('button', {
 		name: /^(Save Draft|حفظ المسودة)$/i,
 	})
+	await expect(saveButton).toBeVisible({ timeout: 15_000 })
 	await saveButton.click()
 	const draftNameInput = page.getByLabel(/^(Draft name|اسم المسودة)$/i)
 	if (await draftNameInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
+		if (draftName !== undefined) await draftNameInput.fill(draftName)
 		await saveButton.click()
 	}
 	await expect(
-		page.getByRole('button', { name: /^(Draft \d|مسودة )/i }),
+		page.getByRole('button', {
+			name: draftName
+				? new RegExp(`^${escapeRegExp(draftName)}$`)
+				: /^(Draft \d|مسودة )/i,
+		}),
 	).toBeDisabled({ timeout: 15_000 })
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function slugPart(value: string): string {
@@ -1087,27 +1114,45 @@ function skuPart(value: string): string {
 async function expectCustomerDraftArtifactsSince(
 	service: ReturnType<typeof createLocalServiceClient>,
 	sinceIso: string,
+	websiteDraftName: string,
+	websiteFlowNote: string,
 ) {
 	await expect
 		.poll(
 			async () => {
 				const { data, error } = await service
 					.from('quote_requests')
-					.select('draft_name, notes, status')
+					.select('draft_name, notes, status, submitted_at')
 					.gte('created_at', sinceIso)
-					.eq('status', 'draft')
 				if (error) return `error:${error.message}`
 
 				const rows = data ?? []
-				const namedDraftCount = rows.filter((row) =>
-					String(row.draft_name ?? '').startsWith('Draft '),
-				).length
-				const copiedOrderDraftCount = rows.filter(
-					(row) => row.notes === 'Local submitted order for portal smoke',
-				).length
-				return namedDraftCount >= 2 && copiedOrderDraftCount >= 1
+				const websiteRows = rows.filter((row) => row.notes === websiteFlowNote)
+				const hasSavedWebsiteDraft = websiteRows.some(
+					(row) =>
+						row.status === 'draft' && row.draft_name === websiteDraftName,
+				)
+				const hasSubmittedWebsiteClone = websiteRows.some(
+					(row) =>
+						row.status !== 'draft' &&
+						row.draft_name === null &&
+						row.submitted_at !== null,
+				)
+				const submittedWithDraftName = websiteRows.some(
+					(row) =>
+						row.status !== 'draft' && row.draft_name === websiteDraftName,
+				)
+				return hasSavedWebsiteDraft &&
+					hasSubmittedWebsiteClone &&
+					!submittedWithDraftName
 					? 'ready'
-					: `${namedDraftCount}:${copiedOrderDraftCount}:${rows.length}`
+					: [
+							hasSavedWebsiteDraft ? 'draft' : 'no-draft',
+							hasSubmittedWebsiteClone ? 'clone' : 'no-clone',
+							submittedWithDraftName ? 'leaked-name' : 'clean-name',
+							`website:${websiteRows.length}`,
+							`rows:${rows.length}`,
+						].join(':')
 			},
 			{ timeout: 15_000 },
 		)

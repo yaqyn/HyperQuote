@@ -12,6 +12,39 @@ Bun workspaces and Turborepo own the monorepo. Shared packages under
 repo often has unrelated local work. Preserve it. Never revert, reset, delete,
 or checkout away changes you did not make.
 
+## Backend Status And Database Policy
+
+The backend is hardened behind an API boundary. Supabase/Postgres remains the
+source of truth, but browser/native clients must not read or write public tables
+or call business RPCs directly. Client apps may use Supabase Auth only for
+signup, login, session refresh, and sign-out.
+
+Website, portal, internal, and driver data access must go through React Start
+server functions, Worker routes, or server-only helpers. Server code uses
+`@hyperquote/auth/server` service-role helpers, and actor-sensitive RPCs must be
+called through `createActorServiceRoleClient` so `service_*` wrappers receive
+`p_actor_user_id` and `p_actor_pool`.
+
+New database migrations must not grant `anon`, `authenticated`, or `public`
+access to public tables, views, sequences, or SECURITY DEFINER business
+functions. If a workflow needs client access, add or reuse a server function/API
+route instead of reopening table/RPC grants.
+
+When adding a new actor-sensitive RPC, add the matching `service_*` wrapper, add
+the RPC name to `ACTOR_RPC_NAMES` in `packages/auth/src/server.ts`, refresh
+generated DB types, and keep `bun run db:api-boundary` passing. Do not patch
+only the app call site.
+
+Local UI-created data is disposable across `bun run db:reset`. Durable local
+baseline data belongs in migrations, `supabase/seed.sql`, or an explicit seed
+script. Do not treat local admin-panel records as reset-safe unless they are
+backed by those files.
+
+For database work, run the narrowest meaningful DB verification: usually
+`bun run db:migrate` or `bun run db:reset`, `bun run db:types`, and
+`bun run db:api-boundary`. Broaden to Supabase advisor lint and app flow tests
+when grants, wrappers, generated types, or workflow transitions change.
+
 ## Working Rules
 
 - Read named files before making claims; read nearby patterns and 1-2 analogs

@@ -170,6 +170,60 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				}
 			}
 
+			if (input.draftId && !input.approvalRequired) {
+				const { data: draft, error: draftError } = await supabase
+					.from('quote_requests')
+					.select('id, request_number')
+					.eq('id', input.draftId)
+					.eq('customer_id', customerId)
+					.eq('status', 'draft')
+					.maybeSingle()
+
+				if (draftError) throw new Error(draftError.message)
+				if (!draft) {
+					throw new Error('Draft was not found or is no longer editable')
+				}
+
+				const { data: qr, error: qrError } = await supabase
+					.from('quote_requests')
+					.insert({
+						customer_id: customerId,
+						status: 'draft',
+						urgency: 'standard',
+						project_id: input.projectId ?? null,
+						delivery_address_id: input.deliveryAddressId ?? null,
+						delivery_date: input.deliveryDate ?? null,
+						draft_name: null,
+						notes: normalizeNotes(input.notes),
+						attachment_urls: input.attachmentUrls ?? [],
+						idempotency_key: input.idempotencyKey,
+						approval_required: false,
+					})
+					.select('id, request_number')
+					.single()
+
+				if (qrError || !qr) {
+					throw new Error(qrError?.message ?? 'Failed to create quote request')
+				}
+
+				await insertQuoteRequestItems(supabase, qr.id, input.items)
+
+				const { error: submitError } = await supabase.rpc(
+					'customer_submit_saved_quote_request',
+					{
+						p_quote_request_id: qr.id,
+						p_source: 'portal',
+					},
+				)
+
+				if (submitError) throw new Error(submitError.message)
+
+				return {
+					requestId: qr.id,
+					reference: qr.request_number,
+				}
+			}
+
 			if (input.draftId) {
 				const { data: draft, error: draftError } = await supabase
 					.from('quote_requests')
@@ -186,7 +240,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 
 				const draftUpdate: QuoteRequestUpdate = {
 					...buildDraftMetadataUpdate(input),
-					approval_required: input.approvalRequired ?? false,
+					approval_required: true,
 				}
 				const { error: updateError } = await supabase
 					.from('quote_requests')
@@ -206,35 +260,15 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 
 				await insertQuoteRequestItems(supabase, input.draftId, input.items)
 
-				if (input.approvalRequired) {
-					await supabase.from('approvals').insert({
-						approval_type: 'quote_discount',
-						entity_type: 'quote_request',
-						entity_id: input.draftId,
-						requested_by: session.user.id,
-						assigned_to: null,
-						status: 'pending',
-						context: { items_count: input.items.length },
-					})
-				} else {
-					const { error: submitError } = await supabase.rpc(
-						'customer_submit_saved_quote_request',
-						{
-							p_quote_request_id: input.draftId,
-							p_source: 'portal',
-						},
-					)
-
-					if (submitError) throw new Error(submitError.message)
-				}
-
-				const { error: idempotencyError } = await supabase
-					.from('quote_requests')
-					.update({ idempotency_key: input.idempotencyKey })
-					.eq('id', input.draftId)
-					.eq('customer_id', customerId)
-
-				if (idempotencyError) throw new Error(idempotencyError.message)
+				await supabase.from('approvals').insert({
+					approval_type: 'quote_discount',
+					entity_type: 'quote_request',
+					entity_id: input.draftId,
+					requested_by: session.user.id,
+					assigned_to: null,
+					status: 'pending',
+					context: { items_count: input.items.length },
+				})
 
 				return {
 					requestId: draft.id,
@@ -251,7 +285,9 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					project_id: input.projectId ?? null,
 					delivery_address_id: input.deliveryAddressId ?? null,
 					delivery_date: input.deliveryDate ?? null,
-					draft_name: normalizeDraftName(input.name),
+					draft_name: input.approvalRequired
+						? normalizeDraftName(input.name)
+						: null,
 					notes: normalizeNotes(input.notes),
 					attachment_urls: input.attachmentUrls ?? [],
 					idempotency_key: input.idempotencyKey,

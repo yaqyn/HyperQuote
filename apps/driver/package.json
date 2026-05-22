@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev --port 3003",
+		"dev": "NODE_OPTIONS=--max-http-header-size=32768 vite dev --port 3003",
 		"build": "vite build",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",

@@ -3,6 +3,7 @@ import {
 	createActorServiceRoleClient,
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
+	getSupabaseServerUser,
 	resolveSupabaseWorkerConfig,
 } from '@hyperquote/auth/server'
 import { createClient } from '@supabase/supabase-js'
@@ -22,7 +23,13 @@ export async function getInternalSupabaseClient() {
 	const {
 		data: { user },
 		error,
-	} = await client.auth.getUser()
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
 
 	if (error || !user || user.app_metadata?.pool !== 'internal') {
 		throw new Error('Internal Supabase session is required')

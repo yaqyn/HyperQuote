@@ -1,6 +1,10 @@
 import { redirect } from '@tanstack/react-router'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
-import { appendSetCookieHeaders, createSupabaseServerClient } from './server'
+import {
+	appendSetCookieHeaders,
+	createSupabaseServerClient,
+	getSupabaseServerUser,
+} from './server'
 import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
 
 /**
@@ -28,7 +32,13 @@ export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	const {
 		data: { user },
 		error: userError,
-	} = await client.auth.getUser()
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: opts.cookieDomain,
+		cookieName: opts.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
 
 	if (userError || !user) {
 		throw redirectToLogin(loginPath, request)
