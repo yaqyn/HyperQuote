@@ -71,10 +71,20 @@ describe('website docs retrieval', () => {
 				message,
 			)
 		}
-		assert.match(publicConversationFallbackResponse('hey'), /I’m here/)
+		assert.match(publicConversationFallbackResponse('hey'), /I’m Lyon/)
+		assert.match(publicConversationFallbackResponse('how are you?'), /I’m good/)
+		assert.match(publicConversationFallbackResponse('you good?'), /I’m good/)
+		assert.match(
+			publicConversationFallbackResponse('fuck you'),
+			/That answer was bad/,
+		)
+		assert.match(
+			publicConversationFallbackResponse('is this a real AI?'),
+			/website assistant/,
+		)
 		assert.match(
 			publicConversationFallbackResponse('عامل إيه؟'),
-			/تمام يا زميلي/,
+			/الحمد لله تمام/,
 		)
 	})
 

@@ -115,7 +115,7 @@ const AR_GREETING_PATTERN =
 	/^(السلام عليكم|سلام عليكم|سلام|اهلا|أهلا|اهلين|أهلين|هاي|هلا|صباح الخير|مساء الخير|ازيك|عامل ايه|عامل إيه|عامله ايه|عاملة إيه|شكرا|تسلم|تمام|الحمد لله)[\s!.؟]*$/
 
 const EN_CONVERSATIONAL_PATTERN =
-	/\b(are you real|real ai|who are you|what are you|how are you|how's it going|how is it going|what can you do|can you talk|talk normal|be normal|joke|funny|lol|lmao|haha|bro|mate|thanks|thank you|sorry|my bad|that was bad|this is shit|you suck|nice|cool|ok|okay|great|test)\b/i
+	/\b(are you real|real ai|who are you|what are you|how are you|how's it going|how is it going|what can you do|can you talk|talk normal|be normal|joke|funny|lol|lmao|haha|bro|mate|thanks|thank you|sorry|my bad|that was bad|this is shit|you suck|fuck|nice|cool|ok|okay|great|test)\b/i
 
 const AR_CONVERSATIONAL_PATTERN =
 	/(انت مين|إنت مين|ذكاء اصطناعي|عامل ايه|عامل إيه|ازيك|بتعمل ايه|بتعمل إيه|هزار|نكتة|اضحك|شكرا|اسف|آسف|تمام|حلو|جامد|اختبار|كلم|اتكلم|طبيعي)/
@@ -128,6 +128,20 @@ const PUBLIC_DOCS_TOPIC_PATTERN =
 
 const AR_PUBLIC_DOCS_TOPIC_PATTERN =
 	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن)/
+
+const EN_PROFANITY_PATTERN = /\b(fuck|shit|suck|stupid|dumb|idiot)\b/i
+const EN_WELLBEING_PATTERN =
+	/\b(how are you|how's it going|how is it going|you good|are you ok|are you okay)\b/i
+const EN_IDENTITY_PATTERN =
+	/\b(are you real|real ai|who are you|what are you|what can you do)\b/i
+const EN_JOKE_PATTERN = /\b(joke|funny|make me laugh)\b/i
+const EN_THANKS_PATTERN = /\b(thanks|thank you|appreciate it)\b/i
+
+const AR_WELLBEING_PATTERN =
+	/(عامل ايه|عامل إيه|عامله ايه|عاملة إيه|ازيك|اخبارك|أخبارك)/
+const AR_IDENTITY_PATTERN = /(انت مين|إنت مين|ذكاء اصطناعي|بتعمل ايه|بتعمل إيه)/
+const AR_JOKE_PATTERN = /(نكتة|هزار|اضحك)/
+const AR_THANKS_PATTERN = /(شكرا|تسلم|متشكر)/
 
 interface DocsChunk {
 	article: LocalizedDocContent
@@ -214,9 +228,47 @@ export function classifyWebsitePublicChatIntent(
 export function publicConversationFallbackResponse(
 	userMessage: string,
 ): string {
-	return detectDocsQueryLocale(userMessage) === 'ar'
-		? 'تمام يا زميلي، قولّي تحب نبدأ بإيه؟'
-		: 'I’m here. What do you want to figure out?'
+	const trimmed = userMessage.trim()
+	const locale = detectDocsQueryLocale(trimmed)
+
+	if (locale === 'ar') {
+		if (AR_WELLBEING_PATTERN.test(trimmed)) {
+			return 'الحمد لله تمام، إنت عامل إيه؟'
+		}
+		if (AR_IDENTITY_PATTERN.test(trimmed)) {
+			return 'أنا ليون، مساعد هايبركوت. أقدر أتكلم عادي، ولما تسأل عن هايبركوت أرجع لوثائقنا العامة.'
+		}
+		if (AR_JOKE_PATTERN.test(trimmed)) {
+			return 'أقدر أهزر، بس خلّيني أقولها خفيفة: المقاول اللي بينسى يطلب الأسمنت بدري بيكتشف إن الخرسانة مش بتحب المفاجآت.'
+		}
+		if (AR_THANKS_PATTERN.test(trimmed)) {
+			return 'العفو يا زميلي.'
+		}
+		if (AR_GREETING_PATTERN.test(trimmed)) {
+			return 'أهلاً، أنا معاك.'
+		}
+		return 'معاك. قولّي تحب نبدأ بإيه؟'
+	}
+
+	if (EN_WELLBEING_PATTERN.test(trimmed)) {
+		return 'I’m good. What are we working through?'
+	}
+	if (EN_IDENTITY_PATTERN.test(trimmed)) {
+		return 'I’m Lyon, HyperQuote’s website assistant. I can chat normally, and I use the public docs when you ask factual HyperQuote questions.'
+	}
+	if (EN_JOKE_PATTERN.test(trimmed)) {
+		return 'I can keep it light. Construction joke: the fastest material on site is always the one nobody ordered early enough.'
+	}
+	if (EN_THANKS_PATTERN.test(trimmed)) {
+		return 'Anytime.'
+	}
+	if (EN_PROFANITY_PATTERN.test(trimmed)) {
+		return 'Fair. That answer was bad. Ask again and I’ll keep it normal.'
+	}
+	if (EN_GREETING_PATTERN.test(trimmed)) {
+		return 'Hey. I’m Lyon.'
+	}
+	return 'I’m with you. What do you want to figure out?'
 }
 
 function isConversationalMessage(userMessage: string): boolean {
