@@ -246,7 +246,11 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 				ease: 'linear',
 			}}
 		>
-			<Masthead now={now} />
+			<Masthead
+				now={now}
+				unreadNotifications={unreadNotifications}
+				onToggleNotifications={toggleNotifications}
+			/>
 
 			{/* Centerpiece — clock + greeting. Clicking the clock pulls
 			    the away screen down over the entire canvas. */}
@@ -266,28 +270,12 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 				>
 					<Clock time={time} />
 				</button>
-				<button
-					type="button"
-					onClick={toggleNotifications}
-					aria-label={
-						unreadNotifications > 0
-							? `${unreadNotifications.toLocaleString('en-EG')} unread notifications`
-							: 'Notifications'
-					}
-					className="relative mt-4 inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
+				<p
+					className="mt-3 font-[family-name:var(--font-archivo)] text-[var(--color-text-muted)] lg:hidden"
+					style={{ fontSize: '12px', letterSpacing: '0', lineHeight: 1 }}
 				>
-					<Bell
-						aria-hidden="true"
-						size={16}
-						strokeWidth={1.8}
-						className="text-[var(--color-primary)]"
-					/>
-					{unreadNotifications > 0 && (
-						<span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[var(--color-primary)] px-1 text-center font-[family-name:var(--font-plex-mono)] text-[9px] leading-4 text-white tabular-nums">
-							{unreadNotifications.toLocaleString('en-EG')}
-						</span>
-					)}
-				</button>
+					{now ? formatMastheadDate(now) : 'loading'}
+				</p>
 				<motion.p
 					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -356,7 +344,15 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 
 // ─── Masthead ────────────────────────────────────────────
 
-function Masthead({ now }: { now: Date | null }) {
+function Masthead({
+	now,
+	unreadNotifications,
+	onToggleNotifications,
+}: {
+	now: Date | null
+	unreadNotifications: number
+	onToggleNotifications: () => void
+}) {
 	return (
 		<div className="relative z-10 shrink-0 px-4 pt-4 pb-3 sm:px-8 lg:px-12 lg:pt-5">
 			<div className="flex items-baseline justify-between gap-6">
@@ -391,7 +387,7 @@ function Masthead({ now }: { now: Date | null }) {
 				</div>
 
 				{/* Right — dateline */}
-				<div className="flex items-baseline gap-2 leading-none">
+				<div className="hidden items-baseline gap-2 leading-none lg:flex">
 					<span
 						className="font-[family-name:var(--font-archivo)] text-[var(--color-text-muted)]"
 						style={{
@@ -413,6 +409,28 @@ function Masthead({ now }: { now: Date | null }) {
 						· {now ? formatWeekNumber(now) : 'w--'}
 					</span>
 				</div>
+				<button
+					type="button"
+					onClick={onToggleNotifications}
+					aria-label={
+						unreadNotifications > 0
+							? `${unreadNotifications.toLocaleString('en-EG')} unread notifications`
+							: 'Notifications'
+					}
+					className="relative inline-flex size-8 items-center justify-center self-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
+				>
+					<Bell
+						aria-hidden="true"
+						size={15}
+						strokeWidth={1.8}
+						className="text-[var(--color-primary)]"
+					/>
+					{unreadNotifications > 0 && (
+						<span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[var(--color-primary)] px-1 text-center font-[family-name:var(--font-plex-mono)] text-[9px] leading-4 text-white tabular-nums">
+							{unreadNotifications.toLocaleString('en-EG')}
+						</span>
+					)}
+				</button>
 			</div>
 			<div
 				aria-hidden="true"
