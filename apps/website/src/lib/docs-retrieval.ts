@@ -315,14 +315,13 @@ export function publicDocsExtractiveResponse(
 		})
 		.join(locale === 'ar' ? '، ' : ', ')
 	const summary = topChunks
-		.map((chunk) => firstSentences(chunk.body))
-		.filter(Boolean)
-		.join('\n\n')
+		.map(simpleFallbackLine)
+		.join(locale === 'ar' ? ' ' : ' ')
 
 	if (locale === 'ar') {
-		return `من وثائق هايبركوت العامة: ${summary}\n\nالمصادر: ${sources}`
+		return `المختصر: ${summary}\n\nالمصادر: ${sources}`
 	}
-	return `From the public HyperQuote docs: ${summary}\n\nSources: ${sources}`
+	return `Short version: ${summary}\n\nSources: ${sources}`
 }
 
 export function retrieveWebsiteDocs(
@@ -404,12 +403,10 @@ export function buildWebsiteDocsPrompt(
 ): string {
 	return `${basePrompt}
 
-Grounding rules:
-- Answer only from the public docs context supplied below.
-- If the context does not answer the user's question, say the answer is not in the public HyperQuote docs.
-- Cite the source for each factual answer using Markdown links to the supplied /docs/... URLs.
-- Keep Lyon's existing language behavior: English questions get English; Arabic or Arabizi questions get pure Egyptian Arabic with no Latin letters.
-- Never access or imply access to account records, portal drafts, internal operations, driver locations, finance data, supplier costs, employee data, or secrets.
+Use the public docs below as the only source for factual HyperQuote answers.
+Explain the answer simply for a customer. Do not copy long wording from the docs.
+If the docs do not answer the question, say it is not in the public docs.
+Cite the relevant /docs/... source links.
 
 Public docs context:
 ${publicDocsContext}`
@@ -591,8 +588,14 @@ function trimChunkBody(body: string): string {
 	return `${normalized.slice(0, 1690).trim()}...`
 }
 
-function firstSentences(text: string): string {
-	const firstParagraph = text.split(/\n{2,}/)[0]?.trim() ?? ''
-	if (firstParagraph.length <= 420) return firstParagraph
-	return `${firstParagraph.slice(0, 410).trim()}...`
+function simpleFallbackLine(chunk: RetrievedDocsChunk): string {
+	const subject =
+		chunk.heading === 'Overview'
+			? chunk.title.toLowerCase()
+			: chunk.heading.toLowerCase()
+	const description = chunk.description.replace(/\.$/, '').toLowerCase()
+	if (chunk.locale === 'ar') {
+		return `الموضوع مغطى في ${chunk.title}: ${chunk.description.replace(/\.$/, '')}.`
+	}
+	return `The ${subject} docs cover ${description}.`
 }

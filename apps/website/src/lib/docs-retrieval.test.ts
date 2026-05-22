@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
 	buildPublicDocsContext,
+	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
 	publicConversationFallbackResponse,
+	publicDocsExtractiveResponse,
 	publicDocsPolicyRefusal,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
@@ -43,6 +45,30 @@ describe('website docs retrieval', () => {
 		)
 		assert.match(context, /Source: \/docs\//)
 		assert.match(context, /price|quote/i)
+	})
+
+	it('prompts AI to simplify docs instead of copying them', () => {
+		const result = retrieveWebsiteDocs('Why are there no published prices?')
+		const prompt = buildWebsiteDocsPrompt(
+			'Base prompt.',
+			buildPublicDocsContext(result.chunks),
+		)
+
+		assert.match(prompt, /only source/)
+		assert.match(prompt, /Explain the answer simply/)
+		assert.match(prompt, /Do not copy long wording/)
+	})
+
+	it('keeps the non-AI docs fallback short and source-linked', () => {
+		const result = retrieveWebsiteDocs('Why are there no published prices?')
+		const fallback = publicDocsExtractiveResponse(result.chunks, result.locale)
+
+		assert.match(fallback, /^Short version:/)
+		assert.match(fallback, /Sources: \[/)
+		assert.doesNotMatch(
+			fallback,
+			/Building material prices in Egypt fluctuate daily/,
+		)
 	})
 
 	it('returns low confidence for topics outside public docs', () => {
