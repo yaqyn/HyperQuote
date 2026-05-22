@@ -267,7 +267,7 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.18, duration: 0.5 }}
-					className="mt-6 font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)]"
+					className="mt-6 hidden font-[family-name:var(--font-archivo)] italic text-[var(--color-text-muted)] lg:block"
 					style={{ fontSize: '14px', letterSpacing: '0.005em' }}
 				>
 					{greeting}, {firstName}
@@ -278,8 +278,10 @@ export function InternalCanvas({ auth }: InternalCanvasProps) {
 			<div className="relative z-10 shrink-0 px-4 pb-5 sm:px-8 sm:pb-8 lg:px-12 lg:pb-10">
 				{attention.length > 0 && (
 					<>
-						<SectionRule label={attentionHeadline(urgentCount)} />
-						<div className="mt-5 flex flex-col gap-2.5 max-w-[640px] mx-auto">
+						<div className="hidden lg:block">
+							<SectionRule label={attentionHeadline(urgentCount)} />
+						</div>
+						<div className="mx-auto mt-5 hidden max-w-[640px] flex-col gap-2.5 lg:flex">
 							{attention.map((row) => (
 								<AttentionRow
 									key={`${row.moduleId}-${row.label}`}
@@ -366,20 +368,20 @@ function Masthead({ now }: { now: Date | null }) {
 				{/* Right — dateline */}
 				<div className="flex items-baseline gap-2 leading-none">
 					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-muted)]"
+						className="font-[family-name:var(--font-archivo)] text-[var(--color-text-muted)]"
 						style={{
-							fontSize: '11px',
-							letterSpacing: '0.06em',
+							fontSize: '12px',
+							letterSpacing: '0',
 							lineHeight: 1,
 						}}
 					>
 						{now ? formatMastheadDate(now) : 'loading'}
 					</span>
 					<span
-						className="font-[family-name:var(--font-plex-mono)] tabular-nums text-[var(--color-text-subtle)]"
+						className="hidden font-[family-name:var(--font-archivo)] text-[var(--color-text-subtle)] lg:inline"
 						style={{
-							fontSize: '11px',
-							letterSpacing: '0.06em',
+							fontSize: '12px',
+							letterSpacing: '0',
 							lineHeight: 1,
 						}}
 					>
@@ -407,7 +409,7 @@ function Clock({ time }: { time: string }) {
 		>
 			<span
 				suppressHydrationWarning
-				className="font-[family-name:var(--font-literata)] text-[72px] tabular-nums text-[var(--color-text)] sm:text-[96px] lg:text-[clamp(110px,16vw,170px)]"
+				className="font-[family-name:var(--font-literata)] text-[56px] tabular-nums text-[var(--color-text)] sm:text-[64px] md:text-[76px] lg:text-[clamp(110px,16vw,170px)]"
 				style={{
 					fontWeight: 500,
 					letterSpacing: '0',
