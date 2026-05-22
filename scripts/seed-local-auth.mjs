@@ -56,7 +56,6 @@ const SIMPLE_INTERNAL_ADMIN = {
 	fullName: 'Admin',
 	isCeo: true,
 	panels: PANEL_PERMISSIONS,
-	password: 'admin',
 	phone: '+201000000003',
 	roles: EMPLOYEE_ROLES,
 }
@@ -223,7 +222,7 @@ async function main() {
 		console.log(`Internal email: ${LOCAL_ACCOUNTS.employee.email}`)
 		console.log(`Driver email: ${LOCAL_ACCOUNTS.driver.email}`)
 		console.log(
-			'Internal/driver password: HYPERQUOTE_LOCAL_DEV_PASSWORD or the local-only default in this script.',
+			'Internal/driver/simple-admin password: HYPERQUOTE_LOCAL_DEV_PASSWORD or the local-only default in this script.',
 		)
 	}
 }
