@@ -6823,6 +6823,14 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_refresh_ceo_search_documents_if_dirty: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_force?: boolean
+				}
+				Returns: number
+			}
 			service_request_price_update: {
 				Args: {
 					p_actor_pool: string

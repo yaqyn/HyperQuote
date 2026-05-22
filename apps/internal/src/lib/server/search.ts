@@ -167,6 +167,7 @@ async function requireSearchClient() {
 	const { data, error } = await auth.client.rpc('can_access_ceo_search')
 	if (error) throw new Error(error.message)
 	if (data !== true) throw new Error('ceo_search_required')
+	await refreshSearchDocumentsIfDirty(auth.client)
 	return auth.client
 }
 
@@ -197,6 +198,11 @@ function matchedFields(row: SearchIndexRow, query: string): string[] {
 }
 
 type SearchClient = Awaited<ReturnType<typeof requireSearchClient>>
+
+async function refreshSearchDocumentsIfDirty(client: SearchClient) {
+	const { error } = await client.rpc('refresh_ceo_search_documents_if_dirty')
+	if (error) throw new Error(error.message)
+}
 
 function baseSearchQuery(client: SearchClient) {
 	return client

@@ -58,6 +58,29 @@ const assertions = [
 					select oid from pg_roles where rolname in ('anon', 'authenticated')
 				)
 			  )
+			`,
+	},
+	{
+		name: 'direct CEO search full-refresh cron jobs',
+		sql: `
+			select count(*)
+			from cron.job
+			where command ~ 'app_private[.]refresh_ceo_search_documents[(][)]'
+		`,
+	},
+	{
+		name: 'CEO search dirty-refresh cron job',
+		sql: `
+			select case
+				when exists (
+					select 1
+					from cron.job
+					where jobname = 'refresh-ceo-search-documents'
+					  and command ~ 'app_private[.]refresh_ceo_search_documents_if_dirty[(][)]'
+				)
+				then 0
+				else 1
+			end
 		`,
 	},
 ]

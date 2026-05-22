@@ -121,6 +121,7 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 			)
 			if (error) throw new Error(error.message)
 			if (canSearch !== true) throw new Error('ceo_search_required')
+			await refreshSearchDocumentsIfDirty(auth.client)
 		}
 
 		const chunks: StreamChunk[] = []
@@ -207,6 +208,15 @@ function internalPolicyRefusal(
 		return 'I can only use the operational context allowed by your current role. I cannot reveal CEO-only, private finance, salary, export, secret, or cross-role data.'
 	}
 	return null
+}
+
+type InternalSupabaseClient = NonNullable<
+	Awaited<ReturnType<typeof getInternalSupabaseClient>>
+>['client']
+
+async function refreshSearchDocumentsIfDirty(client: InternalSupabaseClient) {
+	const { error } = await client.rpc('refresh_ceo_search_documents_if_dirty')
+	if (error) throw new Error(error.message)
 }
 
 function employeeFallbackResponse(userText: string): string {

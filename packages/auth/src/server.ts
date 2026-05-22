@@ -404,6 +404,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'record_supplier_payment_followup',
 	'request_price_update',
 	'require_panel',
+	'refresh_ceo_search_documents_if_dirty',
 	'reserve_order_stock',
 	'sales_cancel_order',
 	'sales_claim_order',
