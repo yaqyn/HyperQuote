@@ -12,6 +12,7 @@ import {
 	publicDocsExtractiveResponse,
 	publicDocsNoAnswerResponse,
 	publicDocsPolicyRefusal,
+	publicDocsSmallTalkResponse,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
 
@@ -99,11 +100,22 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 		const userText = lastMessage?.content ?? ''
 		const chunks: WebsiteStreamChunk[] = []
 		const refusal = publicDocsPolicyRefusal(userText)
+		const smallTalk = publicDocsSmallTalkResponse(userText)
 		let readEntities = ['website_index']
 
 		if (refusal) {
 			for await (const chunk of textOnlyStream(refusal)) {
 				chunks.push(chunk)
+			}
+		} else if (smallTalk) {
+			if (isAIEnabled()) {
+				for await (const chunk of streamChat(input.messages, LYON_WEBSITE)) {
+					chunks.push(chunk as WebsiteStreamChunk)
+				}
+			} else {
+				for await (const chunk of textOnlyStream(smallTalk)) {
+					chunks.push(chunk)
+				}
 			}
 		} else {
 			const docs = retrieveWebsiteDocs(userText)

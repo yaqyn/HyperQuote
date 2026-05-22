@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import {
 	buildPublicDocsContext,
 	publicDocsPolicyRefusal,
+	publicDocsSmallTalkResponse,
 	retrieveWebsiteDocs,
 } from './docs-retrieval'
 
@@ -50,6 +51,16 @@ describe('website docs retrieval', () => {
 
 		assert.equal(result.hasHighConfidence, false)
 		assert.deepEqual(result.chunks, [])
+	})
+
+	it('answers greetings before the low-confidence docs fallback', () => {
+		assert.match(publicDocsSmallTalkResponse('hey') ?? '', /I’m Lyon/)
+		assert.match(publicDocsSmallTalkResponse('how are you?') ?? '', /I’m Lyon/)
+		assert.match(publicDocsSmallTalkResponse('اهلا') ?? '', /تمام يا زميلي/)
+		assert.match(
+			publicDocsSmallTalkResponse('عامل إيه؟') ?? '',
+			/تمام يا زميلي/,
+		)
 	})
 
 	it('detects private/account-scope requests in English and Arabic', () => {

@@ -108,6 +108,12 @@ const PRIVATE_SCOPE_PATTERNS = [
 	/داخلي|داخلية|الموظف|الموظفين|بيانات\s+مالية|بيانات\s+ماليه|قسم\s+المالية|هامش|ربح|تكلفة\s+المورد/,
 ]
 
+const EN_GREETING_PATTERN =
+	/^(hey|hi|hello|yo|good\s+(morning|afternoon|evening)|howdy|sup|what'?s\s+up|how\s+are\s+you|how'?s\s+it\s+going|you\s+good|are\s+you\s+ok|are\s+you\s+okay|thanks|thank\s+you|lol|lmao)[\s!.?]*$/i
+
+const AR_GREETING_PATTERN =
+	/^(السلام عليكم|سلام عليكم|سلام|اهلا|أهلا|اهلين|أهلين|هاي|هلا|صباح الخير|مساء الخير|ازيك|عامل ايه|عامل إيه|عامله ايه|عاملة إيه|شكرا|تسلم|تمام|الحمد لله)[\s!.؟]*$/
+
 interface DocsChunk {
 	article: LocalizedDocContent
 	heading: string
@@ -171,6 +177,19 @@ export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
 		return 'المعلومة دي مش موجودة في وثائق هايبركوت العامة. أقدر أجاوب بس عن مواضيع الوثائق العامة زي العروض، التوصيل، الدفع، السوق، الدعم، أو ليون.'
 	}
 	return 'I do not have that in the public HyperQuote docs. I can only answer from public docs, such as quotes, delivery, payments, Market, support, or Lyon.'
+}
+
+export function publicDocsSmallTalkResponse(
+	userMessage: string,
+): string | null {
+	const trimmed = userMessage.trim()
+	if (EN_GREETING_PATTERN.test(trimmed)) {
+		return 'Hey, I’m Lyon. Ask me about HyperQuote quotes, delivery, payments, Market, support, or Lyon.'
+	}
+	if (AR_GREETING_PATTERN.test(trimmed)) {
+		return 'تمام يا زميلي، اسألني عن عروض هايبركوت، التوصيل، الدفع، السوق، الدعم، أو ليون.'
+	}
+	return null
 }
 
 export function publicDocsExtractiveResponse(
