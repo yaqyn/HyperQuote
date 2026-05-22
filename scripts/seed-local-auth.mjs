@@ -3,28 +3,21 @@ import { spawnSync } from 'node:child_process'
 import { inspect } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 
-const LOCAL_DEV_PASSWORD =
-	process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ??
-	['hyperquote', 'local', 'only', '2026'].join('-')
-
 const LOCAL_ACCOUNTS = {
 	customer: {
-		companyName: 'Local Cairo Contractors',
-		contactName: 'Local Customer',
-		email: 'local-customer@hyperquote.local',
+		companyName: 'Customer',
+		contactName: 'Customer',
+		email: 'customer@customer.customer',
+		password: 'customer',
 		phone: '+201000000000',
 	},
 	driver: {
-		email: 'local-driver@hyperquote.local',
-		fullName: 'Local Driver',
+		email: 'driver@driver.driver',
+		fullName: 'Driver',
+		password: 'driver',
 		phone: '+201000000002',
-		truckPlateNumber: 'HQ-LOCAL-17',
-		vehicleLabel: 'Local Truck 17',
-	},
-	employee: {
-		email: 'local-admin@hyperquote.local',
-		fullName: 'Local Admin',
-		phone: '+201000000001',
+		truckPlateNumber: 'DRIVER-1',
+		vehicleLabel: 'Truck',
 	},
 }
 
@@ -51,88 +44,40 @@ const EMPLOYEE_ROLES = [
 	'ceo',
 ]
 
-const SIMPLE_INTERNAL_ADMIN = {
+const ADMIN_ACCOUNT = {
 	email: 'admin@admin.admin',
 	fullName: 'Admin',
 	isCeo: true,
 	panels: PANEL_PERMISSIONS,
+	password: 'admin1',
 	phone: '+201000000003',
 	roles: EMPLOYEE_ROLES,
 }
 
-const LOCAL_ROLE_EMPLOYEES = [
-	{
-		email: 'local-manager@hyperquote.local',
-		fullName: 'Local Sales Manager',
-		panels: ['sales'],
-		phone: '+201000000019',
-		roles: ['sales'],
-	},
-	{
-		email: 'local-advisor@hyperquote.local',
-		fullName: 'Local Warehouse Advisor',
-		panels: ['warehouse', 'dispatch'],
-		phone: '+201000000020',
-		roles: ['warehouse', 'dispatch'],
-	},
-	{
-		email: 'local-sales@hyperquote.local',
-		fullName: 'Local Sales',
-		panels: ['sales'],
-		phone: '+201000000011',
-		roles: ['sales'],
-	},
-	{
-		email: 'local-inventory@hyperquote.local',
-		fullName: 'Local Inventory',
-		panels: ['inventory'],
-		phone: '+201000000012',
-		roles: ['inventory'],
-	},
-	{
-		email: 'local-warehouse@hyperquote.local',
-		fullName: 'Local Warehouse',
-		panels: ['warehouse'],
-		phone: '+201000000013',
-		roles: ['warehouse'],
-	},
-	{
-		email: 'local-finance@hyperquote.local',
-		fullName: 'Local Finance',
-		panels: ['finance'],
-		phone: '+201000000014',
-		roles: ['finance'],
-	},
-	{
-		email: 'local-dispatch@hyperquote.local',
-		fullName: 'Local Dispatch',
-		panels: ['dispatch'],
-		phone: '+201000000015',
-		roles: ['dispatch'],
-	},
-	{
-		email: 'local-customer-service@hyperquote.local',
-		fullName: 'Local Customer Service',
-		panels: ['customer_service'],
-		phone: '+201000000016',
-		roles: ['customer_service'],
-	},
-	{
-		email: 'local-panel-admin@hyperquote.local',
-		fullName: 'Local Panel Admin',
-		panels: PANEL_PERMISSIONS,
-		phone: '+201000000017',
-		roles: ['admin'],
-	},
-	{
-		email: 'local-ceo@hyperquote.local',
-		fullName: 'Local CEO',
-		isCeo: true,
-		panels: PANEL_PERMISSIONS,
-		phone: '+201000000018',
-		roles: ['ceo'],
-	},
-]
+const MANAGER_ACCOUNT = {
+	email: 'manager@manager.manager',
+	fullName: 'Manager',
+	panels: [
+		'sales',
+		'inventory',
+		'warehouse',
+		'finance',
+		'dispatch',
+		'customer_service',
+		'search',
+	],
+	password: 'manager',
+	phone: '+201000000001',
+	roles: [
+		'sales',
+		'inventory',
+		'warehouse',
+		'finance',
+		'dispatch',
+		'customer_service',
+		'driver_manager',
+	],
+}
 
 const quiet = process.argv.includes('--quiet')
 
@@ -157,6 +102,7 @@ async function main() {
 	const customerUser = await upsertAuthUser(supabase, {
 		app_metadata: { pool: 'external', roles: ['customer'] },
 		email: LOCAL_ACCOUNTS.customer.email,
+		password: LOCAL_ACCOUNTS.customer.password,
 		phone: LOCAL_ACCOUNTS.customer.phone,
 		user_metadata: {
 			company_name: LOCAL_ACCOUNTS.customer.companyName,
@@ -166,20 +112,8 @@ async function main() {
 	debugStep('customer-row')
 	const customer = await upsertCustomer(supabase, customerUser.id)
 	await syncCustomerProfile(supabase, customerUser.id, customer.id)
-	await ensureLocalSubmittedQuoteRequest(supabase, customer.id, customerUser.id)
 
-	debugStep('employee-auth')
-	const employeeUser = await upsertAuthUser(supabase, {
-		app_metadata: { pool: 'internal', roles: EMPLOYEE_ROLES },
-		email: LOCAL_ACCOUNTS.employee.email,
-		phone: LOCAL_ACCOUNTS.employee.phone,
-		user_metadata: { name: LOCAL_ACCOUNTS.employee.fullName },
-	})
-	debugStep('employee-row')
-	const employee = await upsertEmployee(supabase, employeeUser.id)
-	await syncEmployeeProfile(supabase, employeeUser.id, employee.id)
-
-	for (const account of [SIMPLE_INTERNAL_ADMIN, ...LOCAL_ROLE_EMPLOYEES]) {
+	for (const account of [ADMIN_ACCOUNT, MANAGER_ACCOUNT]) {
 		debugStep(`role-auth:${account.email}`)
 		const roleEmployeeUser = await upsertAuthUser(supabase, {
 			app_metadata: { pool: 'internal', roles: account.roles },
@@ -206,6 +140,7 @@ async function main() {
 	const driverUser = await upsertAuthUser(supabase, {
 		app_metadata: { pool: 'driver', roles: ['driver'] },
 		email: LOCAL_ACCOUNTS.driver.email,
+		password: LOCAL_ACCOUNTS.driver.password,
 		phone: LOCAL_ACCOUNTS.driver.phone,
 		user_metadata: { name: LOCAL_ACCOUNTS.driver.fullName },
 	})
@@ -217,12 +152,15 @@ async function main() {
 
 	if (!quiet) {
 		console.log('Local Supabase auth accounts are seeded.')
-		console.log(`Customer OTP phone: ${LOCAL_ACCOUNTS.customer.phone}`)
-		console.log(`Simple internal email: ${SIMPLE_INTERNAL_ADMIN.email}`)
-		console.log(`Internal email: ${LOCAL_ACCOUNTS.employee.email}`)
-		console.log(`Driver email: ${LOCAL_ACCOUNTS.driver.email}`)
 		console.log(
-			'Internal/driver/simple-admin password: HYPERQUOTE_LOCAL_DEV_PASSWORD or the local-only default in this script.',
+			`Customer: ${LOCAL_ACCOUNTS.customer.email} / ${LOCAL_ACCOUNTS.customer.password}`,
+		)
+		console.log(`Admin: ${ADMIN_ACCOUNT.email} / ${ADMIN_ACCOUNT.password}`)
+		console.log(
+			`Manager: ${MANAGER_ACCOUNT.email} / ${MANAGER_ACCOUNT.password}`,
+		)
+		console.log(
+			`Driver: ${LOCAL_ACCOUNTS.driver.email} / ${LOCAL_ACCOUNTS.driver.password}`,
 		)
 	}
 }
@@ -271,8 +209,12 @@ function stripEnvQuotes(value) {
 
 async function upsertAuthUser(
 	supabase,
-	{ app_metadata, email, password = LOCAL_DEV_PASSWORD, phone, user_metadata },
+	{ app_metadata, email, password, phone, user_metadata },
 ) {
+	if (!password || password.length < 6) {
+		throw new Error(`Password for ${email} must be at least 6 characters`)
+	}
+
 	const existing = await findAuthUser(supabase, { email, phone })
 	const payload = {
 		app_metadata,
@@ -355,20 +297,20 @@ async function upsertCustomer(supabase, userId) {
 		.from('customer_addresses')
 		.select('id')
 		.eq('customer_id', data.id)
-		.eq('label', 'Local office')
+		.eq('label', 'Home')
 		.maybeSingle()
 
 	if (addressLookupError) throw new Error(addressLookupError.message)
 
 	const addressPayload = {
-		area: 'Downtown',
+		area: 'Cairo',
 		city: 'Cairo',
 		customer_id: data.id,
 		governorate: 'Cairo',
 		is_default: true,
-		label: 'Local office',
+		label: 'Home',
 		phone: LOCAL_ACCOUNTS.customer.phone,
-		street: '15 Local Market Street',
+		street: 'Street',
 	}
 
 	if (existingAddress) {
@@ -383,83 +325,6 @@ async function upsertCustomer(supabase, userId) {
 	}
 
 	return data
-}
-
-async function ensureLocalSubmittedQuoteRequest(supabase, customerId, userId) {
-	const preferredProduct = await mustReturnMaybe(
-		supabase
-			.from('products')
-			.select('id, name, name_ar, unit_of_measure, unit_of_measure_ar')
-			.eq('slug', 'portland-cement-cemi-42-5n')
-			.maybeSingle(),
-	)
-	const product =
-		preferredProduct ??
-		(await mustReturnMaybe(
-			supabase
-				.from('products')
-				.select('id, name, name_ar, unit_of_measure, unit_of_measure_ar')
-				.eq('is_active', true)
-				.neq('availability_status', 'hidden')
-				.order('created_at', { ascending: true })
-				.limit(1)
-				.maybeSingle(),
-		))
-	if (!product) {
-		throw new Error('Failed to load an active local seed product')
-	}
-
-	const notes = 'Local submitted order for portal smoke'
-	const { data: existing, error: existingError } = await supabase
-		.from('quote_requests')
-		.select('id')
-		.eq('customer_id', customerId)
-		.eq('notes', notes)
-		.order('created_at', { ascending: false })
-		.limit(1)
-		.maybeSingle()
-	if (existingError) throw new Error(existingError.message)
-
-	const quoteRequest =
-		existing ??
-		(await mustReturn(
-			supabase
-				.from('quote_requests')
-				.insert({
-					attachment_urls: [],
-					customer_id: customerId,
-					notes,
-					status: 'submitted',
-					submitted_at: new Date().toISOString(),
-					submitted_by: userId,
-					urgency: 'standard',
-				})
-				.select('id')
-				.single(),
-		))
-
-	const { count, error: countError } = await supabase
-		.from('quote_request_items')
-		.select('id', { count: 'exact', head: true })
-		.eq('quote_request_id', quoteRequest.id)
-	if (countError) throw new Error(countError.message)
-	if ((count ?? 0) > 0) return
-
-	await must(
-		supabase.from('quote_request_items').insert({
-			customer_description: product.name,
-			is_unmatched: false,
-			match_confidence: 1,
-			notes: 'Local submitted order seed item',
-			product_id: product.id,
-			product_name_ar: product.name_ar ?? product.name,
-			quantity: 12,
-			quote_request_id: quoteRequest.id,
-			sort_order: 0,
-			unit_of_measure: product.unit_of_measure,
-			unit_of_measure_ar: product.unit_of_measure_ar ?? product.unit_of_measure,
-		}),
-	)
 }
 
 async function upsertEmployeeByUserOrEmail(
@@ -495,50 +360,6 @@ async function upsertEmployeeByUserOrEmail(
 	return data
 }
 
-async function upsertEmployee(supabase, userId) {
-	const data = await upsertEmployeeByUserOrEmail(
-		supabase,
-		userId,
-		{
-			email: LOCAL_ACCOUNTS.employee.email,
-			full_name: LOCAL_ACCOUNTS.employee.fullName,
-			is_ceo: true,
-			phone: LOCAL_ACCOUNTS.employee.phone,
-			status: 'active',
-			user_id: userId,
-		},
-		'Failed to upsert local employee',
-	)
-
-	for (const role of EMPLOYEE_ROLES) {
-		await must(
-			supabase.from('employee_roles').upsert(
-				{
-					employee_id: data.id,
-					role,
-				},
-				{ onConflict: 'employee_id,role' },
-			),
-		)
-	}
-
-	for (const panel of PANEL_PERMISSIONS) {
-		await must(
-			supabase.from('employee_panel_permissions').upsert(
-				{
-					can_read: true,
-					can_write: true,
-					employee_id: data.id,
-					panel,
-				},
-				{ onConflict: 'employee_id,panel' },
-			),
-		)
-	}
-
-	return data
-}
-
 async function upsertDriver(supabase, userId) {
 	const { data, error } = await supabase
 		.from('drivers')
@@ -566,7 +387,7 @@ async function upsertDriverTruck(supabase, driverId) {
 	await must(
 		supabase.from('trucks').upsert(
 			{
-				capacity_tons: 8,
+				capacity_tons: 1,
 				driver_id: driverId,
 				plate_number: LOCAL_ACCOUNTS.driver.truckPlateNumber,
 				status: 'available',
@@ -642,7 +463,7 @@ async function syncCustomerProfile(supabase, userId, customerId) {
 		display_name: LOCAL_ACCOUNTS.customer.contactName,
 		email: LOCAL_ACCOUNTS.customer.email,
 		phone: LOCAL_ACCOUNTS.customer.phone,
-		role: 'customer',
+		roles: ['customer'],
 		user_id: userId,
 		user_type: 'customer',
 	})
@@ -650,36 +471,6 @@ async function syncCustomerProfile(supabase, userId, customerId) {
 		customer_id: customerId,
 		pool: 'external',
 		roles: ['customer'],
-	})
-}
-
-async function syncEmployeeProfile(supabase, userId, employeeId) {
-	await must(
-		supabase.from('profiles').upsert(
-			{
-				account_type: 'employee',
-				auth_user_id: userId,
-				display_name: LOCAL_ACCOUNTS.employee.fullName,
-				email: LOCAL_ACCOUNTS.employee.email,
-				phone: LOCAL_ACCOUNTS.employee.phone,
-				status: 'active',
-			},
-			{ onConflict: 'auth_user_id' },
-		),
-	)
-	await upsertUserProfile(supabase, {
-		display_name: LOCAL_ACCOUNTS.employee.fullName,
-		email: LOCAL_ACCOUNTS.employee.email,
-		employee_id: employeeId,
-		phone: LOCAL_ACCOUNTS.employee.phone,
-		role: 'admin',
-		user_id: userId,
-		user_type: 'internal',
-	})
-	await updateAuthMetadata(supabase, userId, {
-		employee_id: employeeId,
-		pool: 'internal',
-		roles: EMPLOYEE_ROLES,
 	})
 }
 
@@ -702,7 +493,7 @@ async function syncRoleEmployeeProfile(supabase, userId, employeeId, account) {
 		email: account.email,
 		employee_id: employeeId,
 		phone: account.phone,
-		role: account.roles[0],
+		roles: account.roles,
 		user_id: userId,
 		user_type: 'internal',
 	})
@@ -732,7 +523,7 @@ async function syncDriverProfile(supabase, userId, driverId) {
 		driver_id: driverId,
 		email: LOCAL_ACCOUNTS.driver.email,
 		phone: LOCAL_ACCOUNTS.driver.phone,
-		role: 'driver',
+		roles: ['driver'],
 		user_id: userId,
 		user_type: 'driver',
 	})
@@ -752,7 +543,7 @@ async function upsertUserProfile(
 		email,
 		employee_id = null,
 		phone,
-		role,
+		roles,
 		user_id,
 		user_type,
 	},
@@ -781,14 +572,16 @@ async function upsertUserProfile(
 	}
 
 	await must(
-		supabase.from('user_roles').upsert(
-			{
+		supabase.from('user_roles').delete().eq('user_profile_id', data.id),
+	)
+	for (const role of roles) {
+		await must(
+			supabase.from('user_roles').insert({
 				role,
 				user_profile_id: data.id,
-			},
-			{ onConflict: 'user_profile_id,role' },
-		),
-	)
+			}),
+		)
+	}
 }
 
 async function updateAuthMetadata(supabase, userId, appMetadata) {
@@ -801,16 +594,4 @@ async function updateAuthMetadata(supabase, userId, appMetadata) {
 async function must(promise) {
 	const { error } = await promise
 	if (error) throw new Error(error.message)
-}
-
-async function mustReturn(promise) {
-	const { data, error } = await promise
-	if (error || !data) throw new Error(error?.message ?? 'Expected database row')
-	return data
-}
-
-async function mustReturnMaybe(promise) {
-	const { data, error } = await promise
-	if (error) throw new Error(error.message)
-	return data
 }

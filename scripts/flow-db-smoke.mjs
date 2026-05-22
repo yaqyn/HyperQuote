@@ -2,14 +2,10 @@
 import { spawnSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 
-const LOCAL_DEV_PASSWORD =
-	process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ??
-	['hyperquote', 'local', 'only', '2026'].join('-')
-
 const ACCOUNTS = {
-	customer: 'local-customer@hyperquote.local',
-	driver: 'local-driver@hyperquote.local',
-	employee: 'local-admin@hyperquote.local',
+	customer: { email: 'customer@customer.customer', password: 'customer' },
+	driver: { email: 'driver@driver.driver', password: 'driver' },
+	employee: { email: 'admin@admin.admin', password: 'admin1' },
 }
 
 main().catch((error) => {
@@ -262,7 +258,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	const { data: driverRow, error: driverReadError } = await employee.client
 		.from('drivers')
 		.select('id')
-		.eq('email', ACCOUNTS.driver)
+		.eq('email', ACCOUNTS.driver.email)
 		.single()
 	if (driverReadError || !driverRow) {
 		throw new Error(driverReadError?.message ?? 'Driver row not found')
@@ -782,14 +778,14 @@ async function mustRpc(client, name, args) {
 	return data
 }
 
-async function signIn(env, email) {
+async function signIn(env, account) {
 	const client = createAnonClient(env)
 	const { data, error } = await client.auth.signInWithPassword({
-		email,
-		password: LOCAL_DEV_PASSWORD,
+		email: account.email,
+		password: account.password,
 	})
 	if (error || !data.user) {
-		throw new Error(error?.message ?? `Failed to sign in ${email}`)
+		throw new Error(error?.message ?? `Failed to sign in ${account.email}`)
 	}
 	return { client, user: data.user }
 }

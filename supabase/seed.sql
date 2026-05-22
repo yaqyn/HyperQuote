@@ -1,22 +1,29 @@
 select set_config('app.audited_registry_write', 'on', false);
 
-insert into public.categories (slug, name, name_ar)
-values
-	('cement', 'Cement', 'اسمنت'),
-	('steel', 'Steel', 'حديد'),
-	('aggregates', 'Aggregates', 'ركام'),
-	('bricks', 'Bricks', 'طوب'),
-	('timber', 'Timber', 'خشب'),
-	('finishing', 'Finishing', 'تشطيبات')
+insert into public.categories (slug, name, name_ar, description, description_ar)
+values ('tree', 'Tree', 'شجر', '', '')
 on conflict (slug) do update
-set name = excluded.name, name_ar = excluded.name_ar;
+set
+	name = excluded.name,
+	name_ar = excluded.name_ar,
+	description = excluded.description,
+	description_ar = excluded.description_ar,
+	is_active = true;
+
+update public.suppliers
+set
+	name = 'Supplier',
+	phone = '+201000000004',
+	status = 'active'
+where email = 'supplier@supplier.supplier';
 
 insert into public.suppliers (name, phone, email)
-values
-	('Cairo Building Materials', '+201000000001', 'ops+cairo-materials@hyperquote.local'),
-	('Delta Steel Supply', '+201000000002', 'ops+delta-steel@hyperquote.local'),
-	('Giza Aggregates Yard', '+201000000003', 'ops+giza-aggregates@hyperquote.local')
-on conflict do nothing;
+select 'Supplier', '+201000000004', 'supplier@supplier.supplier'
+where not exists (
+	select 1
+	from public.suppliers
+	where email = 'supplier@supplier.supplier'
+);
 
 insert into public.products (
 	sku,
@@ -38,97 +45,32 @@ insert into public.products (
 	availability_status,
 	image_urls,
 	tags,
-	is_stockable
+	is_stockable,
+	is_active
 )
-values
-	(
-		'CEM-OPC-42-5N',
-		'portland-cement-cemi-42-5n',
-		'Portland Cement CEM I 42.5N',
-		'اسمنت بورتلاندي CEM I 42.5N',
-		'General-purpose cement for concrete and masonry.',
-		'اسمنت للاستخدام العام في الخرسانة والمباني.',
-		'cement',
-		'cement',
-		'اسمنت',
-		'{"class":"CEM I","strength":"42.5N"}'::jsonb,
-		'{"الفئة":"CEM I","المقاومة":"42.5N"}'::jsonb,
-		'bag',
-		'شيكارة',
-		82,
-		95,
-		'mid_range',
-		'available',
-		array['https://websiteassets.hyperquote.net/Images/cement.webp'],
-		array['cement', 'concrete'],
-		true
-	),
-	(
-		'STL-RBR-16-G60',
-		'steel-rebar-16mm-grade-60',
-		'Steel Rebar 16mm Grade 60',
-		'حديد تسليح 16 مم درجة 60',
-		'High-strength reinforcing bar for structural concrete.',
-		'حديد تسليح عالي المقاومة للخرسانة الانشائية.',
-		'reinforcing_steel',
-		'steel',
-		'حديد',
-		'{"diameter":"16 mm","grade":"60"}'::jsonb,
-		'{"القطر":"16 مم","الدرجة":"60"}'::jsonb,
-		'ton',
-		'طن',
-		31500,
-		34500,
-		'premium',
-		'available',
-		array['https://websiteassets.hyperquote.net/Images/steel.webp'],
-		array['steel', 'rebar'],
-		true
-	),
-	(
-		'AGG-SND-FINE',
-		'washed-sand-fine',
-		'Washed Sand - Fine Grade',
-		'رمل مغسول ناعم',
-		'Fine washed sand for plastering and concrete mixes.',
-		'رمل مغسول ناعم للمحارة وخلطات الخرسانة.',
-		'sand',
-		'aggregates',
-		'ركام',
-		'{"grade":"Fine","washed":"Yes"}'::jsonb,
-		'{"التدرج":"ناعم","مغسول":"نعم"}'::jsonb,
-		'cubic_meter',
-		'متر مكعب',
-		390,
-		480,
-		'budget',
-		'available',
-		array['https://websiteassets.hyperquote.net/Images/Aggregates.webp'],
-		array['sand', 'aggregates'],
-		true
-	),
-	(
-		'BRK-RED-STD',
-		'red-clay-bricks-standard',
-		'Red Clay Bricks - Standard',
-		'طوب احمر قياسي',
-		'Standard red clay bricks for masonry walls.',
-		'طوب احمر قياسي لاعمال المباني.',
-		'bricks',
-		'bricks',
-		'طوب',
-		'{"material":"Clay","format":"Standard"}'::jsonb,
-		'{"الخامة":"طفلة","المقاس":"قياسي"}'::jsonb,
-		'thousand',
-		'ألف',
-		2600,
-		3100,
-		'mid_range',
-		'low_stock',
-		array['https://websiteassets.hyperquote.net/Images/bricks.webp'],
-		array['bricks', 'masonry'],
-		true
-	)
+values (
+	'WOOD',
+	'wood',
+	'Wood',
+	'خشب',
+	'Wood',
+	'خشب',
+	'tree',
+	'tree',
+	'شجر',
+	'{}'::jsonb,
+	'{}'::jsonb,
+	'piece',
+	'قطعة',
+	1,
+	1,
+	'budget',
+	'available',
+	'{}'::text[],
+	array['wood'],
+	true,
+	true
+)
 on conflict (sku) do update
 set
 	slug = excluded.slug,
@@ -149,15 +91,44 @@ set
 	availability_status = excluded.availability_status,
 	image_urls = excluded.image_urls,
 	tags = excluded.tags,
-	is_stockable = excluded.is_stockable;
+	is_stockable = excluded.is_stockable,
+	is_active = excluded.is_active;
 
-insert into public.inventory_stock (product_id, on_hand_quantity, reserved_quantity, minimum_quantity, good_quantity)
-select id, 1000, 0, 100, 1000
+insert into public.inventory_stock (
+	product_id,
+	on_hand_quantity,
+	reserved_quantity,
+	minimum_quantity,
+	good_quantity
+)
+select id, 10, 0, 1, 10
 from public.products
+where slug = 'wood'
 on conflict (product_id) do update
-set on_hand_quantity = excluded.on_hand_quantity,
+set
+	on_hand_quantity = excluded.on_hand_quantity,
 	reserved_quantity = excluded.reserved_quantity,
 	minimum_quantity = excluded.minimum_quantity,
 	good_quantity = excluded.good_quantity;
+
+insert into public.supplier_product_links (
+	supplier_id,
+	product_id,
+	raw_cost,
+	lead_time_days,
+	min_order_qty,
+	is_primary
+)
+select suppliers.id, products.id, 1, 1, 1, true
+from public.suppliers
+cross join public.products
+where suppliers.email = 'supplier@supplier.supplier'
+	and products.slug = 'wood'
+on conflict (supplier_id, product_id) do update
+set
+	raw_cost = excluded.raw_cost,
+	lead_time_days = excluded.lead_time_days,
+	min_order_qty = excluded.min_order_qty,
+	is_primary = excluded.is_primary;
 
 select set_config('app.audited_registry_write', '', false);

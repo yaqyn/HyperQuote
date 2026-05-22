@@ -9,8 +9,6 @@ interface SupabaseCookieToSet {
 	value: string
 }
 
-const DEFAULT_PASSWORD = ['hyperquote', 'local', 'only', '2026'].join('-')
-
 const URLS = {
 	driver: process.env.FLOW_DRIVER_URL ?? 'http://localhost:3003',
 	internal: process.env.FLOW_INTERNAL_URL ?? 'http://localhost:3002',
@@ -20,16 +18,16 @@ const URLS = {
 
 const ACCOUNTS = {
 	customer: {
-		email: 'local-customer@hyperquote.local',
-		password: process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ?? DEFAULT_PASSWORD,
+		email: 'customer@customer.customer',
+		password: 'customer',
 	},
 	driver: {
-		email: 'local-driver@hyperquote.local',
-		password: process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ?? DEFAULT_PASSWORD,
+		email: 'driver@driver.driver',
+		password: 'driver',
 	},
 	internal: {
-		email: 'local-admin@hyperquote.local',
-		password: process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ?? DEFAULT_PASSWORD,
+		email: 'admin@admin.admin',
+		password: 'admin1',
 	},
 }
 
