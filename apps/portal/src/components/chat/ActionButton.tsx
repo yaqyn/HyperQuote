@@ -21,7 +21,10 @@ import {
 	SquarePen,
 	UserRound,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from 'react-aria-components/Button'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import {
 	type ActionButtonData,
@@ -53,8 +56,12 @@ const ACTION_ICONS = {
 export function ActionButton({ data }: ActionButtonProps) {
 	const { i18n } = useTranslation()
 	const navigate = useNavigate()
+	const [confirmOpen, setConfirmOpen] = useState(false)
 	const isArabic = i18n.language === 'ar'
 	const label = isArabic ? data.labelAr : data.label
+	const confirmMessage = isArabic
+		? (data.confirmMessageAr ?? data.confirmMessage)
+		: data.confirmMessage
 	const Icon = data.icon ? ACTION_ICONS[data.icon] : undefined
 	const className =
 		'inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-8'
@@ -73,18 +80,8 @@ export function ActionButton({ data }: ActionButtonProps) {
 		)
 	}
 
-	const handlePress = () => {
+	const runAction = () => {
 		if (data.command) {
-			const confirmMessage = isArabic
-				? (data.confirmMessageAr ?? data.confirmMessage)
-				: data.confirmMessage
-			if (
-				data.runCommand &&
-				confirmMessage &&
-				!window.confirm(confirmMessage)
-			) {
-				return
-			}
 			window.dispatchEvent(
 				new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
 					detail: { command: data.command, run: data.runCommand === true },
@@ -109,10 +106,66 @@ export function ActionButton({ data }: ActionButtonProps) {
 		}
 	}
 
+	const handlePress = () => {
+		if (data.command && data.runCommand && confirmMessage) {
+			setConfirmOpen(true)
+			return
+		}
+		runAction()
+	}
+
+	const handleConfirm = () => {
+		setConfirmOpen(false)
+		runAction()
+	}
+
 	return (
-		<Button onPress={handlePress} className={className}>
-			{Icon ? <Icon size={14} strokeWidth={1.8} /> : null}
-			<span className="truncate">{label}</span>
-		</Button>
+		<>
+			<Button onPress={handlePress} className={className}>
+				{Icon ? <Icon size={14} strokeWidth={1.8} /> : null}
+				<span className="truncate">{label}</span>
+			</Button>
+			{confirmMessage ? (
+				<ModalOverlay
+					isDismissable
+					isOpen={confirmOpen}
+					onOpenChange={setConfirmOpen}
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm"
+				>
+					<Modal className="w-full max-w-sm rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] shadow-2xl">
+						<Dialog className="outline-none">
+							<div className="border-b border-[var(--p-rule)] px-5 py-4">
+								<Heading
+									slot="title"
+									className="text-[14px] font-semibold text-[var(--p-text)]"
+								>
+									{isArabic ? 'تأكيد الإجراء' : 'Confirm action'}
+								</Heading>
+							</div>
+							<div className="px-5 py-4">
+								<p className="text-[13px] leading-6 text-[var(--p-text-muted)]">
+									{confirmMessage}
+								</p>
+							</div>
+							<div className="flex justify-end gap-2 border-t border-[var(--p-rule)] px-5 py-3">
+								<Button
+									onPress={() => setConfirmOpen(false)}
+									className="min-h-9 rounded-lg px-3 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)]"
+								>
+									{isArabic ? 'إلغاء' : 'Cancel'}
+								</Button>
+								<Button
+									onPress={handleConfirm}
+									className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+								>
+									{Icon ? <Icon size={14} strokeWidth={1.8} /> : null}
+									<span>{label}</span>
+								</Button>
+							</div>
+						</Dialog>
+					</Modal>
+				</ModalOverlay>
+			) : null}
+		</>
 	)
 }
