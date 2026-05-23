@@ -141,39 +141,29 @@ export function ChatSidebar({
 	})
 
 	return (
-		<div className="relative flex h-full min-h-0 w-full max-w-full shrink-0 flex-col overflow-hidden border-e border-[var(--p-border)] bg-[var(--p-sidebar)] shadow-[var(--p-sidebar-shadow)] lg:shadow-none">
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-0"
-				style={{
-					background:
-						'radial-gradient(ellipse 120% 60% at 0% 0%, var(--p-sidebar-wash), transparent 56%), linear-gradient(180deg, var(--p-sidebar-sheen), transparent 34%)',
-				}}
-			/>
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-y-0 end-0 w-px bg-gradient-to-b from-[var(--p-border-strong)] via-[var(--p-border)] to-transparent"
-			/>
-
-			<div className="relative flex h-full min-h-0 flex-col px-3 py-3 sm:px-4 sm:py-4">
-				<motion.header {...stagger(0)} className="shrink-0">
+		<div className="relative flex h-full min-h-0 w-full max-w-full shrink-0 flex-col overflow-hidden border-e border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text)] shadow-[var(--p-sidebar-shadow)] lg:shadow-none">
+			<div className="relative flex h-full min-h-0 flex-col">
+				<motion.header
+					{...stagger(0)}
+					className="shrink-0 border-b border-[var(--p-border)] px-4 py-3"
+				>
 					<div className="flex items-center justify-between gap-3">
 						<div ref={brandMenuRef} className="relative min-w-0">
 							<button
 								type="button"
 								onClick={() => setBrandMenuOpen((open) => !open)}
-								className="flex min-h-9 min-w-0 items-center rounded-xl px-1 text-start transition-colors hover:bg-[var(--p-hover)]"
+								className="flex min-h-9 min-w-0 items-center rounded-xl px-1 text-start transition-colors hover:text-[var(--p-text-secondary)]"
 								aria-expanded={brandMenuOpen}
 							>
-								<span className="truncate text-[17px] font-semibold leading-tight text-[var(--p-accent)]">
+								<span className="truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
 									HyperQuote
 								</span>
-								<span className="ms-1 truncate text-[17px] font-bold leading-tight text-[var(--p-text)]">
+								<span className="ms-1 truncate text-[17px] font-semibold leading-tight text-[var(--p-text)]">
 									Portal
 								</span>
 							</button>
 							{brandMenuOpen && (
-								<div className="absolute start-0 top-full z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
+								<div className="absolute start-0 top-full z-20 mt-2 w-52 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1 shadow-[var(--p-popover-shadow)]">
 									<a
 										href={WEBSITE_HREF}
 										target="_blank"
@@ -197,7 +187,7 @@ export function ChatSidebar({
 						<button
 							type="button"
 							onClick={() => usePortalStore.getState().setSidebarOpen(false)}
-							className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-accent)]"
+							className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							aria-label={t('sidebar.hide')}
 							aria-keyshortcuts="["
 						>
@@ -208,7 +198,7 @@ export function ChatSidebar({
 
 				<motion.nav
 					{...stagger(1)}
-					className="mt-5 grid grid-cols-4 gap-1 lg:grid-cols-1"
+					className="grid grid-cols-4 gap-1 border-b border-[var(--p-border)] px-4 py-3 lg:grid-cols-1 lg:gap-2"
 					aria-label={t('sidebar.label')}
 				>
 					{NAV_ITEMS.map((item) => {
@@ -223,23 +213,17 @@ export function ChatSidebar({
 								type="button"
 								onClick={() => handleNavigate(item.to)}
 								aria-current={isActive ? 'page' : undefined}
-								className={`group relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-center transition-colors lg:h-11 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-xl lg:px-3 lg:text-start ${
+								className={`group relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-colors lg:h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-start ${
 									isActive
-										? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)] shadow-[inset_0_0_0_1px_var(--p-active-ring)]'
-										: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
+										? 'border-[var(--p-border-strong)] bg-[var(--p-card)] text-[var(--p-text)]'
+										: 'border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 								}`}
 							>
 								<span
-									aria-hidden
-									className={`absolute start-2 top-2 hidden h-1.5 w-1.5 rounded-full transition-colors lg:block ${
-										isActive ? 'bg-[var(--p-accent)]' : 'bg-transparent'
-									}`}
-								/>
-								<span
-									className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition-colors lg:h-8 lg:w-8 ${
+									className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors lg:h-8 lg:w-8 ${
 										isActive
-											? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
-											: 'bg-transparent text-[var(--p-text-faint)] group-hover:text-[var(--p-text-muted)]'
+											? 'border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text)]'
+											: 'border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-faint)] group-hover:text-[var(--p-text-muted)]'
 									}`}
 								>
 									<Icon size={16} strokeWidth={1.65} />
@@ -253,16 +237,16 @@ export function ChatSidebar({
 				</motion.nav>
 
 				{hasSupplierRole && (
-					<motion.div {...stagger(2)} className="mt-3 shrink-0">
-						<div className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] p-1">
+					<motion.div {...stagger(2)} className="shrink-0 px-4 pt-3">
+						<div className="grid grid-cols-2 gap-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1">
 							{(['customer', 'supplier'] as const).map((role) => (
 								<button
 									key={role}
 									type="button"
 									onClick={() => setActiveRole(role)}
-									className={`h-8 rounded-xl text-[11px] font-semibold transition-colors ${
+									className={`h-8 rounded-lg text-[11px] font-semibold transition-colors ${
 										activeRole === role
-											? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)]'
+											? 'bg-[var(--p-bg)] text-[var(--p-text)] shadow-[inset_0_0_0_1px_var(--p-border)]'
 											: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 									}`}
 								>
@@ -273,11 +257,9 @@ export function ChatSidebar({
 					</motion.div>
 				)}
 
-				<div className="my-4 h-px shrink-0 bg-gradient-to-r from-transparent via-[var(--p-border)] to-transparent" />
-
 				<motion.div
 					{...stagger(3)}
-					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-2"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3"
 				>
 					<DraftSection closeOnNavigate={closeOnNavigate} />
 
@@ -333,7 +315,7 @@ export function ChatSidebar({
 
 				<motion.footer
 					{...stagger(4)}
-					className="relative shrink-0 border-t border-[var(--p-border)] pt-3"
+					className="relative shrink-0 border-t border-[var(--p-border)] px-4 py-3"
 				>
 					<div className="flex min-w-0 items-center gap-3">
 						<ProfileMenu
@@ -383,7 +365,7 @@ function SectionHeader({
 		<button
 			type="button"
 			onClick={onToggle}
-			className="group flex w-full items-center gap-2 px-1 pt-5 pb-2 text-start"
+			className="group flex w-full items-center gap-2 px-0 pt-5 pb-2 text-start"
 		>
 			<span className="voice-mono flex min-w-0 items-center gap-2 truncate text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)] transition-colors group-hover:text-[var(--p-text-muted)]">
 				{icon}
@@ -394,7 +376,7 @@ function SectionHeader({
 				className="h-px flex-1 bg-[var(--p-border)] transition-colors group-hover:bg-[var(--p-border-strong)]"
 			/>
 			{typeof count === 'number' && count > 0 && (
-				<span className="voice-mono rounded-full bg-[var(--p-surface)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--p-text-muted)]">
+				<span className="voice-mono rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--p-text-secondary)]">
 					{count}
 				</span>
 			)}
@@ -419,18 +401,18 @@ function ConversationItem({
 		<button
 			type="button"
 			onClick={onSelect}
-			className={`group relative flex min-h-10 w-full items-center gap-2 rounded-xl px-2 py-2 text-start transition-colors ${
+			className={`group relative flex min-h-10 w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-start transition-colors ${
 				isActive
-					? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)] shadow-[inset_0_0_0_1px_var(--p-active-ring-soft)]'
-					: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
+					? 'border-[var(--p-border-strong)] bg-[var(--p-card)] text-[var(--p-text)]'
+					: 'border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
 			}`}
 		>
 			<span
 				aria-hidden
 				className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
 					isActive
-						? 'bg-[var(--p-accent)]'
-						: 'bg-[var(--p-border-strong)] group-hover:bg-[var(--p-accent)]'
+						? 'bg-[var(--p-text)]'
+						: 'bg-[var(--p-border-strong)] group-hover:bg-[var(--p-text-muted)]'
 				}`}
 			/>
 			<span className="block min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
@@ -559,17 +541,17 @@ function ProfileMenu({
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="group inline-flex h-10 w-10 items-center justify-center rounded-2xl text-start transition-colors hover:bg-[var(--p-hover)]"
+				className="group inline-flex h-10 w-10 items-center justify-center rounded-xl text-start transition-colors hover:bg-[var(--p-hover)]"
 				aria-label={userName}
 				title={userName}
 			>
-				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] text-[14px] font-semibold text-[var(--p-accent)] transition-colors group-hover:border-[var(--p-border-strong)]">
+				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-[var(--p-border-strong)]">
 					{initial}
 				</span>
 			</button>
 
 			{open && (
-				<div className="absolute bottom-full start-0 mb-3 w-52 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]/95 p-1 shadow-[var(--p-popover-shadow)] backdrop-blur-xl">
+				<div className="absolute bottom-full start-0 mb-3 w-52 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1 shadow-[var(--p-popover-shadow)]">
 					{menuItems.map((item) => {
 						const Icon = item.icon
 						return (
@@ -656,7 +638,7 @@ function DraftSection({
 									})
 									closeSidebarAfterNavigate()
 								}}
-								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
 								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
 								<span className="min-w-0 flex-1 truncate text-[13px] font-medium">
@@ -688,7 +670,7 @@ function DraftSection({
 									})
 									closeSidebarAfterNavigate()
 								}}
-								className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+								className="flex min-h-9 w-full items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
 								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
 								<span className="voice-mono min-w-0 flex-1 truncate text-[12px] tabular-nums">
