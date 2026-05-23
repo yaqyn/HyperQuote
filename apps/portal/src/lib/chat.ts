@@ -1756,8 +1756,10 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 	}
 	switch (result.context.type) {
 		case 'products':
-			for (const product of result.context.products.slice(0, 3)) {
-				events.push(productCardEvent(product))
+			if (shouldAttachProductCards(result)) {
+				for (const product of result.context.products.slice(0, 3)) {
+					events.push(productCardEvent(product))
+				}
 			}
 			break
 		case 'orders':
@@ -1821,7 +1823,12 @@ function commandShouldUseRichOnly(
 	result: PortalToolResult,
 	events: StreamChunk[],
 ): boolean {
+	if (result.context.type === 'products') return false
 	return Boolean(result.route.commandName) && events.some(isPrimaryRichEvent)
+}
+
+function shouldAttachProductCards(result: PortalToolResult): boolean {
+	return !result.route.commandName
 }
 
 function isPrimaryRichEvent(event: StreamChunk): boolean {
