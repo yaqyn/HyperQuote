@@ -4,6 +4,7 @@ import {
 	fallbackPortalCustomerToolRequest,
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
+	routePortalCustomerDraftFollowUp,
 } from './portal-customer-agent'
 
 describe('portal customer AI agent', () => {
@@ -73,6 +74,11 @@ describe('portal customer AI agent', () => {
 			).action,
 		).toBe('create_draft_from_plan')
 		expect(
+			fallbackPortalCustomerToolRequest(
+				'iam building a tree house, make the right draft',
+			).action,
+		).toBe('create_draft_from_plan')
+		expect(
 			fallbackPortalCustomerToolRequest('make me a mixed catalog order').action,
 		).toBe('create_draft_from_plan')
 		expect(
@@ -107,6 +113,87 @@ describe('portal customer AI agent', () => {
 		expect(
 			fallbackPortalCustomerToolRequest('delete draft QR-2026-001').action,
 		).toBe('delete_draft')
+	})
+
+	it('continues draft creation after a quantity-only answer', () => {
+		const route = routePortalCustomerDraftFollowUp(
+			[
+				{
+					role: 'user',
+					content:
+						'help me create one, i want a simple draft with wooden product',
+				},
+				{
+					role: 'assistant',
+					content:
+						'Sure thing! To set up your draft, could you let me know how many pieces of the Wood product you would like to include?',
+				},
+				{ role: 'user', content: '1' },
+			],
+			'1',
+		)
+
+		expect(route).toMatchObject({
+			action: 'create_draft_from_plan',
+		})
+		expect(route?.searchQuery).toMatch(/wood/i)
+		expect(route?.searchQuery).toMatch(/quantity 1/i)
+	})
+
+	it('continues draft creation after contextual confirmation', () => {
+		const route = routePortalCustomerDraftFollowUp(
+			[
+				{
+					role: 'user',
+					content:
+						'help me create one, i want a simple draft with wooden product',
+				},
+				{
+					role: 'assistant',
+					content:
+						'Got it! How many pieces of the Wood product would you like to add to the draft?',
+				},
+				{ role: 'user', content: '1' },
+				{
+					role: 'assistant',
+					content:
+						'We were talking about adding the Wood product to a draft. You mentioned wanting 1 piece and I was confirming the quantity before creating the draft.',
+				},
+				{ role: 'user', content: 'confirm' },
+			],
+			'confirm',
+		)
+
+		expect(route).toMatchObject({
+			action: 'create_draft_from_plan',
+		})
+		expect(route?.searchQuery).toMatch(/wood/i)
+	})
+
+	it('does not turn unrelated short answers into draft writes', () => {
+		expect(
+			routePortalCustomerDraftFollowUp(
+				[
+					{ role: 'user', content: 'list my draft orders' },
+					{
+						role: 'assistant',
+						content: 'I do not see draft orders in the system.',
+					},
+					{ role: 'user', content: '1' },
+				],
+				'1',
+			),
+		).toBeNull()
+		expect(
+			routePortalCustomerDraftFollowUp(
+				[
+					{ role: 'user', content: 'hello' },
+					{ role: 'assistant', content: 'How can I help today?' },
+					{ role: 'user', content: 'confirm' },
+				],
+				'confirm',
+			),
+		).toBeNull()
 	})
 
 	it('refuses submit/order-confirmation writes', () => {

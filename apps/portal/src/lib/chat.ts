@@ -37,6 +37,7 @@ import {
 	type PortalCustomerToolRequest,
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
+	routePortalCustomerDraftFollowUp,
 } from './portal-customer-agent'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
 import {
@@ -336,10 +337,18 @@ async function requestPortalCustomerTool(
 	userText: string,
 	catalog: ProductCatalogResult,
 ): Promise<PortalCustomerToolRequest> {
-	const confirmedDraft = routeDraftConfirmation(messages, userText)
-	if (confirmedDraft) return confirmedDraft
+	const draftFollowUp = routePortalCustomerDraftFollowUp(messages, userText)
+	if (draftFollowUp) return draftFollowUp
 
-	if (!isAIEnabled()) return fallbackPortalCustomerToolRequest(userText)
+	const deterministicRoute = fallbackPortalCustomerToolRequest(userText)
+	if (
+		deterministicRoute.action === 'refuse' ||
+		isDraftWriteAction(deterministicRoute.action)
+	) {
+		return deterministicRoute
+	}
+
+	if (!isAIEnabled()) return deterministicRoute
 
 	try {
 		const rawRoute = await completeChat(
@@ -372,36 +381,6 @@ function toAgentCatalogSnapshot(
 		})),
 		totalVisibleProducts: catalog.totalVisibleProducts,
 	}
-}
-
-function routeDraftConfirmation(
-	messages: ChatMessageInput[],
-	userText: string,
-): PortalCustomerToolRequest | null {
-	if (!isAffirmativeDraftFollowUp(userText)) return null
-	const previousAssistant = [...messages]
-		.reverse()
-		.find((message) => message.role === 'assistant')
-	if (!previousAssistant) return null
-	const offeredDraft =
-		/\badd\b[\s\S]{0,80}\b(available|orderable)\b[\s\S]{0,80}\bdraft\b/i.test(
-			previousAssistant.content,
-		) ||
-		/أضيف[\s\S]{0,80}المتاحة[\s\S]{0,80}مسودة/.test(previousAssistant.content)
-	if (!offeredDraft) return null
-	return {
-		action: 'create_draft_from_plan',
-		searchQuery: previousAssistant.content.slice(0, 1600),
-	}
-}
-
-function isAffirmativeDraftFollowUp(userText: string): boolean {
-	const normalized = normalizeForMatch(userText)
-	return (
-		/^(yes|yeah|yep|ok|okay|sure|do it|create it|draft it|add them|add available|add the available items)$/.test(
-			normalized,
-		) || /^(ايوه|اه|تمام|ماشي|ضيف|أضيف|اعمل|يلا)$/.test(userText.trim())
-	)
 }
 
 function simpleCustomerChatAnswer(messages: ChatMessageInput[]): string | null {

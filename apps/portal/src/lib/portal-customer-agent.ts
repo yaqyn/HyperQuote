@@ -34,6 +34,11 @@ export interface PortalCustomerToolRequest {
 	targetReference?: string
 }
 
+export interface PortalCustomerChatMessage {
+	content: string
+	role: 'assistant' | 'user'
+}
+
 export interface PortalCustomerCatalogSnapshotItem {
 	category: string
 	name: string
@@ -198,6 +203,16 @@ export function fallbackPortalCustomerToolRequest(
 	return { action: 'chat', searchQuery: '' }
 }
 
+export function routePortalCustomerDraftFollowUp(
+	messages: PortalCustomerChatMessage[],
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	return (
+		routeOfferedDraftConfirmation(messages, userMessage) ??
+		routeDraftQuantityOrConfirmation(messages, userMessage)
+	)
+}
+
 export function parsePortalCustomerToolRequest(
 	rawResponse: string,
 	userMessage: string,
@@ -307,6 +322,170 @@ export function extractTargetReference(
 		/\b(?:QR|RFQ|REQ|ORD|ORDER|QUOTE)[-_ ]?\d[A-Z0-9]*(?:[-_][A-Z0-9]+)?\b/i,
 	)?.[0]
 	return reference?.replace(/\s+/g, '-')
+}
+
+function routeOfferedDraftConfirmation(
+	messages: PortalCustomerChatMessage[],
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	if (!isAffirmativeDraftFollowUp(userMessage)) return null
+	const previousAssistant = lastAssistantMessage(messages)
+	if (!previousAssistant) return null
+	const offeredDraft =
+		/\badd\b[\s\S]{0,80}\b(available|orderable)\b[\s\S]{0,80}\bdraft\b/i.test(
+			previousAssistant.content,
+		) ||
+		/أضيف[\s\S]{0,80}المتاحة[\s\S]{0,80}مسودة/.test(previousAssistant.content)
+	if (!offeredDraft) return null
+	return {
+		action: 'create_draft_from_plan',
+		searchQuery: previousAssistant.content.slice(0, 1600),
+	}
+}
+
+function routeDraftQuantityOrConfirmation(
+	messages: PortalCustomerChatMessage[],
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	const quantity = parseFollowUpQuantity(userMessage)
+	const isQuantityReply = quantity !== null && isShortQuantityReply(userMessage)
+	const isConfirmationReply = isAffirmativeDraftFollowUp(userMessage)
+	if (!isQuantityReply && !isConfirmationReply) return null
+
+	const priorMessages = messagesWithoutCurrentUserMessage(messages, userMessage)
+	const previousAssistant = lastAssistantMessage(priorMessages)
+	if (!previousAssistant || !isDraftQuantityPrompt(previousAssistant.content)) {
+		return null
+	}
+
+	const recentUserMessages = priorMessages
+		.filter((message) => message.role === 'user')
+		.slice(-4)
+		.map((message) => message.content.trim())
+		.filter(Boolean)
+	const hasDraftIntent =
+		recentUserMessages.some(isDraftCreationContext) ||
+		isDraftCreationContext(previousAssistant.content)
+	const hasMaterialContext =
+		recentUserMessages.some(isMaterialContext) ||
+		isMaterialContext(previousAssistant.content)
+	if (!hasDraftIntent || !hasMaterialContext) return null
+
+	return {
+		action: 'create_draft_from_plan',
+		searchQuery: [
+			...recentUserMessages,
+			previousAssistant.content,
+			quantity === null ? userMessage : `quantity ${quantity}`,
+		]
+			.join('\n')
+			.slice(0, 1600),
+	}
+}
+
+function lastAssistantMessage(
+	messages: PortalCustomerChatMessage[],
+): PortalCustomerChatMessage | null {
+	return (
+		[...messages].reverse().find((message) => message.role === 'assistant') ??
+		null
+	)
+}
+
+function messagesWithoutCurrentUserMessage(
+	messages: PortalCustomerChatMessage[],
+	userMessage: string,
+): PortalCustomerChatMessage[] {
+	const lastMessage = messages.at(-1)
+	if (
+		lastMessage?.role === 'user' &&
+		lastMessage.content.trim() === userMessage.trim()
+	) {
+		return messages.slice(0, -1)
+	}
+	return messages
+}
+
+function isAffirmativeDraftFollowUp(userMessage: string): boolean {
+	const normalized = normalizeForAgentMatch(userMessage)
+	return (
+		/^(yes|yeah|yep|ok|okay|sure|confirm|confirmed|correct|go ahead|do it|create it|draft it|add them|add available|add the available items)$/.test(
+			normalized,
+		) ||
+		/^(ايوه|اه|تمام|ماشي|اكد|أكد|صح|ضيف|أضيف|اعمل|يلا)$/.test(
+			userMessage.trim(),
+		)
+	)
+}
+
+function isDraftQuantityPrompt(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	const mentionsDraft =
+		/\b(draft|quote|rfq|request)\b/.test(normalized) ||
+		/مسودة|عرض\s+سعر|طلب\s+عرض/.test(text)
+	const mentionsQuantity =
+		/\b(how many|quantity|qty|piece|pieces|unit|units|confirming|before creating)\b/.test(
+			normalized,
+		) || /كم|عدد|قطعة/.test(text)
+	return mentionsDraft && mentionsQuantity
+}
+
+function isDraftCreationContext(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	return (
+		/\b(create|make|start|build|prepare|generate|draft|quote|rfq|request|order|cart|add)\b/.test(
+			normalized,
+		) || /اعمل|جهز|حضّر|حضر|انشئ|مسودة|عرض\s+سعر|طلب\s+عرض/.test(text)
+	)
+}
+
+function isMaterialContext(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	return (
+		/\b(product|products|material|materials|wood|wooden|timber|lumber|cement|rebar|steel|metal|metals|concrete|sand|aggregate|brick|bricks|paint|tiles?)\b/.test(
+			normalized,
+		) ||
+		/منتج|منتجات|مواد|خشب|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|دهان|بويات|سيراميك/.test(
+			text,
+		)
+	)
+}
+
+function parseFollowUpQuantity(text: string): number | null {
+	const normalized = normalizeForAgentMatch(text)
+	const digitMatch = normalized.match(/\b(\d+(?:\.\d+)?)\b/)
+	if (digitMatch)
+		return normalizeQuantity(Number.parseFloat(digitMatch[1] ?? ''))
+	const wordNumbers: Record<string, number> = {
+		eight: 8,
+		five: 5,
+		four: 4,
+		nine: 9,
+		one: 1,
+		seven: 7,
+		six: 6,
+		ten: 10,
+		three: 3,
+		two: 2,
+	}
+	return normalizeQuantity(wordNumbers[normalized] ?? Number.NaN)
+}
+
+function normalizeQuantity(value: number): number | null {
+	if (!Number.isFinite(value) || value <= 0) return null
+	return Math.min(value, 1_000_000)
+}
+
+function isShortQuantityReply(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	const withoutUnit = normalized
+		.replace(/\b(just|only|qty|quantity|piece|pieces|unit|units)\b/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	return (
+		/^\d+(?:\.\d+)?$/.test(withoutUnit) ||
+		/^(one|two|three|four|five|six|seven|eight|nine|ten)$/.test(withoutUnit)
+	)
 }
 
 function asksToSubmitOrder(lower: string, raw: string): boolean {
@@ -531,4 +710,16 @@ function extractJsonObject(rawResponse: string): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null
+}
+
+function normalizeForAgentMatch(value: string): string {
+	return value
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[إأآٱ]/g, 'ا')
+		.replace(/ى/g, 'ي')
+		.replace(/ة/g, 'ه')
+		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
 }
