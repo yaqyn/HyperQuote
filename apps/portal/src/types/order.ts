@@ -61,6 +61,7 @@ export interface OrderDeliveryTracking {
 	driverId: string
 	driverName: string
 	driverPhone: string
+	driverPlace: string | null
 	currentStage: OrderDeliveryStage
 	estimatedArrival: string
 	lastUpdated: string

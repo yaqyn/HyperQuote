@@ -22,6 +22,10 @@ import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
+	customerDeliveryDestinationPlace,
+	describeDriverLocationForCustomer,
+} from '../../lib/delivery-location-copy'
+import {
 	type DeliveryStage,
 	getOrderDetail,
 	type OrderDetailResult,
@@ -479,6 +483,12 @@ function OrderStatusHero({
 	const { t, i18n } = useTranslation('portal')
 	const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB'
 	const { order, delivery, timeline } = data
+	const driverPlaceLabel = delivery
+		? describeDriverLocationForCustomer(delivery)
+		: null
+	const destinationLabel = delivery
+		? (customerDeliveryDestinationPlace(delivery) ?? delivery.route.destination)
+		: null
 	const currentStep =
 		timeline.find((step) => step.status === 'current') ?? timeline[0]
 	const currentStepLabel = currentStep
@@ -553,9 +563,15 @@ function OrderStatusHero({
 								label={t('tracking.driver')}
 								value={delivery.driverName || delivery.deliveryNumber}
 							/>
+							{driverPlaceLabel && (
+								<HeroMetric
+									label={t('tracking.driverLocation')}
+									value={driverPlaceLabel}
+								/>
+							)}
 							<HeroMetric
 								label={t('tracking.destination')}
-								value={delivery.route.destination}
+								value={destinationLabel ?? delivery.route.destination}
 							/>
 							{eta && <HeroMetric label={t('tracking.etaLabel')} value={eta} />}
 							{updated && (
@@ -598,6 +614,12 @@ function OrderLifecycleSummary({
 }) {
 	const { t } = useTranslation('portal')
 	const { order, acceptance, payment, delivery, completion, closure } = data
+	const driverPlaceLabel = delivery
+		? describeDriverLocationForCustomer(delivery)
+		: null
+	const destinationLabel = delivery
+		? (customerDeliveryDestinationPlace(delivery) ?? delivery.route.destination)
+		: null
 	const statusLabel = t(getOrderStatusLabelKey(order.status))
 	if (!acceptance) return null
 
@@ -672,9 +694,17 @@ function OrderLifecycleSummary({
 									value: delivery.truckNumber,
 								},
 								{ label: t('tracking.vehicle'), value: delivery.vehiclePlate },
+								...(driverPlaceLabel
+									? [
+											{
+												label: t('tracking.driverLocation'),
+												value: driverPlaceLabel,
+											},
+										]
+									: []),
 								{
 									label: t('tracking.route'),
-									value: `${delivery.route.origin} / ${delivery.route.destination}`,
+									value: `${driverPlaceLabel ?? delivery.route.origin} / ${destinationLabel ?? delivery.route.destination}`,
 								},
 								{
 									label: t('tracking.distance'),

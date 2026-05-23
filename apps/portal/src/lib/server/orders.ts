@@ -144,6 +144,7 @@ function toOrderDeliveryTracking(
 		driverId: delivery.driverId,
 		driverName: delivery.driverName,
 		driverPhone: delivery.driverPhone,
+		driverPlace: delivery.driverPlace,
 		currentStage: delivery.currentStage,
 		estimatedArrival: delivery.estimatedArrival,
 		lastUpdated: delivery.lastUpdated,

@@ -43,6 +43,10 @@ import type {
 } from '../../components/orders/IncomingOrdersInteractiveMap'
 import { DraftQuoteTrigger } from '../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
+import {
+	customerDeliveryDestinationPlace,
+	describeDriverLocationForCustomer,
+} from '../../lib/delivery-location-copy'
 import { getDeliverySecret } from '../../lib/server/deliveries'
 import {
 	deleteOrder,
@@ -451,6 +455,11 @@ function IncomingOrdersSection({
 					<div className="grid gap-3 md:grid-cols-2">
 						{deliveries.map((delivery, index) => {
 							const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
+							const driverPlaceLabel =
+								describeDriverLocationForCustomer(delivery)
+							const destinationLabel =
+								customerDeliveryDestinationPlace(delivery) ??
+								delivery.route.destination
 							return (
 								<article
 									key={delivery.id}
@@ -492,11 +501,24 @@ function IncomingOrdersSection({
 													size={14}
 													strokeWidth={1.8}
 													className="shrink-0"
+													style={{ color: palette.driver }}
+												/>
+												<span className="min-w-0 break-words">
+													{t('orders.incomingDriverLocation', {
+														place: driverPlaceLabel,
+													})}
+												</span>
+											</div>
+											<div className="flex min-w-0 items-center gap-2">
+												<MapPin
+													size={14}
+													strokeWidth={1.8}
+													className="shrink-0"
 													style={{ color: palette.destination }}
 												/>
-												<span className="truncate">
+												<span className="min-w-0 break-words">
 													{t('orders.incomingDestination', {
-														address: delivery.route.destination,
+														address: destinationLabel,
 													})}
 												</span>
 											</div>
