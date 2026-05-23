@@ -1961,6 +1961,9 @@ function deliveryListFallbackAnswer(
 	if (deliveries.length === 0) {
 		return '## Deliveries\n\nNo active customer-visible deliveries found.'
 	}
+	if (deliveries.length === 1) {
+		return deliveryTrackingFallbackAnswer(deliveries[0] ?? null)
+	}
 	const rows = deliveries.slice(0, 6).map(({ delivery, order }) => {
 		return `| ${markdownTableCell(deliveryOrderLabel({ delivery, order }))} | ${markdownTableCell(formatPlainStatus(delivery.currentStage))} | ${markdownTableCell(formatDeliveryDriver(delivery))} | ${markdownTableCell(describeDriverLocationForCustomer(delivery))} | ${markdownTableCell(formatDeliveryTimestamp(delivery.estimatedArrival))} |`
 	})

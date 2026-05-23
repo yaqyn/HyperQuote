@@ -176,66 +176,7 @@ function renderBlock(
 			)
 		}
 		case 'table':
-			return (
-				<div
-					key={`table:${index}`}
-					className="max-w-full overflow-x-auto rounded-lg border border-[var(--p-border)] bg-[var(--p-card)]"
-				>
-					<table className="w-full min-w-[420px] border-collapse font-sans text-[12px] leading-[1.45] text-[var(--p-text)] sm:text-[13px]">
-						<thead className="bg-[var(--p-surface)]">
-							<tr>
-								{block.headers.map((header, cellIndex) => (
-									<th
-										key={`table:${index}:head:${stableKey(header)}`}
-										className="border-b border-[var(--p-border)] px-3 py-2 text-start font-semibold text-[var(--p-text)]"
-										style={{
-											textAlign: block.align[cellIndex] ?? undefined,
-										}}
-									>
-										{renderInlineMarkdown(
-											header,
-											isArabic,
-											`table:${index}:head:${cellIndex}`,
-										)}
-									</th>
-								))}
-							</tr>
-						</thead>
-						<tbody>
-							{block.rows.map((row) => {
-								const rowKey = stableKey(row.join('|'))
-								return (
-									<tr
-										key={`table:${index}:row:${rowKey}`}
-										className="border-b border-[var(--p-border)] last:border-b-0"
-									>
-										{row.map((cell, cellIndex) => {
-											const cellKey = stableKey(
-												`${block.headers[cellIndex] ?? ''}:${cell}`,
-											)
-											return (
-												<td
-													key={`table:${index}:cell:${rowKey}:${cellKey}`}
-													className="px-3 py-2 align-top text-[var(--p-text-secondary)]"
-													style={{
-														textAlign: block.align[cellIndex] ?? undefined,
-													}}
-												>
-													{renderInlineMarkdown(
-														cell,
-														isArabic,
-														`table:${index}:cell:${rowKey}:${cellKey}`,
-													)}
-												</td>
-											)
-										})}
-									</tr>
-								)
-							})}
-						</tbody>
-					</table>
-				</div>
-			)
+			return renderTableBlock(block, index, isArabic)
 		case 'code':
 			return (
 				<pre
@@ -255,6 +196,114 @@ function renderBlock(
 				/>
 			)
 	}
+}
+
+function renderTableBlock(
+	block: Extract<MarkdownBlock, { type: 'table' }>,
+	index: number,
+	isArabic: boolean,
+): ReactNode {
+	return (
+		<div
+			key={`table:${index}`}
+			className="max-w-full overflow-hidden rounded-lg border border-[var(--p-border)] bg-[var(--p-card)]"
+		>
+			<div className="grid gap-2 p-2 sm:hidden">
+				{block.rows.map((row) => {
+					const rowKey = stableKey(row.join('|'))
+					return (
+						<dl
+							key={`table:${index}:mobile:${rowKey}`}
+							className="rounded-md border border-[var(--p-border)] bg-[var(--p-surface-subtle)] px-3 py-2"
+						>
+							{row.map((cell, cellIndex) => {
+								const header = block.headers[cellIndex] ?? ''
+								const cellKey = stableKey(`${header}:${cell}`)
+								return (
+									<div
+										key={`table:${index}:mobile:${rowKey}:${cellKey}`}
+										className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 border-b border-[var(--p-border)] py-2 last:border-b-0"
+									>
+										<dt className="min-w-0 break-words font-sans text-[11px] font-semibold uppercase leading-[1.35] tracking-[0.08em] text-[var(--p-text-muted)]">
+											{renderInlineMarkdown(
+												header,
+												isArabic,
+												`table:${index}:mobile:head:${cellIndex}`,
+											)}
+										</dt>
+										<dd className="min-w-0 break-words text-end font-sans text-[13px] leading-[1.45] text-[var(--p-text)]">
+											{renderInlineMarkdown(
+												cell,
+												isArabic,
+												`table:${index}:mobile:${rowKey}:${cellKey}`,
+											)}
+										</dd>
+									</div>
+								)
+							})}
+						</dl>
+					)
+				})}
+			</div>
+			<div className="hidden max-w-full overflow-x-auto sm:block">
+				<table className="w-full min-w-[560px] table-auto border-collapse font-sans text-[13px] leading-[1.45] text-[var(--p-text)]">
+					<thead className="bg-[var(--p-surface)]">
+						<tr>
+							{block.headers.map((header, cellIndex) => (
+								<th
+									key={`table:${index}:head:${stableKey(header)}`}
+									className="border-b border-[var(--p-border)] px-3 py-2 text-start font-semibold text-[var(--p-text)]"
+									style={{
+										textAlign: block.align[cellIndex] ?? undefined,
+									}}
+								>
+									{renderInlineMarkdown(
+										header,
+										isArabic,
+										`table:${index}:head:${cellIndex}`,
+									)}
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{block.rows.map((row) => {
+							const rowKey = stableKey(row.join('|'))
+							return (
+								<tr
+									key={`table:${index}:row:${rowKey}`}
+									className="border-b border-[var(--p-border)] last:border-b-0"
+								>
+									{row.map((cell, cellIndex) => {
+										const cellKey = stableKey(
+											`${block.headers[cellIndex] ?? ''}:${cell}`,
+										)
+										return (
+											<td
+												key={`table:${index}:cell:${rowKey}:${cellKey}`}
+												className="min-w-0 px-3 py-2 align-top text-[var(--p-text-secondary)]"
+												style={{
+													textAlign: block.align[cellIndex] ?? undefined,
+												}}
+											>
+												<span className="break-words">
+													{renderInlineMarkdown(
+														cell,
+														isArabic,
+														`table:${index}:cell:${rowKey}:${cellKey}`,
+													)}
+												</span>
+											</td>
+										)
+									})}
+								</tr>
+							)
+						})}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	)
 }
 
 function renderListItem(
