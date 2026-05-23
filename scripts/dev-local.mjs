@@ -6,6 +6,7 @@ import process from 'node:process'
 
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
+const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_DEV_INFISICAL_LOADED'
 
 const APPS = [
 	{
@@ -34,10 +35,39 @@ const APPS = [
 	},
 ]
 
+maybeRelaunchWithInfisical()
+
 main().catch((error) => {
 	console.error(error)
 	process.exit(1)
 })
+
+function maybeRelaunchWithInfisical() {
+	if (process.env[INFISICAL_DEV_SENTINEL]) return
+	if (process.env.CI) return
+	if (!localAiRequested()) return
+	if (process.env.GROQ_API_KEY || process.env.HQ_GROQ_API_KEY) return
+
+	const infisical = spawnSync('infisical', ['--version'], {
+		encoding: 'utf8',
+		stdio: ['ignore', 'ignore', 'ignore'],
+	})
+	if (infisical.status !== 0) return
+
+	console.log('Loading local development secrets from Infisical...')
+	const relaunched = spawnSync(
+		'infisical',
+		['run', '--recursive', '--', process.execPath, ...process.argv.slice(1)],
+		{
+			env: {
+				...process.env,
+				[INFISICAL_DEV_SENTINEL]: '1',
+			},
+			stdio: 'inherit',
+		},
+	)
+	process.exit(relaunched.status ?? 1)
+}
 
 async function main() {
 	let localEnv = readLocalSupabaseEnv()
