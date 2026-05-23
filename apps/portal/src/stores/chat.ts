@@ -1,10 +1,14 @@
 /**
- * Zustand chat store with sessionStorage persistence.
- * Role-keyed conversations: customer and supplier have separate message histories.
+ * Zustand chat store with durable local persistence.
+ * The portal keeps one active chat thread per role until the user clears it.
  * Uses skipHydration for SSR safety — rehydrate in useEffect.
  */
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
+import {
+	createJSONStorage,
+	persist,
+	type StateStorage,
+} from 'zustand/middleware'
 import type { ChatMessage } from '../lib/chat-types'
 
 // ============================================================================
@@ -48,13 +52,120 @@ interface ChatStoreActions {
 
 type ChatStore = ChatStoreState & ChatStoreActions
 
+type PersistedChatStore = Pick<
+	ChatStoreState,
+	'customerMessages' | 'quickActionContext' | 'supplierMessages'
+>
+
+function emptyPersistedChatStore(): PersistedChatStore {
+	return {
+		customerMessages: [],
+		quickActionContext: 'home',
+		supplierMessages: [],
+	}
+}
+
+function isChatMessage(value: unknown): value is ChatMessage {
+	if (!value || typeof value !== 'object') return false
+	const message = value as Partial<ChatMessage>
+	return (
+		typeof message.id === 'string' &&
+		(message.role === 'user' || message.role === 'assistant') &&
+		typeof message.content === 'string' &&
+		typeof message.timestamp === 'number'
+	)
+}
+
+function readStoredMessages(value: unknown): ChatMessage[] {
+	return Array.isArray(value) ? value.filter(isChatMessage) : []
+}
+
+function migrateChatStoreToSingleSession(
+	persistedState: unknown,
+): PersistedChatStore {
+	if (!persistedState || typeof persistedState !== 'object') {
+		return emptyPersistedChatStore()
+	}
+	const state = persistedState as Partial<ChatStoreState>
+	return {
+		customerMessages: readStoredMessages(state.customerMessages),
+		quickActionContext:
+			state.quickActionContext === 'product' ||
+			state.quickActionContext === 'order'
+				? state.quickActionContext
+				: 'home',
+		supplierMessages: readStoredMessages(state.supplierMessages),
+	}
+}
+
+function webStorage(kind: 'localStorage' | 'sessionStorage'): Storage | null {
+	if (typeof window === 'undefined') return null
+	try {
+		return window[kind]
+	} catch {
+		return null
+	}
+}
+
+function safeGet(storage: Storage | null, name: string): string | null {
+	if (!storage) return null
+	try {
+		return storage.getItem(name)
+	} catch {
+		return null
+	}
+}
+
+function safeRemove(storage: Storage | null, name: string) {
+	if (!storage) return
+	try {
+		storage.removeItem(name)
+	} catch {
+		// Ignore unavailable browser storage.
+	}
+}
+
+function safeSet(
+	storage: Storage | null,
+	name: string,
+	value: string,
+): boolean {
+	if (!storage) return false
+	try {
+		storage.setItem(name, value)
+		return true
+	} catch {
+		return false
+	}
+}
+
+function portalChatStorage(): StateStorage {
+	return {
+		getItem: (name) =>
+			safeGet(webStorage('localStorage'), name) ??
+			safeGet(webStorage('sessionStorage'), name),
+		removeItem: (name) => {
+			safeRemove(webStorage('localStorage'), name)
+			safeRemove(webStorage('sessionStorage'), name)
+		},
+		setItem: (name, value) => {
+			const local = webStorage('localStorage')
+			if (safeSet(local, name, value)) {
+				safeRemove(webStorage('sessionStorage'), name)
+				return
+			}
+			safeSet(webStorage('sessionStorage'), name, value)
+		},
+	}
+}
+
 // ============================================================================
 // Store
 // ============================================================================
 
 export const useChatStore = create<ChatStore>()(
 	persist(
-		(set, get) => ({
+		(set) => ({
 			// State
 			customerMessages: [],
 			supplierMessages: [],
@@ -79,31 +190,15 @@ export const useChatStore = create<ChatStore>()(
 					return { [key]: msgs }
 				}),
 
-			loadConversation: (role, id) => {
-				const state = get()
-				const convKey =
-					role === 'customer'
-						? 'customerConversations'
-						: 'supplierConversations'
-				const msgKey =
-					role === 'customer' ? 'customerMessages' : 'supplierMessages'
-				const conversation = state[convKey].find((c) => c.id === id)
-				if (conversation) {
-					set({
-						[msgKey]: [...conversation.messages],
-						activeConversationId: {
-							...state.activeConversationId,
-							[role]: id,
-						},
-					})
-				}
-			},
+			loadConversation: () => undefined,
 
 			clearActive: (role) =>
 				set((state) => {
 					const msgKey =
 						role === 'customer' ? 'customerMessages' : 'supplierMessages'
 					return {
+						customerConversations: [],
+						supplierConversations: [],
 						[msgKey]: [],
 						activeConversationId: {
 							...state.activeConversationId,
@@ -112,64 +207,9 @@ export const useChatStore = create<ChatStore>()(
 					}
 				}),
 
-			saveConversation: (role) =>
-				set((state) => {
-					const msgKey =
-						role === 'customer' ? 'customerMessages' : 'supplierMessages'
-					const convKey =
-						role === 'customer'
-							? 'customerConversations'
-							: 'supplierConversations'
-					const messages = state[msgKey]
-					if (messages.length === 0) return state
+			saveConversation: () => undefined,
 
-					const activeId = state.activeConversationId[role]
-					const preview = messages[0]?.content.slice(0, 100) ?? ''
-					const now = new Date().toISOString()
-
-					if (activeId) {
-						// Update existing conversation
-						return {
-							[convKey]: state[convKey].map((c) =>
-								c.id === activeId
-									? { ...c, messages: [...messages], preview }
-									: c,
-							),
-						}
-					}
-
-					// Create new conversation
-					const newId = crypto.randomUUID()
-					return {
-						[convKey]: [
-							{
-								id: newId,
-								messages: [...messages],
-								createdAt: now,
-								preview,
-								pinned: false,
-							},
-							...state[convKey],
-						],
-						activeConversationId: {
-							...state.activeConversationId,
-							[role]: newId,
-						},
-					}
-				}),
-
-			togglePin: (role, id) =>
-				set((state) => {
-					const convKey =
-						role === 'customer'
-							? 'customerConversations'
-							: 'supplierConversations'
-					return {
-						[convKey]: state[convKey].map((c) =>
-							c.id === id ? { ...c, pinned: !c.pinned } : c,
-						),
-					}
-				}),
+			togglePin: () => undefined,
 
 			setQuickActionContext: (ctx) => set({ quickActionContext: ctx }),
 
@@ -177,7 +217,22 @@ export const useChatStore = create<ChatStore>()(
 		}),
 		{
 			name: 'hq-portal-chat',
-			storage: createJSONStorage(() => sessionStorage),
+			storage: createJSONStorage(() => portalChatStorage()),
+			version: 1,
+			migrate: migrateChatStoreToSingleSession,
+			merge: (persistedState, currentState) => ({
+				...currentState,
+				...migrateChatStoreToSingleSession(persistedState),
+				activeConversationId: { customer: null, supplier: null },
+				customerConversations: [],
+				isHistoryOpen: false,
+				supplierConversations: [],
+			}),
+			partialize: (state) => ({
+				customerMessages: state.customerMessages,
+				quickActionContext: state.quickActionContext,
+				supplierMessages: state.supplierMessages,
+			}),
 			skipHydration: true,
 		},
 	),

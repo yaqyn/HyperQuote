@@ -14,7 +14,7 @@ import type { StreamChunk } from '@tanstack/ai'
 import type { UIMessage } from '@tanstack/ai-react'
 import { stream, useChat } from '@tanstack/ai-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { portalChatFn } from '../lib/chat'
 import {
 	type ActiveChatDraftContext,
@@ -130,6 +130,31 @@ function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
 	}
 }
 
+function uiMessageFromStoredMessage(message: ChatMessage): UIMessage {
+	return {
+		id: message.id,
+		role: message.role,
+		parts: [{ type: 'text', content: message.content }],
+		createdAt: new Date(message.timestamp),
+	}
+}
+
+function uiMessagesFingerprint(messages: UIMessage[]): string {
+	return JSON.stringify(
+		messages.map((message) => [
+			message.id,
+			message.role,
+			extractContent(message),
+		]),
+	)
+}
+
+function storedMessagesFingerprint(messages: ChatMessage[]): string {
+	return JSON.stringify(
+		messages.map((message) => [message.id, message.role, message.content]),
+	)
+}
+
 function localCartResponse(options: { opened?: boolean } = {}): {
 	richContent: RichContent[]
 	text: string
@@ -231,15 +256,46 @@ export function usePortalChat({
 } = {}) {
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const queryClient = useQueryClient()
+	const storedMessages = useChatStore((s) =>
+		activeRole === 'customer' ? s.customerMessages : s.supplierMessages,
+	)
 	const setMessages = useChatStore((s) => s.setMessages)
+	const clearStoreActive = useChatStore((s) => s.clearActive)
 	const _addMessage = useChatStore((s) => s.addMessage)
+	const [isChatStoreHydrated, setIsChatStoreHydrated] = useState(() =>
+		useChatStore.persist.hasHydrated(),
+	)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
+	const lastPersistedChatFingerprintRef = useRef('')
 	const richContentRef = useRef<RichContent[]>([])
 	const lastChunksRef = useRef<StreamChunk[]>([])
+	const storedRichContentById = useMemo(() => {
+		return new Map(
+			storedMessages
+				.filter((message) => message.richContent?.length)
+				.map((message) => [message.id, message.richContent]),
+		)
+	}, [storedMessages])
+	const storedFingerprint = useMemo(
+		() => storedMessagesFingerprint(storedMessages),
+		[storedMessages],
+	)
 
 	// SSR hydration safety — rehydrate Zustand store on mount
 	useEffect(() => {
-		useChatStore.persist.rehydrate()
+		let mounted = true
+		const unsubscribe = useChatStore.persist.onFinishHydration(() => {
+			if (mounted) setIsChatStoreHydrated(true)
+		})
+		if (useChatStore.persist.hasHydrated()) {
+			setIsChatStoreHydrated(true)
+		} else {
+			void useChatStore.persist.rehydrate()
+		}
+		return () => {
+			mounted = false
+			unsubscribe()
+		}
 	}, [])
 
 	useEffect(() => {
@@ -319,21 +375,57 @@ export function usePortalChat({
 			logPortalError('portal.chat.error', err)
 		},
 	})
+	const chatMessagesRef = useRef<UIMessage[]>(chat.messages)
+	chatMessagesRef.current = chat.messages
 
-	// Sync messages to Zustand store when messages change
-	const prevLengthRef = useRef(0)
 	useEffect(() => {
-		if (chat.messages.length !== prevLengthRef.current) {
-			prevLengthRef.current = chat.messages.length
-			const mapped: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
+		if (!isChatStoreHydrated) return
+		const chatFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
+		if (storedFingerprint === chatFingerprint) {
+			return
+		}
+		lastPersistedChatFingerprintRef.current = storedFingerprint
+		richContentRef.current =
+			storedMessages.at(-1)?.role === 'assistant'
+				? (storedMessages.at(-1)?.richContent ?? [])
+				: []
+		chat.setMessages(storedMessages.map(uiMessageFromStoredMessage))
+	}, [chat.setMessages, isChatStoreHydrated, storedFingerprint, storedMessages])
+
+	// Sync messages to the single durable Zustand thread when messages change.
+	useEffect(() => {
+		if (!isChatStoreHydrated) return
+		const fingerprint = uiMessagesFingerprint(chat.messages)
+		if (fingerprint === lastPersistedChatFingerprintRef.current) return
+		lastPersistedChatFingerprintRef.current = fingerprint
+		const activeStoredMessages =
+			activeRole === 'customer'
+				? useChatStore.getState().customerMessages
+				: useChatStore.getState().supplierMessages
+		const existingById = new Map(
+			activeStoredMessages.map((message) => [message.id, message]),
+		)
+		let lastAssistantIdx = -1
+		for (let i = chat.messages.length - 1; i >= 0; i--) {
+			if (chat.messages[i].role === 'assistant') {
+				lastAssistantIdx = i
+				break
+			}
+		}
+		const mapped: ChatMessage[] = chat.messages.map(
+			(msg: UIMessage, idx: number) => ({
 				id: msg.id,
 				role: msg.role as 'user' | 'assistant',
 				content: extractContent(msg),
-				timestamp: Date.now(),
-			}))
-			setMessages(activeRole, mapped)
-		}
-	}, [chat.messages, activeRole, setMessages])
+				richContent:
+					idx === lastAssistantIdx && richContentRef.current.length > 0
+						? richContentRef.current
+						: existingById.get(msg.id)?.richContent,
+				timestamp: msg.createdAt?.getTime() ?? Date.now(),
+			}),
+		)
+		setMessages(activeRole, mapped)
+	}, [activeRole, chat.messages, isChatStoreHydrated, setMessages])
 
 	// Map UIMessage to simplified ChatMessage for consumers
 	// Rich content only attaches to the last assistant message.
@@ -351,7 +443,9 @@ export function usePortalChat({
 			role: msg.role as 'user' | 'assistant',
 			content: extractContent(msg),
 			richContent:
-				idx === lastAssistantIdx ? richContentRef.current : undefined,
+				idx === lastAssistantIdx && richContentRef.current.length > 0
+					? richContentRef.current
+					: storedRichContentById.get(msg.id),
 			timestamp: msg.createdAt?.getTime() ?? Date.now(),
 		}),
 	)
@@ -361,7 +455,9 @@ export function usePortalChat({
 		chat.clear()
 		richContentRef.current = []
 		lastChunksRef.current = []
-	}, [chat.clear, chat.stop])
+		lastPersistedChatFingerprintRef.current = ''
+		clearStoreActive(activeRole)
+	}, [activeRole, chat.clear, chat.stop, clearStoreActive])
 
 	const sendMessage = useCallback(
 		(message: string) => {
