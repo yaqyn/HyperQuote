@@ -13,7 +13,6 @@ const BOTTOM_THRESHOLD = 120
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
-	const bottomRef = useRef<HTMLDivElement>(null)
 	const [showScrollBtn, setShowScrollBtn] = useState(false)
 	const userScrolledRef = useRef(false)
 
@@ -33,6 +32,15 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 		userScrolledRef.current = scrolledUp
 	}, [])
 
+	const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior) => {
+		const el = scrollRef.current
+		if (!el) return
+		el.scrollTo({
+			behavior,
+			top: el.scrollHeight,
+		})
+	}, [])
+
 	// Auto-scroll on new messages and on streaming token growth — unless the
 	// user has scrolled up, in which case we hold position and let the jump
 	// glyph reveal itself. The dep list references the signals whose *change*
@@ -41,19 +49,14 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	useEffect(() => {
 		void [messages.length, lastContent, isLoading]
 		if (userScrolledRef.current) return
-		const el = bottomRef.current
-		if (!el) return
-		el.scrollIntoView({
-			behavior: messages.length <= 1 ? 'auto' : 'smooth',
-			block: 'end',
-		})
-	}, [messages.length, lastContent, isLoading])
+		scrollMessagesToBottom(messages.length <= 1 ? 'auto' : 'smooth')
+	}, [messages.length, lastContent, isLoading, scrollMessagesToBottom])
 
 	const scrollToBottom = useCallback(() => {
-		bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+		scrollMessagesToBottom('auto')
 		userScrolledRef.current = false
 		setShowScrollBtn(false)
-	}, [])
+	}, [scrollMessagesToBottom])
 
 	if (messages.length === 0 && !isLoading) return null
 
@@ -79,8 +82,6 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 					))}
 
 					{showTyping && <TypingIndicator />}
-
-					<div ref={bottomRef} aria-hidden />
 				</ul>
 			</div>
 
