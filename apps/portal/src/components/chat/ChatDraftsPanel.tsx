@@ -144,8 +144,12 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 
 function itemWithoutNotes(item: OrderItem): OrderItem {
 	return {
+		availabilityStatus: item.availabilityStatus,
+		catalogProductId: item.catalogProductId,
 		category: item.category,
 		imageUrl: item.imageUrl,
+		isOrderable: item.isOrderable,
+		isUnmatched: item.isUnmatched,
 		productId: item.productId,
 		productName: item.productName,
 		productNameAr: item.productNameAr,
@@ -187,8 +191,12 @@ function createNewEditor(defaultName: string): DraftEditorState {
 
 function productToOrderItem(product: MarketProduct): OrderItem {
 	return {
+		availabilityStatus: product.availabilityStatus,
+		catalogProductId: product.id,
 		category: product.category,
 		imageUrl: product.imageUrl,
+		isOrderable: true,
+		isUnmatched: false,
 		productId: product.id,
 		productName: product.name,
 		productNameAr: product.nameAr,
@@ -201,13 +209,28 @@ function productToOrderItem(product: MarketProduct): OrderItem {
 function toQuoteRequestItems(items: OrderItem[]) {
 	return items.map((item, index) => ({
 		customerDescription: item.productName,
-		isUnmatched: item.category === 'unmatched',
-		productId: item.category === 'unmatched' ? undefined : item.productId,
+		isUnmatched:
+			item.category === 'unmatched' ||
+			item.isUnmatched ||
+			item.isOrderable === false,
+		productId:
+			item.category === 'unmatched' ||
+			item.isUnmatched ||
+			item.isOrderable === false
+				? undefined
+				: (item.catalogProductId ?? item.productId),
 		quantity: item.quantity,
 		sortOrder: index,
 		unitOfMeasure: item.unitOfMeasure,
 		unitOfMeasureAr: item.unitOfMeasureAr,
 	}))
+}
+
+function invalidDraftItems(items: OrderItem[]) {
+	return items.filter(
+		(item) =>
+			item.isOrderable === false || item.isUnmatched || !item.catalogProductId,
+	)
 }
 
 function buildDraftPrompt(
@@ -309,13 +332,27 @@ export function ChatDraftsPanel({
 		enabled: editor !== null,
 		staleTime: 60_000,
 	})
-	const products = productData?.products ?? []
+	const products =
+		productData?.products.filter(
+			(product) => product.availabilityStatus !== 'out_of_stock',
+		) ?? []
 	const showProductMenuLoading = useDelayedVisibility(isProductLoading)
 
 	const dirty = editor
 		? editorFingerprint(editor) !== editor.baseFingerprint
 		: false
-	const canPersist = Boolean(editor && editor.items.length > 0)
+	const invalidItems = editor ? invalidDraftItems(editor.items) : []
+	const hasInvalidItems = invalidItems.length > 0
+	const invalidItemsText = hasInvalidItems
+		? t('orders.unavailableItems', {
+				items: invalidItems
+					.map((item) => (isAr ? item.productNameAr : item.productName))
+					.join(', '),
+			})
+		: null
+	const canPersist = Boolean(
+		editor && editor.items.length > 0 && !hasInvalidItems,
+	)
 	const activeDraftTitle = editor
 		? editor.name.trim() || editor.reference || t('market.defaultDraftName')
 		: t('orders.selectDraft', 'Select draft')
@@ -538,6 +575,7 @@ export function ChatDraftsPanel({
 	}
 
 	function addProduct(product: MarketProduct) {
+		if (product.availabilityStatus === 'out_of_stock') return
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setEditor((current) => {
@@ -564,15 +602,13 @@ export function ChatDraftsPanel({
 	}
 
 	function addEditorToCart() {
-		if (!editor) return
+		if (!editor || invalidDraftItems(editor.items).length > 0) return
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
-		editor.items.forEach((item, index) => {
-			const productId =
-				item.category === 'unmatched'
-					? `${editor.id ?? NEW_DRAFT_KEY}:${index}:${item.productName}`
-					: item.productId
+		editor.items.forEach((item) => {
+			const productId = item.catalogProductId
+			if (!productId) return
 			addCartItem(
 				{
 					category: item.category,
@@ -593,7 +629,7 @@ export function ChatDraftsPanel({
 	}
 
 	function requestAddEditorToCart() {
-		if (!editor || editor.items.length === 0) return
+		if (!editor || !canPersist) return
 		setActionsMenuOpen(false)
 		setConfirmSubmitOpen(false)
 		setConfirmCartAddOpen(true)
@@ -1022,6 +1058,12 @@ export function ChatDraftsPanel({
 				</AnimatePresence>
 			</div>
 
+			{invalidItemsText && (
+				<p className="shrink-0 border-t border-[var(--p-border)] px-4 py-2 text-[12px] font-medium text-[var(--p-error)]">
+					{invalidItemsText}
+				</p>
+			)}
+
 			{submitError && (
 				<p className="shrink-0 border-t border-[var(--p-border)] px-4 py-2 text-[12px] font-medium text-[var(--p-error)]">
 					{submitError}
@@ -1135,7 +1177,7 @@ export function ChatDraftsPanel({
 						<motion.button
 							type="button"
 							onClick={requestAddEditorToCart}
-							disabled={editor.items.length === 0}
+							disabled={!canPersist}
 							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
 							aria-label={t('orders.addToCart')}
 							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
@@ -1355,10 +1397,14 @@ function DraftItemEditor({
 	const name = isAr ? item.productNameAr : item.productName
 	const unit =
 		isAr && item.unitOfMeasureAr ? item.unitOfMeasureAr : item.unitOfMeasure
+	const itemUnavailable =
+		item.isOrderable === false || item.isUnmatched || !item.catalogProductId
 
 	return (
 		<motion.div
-			className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-2"
+			className={`flex min-w-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-2 ${
+				itemUnavailable ? 'opacity-55' : ''
+			}`}
 			{...chatFadeMotion(shouldReduceMotion)}
 		>
 			<OrderItemImage imageUrl={item.imageUrl} />
@@ -1366,6 +1412,11 @@ function DraftItemEditor({
 				<p className="truncate text-[12px] font-semibold text-[var(--p-text)]">
 					{name}
 				</p>
+				{itemUnavailable && (
+					<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
+						{t('market.outOfStock')}
+					</span>
+				)}
 			</div>
 			<label className="flex h-9 w-[112px] shrink-0 items-center justify-end gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
 				<span className="sr-only">{t('chat.qty')}</span>

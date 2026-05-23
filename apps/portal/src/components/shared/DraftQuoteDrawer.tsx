@@ -1,5 +1,5 @@
 import { getQuoteCartFingerprint } from '@hyperquote/quote-cart'
-import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import {
 	Check,
 	FilePenLine,
@@ -23,7 +23,11 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { toDraftQuoteRequestItemPayloads } from '../../lib/draft-quote-cart'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
-import { saveDraft, submitQuoteRequest } from '../../lib/server/quote-requests'
+import {
+	saveDraft,
+	submitQuoteRequest,
+	validateQuoteRequestItems,
+} from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
@@ -151,12 +155,30 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		() => toDraftQuoteRequestItemPayloads(items, { isArabic: isAr }),
 		[isAr, items],
 	)
+	const quoteItemsFingerprint = useMemo(
+		() => JSON.stringify(quoteRequestItems),
+		[quoteRequestItems],
+	)
 	const draftFingerprint = useMemo(
 		() => getQuoteCartFingerprint(items, globalNote),
 		[globalNote, items],
 	)
 	const isDraftSaved =
 		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
+	const orderabilityQuery = useQuery({
+		queryKey: ['draft-quote-orderability', quoteItemsFingerprint],
+		queryFn: () =>
+			validateQuoteRequestItems({
+				data: { items: quoteRequestItems },
+			}),
+		enabled: open && quoteRequestItems.length > 0,
+		staleTime: 10_000,
+	})
+	const validationUnavailableItems =
+		orderabilityQuery.data?.unavailableItems ?? []
+	const hasUnavailableCartItems = validationUnavailableItems.length > 0
+	const isCartValidationPending =
+		quoteRequestItems.length > 0 && orderabilityQuery.isFetching
 
 	const submitMutation = useMutation({
 		mutationFn: () =>
@@ -237,6 +259,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		event.preventDefault()
 		if (
 			quoteRequestItems.length === 0 ||
+			hasUnavailableCartItems ||
+			isCartValidationPending ||
 			submitMutation.isPending ||
 			saveMutation.isPending
 		) {
@@ -248,6 +272,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	function handleConfirmSubmit() {
 		if (
 			quoteRequestItems.length === 0 ||
+			hasUnavailableCartItems ||
+			isCartValidationPending ||
 			submitMutation.isPending ||
 			saveMutation.isPending
 		) {
@@ -260,6 +286,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	function handleConfirmSaveDraft() {
 		if (
 			quoteRequestItems.length === 0 ||
+			hasUnavailableCartItems ||
+			isCartValidationPending ||
 			submitMutation.isPending ||
 			saveMutation.isPending ||
 			isDraftSaved
@@ -270,7 +298,16 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		saveMutation.mutate(draftName.trim() || defaultDraftName)
 	}
 
-	const unavailableItems = unavailableItemNamesFromError(submitMutation.error)
+	const mutationUnavailableItems = [
+		...new Set([
+			...unavailableItemNamesFromError(submitMutation.error),
+			...unavailableItemNamesFromError(saveMutation.error),
+		]),
+	]
+	const unavailableItems =
+		validationUnavailableItems.length > 0
+			? validationUnavailableItems
+			: mutationUnavailableItems
 	const submitErrorText =
 		unavailableItems.length > 0
 			? t('market.unavailableItems', {
@@ -402,6 +439,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													{items.map((item, index) => {
 														const itemName =
 															isAr && item.nameAr ? item.nameAr : item.name
+														const itemUnavailable =
+															validationUnavailableItems.includes(itemName)
 														const categoryLabel =
 															isAr && item.categoryNameAr
 																? item.categoryNameAr
@@ -431,6 +470,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																	index > 0
 																		? 'border-t border-[var(--p-border)]'
 																		: '',
+																	itemUnavailable ? 'opacity-55' : '',
 																].join(' ')}
 															>
 																<div className="flex min-w-0 items-center gap-3">
@@ -457,6 +497,11 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																		<p className="mt-1 truncate text-[11px] text-[var(--p-text-muted)]">
 																			{categoryLabel}
 																		</p>
+																		{itemUnavailable && (
+																			<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
+																				{t('market.outOfStock')}
+																			</span>
+																		)}
 																	</div>
 																	<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
 																		<span className="sr-only">
@@ -592,9 +637,13 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 													)}
 												</AnimatePresence>
 
-												{(submitMutation.isError || saveMutation.isError) && (
+												{(hasUnavailableCartItems ||
+													submitMutation.isError ||
+													saveMutation.isError) && (
 													<p className="mt-3 text-[12px] text-[var(--p-error)]">
-														{submitMutation.isError
+														{hasUnavailableCartItems ||
+														unavailableItems.length > 0 ||
+														submitMutation.isError
 															? submitErrorText
 															: t('market.submitError')}
 													</p>
@@ -629,9 +678,15 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																<motion.button
 																	type="button"
 																	onClick={handleConfirmSubmit}
-																	className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+																	disabled={
+																		hasUnavailableCartItems ||
+																		isCartValidationPending
+																	}
+																	className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
 																	whileTap={
-																		shouldReduceMotion
+																		shouldReduceMotion ||
+																		hasUnavailableCartItems ||
+																		isCartValidationPending
 																			? undefined
 																			: { scale: 0.98 }
 																	}
@@ -676,12 +731,16 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 														type="submit"
 														disabled={
 															quoteRequestItems.length === 0 ||
+															hasUnavailableCartItems ||
+															isCartValidationPending ||
 															submitMutation.isPending ||
 															saveMutation.isPending
 														}
 														className="flex h-11 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
 														whileTap={
 															shouldReduceMotion ||
+															hasUnavailableCartItems ||
+															isCartValidationPending ||
 															submitMutation.isPending ||
 															saveMutation.isPending
 																? undefined
@@ -722,6 +781,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															submitMutation.isPending ||
 															saveMutation.isPending ||
 															quoteRequestItems.length === 0 ||
+															hasUnavailableCartItems ||
+															isCartValidationPending ||
 															isDraftSaved
 														}
 														title={
@@ -741,6 +802,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 															shouldReduceMotion ||
 															submitMutation.isPending ||
 															saveMutation.isPending ||
+															hasUnavailableCartItems ||
+															isCartValidationPending ||
 															isDraftSaved
 																? undefined
 																: { scale: 0.94 }
@@ -923,7 +986,10 @@ function DraftProductSearch({
 		})
 
 	const products = useMemo(
-		() => data?.pages.flatMap((page) => page.products) ?? [],
+		() =>
+			(data?.pages.flatMap((page) => page.products) ?? []).filter(
+				(product) => product.availabilityStatus !== 'out_of_stock',
+			),
 		[data],
 	)
 	const showProductLoading = useDelayedVisibility(isLoading)

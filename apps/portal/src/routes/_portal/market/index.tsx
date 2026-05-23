@@ -494,6 +494,7 @@ function ProductCard({
 	)
 	const inDraft = draftItem != null
 	const draftQuantity = draftItem?.quantity ?? 0
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 	const draftQuantityLabel = useMemo(
 		() =>
 			new Intl.NumberFormat(isAr ? 'ar-EG' : 'en-EG', {
@@ -547,18 +548,28 @@ function ProductCard({
 					onClick={(e) => {
 						e.preventDefault()
 						e.stopPropagation()
+						if (!isOrderable && !inDraft) return
 						setPopoverOpen((v) => !v)
 					}}
+					disabled={!isOrderable && !inDraft}
 					className={[
-						'absolute end-2 bottom-2 flex h-9 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-200 sm:end-3 sm:bottom-3 sm:h-10',
+						'absolute end-2 bottom-2 flex h-9 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-200 disabled:pointer-events-none sm:end-3 sm:bottom-3 sm:h-10',
 						inDraft
 							? 'min-w-9 max-w-[calc(100%-1rem)] px-2 sm:min-w-10 sm:px-2.5'
 							: 'w-9 sm:w-10',
 						inDraft || popoverOpen
 							? 'bg-white text-black ring-white/40 backdrop-blur-md'
-							: 'bg-black/20 text-white ring-white/10 opacity-100 backdrop-blur-xl hover:bg-black/35 lg:opacity-0 lg:group-hover:opacity-100',
+							: isOrderable
+								? 'bg-black/20 text-white ring-white/10 opacity-100 backdrop-blur-xl hover:bg-black/35 lg:opacity-0 lg:group-hover:opacity-100'
+								: 'bg-black/20 text-white/45 ring-white/10 opacity-60',
 					].join(' ')}
-					aria-label={inDraft ? t('market.amend') : t('market.record')}
+					aria-label={
+						inDraft
+							? t('market.amend')
+							: isOrderable
+								? t('market.record')
+								: t('market.outOfStock')
+					}
 					aria-expanded={popoverOpen}
 				>
 					{inDraft ? (
@@ -634,6 +645,7 @@ function AddPopover({
 	const existing = items.find((i) => i.productId === product.id)
 	const [qtyStr, setQtyStr] = useState(String(existing?.quantity ?? 1))
 	const qty = parseInt(qtyStr, 10) || 0
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 	const inputRef = useRef<HTMLInputElement>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
 	const unitLabel =
@@ -661,6 +673,12 @@ function AddPopover({
 	}, [onClose, anchorRef])
 
 	const submit = () => {
+		if (!isOrderable && !existing) return
+		if (!isOrderable && existing) {
+			if (qty <= 0) remove(product.id)
+			onClose()
+			return
+		}
 		if (qty <= 0) {
 			if (existing) remove(product.id)
 			onClose()
@@ -778,7 +796,8 @@ function AddPopover({
 				<button
 					type="button"
 					onClick={submit}
-					className="h-11 flex-1 rounded-sm bg-[var(--p-accent)] font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 sm:h-9 sm:tracking-[0.22em]"
+					disabled={!isOrderable && !existing}
+					className="h-11 flex-1 rounded-sm bg-[var(--p-accent)] font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50 sm:h-9 sm:tracking-[0.22em]"
 				>
 					{existing ? t('market.confirm') : t('market.record')}
 				</button>

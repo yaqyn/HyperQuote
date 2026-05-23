@@ -192,10 +192,14 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 						)
 						if (!item) return state
 						return {
-							items: [
-								...state.items,
-								{ ...item, productId: `${item.productId}-${Date.now()}` },
-							],
+							items: state.items.map((cartItem) =>
+								cartItem.productId === productId
+									? {
+											...cartItem,
+											quantity: cartItem.quantity + item.quantity,
+										}
+									: cartItem,
+							),
 						}
 					}),
 				clear: () => set({ items: [], globalNote: '' }),
@@ -242,17 +246,21 @@ function migrateLegacyWebsiteQuoteCartStorage() {
 function sanitizeQuoteCartItems(value: unknown): QuoteCartItem[] {
 	if (!Array.isArray(value)) return []
 
-	const usedIds = new Set<string>()
-	return value.flatMap((item, index) => {
+	const itemsByProductId = new Map<string, QuoteCartItem>()
+	for (const [index, item] of value.entries()) {
 		const normalized = normalizeQuoteCartItem(item, index)
-		if (!normalized) return []
+		if (!normalized) continue
 
-		if (usedIds.has(normalized.productId)) {
-			normalized.productId = `${normalized.productId}-${index + 1}`
+		const existing = itemsByProductId.get(normalized.productId)
+		if (existing) {
+			existing.quantity += normalized.quantity
+			if (!existing.note && normalized.note) existing.note = normalized.note
+			continue
 		}
-		usedIds.add(normalized.productId)
-		return [normalized]
-	})
+		itemsByProductId.set(normalized.productId, normalized)
+	}
+
+	return Array.from(itemsByProductId.values())
 }
 
 function normalizeQuoteCartItem(

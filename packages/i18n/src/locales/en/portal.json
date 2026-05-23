@@ -620,6 +620,7 @@
 		"draftSubmittedReady": "{{ref}} is in review. New draft ready.",
 		"submitFailed": "Could not submit this draft. Please try again.",
 		"unavailableItems": "{{items}} is not available.",
+		"unavailableDraftBlocked": "Remove unavailable items before using this draft.",
 		"view": "View",
 		"delete": "Delete",
 		"confirmDelete": "Delete?",

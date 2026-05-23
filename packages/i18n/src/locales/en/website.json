@@ -149,6 +149,7 @@
 		"draftSaved": "Draft saved",
 		"draftSavedBody": "View it in the portal app.",
 		"unavailableItems": "{{items}} is not available.",
+		"unavailableDraftBlocked": "Remove unavailable items before using this draft.",
 		"viewSavedOrders": "View saved drafts",
 		"add": "Add",
 		"cancel": "Cancel",

@@ -88,6 +88,47 @@ describe('draft quote cart recovery', () => {
 		])
 	})
 
+	it('merges duplicate persisted catalog rows instead of fabricating product ids', () => {
+		const productId = '22222222-2222-4222-8222-222222222222'
+		const snapshot = sanitizeDraftQuoteSnapshot({
+			items: [
+				{
+					category: 'material',
+					name: 'Wood',
+					productId,
+					quantity: 2,
+					unitOfMeasure: 'piece',
+				},
+				{
+					category: 'material',
+					name: 'Wood',
+					productId,
+					quantity: 3,
+					unitOfMeasure: 'piece',
+				},
+			],
+		})
+
+		expect(snapshot.items).toHaveLength(1)
+		expect(snapshot.items[0]?.productId).toBe(productId)
+		expect(snapshot.items[0]?.quantity).toBe(5)
+		expect(
+			toDraftQuoteRequestItemPayloads(snapshot.items, { isArabic: false }),
+		).toEqual([
+			{
+				customerDescription: 'Wood',
+				isUnmatched: false,
+				matchConfidence: 1,
+				notes: undefined,
+				productId,
+				quantity: 5,
+				sortOrder: 0,
+				unitOfMeasure: 'piece',
+				unitOfMeasureAr: 'piece',
+			},
+		])
+	})
+
 	it('keeps zero as an editable cart quantity but omits it from submit payloads', () => {
 		const productId = '33333333-3333-4333-8333-333333333333'
 		const snapshot = sanitizeDraftQuoteSnapshot({

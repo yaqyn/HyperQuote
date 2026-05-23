@@ -309,6 +309,7 @@ interface ActionProduct {
 	unitOfMeasure: string
 	unitOfMeasureAr: string
 	imageUrl: string
+	availabilityStatus: string
 }
 
 function RecordAction({
@@ -324,6 +325,7 @@ function RecordAction({
 	const [quantity, setQuantity] = useState(1)
 	const [mode, setMode] = useState<RecordMode>(cartItem ? 'added' : 'idle')
 	const isBar = variant === 'bar'
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 	const unitLabel =
 		i18n.language === 'ar' && product.unitOfMeasureAr
 			? product.unitOfMeasureAr
@@ -331,7 +333,7 @@ function RecordAction({
 	const shellClass = isBar
 		? 'w-full'
 		: 'rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:p-5 lg:p-6'
-	const primaryClass = `${isBar ? 'h-12' : 'h-14'} inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90`
+	const primaryClass = `${isBar ? 'h-12' : 'h-14'} inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-5 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50`
 
 	useEffect(() => {
 		if (!cartItem && mode === 'added') setMode('idle')
@@ -351,6 +353,7 @@ function RecordAction({
 	)
 
 	const confirmWith = (qty: number) => {
+		if (!isOrderable) return
 		const q = Math.max(1, qty)
 		if (cartItem) {
 			updateQuantity(product.id, q)
@@ -376,6 +379,7 @@ function RecordAction({
 	}
 
 	const handleEdit = () => {
+		if (!isOrderable) return
 		if (cartItem) setQuantity(cartItem.quantity)
 		setMode('selecting')
 	}
@@ -392,10 +396,11 @@ function RecordAction({
 				<button
 					type="button"
 					onClick={() => setMode('selecting')}
+					disabled={!isOrderable}
 					className={primaryClass}
 				>
 					<Plus size={16} />
-					{t('market.record')}
+					{isOrderable ? t('market.record') : t('market.outOfStock')}
 				</button>
 			</div>
 		)
@@ -456,6 +461,7 @@ function RecordAction({
 					<button
 						type="button"
 						onClick={() => confirmWith(quantity)}
+						disabled={!isOrderable}
 						className={primaryClass}
 					>
 						<Check size={18} />
@@ -495,7 +501,8 @@ function RecordAction({
 				<button
 					type="button"
 					onClick={handleEdit}
-					className={`${isBar ? 'h-12' : 'h-14'} inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-accent)] hover:bg-[var(--p-hover)]`}
+					disabled={!isOrderable}
+					className={`${isBar ? 'h-12' : 'h-14'} inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] px-5 text-[14px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-accent)] hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50`}
 				>
 					<Pencil size={16} />
 					{t('market.amend')}

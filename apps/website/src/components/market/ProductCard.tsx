@@ -39,6 +39,7 @@ function AddPopover({
 	const existingItem = items.find((i) => i.productId === product.id)
 	const [qtyStr, setQtyStr] = useState(String(existingItem?.quantity ?? 1))
 	const qty = parseInt(qtyStr, 10) || 0
+	const isOrderable = product.availability_status !== 'out_of_stock'
 	const inputRef = useRef<HTMLInputElement>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
 	const weight = product.weight_kg
@@ -63,6 +64,12 @@ function AddPopover({
 	}, [onClose, anchorRef])
 
 	const handleSubmit = () => {
+		if (!isOrderable && !existingItem) return
+		if (!isOrderable && existingItem) {
+			if (qty <= 0) remove(product.id)
+			onClose()
+			return
+		}
 		if (qty > 0) {
 			onClose()
 			if (existingItem) {
@@ -168,7 +175,8 @@ function AddPopover({
 				<button
 					type="button"
 					onClick={handleSubmit}
-					className="flex-1 h-8 rounded-lg bg-white text-black text-[13px] font-semibold hover:bg-white/90 transition-colors"
+					disabled={!isOrderable && !existingItem}
+					className="flex-1 h-8 rounded-lg bg-white text-black text-[13px] font-semibold hover:bg-white/90 transition-colors disabled:pointer-events-none disabled:opacity-50"
 				>
 					{existingItem ? t('market.confirm') : t('market.addToQuote')}
 				</button>
@@ -191,6 +199,7 @@ export function ProductCard({
 	const existingItem = items.find((i) => i.productId === product.id)
 	const inCart = !!existingItem
 	const cartQty = existingItem?.quantity ?? 0
+	const isOrderable = product.availability_status !== 'out_of_stock'
 	const unit = productUnitLabel(product, locale)
 	const categoryLabel =
 		categoryLabelProp ??
@@ -203,6 +212,7 @@ export function ProductCard({
 	const handleBtnClick = (e: React.MouseEvent) => {
 		e.preventDefault()
 		e.stopPropagation()
+		if (!isOrderable && !inCart) return
 		setPopoverOpen(!popoverOpen)
 	}
 
@@ -241,9 +251,14 @@ export function ProductCard({
 						ref={btnRef}
 						type="button"
 						onClick={handleBtnClick}
-						className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors backdrop-blur-sm ${inCart ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20' : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)] hover:ring-[var(--color-primary)]/30 hover:text-[var(--color-primary)]'}`}
+						disabled={!isOrderable && !inCart}
+						className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors backdrop-blur-sm disabled:pointer-events-none disabled:opacity-50 ${inCart ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20' : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)] hover:ring-[var(--color-primary)]/30 hover:text-[var(--color-primary)]'}`}
 						aria-label={
-							inCart ? t('market.editQuantity') : t('market.addToQuote')
+							inCart
+								? t('market.editQuantity')
+								: isOrderable
+									? t('market.addToQuote')
+									: t('market.outOfStock')
 						}
 					>
 						{inCart ? (
@@ -291,13 +306,20 @@ export function ProductCard({
 					ref={btnRef}
 					type="button"
 					onClick={handleBtnClick}
-					className={`absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 ring-1 shadow-lg sm:bottom-3 sm:end-3 sm:h-10 sm:w-10 ${
+					disabled={!isOrderable && !inCart}
+					className={`absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 ring-1 shadow-lg disabled:pointer-events-none sm:bottom-3 sm:end-3 sm:h-10 sm:w-10 ${
 						inCart
 							? 'backdrop-blur-md bg-white ring-white/40'
-							: 'backdrop-blur-xl bg-black/20 ring-white/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:bg-black/35'
+							: isOrderable
+								? 'backdrop-blur-xl bg-black/20 ring-white/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:bg-black/35'
+								: 'bg-black/20 text-white/45 ring-white/10 opacity-60'
 					}`}
 					aria-label={
-						inCart ? t('market.editQuantity') : t('market.addToQuote')
+						inCart
+							? t('market.editQuantity')
+							: isOrderable
+								? t('market.addToQuote')
+								: t('market.outOfStock')
 					}
 				>
 					{inCart ? (

@@ -39,12 +39,18 @@ const saveWebsiteQuoteDraftInput = z.object({
 	notes: z.string().max(2000).optional(),
 })
 
+const validateWebsiteQuoteItemsInput = z.object({
+	items: z.array(quoteRequestItemInput),
+})
+
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInput>
 
 const savedDraftProductRow = z.object({
+	availability_status: z.string(),
 	category: z.string(),
 	id: z.string(),
 	image_urls: z.array(z.string()).nullable(),
+	is_active: z.boolean(),
 	name: z.string(),
 	name_ar: z.string().nullable(),
 })
@@ -86,6 +92,8 @@ export interface WebsiteSavedQuoteDraftItem {
 	note?: string
 	imageUrl: string | null
 	isUnmatched: boolean
+	availabilityStatus?: string | null
+	isUnavailable: boolean
 }
 
 export interface WebsiteSavedQuoteDraft {
@@ -138,6 +146,24 @@ function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
 	return relation ?? null
 }
 
+function isOrderableCatalogProduct(
+	product:
+		| {
+				availability_status: string
+				id: string
+				is_active: boolean
+		  }
+		| null
+		| undefined,
+) {
+	return Boolean(
+		product?.id &&
+			product.is_active &&
+			product.availability_status !== 'hidden' &&
+			product.availability_status !== 'out_of_stock',
+	)
+}
+
 function mapSavedDraftRow(
 	row: z.infer<typeof savedDraftRow>,
 ): WebsiteSavedQuoteDraft {
@@ -146,11 +172,14 @@ function mapSavedDraftRow(
 		.sort((a, b) => a.sort_order - b.sort_order)
 		.map((item): WebsiteSavedQuoteDraftItem => {
 			const product = firstRelation(item.products)
+			const catalogProductId = item.product_id ?? product?.id ?? undefined
+			const isUnavailable =
+				item.is_unmatched ||
+				!catalogProductId ||
+				!isOrderableCatalogProduct(product)
 			const imageUrl = product?.image_urls?.[0] ?? null
 			return {
-				productId: item.is_unmatched
-					? undefined
-					: (item.product_id ?? undefined),
+				productId: isUnavailable ? undefined : catalogProductId,
 				name: item.customer_description || product?.name || item.id,
 				nameAr:
 					item.product_name_ar ||
@@ -165,6 +194,8 @@ function mapSavedDraftRow(
 				note: item.notes ?? undefined,
 				imageUrl,
 				isUnmatched: item.is_unmatched,
+				availabilityStatus: product?.availability_status ?? null,
+				isUnavailable,
 			}
 		})
 
@@ -280,6 +311,7 @@ async function insertQuoteRequestItems(
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
 ) {
+	await assertQuoteRequestItemsOrderable(client, items)
 	const { error } = await client
 		.from('quote_request_items')
 		.insert(quoteRequestItemRows(quoteRequestId, items))
@@ -340,7 +372,9 @@ export const getWebsiteSavedQuoteDrafts = createServerFn({
 							category,
 							name,
 							name_ar,
-							image_urls
+							image_urls,
+							is_active,
+							availability_status
 						)
 					)
 				`)
@@ -371,6 +405,9 @@ async function assertQuoteRequestItemsOrderable(
 	client: WebsiteSupabaseClient,
 	items: z.infer<typeof quoteRequestItemInput>[],
 ) {
+	const textOnlyItems = items.flatMap((item) =>
+		validProductId(item.productId) ? [] : [item.customerDescription],
+	)
 	const productIds = [
 		...new Set(
 			items.flatMap((item) => {
@@ -379,36 +416,52 @@ async function assertQuoteRequestItemsOrderable(
 			}),
 		),
 	]
-	if (productIds.length === 0) return
 
-	const { data, error } = await client
-		.from('products')
-		.select('id, is_active, availability_status')
-		.in('id', productIds)
+	let orderableIds = new Set<string>()
+	if (productIds.length > 0) {
+		const { data, error } = await client
+			.from('products')
+			.select('id, is_active, availability_status')
+			.in('id', productIds)
 
-	if (error) throw error
+		if (error) throw error
 
-	const orderableIds = new Set(
-		(data ?? [])
-			.filter(
-				(product) =>
-					product.is_active &&
-					product.availability_status !== 'hidden' &&
-					product.availability_status !== 'out_of_stock',
-			)
-			.map((product) => product.id),
-	)
-	const unavailableItems = items.flatMap((item) => {
-		const productId = validProductId(item.productId)
-		return productId && !orderableIds.has(productId)
-			? [item.customerDescription]
-			: []
-	})
+		orderableIds = new Set(
+			(data ?? [])
+				.filter(isOrderableCatalogProduct)
+				.map((product) => product.id),
+		)
+	}
+	const unavailableItems = [
+		...textOnlyItems,
+		...items.flatMap((item) => {
+			const productId = validProductId(item.productId)
+			return productId && !orderableIds.has(productId)
+				? [item.customerDescription]
+				: []
+		}),
+	]
 
 	if (unavailableItems.length > 0) {
 		throw new Error(serializeUnavailableItemsError(unavailableItems))
 	}
 }
+
+export const validateWebsiteQuoteItems = createServerFn({ method: 'POST' })
+	.inputValidator(validateWebsiteQuoteItemsInput)
+	.handler(async ({ data: input }): Promise<{ unavailableItems: string[] }> => {
+		const client = await createSupabaseServiceRoleClient(process.env)
+		if (!client) throw new Error('Website quote validation is not configured')
+
+		try {
+			await assertQuoteRequestItemsOrderable(client, input.items)
+			return { unavailableItems: [] }
+		} catch (error) {
+			const unavailableItems = unavailableItemNamesFromError(error)
+			if (unavailableItems.length === 0) throw error
+			return { unavailableItems }
+		}
+	})
 
 export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 	.inputValidator(submitWebsiteQuoteInput)
@@ -593,7 +646,9 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						| 'not_configured'
 						| 'not_authenticated'
 						| 'customer_required'
+						| 'items_unavailable'
 						| 'save_failed'
+					unavailableItems?: string[]
 			  }
 		> => {
 			try {
@@ -601,6 +656,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'save_failed' }
 				}
+				await assertQuoteRequestItemsOrderable(auth.client, input.items)
 
 				if (input.draftId) {
 					const { data: updatedDraft, error: updateError } = await auth.client
@@ -700,6 +756,14 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 					reference: requestRow.request_number,
 				}
 			} catch (error) {
+				const unavailableItems = unavailableItemNamesFromError(error)
+				if (unavailableItems.length > 0) {
+					return {
+						success: false,
+						error: 'items_unavailable',
+						unavailableItems,
+					}
+				}
 				logWebsiteServerError(
 					'website.quote_request.save.unexpected_error',
 					error,

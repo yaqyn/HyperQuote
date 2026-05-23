@@ -106,6 +106,7 @@
 	"orders.draftSubmittedReady": "{{ref}} قيد المراجعة. مسودة جديدة جاهزة.",
 	"orders.submitFailed": "تعذر إرسال هذه المسودة. يرجى المحاولة مرة أخرى.",
 	"orders.unavailableItems": "{{items}} غير متاح.",
+	"orders.unavailableDraftBlocked": "أزل العناصر غير المتاحة قبل استخدام هذه المسودة.",
 	"orders.view": "عرض",
 	"orders.delete": "حذف",
 	"orders.confirmDelete": "حذف؟",

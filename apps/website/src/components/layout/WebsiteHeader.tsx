@@ -36,6 +36,7 @@ import { getPortalHref } from '../../lib/portal-url'
 import {
 	saveWebsiteQuoteDraft,
 	submitWebsiteQuoteRequest,
+	validateWebsiteQuoteItems,
 } from '../../lib/quote-requests'
 import {
 	EGYPT_COUNTRY_CODE,
@@ -825,12 +826,45 @@ function CartSubmit({
 		() => toQuoteRequestItemPayloads(items, { isArabic }),
 		[isArabic, items],
 	)
+	const [unavailableCartItems, setUnavailableCartItems] = useState<string[]>([])
+	const [cartValidationPending, setCartValidationPending] = useState(false)
 	const draftFingerprint = useMemo(
 		() => getQuoteCartFingerprint(items, globalNote),
 		[globalNote, items],
 	)
 	const isDraftSaved =
 		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
+	const hasUnavailableCartItems = unavailableCartItems.length > 0
+	const unavailableCartText = t('cart.unavailableItems', {
+		items: unavailableCartItems.join(', '),
+	})
+
+	useEffect(() => {
+		let active = true
+		if (quoteRequestItems.length === 0) {
+			setUnavailableCartItems([])
+			setCartValidationPending(false)
+			return () => {
+				active = false
+			}
+		}
+
+		setCartValidationPending(true)
+		void validateWebsiteQuoteItems({ data: { items: quoteRequestItems } })
+			.then((result) => {
+				if (active) setUnavailableCartItems(result.unavailableItems)
+			})
+			.catch(() => {
+				if (active) setUnavailableCartItems([])
+			})
+			.finally(() => {
+				if (active) setCartValidationPending(false)
+			})
+
+		return () => {
+			active = false
+		}
+	}, [quoteRequestItems])
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
@@ -912,7 +946,13 @@ function CartSubmit({
 
 	if (step === 'submit') {
 		async function handleSubmitQuote() {
-			if (quoteRequestItems.length === 0 || loadingAction) return
+			if (
+				quoteRequestItems.length === 0 ||
+				hasUnavailableCartItems ||
+				cartValidationPending ||
+				loadingAction
+			)
+				return
 			setSubmitConfirmOpen(false)
 			setLoadingAction('submit')
 			setAuthSuccessVisible(false)
@@ -959,12 +999,24 @@ function CartSubmit({
 		}
 
 		function handleRequestSubmitQuote() {
-			if (quoteRequestItems.length === 0 || loadingAction) return
+			if (
+				quoteRequestItems.length === 0 ||
+				hasUnavailableCartItems ||
+				cartValidationPending ||
+				loadingAction
+			)
+				return
 			setSubmitConfirmOpen(true)
 		}
 
 		async function handleConfirmSaveDraft() {
-			if (quoteRequestItems.length === 0 || loadingAction || isDraftSaved)
+			if (
+				quoteRequestItems.length === 0 ||
+				hasUnavailableCartItems ||
+				cartValidationPending ||
+				loadingAction ||
+				isDraftSaved
+			)
 				return
 			setSubmitConfirmOpen(false)
 			const nextName = draftName.trim() || defaultDraftName
@@ -996,6 +1048,14 @@ function CartSubmit({
 				) {
 					setAuthSuccessVisible(false)
 					setStep('phone')
+					return
+				}
+				if (result.error === 'items_unavailable') {
+					setError(
+						t('cart.unavailableItems', {
+							items: result.unavailableItems?.join(', ') || defaultDraftName,
+						}),
+					)
 					return
 				}
 				setError(t('cart.saveDraftFailed'))
@@ -1137,8 +1197,15 @@ function CartSubmit({
 								<motion.button
 									type="button"
 									onClick={handleSubmitQuote}
-									className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-									whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+									disabled={hasUnavailableCartItems || cartValidationPending}
+									className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
+									whileTap={
+										shouldReduceMotion ||
+										hasUnavailableCartItems ||
+										cartValidationPending
+											? undefined
+											: { scale: 0.98 }
+									}
 								>
 									{t('cart.confirmSubmitAction')}
 								</motion.button>
@@ -1177,10 +1244,18 @@ function CartSubmit({
 					<motion.button
 						type="button"
 						onClick={handleRequestSubmitQuote}
-						disabled={loadingAction !== null || quoteRequestItems.length === 0}
+						disabled={
+							loadingAction !== null ||
+							quoteRequestItems.length === 0 ||
+							hasUnavailableCartItems ||
+							cartValidationPending
+						}
 						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
 						whileTap={
-							shouldReduceMotion || loadingAction !== null
+							shouldReduceMotion ||
+							loadingAction !== null ||
+							hasUnavailableCartItems ||
+							cartValidationPending
 								? undefined
 								: { scale: 0.985 }
 						}
@@ -1216,6 +1291,8 @@ function CartSubmit({
 						disabled={
 							loadingAction !== null ||
 							quoteRequestItems.length === 0 ||
+							hasUnavailableCartItems ||
+							cartValidationPending ||
 							isDraftSaved
 						}
 						title={isDraftSaved ? persistedDraftName : undefined}
@@ -1226,7 +1303,11 @@ function CartSubmit({
 						}`}
 						aria-label={isDraftSaved ? persistedDraftName : t('cart.saveDraft')}
 						whileTap={
-							shouldReduceMotion || loadingAction !== null || isDraftSaved
+							shouldReduceMotion ||
+							loadingAction !== null ||
+							hasUnavailableCartItems ||
+							cartValidationPending ||
+							isDraftSaved
 								? undefined
 								: { scale: 0.94 }
 						}
@@ -1242,6 +1323,11 @@ function CartSubmit({
 				{error && (
 					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
 						{error}
+					</p>
+				)}
+				{hasUnavailableCartItems && (
+					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
+						{unavailableCartText}
 					</p>
 				)}
 				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">

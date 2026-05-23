@@ -38,8 +38,12 @@ export function ReviewStep() {
 	const [submitting, setSubmitting] = useState(false)
 	const [result, setResult] = useState<SubmitResult | null>(null)
 	const [error, setError] = useState<string | null>(null)
+	const hasInvalidItems = items.some(
+		(item) => item.isUnmatched || !item.productId,
+	)
 
 	const handleSubmit = useCallback(async () => {
+		if (hasInvalidItems) return
 		setSubmitting(true)
 		setError(null)
 
@@ -80,7 +84,7 @@ export function ReviewStep() {
 		} finally {
 			setSubmitting(false)
 		}
-	}, [needsApproval, submit, t])
+	}, [hasInvalidItems, needsApproval, submit, t])
 
 	if (result) {
 		return (
@@ -185,7 +189,7 @@ export function ReviewStep() {
 			<div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
 				<DialogTrigger>
 					<Button
-						isDisabled={items.length === 0 || isPending}
+						isDisabled={items.length === 0 || hasInvalidItems || isPending}
 						onPress={() => setShowConfirm(true)}
 						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 					>
@@ -231,7 +235,7 @@ export function ReviewStep() {
 												setShowConfirm(false)
 												handleSubmit()
 											}}
-											isDisabled={isPending}
+											isDisabled={hasInvalidItems || isPending}
 											className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50"
 										>
 											{needsApproval

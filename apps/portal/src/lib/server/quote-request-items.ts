@@ -103,11 +103,21 @@ async function getOrderableProductIds(
 	)
 }
 
+export async function assertQuoteRequestItemsHaveOrderableProductLinks(
+	supabase: AuthedSupabase,
+	items: QuoteRequestItemInput[],
+) {
+	const orderableProductIds = await getOrderableProductIds(supabase, items)
+	assertAllProductLinksOrderable(items, orderableProductIds)
+}
+
 export async function insertQuoteRequestItems(
 	supabase: AuthedSupabase,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
-	options: InsertQuoteRequestItemsOptions = {},
+	options: InsertQuoteRequestItemsOptions = {
+		requireOrderableProductLinks: true,
+	},
 ) {
 	if (items.length === 0) return
 	const orderableProductIds = await getOrderableProductIds(supabase, items)

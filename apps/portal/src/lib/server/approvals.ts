@@ -7,6 +7,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
+	assertQuoteRequestItemsHaveOrderableProductLinks,
 	insertQuoteRequestItems,
 	quoteRequestItemInputSchema,
 } from './quote-request-items'
@@ -63,6 +64,11 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 					approvalId: approval?.id ?? '',
 				}
 			}
+
+			await assertQuoteRequestItemsHaveOrderableProductLinks(
+				supabase,
+				input.items,
+			)
 
 			let approverId: string | null = null
 			const { data: approvers } = await supabase

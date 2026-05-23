@@ -51,6 +51,8 @@ function toSavedDraftItemView(
 		unitOfMeasureAr: item.unitOfMeasureAr,
 		imageUrl: item.imageUrl,
 		notes: item.note,
+		isUnavailable: item.isUnavailable,
+		unavailableReason: item.availabilityStatus,
 	}
 }
 
@@ -126,14 +128,24 @@ export function WebsiteSavedDraftsPanel({
 			emptyOrder: t('cart.savedOrdersEmpty'),
 			lastEdited: (date) => date,
 			defaultDraftName: t('cart.defaultDraftName'),
+			unavailableItem: t('market.outOfStock'),
+			blockedDraft: t(
+				'cart.unavailableDraftBlocked',
+				'Remove unavailable items before using this draft.',
+			),
 		}),
 		[t],
 	)
 
 	function handleAddDraft(draft: WebsiteSavedDraft) {
+		if (
+			draft.draft.items.some((item) => item.isUnavailable || !item.productId)
+		) {
+			return
+		}
 		for (const item of draft.draft.items) {
-			const productId =
-				item.productId ?? `${draft.id}:${item.name}:${item.unitOfMeasure}`
+			const productId = item.productId
+			if (!productId) continue
 			addCartItem(
 				{
 					productId,

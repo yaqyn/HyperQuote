@@ -152,6 +152,7 @@
 		"draftSaved": "تم حفظ المسودة",
 		"draftSavedBody": "يمكنك عرضها في تطبيق البوابة.",
 		"unavailableItems": "{{items}} غير متاح.",
+		"unavailableDraftBlocked": "أزل العناصر غير المتاحة قبل استخدام هذه المسودة.",
 		"viewSavedOrders": "عرض المسودات المحفوظة",
 		"add": "إضافة",
 		"cancel": "إلغاء",

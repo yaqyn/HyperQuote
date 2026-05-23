@@ -24,6 +24,9 @@ export function QuoteBuilderFlow() {
 	const step = useQuoteBuilderStore((s) => s.step)
 	const items = useQuoteBuilderStore((s) => s.items)
 	const setStep = useQuoteBuilderStore((s) => s.setStep)
+	const hasInvalidItems = items.some(
+		(item) => item.isUnmatched || !item.productId,
+	)
 	const [draftFeedback, setDraftFeedback] = useState<'saved' | 'error' | null>(
 		null,
 	)
@@ -49,12 +52,12 @@ export function QuoteBuilderFlow() {
 	}, [])
 
 	const handleContinue = useCallback(() => {
-		if (step === 1 && items.length > 0) {
+		if (step === 1 && items.length > 0 && !hasInvalidItems) {
 			setStep(2)
 		} else if (step === 2) {
 			setStep(3)
 		}
-	}, [step, items.length, setStep])
+	}, [step, items.length, hasInvalidItems, setStep])
 
 	return (
 		<div className="flex flex-col h-full">
@@ -120,7 +123,7 @@ export function QuoteBuilderFlow() {
 						)}
 						<Button
 							onPress={handleSaveDraft}
-							isDisabled={items.length === 0}
+							isDisabled={items.length === 0 || hasInvalidItems}
 							className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.saveAsDraft')}
@@ -128,7 +131,7 @@ export function QuoteBuilderFlow() {
 
 						<Button
 							onPress={handleContinue}
-							isDisabled={items.length === 0}
+							isDisabled={items.length === 0 || hasInvalidItems}
 							className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.continue')}

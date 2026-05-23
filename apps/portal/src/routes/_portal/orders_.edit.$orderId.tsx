@@ -87,6 +87,7 @@ function upsertOrderItemByProduct(
 		if (replaced) continue
 		nextItems.push({
 			...item,
+			catalogProductId: product.id,
 			productId: product.id,
 			productName: product.name,
 			productNameAr: product.nameAr,
@@ -95,12 +96,15 @@ function upsertOrderItemByProduct(
 			unitOfMeasureAr: product.unitOfMeasureAr,
 			imageUrl: product.imageUrl,
 			category: product.category,
+			isOrderable: true,
+			isUnmatched: false,
 		})
 		replaced = true
 	}
 
 	if (!replaced) {
 		nextItems.push({
+			catalogProductId: product.id,
 			productId: product.id,
 			productName: product.name,
 			productNameAr: product.nameAr,
@@ -109,6 +113,8 @@ function upsertOrderItemByProduct(
 			unitOfMeasureAr: product.unitOfMeasureAr,
 			imageUrl: product.imageUrl,
 			category: product.category,
+			isOrderable: true,
+			isUnmatched: false,
 		})
 	}
 
@@ -117,7 +123,10 @@ function upsertOrderItemByProduct(
 
 function toQuoteRequestItems(items: OrderItem[]) {
 	return items.map((item, index) => ({
-		productId: item.productId,
+		productId:
+			item.isOrderable === false || item.isUnmatched
+				? undefined
+				: (item.catalogProductId ?? item.productId),
 		customerDescription: item.productName,
 		quantity: item.quantity,
 		unitOfMeasure: item.unitOfMeasure,
@@ -125,6 +134,13 @@ function toQuoteRequestItems(items: OrderItem[]) {
 		sortOrder: index,
 		isUnmatched: false,
 	}))
+}
+
+function invalidOrderItems(items: OrderItem[]) {
+	return items.filter(
+		(item) =>
+			item.isOrderable === false || item.isUnmatched || !item.catalogProductId,
+	)
 }
 
 export const Route = createFileRoute('/_portal/orders_/edit/$orderId')({
@@ -240,11 +256,23 @@ function EditSavedOrder() {
 			writeOrderToCache(nextOrder)
 			setHasChanges(false)
 		},
+		onError: (error) => {
+			const unavailableItems = unavailableItemNamesFromError(error)
+			setSubmitError(
+				unavailableItems.length > 0
+					? t('orders.unavailableItems', {
+							items: unavailableItems.join(', '),
+						})
+					: t('orders.saveDraftFailed'),
+			)
+		},
 	})
 
 	function saveDraft() {
+		if (invalidOrderItems(items).length > 0 || saveMutation.isPending) return
 		const nextOrder = buildDraftOrder()
 		if (!nextOrder) return
+		setSubmitError(null)
 		setOrderName(nextOrder.name ?? defaultDraftName)
 		saveMutation.mutate(nextOrder)
 	}
@@ -295,7 +323,13 @@ function EditSavedOrder() {
 	})
 
 	function submitDraft() {
-		if (items.length === 0 || submitMutation.isPending) return
+		if (
+			items.length === 0 ||
+			invalidOrderItems(items).length > 0 ||
+			submitMutation.isPending
+		) {
+			return
+		}
 		setSubmitError(null)
 		submitMutation.mutate()
 	}
@@ -334,6 +368,15 @@ function EditSavedOrder() {
 			? t('orders.lyonDraft')
 			: t('orders.manualDraft')
 	const dateLabel = formatDate(order.date, isAr)
+	const invalidItems = invalidOrderItems(items)
+	const hasInvalidItems = invalidItems.length > 0
+	const invalidItemsText = hasInvalidItems
+		? t('orders.unavailableItems', {
+				items: invalidItems
+					.map((item) => (isAr ? item.productNameAr : item.productName))
+					.join(', '),
+			})
+		: null
 	const transition = {
 		duration: shouldReduceMotion ? 0.01 : 0.24,
 		ease: EDIT_EASE,
@@ -404,7 +447,10 @@ function EditSavedOrder() {
 							<Button
 								onPress={saveDraft}
 								isDisabled={
-									!hasChanges || items.length === 0 || saveMutation.isPending
+									!hasChanges ||
+									items.length === 0 ||
+									hasInvalidItems ||
+									saveMutation.isPending
 								}
 								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text-secondary)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:cursor-default disabled:opacity-35 sm:min-w-[112px]"
 							>
@@ -417,7 +463,11 @@ function EditSavedOrder() {
 							</Button>
 							<Button
 								onPress={submitDraft}
-								isDisabled={items.length === 0 || submitMutation.isPending}
+								isDisabled={
+									items.length === 0 ||
+									hasInvalidItems ||
+									submitMutation.isPending
+								}
 								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-40 sm:min-w-[132px]"
 							>
 								{submitMutation.isPending ? (
@@ -428,6 +478,11 @@ function EditSavedOrder() {
 								<span className="truncate">{t('orders.submit')}</span>
 							</Button>
 						</div>
+						{invalidItemsText && (
+							<p className="rounded-xl border border-[var(--p-error)]/25 bg-[var(--p-error)]/8 px-3 py-2 text-[12px] font-medium text-[var(--p-error)] sm:basis-full">
+								{invalidItemsText}
+							</p>
+						)}
 						{submitError && (
 							<p className="rounded-xl border border-[var(--p-error)]/25 bg-[var(--p-error)]/8 px-3 py-2 text-[12px] font-medium text-[var(--p-error)] sm:basis-full">
 								{submitError}
@@ -447,80 +502,93 @@ function EditSavedOrder() {
 				>
 					<div className="divide-y divide-[var(--p-border)]">
 						<AnimatePresence initial={false}>
-							{items.map((item) => (
-								<motion.div
-									key={item.productId}
-									layout
-									animate={{ opacity: 1, y: 0 }}
-									exit={{
-										opacity: 0,
-										x: shouldReduceMotion ? 0 : -16,
-										height: 0,
-									}}
-									transition={transition}
-									className="grid min-w-0 grid-cols-[48px_minmax(0,1fr)_36px] items-center gap-3 px-3 py-3 transition-colors hover:bg-[var(--p-hover)] sm:grid-cols-[48px_minmax(0,1fr)_240px_36px] sm:px-4"
-								>
-									<OrderItemImage
-										imageUrl={item.imageUrl}
-										className="col-start-1 row-start-1 h-12 w-12 rounded-lg bg-[var(--p-elevated)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:col-auto sm:row-auto"
-									/>
+							{items.map((item) => {
+								const itemUnavailable =
+									item.isOrderable === false ||
+									item.isUnmatched ||
+									!item.catalogProductId
+								return (
+									<motion.div
+										key={item.productId}
+										layout
+										animate={{ opacity: 1, y: 0 }}
+										exit={{
+											opacity: 0,
+											x: shouldReduceMotion ? 0 : -16,
+											height: 0,
+										}}
+										transition={transition}
+										className={`grid min-w-0 grid-cols-[48px_minmax(0,1fr)_36px] items-center gap-3 px-3 py-3 transition-colors hover:bg-[var(--p-hover)] sm:grid-cols-[48px_minmax(0,1fr)_240px_36px] sm:px-4 ${
+											itemUnavailable ? 'opacity-55' : ''
+										}`}
+									>
+										<OrderItemImage
+											imageUrl={item.imageUrl}
+											className="col-start-1 row-start-1 h-12 w-12 rounded-lg bg-[var(--p-elevated)] object-cover ring-1 ring-inset ring-[var(--p-border)] sm:col-auto sm:row-auto"
+										/>
 
-									<div className="col-start-2 row-start-1 min-w-0 sm:col-auto sm:row-auto">
-										<p className="truncate text-[13px] font-medium text-[var(--p-text)]">
-											{isAr ? item.productNameAr : item.productName}
-										</p>
-										<p className="mt-1 truncate text-[12px] text-[var(--p-text-muted)]">
-											{isAr && item.unitOfMeasureAr
-												? item.unitOfMeasureAr
-												: item.unitOfMeasure}
-										</p>
-									</div>
-
-									<div className="col-span-3 col-start-1 row-start-2 flex h-10 min-w-0 items-center overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] sm:col-auto sm:row-auto">
-										<button
-											type="button"
-											onClick={() =>
-												updateQty(item.productId, item.quantity - 1)
-											}
-											className="flex h-full w-10 shrink-0 items-center justify-center border-e border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-											aria-label={t('market.decreaseQuantity')}
-										>
-											<Minus size={14} strokeWidth={1.8} />
-										</button>
-										<div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
-											<QtyInput
-												productId={item.productId}
-												quantity={item.quantity}
-												onChange={(v) => updateQty(item.productId, v)}
-											/>
-											<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
+										<div className="col-start-2 row-start-1 min-w-0 sm:col-auto sm:row-auto">
+											<p className="truncate text-[13px] font-medium text-[var(--p-text)]">
+												{isAr ? item.productNameAr : item.productName}
+											</p>
+											<p className="mt-1 truncate text-[12px] text-[var(--p-text-muted)]">
 												{isAr && item.unitOfMeasureAr
 													? item.unitOfMeasureAr
 													: item.unitOfMeasure}
-											</span>
+											</p>
+											{itemUnavailable && (
+												<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
+													{t('market.outOfStock')}
+												</span>
+											)}
 										</div>
+
+										<div className="col-span-3 col-start-1 row-start-2 flex h-10 min-w-0 items-center overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-input)] sm:col-auto sm:row-auto">
+											<button
+												type="button"
+												onClick={() =>
+													updateQty(item.productId, item.quantity - 1)
+												}
+												className="flex h-full w-10 shrink-0 items-center justify-center border-e border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+												aria-label={t('market.decreaseQuantity')}
+											>
+												<Minus size={14} strokeWidth={1.8} />
+											</button>
+											<div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+												<QtyInput
+													productId={item.productId}
+													quantity={item.quantity}
+													onChange={(v) => updateQty(item.productId, v)}
+												/>
+												<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
+													{isAr && item.unitOfMeasureAr
+														? item.unitOfMeasureAr
+														: item.unitOfMeasure}
+												</span>
+											</div>
+											<button
+												type="button"
+												onClick={() =>
+													updateQty(item.productId, item.quantity + 1)
+												}
+												className="flex h-full w-10 shrink-0 items-center justify-center border-s border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+												aria-label={t('market.increaseQuantity')}
+											>
+												<Plus size={14} strokeWidth={1.8} />
+											</button>
+										</div>
+
 										<button
 											type="button"
-											onClick={() =>
-												updateQty(item.productId, item.quantity + 1)
-											}
-											className="flex h-full w-10 shrink-0 items-center justify-center border-s border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-											aria-label={t('market.increaseQuantity')}
+											onClick={() => removeItem(item.productId)}
+											className="col-start-3 row-start-1 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)] sm:col-auto sm:row-auto"
+											aria-label={t('orders.delete')}
 										>
-											<Plus size={14} strokeWidth={1.8} />
+											<Trash2 size={15} strokeWidth={1.6} />
 										</button>
-									</div>
-
-									<button
-										type="button"
-										onClick={() => removeItem(item.productId)}
-										className="col-start-3 row-start-1 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)] sm:col-auto sm:row-auto"
-										aria-label={t('orders.delete')}
-									>
-										<Trash2 size={15} strokeWidth={1.6} />
-									</button>
-								</motion.div>
-							))}
+									</motion.div>
+								)
+							})}
 						</AnimatePresence>
 
 						{items.length === 0 && (
@@ -687,7 +755,10 @@ function ProductPicker({
 		staleTime: 60_000,
 	})
 
-	const products = data?.products ?? []
+	const products =
+		data?.products.filter(
+			(product) => product.availabilityStatus !== 'out_of_stock',
+		) ?? []
 	const existingQuantities = useMemo(() => {
 		const quantities = new Map<string, number>()
 		for (const item of items) {

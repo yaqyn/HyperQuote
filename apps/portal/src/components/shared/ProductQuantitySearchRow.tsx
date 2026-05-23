@@ -24,6 +24,7 @@ export type ProductQuantitySearchRowProduct = {
 	unitOfMeasure: string
 	unitOfMeasureAr: string
 	imageUrl: string
+	availabilityStatus?: string
 }
 
 type ProductQuantitySearchRowProps = {
@@ -56,6 +57,7 @@ export function ProductQuantitySearchRow({
 	)
 	const quantityInputRef = useRef<HTMLInputElement | null>(null)
 	const comfortable = size === 'comfortable'
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 	const name = isAr ? product.nameAr : product.name
 	const categoryLabel =
 		isAr && product.categoryNameAr
@@ -96,11 +98,13 @@ export function ProductQuantitySearchRow({
 	}, [editing, focusQuantityInput])
 
 	function openQuantityEditor() {
+		if (!isOrderable) return
 		setDraftQuantity(quantity > 0 ? String(quantity) : '0')
 		onOpenEditor()
 	}
 
 	function commitQuantity() {
+		if (!isOrderable) return
 		const next = Number.parseInt(draftQuantity.trim(), 10)
 		if (Number.isNaN(next) || next < 1) {
 			onCancelEditor()
@@ -127,6 +131,7 @@ export function ProductQuantitySearchRow({
 			className={[
 				'flex min-w-0 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:border-[var(--p-border-strong)]',
 				comfortable ? 'p-3' : 'p-2.5',
+				isOrderable ? '' : 'opacity-55',
 			].join(' ')}
 		>
 			{product.imageUrl ? (
@@ -163,6 +168,11 @@ export function ProductQuantitySearchRow({
 				<p className="mt-1 truncate text-[12px] text-[var(--p-text-muted)]">
 					{categoryLabel} · {unitLabel}
 				</p>
+				{!isOrderable && (
+					<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
+						{t('market.outOfStock')}
+					</span>
+				)}
 			</div>
 			<div
 				className={[
@@ -237,8 +247,9 @@ export function ProductQuantitySearchRow({
 							/>
 							<motion.button
 								type="submit"
+								disabled={!isOrderable}
 								className={[
-									'flex h-full items-center justify-center bg-[var(--p-accent)] text-[var(--p-accent-contrast)]',
+									'flex h-full items-center justify-center bg-[var(--p-accent)] text-[var(--p-accent-contrast)] disabled:pointer-events-none disabled:opacity-50',
 									comfortable ? 'w-11' : 'w-10',
 								].join(' ')}
 								aria-label={
@@ -258,8 +269,9 @@ export function ProductQuantitySearchRow({
 							key="quantity-button"
 							type="button"
 							onClick={openQuantityEditor}
+							disabled={!isOrderable}
 							className={[
-								'flex items-center justify-center rounded-xl bg-[var(--p-accent)] px-2 text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90',
+								'flex items-center justify-center rounded-xl bg-[var(--p-accent)] px-2 text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50',
 								comfortable ? 'h-11 min-w-11' : 'h-10 min-w-10',
 							].join(' ')}
 							aria-label={t('market.addToQuote')}

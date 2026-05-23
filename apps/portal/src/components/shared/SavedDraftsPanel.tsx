@@ -28,14 +28,22 @@ type PortalSavedDraft = SavedQuoteDraftView & {
 
 function toQuoteRequestItems(items: OrderItem[]) {
 	return items.map((item, index) => ({
-		productId: item.category === 'unmatched' ? undefined : item.productId,
+		productId:
+			item.category === 'unmatched' ||
+			item.isUnmatched ||
+			item.isOrderable === false
+				? undefined
+				: (item.catalogProductId ?? item.productId),
 		customerDescription: item.productName,
 		quantity: item.quantity,
 		unitOfMeasure: item.unitOfMeasure,
 		unitOfMeasureAr: item.unitOfMeasureAr,
 		notes: item.notes?.trim() || undefined,
 		sortOrder: index,
-		isUnmatched: item.category === 'unmatched',
+		isUnmatched:
+			item.category === 'unmatched' ||
+			item.isUnmatched ||
+			item.isOrderable === false,
 	}))
 }
 
@@ -62,6 +70,11 @@ function toSavedDraftItemView(item: OrderItem): SavedQuoteDraftItemView {
 		unitOfMeasureAr: item.unitOfMeasureAr,
 		imageUrl: item.imageUrl,
 		notes: item.notes,
+		isUnavailable:
+			item.isOrderable === false ||
+			item.isUnmatched ||
+			item.category === 'unmatched',
+		unavailableReason: item.availabilityStatus,
 	}
 }
 
@@ -117,6 +130,11 @@ export function SavedDraftsPanel({
 			emptyOrder: t('orders.emptyOrder'),
 			lastEdited: (date) => t('orders.lastEdited', { date }),
 			defaultDraftName: t('market.defaultDraftName'),
+			unavailableItem: t('market.outOfStock'),
+			blockedDraft: t(
+				'orders.unavailableDraftBlocked',
+				'Remove unavailable items before using this draft.',
+			),
 		}),
 		[t],
 	)
@@ -153,11 +171,19 @@ export function SavedDraftsPanel({
 	})
 
 	function handleAddDraft(draft: PortalSavedDraft) {
+		if (
+			draft.order.items.some(
+				(item) =>
+					item.isOrderable === false ||
+					item.isUnmatched ||
+					!item.catalogProductId,
+			)
+		) {
+			return
+		}
 		for (const item of draft.order.items) {
-			const productId =
-				item.category === 'unmatched'
-					? `${draft.order.id}:${item.productName}:${item.unitOfMeasure}`
-					: item.productId
+			const productId = item.catalogProductId
+			if (!productId) continue
 			addCartItem(
 				{
 					productId,

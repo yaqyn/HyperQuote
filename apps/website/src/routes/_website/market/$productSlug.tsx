@@ -290,6 +290,8 @@ function ProductDetailPage() {
 										unitOfMeasureAr: product.unit_of_measure_ar,
 										imageUrl: images[0],
 										weightKg: product.weight_kg,
+										availabilityStatus:
+											product.availability_status ?? 'out_of_stock',
 									}}
 								/>
 
@@ -344,6 +346,7 @@ function ProductDetailPage() {
 					unitOfMeasureAr: product.unit_of_measure_ar,
 					imageUrl: images[0],
 					weightKg: product.weight_kg,
+					availabilityStatus: product.availability_status ?? 'out_of_stock',
 				}}
 			/>
 		</>
@@ -423,6 +426,7 @@ interface QuoteActionProduct {
 	unitOfMeasureAr: string
 	imageUrl: string | null
 	weightKg: number | null
+	availabilityStatus: string
 }
 
 const _PRESETS: Record<string, number[]> = {
@@ -445,6 +449,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
 	const [mode, setMode] = useState<QuoteMode>(cartItem ? 'added' : 'idle')
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 
 	// Sync mode when cart changes externally
 	useEffect(() => {
@@ -470,6 +475,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 	)
 
 	const confirmWithQuantity = (qty: number) => {
+		if (!isOrderable) return
 		const q = Math.max(1, qty)
 		if (cartItem) {
 			updateQuantity(product.id, q)
@@ -501,6 +507,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 	}
 
 	const handleEdit = () => {
+		if (!isOrderable) return
 		if (cartItem) setQuantity(cartItem.quantity)
 		setMode('selecting')
 	}
@@ -520,9 +527,10 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 						<button
 							type="button"
 							onClick={() => setMode('selecting')}
-							className="h-14 w-full rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
+							disabled={!isOrderable}
+							className="h-14 w-full rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors disabled:pointer-events-none disabled:opacity-50"
 						>
-							{t('market.addToQuote')}
+							{isOrderable ? t('market.addToQuote') : t('market.outOfStock')}
 						</button>
 					</motion.div>
 				)}
@@ -629,7 +637,8 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 							<button
 								type="button"
 								onClick={handleEdit}
-								className="h-14 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] font-semibold text-[15px] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2"
+								disabled={!isOrderable}
+								className="h-14 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] font-semibold text-[15px] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2 disabled:pointer-events-none disabled:opacity-50"
 							>
 								<Pencil size={16} />
 								{t('product.editQuantity')}
@@ -970,6 +979,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 	const cartItem = items.find((i) => i.productId === product.id)
 	const [quantity, setQuantity] = useState(1)
 	const [mode, setMode] = useState<QuoteMode>(cartItem ? 'added' : 'idle')
+	const isOrderable = product.availabilityStatus !== 'out_of_stock'
 
 	useEffect(() => {
 		if (!cartItem && mode === 'added') setMode('idle')
@@ -994,6 +1004,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 	)
 
 	const confirmWithQuantity = (qty: number) => {
+		if (!isOrderable) return
 		const q = Math.max(1, qty)
 		if (cartItem) {
 			updateQuantity(product.id, q)
@@ -1025,6 +1036,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 	}
 
 	const handleEdit = () => {
+		if (!isOrderable) return
 		if (cartItem) setQuantity(cartItem.quantity)
 		setMode('selecting')
 	}
@@ -1044,9 +1056,10 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 						<button
 							type="button"
 							onClick={() => setMode('selecting')}
-							className="h-10 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white"
+							disabled={!isOrderable}
+							className="h-10 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
 						>
-							{t('market.addToQuote')}
+							{isOrderable ? t('market.addToQuote') : t('market.outOfStock')}
 						</button>
 					</motion.div>
 				)}
@@ -1149,7 +1162,8 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 						<button
 							type="button"
 							onClick={handleEdit}
-							className="h-10 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm font-semibold text-[var(--color-text)] flex items-center justify-center gap-1.5"
+							disabled={!isOrderable}
+							className="h-10 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm font-semibold text-[var(--color-text)] flex items-center justify-center gap-1.5 disabled:pointer-events-none disabled:opacity-50"
 						>
 							<Pencil size={14} />
 							{t('product.editQuantity')}

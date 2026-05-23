@@ -18,6 +18,7 @@ export type OrderStatus =
 
 export interface OrderItem {
 	productId: string
+	catalogProductId?: string
 	productName: string
 	productNameAr: string
 	quantity: number
@@ -26,6 +27,9 @@ export interface OrderItem {
 	notes?: string
 	imageUrl: string
 	category: string
+	availabilityStatus?: string
+	isOrderable?: boolean
+	isUnmatched?: boolean
 }
 
 export type OrderDeliveryStatus =

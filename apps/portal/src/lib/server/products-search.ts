@@ -180,6 +180,7 @@ export const searchProducts = createServerFn({ method: 'POST' })
 			)
 				.eq('is_active', true)
 				.neq('availability_status', 'hidden')
+				.neq('availability_status', 'out_of_stock')
 				.limit(limit),
 			getCategoriesBySlug(supabase),
 		])
@@ -212,6 +213,7 @@ export const getProductCatalog = createServerFn({ method: 'POST' })
 				.select(PUBLIC_COLUMNS_SELECT)
 				.eq('is_active', true)
 				.neq('availability_status', 'hidden')
+				.neq('availability_status', 'out_of_stock')
 				.order('name')
 				.range(offset, offset + limit - 1),
 			getCategoriesBySlug(supabase),

@@ -5,7 +5,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { serializeUnavailableItemsError } from '../unavailable-quote-items'
+import {
+	serializeUnavailableItemsError,
+	unavailableItemNamesFromError,
+} from '../unavailable-quote-items'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
 	insertQuoteRequestItems,
@@ -33,6 +36,9 @@ const submitQuoteRequestInput = quoteRequestDraftInput.extend({
 })
 
 const saveDraftInput = quoteRequestDraftInput
+const validateQuoteRequestItemsInput = z.object({
+	items: z.array(quoteRequestItemInputSchema),
+})
 
 interface QuoteRequestUpdate {
 	approval_required?: boolean
@@ -94,6 +100,9 @@ async function assertQuoteRequestItemsOrderable(
 	>['supabase'],
 	items: z.infer<typeof quoteRequestItemInputSchema>[],
 ) {
+	const textOnlyItems = items.flatMap((item) =>
+		item.productId ? [] : [item.customerDescription],
+	)
 	const productIds = [
 		...new Set(
 			items.flatMap((item) =>
@@ -101,35 +110,54 @@ async function assertQuoteRequestItemsOrderable(
 			),
 		),
 	]
-	if (productIds.length === 0) return
 
-	const { data, error } = await supabase
-		.from('products')
-		.select('id, is_active, availability_status')
-		.in('id', productIds)
+	let orderableIds = new Set<string>()
+	if (productIds.length > 0) {
+		const { data, error } = await supabase
+			.from('products')
+			.select('id, is_active, availability_status')
+			.in('id', productIds)
 
-	if (error) throw new Error(error.message)
+		if (error) throw new Error(error.message)
 
-	const orderableIds = new Set(
-		(data ?? [])
-			.filter(
-				(product) =>
-					product.is_active &&
-					product.availability_status !== 'hidden' &&
-					product.availability_status !== 'out_of_stock',
-			)
-			.map((product) => product.id),
-	)
-	const unavailableItems = items.flatMap((item) =>
-		item.productId && !orderableIds.has(item.productId)
-			? [item.customerDescription]
-			: [],
-	)
+		orderableIds = new Set(
+			(data ?? [])
+				.filter(
+					(product) =>
+						product.is_active &&
+						product.availability_status !== 'hidden' &&
+						product.availability_status !== 'out_of_stock',
+				)
+				.map((product) => product.id),
+		)
+	}
+	const unavailableItems = [
+		...textOnlyItems,
+		...items.flatMap((item) =>
+			item.productId && !orderableIds.has(item.productId)
+				? [item.customerDescription]
+				: [],
+		),
+	]
 
 	if (unavailableItems.length > 0) {
 		throw new Error(serializeUnavailableItemsError(unavailableItems))
 	}
 }
+
+export const validateQuoteRequestItems = createServerFn({ method: 'POST' })
+	.inputValidator(validateQuoteRequestItemsInput)
+	.handler(async ({ data: input }): Promise<{ unavailableItems: string[] }> => {
+		const { supabase } = await getAuthenticatedPortalCustomer()
+		try {
+			await assertQuoteRequestItemsOrderable(supabase, input.items)
+			return { unavailableItems: [] }
+		} catch (error) {
+			const unavailableItems = unavailableItemNamesFromError(error)
+			if (unavailableItems.length === 0) throw error
+			return { unavailableItems }
+		}
+	})
 
 // ============================================================================
 // submitQuoteRequest
@@ -349,6 +377,7 @@ export const saveDraft = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{ draftId: string; reference: string }> => {
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+			await assertQuoteRequestItemsOrderable(supabase, input.items)
 
 			if (input.draftId) {
 				const draftUpdate = buildDraftMetadataUpdate(input)

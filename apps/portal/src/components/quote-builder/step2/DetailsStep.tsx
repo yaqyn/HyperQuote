@@ -47,6 +47,7 @@ export function DetailsStep() {
 
 	const deliveryAddressId = useQuoteBuilderStore((s) => s.deliveryAddressId)
 	const deliveryDate = useQuoteBuilderStore((s) => s.deliveryDate)
+	const items = useQuoteBuilderStore((s) => s.items)
 	const notes = useQuoteBuilderStore((s) => s.notes)
 	const setStep = useQuoteBuilderStore((s) => s.setStep)
 	const setDeliveryDate = useQuoteBuilderStore((s) => s.setDeliveryDate)
@@ -77,7 +78,10 @@ export function DetailsStep() {
 		[setNotes],
 	)
 
-	const canContinue = !!deliveryAddressId
+	const hasInvalidItems = items.some(
+		(item) => item.isUnmatched || !item.productId,
+	)
+	const canContinue = !!deliveryAddressId && !hasInvalidItems
 
 	const handleSaveDraft = useCallback(async () => {
 		setSavingDraft(true)
@@ -260,7 +264,7 @@ export function DetailsStep() {
 					)}
 					<Button
 						onPress={handleSaveDraft}
-						isDisabled={savingDraft}
+						isDisabled={savingDraft || hasInvalidItems}
 						className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 					>
 						{savingDraft

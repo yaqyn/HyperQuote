@@ -21,9 +21,12 @@ import {
 	loadCategoryImageMap,
 	mapOrderStatus,
 } from './order-utils'
+import { insertQuoteRequestItems } from './quote-request-items'
 
 interface ProductRow {
+	availability_status: string
 	id: string
+	is_active: boolean
 	name: string
 	name_ar: string | null
 	category: string
@@ -102,8 +105,17 @@ function mapOrderItems(
 		.map((item) => {
 			const product = firstRelation(item.products)
 			const snapshotName = item.customer_description.trim()
+			const catalogProductId = item.product_id ?? product?.id ?? undefined
+			const isOrderable = Boolean(
+				catalogProductId &&
+					!item.is_unmatched &&
+					product?.is_active &&
+					product.availability_status !== 'hidden' &&
+					product.availability_status !== 'out_of_stock',
+			)
 			return {
-				productId: item.product_id ?? product?.id ?? item.id,
+				productId: catalogProductId ?? item.id,
+				catalogProductId,
 				productName: snapshotName || product?.name || item.id,
 				productNameAr:
 					item.product_name_ar || product?.name_ar || snapshotName || item.id,
@@ -113,6 +125,9 @@ function mapOrderItems(
 				notes: item.notes ?? undefined,
 				imageUrl: imageUrlForProduct(product, categoryImages),
 				category: product?.category ?? 'unmatched',
+				availabilityStatus: product?.availability_status,
+				isOrderable,
+				isUnmatched: item.is_unmatched || !catalogProductId,
 			}
 		})
 }
@@ -242,7 +257,9 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 					notes,
 					sort_order,
 					products (
+						availability_status,
 						id,
+						is_active,
 						name,
 						name_ar,
 						category,
@@ -325,6 +342,8 @@ const QUOTE_REQUEST_SELECT = `
 			name,
 			name_ar,
 			category,
+			is_active,
+			availability_status,
 			image_urls
 		)
 	),
@@ -415,6 +434,19 @@ export const saveOrderAsDraft = createServerFn({ method: 'POST' })
 			if (items.length === 0) {
 				throw new Error('Cannot save an empty order as a draft')
 			}
+			const unavailableItems = items.filter((item) => {
+				const product = firstRelation(item.products)
+				return (
+					item.is_unmatched ||
+					!item.product_id ||
+					!product?.is_active ||
+					product.availability_status === 'hidden' ||
+					product.availability_status === 'out_of_stock'
+				)
+			})
+			if (unavailableItems.length > 0) {
+				throw new Error('Cannot save unavailable or unmatched items as a draft')
+			}
 
 			const { data: draft, error: draftError } = await supabase
 				.from('quote_requests')
@@ -439,25 +471,21 @@ export const saveOrderAsDraft = createServerFn({ method: 'POST' })
 				throw new Error(draftError?.message ?? 'Failed to save draft')
 			}
 
-			const { error: itemsError } = await supabase
-				.from('quote_request_items')
-				.insert(
-					items.map((item, index) => ({
-						quote_request_id: draft.id,
-						product_id: item.product_id,
-						customer_description: item.customer_description,
-						product_name_ar: item.product_name_ar,
-						quantity: item.quantity,
-						unit_of_measure: item.unit_of_measure,
-						unit_of_measure_ar: item.unit_of_measure_ar || item.unit_of_measure,
-						notes: item.notes,
-						match_confidence: item.match_confidence,
-						sort_order: index,
-						is_unmatched: item.is_unmatched,
-					})),
-				)
-
-			if (itemsError) throw new Error(itemsError.message)
+			await insertQuoteRequestItems(
+				supabase,
+				draft.id,
+				items.map((item, index) => ({
+					productId: item.product_id ?? undefined,
+					customerDescription: item.customer_description,
+					quantity: item.quantity,
+					unitOfMeasure: item.unit_of_measure,
+					unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+					notes: item.notes ?? undefined,
+					matchConfidence: item.match_confidence ?? undefined,
+					sortOrder: index,
+					isUnmatched: item.is_unmatched,
+				})),
+			)
 
 			const sourceOrderId =
 				firstRelation(source.orders)?.id ??

@@ -29,6 +29,8 @@ export interface SavedQuoteDraftItemView {
 	unitOfMeasureAr?: string
 	imageUrl?: string | null
 	notes?: string | null
+	isUnavailable?: boolean
+	unavailableReason?: string | null
 }
 
 export interface SavedQuoteDraftView {
@@ -65,6 +67,8 @@ export interface SavedDraftsPanelLabels {
 	emptyOrder: string
 	lastEdited: (date: string) => string
 	defaultDraftName: string
+	unavailableItem: string
+	blockedDraft: string
 }
 
 interface SavedDraftsPanelViewProps<TDraft extends SavedQuoteDraftView> {
@@ -239,6 +243,9 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 							const dateLabel = formatSavedDraftDate(draft.date, isArabic)
 							const isSelected = selectedDraftId === draft.id
 							const isSubmitting = submittingDraftId === draft.id
+							const hasUnavailableItems = draft.items.some(
+								(item) => item.isUnavailable || !item.productId,
+							)
 
 							return (
 								<motion.article
@@ -288,6 +295,7 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 												actionMode={actionMode}
 												disabled={
 													draft.items.length === 0 ||
+													hasUnavailableItems ||
 													(actionMode === 'submit' && isSubmitting)
 												}
 												isSubmitting={isSubmitting}
@@ -304,6 +312,13 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 												styles={styles}
 											/>
 										</div>
+										{hasUnavailableItems && (
+											<p
+												className={`mt-2 rounded-lg border ${styles.border} ${styles.surface} px-2 py-1.5 text-[11px] font-medium ${styles.error}`}
+											>
+												{labels.blockedDraft}
+											</p>
+										)}
 									</div>
 									<AnimatePresence initial={false}>
 										{isSelected && selectedDraft && (
@@ -333,6 +348,13 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 												>
 													{labels.confirmAddBody(draft.items.length)}
 												</p>
+												{hasUnavailableItems && (
+													<p
+														className={`mt-1 text-[11px] font-medium ${styles.error}`}
+													>
+														{labels.blockedDraft}
+													</p>
+												)}
 												<div className="mt-2 grid grid-cols-2 gap-2">
 													<button
 														type="button"
@@ -344,10 +366,12 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 													<button
 														type="button"
 														onClick={() => {
+															if (hasUnavailableItems) return
 															onAddDraft?.(draft)
 															setConfirmAddDraftId(null)
 														}}
-														className={`flex h-8 items-center justify-center rounded-lg ${styles.accentBg} text-[12px] font-semibold ${styles.accentContrast} transition-opacity hover:opacity-90`}
+														disabled={hasUnavailableItems}
+														className={`flex h-8 items-center justify-center rounded-lg ${styles.accentBg} text-[12px] font-semibold ${styles.accentContrast} transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50`}
 													>
 														{labels.confirm}
 													</button>
@@ -463,9 +487,13 @@ function DraftPreview({
 							item.productId ??
 							`${item.name}:${item.quantity}:${item.unitOfMeasure}:${index}`
 						const itemNotes = item.notes?.trim()
+						const itemUnavailable = item.isUnavailable || !item.productId
 
 						return (
-							<div key={`${draft.id}-${itemKey}`} className="py-2">
+							<div
+								key={`${draft.id}-${itemKey}`}
+								className={`py-2 ${itemUnavailable ? 'opacity-60' : ''}`}
+							>
 								<div className="flex min-w-0 items-center gap-2">
 									<OrderItemImage imageUrl={item.imageUrl} styles={styles} />
 									<div className="min-w-0 flex-1">
@@ -480,6 +508,13 @@ function DraftPreview({
 											)}{' '}
 											{unitLabel}
 										</p>
+										{itemUnavailable && (
+											<span
+												className={`mt-1 inline-flex rounded-full border ${styles.border} px-2 py-0.5 text-[10px] font-semibold ${styles.error}`}
+											>
+												{labels.unavailableItem}
+											</span>
+										)}
 									</div>
 								</div>
 								{itemNotes && (
