@@ -59,6 +59,10 @@ const CART_NOTES_RAIL_OPEN_Y = -104
 const CART_NOTES_PANEL_CLOSED_Y = -72
 const CART_NOTES_PANEL_OPEN_Y = -92
 
+type WebsiteQuoteRequestItemPayload = ReturnType<
+	typeof toQuoteRequestItemPayloads
+>[number]
+
 function cartTransition(shouldReduceMotion: boolean | null, duration = 0.14) {
 	return {
 		duration: shouldReduceMotion ? 0.01 : duration,
@@ -113,6 +117,16 @@ export function WebsiteHeader() {
 	const [emptySavedOrdersOpen, setEmptySavedOrdersOpen] = useState(false)
 	const [atPageBottom, setAtPageBottom] = useState(false)
 	const { items, remove, updateQuantity } = useQuoteCart()
+	const quoteRequestItems = useMemo(
+		() => toQuoteRequestItemPayloads(items, { isArabic: isAr }),
+		[isAr, items],
+	)
+	const [unavailableCartItems, setUnavailableCartItems] = useState<string[]>([])
+	const [cartValidationPending, setCartValidationPending] = useState(false)
+	const unavailableCartItemNames = useMemo(
+		() => new Set(unavailableCartItems),
+		[unavailableCartItems],
+	)
 	const [cartSuccess, setCartSuccess] = useState<{
 		reference: string
 		type: 'draft' | 'submit'
@@ -183,6 +197,33 @@ export function WebsiteHeader() {
 			window.removeEventListener('resize', updateBottomState)
 		}
 	}, [])
+
+	useEffect(() => {
+		let active = true
+		if (quoteRequestItems.length === 0) {
+			setUnavailableCartItems([])
+			setCartValidationPending(false)
+			return () => {
+				active = false
+			}
+		}
+
+		setCartValidationPending(true)
+		void validateWebsiteQuoteItems({ data: { items: quoteRequestItems } })
+			.then((result) => {
+				if (active) setUnavailableCartItems(result.unavailableItems)
+			})
+			.catch(() => {
+				if (active) setUnavailableCartItems([])
+			})
+			.finally(() => {
+				if (active) setCartValidationPending(false)
+			})
+
+		return () => {
+			active = false
+		}
+	}, [quoteRequestItems])
 
 	const navLinkClass =
 		'text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors'
@@ -465,6 +506,8 @@ export function WebsiteHeader() {
 												{items.map((item, idx) => {
 													const itemName =
 														isAr && item.nameAr ? item.nameAr : item.name
+													const itemUnavailable =
+														unavailableCartItemNames.has(itemName)
 													const categoryLabel =
 														isAr && item.categoryNameAr
 															? item.categoryNameAr
@@ -477,7 +520,7 @@ export function WebsiteHeader() {
 													return (
 														<div
 															key={item.productId}
-															className={`px-4 py-3 md:px-5 ${idx > 0 ? 'border-t border-[var(--color-border)]' : ''}`}
+															className={`px-4 py-3 md:px-5 ${idx > 0 ? 'border-t border-[var(--color-border)]' : ''} ${itemUnavailable ? 'opacity-55' : ''}`}
 														>
 															<div className="flex min-w-0 items-center gap-3">
 																{item.imageUrl ? (
@@ -508,6 +551,11 @@ export function WebsiteHeader() {
 																	<p className="mt-1 truncate text-[11px] text-[var(--color-text-muted)]">
 																		{categoryLabel}
 																	</p>
+																	{itemUnavailable && (
+																		<span className="mt-1 inline-flex rounded-full border border-[var(--color-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-error)]">
+																			{t('market.outOfStock')}
+																		</span>
+																	)}
 																</div>
 																<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
 																	<span className="sr-only">
@@ -580,6 +628,7 @@ export function WebsiteHeader() {
 
 											{/* Submit / Inline Auth */}
 											<CartSubmit
+												cartValidationPending={cartValidationPending}
 												itemCount={items.length}
 												onDraftSaved={(reference) =>
 													setCartSuccess({ reference, type: 'draft' })
@@ -587,6 +636,8 @@ export function WebsiteHeader() {
 												onSubmitted={(reference) =>
 													setCartSuccess({ reference, type: 'submit' })
 												}
+												quoteRequestItems={quoteRequestItems}
+												unavailableCartItems={unavailableCartItems}
 											/>
 										</>
 									)}
@@ -783,13 +834,19 @@ function CartSuccessMessage({
 }
 
 function CartSubmit({
+	cartValidationPending,
 	itemCount,
 	onDraftSaved,
 	onSubmitted,
+	quoteRequestItems,
+	unavailableCartItems,
 }: {
+	cartValidationPending: boolean
 	itemCount: number
 	onDraftSaved: (reference: string) => void
 	onSubmitted: (reference: string) => void
+	quoteRequestItems: WebsiteQuoteRequestItemPayload[]
+	unavailableCartItems: string[]
 }) {
 	const { t, i18n } = useTranslation('website')
 	const navigateTo = useNavigate()
@@ -819,15 +876,8 @@ function CartSubmit({
 		t('cart.defaultDraftName'),
 		i18n.language === 'ar',
 	)
-	const isArabic = i18n.language === 'ar'
 	const [draftName, setDraftName] = useState('')
 	const [persistedDraftName, setPersistedDraftName] = useState(defaultDraftName)
-	const quoteRequestItems = useMemo(
-		() => toQuoteRequestItemPayloads(items, { isArabic }),
-		[isArabic, items],
-	)
-	const [unavailableCartItems, setUnavailableCartItems] = useState<string[]>([])
-	const [cartValidationPending, setCartValidationPending] = useState(false)
 	const draftFingerprint = useMemo(
 		() => getQuoteCartFingerprint(items, globalNote),
 		[globalNote, items],
@@ -838,33 +888,6 @@ function CartSubmit({
 	const unavailableCartText = t('cart.unavailableItems', {
 		items: unavailableCartItems.join(', '),
 	})
-
-	useEffect(() => {
-		let active = true
-		if (quoteRequestItems.length === 0) {
-			setUnavailableCartItems([])
-			setCartValidationPending(false)
-			return () => {
-				active = false
-			}
-		}
-
-		setCartValidationPending(true)
-		void validateWebsiteQuoteItems({ data: { items: quoteRequestItems } })
-			.then((result) => {
-				if (active) setUnavailableCartItems(result.unavailableItems)
-			})
-			.catch(() => {
-				if (active) setUnavailableCartItems([])
-			})
-			.finally(() => {
-				if (active) setCartValidationPending(false)
-			})
-
-		return () => {
-			active = false
-		}
-	}, [quoteRequestItems])
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()

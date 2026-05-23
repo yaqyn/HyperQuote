@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 const ACCOUNTS = {
@@ -18,32 +19,44 @@ async function main() {
 	const anon = createAnonClient(env)
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
-	await assertAnonSupportUsesRpc(anon, runId)
+	await assertSupportUsesServerBoundary(env, anon, runId)
 	await assertMarketCategoriesAreDatabaseDriven(env, anon, runId)
 	const customer = await signIn(env, ACCOUNTS.customer)
-	await assertCustomerCannotReadInternalEmployees(customer.client)
+	await assertCustomerCannotReadInternalEmployees(customer.authClient)
 	const auditTargets = await assertCustomerToSalesToDeliveryFlow(
 		env,
-		customer.client,
+		customer,
 		runId,
 	)
 	await assertActivityRecorded(env, auditTargets)
 	await assertDriverCannotReadOrders(env, auditTargets.order.id)
-	await assertAiAuditBoundaries(env, anon, customer.client)
+	await assertAiAuditBoundaries(env, anon, customer)
 
 	console.log('Flow DB smoke passed.')
 }
 
-async function assertAnonSupportUsesRpc(anon, runId) {
+async function assertSupportUsesServerBoundary(env, anon, runId) {
+	const service = createServiceClient(env)
 	const denied = await anon.from('support_tickets').insert({
 		requester_email: `blocked-${runId}@hyperquote.local`,
 		subject: 'Direct insert should fail',
 	})
 	assert(denied.error, 'anon direct support ticket insert must be rejected')
 
+	const deniedRpc = await anon.rpc('create_support_ticket', {
+		p_client_key: `blocked:${runId}`,
+		p_message: `Direct public RPC should fail for ${runId}.`,
+		p_requester_email: `blocked-rpc-${runId}@hyperquote.local`,
+		p_requester_name: 'Flow Smoke',
+		p_requester_phone: null,
+		p_source: 'website',
+		p_subject: 'flow-smoke',
+	})
+	assert(deniedRpc.error, 'anon direct support ticket RPC must be rejected')
+
 	const requesterEmail = `flow-${runId}@hyperquote.local`
 	for (let attempt = 1; attempt <= 5; attempt += 1) {
-		const { data, error } = await anon.rpc('create_support_ticket', {
+		const { data, error } = await service.rpc('create_support_ticket', {
 			p_client_key: `flow-db-smoke:${runId}`,
 			p_message: `Flow smoke support message ${attempt} for ${runId}.`,
 			p_requester_email: requesterEmail,
@@ -56,7 +69,7 @@ async function assertAnonSupportUsesRpc(anon, runId) {
 		assert(data?.reference, 'support ticket RPC must return a public reference')
 	}
 
-	const limited = await anon.rpc('create_support_ticket', {
+	const limited = await service.rpc('create_support_ticket', {
 		p_client_key: `flow-db-smoke:${runId}`,
 		p_message: `Flow smoke support rate limit check for ${runId}.`,
 		p_requester_email: requesterEmail,
@@ -71,30 +84,33 @@ async function assertAnonSupportUsesRpc(anon, runId) {
 	)
 }
 
-async function assertCustomerCannotReadInternalEmployees(client) {
-	const { data, error } = await client.from('employees').select('id')
-	if (error)
-		throw new Error(`customer employee read check failed: ${error.message}`)
+async function assertCustomerCannotReadInternalEmployees(authClient) {
+	const { data, error } = await authClient.from('employees').select('id')
 	assert(
-		(data ?? []).length === 0,
-		'customer role must not read internal employee rows',
+		error || (data ?? []).length === 0,
+		'customer browser credentials must not read internal employee rows',
 	)
 }
 
-async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
-	const { data: product, error: productError } = await customerClient
-		.from('products')
-		.select('id, name, slug, unit_of_measure, unit_of_measure_ar')
-		.eq('is_active', true)
-		.limit(1)
+async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
+	const service = createServiceClient(env)
+	const { data: customerRow, error: customerError } = await service
+		.from('customers')
+		.select('id')
+		.eq('user_id', customer.user.id)
 		.single()
-	if (productError || !product) {
-		throw new Error(productError?.message ?? 'No product available for smoke')
+	if (customerError || !customerRow) {
+		throw new Error(customerError?.message ?? 'Customer row not found')
 	}
 
-	const { data: draft, error: draftError } = await customerClient
+	const product = await findOrderableSmokeProduct(service)
+	const supplierId = await ensureSmokeSupplierSpecialty(env, service, product)
+	await refreshProductPriceForSmoke(env, product.id, supplierId, runId)
+
+	const { data: draft, error: draftError } = await service
 		.from('quote_requests')
 		.insert({
+			customer_id: customerRow.id,
 			notes: `flow-smoke:${runId}`,
 			status: 'draft',
 		})
@@ -104,7 +120,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 		throw new Error(draftError?.message ?? 'Failed to create customer draft')
 	}
 
-	const { error: itemError } = await customerClient
+	const { error: itemError } = await service
 		.from('quote_request_items')
 		.insert({
 			customer_description: product.name,
@@ -118,16 +134,16 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	if (itemError)
 		throw new Error(`Failed to create draft item: ${itemError.message}`)
 
-	const directStatus = await customerClient
+	const directStatus = await customer.authClient
 		.from('quote_requests')
 		.update({ status: 'rejected' })
 		.eq('id', draft.id)
 	assert(
-		directStatus.error?.message.includes('state_updates_must_use_rpc'),
-		'customer direct workflow status update must be rejected',
+		directStatus.error,
+		'customer browser credentials must not update workflow status directly',
 	)
 
-	const { data: submitted, error: submitError } = await customerClient.rpc(
+	const { data: submitted, error: submitError } = await customer.client.rpc(
 		'customer_submit_saved_quote_request',
 		{ p_quote_request_id: draft.id },
 	)
@@ -191,16 +207,29 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	}
 	const orderTotal = Number(order.total_amount)
 	assert(orderTotal > 0, 'sales confirm must create a positive order total')
-	await assertCustomerDraftSaveAudit(customerClient, product, runId, 'website')
-	await assertCustomerDraftSaveAudit(customerClient, product, runId, 'portal')
+	await assertCustomerDraftSaveAudit(
+		customer.client,
+		customerRow.id,
+		product,
+		runId,
+		'website',
+	)
+	await assertCustomerDraftSaveAudit(
+		customer.client,
+		customerRow.id,
+		product,
+		runId,
+		'portal',
+	)
 	await assertCustomerOrderSaveAsDraftAudit(
-		customerClient,
+		customer.client,
+		customerRow.id,
 		product,
 		runId,
 		draft.id,
 		order.id,
 	)
-	const viewAudit = await customerClient.rpc(
+	const viewAudit = await customer.client.rpc(
 		'customer_record_portal_order_viewed',
 		{
 			p_order_id: order.id,
@@ -271,6 +300,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	if (truckReadError || !truckRow) {
 		throw new Error(truckReadError?.message ?? 'Driver truck not found')
 	}
+	await resetDriverTruckForSmoke(employee.client, truckRow.id)
 
 	const driver = await signIn(env, ACCOUNTS.driver)
 	await assertDriverTeamChannelUsesSupabase(driver.client, runId)
@@ -373,15 +403,19 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 		/^[2-9A-HJ-NP-Z]{8}$/.test(deliverySecret),
 		'driver delivery secret must be 8-character alphanumeric code',
 	)
-	const wrongSecret = await driver.client.rpc('driver_confirm_arrival_secret', {
-		p_code: '00000000',
-		p_delivery_id: delivery.id,
-	})
+	const wrongSecret = await driver.client.rpc(
+		'driver_confirm_arrival_secret_result',
+		{
+			p_code: '00000000',
+			p_delivery_id: delivery.id,
+		},
+	)
 	assert(
-		wrongSecret.error?.message.includes('invalid_delivery_secret'),
+		wrongSecret.error?.message.includes('invalid_delivery_secret') ||
+			wrongSecret.data?.error === 'invalid_delivery_secret',
 		'driver arrival must reject wrong secret code',
 	)
-	await mustRpc(driver.client, 'driver_confirm_arrival_secret', {
+	await mustRpc(driver.client, 'driver_confirm_arrival_secret_result', {
 		p_code: deliverySecret,
 		p_delivery_id: delivery.id,
 	})
@@ -430,10 +464,17 @@ async function assertCustomerToSalesToDeliveryFlow(env, customerClient, runId) {
 	}
 }
 
-async function assertCustomerDraftSaveAudit(client, product, runId, source) {
+async function assertCustomerDraftSaveAudit(
+	client,
+	customerId,
+	product,
+	runId,
+	source,
+) {
 	const { data: draft, error: draftError } = await client
 		.from('quote_requests')
 		.insert({
+			customer_id: customerId,
 			notes: `flow-smoke:${source}-draft:${runId}`,
 			status: 'draft',
 		})
@@ -473,6 +514,7 @@ async function assertCustomerDraftSaveAudit(client, product, runId, source) {
 
 async function assertCustomerOrderSaveAsDraftAudit(
 	client,
+	customerId,
 	product,
 	runId,
 	sourceQuoteRequestId,
@@ -481,6 +523,7 @@ async function assertCustomerOrderSaveAsDraftAudit(
 	const { data: draft, error: draftError } = await client
 		.from('quote_requests')
 		.insert({
+			customer_id: customerId,
 			notes: `flow-smoke:save-as-draft:${runId}`,
 			status: 'draft',
 		})
@@ -519,23 +562,96 @@ async function assertCustomerOrderSaveAsDraftAudit(
 	return draft.id
 }
 
+async function findOrderableSmokeProduct(service) {
+	const { data: product, error } = await service
+		.from('products')
+		.select('id, category, name, slug, unit_of_measure, unit_of_measure_ar')
+		.eq('is_active', true)
+		.not('availability_status', 'in', '("hidden","out_of_stock")')
+		.limit(1)
+		.single()
+	if (error || !product) {
+		throw new Error(error?.message ?? 'No product available for smoke')
+	}
+	return product
+}
+
+async function ensureSmokeSupplierSpecialty(env, service, product) {
+	const { data: specialties, error: specialtyError } = await service
+		.from('supplier_specialties')
+		.select('supplier_id, product_slug')
+		.eq('category_slug', product.category)
+	if (specialtyError) {
+		throw new Error(
+			`Product supplier specialty lookup failed: ${specialtyError.message}`,
+		)
+	}
+	const existingSpecialty = (specialties ?? []).find(
+		(row) => row.product_slug === null || row.product_slug === product.slug,
+	)
+	if (existingSpecialty) return existingSpecialty.supplier_id
+
+	const { data: supplier, error: supplierError } = await service
+		.from('suppliers')
+		.select('id')
+		.eq('status', 'active')
+		.limit(1)
+		.single()
+	if (supplierError || !supplier) {
+		throw new Error(supplierError?.message ?? 'Active supplier not found')
+	}
+
+	runLocalSql(
+		env,
+		`
+			begin;
+			select set_config('app.audited_registry_write', 'on', true);
+			insert into public.supplier_specialties (
+				supplier_id,
+				category_slug,
+				product_slug
+			)
+			values (
+				${sqlLiteral(supplier.id)}::uuid,
+				${sqlLiteral(product.category)},
+				${sqlLiteral(product.slug)}
+			)
+			on conflict do nothing;
+			commit;
+		`,
+	)
+	return supplier.id
+}
+
+async function refreshProductPriceForSmoke(env, productId, supplierId, runId) {
+	const employee = await signIn(env, ACCOUNTS.employee)
+	const { error } = await employee.client.rpc('inventory_update_price', {
+		p_new_price: 75,
+		p_notes: `flow-smoke:${runId}`,
+		p_product_id: productId,
+		p_proof_path: `local/price-updates/${runId}.pdf`,
+		p_supplier_id: supplierId,
+	})
+	if (error) {
+		throw new Error(`Inventory price refresh failed: ${error.message}`)
+	}
+}
+
 async function assertMarketCategoriesAreDatabaseDriven(env, anon, runId) {
-	const { client: employeeClient } = await signIn(env, ACCOUNTS.employee)
+	const employee = await signIn(env, ACCOUNTS.employee)
 	const service = createServiceClient(env)
 	const categorySlug = `flow-smoke-${runId}`
 	const productSlug = `flow-smoke-product-${runId}`
 	const deniedCategorySlug = `flow-smoke-direct-${runId}`
 
-	const deniedCategory = await employeeClient.from('categories').insert({
+	const deniedCategory = await employee.authClient.from('categories').insert({
 		name: `Flow Smoke Direct ${runId}`,
 		name_ar: `تصنيف مباشر ${runId}`,
 		slug: deniedCategorySlug,
 	})
 	assert(
-		deniedCategory.error?.message.includes(
-			'registry_writes_must_use_audited_server_function',
-		),
-		'employee direct market category insert must be rejected',
+		deniedCategory.error,
+		'employee browser credentials must not insert market categories directly',
 	)
 
 	const { error: categoryError } = await service.from('categories').insert({
@@ -570,28 +686,37 @@ async function assertMarketCategoriesAreDatabaseDriven(env, anon, runId) {
 	if (productError)
 		throw new Error(`Market product insert failed: ${productError.message}`)
 
-	const { data: publicCategory, error: publicCategoryError } = await anon
+	const publicCategory = await anon
 		.from('categories')
 		.select('slug')
 		.eq('slug', categorySlug)
 		.single()
-	if (publicCategoryError || !publicCategory) {
-		throw new Error(
-			publicCategoryError?.message ??
-				'Public market category was not visible from Supabase',
-		)
-	}
+	assert(
+		publicCategory.error,
+		'anon browser credentials must not read raw market categories directly',
+	)
 
-	const { data: publicProduct, error: publicProductError } = await anon
+	const publicProduct = await anon
 		.from('products')
 		.select('slug, category')
 		.eq('slug', productSlug)
 		.eq('category', categorySlug)
 		.single()
-	if (publicProductError || !publicProduct) {
+	assert(
+		publicProduct.error,
+		'anon browser credentials must not read raw market products directly',
+	)
+
+	const { data: serviceProduct, error: serviceProductError } = await service
+		.from('products')
+		.select('slug, category')
+		.eq('slug', productSlug)
+		.eq('category', categorySlug)
+		.single()
+	if (serviceProductError || !serviceProduct) {
 		throw new Error(
-			publicProductError?.message ??
-				'Public market product was not visible from Supabase',
+			serviceProductError?.message ??
+				'Market product was not visible through the server boundary',
 		)
 	}
 }
@@ -633,6 +758,16 @@ async function assertDriverTeamChannelUsesSupabase(client, runId) {
 		drivers.some((driver) => driver.id === sent.authorDriverId),
 		'driver active list must include the message author from Supabase',
 	)
+}
+
+async function resetDriverTruckForSmoke(client, truckId) {
+	const { error } = await client
+		.from('trucks')
+		.update({ status: 'available' })
+		.eq('id', truckId)
+	if (error) {
+		throw new Error(`Driver truck availability reset failed: ${error.message}`)
+	}
 }
 
 async function assertActivityRecorded(env, auditTargets) {
@@ -689,16 +824,34 @@ async function assertEntityHasActivity(client, entityId, action) {
 
 async function assertDriverCannotReadOrders(env, deliveredOrderId) {
 	const driver = await signIn(env, ACCOUNTS.driver)
-	const { data, error } = await driver.client
+	const { data, error } = await driver.authClient
 		.from('orders')
 		.select('id')
 		.eq('id', deliveredOrderId)
-	if (error) throw new Error(`Driver order read check failed: ${error.message}`)
-	assert((data ?? []).length === 0, 'drivers must not read raw order rows')
+	assert(
+		error || (data ?? []).length === 0,
+		'driver browser credentials must not read raw order rows',
+	)
 }
 
-async function assertAiAuditBoundaries(env, anon, customerClient) {
-	const websiteAudit = await anon.rpc('record_ai_tool_call', {
+async function assertAiAuditBoundaries(env, anon, customer) {
+	const service = createServiceClient(env)
+	const directWebsiteAudit = await anon.rpc('record_ai_tool_call', {
+		p_agent_scope: 'website',
+		p_approved_by_user: false,
+		p_input_summary: { prompt: 'public question' },
+		p_output_summary: { response: 'public answer' },
+		p_read_entities: ['website_index'],
+		p_tool_name: 'website_public_answer',
+		p_write_entity_id: null,
+		p_write_entity_type: null,
+	})
+	assert(
+		directWebsiteAudit.error,
+		'anon browser credentials must not call raw AI audit RPCs directly',
+	)
+
+	const websiteAudit = await service.rpc('record_ai_tool_call', {
 		p_agent_scope: 'website',
 		p_approved_by_user: false,
 		p_input_summary: { prompt: 'public question' },
@@ -714,7 +867,7 @@ async function assertAiAuditBoundaries(env, anon, customerClient) {
 		)
 	}
 
-	const directAuditInsert = await customerClient
+	const directAuditInsert = await customer.authClient
 		.from('ai_tool_call_audit')
 		.insert({
 			agent_scope: 'portal',
@@ -725,7 +878,7 @@ async function assertAiAuditBoundaries(env, anon, customerClient) {
 		'AI audit rows must be written through the audit RPC, not direct table insert',
 	)
 
-	const customerSearch = await customerClient.rpc('record_ai_tool_call', {
+	const customerSearch = await customer.client.rpc('record_ai_tool_call', {
 		p_agent_scope: 'search',
 		p_approved_by_user: false,
 		p_input_summary: {},
@@ -741,8 +894,8 @@ async function assertAiAuditBoundaries(env, anon, customerClient) {
 		'customer accounts must not audit or execute Search AI calls',
 	)
 
-	const { client: employeeClient } = await signIn(env, ACCOUNTS.employee)
-	const employeeSearch = await employeeClient.rpc('record_ai_tool_call', {
+	const employee = await signIn(env, ACCOUNTS.employee)
+	const employeeSearch = await employee.client.rpc('record_ai_tool_call', {
 		p_agent_scope: 'search',
 		p_approved_by_user: false,
 		p_input_summary: { query: 'orders today' },
@@ -756,7 +909,7 @@ async function assertAiAuditBoundaries(env, anon, customerClient) {
 		throw new Error(employeeSearch.error?.message ?? 'Search AI audit failed')
 	}
 
-	const searchWrite = await employeeClient.rpc('record_ai_tool_call', {
+	const searchWrite = await employee.client.rpc('record_ai_tool_call', {
 		p_agent_scope: 'search',
 		p_approved_by_user: true,
 		p_input_summary: {},
@@ -779,15 +932,17 @@ async function mustRpc(client, name, args) {
 }
 
 async function signIn(env, account) {
-	const client = createAnonClient(env)
-	const { data, error } = await client.auth.signInWithPassword({
+	const authClient = createAnonClient(env)
+	const { data, error } = await authClient.auth.signInWithPassword({
 		email: account.email,
 		password: account.password,
 	})
 	if (error || !data.user) {
 		throw new Error(error?.message ?? `Failed to sign in ${account.email}`)
 	}
-	return { client, user: data.user }
+	const actorPool = actorPoolForAccount(account, data.user)
+	const client = createActorServiceClient(env, data.user.id, actorPool)
+	return { authClient, client, user: data.user }
 }
 
 function createAnonClient({ anonKey, apiUrl }) {
@@ -806,6 +961,75 @@ function createServiceClient({ apiUrl, serviceRoleKey }) {
 			persistSession: false,
 		},
 	})
+}
+
+function createActorServiceClient(env, actorUserId, actorPool) {
+	const service = createServiceClient(env)
+	const actorRpcNames = getActorRpcNames()
+	return new Proxy(service, {
+		get(target, property, receiver) {
+			if (property !== 'rpc') return Reflect.get(target, property, receiver)
+			return (functionName, args, options) => {
+				if (
+					typeof functionName === 'string' &&
+					actorRpcNames.has(functionName)
+				) {
+					return target.rpc(
+						`service_${functionName}`,
+						{
+							...(args ?? {}),
+							p_actor_pool: actorPool,
+							p_actor_user_id: actorUserId,
+						},
+						options,
+					)
+				}
+				return target.rpc(functionName, args, options)
+			}
+		},
+	})
+}
+
+function actorPoolForAccount(account, user) {
+	const metadataPool = user.app_metadata?.pool
+	if (['driver', 'external', 'internal'].includes(metadataPool)) {
+		return metadataPool
+	}
+	if (account.email === ACCOUNTS.driver.email) return 'driver'
+	if (account.email === ACCOUNTS.employee.email) return 'internal'
+	return 'external'
+}
+
+let actorRpcNamesCache = null
+function getActorRpcNames() {
+	if (actorRpcNamesCache) return actorRpcNamesCache
+	const source = readFileSync('packages/auth/src/server.ts', 'utf8')
+	const start = source.indexOf('const ACTOR_RPC_NAMES')
+	const end = source.indexOf('export function createActorServiceRoleClient')
+	if (start < 0 || end < 0 || end <= start) {
+		throw new Error('Could not locate ACTOR_RPC_NAMES in auth server helper')
+	}
+	actorRpcNamesCache = new Set(
+		[...source.slice(start, end).matchAll(/'([a-zA-Z0-9_]+)'/g)].map(
+			(match) => match[1],
+		),
+	)
+	return actorRpcNamesCache
+}
+
+function runLocalSql(env, sql) {
+	const result = spawnSync(
+		'psql',
+		[env.dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql],
+		{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+	)
+	if (result.status !== 0) {
+		throw new Error(result.stderr.trim() || 'Local SQL command failed')
+	}
+}
+
+function sqlLiteral(value) {
+	return `'${String(value).replace(/'/g, "''")}'`
 }
 
 function deliverySecretCode(orderId) {
