@@ -38,6 +38,7 @@ import {
 	type PortalCustomerToolRequest,
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
+	routePortalChatCommand,
 	routePortalCustomerDraftFollowUp,
 } from './portal-customer-agent'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
@@ -251,7 +252,11 @@ type PortalToolContext =
 			profile: CustomerProfileRow
 			projects: CustomerProjectRow[]
 	  }
-	| { type: 'orders'; orders: CustomerOrderSummary[] }
+	| {
+			orderScope: 'all' | 'drafts'
+			orders: CustomerOrderSummary[]
+			type: 'orders'
+	  }
 	| {
 			type: 'order_detail'
 			documents: DocumentRow[]
@@ -305,15 +310,21 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			return chunks as unknown as Array<{ [k: string]: {} }>
 		}
 
-		const catalog = await loadVisibleProductCatalog(
-			supabase,
-			PRODUCT_CATALOG_CONTEXT_LIMIT,
-		)
-		const route = await requestPortalCustomerTool(
-			modelMessages,
-			userText,
-			catalog,
-		)
+		const commandRoute = routePortalChatCommand(userText)
+		const deterministicRoute =
+			commandRoute ??
+			routePortalCustomerDraftFollowUp(modelMessages, userText) ??
+			fallbackPortalCustomerToolRequest(userText)
+		const route = shouldUseDeterministicRoute(deterministicRoute)
+			? deterministicRoute
+			: await requestPortalCustomerTool(
+					modelMessages,
+					userText,
+					await loadVisibleProductCatalog(
+						supabase,
+						PRODUCT_CATALOG_CONTEXT_LIMIT,
+					),
+				)
 		const result = await executePortalCustomerToolRequest(
 			supabase,
 			customerId,
@@ -365,6 +376,12 @@ async function requestPortalCustomerTool(
 	} catch {
 		return fallbackPortalCustomerToolRequest(userText)
 	}
+}
+
+function shouldUseDeterministicRoute(
+	route: PortalCustomerToolRequest,
+): boolean {
+	return route.commandName !== undefined || route.action !== 'chat'
 }
 
 function toAgentCatalogSnapshot(
@@ -462,9 +479,14 @@ async function executePortalCustomerToolRequest(
 			}
 		}
 		case 'customer_orders': {
-			const orders = await loadCustomerOrders(supabase, customerId)
+			const orderScope = route.orderScope ?? 'all'
+			const allOrders = await loadCustomerOrders(supabase, customerId)
+			const orders =
+				orderScope === 'drafts'
+					? allOrders.filter((order) => order.type === 'draft')
+					: allOrders
 			return {
-				context: { type: 'orders', orders },
+				context: { type: 'orders', orderScope, orders },
 				invalidatesOrders: false,
 				readEntities: ['customer_quote_requests', 'customer_orders'],
 				route,
@@ -650,6 +672,9 @@ async function renderPortalCustomerResponse(
 	}
 
 	const fallbackText = fallbackToolAnswer(result.context)
+	if (result.route.commandName) {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
 	if (result.context.type === 'products') {
 		return textOnlyChunks(fallbackText, customEvents)
 	}
@@ -721,7 +746,7 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 		case 'profile':
 			return profileFallbackAnswer(context)
 		case 'orders':
-			return ordersFallbackAnswer(context.orders)
+			return ordersFallbackAnswer(context.orders, context.orderScope)
 		case 'order_detail':
 			return orderDetailFallbackAnswer(context.order, context.documents)
 		case 'delivery_tracking':
@@ -760,9 +785,20 @@ function profileFallbackAnswer(
 	].join(' ')
 }
 
-function ordersFallbackAnswer(orders: CustomerOrderSummary[]): string {
+function ordersFallbackAnswer(
+	orders: CustomerOrderSummary[],
+	orderScope: 'all' | 'drafts' = 'all',
+): string {
 	if (orders.length === 0) {
-		return 'I do not see any quote requests or orders in your customer account yet.'
+		return orderScope === 'drafts'
+			? 'I do not see any editable drafts in your customer account right now.'
+			: 'I do not see any quote requests or orders in your customer account yet.'
+	}
+	if (orderScope === 'drafts') {
+		const latest = orders.slice(0, 6).map((order) => {
+			return `${order.requestReference} has ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}`
+		})
+		return `I found ${orders.length} editable draft${orders.length === 1 ? '' : 's'}: ${latest.join('; ')}.`
 	}
 	const counts = orders.reduce<Record<string, number>>((summary, order) => {
 		summary[order.status] = (summary[order.status] ?? 0) + 1
@@ -818,7 +854,7 @@ function productFallbackAnswer(
 	})
 	if (isArabic) {
 		return [
-			'دي اختيارات حقيقية من الكتالوج كبداية:',
+			`دي اختيارات حقيقية من الكتالوج (${context.products.length} من ${context.totalVisibleProducts}):`,
 			'',
 			'| المنتج | الحالة | الوحدة | السعر |',
 			'| --- | --- | --- | --- |',
@@ -828,7 +864,7 @@ function productFallbackAnswer(
 		].join('\n')
 	}
 	return [
-		'Here are real catalog-backed starting points:',
+		`Here are ${context.products.length} real catalog-backed product${context.products.length === 1 ? '' : 's'} out of ${context.totalVisibleProducts}:`,
 		'',
 		'| Product | Status | Unit | Price |',
 		'| --- | --- | --- | --- |',

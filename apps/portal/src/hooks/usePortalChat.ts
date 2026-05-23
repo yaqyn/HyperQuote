@@ -18,6 +18,10 @@ import { useCallback, useEffect, useRef } from 'react'
 import { portalChatFn } from '../lib/chat'
 import type { ChatMessage, RichContent } from '../lib/chat-types'
 import { logPortalError } from '../lib/log'
+import {
+	isLocalPortalChatCommand,
+	parsePortalChatCommand,
+} from '../lib/portal-chat-commands'
 import { useChatStore } from '../stores/chat'
 import { usePortalStore } from '../stores/portal'
 
@@ -217,14 +221,27 @@ export function usePortalChat() {
 	)
 
 	const clear = useCallback(() => {
+		chat.stop()
 		chat.clear()
 		richContentRef.current = []
 		lastChunksRef.current = []
-	}, [chat.clear])
+	}, [chat.clear, chat.stop])
+
+	const sendMessage = useCallback(
+		(message: string) => {
+			const command = parsePortalChatCommand(message)
+			if (command && isLocalPortalChatCommand(command.name)) {
+				clear()
+				return
+			}
+			chat.sendMessage(message)
+		},
+		[chat.sendMessage, clear],
+	)
 
 	return {
 		messages,
-		sendMessage: chat.sendMessage,
+		sendMessage,
 		isLoading: chat.isLoading,
 		stop: chat.stop,
 		clear,

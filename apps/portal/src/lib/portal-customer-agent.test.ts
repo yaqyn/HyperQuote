@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+	isLocalPortalChatCommand,
+	parsePortalChatCommand,
+} from './portal-chat-commands'
+import {
 	buildPortalCustomerAgentPrompt,
 	fallbackPortalCustomerToolRequest,
 	inferDraftItemEdit,
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
+	routePortalChatCommand,
 	routePortalCustomerDraftFollowUp,
 } from './portal-customer-agent'
 
@@ -25,6 +30,41 @@ describe('portal customer AI agent', () => {
 		)
 
 		expect(route.action).toBe('public_docs')
+	})
+
+	it('routes fixed slash commands without model classification', () => {
+		expect(parsePortalChatCommand('/products cement')).toMatchObject({
+			args: 'cement',
+			name: '/products',
+		})
+		expect(isLocalPortalChatCommand('/clear')).toBe(true)
+		expect(routePortalChatCommand('/products')).toMatchObject({
+			action: 'product_search',
+			commandName: '/products',
+		})
+		expect(routePortalChatCommand('/orders')).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/orders',
+			orderScope: 'all',
+		})
+		expect(routePortalChatCommand('/drafts')).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/drafts',
+			orderScope: 'drafts',
+		})
+		expect(routePortalChatCommand('/latest-order')).toMatchObject({
+			action: 'order_detail',
+			commandName: '/latest-order',
+		})
+		expect(routePortalChatCommand('/profile')).toMatchObject({
+			action: 'customer_profile',
+			commandName: '/profile',
+		})
+		expect(routePortalChatCommand('/clear-all-drafts')).toMatchObject({
+			action: 'cleanup_drafts',
+			cleanupMode: 'delete_all',
+			commandName: '/clear-all-drafts',
+		})
 	})
 
 	it('routes customer profile, addresses, and projects to scoped context', () => {
@@ -48,6 +88,12 @@ describe('portal customer AI agent', () => {
 		expect(fallbackPortalCustomerToolRequest('اعرض المسودات').action).toBe(
 			'customer_orders',
 		)
+		expect(
+			fallbackPortalCustomerToolRequest('list my draft orders'),
+		).toMatchObject({
+			action: 'customer_orders',
+			orderScope: 'drafts',
+		})
 		expect(
 			fallbackPortalCustomerToolRequest('where is my latest order?').action,
 		).toBe('delivery_tracking')

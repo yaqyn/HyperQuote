@@ -2,6 +2,10 @@ import {
 	classifyWebsitePublicChatIntent,
 	retrieveWebsiteDocs,
 } from '@hyperquote/docs/retrieval'
+import {
+	type PortalChatCommandName,
+	parsePortalChatCommand,
+} from './portal-chat-commands'
 
 const ARABIC_BLOCK = /[\u0600-\u06ff]/
 
@@ -27,6 +31,7 @@ export type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
 export interface PortalCustomerToolRequest {
 	action: PortalCustomerAgentAction
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
+	commandName?: PortalChatCommandName
 	draftItemAction?:
 		| 'set_quantity'
 		| 'remove_item'
@@ -37,6 +42,7 @@ export interface PortalCustomerToolRequest {
 	finalResponse?: string
 	itemNotes?: string
 	itemQuery?: string
+	orderScope?: 'all' | 'drafts'
 	previousQuantity?: number
 	quantity?: number
 	reason?: string
@@ -88,6 +94,8 @@ Tool rules:
 - duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: draft-only, customer-scoped edits.
 - refuse: submit/place/confirm order requests, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
 
+Fast fixed commands customers can type directly: /products, /orders, /drafts, /latest-order, /profile, /clear-all-drafts. The server executes these deterministically and may skip model answering. /clear and /new are local UI commands.
+
 Never request submit, confirm, accept, payment, cancellation, internal, supplier-cost, employee, or cross-customer writes. Do not invent products. If matching is uncertain, use chat and ask what material, size, grade, or quantity is missing.
 
 Visible catalog snapshot (${catalog.products.length}/${catalog.totalVisibleProducts}; complete: ${catalog.catalogComplete ? 'yes' : 'no'}):
@@ -122,6 +130,9 @@ export function portalCustomerPolicyRefusal(
 export function fallbackPortalCustomerToolRequest(
 	userMessage: string,
 ): PortalCustomerToolRequest {
+	const commandRoute = routePortalChatCommand(userMessage)
+	if (commandRoute) return commandRoute
+
 	const refusal = portalCustomerPolicyRefusal(userMessage)
 	if (refusal) {
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
@@ -198,6 +209,7 @@ export function fallbackPortalCustomerToolRequest(
 				targetReference || lower.includes('latest')
 					? 'order_detail'
 					: 'customer_orders',
+			orderScope: isDraftOrderScope(lower, userMessage) ? 'drafts' : 'all',
 			searchQuery: userMessage,
 			targetReference,
 		}
@@ -221,6 +233,64 @@ export function fallbackPortalCustomerToolRequest(
 	}
 
 	return { action: 'chat', searchQuery: '' }
+}
+
+export function routePortalChatCommand(
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	const command = parsePortalChatCommand(userMessage)
+	if (!command) return null
+
+	const searchQuery = command.args || command.name
+	switch (command.name) {
+		case '/products':
+			return {
+				action: 'product_search',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/orders':
+			return {
+				action: 'customer_orders',
+				commandName: command.name,
+				orderScope: 'all',
+				searchQuery,
+			}
+		case '/drafts':
+			return {
+				action: 'customer_orders',
+				commandName: command.name,
+				orderScope: 'drafts',
+				searchQuery,
+			}
+		case '/latest-order':
+			return {
+				action: 'order_detail',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/profile':
+			return {
+				action: 'customer_profile',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/clear-all-drafts':
+			return {
+				action: 'cleanup_drafts',
+				cleanupMode: 'delete_all',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/clear':
+		case '/new':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				finalResponse: 'Started a fresh chat.',
+				searchQuery: '',
+			}
+	}
 }
 
 export function routePortalCustomerDraftFollowUp(
@@ -684,7 +754,7 @@ function isDraftCreationRequest(lower: string, raw: string): boolean {
 			raw,
 		)
 	const explicitEnglishDraftWrite =
-		/\b(create|make|start|build|prepare|generate|draft|add)\b/.test(lower) &&
+		/\b(create|make|start|build|prepare|generate|add)\b/.test(lower) &&
 		/\b(draft|quote|rfq|request|order|cart)\b/.test(lower)
 	const explicitEnglishCatalogDraft =
 		/\bdraft\b/.test(lower) &&
@@ -718,6 +788,10 @@ function isCustomerOrdersRequest(lower: string, raw: string): boolean {
 			/\b(my|show|list|latest|status|where|open|view|what)\b/.test(lower)) ||
 		/طلبي|طلباتي|طلب|طلبات|عروضي|عرض|حالة|مسودة|مسودات/.test(raw)
 	)
+}
+
+function isDraftOrderScope(lower: string, raw: string): boolean {
+	return /\b(draft|drafts|saved)\b/.test(lower) || /مسودة|مسودات/.test(raw)
 }
 
 function isProfileRequest(lower: string, raw: string): boolean {
