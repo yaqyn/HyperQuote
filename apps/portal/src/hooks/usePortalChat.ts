@@ -267,6 +267,7 @@ export function usePortalChat({
 	const [isChatStoreHydrated, setIsChatStoreHydrated] = useState(() =>
 		useChatStore.persist.hasHydrated(),
 	)
+	const [isHistoryReady, setIsHistoryReady] = useState(false)
 	const [isResponsePending, setIsResponsePending] = useState(false)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
 	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
@@ -372,8 +373,15 @@ export function usePortalChat({
 	chatMessagesRef.current = chat.messages
 
 	useEffect(() => {
-		if (!isChatStoreHydrated) return
-		if (loadedRoleRef.current === activeRole) return
+		if (!isChatStoreHydrated) {
+			setIsHistoryReady(false)
+			return
+		}
+		if (loadedRoleRef.current === activeRole) {
+			setIsHistoryReady(true)
+			return
+		}
+		setIsHistoryReady(false)
 		const storedMessages = storedMessagesForRole(activeRole)
 		const storedFingerprint = storedMessagesFingerprint(storedMessages)
 		const currentFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
@@ -384,10 +392,12 @@ export function usePortalChat({
 		loadedRoleRef.current = activeRole
 		if (storedFingerprint === currentFingerprint) {
 			lastPersistedChatFingerprintRef.current = storedFingerprint
+			setIsHistoryReady(true)
 			return
 		}
 		lastPersistedChatFingerprintRef.current = currentFingerprint
 		chat.setMessages(storedMessages.map(uiMessageFromStoredMessage))
+		setIsHistoryReady(true)
 	}, [activeRole, chat.setMessages, isChatStoreHydrated])
 
 	// Sync messages to the single durable Zustand thread when messages change.
@@ -499,6 +509,7 @@ export function usePortalChat({
 		messages,
 		sendMessage,
 		isLoading,
+		isReady: isChatStoreHydrated && isHistoryReady,
 		stop,
 		clear,
 		error: chat.error,

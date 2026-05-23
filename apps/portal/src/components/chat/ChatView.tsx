@@ -1,5 +1,5 @@
 import { ArrowLeft, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
@@ -19,17 +19,25 @@ interface ChatViewProps {
 
 export function ChatView({ locale }: ChatViewProps) {
 	const { t } = useTranslation('portal')
+	const shouldReduceMotion = useReducedMotion()
 	const [activeDraft, setActiveDraft] = useState<ActiveChatDraftContext | null>(
 		null,
 	)
 	const chat = usePortalChat({ activeDraft })
+	const [draftPanelInitiallyLoading, setDraftPanelInitiallyLoading] =
+		useState(true)
 	const [draftPanelOpen, setDraftPanelOpen] = useState(false)
+	const [introMinimumElapsed, setIntroMinimumElapsed] = useState(false)
+	const [introVisible, setIntroVisible] = useState(true)
 	const handleActiveDraftChange = useCallback(
 		(draft: ActiveChatDraftContext | null) => {
 			setActiveDraft(draft)
 		},
 		[],
 	)
+	const handleDraftInitialLoadChange = useCallback((loading: boolean) => {
+		setDraftPanelInitiallyLoading(loading)
+	}, [])
 
 	const realMessages = useMemo(
 		() => chat.messages.filter((m) => m.content.trim().length > 0),
@@ -39,6 +47,7 @@ export function ChatView({ locale }: ChatViewProps) {
 
 	const isArabic = locale === 'ar'
 	const newPageLabel = t('chat.newPage', 'New page')
+	const introReady = chat.isReady && !draftPanelInitiallyLoading
 
 	useEffect(() => {
 		function handleOpenDraft() {
@@ -50,6 +59,19 @@ export function ChatView({ locale }: ChatViewProps) {
 			window.removeEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
 		}
 	}, [])
+
+	useEffect(() => {
+		const timeout = window.setTimeout(
+			() => setIntroMinimumElapsed(true),
+			shouldReduceMotion ? 40 : 520,
+		)
+		return () => window.clearTimeout(timeout)
+	}, [shouldReduceMotion])
+
+	useEffect(() => {
+		if (!introReady || !introMinimumElapsed) return
+		setIntroVisible(false)
+	}, [introMinimumElapsed, introReady])
 
 	return (
 		<div className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -107,6 +129,7 @@ export function ChatView({ locale }: ChatViewProps) {
 				<ChatDraftsPanel
 					className="w-full"
 					onActiveDraftChange={handleActiveDraftChange}
+					onInitialLoadChange={handleDraftInitialLoadChange}
 					onDraftPrompt={(prompt) => chat.sendMessage(prompt)}
 				/>
 			</aside>
@@ -151,7 +174,47 @@ export function ChatView({ locale }: ChatViewProps) {
 					</motion.div>
 				)}
 			</AnimatePresence>
+			<AnimatePresence>
+				{introVisible ? (
+					<ChatWorkspaceIntro shouldReduceMotion={shouldReduceMotion} />
+				) : null}
+			</AnimatePresence>
 		</div>
+	)
+}
+
+function ChatWorkspaceIntro({
+	shouldReduceMotion,
+}: {
+	shouldReduceMotion: boolean | null
+}) {
+	return (
+		<motion.div
+			className="absolute inset-0 z-[90] flex items-center justify-center bg-[var(--p-bg)]"
+			initial={{ opacity: 1 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			transition={{
+				duration: shouldReduceMotion ? 0.01 : 0.3,
+				ease: 'easeOut',
+			}}
+		>
+			<motion.div
+				className="flex flex-col items-center"
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				transition={{
+					duration: shouldReduceMotion ? 0.01 : 0.22,
+					ease: 'easeOut',
+				}}
+			>
+				<p className="voice-mono text-[11px] uppercase tracking-[0.28em] text-[var(--p-text-muted)]">
+					Lyon
+				</p>
+				<div className="mt-3 h-px w-20 bg-[var(--p-rule-strong)]" aria-hidden />
+			</motion.div>
+		</motion.div>
 	)
 }
 

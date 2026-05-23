@@ -44,6 +44,7 @@ interface ChatDraftsPanelProps {
 	className?: string
 	headerAction?: ReactNode
 	onActiveDraftChange?: (draft: ActiveChatDraftContext | null) => void
+	onInitialLoadChange?: (loading: boolean) => void
 	onDraftPrompt?: (prompt: string) => void
 	onSubmitted?: (reference: string) => void
 }
@@ -283,6 +284,7 @@ export function ChatDraftsPanel({
 	className = '',
 	headerAction,
 	onActiveDraftChange,
+	onInitialLoadChange,
 	onDraftPrompt,
 	onSubmitted,
 }: ChatDraftsPanelProps) {
@@ -321,6 +323,10 @@ export function ChatDraftsPanel({
 		staleTime: 30_000,
 	})
 	const showDraftMenuLoading = useDelayedVisibility(isLoading)
+
+	useEffect(() => {
+		onInitialLoadChange?.(isLoading)
+	}, [isLoading, onInitialLoadChange])
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
