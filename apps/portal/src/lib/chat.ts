@@ -1530,9 +1530,9 @@ function toolAnswerStyleInstructions(
 		case 'order_detail':
 			return 'Order detail: status, items, dates, and one next step.'
 		case 'delivery_tracking':
-			return 'Delivery: use customer-safe place labels, never raw latitude or longitude.'
+			return 'Delivery: use the live driver place label from tracking. Never use raw coordinates or the delivery address as the driver location.'
 		case 'delivery_list':
-			return 'Deliveries: summarize active customer-visible deliveries only, with place labels instead of coordinates.'
+			return 'Deliveries: summarize active customer-visible deliveries only, using live driver place labels instead of coordinates.'
 		case 'products':
 			return 'Products: use real visible products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
 		case 'addresses':
@@ -1947,7 +1947,7 @@ function deliveryTrackingFallbackAnswer(
 	return [
 		'## Driver Location',
 		'',
-		`Driver for ${orderLabel} is ${place}.`,
+		driverLocationSentence(orderLabel, place),
 		'',
 		'| Order | Stage | Driver | Vehicle | ETA |',
 		'| --- | --- | --- | --- | --- |',
@@ -1977,6 +1977,13 @@ function deliveryListFallbackAnswer(
 
 function deliveryOrderLabel(context: DeliveryTrackingContext): string {
 	return context.delivery.orderNumber || context.order.reference
+}
+
+function driverLocationSentence(orderLabel: string, place: string): string {
+	if (/^(?:in|near|at)\b/i.test(place)) {
+		return `Driver for ${orderLabel} is ${place}.`
+	}
+	return `Driver for ${orderLabel}: ${place}.`
 }
 
 function formatDeliveryDriver(delivery: DeliveryInfo): string {

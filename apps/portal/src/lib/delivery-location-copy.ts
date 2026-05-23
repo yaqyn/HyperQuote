@@ -11,6 +11,7 @@ interface DeliveryRouteForCopy {
 }
 
 interface DeliveryForLocationCopy {
+	driverPlace?: string | null
 	route: DeliveryRouteForCopy
 }
 
@@ -29,12 +30,15 @@ export function describeDriverLocationForCustomer(
 	const route = delivery.route
 	const destination = cleanPlaceLabel(route.destination)
 	const driverLocation = route.driverLocation ?? null
+	const driverPlace = cleanPlaceLabel(delivery.driverPlace)
 
 	if (!driverLocation) {
 		return destination
 			? `no live ping yet; destination is ${destination}`
 			: 'no live location is available yet'
 	}
+
+	if (driverPlace) return `in ${driverPlace}`
 
 	const destinationDistance = distanceBetween(
 		driverLocation,
@@ -48,14 +52,7 @@ export function describeDriverLocationForCustomer(
 		return `near ${destination}`
 	}
 
-	if (destination) {
-		const distance = readableDistance(route.distanceKm ?? destinationDistance)
-		return distance
-			? `en route to ${destination} (${distance} away)`
-			: `en route to ${destination}`
-	}
-
-	return 'active, but no named place is saved for the latest ping'
+	return 'live ping active; place name is still resolving'
 }
 
 export function formatDeliveryTimestamp(value: string): string {
@@ -65,11 +62,32 @@ export function formatDeliveryTimestamp(value: string): string {
 }
 
 function cleanPlaceLabel(value: string | null | undefined): string | null {
+	const parts = value
+		?.split(',')
+		.map((part) => cleanPlacePart(part))
+		.filter((part): part is string => Boolean(part))
+	if (!parts || parts.length === 0) return null
+	return uniquePlaceParts(parts).join(', ')
+}
+
+function cleanPlacePart(value: string | null | undefined): string | null {
 	const cleaned = value?.replace(/\s+/g, ' ').trim()
-	if (!cleaned || isRecordLikeLabel(cleaned) || isDriverPlaceholder(cleaned)) {
-		return null
-	}
+	if (!cleaned) return null
+	if (/^(?:street|egypt)$/i.test(cleaned)) return null
+	if (isRecordLikeLabel(cleaned) || isDriverPlaceholder(cleaned)) return null
 	return cleaned
+}
+
+function uniquePlaceParts(parts: string[]): string[] {
+	const seen = new Set<string>()
+	const unique: string[] = []
+	for (const part of parts) {
+		const key = part.toLocaleLowerCase('en')
+		if (seen.has(key)) continue
+		seen.add(key)
+		unique.push(part)
+	}
+	return unique
 }
 
 function isRecordLikeLabel(value: string): boolean {
@@ -102,16 +120,6 @@ function distanceBetween(
 
 function isFinitePoint(point: DeliveryPoint): boolean {
 	return Number.isFinite(point.lat) && Number.isFinite(point.lng)
-}
-
-function readableDistance(value: number | null | undefined): string | null {
-	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-		return null
-	}
-	if (value < 1) return `${Math.round(value * 1000)} m`
-	return `${new Intl.NumberFormat('en-EG', {
-		maximumFractionDigits: value < 10 ? 1 : 0,
-	}).format(value)} km`
 }
 
 function toRadians(value: number): number {

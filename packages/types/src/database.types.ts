@@ -790,6 +790,33 @@ export type Database = {
 					},
 				]
 			}
+			driver_location_place_cache: {
+				Row: {
+					expires_at: string
+					latitude_key: number
+					longitude_key: number
+					place_name: string
+					provider: string
+					resolved_at: string
+				}
+				Insert: {
+					expires_at?: string
+					latitude_key: number
+					longitude_key: number
+					place_name: string
+					provider?: string
+					resolved_at?: string
+				}
+				Update: {
+					expires_at?: string
+					latitude_key?: number
+					longitude_key?: number
+					place_name?: string
+					provider?: string
+					resolved_at?: string
+				}
+				Relationships: []
+			}
 			driver_locations: {
 				Row: {
 					accuracy_meters: number | null

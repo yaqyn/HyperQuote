@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import { z } from 'zod'
 import type { OrderDeliveryStatus, OrderStatus } from '../../types/order'
 import { getAuthenticatedPortalCustomer } from './_supabase'
+import { resolveDriverPlaceName } from './driver-location-place'
 import {
 	firstRelation,
 	imageUrlForProduct,
@@ -56,6 +57,7 @@ export interface DeliveryInfo {
 	driverId: string
 	driverName: string
 	driverPhone: string
+	driverPlace: string | null
 	truckNumber: string
 	vehiclePlate: string
 	orderStatus: string
@@ -187,6 +189,7 @@ const deliveryInfoSchema = z.object({
 	driverId: z.string(),
 	driverName: z.string(),
 	driverPhone: z.string(),
+	driverPlace: z.string().nullable().optional(),
 	estimatedArrival: z.string(),
 	hasActivePOD: z.boolean(),
 	id: z.string(),
@@ -313,7 +316,14 @@ export async function getCustomerDeliveryTracking(
 	if (error) throw new Error(error.message)
 	if (!data) return undefined
 
-	return deliveryInfoSchema.parse(data)
+	const delivery = deliveryInfoSchema.parse(data)
+	return {
+		...delivery,
+		driverPlace: await resolveDriverPlaceName(
+			supabase,
+			delivery.route.driverLocation,
+		),
+	}
 }
 
 function timelineFor(

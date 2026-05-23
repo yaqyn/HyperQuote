@@ -6,7 +6,25 @@ import {
 } from './delivery-location-copy'
 
 describe('delivery location copy', () => {
-	it('describes live driver pings with the saved destination instead of coordinates', () => {
+	it('describes live driver pings with the reverse-geocoded place name', () => {
+		const copy = describeDriverLocationForCustomer({
+			driverPlace:
+				'Al Farik Kamal Amer Axis, Egypt Bank Towers, Been Al-Sarayat, Giza',
+			route: {
+				destination: 'Street, Cairo, Cairo',
+				destinationLocation: { lat: 30.0444, lng: 31.2357 },
+				distanceKm: 5.2,
+				driverLocation: { lat: 30.0046, lng: 31.2044 },
+			},
+		})
+
+		expect(copy).toBe(
+			'in Al Farik Kamal Amer Axis, Egypt Bank Towers, Been Al-Sarayat, Giza',
+		)
+		expect(copy).not.toMatch(/30\.0046|31\.2044|Street/)
+	})
+
+	it('does not use the destination as the driver place when the ping is unresolved', () => {
 		const copy = describeDriverLocationForCustomer({
 			route: {
 				destination: 'Street, Cairo, Cairo',
@@ -16,9 +34,8 @@ describe('delivery location copy', () => {
 			},
 		})
 
-		expect(copy).toContain('Street, Cairo, Cairo')
-		expect(copy).toContain('5.2 km')
-		expect(copy).not.toMatch(/30\.0046|31\.2044/)
+		expect(copy).toBe('live ping active; place name is still resolving')
+		expect(copy).not.toMatch(/30\.0046|31\.2044|Street|Cairo/)
 	})
 
 	it('uses near-copy when the driver is already at the delivery place', () => {
@@ -43,11 +60,19 @@ describe('delivery location copy', () => {
 			},
 		})
 
-		expect(copy).toBe('active, but no named place is saved for the latest ping')
+		expect(copy).toBe('live ping active; place name is still resolving')
 		expect(
 			customerDeliveryDestinationPlace({ route: { destination: 'Driver' } }),
 		).toBeNull()
 		expect(copy).not.toMatch(/30\.0046|31\.2044|ORD-2026-00001/i)
+	})
+
+	it('cleans generic duplicate address labels for destination-only copy', () => {
+		expect(
+			customerDeliveryDestinationPlace({
+				route: { destination: 'Street, Cairo, Cairo' },
+			}),
+		).toBe('Cairo')
 	})
 
 	it('formats timestamps for concise customer-visible tracking rows', () => {
