@@ -66,6 +66,19 @@ export interface ActionButtonData {
 	params?: Record<string, string>
 }
 
+export interface ActiveChatDraftContext {
+	id: string | null
+	items: {
+		productName: string
+		productNameAr?: string
+		quantity: number
+		unitOfMeasure: string
+	}[]
+	name: string | null
+	notes: string
+	reference: string | null
+}
+
 export interface CommandPaletteData {
 	description: string
 	groups: {

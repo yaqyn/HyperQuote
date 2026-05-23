@@ -78,7 +78,11 @@ export function ActionButton({ data }: ActionButtonProps) {
 			return
 		}
 		if (data.event === 'open_draft_panel') {
-			window.dispatchEvent(new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT))
+			window.dispatchEvent(
+				new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {
+					detail: { draftId: data.params?.draftId },
+				}),
+			)
 			return
 		}
 		if (data.route) {

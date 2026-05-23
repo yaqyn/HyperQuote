@@ -6,6 +6,7 @@ export interface EditableDraftDescriptor {
 
 const DRAFT_DESCRIPTOR_STOPWORDS = new Set([
 	'a',
+	'add',
 	'an',
 	'and',
 	'as',
@@ -26,7 +27,10 @@ const DRAFT_DESCRIPTOR_STOPWORDS = new Set([
 	'it',
 	'item',
 	'items',
+	'instead',
 	'line',
+	'let',
+	'lets',
 	'make',
 	'material',
 	'materials',
@@ -36,6 +40,7 @@ const DRAFT_DESCRIPTOR_STOPWORDS = new Set([
 	'name',
 	'note',
 	'notes',
+	'of',
 	'order',
 	'orders',
 	'piece',
@@ -49,16 +54,20 @@ const DRAFT_DESCRIPTOR_STOPWORDS = new Set([
 	'remove',
 	'rename',
 	'request',
+	'replace',
 	'said',
 	'set',
 	'that',
 	'the',
+	'them',
 	'this',
 	'to',
 	'u',
 	'unit',
 	'units',
+	'update',
 	'want',
+	'with',
 	'would',
 	'you',
 ])
@@ -111,6 +120,13 @@ function stripTrailingCommandTarget(text: string): string {
 }
 
 function selectorQuantitiesFromNormalizedText(text: string): number[] {
+	const insteadOf = text.match(
+		/\b(?:make|set|change|update|edit)\b.{0,120}?\b(\d+(?:\.\d+)?)\b.{0,120}?\binstead\s+of\s+(\d+(?:\.\d+)?)\b/,
+	)
+	if (insteadOf) {
+		const value = Number.parseFloat(insteadOf[2] ?? '')
+		return Number.isFinite(value) && value > 0 ? [value] : []
+	}
 	const previousQuantity = text.match(
 		/\b(?:from\s+)?(\d+(?:\.\d+)?)\s*(?:pieces?|pcs?|units?|qty|quantity)?\s*(?:to|make it|set it to|set to|be|become)\s*(\d+(?:\.\d+)?)\b/,
 	)

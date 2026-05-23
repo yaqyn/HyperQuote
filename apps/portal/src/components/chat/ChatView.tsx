@@ -1,9 +1,12 @@
 import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
-import { PORTAL_CHAT_OPEN_DRAFT_EVENT } from '../../lib/chat-types'
+import {
+	type ActiveChatDraftContext,
+	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+} from '../../lib/chat-types'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatDraftsPanel } from './ChatDraftsPanel'
 import { ChatInput } from './ChatInput'
@@ -16,8 +19,17 @@ interface ChatViewProps {
 
 export function ChatView({ locale }: ChatViewProps) {
 	const { t } = useTranslation('portal')
-	const chat = usePortalChat()
+	const [activeDraft, setActiveDraft] = useState<ActiveChatDraftContext | null>(
+		null,
+	)
+	const chat = usePortalChat({ activeDraft })
 	const [draftPanelOpen, setDraftPanelOpen] = useState(false)
+	const handleActiveDraftChange = useCallback(
+		(draft: ActiveChatDraftContext | null) => {
+			setActiveDraft(draft)
+		},
+		[],
+	)
 
 	const realMessages = useMemo(
 		() => chat.messages.filter((m) => m.content.trim().length > 0),
@@ -103,6 +115,7 @@ export function ChatView({ locale }: ChatViewProps) {
 			<aside className="relative z-[2] hidden min-h-0 border-s border-[var(--p-border)] lg:flex">
 				<ChatDraftsPanel
 					className="w-full"
+					onActiveDraftChange={handleActiveDraftChange}
 					onDraftPrompt={(prompt) => chat.sendMessage(prompt)}
 				/>
 			</aside>
@@ -127,6 +140,7 @@ export function ChatView({ locale }: ChatViewProps) {
 						>
 							<ChatDraftsPanel
 								className="w-full"
+								onActiveDraftChange={handleActiveDraftChange}
 								onDraftPrompt={(prompt) => {
 									chat.sendMessage(prompt)
 									setDraftPanelOpen(false)

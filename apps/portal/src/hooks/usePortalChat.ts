@@ -16,7 +16,12 @@ import { stream, useChat } from '@tanstack/ai-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import { portalChatFn } from '../lib/chat'
-import type { ChatMessage, RichContent } from '../lib/chat-types'
+import {
+	type ActiveChatDraftContext,
+	type ChatMessage,
+	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type RichContent,
+} from '../lib/chat-types'
 import { logPortalError } from '../lib/log'
 import {
 	isLocalPortalChatCommand,
@@ -101,6 +106,19 @@ function shouldInvalidateCustomerOrders(chunks: StreamChunk[]): boolean {
 		(chunk) =>
 			chunk.type === 'CUSTOM' && chunk.name === 'portal_cache_invalidation',
 	)
+}
+
+function draftPanelOpenDraftId(chunks: StreamChunk[]): string | null {
+	for (const chunk of chunks) {
+		if (chunk.type !== 'CUSTOM' || chunk.name !== 'portal_open_draft_panel') {
+			continue
+		}
+		const value = chunk.value as { draftId?: unknown } | undefined
+		if (typeof value?.draftId === 'string' && value.draftId.trim()) {
+			return value.draftId
+		}
+	}
+	return null
 }
 
 function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
@@ -206,11 +224,16 @@ function cartTextTable(
 // Hook
 // ============================================================================
 
-export function usePortalChat() {
+export function usePortalChat({
+	activeDraft = null,
+}: {
+	activeDraft?: ActiveChatDraftContext | null
+} = {}) {
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const queryClient = useQueryClient()
 	const setMessages = useChatStore((s) => s.setMessages)
 	const _addMessage = useChatStore((s) => s.addMessage)
+	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
 	const richContentRef = useRef<RichContent[]>([])
 	const lastChunksRef = useRef<StreamChunk[]>([])
 
@@ -218,6 +241,10 @@ export function usePortalChat() {
 	useEffect(() => {
 		useChatStore.persist.rehydrate()
 	}, [])
+
+	useEffect(() => {
+		activeDraftRef.current = activeDraft
+	}, [activeDraft])
 
 	const chat = useChat({
 		connection: stream(async function* (messages) {
@@ -232,6 +259,7 @@ export function usePortalChat() {
 				// client-side so the stream() adapter processes chunks one at a time.
 				const raw = await portalChatFn({
 					data: {
+						activeDraft: activeDraftRef.current,
 						messages: simpleMessages,
 						role: activeRole,
 						conversationId: null,
@@ -243,6 +271,14 @@ export function usePortalChat() {
 				richContentRef.current = extractRichContent(chunks)
 				if (shouldInvalidateCustomerOrders(chunks)) {
 					queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
+				}
+				const draftId = draftPanelOpenDraftId(chunks)
+				if (draftId) {
+					window.dispatchEvent(
+						new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {
+							detail: { draftId },
+						}),
+					)
 				}
 
 				yield* arrayToAsyncIterable(chunks)

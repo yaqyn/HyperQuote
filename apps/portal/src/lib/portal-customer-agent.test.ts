@@ -270,6 +270,14 @@ describe('portal customer AI agent', () => {
 			previousQuantity: 200,
 			quantity: 340,
 		})
+		expect(
+			inferDraftItemEdit('make them 300 wood instead of 450'),
+		).toMatchObject({
+			draftItemAction: 'set_quantity',
+			itemQuery: 'wood',
+			previousQuantity: 450,
+			quantity: 300,
+		})
 	})
 
 	it('keeps draft target descriptors focused on existing draft contents', () => {
@@ -293,6 +301,20 @@ describe('portal customer AI agent', () => {
 			editableDraftDescriptorFromText('set Wood quantity to 340 pieces'),
 		).toMatchObject({
 			materialTokens: ['wood'],
+			quantities: [],
+			specific: true,
+		})
+		expect(
+			editableDraftDescriptorFromText('make them 300 wood instead of 450'),
+		).toMatchObject({
+			materialTokens: ['wood'],
+			quantities: [450],
+			specific: true,
+		})
+		expect(
+			editableDraftDescriptorFromText('the wood lover draft order, lets edit'),
+		).toMatchObject({
+			materialTokens: ['wood', 'lover'],
 			quantities: [],
 			specific: true,
 		})
@@ -476,6 +498,33 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('"status": "Available"')
 		expect(prompt).toContain('"status": "Unavailable"')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)
+	})
+
+	it('supplies the open draft desk context to the agent prompt', () => {
+		const prompt = buildPortalCustomerAgentPrompt(
+			{
+				catalogComplete: true,
+				products: [],
+				totalVisibleProducts: 0,
+			},
+			{
+				id: '11111111-1111-4111-8111-111111111111',
+				items: [
+					{
+						productName: 'Wood',
+						quantity: 450,
+						unitOfMeasure: 'piece',
+					},
+				],
+				name: 'Wood lover',
+				notes: 'Wood frame materials.',
+				reference: 'QR-2026-00004',
+			},
+		)
+
+		expect(prompt).toContain('Current draft desk')
+		expect(prompt).toContain('11111111-1111-4111-8111-111111111111')
+		expect(prompt).toContain('use that draft id as target_reference')
 	})
 
 	it('describes profile as account info in the model tool registry', () => {

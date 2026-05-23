@@ -84,8 +84,22 @@ export interface PortalCustomerCatalogSnapshot {
 	totalVisibleProducts: number
 }
 
+export interface PortalCustomerActiveDraftSnapshot {
+	id: string | null
+	items: {
+		productName: string
+		productNameAr?: string
+		quantity: number
+		unitOfMeasure: string
+	}[]
+	name: string | null
+	notes: string
+	reference: string | null
+}
+
 export function buildPortalCustomerAgentPrompt(
 	catalog: PortalCustomerCatalogSnapshot,
+	activeDraft?: PortalCustomerActiveDraftSnapshot | null,
 ): string {
 	return `You are Lyon inside the signed-in HyperQuote customer portal.
 
@@ -111,6 +125,10 @@ Tools:
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
 Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
+
+Current draft desk:
+${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}
+If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
 
 Do not invent products. If matching is uncertain, ask briefly.
 
@@ -791,6 +809,16 @@ function parseDraftQuantityChange(
 	text: string,
 ): { previousQuantity: number | null; quantity: number } | null {
 	const normalized = normalizeForAgentMatch(text)
+	const insteadOf = normalized.match(
+		/\b(?:make|set|change|update|edit)\b.{0,120}?\b(\d+(?:\.\d+)?)\b.{0,120}?\binstead\s+of\s+(\d+(?:\.\d+)?)\b/,
+	)
+	if (insteadOf) {
+		const quantity = normalizeQuantity(Number.parseFloat(insteadOf[1] ?? ''))
+		const previousQuantity = normalizeQuantity(
+			Number.parseFloat(insteadOf[2] ?? ''),
+		)
+		return quantity ? { previousQuantity, quantity } : null
+	}
 	const explicit = normalized.match(
 		/\b(?:from\s+)?(\d+(?:\.\d+)?)\s*(?:pieces?|pcs?|units?|qty|quantity)?\s*(?:to|->|make it|set it to|set to|be|become)\s*(\d+(?:\.\d+)?)\b/,
 	)

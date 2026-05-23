@@ -27,7 +27,11 @@ import {
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { ActionButtonData, CommandPaletteData } from './chat-types'
+import type {
+	ActionButtonData,
+	ActiveChatDraftContext,
+	CommandPaletteData,
+} from './chat-types'
 import {
 	draftProductIntentTerms,
 	isOpenEndedCatalogSelectionRequest,
@@ -86,7 +90,28 @@ const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
 const PRODUCT_CATALOG_RESULT_COUNT = 12
 
+const activeDraftInput = z
+	.object({
+		id: z.string().uuid().nullable(),
+		items: z
+			.array(
+				z.object({
+					productName: z.string().max(240),
+					productNameAr: z.string().max(240).optional(),
+					quantity: z.number().min(0).max(1_000_000),
+					unitOfMeasure: z.string().max(80),
+				}),
+			)
+			.max(40),
+		name: z.string().max(160).nullable(),
+		notes: z.string().max(600),
+		reference: z.string().max(80).nullable(),
+	})
+	.nullable()
+	.optional()
+
 const portalChatInput = z.object({
+	activeDraft: activeDraftInput,
 	messages: z
 		.array(
 			z.object({
@@ -383,7 +408,8 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			return chunks as unknown as Array<{ [k: string]: {} }>
 		}
 
-		const route =
+		const activeDraft = input.activeDraft ?? null
+		const baseRoute =
 			routePortalChatCommand(userText) ??
 			(await requestPortalCustomerTool(
 				modelMessages,
@@ -392,7 +418,13 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 					supabase,
 					PRODUCT_CATALOG_CONTEXT_LIMIT,
 				),
+				activeDraft,
 			))
+		const route = applyActiveDraftContextToRoute(
+			baseRoute,
+			userText,
+			activeDraft,
+		)
 		const result = await executePortalCustomerToolRequest(
 			supabase,
 			customerId,
@@ -417,6 +449,7 @@ async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
 	userText: string,
 	catalog: ProductCatalogResult,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<PortalCustomerToolRequest> {
 	const safeFallback = fallbackPortalCustomerToolRequest(userText)
 	if (safeFallback.action === 'refuse') return safeFallback
@@ -426,7 +459,10 @@ async function requestPortalCustomerTool(
 	try {
 		const rawRoute = await completeChat(
 			recentRouteMessages(messages),
-			buildPortalCustomerAgentPrompt(toAgentCatalogSnapshot(catalog)),
+			buildPortalCustomerAgentPrompt(
+				toAgentCatalogSnapshot(catalog),
+				activeDraft,
+			),
 			{ temperature: 0 },
 		)
 		return enforcePortalCustomerToolRequest(
@@ -454,6 +490,116 @@ function toAgentCatalogSnapshot(
 		})),
 		totalVisibleProducts: catalog.totalVisibleProducts,
 	}
+}
+
+function applyActiveDraftContextToRoute(
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): PortalCustomerToolRequest {
+	if (!activeDraft?.id || !draftRouteCanUseActiveContext(route.action)) {
+		return route
+	}
+	if (route.targetReference) {
+		return isCurrentDraftReference(route.targetReference)
+			? { ...route, targetReference: activeDraft.id }
+			: route
+	}
+
+	const routeText = [route.searchQuery, userText].filter(Boolean).join(' ')
+	const descriptor = editableDraftDescriptorFromText(routeText)
+	const activeMatchesDescriptor =
+		!descriptor.specific ||
+		activeDraftMatchesDescriptor(activeDraft, descriptor)
+	const canUseActiveForLineTarget =
+		route.action === 'draft_replace_item' &&
+		Boolean(
+			route.itemQuery && activeDraftHasItemQuery(activeDraft, route.itemQuery),
+		)
+	const canUseActiveForDraftMutation =
+		(route.action === 'draft_add_items' ||
+			route.action === 'draft_set_delivery') &&
+		(!descriptor.specific || activeMatchesDescriptor)
+	if (
+		activeMatchesDescriptor ||
+		canUseActiveForLineTarget ||
+		canUseActiveForDraftMutation
+	) {
+		return { ...route, targetReference: activeDraft.id }
+	}
+	return route
+}
+
+function draftRouteCanUseActiveContext(
+	action: PortalCustomerToolRequest['action'],
+): boolean {
+	return (
+		action === 'draft_detail' ||
+		action === 'draft_validate' ||
+		action === 'draft_add_items' ||
+		action === 'draft_replace_item' ||
+		action === 'draft_set_delivery' ||
+		action === 'update_draft_items' ||
+		action === 'update_draft_metadata'
+	)
+}
+
+function isCurrentDraftReference(value: string): boolean {
+	return /^(active|current|open|opened|selected|this|that|it|them|draft)$/i.test(
+		value.trim(),
+	)
+}
+
+function activeDraftMatchesDescriptor(
+	activeDraft: ActiveChatDraftContext,
+	descriptor: EditableDraftDescriptor,
+): boolean {
+	const activeText = normalizeForMatch(
+		[
+			activeDraft.reference ?? '',
+			activeDraft.name ?? '',
+			activeDraft.notes,
+			...activeDraft.items.flatMap((item) => [
+				item.productName,
+				item.productNameAr ?? '',
+				String(item.quantity),
+				item.unitOfMeasure,
+			]),
+		].join(' '),
+	)
+	if (
+		descriptor.quantities.length > 0 &&
+		!activeDraft.items.some((item) =>
+			descriptor.quantities.some((quantity) =>
+				quantitiesEqual(item.quantity, quantity),
+			),
+		)
+	) {
+		return false
+	}
+	if (descriptor.materialTokens.length === 0) return true
+	return descriptor.materialTokens.every((token) => activeText.includes(token))
+}
+
+function activeDraftHasItemQuery(
+	activeDraft: ActiveChatDraftContext,
+	itemQuery: string,
+): boolean {
+	const tokens = normalizeForMatch(itemQuery)
+		.split(' ')
+		.filter((token) => token.length > 2)
+	if (tokens.length === 0) return false
+	return activeDraft.items.some((item) => {
+		const itemText = normalizeForMatch(
+			[
+				item.productName,
+				item.productNameAr ?? '',
+				item.unitOfMeasure,
+				String(item.quantity),
+			].join(' '),
+		)
+		return tokens.every((token) => itemText.includes(token))
+	})
 }
 
 function simpleCustomerChatAnswer(messages: ChatMessageInput[]): string | null {
@@ -1614,8 +1760,15 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			}
 			break
 		case 'order_detail':
-			if (result.context.order)
+			if (result.context.order) {
 				events.push(statusCardEvent(result.context.order))
+				if (
+					result.route.action === 'draft_detail' &&
+					result.context.order.type === 'draft'
+				) {
+					events.push(portalOpenDraftPanelEvent(result.context.order.id))
+				}
+			}
 			break
 		case 'delivery_tracking':
 			if (result.context.tracking) {
@@ -1632,6 +1785,9 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 		case 'draft_validation':
 			if (result.context.validation.draft) {
 				events.push(statusCardEvent(result.context.validation.draft))
+				events.push(
+					portalOpenDraftPanelEvent(result.context.validation.draft.id),
+				)
 			}
 			break
 		case 'order_activity':
@@ -1640,6 +1796,9 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
+			if (result.context.result.draftId) {
+				events.push(portalOpenDraftPanelEvent(result.context.result.draftId))
+			}
 			if (result.context.result.items) {
 				events.push(materialListEvent(result.context.result))
 			}
@@ -3223,8 +3382,11 @@ function editableDraftMatchesDescriptor(
 	}
 	if (descriptor.materialTokens.length === 0) return true
 	const draftText = normalizeForMatch(
-		items
-			.flatMap((item) => {
+		[
+			draft.request_number,
+			draft.draft_name ?? '',
+			draft.notes ?? '',
+			...items.flatMap((item) => {
 				const product = firstRelation(item.products)
 				return [
 					item.customer_description,
@@ -3233,7 +3395,8 @@ function editableDraftMatchesDescriptor(
 					product?.name_ar,
 					product?.category,
 				]
-			})
+			}),
+		]
 			.filter(Boolean)
 			.join(' '),
 	)
@@ -4125,6 +4288,15 @@ function customerOrdersInvalidationEvent(): StreamChunk {
 		timestamp: Date.now(),
 		name: 'portal_cache_invalidation',
 		value: { queryKeys: [['customer-orders-all']] },
+	}
+}
+
+function portalOpenDraftPanelEvent(draftId: string): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'portal_open_draft_panel',
+		value: { draftId },
 	}
 }
 

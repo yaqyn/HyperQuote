@@ -24,7 +24,10 @@ import {
 } from 'motion/react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PORTAL_CHAT_OPEN_DRAFT_EVENT } from '../../lib/chat-types'
+import {
+	type ActiveChatDraftContext,
+	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+} from '../../lib/chat-types'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
 import {
@@ -40,6 +43,7 @@ import type { Order, OrderItem } from '../../types/order'
 interface ChatDraftsPanelProps {
 	className?: string
 	headerAction?: ReactNode
+	onActiveDraftChange?: (draft: ActiveChatDraftContext | null) => void
 	onDraftPrompt?: (prompt: string) => void
 	onSubmitted?: (reference: string) => void
 }
@@ -258,9 +262,27 @@ function buildDraftPrompt(
 	return `Inspect this draft and suggest what to change before submitting it as a quote request. Check quantities, draft notes, and whether any items need clarification.\n\nDraft: ${title}\nNotes: ${draftNotes}\nItems:\n${items}`
 }
 
+function activeDraftContextFromEditor(
+	editor: DraftEditorState,
+): ActiveChatDraftContext {
+	return {
+		id: editor.id,
+		items: editor.items.slice(0, 40).map((item) => ({
+			productName: item.productName,
+			productNameAr: item.productNameAr,
+			quantity: item.quantity,
+			unitOfMeasure: item.unitOfMeasure,
+		})),
+		name: editor.name.trim() || null,
+		notes: editor.notes.trim().slice(0, 600),
+		reference: editor.reference,
+	}
+}
+
 export function ChatDraftsPanel({
 	className = '',
 	headerAction,
+	onActiveDraftChange,
 	onDraftPrompt,
 	onSubmitted,
 }: ChatDraftsPanelProps) {
@@ -408,6 +430,14 @@ export function ChatDraftsPanel({
 	const activeDraftMeta = editor
 		? `${t('orders.items', { count: editor.items.length })} · ${formatDraftDate(editor.date, isAr)}`
 		: t('orders.noDraftSelected', 'No draft selected')
+	const activeDraftContext = useMemo(
+		() => (editor ? activeDraftContextFromEditor(editor) : null),
+		[editor],
+	)
+
+	useEffect(() => {
+		onActiveDraftChange?.(activeDraftContext)
+	}, [activeDraftContext, onActiveDraftChange])
 
 	useEffect(() => {
 		if (activeDraftKey || savedDrafts.length === 0) return
