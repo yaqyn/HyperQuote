@@ -14,6 +14,7 @@ const AGENT_TOOL_ACTIONS = [
 	'delivery_tracking',
 	'product_search',
 	'create_draft_from_plan',
+	'update_draft_items',
 	'duplicate_order_to_draft',
 	'update_draft_metadata',
 	'cleanup_drafts',
@@ -26,9 +27,18 @@ export type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
 export interface PortalCustomerToolRequest {
 	action: PortalCustomerAgentAction
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
+	draftItemAction?:
+		| 'set_quantity'
+		| 'remove_item'
+		| 'clear_items'
+		| 'set_item_notes'
 	draftName?: string
 	draftNotes?: string
 	finalResponse?: string
+	itemNotes?: string
+	itemQuery?: string
+	previousQuantity?: number
+	quantity?: number
 	reason?: string
 	searchQuery: string
 	targetReference?: string
@@ -63,7 +73,7 @@ export function buildPortalCustomerAgentPrompt(
 The server has already authenticated the customer. You may request exactly one safe internal tool, or ask for no tool when friendly chat is enough. Return JSON only; never answer outside JSON.
 
 Response schema:
-{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","draft_name":"string","draft_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
+{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
 
 Tool rules:
 - chat: greetings, small talk, unclear requests, or when you should ask a short clarifying question. Put the natural response in final_response.
@@ -74,6 +84,7 @@ Tool rules:
 - delivery_tracking: customer-visible driver, truck, ETA, route, or location for the customer's own delivery.
 - product_search: catalog/material search and project planning. Use the supplied catalog snapshot; ask before writing a project plan to a draft.
 - create_draft_from_plan: only explicit draft-create/catalog-selection requests. The server will add only real currently Available catalog product IDs. Include draft_notes when useful: a concise customer-facing project/material note, not a transcript label.
+- update_draft_items: edit an existing editable draft like a workspace: set a line quantity, remove a line, clear all lines, or set a line note. Never submit the draft. Use target_reference when the conversation includes a QR/order id or draft edit link.
 - duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: draft-only, customer-scoped edits.
 - refuse: submit/place/confirm order requests, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
 
@@ -119,6 +130,7 @@ export function fallbackPortalCustomerToolRequest(
 	const lower = userMessage.toLowerCase()
 	const targetReference = extractTargetReference(userMessage)
 	const draftName = extractDraftName(userMessage)
+	const draftItemEdit = inferDraftItemEdit(userMessage)
 
 	if (isCleanupDraftRequest(lower, userMessage)) {
 		return {
@@ -139,6 +151,14 @@ export function fallbackPortalCustomerToolRequest(
 		return {
 			action: 'duplicate_order_to_draft',
 			draftName,
+			searchQuery: userMessage,
+			targetReference,
+		}
+	}
+	if (draftItemEdit) {
+		return {
+			action: 'update_draft_items',
+			...draftItemEdit,
 			searchQuery: userMessage,
 			targetReference,
 		}
@@ -208,6 +228,7 @@ export function routePortalCustomerDraftFollowUp(
 	userMessage: string,
 ): PortalCustomerToolRequest | null {
 	return (
+		routeDraftItemEditFollowUp(messages, userMessage) ??
 		routeOfferedDraftConfirmation(messages, userMessage) ??
 		routeDraftQuantityOrConfirmation(messages, userMessage)
 	)
@@ -248,6 +269,19 @@ export function parsePortalCustomerToolRequest(
 		}
 		if (typeof parsed.draft_notes === 'string' && parsed.draft_notes.trim()) {
 			request.draftNotes = parsed.draft_notes.trim().slice(0, 600)
+		}
+		if (isDraftItemAction(parsed.draft_item_action)) {
+			request.draftItemAction = parsed.draft_item_action
+		}
+		if (typeof parsed.item_query === 'string' && parsed.item_query.trim()) {
+			request.itemQuery = parsed.item_query.trim().slice(0, 160)
+		}
+		const quantity = readPositiveNumber(parsed.quantity)
+		if (quantity !== null) request.quantity = quantity
+		const previousQuantity = readPositiveNumber(parsed.previous_quantity)
+		if (previousQuantity !== null) request.previousQuantity = previousQuantity
+		if (typeof parsed.item_notes === 'string' && parsed.item_notes.trim()) {
+			request.itemNotes = parsed.item_notes.trim().slice(0, 600)
 		}
 		if (isCleanupMode(parsed.cleanup_mode)) {
 			request.cleanupMode = parsed.cleanup_mode
@@ -303,6 +337,7 @@ export function enforcePortalCustomerToolRequest(
 export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {
 	return (
 		action === 'create_draft_from_plan' ||
+		action === 'update_draft_items' ||
 		action === 'duplicate_order_to_draft' ||
 		action === 'update_draft_metadata' ||
 		action === 'cleanup_drafts' ||
@@ -340,6 +375,42 @@ function routeOfferedDraftConfirmation(
 	return {
 		action: 'create_draft_from_plan',
 		searchQuery: previousAssistant.content.slice(0, 1600),
+	}
+}
+
+function routeDraftItemEditFollowUp(
+	messages: PortalCustomerChatMessage[],
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	const currentEdit = inferDraftItemEdit(userMessage)
+	const priorMessages = messagesWithoutCurrentUserMessage(messages, userMessage)
+	const recentContext = priorMessages
+		.slice(-6)
+		.map((message) => message.content)
+		.join('\n')
+	if (currentEdit && hasRecentDraftContext(recentContext)) {
+		return {
+			action: 'update_draft_items',
+			...currentEdit,
+			searchQuery: `${recentContext}\n${userMessage}`.slice(0, 1600),
+			targetReference:
+				extractTargetReference(userMessage) ??
+				extractTargetReference(recentContext),
+		}
+	}
+
+	if (!isDelegatingDraftEditFollowUp(userMessage)) return null
+	const previousAssistant = lastAssistantMessage(priorMessages)
+	if (!previousAssistant || !hasRecentDraftContext(previousAssistant.content)) {
+		return null
+	}
+	const assistantEdit = inferDraftItemEdit(previousAssistant.content)
+	if (!assistantEdit) return null
+	return {
+		action: 'update_draft_items',
+		...assistantEdit,
+		searchQuery: `${previousAssistant.content}\n${userMessage}`.slice(0, 1600),
+		targetReference: extractTargetReference(previousAssistant.content),
 	}
 }
 
@@ -528,7 +599,8 @@ function isCleanupDraftRequest(lower: string, raw: string): boolean {
 
 function isDeleteDraftRequest(lower: string, raw: string): boolean {
 	return (
-		(/\b(delete|remove|discard)\b/.test(lower) && /\bdrafts?\b/.test(lower)) ||
+		(/\b(delete|discard)\b/.test(lower) && /\bdrafts?\b/.test(lower)) ||
+		/\bremove\s+(?:my\s+|this\s+|the\s+)?draft\b/.test(lower) ||
 		/امسح|احذف|الغى\s+المسودة|الغي\s+المسودة/.test(raw)
 	)
 }
@@ -543,10 +615,65 @@ function isDuplicateDraftRequest(lower: string, raw: string): boolean {
 
 function isDraftMetadataRequest(lower: string, raw: string): boolean {
 	return (
-		(/\b(rename|call|name|update|change|edit)\b/.test(lower) &&
+		(/\b(rename|call|name|update|change|edit|save)\b/.test(lower) &&
 			/\bdrafts?\b/.test(lower)) ||
 		/سمي|غير\s+اسم|اسم\s+المسودة|عدل\s+المسودة/.test(raw)
 	)
+}
+
+export function inferDraftItemEdit(
+	userMessage: string,
+): Pick<
+	PortalCustomerToolRequest,
+	| 'draftItemAction'
+	| 'itemNotes'
+	| 'itemQuery'
+	| 'previousQuantity'
+	| 'quantity'
+> | null {
+	const lower = userMessage.toLowerCase()
+	const normalized = normalizeForAgentMatch(userMessage)
+	const mentionsDraft =
+		/\b(draft|quote|rfq|request|cart|line|item|product|qty|quantity|piece|pieces)\b/.test(
+			normalized,
+		) || /مسودة|عرض|طلب|منتج|بند|كمية|عدد|قطعة/.test(userMessage)
+	const quantityChange = parseDraftQuantityChange(userMessage)
+	if (
+		quantityChange &&
+		(mentionsDraft || /\b(change|make|set|update|edit)\b/.test(normalized))
+	) {
+		return {
+			draftItemAction: 'set_quantity',
+			itemQuery: extractDraftItemQuery(userMessage),
+			previousQuantity: quantityChange.previousQuantity ?? undefined,
+			quantity: quantityChange.quantity,
+		}
+	}
+	if (!mentionsDraft) return null
+	if (
+		/\b(clear|empty|remove all|delete all)\b/.test(lower) ||
+		/فضي|افرغ|امسح\s+كل|احذف\s+كل/.test(userMessage)
+	) {
+		return { draftItemAction: 'clear_items' }
+	}
+	if (
+		/\b(remove|delete|drop)\b/.test(lower) ||
+		/شيل|احذف|امسح/.test(userMessage)
+	) {
+		return {
+			draftItemAction: 'remove_item',
+			itemQuery: extractDraftItemQuery(userMessage),
+		}
+	}
+	const itemNotes = extractDraftItemNotes(userMessage)
+	if (itemNotes !== undefined && isItemNoteRequest(normalized, userMessage)) {
+		return {
+			draftItemAction: 'set_item_notes',
+			itemNotes,
+			itemQuery: extractDraftItemQuery(userMessage),
+		}
+	}
+	return null
 }
 
 function isDraftCreationRequest(lower: string, raw: string): boolean {
@@ -667,7 +794,9 @@ function extractDraftName(userMessage: string): string | undefined {
 }
 
 function extractDraftNotes(userMessage: string): string | undefined {
-	const note = userMessage.match(/\b(?:note|notes?)\s*[:=]\s*(.{2,600})$/i)?.[1]
+	const note = userMessage.match(
+		/\b(?:draft\s+)?notes?\s*(?:to|as|:|=)\s*(.{2,600})$/i,
+	)?.[1]
 	return note?.trim()
 }
 
@@ -697,6 +826,110 @@ function isCleanupMode(
 	value: unknown,
 ): value is PortalCustomerToolRequest['cleanupMode'] {
 	return value === 'delete_all' || value === 'merge' || value === 'remove_empty'
+}
+
+function isDraftItemAction(
+	value: unknown,
+): value is NonNullable<PortalCustomerToolRequest['draftItemAction']> {
+	return (
+		value === 'set_quantity' ||
+		value === 'remove_item' ||
+		value === 'clear_items' ||
+		value === 'set_item_notes'
+	)
+}
+
+function readPositiveNumber(value: unknown): number | null {
+	if (typeof value !== 'number' && typeof value !== 'string') return null
+	const parsed =
+		typeof value === 'number' ? value : Number.parseFloat(value.trim())
+	return normalizeQuantity(parsed)
+}
+
+function parseDraftQuantityChange(
+	text: string,
+): { previousQuantity: number | null; quantity: number } | null {
+	const normalized = normalizeForAgentMatch(text)
+	const explicit = normalized.match(
+		/\b(?:from\s+)?(\d+(?:\.\d+)?)\s*(?:pieces?|pcs?|units?|qty|quantity)?\s*(?:to|->|make it|set it to|set to|be|become)\s*(\d+(?:\.\d+)?)\b/,
+	)
+	if (explicit) {
+		const previousQuantity = normalizeQuantity(
+			Number.parseFloat(explicit[1] ?? ''),
+		)
+		const quantity = normalizeQuantity(Number.parseFloat(explicit[2] ?? ''))
+		return quantity ? { previousQuantity, quantity } : null
+	}
+	const broadTarget = normalized.match(
+		/\b(?:make|set|change|update|edit)\b.{0,80}\b(?:to|as|make it|set it to)\s*(\d+(?:\.\d+)?)\b/,
+	)
+	if (broadTarget) {
+		const quantity = normalizeQuantity(Number.parseFloat(broadTarget[1] ?? ''))
+		if (quantity) return { previousQuantity: null, quantity }
+	}
+	const target = normalized.match(
+		/\b(?:make|set|change|update|edit)\s+(?:it|this|that|qty|quantity|line|item|draft)?\s*(?:to)?\s*(\d+(?:\.\d+)?)\b/,
+	)
+	if (target) {
+		const quantity = normalizeQuantity(Number.parseFloat(target[1] ?? ''))
+		if (quantity) return { previousQuantity: null, quantity }
+	}
+	const numbers = [...normalized.matchAll(/\b(\d+(?:\.\d+)?)\b/g)]
+		.map((match) => normalizeQuantity(Number.parseFloat(match[1] ?? '')))
+		.filter((value): value is number => value !== null)
+	if (
+		numbers.length >= 2 &&
+		/\b(change|update|edit|make|set)\b/.test(normalized)
+	) {
+		return {
+			previousQuantity: numbers.at(-2) ?? null,
+			quantity: numbers.at(-1) ?? 0,
+		}
+	}
+	return null
+}
+
+function extractDraftItemQuery(text: string): string | undefined {
+	const normalized = normalizeForAgentMatch(text)
+	const explicit = normalized.match(
+		/\b(?:wood|wooden|timber|lumber|cement|rebar|steel|metal|metals|concrete|sand|aggregate|brick|bricks|paint|tiles?)\b/,
+	)?.[0]
+	if (explicit) return explicit
+	const quoted = text.match(/["“”']([^"“”']{1,120})["“”']/)?.[1]
+	return quoted?.trim()
+}
+
+function extractDraftItemNotes(text: string): string | undefined {
+	const note = text.match(
+		/\b(?:line|item|product)?\s*notes?\s*(?:to|as|:|=)\s*(.{2,600})$/i,
+	)?.[1]
+	return note?.trim()
+}
+
+function isItemNoteRequest(normalized: string, raw: string): boolean {
+	return (
+		/\b(line|item|product|material|wood|timber|lumber|cement|rebar|steel|metal|concrete|sand|brick|paint|tile)\b/.test(
+			normalized,
+		) || /بند|منتج|مادة|خشب|اسمنت|أسمنت|حديد/.test(raw)
+	)
+}
+
+function hasRecentDraftContext(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	return (
+		/\b(draft|quote|rfq|request|orders?\/edit|qr[- ]?\d|wood|cement|rebar|steel|item|quantity|qty)\b/.test(
+			normalized,
+		) || /مسودة|عرض|طلب|كمية|منتج/.test(text)
+	)
+}
+
+function isDelegatingDraftEditFollowUp(text: string): boolean {
+	const normalized = normalizeForAgentMatch(text)
+	return (
+		/\b(can'?t|cannot|can you|could you|do it|yourself|u do it|do it yourself)\b/.test(
+			normalized,
+		) || /ينفع|تقدر|اعملها|بنفسك/.test(text)
+	)
 }
 
 function extractJsonObject(rawResponse: string): string | null {

@@ -32,6 +32,7 @@ import {
 	detectPortalAiLocale,
 	enforcePortalCustomerToolRequest,
 	fallbackPortalCustomerToolRequest,
+	inferDraftItemEdit,
 	isDraftWriteAction,
 	type PortalCustomerCatalogSnapshot,
 	type PortalCustomerToolRequest,
@@ -45,6 +46,7 @@ import {
 	getCustomerDeliveryTracking,
 } from './server/deliveries'
 import {
+	assertQuoteRequestItemsHaveOrderableProductLinks,
 	insertQuoteRequestItems,
 	QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE,
 } from './server/quote-request-items'
@@ -530,6 +532,15 @@ async function executePortalCustomerToolRequest(
 				userText,
 			)
 			return draftWriteToolResult(route, 'create_draft_from_plan', result)
+		}
+		case 'update_draft_items': {
+			const result = await updateDraftItems(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'update_draft_items', result)
 		}
 		case 'duplicate_order_to_draft': {
 			const result = await duplicateOrderToDraft(supabase, customerId, route)
@@ -1321,6 +1332,202 @@ async function duplicateOrderToDraft(
 	}
 }
 
+async function updateDraftItems(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const draft = await findEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+	)
+	if (!draft) {
+		return {
+			message: 'I could not find an editable draft in your customer account.',
+		}
+	}
+	const currentItems = sortedQuoteRequestItems(draft)
+	const inferred = inferDraftItemEdit(route.searchQuery || userText)
+	const action = route.draftItemAction ?? inferred?.draftItemAction
+
+	if (!action) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message:
+				'Tell me exactly what to change in the draft, for example "set Wood to 340 pieces", "remove Wood", or "clear the draft".',
+		}
+	}
+
+	if (action === 'clear_items') {
+		if (currentItems.length > 0) {
+			const { error } = await supabase
+				.from('quote_request_items')
+				.delete()
+				.eq('quote_request_id', draft.id)
+			if (error) throw new Error(error.message)
+		}
+		await recordDraftSavedActivity(supabase, draft.id, {
+			item_count: 0,
+			operation: 'portal_ai_clear_items',
+		})
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: [],
+			reference: draft.request_number,
+			message: `I cleared all material lines from draft ${draft.request_number}. It is still only a draft; nothing was submitted.`,
+		}
+	}
+
+	if (currentItems.length === 0) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: [],
+			reference: draft.request_number,
+			message:
+				'That draft has no material lines to edit. Tell me what catalog product to add and I can create a new draft line from available products.',
+		}
+	}
+
+	const target = findDraftItemTarget(
+		currentItems,
+		route.itemQuery ?? inferred?.itemQuery,
+		route.previousQuantity ?? inferred?.previousQuantity,
+		route.searchQuery || userText,
+	)
+	if (target.message) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: target.message,
+		}
+	}
+	const item = target.item
+	if (!item) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: 'I could not identify which draft line to edit.',
+		}
+	}
+
+	if (action === 'remove_item') {
+		const { error } = await supabase
+			.from('quote_request_items')
+			.delete()
+			.eq('id', item.id)
+			.eq('quote_request_id', draft.id)
+		if (error) throw new Error(error.message)
+		const remainingItems = currentItems
+			.filter((candidate) => candidate.id !== item.id)
+			.map(toDraftMaterialItem)
+		await recordDraftSavedActivity(supabase, draft.id, {
+			item_count: remainingItems.length,
+			operation: 'portal_ai_remove_item',
+			quote_request_item_id: item.id,
+		})
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: remainingItems,
+			reference: draft.request_number,
+			message: `I removed ${draftItemDisplayName(item)} from draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+		}
+	}
+
+	const lineSafetyMessage = await editableDraftLineOrderabilityMessage(
+		supabase,
+		item,
+	)
+	if (lineSafetyMessage) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: lineSafetyMessage,
+		}
+	}
+
+	if (action === 'set_quantity') {
+		const quantity = route.quantity ?? inferred?.quantity
+		if (!quantity) {
+			return {
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				items: currentItems.map(toDraftMaterialItem),
+				reference: draft.request_number,
+				message:
+					'Tell me the new quantity for that draft line, for example "set Wood to 340 pieces".',
+			}
+		}
+		const { error } = await supabase
+			.from('quote_request_items')
+			.update({ quantity })
+			.eq('id', item.id)
+			.eq('quote_request_id', draft.id)
+		if (error) throw new Error(error.message)
+		const updatedItems = currentItems.map((candidate) =>
+			candidate.id === item.id ? { ...candidate, quantity } : candidate,
+		)
+		await recordDraftSavedActivity(supabase, draft.id, {
+			from_quantity: item.quantity,
+			operation: 'portal_ai_quantity_update',
+			quote_request_item_id: item.id,
+			to_quantity: quantity,
+		})
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: updatedItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: `I changed ${draftItemDisplayName(item)} in draft ${draft.request_number} from ${item.quantity} to ${quantity} ${item.unit_of_measure}. It is still only a draft; review it before submitting.`,
+		}
+	}
+
+	const itemNotes = route.itemNotes ?? inferred?.itemNotes
+	if (!itemNotes) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message:
+				'Tell me the note to save on that draft line, for example `set the Wood line note to exterior grade`.',
+		}
+	}
+	const { error } = await supabase
+		.from('quote_request_items')
+		.update({ notes: itemNotes })
+		.eq('id', item.id)
+		.eq('quote_request_id', draft.id)
+	if (error) throw new Error(error.message)
+	const updatedItems = currentItems.map((candidate) =>
+		candidate.id === item.id ? { ...candidate, notes: itemNotes } : candidate,
+	)
+	await recordDraftSavedActivity(supabase, draft.id, {
+		operation: 'portal_ai_item_note_update',
+		quote_request_item_id: item.id,
+	})
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items: updatedItems.map(toDraftMaterialItem),
+		reference: draft.request_number,
+		message: `I updated the note on ${draftItemDisplayName(item)} in draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+	}
+}
+
 async function updateDraftMetadata(
 	supabase: AuthedSupabase,
 	customerId: string,
@@ -1551,6 +1758,144 @@ async function findEditableDraft(
 		)
 	}
 	return drafts[0] ?? null
+}
+
+function sortedQuoteRequestItems(
+	draft: QuoteRequestRow,
+): QuoteRequestItemRow[] {
+	return (draft.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+}
+
+function findDraftItemTarget(
+	items: QuoteRequestItemRow[],
+	itemQuery: string | undefined,
+	previousQuantity: number | undefined,
+	searchText: string,
+): { item?: QuoteRequestItemRow; message?: string } {
+	const queryMatches = itemQuery
+		? items.filter((item) => draftItemMatchesQuery(item, itemQuery))
+		: []
+	if (queryMatches.length === 1) return { item: queryMatches[0] }
+	if (queryMatches.length > 1) {
+		const quantityMatch = uniqueItemWithQuantity(queryMatches, previousQuantity)
+		if (quantityMatch) return { item: quantityMatch }
+		return {
+			message: `I found multiple matching lines: ${draftItemChoices(queryMatches)}. Tell me which one to edit.`,
+		}
+	}
+
+	const inferredPreviousQuantity =
+		previousQuantity ?? inferPreviousDraftQuantity(searchText)
+	const quantityMatch = uniqueItemWithQuantity(items, inferredPreviousQuantity)
+	if (quantityMatch) return { item: quantityMatch }
+
+	if (items.length === 1) return { item: items[0] }
+
+	return {
+		message: `Which draft line should I edit? This draft has ${draftItemChoices(items)}.`,
+	}
+}
+
+function uniqueItemWithQuantity(
+	items: QuoteRequestItemRow[],
+	quantity: number | undefined,
+): QuoteRequestItemRow | null {
+	if (quantity === undefined) return null
+	const matches = items.filter((item) =>
+		quantitiesEqual(item.quantity, quantity),
+	)
+	return matches.length === 1 ? (matches[0] ?? null) : null
+}
+
+function quantitiesEqual(left: number, right: number): boolean {
+	return Math.abs(left - right) < 0.000001
+}
+
+function inferPreviousDraftQuantity(text: string): number | undefined {
+	const normalized = normalizeForMatch(text)
+	const explicit = normalized.match(
+		/\b(?:from\s+)?(\d+(?:\.\d+)?)\s*(?:pieces?|pcs?|units?|qty|quantity)?\s*(?:to|make it|set it to|set to|be|become)\s*(\d+(?:\.\d+)?)\b/,
+	)
+	if (explicit) {
+		const value = Number.parseFloat(explicit[1] ?? '')
+		return Number.isFinite(value) && value > 0 ? value : undefined
+	}
+	const numbers = [...normalized.matchAll(/\b(\d+(?:\.\d+)?)\b/g)]
+		.map((match) => Number.parseFloat(match[1] ?? ''))
+		.filter((value) => Number.isFinite(value) && value > 0)
+	return numbers.length >= 2 ? numbers.at(-2) : undefined
+}
+
+function draftItemMatchesQuery(
+	item: QuoteRequestItemRow,
+	itemQuery: string,
+): boolean {
+	const queryTokens = normalizeForMatch(itemQuery)
+		.split(' ')
+		.filter((token) => token.length > 2)
+	if (queryTokens.length === 0) return false
+	const product = firstRelation(item.products)
+	const itemText = normalizeForMatch(
+		[
+			item.customer_description,
+			item.product_name_ar,
+			item.unit_of_measure,
+			item.unit_of_measure_ar,
+			product?.name,
+			product?.name_ar,
+			product?.category,
+		]
+			.filter(Boolean)
+			.join(' '),
+	)
+	return queryTokens.every((token) => itemText.includes(token))
+}
+
+function draftItemChoices(items: QuoteRequestItemRow[]): string {
+	return items
+		.slice(0, 6)
+		.map(
+			(item) =>
+				`${draftItemDisplayName(item)} (${item.quantity} ${item.unit_of_measure})`,
+		)
+		.join(', ')
+}
+
+function draftItemDisplayName(item: QuoteRequestItemRow): string {
+	const product = firstRelation(item.products)
+	return item.customer_description || product?.name || item.id
+}
+
+async function editableDraftLineOrderabilityMessage(
+	supabase: AuthedSupabase,
+	item: QuoteRequestItemRow,
+): Promise<string | null> {
+	try {
+		await assertQuoteRequestItemsHaveOrderableProductLinks(supabase, [
+			{
+				customerDescription: draftItemDisplayName(item),
+				isUnmatched: item.is_unmatched,
+				matchConfidence: item.match_confidence ?? undefined,
+				notes: item.notes ?? undefined,
+				productId: item.product_id ?? undefined,
+				quantity: item.quantity,
+				sortOrder: item.sort_order,
+				unitOfMeasure: item.unit_of_measure,
+				unitOfMeasureAr: item.unit_of_measure_ar,
+			},
+		])
+		return null
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
+		) {
+			return `I will not edit ${draftItemDisplayName(item)} because it is not backed by a currently orderable catalog product. I can remove that line or clear the draft instead.`
+		}
+		throw error
+	}
 }
 
 async function loadEditableDrafts(

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	buildPortalCustomerAgentPrompt,
 	fallbackPortalCustomerToolRequest,
+	inferDraftItemEdit,
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
 	routePortalCustomerDraftFollowUp,
@@ -115,6 +116,41 @@ describe('portal customer AI agent', () => {
 		).toBe('delete_draft')
 	})
 
+	it('routes draft line edits, removals, and clears', () => {
+		expect(
+			fallbackPortalCustomerToolRequest('change draft Wood quantity to 340'),
+		).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			itemQuery: 'wood',
+			quantity: 340,
+		})
+		expect(
+			fallbackPortalCustomerToolRequest('remove Wood from my draft'),
+		).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'remove_item',
+			itemQuery: 'wood',
+		})
+		expect(fallbackPortalCustomerToolRequest('clear this draft')).toMatchObject(
+			{
+				action: 'update_draft_items',
+				draftItemAction: 'clear_items',
+			},
+		)
+		expect(inferDraftItemEdit('change the 200, make it 340')).toMatchObject({
+			draftItemAction: 'set_quantity',
+			previousQuantity: 200,
+			quantity: 340,
+		})
+		expect(
+			fallbackPortalCustomerToolRequest('change draft note to bring forklift'),
+		).toMatchObject({
+			action: 'update_draft_metadata',
+			draftNotes: 'bring forklift',
+		})
+	})
+
 	it('continues draft creation after a quantity-only answer', () => {
 		const route = routePortalCustomerDraftFollowUp(
 			[
@@ -168,6 +204,46 @@ describe('portal customer AI agent', () => {
 			action: 'create_draft_from_plan',
 		})
 		expect(route?.searchQuery).toMatch(/wood/i)
+	})
+
+	it('continues draft line edits after contextual quantity and delegation follow-ups', () => {
+		const quantityRoute = routePortalCustomerDraftFollowUp(
+			[
+				{
+					role: 'assistant',
+					content: 'I see draft QR-2026-00004 with Wood at 200 pieces.',
+				},
+				{ role: 'user', content: 'change the 200, make it 340' },
+			],
+			'change the 200, make it 340',
+		)
+
+		expect(quantityRoute).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			previousQuantity: 200,
+			quantity: 340,
+		})
+
+		const delegationRoute = routePortalCustomerDraftFollowUp(
+			[
+				{
+					role: 'assistant',
+					content:
+						'To change the quantity from 1 piece to 340 pieces, open draft QR-2026-00004. Edit link: /orders/edit/a597e9a2-4854-486d-901b-49d1fa11334d',
+				},
+				{ role: 'user', content: 'cant u do it urself?' },
+			],
+			'cant u do it urself?',
+		)
+
+		expect(delegationRoute).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			previousQuantity: 1,
+			quantity: 340,
+			targetReference: 'a597e9a2-4854-486d-901b-49d1fa11334d',
+		})
 	})
 
 	it('does not turn unrelated short answers into draft writes', () => {
@@ -256,6 +332,26 @@ describe('portal customer AI agent', () => {
 				'hello',
 			).action,
 		).toBe('chat')
+	})
+
+	it('parses model draft line edit routes', () => {
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					draft_item_action: 'set_quantity',
+					item_query: 'Wood',
+					quantity: 340,
+					search_query: 'set Wood to 340',
+					tool: 'update_draft_items',
+				}),
+				'change draft Wood quantity to 340',
+			),
+		).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			itemQuery: 'Wood',
+			quantity: 340,
+		})
 	})
 
 	it('accepts concise customer-facing draft notes from draft-write routes', () => {
