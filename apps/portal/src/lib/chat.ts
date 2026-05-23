@@ -381,16 +381,40 @@ function simpleCustomerChatAnswer(messages: ChatMessageInput[]): string | null {
 		.reverse()
 		.find((message) => message.role === 'user')
 	const userText = lastUser?.content.trim() ?? ''
+	return simplePortalTextAnswer(userText, 'customer')
+}
+
+function simplePortalTextAnswer(
+	userText: string,
+	role: 'customer' | 'supplier',
+): string | null {
 	const normalized = normalizeForMatch(userText)
 	const isArabic = detectPortalAiLocale(userText) === 'ar'
 	const isGreeting =
 		/^(hi|hello|hey|yo|salam|good morning|good afternoon|good evening)$/.test(
 			normalized,
 		) || /^(اهلا|أهلا|هاي|مرحبا|السلام عليكم)$/.test(userText)
+	if (isHostileChatMessage(normalized, userText)) {
+		return isArabic
+			? 'أنا هنا للمساعدة في هايبركوت لما تكون جاهز.'
+			: "I'm here to help with HyperQuote when you're ready."
+	}
 	if (!isGreeting) return null
+	if (role === 'supplier') {
+		return isArabic
+			? 'أهلاً، أقدر أساعدك في المخزون وأوامر الشراء والأسعار داخل بوابة المورد.'
+			: 'Hi, I can help with supplier portal stock, purchase orders, and pricing.'
+	}
 	return isArabic
 		? 'أهلاً، أنا ليون. قلّي بتبني إيه أو محتاج أي منتج/طلب/توصيل أراجعه معاك.'
 		: "Hi, I'm Lyon. Tell me what you are building or which product, order, delivery, or draft you want to check."
+}
+
+function isHostileChatMessage(normalized: string, raw: string): boolean {
+	return (
+		/\b(fuck|fucker|bitch|idiot|stupid|shut up)\b/.test(normalized) ||
+		/غبي|اخرس|كس|زب/.test(raw)
+	)
 }
 
 async function executePortalCustomerRoute(
@@ -1918,6 +1942,9 @@ async function supplierPortalChunks(
 	userText: string,
 	modelMessages: ChatMessageInput[],
 ): Promise<StreamChunk[]> {
+	const simpleAnswer = simplePortalTextAnswer(userText, 'supplier')
+	if (simpleAnswer) return textOnlyChunks(simpleAnswer, [])
+
 	if (isAIEnabled())
 		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
 	const lower = userText.toLowerCase()

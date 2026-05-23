@@ -248,6 +248,9 @@ function simpleEmployeeChatAnswer(userText: string): string | null {
 		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
 		.replace(/\s+/g, ' ')
 		.trim()
+	if (/\b(fuck|fucker|bitch|idiot|stupid|shut up)\b/.test(normalized)) {
+		return "I'm here to help with allowed internal context when you're ready."
+	}
 	if (
 		!/^(hi|hello|hey|yo|good morning|good afternoon|good evening)$/.test(
 			normalized,

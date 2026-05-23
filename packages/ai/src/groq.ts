@@ -16,6 +16,7 @@ import type { StreamChunk } from '@tanstack/ai'
 
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
+const CLASSIFIER_LEAK_BUFFER_CHARACTERS = 120
 
 interface ChatMessage {
 	role: 'system' | 'user' | 'assistant'
@@ -140,6 +141,8 @@ export async function* streamChat(
 		const reader = resp.body.getReader()
 		const decoder = new TextDecoder()
 		let buffer = ''
+		let pendingText = ''
+		let flushedText = false
 
 		// SSE frames are separated by blank lines ("\n\n"). Each frame has one
 		// or more `data: ...` lines. A final `data: [DONE]` marks end-of-stream.
@@ -179,11 +182,29 @@ export async function* streamChat(
 					}
 					const delta = parsed.choices?.[0]?.delta?.content ?? ''
 					if (delta) {
-						yield {
-							type: 'TEXT_MESSAGE_CONTENT' as const,
-							timestamp: Date.now(),
-							messageId,
-							delta,
+						if (!flushedText) {
+							pendingText += delta
+							if (
+								pendingText.length < CLASSIFIER_LEAK_BUFFER_CHARACTERS &&
+								!pendingText.includes('\n')
+							) {
+								continue
+							}
+							flushedText = true
+							yield {
+								type: 'TEXT_MESSAGE_CONTENT' as const,
+								timestamp: Date.now(),
+								messageId,
+								delta: sanitizeClassifierLeak(pendingText),
+							}
+							pendingText = ''
+						} else {
+							yield {
+								type: 'TEXT_MESSAGE_CONTENT' as const,
+								timestamp: Date.now(),
+								messageId,
+								delta,
+							}
 						}
 					}
 				} catch (parseErr) {
@@ -193,6 +214,14 @@ export async function* streamChat(
 						throw parseErr
 					}
 				}
+			}
+		}
+		if (!flushedText && pendingText) {
+			yield {
+				type: 'TEXT_MESSAGE_CONTENT' as const,
+				timestamp: Date.now(),
+				messageId,
+				delta: sanitizeClassifierLeak(pendingText),
 			}
 		}
 	} catch (err) {
@@ -268,5 +297,25 @@ export async function completeChat(
 	}
 	const content = parsed.choices?.[0]?.message?.content
 	if (!content) throw new Error('Groq returned an empty completion')
+	return sanitizeClassifierLeak(content)
+}
+
+function sanitizeClassifierLeak(content: string): string {
+	const normalized = content
+		.trim()
+		.toLowerCase()
+		.replace(/[.。!؟]+$/g, '')
+		.replace(/\s+/g, ' ')
+	if (
+		normalized === 'no actionable request' ||
+		normalized === 'no actionable request provided' ||
+		normalized === 'no action required' ||
+		normalized === 'not actionable' ||
+		normalized === 'greeting received, no actionable request' ||
+		normalized === 'greeting received no actionable request' ||
+		normalized === 'inappropriate language'
+	) {
+		return "I'm here to help when you're ready."
+	}
 	return content
 }

@@ -252,10 +252,22 @@ function simpleWebsiteChatAnswer(messages: ChatMessageInput[]): string | null {
 		/^(hi|hello|hey|yo|salam|good morning|good afternoon|good evening)$/.test(
 			normalized,
 		) || /^(اهلا|أهلا|هاي|مرحبا|السلام عليكم)$/.test(userText)
+	if (isHostileWebsiteChatMessage(normalized, userText)) {
+		return isArabic
+			? 'أنا هنا للمساعدة في أسئلة هايبركوت العامة لما تكون جاهز.'
+			: "I'm here to help with public HyperQuote questions when you're ready."
+	}
 	if (!isGreeting) return null
 	return isArabic
 		? 'أهلاً، أنا ليون. اسألني عن هايبركوت، الأسعار، السوق، الطلبات، التوصيل، أو المدفوعات.'
 		: "Hi, I'm Lyon. Ask me about HyperQuote, pricing, the market, orders, delivery, or payments."
+}
+
+function isHostileWebsiteChatMessage(normalized: string, raw: string): boolean {
+	return (
+		/\b(fuck|fucker|bitch|idiot|stupid|shut up)\b/.test(normalized) ||
+		/غبي|اخرس|كس|زب/.test(raw)
+	)
 }
 
 function normalizeForSimpleChat(value: string): string {
