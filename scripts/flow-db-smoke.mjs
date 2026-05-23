@@ -448,7 +448,24 @@ async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
 		p_delivery_id: delivery.id,
 	})
 
+	const wrongCompletionSecret = await driver.client.rpc(
+		'driver_confirm_delivery',
+		{
+			p_code: '00000000',
+			p_delivery_id: delivery.id,
+			p_latitude: 30.0444,
+			p_longitude: 31.2357,
+			p_signature_path: null,
+			p_signer_name: null,
+		},
+	)
+	assert(
+		wrongCompletionSecret.error?.message.includes('invalid_delivery_secret'),
+		'driver completion must reject wrong secret code',
+	)
+
 	const completed = await mustRpc(driver.client, 'driver_confirm_delivery', {
+		p_code: deliverySecret,
 		p_delivery_id: delivery.id,
 		p_latitude: 30.0444,
 		p_longitude: 31.2357,

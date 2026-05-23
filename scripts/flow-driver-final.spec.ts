@@ -255,6 +255,11 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 			'in_transit',
 		)
 		await page.getByLabel('Customer secret code').fill(completionSecret)
+		await expectDeliveryStatus(
+			service,
+			completionOrder.deliveryId,
+			'in_transit',
+		)
 		await page.getByRole('button', { name: /Confirm arrival/i }).click()
 		await expectDeliveryStatus(service, completionOrder.deliveryId, 'arrived')
 		await latestActivity(service, {
@@ -283,6 +288,12 @@ test('driver app executes live assignment, GPS, code completion, rejection proof
 		const completeButton = page.getByRole('button', {
 			name: /Complete delivery/i,
 		})
+		await expect(page.getByLabel('Completion code')).toBeVisible({
+			timeout: 20_000,
+		})
+		await expect(completeButton).toBeDisabled({ timeout: 20_000 })
+		await page.getByLabel('Completion code').fill(completionSecret)
+		await expectDeliveryStatus(service, completionOrder.deliveryId, 'arrived')
 		await expect(completeButton).toBeEnabled({ timeout: 20_000 })
 		await completeButton.click()
 		await expect(page.locator('body')).toContainText('Delivery completed.', {

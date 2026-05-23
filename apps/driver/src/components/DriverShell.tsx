@@ -133,11 +133,18 @@ export function DriverShell({ session }: DriverShellProps) {
 		},
 	})
 	const completeDelivery = useMutation({
-		mutationFn: async ({ deliveryId }: { deliveryId: string }) => {
+		mutationFn: async ({
+			deliveryId,
+			secretCode,
+		}: {
+			deliveryId: string
+			secretCode: string
+		}) => {
 			const location = await locationProvider.getCurrentPosition()
 			return driverRepository.completeDelivery(deliveryId, session.driverId, {
 				capturedAt: new Date().toISOString(),
 				location,
+				secretCode,
 			})
 		},
 		onSuccess: (delivery) => {
@@ -401,8 +408,8 @@ export function DriverShell({ session }: DriverShellProps) {
 							)}
 							activeDelivery={visibleActiveDelivery}
 							completeError={driverMutationError(completeDelivery.error)}
-							completeDelivery={(deliveryId) =>
-								completeDelivery.mutate({ deliveryId })
+							completeDelivery={(deliveryId, secretCode) =>
+								completeDelivery.mutate({ deliveryId, secretCode })
 							}
 							isCompleting={completeDelivery.isPending}
 							isMutating={

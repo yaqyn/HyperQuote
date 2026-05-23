@@ -178,6 +178,8 @@
 	},
 	"verification": {
 		"complete": "إكمال التوصيل",
+		"completionCode": "رمز إكمال التوصيل",
+		"completionPlaceholder": "أعد إدخال رمز العميل المكون من 8 خانات",
 		"secretVerified": "تم تأكيد رمز العميل. لا نحتاج إلى توقيع."
 	}
 }

@@ -1,3 +1,5 @@
+import { isDeliverySecretCodeReady } from './delivery-secret'
+
 export type DriverLanguage = 'en' | 'ar'
 
 export type LocalizedText = Record<DriverLanguage, string>
@@ -101,6 +103,10 @@ export interface CompletionProof {
 	location: DriverLocation
 }
 
+export interface CompletionSubmissionProof extends CompletionProof {
+	secretCode: string
+}
+
 export interface DeliveryRejectionProof {
 	capturedAt: string
 	evidenceText: string
@@ -119,7 +125,7 @@ export interface DriverRepository {
 	completeDelivery(
 		deliveryId: string,
 		driverId: string,
-		proof: CompletionProof,
+		proof: CompletionSubmissionProof,
 	): Promise<DriverDelivery>
 	getDashboard(driverId: string): Promise<DriverDashboard>
 	listActiveDrivers(): Promise<DriverProfile[]>
@@ -158,12 +164,15 @@ export class DriverRepositoryError extends Error {
 	}
 }
 
-export function isCompletionProofReady(proof: CompletionProof): boolean {
+export function isCompletionProofReady(
+	proof: CompletionSubmissionProof,
+): boolean {
 	return (
 		proof.location.latitude !== 0 &&
 		proof.location.longitude !== 0 &&
 		Number.isFinite(proof.location.latitude) &&
 		Number.isFinite(proof.location.longitude) &&
+		isDeliverySecretCodeReady(proof.secretCode) &&
 		Date.parse(proof.capturedAt) > 0
 	)
 }

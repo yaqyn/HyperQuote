@@ -39,6 +39,7 @@ const completeInput = z.object({
 	proof: z.object({
 		capturedAt: z.string(),
 		location: locationInput,
+		secretCode: z.string().min(1),
 	}),
 })
 
@@ -300,6 +301,7 @@ async function handleDriverApi(request: Request, env: DriverWorkerEnv) {
 			} else if (action === 'complete') {
 				const input = await requestBody(request, completeInput)
 				const { error } = await ctx.service.rpc('driver_confirm_delivery', {
+					p_code: input.proof.secretCode,
 					p_delivery_id: deliveryId,
 					p_latitude: input.proof.location.latitude,
 					p_longitude: input.proof.location.longitude,

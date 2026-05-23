@@ -4909,6 +4909,7 @@ export type Database = {
 			}
 			driver_confirm_delivery: {
 				Args: {
+					p_code: string
 					p_delivery_id: string
 					p_latitude: number
 					p_longitude: number
@@ -6388,6 +6389,7 @@ export type Database = {
 				Args: {
 					p_actor_pool: string
 					p_actor_user_id: string
+					p_code: string
 					p_delivery_id: string
 					p_latitude: number
 					p_longitude: number

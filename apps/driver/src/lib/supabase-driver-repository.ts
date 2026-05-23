@@ -1,7 +1,7 @@
 import { createSupabaseBrowserClient } from '@hyperquote/auth'
 import { z } from 'zod'
 import type {
-	CompletionProof,
+	CompletionSubmissionProof,
 	DeliveryRejectionProof,
 	DriverDashboard,
 	DriverDelivery,
@@ -378,7 +378,7 @@ export function createSupabaseDriverRepository(
 		async completeDelivery(
 			deliveryId: string,
 			_driverId: string,
-			proof: CompletionProof,
+			proof: CompletionSubmissionProof,
 		): Promise<DriverDelivery> {
 			if (!isCompletionProofReady(proof)) {
 				throw new DriverRepositoryError(

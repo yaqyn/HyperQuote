@@ -13,6 +13,10 @@ import { Input } from 'react-aria-components/Input'
 import { Label } from 'react-aria-components/Label'
 import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
+import {
+	extractDeliverySecretCode,
+	isDeliverySecretCodeReady,
+} from '../lib/delivery-secret'
 import type { DriverDelivery, DriverLanguage } from '../lib/driver-repository'
 import { localize } from '../lib/format'
 import { ActionButton, StatusPill } from './DriverShellPrimitives'
@@ -20,7 +24,7 @@ import { ActionButton, StatusPill } from './DriverShellPrimitives'
 interface ActiveDeliveryFlowProps {
 	activeDelivery: DriverDelivery | null
 	actionError?: string | null
-	completeDelivery: (deliveryId: string) => void
+	completeDelivery: (deliveryId: string, secretCode: string) => void
 	completeError?: string | null
 	isCompleting: boolean
 	isMutating: boolean
@@ -193,7 +197,7 @@ function ArrivalVerificationForm({
 	const streamRef = useRef<MediaStream | null>(null)
 	const frameRef = useRef<number | null>(null)
 	const videoRef = useRef<HTMLVideoElement | null>(null)
-	const canSubmit = secretCode.trim().length >= 8 && !isMutating
+	const canSubmit = isDeliverySecretCodeReady(secretCode) && !isMutating
 	const scannerSupported =
 		typeof navigator !== 'undefined' &&
 		Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -229,8 +233,7 @@ function ArrivalVerificationForm({
 				const results = await detector.detect(videoRef.current)
 				const value = results.find((result) => result.rawValue)?.rawValue
 				if (value) {
-					setSecretCode(value)
-					onArrival(deliveryId, value)
+					setSecretCode(value.toUpperCase())
 					setScannerActive(false)
 					stopScanner()
 					return
@@ -271,7 +274,7 @@ function ArrivalVerificationForm({
 			canceled = true
 			stopScanner()
 		}
-	}, [deliveryId, onArrival, scannerActive, t])
+	}, [scannerActive, t])
 
 	if (mode === 'reject') {
 		return (
@@ -306,6 +309,7 @@ function ArrivalVerificationForm({
 
 			{scannerSupported && (
 				<Button
+					type="button"
 					isDisabled={isMutating}
 					onPress={() => {
 						setScannerError(null)
@@ -326,14 +330,19 @@ function ArrivalVerificationForm({
 
 			<div className="grid grid-cols-[minmax(0,1fr)_3rem] gap-2">
 				<Button
+					type="button"
 					isDisabled={!canSubmit}
-					onPress={() => onArrival(deliveryId, secretCode.trim())}
+					onPress={() => {
+						const code = extractDeliverySecretCode(secretCode)
+						if (code) onArrival(deliveryId, code)
+					}}
 					className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
 				>
 					<span>{t('arrival.confirm')}</span>
 					<MapPinned aria-hidden="true" size={17} />
 				</Button>
 				<Button
+					type="button"
 					aria-label={t('rejection.submit')}
 					isDisabled={isRejecting}
 					onPress={() => setMode('reject')}
@@ -379,16 +388,36 @@ function VerificationForm({
 	isCompleting: boolean
 	isMutating: boolean
 	onBackToRoute: (deliveryId: string) => void
-	onComplete: (deliveryId: string) => void
+	onComplete: (deliveryId: string, secretCode: string) => void
 }) {
 	const { t } = useTranslation('driver')
+	const [completionCode, setCompletionCode] = useState('')
+	const canComplete =
+		isDeliverySecretCodeReady(completionCode) && !isCompleting && !isMutating
 
 	return (
 		<div className="mt-3 space-y-2 sm:space-y-3">
 			<p className="border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-xs font-semibold text-[#047857] sm:text-sm">
 				{t('verification.secretVerified')}
 			</p>
+			<TextField>
+				<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
+					{t('verification.completionCode')}
+				</Label>
+				<Input
+					value={completionCode}
+					inputMode="text"
+					autoComplete="one-time-code"
+					autoCapitalize="characters"
+					placeholder={t('verification.completionPlaceholder')}
+					onChange={(event) =>
+						setCompletionCode(event.target.value.toUpperCase())
+					}
+					className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-12 sm:text-base"
+				/>
+			</TextField>
 			<Button
+				type="button"
 				isDisabled={isCompleting || isMutating}
 				onPress={() => onBackToRoute(deliveryId)}
 				className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
@@ -397,8 +426,12 @@ function VerificationForm({
 				<ArrowLeft aria-hidden="true" size={17} />
 			</Button>
 			<Button
-				isDisabled={isCompleting}
-				onPress={() => onComplete(deliveryId)}
+				type="button"
+				isDisabled={!canComplete}
+				onPress={() => {
+					const code = extractDeliverySecretCode(completionCode)
+					if (code) onComplete(deliveryId, code)
+				}}
 				className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12"
 			>
 				<span>{t('verification.complete')}</span>
@@ -466,6 +499,7 @@ function RejectionFields({
 			>
 				{onCancel && (
 					<Button
+						type="button"
 						aria-label={t('arrival.backToRoute')}
 						isDisabled={isRejecting}
 						onPress={onCancel}
@@ -475,6 +509,7 @@ function RejectionFields({
 					</Button>
 				)}
 				<Button
+					type="button"
 					isDisabled={!canReject || isRejecting}
 					onPress={() =>
 						onReject(deliveryId, reason.trim(), evidenceText.trim())
@@ -514,6 +549,7 @@ function RejectionForm({
 	if (!isOpen && !errorMessage) {
 		return (
 			<Button
+				type="button"
 				isDisabled={isRejecting}
 				onPress={() => setIsOpen(true)}
 				className="mt-3 flex h-9 w-full items-center justify-between border border-[#B91C1C]/25 bg-[#B91C1C]/8 px-3 text-xs font-semibold text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"

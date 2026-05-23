@@ -178,6 +178,8 @@
 	},
 	"verification": {
 		"complete": "Complete delivery",
+		"completionCode": "Completion code",
+		"completionPlaceholder": "Re-enter the 8-character customer code",
 		"secretVerified": "Customer code verified. Signature is not required."
 	}
 }
