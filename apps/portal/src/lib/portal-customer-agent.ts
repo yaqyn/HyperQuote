@@ -2,6 +2,10 @@ import {
 	type PortalChatCommandName,
 	parsePortalChatCommand,
 } from './portal-chat-commands'
+import {
+	isPortalCustomerOrderScope,
+	type PortalCustomerOrderScope,
+} from './portal-order-scope'
 
 const ARABIC_BLOCK = /[\u0600-\u06ff]/
 
@@ -38,7 +42,7 @@ export interface PortalCustomerToolRequest {
 	finalResponse?: string
 	itemNotes?: string
 	itemQuery?: string
-	orderScope?: 'all' | 'drafts'
+	orderScope?: PortalCustomerOrderScope
 	previousQuantity?: number
 	quantity?: number
 	reason?: string
@@ -70,13 +74,13 @@ export function buildPortalCustomerAgentPrompt(
 The server has already authenticated the customer. You may request exactly one safe internal tool, or ask for no tool when friendly chat is enough. Return JSON only; never answer outside JSON.
 
 Response schema:
-{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
+{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
 
 Internal skills/tools you may choose from:
 - chat: greetings, small talk, unclear requests, or when you should ask a short clarifying question. Put the natural response in final_response.
 - public_docs: public HyperQuote documentation questions.
 - customer_profile: the signed-in customer's company/account info, contact details, addresses, or projects.
-- customer_orders: customer-owned draft/saved/submitted/confirmed/delivered/cancelled/rejected summaries.
+- customer_orders: customer-owned draft/saved/submitted/confirmed/delivered/cancelled/rejected summaries. Always set order_scope from intent/context: all for everything, drafts for editable drafts, submitted for submitted/assigned non-draft records, active for in-progress orders, completed for delivered records.
 - order_detail: one specific quote request/order or latest order detail.
 - delivery_tracking: customer-visible driver, truck, ETA, route, or location for the customer's own delivery.
 - product_search: catalog/material search and project planning. Use the supplied catalog snapshot; ask before writing a project plan to a draft.
@@ -170,7 +174,7 @@ export function routePortalChatCommand(
 			return {
 				action: 'customer_orders',
 				commandName: command.name,
-				orderScope: 'all',
+				orderScope: orderScopeFromCommandArgs(command.args) ?? 'all',
 				searchQuery,
 			}
 		case '/drafts':
@@ -235,6 +239,13 @@ export function routePortalChatCommand(
 	}
 }
 
+function orderScopeFromCommandArgs(
+	args: string,
+): PortalCustomerOrderScope | null {
+	const scope = args.trim().split(/\s+/)[0]?.toLowerCase()
+	return isPortalCustomerOrderScope(scope) ? scope : null
+}
+
 export function parsePortalCustomerToolRequest(
 	rawResponse: string,
 	userMessage: string,
@@ -283,6 +294,9 @@ export function parsePortalCustomerToolRequest(
 		if (previousQuantity !== null) request.previousQuantity = previousQuantity
 		if (typeof parsed.item_notes === 'string' && parsed.item_notes.trim()) {
 			request.itemNotes = parsed.item_notes.trim().slice(0, 600)
+		}
+		if (isPortalCustomerOrderScope(parsed.order_scope)) {
+			request.orderScope = parsed.order_scope
 		}
 		if (isCleanupMode(parsed.cleanup_mode)) {
 			request.cleanupMode = parsed.cleanup_mode

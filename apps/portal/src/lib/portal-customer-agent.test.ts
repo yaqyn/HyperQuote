@@ -72,6 +72,11 @@ describe('portal customer AI agent', () => {
 			commandName: '/orders',
 			orderScope: 'all',
 		})
+		expect(routePortalChatCommand('/orders submitted')).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/orders',
+			orderScope: 'submitted',
+		})
 		expect(routePortalChatCommand('/drafts')).toMatchObject({
 			action: 'customer_orders',
 			commandName: '/drafts',
@@ -190,6 +195,21 @@ describe('portal customer AI agent', () => {
 		).toMatchObject({ action: 'product_search', searchQuery: 'cement' })
 		expect(
 			parsePortalCustomerToolRequest(
+				'{"tool":"customer_orders","order_scope":"submitted","search_query":"submitted only"}',
+				'submitted only actually',
+			),
+		).toMatchObject({
+			action: 'customer_orders',
+			orderScope: 'submitted',
+		})
+		const invalidScopeRoute = parsePortalCustomerToolRequest(
+			'{"tool":"customer_orders","order_scope":"not-real","search_query":"orders"}',
+			'show orders',
+		)
+		expect(invalidScopeRoute).toMatchObject({ action: 'customer_orders' })
+		expect(invalidScopeRoute.orderScope).toBeUndefined()
+		expect(
+			parsePortalCustomerToolRequest(
 				'{"tool":"create_draft_from_plan","search_query":"submit order"}',
 				'submit this quote as an order',
 			).action,
@@ -295,6 +315,9 @@ describe('portal customer AI agent', () => {
 
 		expect(prompt).toContain(
 			"customer_profile: the signed-in customer's company/account info",
+		)
+		expect(prompt).toContain(
+			'"order_scope":"all"|"drafts"|"submitted"|"active"|"completed"',
 		)
 	})
 })

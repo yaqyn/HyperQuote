@@ -53,6 +53,11 @@ import {
 	editableDraftDescriptorFromText,
 	editableDraftDescriptorLabel,
 } from './portal-draft-targeting'
+import {
+	orderMatchesPortalScope,
+	type PortalCustomerOrderScope,
+	portalOrderScopeTitle,
+} from './portal-order-scope'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
 import {
 	type DeliveryInfo,
@@ -265,7 +270,7 @@ type PortalToolContext =
 			projects: CustomerProjectRow[]
 	  }
 	| {
-			orderScope: 'all' | 'drafts'
+			orderScope: PortalCustomerOrderScope
 			orders: CustomerOrderSummary[]
 			type: 'orders'
 	  }
@@ -474,10 +479,9 @@ async function executePortalCustomerToolRequest(
 		case 'customer_orders': {
 			const orderScope = route.orderScope ?? 'all'
 			const allOrders = await loadCustomerOrders(supabase, customerId)
-			const orders =
-				orderScope === 'drafts'
-					? allOrders.filter((order) => order.type === 'draft')
-					: allOrders
+			const orders = allOrders.filter((order) =>
+				orderMatchesPortalScope(order, orderScope),
+			)
 			return {
 				context: { type: 'orders', orderScope, orders },
 				invalidatesOrders: false,
@@ -757,6 +761,8 @@ function toolAnswerStyleInstructions(
 		case 'orders':
 			return [
 				'For order/draft lists, summarize what matters first: counts, stale drafts, latest status, and any obvious next action.',
+				'The supplied list is already filtered to the requested orderScope; do not mention or describe records outside that list.',
+				'Do not mention internal fields like orderScope or order_scope.',
 				'Use concise markdown and refer to customer-facing quote/order references only.',
 				'Do not mention `/orders` or `/drafts`; you chose the internal orders tool yourself.',
 			].join('\n')
@@ -987,18 +993,22 @@ function formatPlainStatus(value: string): string {
 
 function ordersFallbackAnswer(
 	orders: CustomerOrderSummary[],
-	orderScope: 'all' | 'drafts' = 'all',
+	orderScope: PortalCustomerOrderScope = 'all',
 ): string {
 	if (orders.length === 0) {
-		return orderScope === 'drafts'
-			? 'I do not see any editable drafts in your customer account right now.'
-			: 'I do not see any quote requests or orders in your customer account yet.'
+		return `I do not see any ${portalOrderScopeTitle(orderScope)} in your customer account right now.`
 	}
 	if (orderScope === 'drafts') {
 		const latest = orders.slice(0, 6).map((order) => {
 			return `${order.requestReference} has ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}`
 		})
 		return `I found ${orders.length} editable draft${orders.length === 1 ? '' : 's'}: ${latest.join('; ')}.`
+	}
+	if (orderScope !== 'all') {
+		const latest = orders.slice(0, 6).map((order) => {
+			return `${order.reference} is ${order.status.replace(/_/g, ' ')} with ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}`
+		})
+		return `I found ${orders.length} ${portalOrderScopeTitle(orderScope)}: ${latest.join('; ')}.`
 	}
 	const counts = orders.reduce<Record<string, number>>((summary, order) => {
 		summary[order.status] = (summary[order.status] ?? 0) + 1
