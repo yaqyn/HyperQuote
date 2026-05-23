@@ -1029,7 +1029,7 @@ async function renderPortalCustomerResponse(
 			simpleAnswer ??
 			"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with."
 		if (commandShouldUseRichOnly(result, customEvents)) {
-			return textOnlyChunks('', customEvents)
+			return richOnlyChunks(customEvents)
 		}
 		return textOnlyChunks(
 			result.route.commandName
@@ -1051,7 +1051,7 @@ async function renderPortalCustomerResponse(
 	const fallbackText = fallbackToolAnswer(result.context)
 	if (result.route.commandName) {
 		if (commandShouldUseRichOnly(result, customEvents)) {
-			return textOnlyChunks('', customEvents)
+			return richOnlyChunks(customEvents)
 		}
 		return textOnlyChunks(commandToolAnswer(result, fallbackText), customEvents)
 	}
@@ -4461,6 +4461,10 @@ function textOnlyChunks(
 			finishReason: 'stop' as const,
 		},
 	]
+}
+
+function richOnlyChunks(customEvents: StreamChunk[]): StreamChunk[] {
+	return textOnlyChunks(' ', customEvents)
 }
 
 function recentRouteMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
