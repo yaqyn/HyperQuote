@@ -14,7 +14,7 @@ import type { StreamChunk } from '@tanstack/ai'
 import type { UIMessage } from '@tanstack/ai-react'
 import { stream, useChat } from '@tanstack/ai-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { portalChatFn } from '../lib/chat'
 import {
 	type ActiveChatDraftContext,
@@ -155,6 +155,11 @@ function storedMessagesFingerprint(messages: ChatMessage[]): string {
 	)
 }
 
+function storedMessagesForRole(role: 'customer' | 'supplier'): ChatMessage[] {
+	const state = useChatStore.getState()
+	return role === 'customer' ? state.customerMessages : state.supplierMessages
+}
+
 function localCartResponse(options: { opened?: boolean } = {}): {
 	richContent: RichContent[]
 	text: string
@@ -256,9 +261,6 @@ export function usePortalChat({
 } = {}) {
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const queryClient = useQueryClient()
-	const storedMessages = useChatStore((s) =>
-		activeRole === 'customer' ? s.customerMessages : s.supplierMessages,
-	)
 	const setMessages = useChatStore((s) => s.setMessages)
 	const clearStoreActive = useChatStore((s) => s.clearActive)
 	const _addMessage = useChatStore((s) => s.addMessage)
@@ -266,20 +268,10 @@ export function usePortalChat({
 		useChatStore.persist.hasHydrated(),
 	)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
+	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
 	const lastPersistedChatFingerprintRef = useRef('')
 	const richContentRef = useRef<RichContent[]>([])
 	const lastChunksRef = useRef<StreamChunk[]>([])
-	const storedRichContentById = useMemo(() => {
-		return new Map(
-			storedMessages
-				.filter((message) => message.richContent?.length)
-				.map((message) => [message.id, message.richContent]),
-		)
-	}, [storedMessages])
-	const storedFingerprint = useMemo(
-		() => storedMessagesFingerprint(storedMessages),
-		[storedMessages],
-	)
 
 	// SSR hydration safety — rehydrate Zustand store on mount
 	useEffect(() => {
@@ -380,17 +372,22 @@ export function usePortalChat({
 
 	useEffect(() => {
 		if (!isChatStoreHydrated) return
-		const chatFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
-		if (storedFingerprint === chatFingerprint) {
-			return
-		}
-		lastPersistedChatFingerprintRef.current = storedFingerprint
+		if (loadedRoleRef.current === activeRole) return
+		const storedMessages = storedMessagesForRole(activeRole)
+		const storedFingerprint = storedMessagesFingerprint(storedMessages)
+		const currentFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
 		richContentRef.current =
 			storedMessages.at(-1)?.role === 'assistant'
 				? (storedMessages.at(-1)?.richContent ?? [])
 				: []
+		loadedRoleRef.current = activeRole
+		if (storedFingerprint === currentFingerprint) {
+			lastPersistedChatFingerprintRef.current = storedFingerprint
+			return
+		}
+		lastPersistedChatFingerprintRef.current = currentFingerprint
 		chat.setMessages(storedMessages.map(uiMessageFromStoredMessage))
-	}, [chat.setMessages, isChatStoreHydrated, storedFingerprint, storedMessages])
+	}, [activeRole, chat.setMessages, isChatStoreHydrated])
 
 	// Sync messages to the single durable Zustand thread when messages change.
 	useEffect(() => {
@@ -445,7 +442,7 @@ export function usePortalChat({
 			richContent:
 				idx === lastAssistantIdx && richContentRef.current.length > 0
 					? richContentRef.current
-					: storedRichContentById.get(msg.id),
+					: undefined,
 			timestamp: msg.createdAt?.getTime() ?? Date.now(),
 		}),
 	)
