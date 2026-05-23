@@ -727,15 +727,48 @@ Be natural and concise. Match the user's language from the conversation.
 Do not expose IDs unless they are customer-facing references.
 For draft writes, say the draft is still a draft and the customer must review/submit manually in the normal UI.
 For missing data, say what is missing instead of guessing.
+${toolAnswerStyleInstructions(context)}
 
 Portal tool result:
 ${safeJson(context)}`
 }
 
+function toolAnswerStyleInstructions(
+	context: Exclude<
+		PortalToolContext,
+		{ type: 'chat' | 'public_docs' | 'refusal' }
+	>,
+): string {
+	switch (context.type) {
+		case 'profile':
+			return [
+				'For profile/account-info answers, use a polished markdown snapshot:',
+				'- Start with `## Customer Profile`.',
+				'- Include a compact `Field | Details` table for company, contact, phone, email, status/tier, credit limit, payment history, and trade license.',
+				'- Add short sections for delivery addresses, projects, and account notes.',
+				'- Do not mention `/profile`; you chose the internal profile tool yourself.',
+			].join('\n')
+		case 'orders':
+			return [
+				'For order/draft lists, summarize what matters first: counts, stale drafts, latest status, and any obvious next action.',
+				'Use concise markdown and refer to customer-facing quote/order references only.',
+				'Do not mention `/orders` or `/drafts`; you chose the internal orders tool yourself.',
+			].join('\n')
+		case 'order_detail':
+			return 'For a single order, explain the current status, item summary, dates, and a sensible next step. Do not mention `/latest-order`.'
+		case 'delivery_tracking':
+			return 'For delivery tracking, explain the visible delivery stage, ETA/driver/truck details when present, and the practical next step. Do not mention `/track`.'
+		case 'products':
+			return 'For catalog results, list real visible products with Available/Unavailable status only, and ask before creating a draft unless the user explicitly requested one.'
+		case 'draft_write':
+			return 'For draft writes, state exactly what changed and keep the wording customer-facing. Never imply the order was submitted.'
+	}
+}
+
 function fallbackToolAnswer(context: PortalToolContext): string {
 	switch (context.type) {
 		case 'profile':
-			return profileFallbackAnswer(context)
+			return profileCommandAnswer(context)
 		case 'orders':
 			return ordersFallbackAnswer(context.orders, context.orderScope)
 		case 'order_detail':
@@ -917,23 +950,6 @@ function formatPlainStatus(value: string): string {
 		.replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-function profileFallbackAnswer(
-	context: Extract<PortalToolContext, { type: 'profile' }>,
-): string {
-	const defaultAddress = context.addresses.find((address) => address.is_default)
-	const projects = context.projects.slice(0, 3).map((project) => project.name)
-	return [
-		`Your customer profile is ${context.profile.company_name}.`,
-		`Primary contact: ${context.profile.contact_name} (${context.profile.phone}).`,
-		defaultAddress
-			? `Default address: ${defaultAddress.street}, ${defaultAddress.city}, ${defaultAddress.governorate}.`
-			: 'No default address is saved.',
-		projects.length > 0
-			? `Active projects: ${projects.join(', ')}.`
-			: 'No active projects are saved.',
-	].join(' ')
-}
-
 function ordersFallbackAnswer(
 	orders: CustomerOrderSummary[],
 	orderScope: 'all' | 'drafts' = 'all',
@@ -1055,7 +1071,7 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 		default:
 			break
 	}
-	events.push(...commandActionEvents(result))
+	events.push(...toolActionEvents(result))
 	if (result.invalidatesOrders) events.push(customerOrdersInvalidationEvent())
 	return events
 }
@@ -2505,7 +2521,7 @@ function draftCleanupEvent(result: DraftWriteContext): StreamChunk {
 	}
 }
 
-function commandActionEvents(result: PortalToolResult): StreamChunk[] {
+function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 	switch (result.route.commandName) {
 		case '/help':
 			return [
@@ -2698,6 +2714,88 @@ function commandActionEvents(result: PortalToolResult): StreamChunk[] {
 					labelAr: 'مسودة جديدة',
 					params: { draft: 'true' },
 					route: '/orders',
+				}),
+			]
+		default:
+			return contextActionEvents(result.context)
+	}
+}
+
+function contextActionEvents(context: PortalToolContext): StreamChunk[] {
+	switch (context.type) {
+		case 'products':
+			return [
+				actionButtonEvent({
+					icon: 'market',
+					label: 'Open market',
+					labelAr: 'افتح السوق',
+					route: '/market',
+				}),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		case 'orders':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label:
+						context.orderScope === 'drafts' ? 'Open drafts' : 'Open orders',
+					labelAr:
+						context.orderScope === 'drafts' ? 'افتح المسودات' : 'افتح الطلبات',
+					route: '/orders',
+				}),
+				...(context.orderScope === 'drafts'
+					? [
+							actionButtonEvent({
+								event: 'open_draft_panel',
+								icon: 'draft',
+								label: 'Edit in chat',
+								labelAr: 'تعديل في الشات',
+							}),
+						]
+					: []),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		case 'order_detail':
+		case 'delivery_tracking':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Open orders',
+					labelAr: 'افتح الطلبات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+			]
+		case 'profile':
+			return [
+				actionButtonEvent({
+					icon: 'profile',
+					label: 'Open profile panel',
+					labelAr: 'افتح الملف الشخصي',
+					route: '/profile',
+				}),
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
 				}),
 			]
 		default:

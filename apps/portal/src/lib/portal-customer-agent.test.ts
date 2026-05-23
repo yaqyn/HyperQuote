@@ -285,4 +285,16 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('"status": "Unavailable"')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)
 	})
+
+	it('describes profile as account info in the model tool registry', () => {
+		const prompt = buildPortalCustomerAgentPrompt({
+			catalogComplete: true,
+			products: [],
+			totalVisibleProducts: 0,
+		})
+
+		expect(prompt).toContain(
+			"customer_profile: the signed-in customer's company/account info",
+		)
+	})
 })
