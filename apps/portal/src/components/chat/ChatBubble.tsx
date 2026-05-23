@@ -13,8 +13,9 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
 	const { i18n, t } = useTranslation('portal')
 	const isUser = message.role === 'user'
 	const isArabic = i18n.language === 'ar'
+	const hasRichContent = Boolean(message.richContent?.length)
 
-	if (!message.content.trim() && !isStreaming) return null
+	if (!message.content.trim() && !isStreaming && !hasRichContent) return null
 
 	const speakerTag = isUser ? t('chat.youLabel') : t('chat.assistantLabel')
 	const articleLabel = isUser
@@ -49,22 +50,24 @@ export function ChatBubble({ message, isStreaming }: ChatBubbleProps) {
 							</p>
 						) : (
 							<>
-								<ChatMarkdown
-									content={message.content}
-									isArabic={isArabic}
-									isStreaming={isStreaming}
-									className={`break-words text-[var(--p-text)] ${
-										isArabic
-											? 'voice-serif-ar text-[15px] leading-[1.55] sm:text-[17px] sm:leading-[1.68]'
-											: 'voice-serif text-[15px] leading-[1.52] sm:text-[18px] sm:leading-[1.58]'
-									}`}
-								/>
+								{message.content.trim() || isStreaming ? (
+									<ChatMarkdown
+										content={message.content}
+										isArabic={isArabic}
+										isStreaming={isStreaming}
+										className={`break-words text-[var(--p-text)] ${
+											isArabic
+												? 'voice-serif-ar text-[15px] leading-[1.55] sm:text-[17px] sm:leading-[1.68]'
+												: 'voice-serif text-[15px] leading-[1.52] sm:text-[18px] sm:leading-[1.58]'
+										}`}
+									/>
+								) : null}
 
-								{message.richContent && message.richContent.length > 0 && (
+								{hasRichContent && message.richContent ? (
 									<div className="mt-2 sm:mt-3">
 										<RichMessageList items={message.richContent} />
 									</div>
-								)}
+								) : null}
 							</>
 						)}
 					</div>
